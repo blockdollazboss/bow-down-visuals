@@ -6,6 +6,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: describe a site → AI builds a complete static site package
@@ -22,27 +23,27 @@ const EDIT_COST = 2;
 const TEMPLATES = [
   {
     key: "artist-site",
-    label: "Artist Site",
+    labelKey: "websiteBuilder.templateArtistSite",
     icon: Mic2,
-    blurb: "Full homepage: hero, music, about, shows, gallery, mailing list.",
+    blurbKey: "websiteBuilder.templateArtistSiteBlurb",
   },
   {
     key: "press-kit",
-    label: "Press Kit",
+    labelKey: "websiteBuilder.templatePressKit",
     icon: Newspaper,
-    blurb: "EPK: bio, photos, music, press quotes, tour dates, booking contact.",
+    blurbKey: "websiteBuilder.templatePressKitBlurb",
   },
   {
     key: "link-in-bio",
-    label: "Link-in-Bio Plus",
+    labelKey: "websiteBuilder.templateLinkInBio",
     icon: Link2,
-    blurb: "Smart links, release spotlight, socials, newsletter capture.",
+    blurbKey: "websiteBuilder.templateLinkInBioBlurb",
   },
   {
     key: "tour-page",
-    label: "Tour Page",
+    labelKey: "websiteBuilder.templateTourPage",
     icon: MapPin,
-    blurb: "Date list, ticket links, VIP packages, presale signup.",
+    blurbKey: "websiteBuilder.templateTourPageBlurb",
   },
 ] as const;
 type TemplateKey = (typeof TEMPLATES)[number]["key"];
@@ -94,6 +95,7 @@ function loadJsZip(): Promise<any> {
 }
 
 export default function WebsiteBuilder() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [template, setTemplate] = useState<TemplateKey>("artist-site");
@@ -129,7 +131,7 @@ export default function WebsiteBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         overrideCost: BUILD_COST,
-        overrideFeature: "Website Build",
+        overrideFeature: t("websiteBuilder.confirmBuild"),
         body: JSON.stringify({
           template,
           businessName: businessName.trim(),
@@ -140,12 +142,12 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Generation failed — Visual Bucs were refunded.");
+        throw new Error(data.error || t("websiteBuilder.generationFailedError"));
       }
       setFiles(data.files);
       setShowPreview(true);
     } catch (e: any) {
-      setError(e.message || "Something went wrong.");
+      setError(e.message || t("websiteBuilder.genericError"));
     } finally {
       setLoading(false);
     }
@@ -160,7 +162,7 @@ export default function WebsiteBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         overrideCost: EDIT_COST,
-        overrideFeature: "Website Edit",
+        overrideFeature: t("websiteBuilder.confirmEdit"),
         body: JSON.stringify({
           template,
           businessName: businessName.trim(),
@@ -170,12 +172,12 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Edit failed — Visual Bucs were refunded.");
+        throw new Error(data.error || t("websiteBuilder.editFailedError"));
       }
       setFiles(data.files);
       setEditRequest("");
     } catch (e: any) {
-      setError(e.message || "Something went wrong.");
+      setError(e.message || t("websiteBuilder.genericError"));
     } finally {
       setEditing(false);
     }
@@ -204,7 +206,7 @@ export default function WebsiteBuilder() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setError("Could not create the zip. Try again.");
+      setError(t("websiteBuilder.zipError"));
     } finally {
       setDownloading(false);
     }
@@ -219,17 +221,15 @@ export default function WebsiteBuilder() {
         <div className="mb-10 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm text-primary">
             <Globe className="h-4 w-4" />
-            AI Website Builder
+            {t("websiteBuilder.pageTitle")}
           </div>
           <h1 className="mb-3 text-4xl font-black tracking-tight md:text-5xl">
-            Your site, built by AI. <span className="text-primary">Yours to keep.</span>
+            {t("websiteBuilder.heading")} <span className="text-primary">{t("websiteBuilder.headingAccent")}</span>
           </h1>
           <p className="mx-auto max-w-2xl text-white/60">
-            Describe your site, AI builds the complete package — pages, styles, and a
-            deploy guide. Preview it privately, pay a one-time{" "}
-            <span className="text-primary font-semibold">{BUILD_COST}-credit</span> build
-            fee, download the zip, and host it on your own domain. Nothing is ever
-            published on bowdownvisuals.com.
+            {t("websiteBuilder.heroDesc1")}{" "}
+            <span className="text-primary font-semibold">{t("websiteBuilder.buildFee", { cost: BUILD_COST })}</span>{" "}
+            {t("websiteBuilder.heroDesc2")}
           </p>
         </div>
 
@@ -243,15 +243,15 @@ export default function WebsiteBuilder() {
         )}
 
         {/* Template picker */}
-        <h2 className="mb-4 text-xl font-bold">1. Pick a template</h2>
+        <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepPickTemplate")}</h2>
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map((t) => {
-            const Icon = t.icon;
-            const active = template === t.key;
+          {TEMPLATES.map((tpl) => {
+            const Icon = tpl.icon;
+            const active = template === tpl.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTemplate(t.key)}
+                key={tpl.key}
+                onClick={() => setTemplate(tpl.key)}
                 className={`rounded-2xl border p-5 text-left transition ${
                   active
                     ? "border-primary bg-primary/10 shadow-[0_0_24px_rgba(212,175,55,0.25)]"
@@ -259,11 +259,11 @@ export default function WebsiteBuilder() {
                 }`}
               >
                 <Icon className={`mb-3 h-7 w-7 ${active ? "text-primary" : "text-white/60"}`} />
-                <p className="mb-1 font-bold">{t.label}</p>
-                <p className="text-sm text-white/50">{t.blurb}</p>
+                <p className="mb-1 font-bold">{t(tpl.labelKey)}</p>
+                <p className="text-sm text-white/50">{t(tpl.blurbKey)}</p>
                 {active && (
                   <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-primary">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Selected
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {t("websiteBuilder.selected")}
                   </p>
                 )}
               </button>
@@ -272,11 +272,11 @@ export default function WebsiteBuilder() {
         </div>
 
         {/* Brief */}
-        <h2 className="mb-4 text-xl font-bold">2. Describe your site</h2>
+        <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepDescribe")}</h2>
         <div className="mb-10 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
-              Site / artist name
+              {t("websiteBuilder.siteNameLabel")}
             </label>
             <input
               value={businessName}
@@ -288,12 +288,12 @@ export default function WebsiteBuilder() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
-              What should the site say and do? <span className="text-white/40">(min 20 characters)</span>
+              {t("websiteBuilder.descriptionLabel")} <span className="text-white/40">({t("websiteBuilder.minCharsHint")})</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="I'm a hip-hop artist from Atlanta. I need a homepage with my latest single front and center, an about page with my story, upcoming show dates, a gallery, and a way for fans to join my mailing list. Dark and luxurious vibe."
+              placeholder={t("websiteBuilder.descriptionPlaceholder")}
               rows={5}
               maxLength={3000}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
@@ -302,24 +302,24 @@ export default function WebsiteBuilder() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
-                Style preferences <span className="text-white/40">(optional)</span>
+                {t("websiteBuilder.styleLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
               <input
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
-                placeholder="e.g. bold typography, lots of imagery"
+                placeholder={t("websiteBuilder.stylePlaceholder")}
                 maxLength={500}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
-                Colors <span className="text-white/40">(optional)</span>
+                {t("websiteBuilder.colorsLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
               <input
                 value={colorScheme}
                 onChange={(e) => setColorScheme(e.target.value)}
-                placeholder="e.g. black and gold"
+                placeholder={t("websiteBuilder.colorsPlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
               />
@@ -335,10 +335,10 @@ export default function WebsiteBuilder() {
             ) : (
               <Sparkles className="h-5 w-5" />
             )}
-            {loading ? "Building your site…" : `Build my site — ${BUILD_COST} credits`}
+            {loading ? t("websiteBuilder.building") : t("websiteBuilder.buildButton", { cost: BUILD_COST })}
           </button>
           <p className="text-xs text-white/40">
-            One-time fee. You preview before anything is final, and you own the files outright.
+            {t("websiteBuilder.feeNote")}
           </p>
         </div>
 
@@ -347,7 +347,7 @@ export default function WebsiteBuilder() {
           <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-xl font-bold">
-                <Eye className="h-5 w-5 text-primary" /> 3. Preview & take it with you
+                <Eye className="h-5 w-5 text-primary" /> {t("websiteBuilder.stepPreview")}
               </h2>
               <div className="flex gap-2">
                 <button
@@ -355,7 +355,7 @@ export default function WebsiteBuilder() {
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold hover:border-primary/50"
                 >
                   <FileCode2 className="h-4 w-4" />
-                  {showPreview ? "View files" : "View preview"}
+                  {showPreview ? t("websiteBuilder.viewFiles") : t("websiteBuilder.viewPreview")}
                 </button>
                 <button
                   onClick={downloadZip}
@@ -367,7 +367,7 @@ export default function WebsiteBuilder() {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  {downloading ? "Zipping…" : "Download site (.zip)"}
+                  {downloading ? t("websiteBuilder.zipping") : t("websiteBuilder.downloadZip")}
                 </button>
               </div>
             </div>
@@ -378,11 +378,11 @@ export default function WebsiteBuilder() {
                   <span className="h-3 w-3 rounded-full bg-red-500/70" />
                   <span className="h-3 w-3 rounded-full bg-amber-500/70" />
                   <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
-                  <span className="ml-3 text-xs text-white/40">Private preview — only you can see this</span>
+                  <span className="ml-3 text-xs text-white/40">{t("websiteBuilder.privatePreview")}</span>
                 </div>
                 <iframe
                   ref={iframeRef}
-                  title="Site preview"
+                  title={t("websiteBuilder.sitePreviewTitle")}
                   sandbox="allow-scripts"
                   className="h-[600px] w-full bg-white"
                 />
@@ -408,18 +408,16 @@ export default function WebsiteBuilder() {
             {/* Conversational edits */}
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
               <h3 className="mb-2 flex items-center gap-2 font-bold">
-                <Wand2 className="h-5 w-5 text-primary" /> Want changes? Just say so.
+                <Wand2 className="h-5 w-5 text-primary" /> {t("websiteBuilder.editsTitle")}
               </h3>
               <p className="mb-4 text-sm text-white/50">
-                "Make the hero section darker", "change the headline to…", "use warmer
-                colors" — each edit regenerates the site at{" "}
-                <span className="text-primary font-semibold">{EDIT_COST} Visual Bucs</span>.
+                {t("websiteBuilder.editsDesc", { cost: EDIT_COST })}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
                   value={editRequest}
                   onChange={(e) => setEditRequest(e.target.value)}
-                  placeholder="Describe the change…"
+                  placeholder={t("websiteBuilder.editPlaceholder")}
                   maxLength={1000}
                   className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
                 />
@@ -433,16 +431,14 @@ export default function WebsiteBuilder() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  {editing ? "Applying…" : `Apply edit — ${EDIT_COST} credits`}
+                  {editing ? t("websiteBuilder.applying") : t("websiteBuilder.applyEditButton", { cost: EDIT_COST })}
                 </button>
               </div>
             </div>
 
             <p className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
-              <span className="font-semibold text-primary">You own this outright.</span>{" "}
-              The zip includes every file plus a README with step-by-step deploy guides
-              for Netlify, Vercel, Cloudflare Pages, and cPanel. Put it on your own
-              hosting, your own domain — your responsibility, your asset.
+              <span className="font-semibold text-primary">{t("websiteBuilder.ownershipStrong")}</span>{" "}
+              {t("websiteBuilder.ownershipDesc")}
             </p>
           </div>
         )}

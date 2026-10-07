@@ -17,6 +17,7 @@ import {
 } from "@/lib/title-studio";
 import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Title & Description Studio ─────────────────────────
    One paid AI tool: type your video topic, pick a platform + tone, and GPT-6
@@ -28,19 +29,19 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 type PlatformKey = "youtube" | "tiktok" | "instagram";
 type ToneKey = "hype" | "professional" | "funny";
 
-interface PlatformOpt { key: PlatformKey; label: string; icon: LucideIcon; blurb: string }
-interface ToneOpt { key: ToneKey; label: string; icon: LucideIcon; blurb: string }
+interface PlatformOpt { key: PlatformKey; labelKey: string; icon: LucideIcon; blurbKey: string }
+interface ToneOpt { key: ToneKey; labelKey: string; icon: LucideIcon; blurbKey: string }
 
 const PLATFORMS: PlatformOpt[] = [
-  { key: "youtube", label: "YouTube", icon: MonitorPlay, blurb: "Longer titles, long-form descriptions + timestamps" },
-  { key: "tiktok", label: "TikTok", icon: Music2, blurb: "Short punchy packaging, hashtag-driven discovery" },
-  { key: "instagram", label: "Instagram", icon: Camera, blurb: "Aesthetic short titles, Explore-ready hashtags" },
+  { key: "youtube", labelKey: "titles.platformYouTube", icon: MonitorPlay, blurbKey: "titles.platformYouTubeBlurb" },
+  { key: "tiktok", labelKey: "titles.platformTikTok", icon: Music2, blurbKey: "titles.platformTikTokBlurb" },
+  { key: "instagram", labelKey: "titles.platformInstagram", icon: Camera, blurbKey: "titles.platformInstagramBlurb" },
 ];
 
 const TONES: ToneOpt[] = [
-  { key: "hype", label: "Hype", icon: Flame, blurb: "High energy, bold claims" },
-  { key: "professional", label: "Professional", icon: Briefcase, blurb: "Polished, confident, clean" },
-  { key: "funny", label: "Funny", icon: Laugh, blurb: "Witty, playful, meme-aware" },
+  { key: "hype", labelKey: "titles.toneHype", icon: Flame, blurbKey: "titles.toneHypeBlurb" },
+  { key: "professional", labelKey: "titles.toneProfessional", icon: Briefcase, blurbKey: "titles.toneProfessionalBlurb" },
+  { key: "funny", labelKey: "titles.toneFunny", icon: Laugh, blurbKey: "titles.toneFunnyBlurb" },
 ];
 
 const CREDIT_COST = 1;
@@ -60,11 +61,12 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
-      aria-label={`Copy ${label}`}
+      aria-label={t("titles.copyAria", { label })}
       onClick={() => {
         void navigator.clipboard.writeText(text).then(() => {
           setCopied(true);
@@ -74,12 +76,13 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"
     >
       {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
-      {copied ? "Copied" : `Copy ${label}`}
+      {copied ? t("titles.copied") : t("titles.copyButton", { label })}
     </button>
   );
 }
 
 export default function TitleStudio() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [topic, setTopic] = useState("");
@@ -121,7 +124,7 @@ export default function TitleStudio() {
   async function generate() {
     if (loading || !user) return;
     if (!topic.trim()) {
-      setError("Tell us what the video is about first.");
+      setError(t("titles.topicRequired"));
       return;
     }
     setLoading(true);
@@ -146,7 +149,7 @@ export default function TitleStudio() {
       const data = (await res.json().catch(() => ({}))) as StudioResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.titles) || data.titles.length === 0 || !data.description) {
-        throw new Error(data.message || data.error || "Packaging generation failed — try again.");
+        throw new Error(data.message || data.error || t("titles.generationFailed"));
       }
       setResult(data);
       pushHistory({
@@ -162,7 +165,7 @@ export default function TitleStudio() {
         document.getElementById("titles-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Packaging generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("titles.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -180,7 +183,7 @@ export default function TitleStudio() {
   }
 
   const selectedPlatform = PLATFORMS.find((p) => p.key === platform)!;
-  const selectedTone = TONES.find((t) => t.key === tone)!;
+  const selectedTone = TONES.find((o) => o.key === tone)!;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -189,16 +192,12 @@ export default function TitleStudio() {
         <div className="text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            AI Packaging · {CREDIT_COST} Visual Buc
+            {t("titles.costBadge", { cost: CREDIT_COST })}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Title <span className="text-primary">&amp;</span> Description Studio
+            {t("titles.pageTitlePart1")} <span className="text-primary">&amp;</span> {t("titles.pageTitlePart2")}
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/55">
-            Stop guessing what to name the video. Thy Cheat Code writes 10 click-ranked
-            titles, a full description with timestamps and CTA, and 15 tags — tuned
-            for the platform you're posting on.
-          </p>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/55">{t("titles.pageSubtitle")}</p>
         </div>
 
         {/* history toggle */}
@@ -210,7 +209,7 @@ export default function TitleStudio() {
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
             >
               <History className="h-3.5 w-3.5" aria-hidden="true" />
-              {history.length} past generation{history.length === 1 ? "" : "s"}
+              {t("titles.pastGenerations", { count: history.length })}
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
             {showHistory && (
@@ -240,28 +239,26 @@ export default function TitleStudio() {
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-lg font-black">What's the video about?</h2>
-              <p className="text-xs text-white/45">One topic in, full packaging out.</p>
+              <h2 className="text-lg font-black">{t("titles.topicHeading")}</h2>
+              <p className="text-xs text-white/45">{t("titles.topicSub")}</p>
             </div>
           </div>
 
-          <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-topic">
-            Video topic
-          </label>
+          <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-topic">{t("titles.topicLabel")}</label>
           <textarea
             id="ts-topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             rows={3}
-            placeholder='e.g. "my new single about grinding at 3am" or "behind the scenes of my first studio session"'
+            placeholder={t("titles.topicPlaceholder")}
             className={inputClass}
           />
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">Platform</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">{t("titles.platformLabel")}</p>
               <div className="grid gap-2">
-                {PLATFORMS.map(({ key, label, icon: Icon, blurb }) => {
+                {PLATFORMS.map(({ key, labelKey, icon: Icon, blurbKey }) => {
                   const selected = platform === key;
                   return (
                     <button
@@ -276,8 +273,8 @@ export default function TitleStudio() {
                     >
                       <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
                       <span>
-                        <span className="block text-sm font-bold text-white/90">{label}</span>
-                        <span className="block text-xs text-white/40">{blurb}</span>
+                        <span className="block text-sm font-bold text-white/90">{t(labelKey)}</span>
+                        <span className="block text-xs text-white/40">{t(blurbKey)}</span>
                       </span>
                     </button>
                   );
@@ -286,9 +283,9 @@ export default function TitleStudio() {
             </div>
 
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">Tone</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">{t("titles.toneLabel")}</p>
               <div className="grid gap-2">
-                {TONES.map(({ key, label, icon: Icon, blurb }) => {
+                {TONES.map(({ key, labelKey, icon: Icon, blurbKey }) => {
                   const selected = tone === key;
                   return (
                     <button
@@ -303,8 +300,8 @@ export default function TitleStudio() {
                     >
                       <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
                       <span>
-                        <span className="block text-sm font-bold text-white/90">{label}</span>
-                        <span className="block text-xs text-white/40">{blurb}</span>
+                        <span className="block text-sm font-bold text-white/90">{t(labelKey)}</span>
+                        <span className="block text-xs text-white/40">{t(blurbKey)}</span>
                       </span>
                     </button>
                   );
@@ -314,14 +311,13 @@ export default function TitleStudio() {
           </div>
 
           <div className="mt-5">
-            <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-keywords">
-              Keywords <span className="font-normal normal-case text-white/30">(optional)</span>
+            <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-keywords">{t("titles.keywordsLabel")}<span className="font-normal normal-case text-white/30">{t("titles.optionalNote")}</span>
             </label>
             <input
               id="ts-keywords"
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
-              placeholder="e.g. shark king, new music, studio vlog"
+              placeholder={t("titles.keywordsPlaceholder")}
               className={inputClass}
             />
           </div>
@@ -335,18 +331,16 @@ export default function TitleStudio() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                  Cooking up titles…
-                </>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />{t("titles.cooking")}</>
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
-                  Generate Packaging · {CREDIT_COST} Visual Buc
+                  {t("titles.generateButton", { cost: CREDIT_COST })}
                 </>
               )}
             </button>
             {!user && (
-              <p className="mt-3 text-xs text-white/40">Sign in to generate — browsing past runs is free.</p>
+              <p className="mt-3 text-xs text-white/40">{t("titles.signInPrompt")}</p>
             )}
           </div>
         </div>
@@ -370,7 +364,7 @@ export default function TitleStudio() {
             <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-black">
-                  10 Titles <span className="text-sm font-semibold text-white/40">— ranked by clickability</span>
+                  {t("titles.titlesHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.titlesSub")}</span>
                 </h2>
                 <button
                   type="button"
@@ -379,11 +373,11 @@ export default function TitleStudio() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  Regenerate · {CREDIT_COST} Visual Buc
+                  {t("titles.regenerateButton", { cost: CREDIT_COST })}
                 </button>
               </div>
               <ol className="space-y-3">
-                {result.titles.map((t, i) => (
+                {result.titles.map((item, i) => (
                   <li
                     key={`title-${i}`}
                     className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-primary/40"
@@ -392,19 +386,19 @@ export default function TitleStudio() {
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-bold leading-snug text-white/95">{t.title}</p>
-                      {t.why && <p className="mt-1 text-xs leading-relaxed text-white/45">{t.why}</p>}
+                      <p className="text-[15px] font-bold leading-snug text-white/95">{item.title}</p>
+                      {item.why && <p className="mt-1 text-xs leading-relaxed text-white/45">{item.why}</p>}
                       <div className="mt-2 flex items-center gap-2">
                         <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
                           <div
-                            className={`h-full rounded-full bg-gradient-to-r ${scoreBar(t.score)}`}
-                            style={{ width: `${t.score}%` }}
+                            className={`h-full rounded-full bg-gradient-to-r ${scoreBar(item.score)}`}
+                            style={{ width: `${item.score}%` }}
                           />
                         </div>
-                        <span className={`text-xs font-black ${scoreColor(t.score)}`}>{t.score}</span>
+                        <span className={`text-xs font-black ${scoreColor(item.score)}`}>{item.score}</span>
                       </div>
                     </div>
-                    <CopyButton text={t.title} label="title" />
+                    <CopyButton text={item.title} label={t("titles.titleCopyLabel")} />
                   </li>
                 ))}
               </ol>
@@ -415,9 +409,9 @@ export default function TitleStudio() {
               <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-lg font-black">
-                    Description <span className="text-sm font-semibold text-white/40">— {selectedPlatform.label} ready</span>
+                    {t("titles.descriptionHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.descriptionReady", { platform: t(selectedPlatform.labelKey) })}</span>
                   </h2>
-                  <CopyButton text={result.description} label="description" />
+                  <CopyButton text={result.description} label={t("titles.descriptionCopyLabel")} />
                 </div>
                 <p className="whitespace-pre-line text-sm leading-relaxed text-white/75">{result.description}</p>
               </section>
@@ -428,9 +422,9 @@ export default function TitleStudio() {
               <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-lg font-black">
-                    Tags <span className="text-sm font-semibold text-white/40">— {result.tags.length} optimized</span>
+                    {t("titles.tagsHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.tagsOptimized", { count: result.tags.length })}</span>
                   </h2>
-                  <CopyButton text={tagsCopyString(result.tags)} label="all tags" />
+                  <CopyButton text={tagsCopyString(result.tags)} label={t("titles.allTagsCopyLabel")} />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {result.tags.map((tag, i) => (
@@ -440,7 +434,7 @@ export default function TitleStudio() {
                       onClick={() => {
                         void navigator.clipboard.writeText(`#${tag}`);
                       }}
-                      title="Click to copy"
+                      title={t("titles.clickToCopy")}
                       className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-primary"
                     >
                       #{tag}
@@ -458,9 +452,9 @@ export default function TitleStudio() {
 
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
-          Titles locked in? Run them through the{" "}
-          <span className="font-semibold text-primary">Hook Studio</span>{" "}
-          pre-flight check before you post.
+          {t("titles.crossLinkBefore")}{" "}
+          <span className="font-semibold text-primary">{t("titles.crossLinkHook")}</span>{" "}
+          {t("titles.crossLinkAfter")}
         </p>
       </main>
 

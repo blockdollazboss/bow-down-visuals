@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Users, UserPlus, Trash2, LogOut, Crown, Shield, User as UserIcon } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
+import { useTranslation } from "react-i18next";
 
 interface Team {
   id: string;
@@ -43,7 +44,8 @@ interface SpendRow {
 }
 
 export default function TeamPage() {
-  usePageTitle("Team Workspace");
+  const { t } = useTranslation();
+  usePageTitle(t("team.pageTitle"));
   const { getAccessToken } = useAuth();
 
   const [teams, setTeams] = useState<Team[]>([]);
@@ -84,7 +86,7 @@ export default function TeamPage() {
       const data = await api("/api/teams");
       setTeams(data.teams ?? []);
       setInvites(data.invites ?? []);
-      const mine = (data.teams ?? []).find((t: Team) => t.myStatus === "active") ?? null;
+      const mine = (data.teams ?? []).find((tm: Team) => tm.myStatus === "active") ?? null;
       setActiveTeam(mine);
       if (mine) {
         const detail = await api(`/api/teams/${mine.id}`);
@@ -102,7 +104,7 @@ export default function TeamPage() {
         setSpending([]);
       }
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Failed to load teams.");
+      setMsg(e instanceof Error ? e.message : t("team.errorLoad"));
       return false;
     } finally {
       setLoading(false);
@@ -123,9 +125,9 @@ export default function TeamPage() {
       await api("/api/teams", { method: "POST", body: JSON.stringify({ name: newTeamName.trim() }) });
       setNewTeamName("");
       const loaded = await load();
-      setMsg(loaded ? "✓ Team created." : "✓ Team created, but the team list failed to reload — refresh the page.");
+      setMsg(loaded ? t("team.teamCreated") : t("team.teamCreatedReloadFailed"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to create team."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorCreate")}`);
     } finally {
       setCreating(false);
     }
@@ -142,9 +144,9 @@ export default function TeamPage() {
       });
       setInviteEmail("");
       await load();
-      setMsg("✓ Invite sent.");
+      setMsg(t("team.inviteSent"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to send invite."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorInvite")}`);
     } finally {
       setInviting(false);
     }
@@ -155,9 +157,9 @@ export default function TeamPage() {
     try {
       await api(`/api/teams/${teamId}/accept`, { method: "POST" });
       await load();
-      setMsg("✓ Welcome to the team.");
+      setMsg(t("team.welcomeToTeam"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to accept invite."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorAccept")}`);
     }
   }
 
@@ -166,7 +168,7 @@ export default function TeamPage() {
       await api(`/api/teams/${teamId}/decline`, { method: "POST" });
       await load();
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to decline invite."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorDecline")}`);
     }
   }
 
@@ -179,29 +181,29 @@ export default function TeamPage() {
       });
       await load();
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to change role."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorRoleChange")}`);
     }
   }
 
   async function handleRemove(memberId: string, email: string) {
-    if (!activeTeam || !confirm(`Remove ${email} from the team?`)) return;
+    if (!activeTeam || !confirm(t("team.confirmRemove", { email }))) return;
     try {
       await api(`/api/teams/${activeTeam.id}/members/${memberId}`, { method: "DELETE" });
       await load();
-      setMsg("✓ Member removed.");
+      setMsg(t("team.memberRemoved"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to remove member."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorRemove")}`);
     }
   }
 
   async function handleLeave() {
-    if (!activeTeam || !confirm(`Leave ${activeTeam.name}?`)) return;
+    if (!activeTeam || !confirm(t("team.confirmLeave", { name: activeTeam.name }))) return;
     try {
       await api(`/api/teams/${activeTeam.id}/leave`, { method: "POST" });
       await load();
-      setMsg("✓ You left the team.");
+      setMsg(t("team.leftTeam"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to leave team."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorLeave")}`);
     }
   }
 
@@ -209,10 +211,10 @@ export default function TeamPage() {
     if (!activeTeam) return;
     const amount = Math.floor(Number(fundAmount));
     if (!amount || amount <= 0) {
-      setMsg("✗ Enter a credit amount greater than 0.");
+      setMsg(t("team.errorFundAmount"));
       return;
     }
-    if (!confirm(`Move ${amount} Visual Bucs from your balance to the team pool?`)) return;
+    if (!confirm(t("team.confirmFund", { amount }))) return;
     setFunding(true);
     setMsg(null);
     try {
@@ -227,9 +229,9 @@ export default function TeamPage() {
       });
       setFundAmount("");
       await load();
-      setMsg(data?.duplicate ? `✓ Already funded — no duplicate charge.` : `✓ ${amount} Visual Bucs added to the team pool.`);
+      setMsg(data?.duplicate ? t("team.alreadyFunded") : t("team.fundedPool", { amount }));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to fund the pool."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorFund")}`);
     } finally {
       setFunding(false);
     }
@@ -245,20 +247,20 @@ export default function TeamPage() {
         body: JSON.stringify({ allowPersonalFallback: next }),
       });
       setActiveTeam((prev) => (prev ? { ...prev, allowPersonalFallback: data.team.allowPersonalFallback } : prev));
-      setMsg(next ? "✓ Personal credit fallback enabled." : "✓ Personal credit fallback disabled — pool-only spending.");
+      setMsg(next ? t("team.fallbackEnabled") : t("team.fallbackDisabled"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to update setting."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorFallback")}`);
     }
   }
 
   async function handleDelete() {
-    if (!activeTeam || !confirm(`Delete ${activeTeam.name}? This cannot be undone.`)) return;
+    if (!activeTeam || !confirm(t("team.confirmDelete", { name: activeTeam.name }))) return;
     try {
       await api(`/api/teams/${activeTeam.id}`, { method: "DELETE" });
       await load();
-      setMsg("✓ Team deleted.");
+      setMsg(t("team.teamDeleted"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to delete team."}`);
+      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorDelete")}`);
     }
   }
 
@@ -271,7 +273,7 @@ export default function TeamPage() {
     return (
       <div className="p-8 text-center text-white/50">
         <Users className="h-8 w-8 mx-auto mb-3 animate-pulse text-[#C9A84C]" />
-        Loading your team…
+        {t("team.loading")}
       </div>
     );
   }
@@ -281,8 +283,8 @@ export default function TeamPage() {
       <div className="flex items-center gap-3">
         <Users className="h-7 w-7 text-[#C9A84C]" />
         <div>
-          <h1 className="text-2xl font-black text-white">Team Workspace</h1>
-          <p className="text-sm text-white/50">Shared credit pool, shared vaults, one crew.</p>
+          <h1 className="text-2xl font-black text-white">{t("team.pageTitle")}</h1>
+          <p className="text-sm text-white/50">{t("team.pageSubtitle")}</p>
         </div>
       </div>
 
@@ -296,21 +298,21 @@ export default function TeamPage() {
       {invites.length > 0 && (
         <Card className="p-5 bg-white/[0.03] border-white/10">
           <h2 className="font-bold text-white mb-3 flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-[#C9A84C]" /> Pending invites
+            <UserPlus className="h-4 w-4 text-[#C9A84C]" /> {t("team.pendingInvites")}
           </h2>
           <div className="space-y-2">
             {invites.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between rounded-lg bg-white/[0.04] px-4 py-3">
                 <div>
-                  <p className="text-white font-semibold">{inv.team?.name ?? "Team"}</p>
-                  <p className="text-xs text-white/40">Invited as {inv.role}</p>
+                  <p className="text-white font-semibold">{inv.team?.name ?? t("team.teamFallbackName")}</p>
+                  <p className="text-xs text-white/40">{t("team.invitedAs", { role: inv.role })}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => void handleAccept(inv.teamId)} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold">
-                    Accept
+                    {t("team.accept")}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => void handleDecline(inv.teamId)} className="text-white/50">
-                    Decline
+                    {t("team.decline")}
                   </Button>
                 </div>
               </div>
@@ -321,9 +323,9 @@ export default function TeamPage() {
 
       {!activeTeam ? (
         <Card className="p-6 bg-white/[0.03] border-white/10">
-          <h2 className="font-bold text-white mb-2">Create a team</h2>
+          <h2 className="font-bold text-white mb-2">{t("team.createTeamTitle")}</h2>
           <p className="text-sm text-white/50 mb-4">
-            Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.
+            {t("team.createTeamHint")}
           </p>
           <div className="flex gap-2">
             <Input
@@ -334,7 +336,7 @@ export default function TeamPage() {
               className="bg-white/[0.05] border-white/10 text-white"
             />
             <Button onClick={() => void handleCreate()} disabled={creating || !newTeamName.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold shrink-0">
-              {creating ? "Creating…" : "Create team"}
+              {creating ? t("team.creating") : t("team.createTeam")}
             </Button>
           </div>
         </Card>
@@ -344,11 +346,11 @@ export default function TeamPage() {
           <Card className="p-6 bg-gradient-to-br from-[#C9A84C]/15 to-transparent border-[#C9A84C]/30">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">Team pool</p>
+                <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">{t("team.teamPool")}</p>
                 <p className="text-4xl font-black text-[#C9A84C] flex items-center gap-2">
                   <VisualBucsIcon className="h-7 w-7" /> {activeTeam.credits.toLocaleString()}
                 </p>
-                <p className="text-xs text-white/40 mt-1">Visual Bucs shared across all members</p>
+                <p className="text-xs text-white/40 mt-1">{t("team.poolHint")}</p>
               </div>
               {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
                 <div className="flex gap-2 items-center">
@@ -357,11 +359,11 @@ export default function TeamPage() {
                     min={1}
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    placeholder="Credits"
+                    placeholder={t("team.fundPlaceholder")}
                     className="w-28 bg-white/[0.05] border-white/10 text-white"
                   />
                   <Button onClick={() => void handleFund()} disabled={funding} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold">
-                    {funding ? "Moving…" : "Fund pool"}
+                    {funding ? t("team.funding") : t("team.fundPool")}
                   </Button>
                 </div>
               )}
@@ -369,11 +371,11 @@ export default function TeamPage() {
             {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
               <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <p className="text-sm font-semibold text-white">Personal credit fallback</p>
+                  <p className="text-sm font-semibold text-white">{t("team.fallbackTitle")}</p>
                   <p className="text-xs text-white/40">
                     {activeTeam.allowPersonalFallback
-                      ? "When the pool runs low, member spending uses personal Visual Bucs."
-                      : "Pool-only: spending stops when the pool is empty. Personal Visual Bucs are never touched."}
+                      ? t("team.fallbackOnHint")
+                      : t("team.fallbackOffHint")}
                   </p>
                 </div>
                 <Button
@@ -381,7 +383,7 @@ export default function TeamPage() {
                   variant="outline"
                   className={activeTeam.allowPersonalFallback ? "border-[#C9A84C]/50 text-[#C9A84C]" : "border-white/10 text-white/60"}
                 >
-                  {activeTeam.allowPersonalFallback ? "Fallback ON" : "Fallback OFF"}
+                  {activeTeam.allowPersonalFallback ? t("team.fallbackOn") : t("team.fallbackOff")}
                 </Button>
               </div>
             )}
@@ -391,13 +393,13 @@ export default function TeamPage() {
           {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
             <Card className="p-5 bg-white/[0.03] border-white/10">
               <h2 className="font-bold text-white mb-3 flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-[#C9A84C]" /> Invite a member
+                <UserPlus className="h-4 w-4 text-[#C9A84C]" /> {t("team.inviteTitle")}
               </h2>
               <div className="flex gap-2 flex-wrap">
                 <Input
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="teammate@email.com"
+                  placeholder={t("team.inviteEmailPlaceholder")}
                   type="email"
                   className="flex-1 min-w-[200px] bg-white/[0.05] border-white/10 text-white"
                 />
@@ -406,11 +408,11 @@ export default function TeamPage() {
                   onChange={(e) => setInviteRole(e.target.value)}
                   className="rounded-lg bg-white/[0.05] border border-white/10 text-white px-3 py-2 text-sm"
                 >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
+                  <option value="member">{t("team.roleMember")}</option>
+                  <option value="admin">{t("team.roleAdmin")}</option>
                 </select>
                 <Button onClick={() => void handleInvite()} disabled={inviting || !inviteEmail.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold">
-                  {inviting ? "Sending…" : "Send invite"}
+                  {inviting ? t("team.sendingInvite") : t("team.sendInvite")}
                 </Button>
               </div>
             </Card>
@@ -419,7 +421,7 @@ export default function TeamPage() {
           {/* Members */}
           <Card className="p-5 bg-white/[0.03] border-white/10">
             <h2 className="font-bold text-white mb-3">
-              Members <span className="text-white/40 font-normal">({members.length})</span>
+              {t("team.membersTitle")} <span className="text-white/40 font-normal">({members.length})</span>
             </h2>
             <div className="space-y-2">
               {members.map((m) => (
@@ -429,7 +431,7 @@ export default function TeamPage() {
                     <div>
                       <p className="text-white text-sm font-semibold">{m.email}</p>
                       <p className="text-xs text-white/40 capitalize">
-                        {m.role}{m.status === "invited" ? " · invite pending" : ""}
+                        {m.role}{m.status === "invited" ? t("team.invitePendingSuffix") : ""}
                       </p>
                     </div>
                   </div>
@@ -440,8 +442,8 @@ export default function TeamPage() {
                         onChange={(e) => void handleRoleChange(m.id, e.target.value)}
                         className="rounded-lg bg-white/[0.05] border border-white/10 text-white px-2 py-1 text-xs"
                       >
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
+                        <option value="member">{t("team.roleMember")}</option>
+                        <option value="admin">{t("team.roleAdmin")}</option>
                       </select>
                     )}
                     {(activeTeam.myRole === "owner" || (activeTeam.myRole === "admin" && m.role === "member")) &&
@@ -459,12 +461,12 @@ export default function TeamPage() {
           {/* Spending */}
           {spending.length > 0 && (
             <Card className="p-5 bg-white/[0.03] border-white/10">
-              <h2 className="font-bold text-white mb-3">Pool spending</h2>
+              <h2 className="font-bold text-white mb-3">{t("team.poolSpendingTitle")}</h2>
               <div className="space-y-1.5">
                 {spending.map((s, i) => (
                   <div key={i} className="flex items-center justify-between text-sm rounded bg-white/[0.03] px-3 py-2">
                     <span className="text-white/70">{s.email ?? s.userId.slice(0, 8)} · <span className="text-white/40">{s.action}</span></span>
-                    <span className="text-[#C9A84C] font-bold">{s.total.toLocaleString()} cr</span>
+                    <span className="text-[#C9A84C] font-bold">{t("team.spendingAmount", { amount: s.total.toLocaleString() })}</span>
                   </div>
                 ))}
               </div>
@@ -476,16 +478,16 @@ export default function TeamPage() {
             <div className="flex gap-3 flex-wrap">
               {activeTeam.myRole !== "owner" ? (
                 <Button variant="ghost" onClick={() => void handleLeave()} className="text-white/60">
-                  <LogOut className="h-4 w-4 mr-2" /> Leave team
+                  <LogOut className="h-4 w-4 mr-2" /> {t("team.leaveTeam")}
                 </Button>
               ) : (
                 <Button variant="ghost" onClick={() => void handleDelete()} className="text-red-400/80 hover:text-red-300">
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete team
+                  <Trash2 className="h-4 w-4 mr-2" /> {t("team.deleteTeam")}
                 </Button>
               )}
             </div>
             <p className="text-xs text-white/30 mt-3">
-              Shared vaults: mark any artist vault as shared from the Creator Vault page and the whole team can use it.
+              {t("team.sharedVaultsNote")}
             </p>
           </Card>
         </>

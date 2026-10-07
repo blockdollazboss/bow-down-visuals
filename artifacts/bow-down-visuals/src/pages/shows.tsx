@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Show Finder ──────────────────────────────────────────
    The get-noticed engine: AI-curated performance opportunities — open mics,
@@ -20,24 +21,24 @@ type OpportunityTypeKey = "open-mic" | "showcase" | "festival" | "venue-gig" | "
 
 interface OpportunityTypeOpt {
   key: OpportunityTypeKey;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
-  blurb: string;
+  blurbKey: string;
 }
 
 const OPPORTUNITY_OPTS: OpportunityTypeOpt[] = [
-  { key: "open-mic", label: "Open Mics", icon: Mic2, blurb: "Stage time, low stakes" },
-  { key: "showcase", label: "Showcases", icon: Trophy, blurb: "Industry eyes on you" },
-  { key: "festival", label: "Festivals", icon: PartyPopper, blurb: "Big stages, big crowds" },
-  { key: "venue-gig", label: "Venue Gigs", icon: Building2, blurb: "Real rooms, real pay" },
-  { key: "radio", label: "Radio Spots", icon: Radio, blurb: "Airplay + interviews" },
-  { key: "podcast", label: "Podcasts", icon: Podcast, blurb: "Story-driven reach" },
+  { key: "open-mic", labelKey: "shows.typeOpenMics", icon: Mic2, blurbKey: "shows.typeOpenMicsBlurb" },
+  { key: "showcase", labelKey: "shows.typeShowcases", icon: Trophy, blurbKey: "shows.typeShowcasesBlurb" },
+  { key: "festival", labelKey: "shows.typeFestivals", icon: PartyPopper, blurbKey: "shows.typeFestivalsBlurb" },
+  { key: "venue-gig", labelKey: "shows.typeVenueGigs", icon: Building2, blurbKey: "shows.typeVenueGigsBlurb" },
+  { key: "radio", labelKey: "shows.typeRadioSpots", icon: Radio, blurbKey: "shows.typeRadioSpotsBlurb" },
+  { key: "podcast", labelKey: "shows.typePodcasts", icon: Podcast, blurbKey: "shows.typePodcastsBlurb" },
 ];
 
 const DATE_WINDOWS = [
-  { key: "next-30-days", label: "Next 30 days" },
-  { key: "next-90-days", label: "Next 90 days" },
-  { key: "next-6-months", label: "Next 6 months" },
+  { key: "next-30-days", labelKey: "shows.windowNext30Days" },
+  { key: "next-90-days", labelKey: "shows.windowNext90Days" },
+  { key: "next-6-months", labelKey: "shows.windowNext6Months" },
 ] as const;
 
 const GENRE_PRESETS = ["Hip-Hop", "R&B", "Pop", "Afrobeats", "Latin", "EDM", "Rock", "Country", "Jazz", "Gospel"];
@@ -97,6 +98,7 @@ const TYPE_TO_KEY: Record<string, OpportunityTypeKey> = {
 };
 
 export default function ShowFinder() {
+  const { t } = useTranslation();
   const { user, profile, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -140,16 +142,16 @@ export default function ShowFinder() {
   async function findShows() {
     if (loading || !user) return;
     if (!location.trim()) {
-      setError("Tell the scout where you are — opportunities are local first.");
+      setError(t("shows.errorNeedLocation"));
       return;
     }
     if (types.length === 0) {
-      setError("Pick at least one opportunity type to hunt for.");
+      setError(t("shows.errorNeedTypes"));
       return;
     }
     const finalGenre = (customGenre.trim() || genre).slice(0, 80);
     if (!finalGenre) {
-      setError("Pick a genre so the scout can match the right rooms.");
+      setError(t("shows.errorNeedGenre"));
       return;
     }
 
@@ -175,7 +177,7 @@ export default function ShowFinder() {
         return;
       }
       if (!res.ok || !Array.isArray(data.opportunities) || data.opportunities.length === 0) {
-        throw new Error(data.message || data.error || "Show hunt failed — try again.");
+        throw new Error(data.message || data.error || t("shows.errorSearchFailed"));
       }
       setResults(data.opportunities);
       setDisclaimer(data.disclaimer || "");
@@ -184,7 +186,7 @@ export default function ShowFinder() {
         document.getElementById("show-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Show hunt failed — try again.");
+      setError(err instanceof Error ? err.message : t("shows.errorSearchFailed"));
     } finally {
       setLoading(false);
     }
@@ -220,13 +222,13 @@ export default function ShowFinder() {
         return;
       }
       if (!res.ok || !data.pitch?.subject || !data.pitch?.body) {
-        throw new Error(data.message || data.error || "Pitch draft failed — try again.");
+        throw new Error(data.message || data.error || t("shows.errorPitchFailed"));
       }
       setPitch(data.pitch);
       setPitchTips(data.tips ?? []);
       refreshProfile();
     } catch (err) {
-      setPitchError(err instanceof Error ? err.message : "Pitch draft failed — try again.");
+      setPitchError(err instanceof Error ? err.message : t("shows.errorPitchFailed"));
     } finally {
       setPitchLoading(false);
     }
@@ -255,15 +257,13 @@ export default function ShowFinder() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Ticket className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's stage tools
+            <Ticket className="h-3 w-3" aria-hidden="true" /> {t("shows.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Show <span className="text-primary">Finder</span>
+            {t("shows.titleStart")} <span className="text-primary">{t("shows.titleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Stop waiting to be discovered. Tell the scout where you are and what
-            you play — it hunts down open mics, showcases, festivals, and gigs
-            that fit, plus a pitch draft for every stage.
+            {t("shows.heroDescription")}
           </p>
         </div>
 
@@ -271,10 +271,8 @@ export default function ShowFinder() {
         <div className="relative mt-8 flex gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-4">
           <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
           <div className="text-sm leading-relaxed text-white/70">
-            <span className="font-bold text-primary">Thy Cheat Code's take: </span>
-            open mics build your live muscle, showcases put industry eyes on you,
-            and festivals are the long game. Hunt in that order — and always send
-            a live video with your pitch. Bookers book what they can <em>see</em>.
+            <span className="font-bold text-primary">{t("shows.coachPrefix")} </span>
+            {t("shows.coachBody")} <em>{t("shows.coachEmphasis")}</em>.
           </div>
         </div>
 
@@ -284,7 +282,7 @@ export default function ShowFinder() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your city / area
+                {t("shows.cityLabel")}
               </p>
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" aria-hidden="true" />
@@ -292,14 +290,14 @@ export default function ShowFinder() {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   maxLength={120}
-                  placeholder="e.g. Atlanta, GA"
+                  placeholder={t("shows.cityPlaceholder")}
                   className={`${inputClass} pl-10`}
                 />
               </div>
             </div>
             <div>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your genre
+                {t("shows.genreLabel")}
               </p>
               <input
                 value={customGenre}
@@ -328,7 +326,7 @@ export default function ShowFinder() {
 
           {/* opportunity types */}
           <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            What are you hunting?
+            {t("shows.huntingLabel")}
           </p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {OPPORTUNITY_OPTS.map((o) => {
@@ -355,9 +353,9 @@ export default function ShowFinder() {
                     <Icon className={`h-5 w-5 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
                   </span>
                   <span className={`mt-2 block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>
-                    {o.label}
+                    {t(o.labelKey)}
                   </span>
-                  <span className="block text-[11px] text-white/35">{o.blurb}</span>
+                  <span className="block text-[11px] text-white/35">{t(o.blurbKey)}</span>
                 </button>
               );
             })}
@@ -367,7 +365,7 @@ export default function ShowFinder() {
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                <CalendarDays className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> Date window
+                <CalendarDays className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> {t("shows.dateWindowLabel")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {DATE_WINDOWS.map((w) => (
@@ -380,34 +378,34 @@ export default function ShowFinder() {
                         : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                     }`}
                   >
-                    {w.label}
+                    {t(w.labelKey)}
                   </button>
                 ))}
               </div>
             </div>
             <div>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your artist name <span className="text-white/25 normal-case tracking-normal">(for pitches)</span>
+                {t("shows.artistNameLabel")} <span className="text-white/25 normal-case tracking-normal">{t("shows.forPitchesNote")}</span>
               </p>
               <input
                 value={creatorName}
                 onChange={(e) => setCreatorName(e.target.value)}
                 maxLength={100}
-                placeholder="e.g. TRGDY TRBLZ"
+                placeholder={t("shows.artistNamePlaceholder")}
                 className={inputClass}
               />
             </div>
           </div>
 
           <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Quick bio <span className="text-white/25 normal-case tracking-normal">(helps the scout match you)</span>
+            {t("shows.quickBioLabel")} <span className="text-white/25 normal-case tracking-normal">{t("shows.quickBioNote")}</span>
           </p>
           <textarea
             value={artistBio}
             onChange={(e) => setArtistBio(e.target.value)}
             maxLength={600}
             rows={3}
-            placeholder="e.g. High-energy hip-hop artist, 2 years performing, opened for…"
+            placeholder={t("shows.bioPlaceholder")}
             className={`${inputClass} resize-none`}
           />
 
@@ -425,16 +423,16 @@ export default function ShowFinder() {
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> The scout is hunting…
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("shows.huntingLoading")}
               </>
             ) : (
               <>
-                <Search className="h-5 w-5" aria-hidden="true" /> Find My Stages · {SEARCH_COST} Visual Bucs
+                <Search className="h-5 w-5" aria-hidden="true" /> {t("shows.findStagesButton", { cost: SEARCH_COST })}
               </>
             )}
           </button>
           {!user && (
-            <p className="mt-3 text-center text-xs text-white/40">Sign in to run the show hunt.</p>
+            <p className="mt-3 text-center text-xs text-white/40">{t("shows.signInPrompt")}</p>
           )}
         </div>
 
@@ -448,7 +446,7 @@ export default function ShowFinder() {
         {results && (
           <div id="show-results" className="relative mt-12">
             <h2 className="font-display text-2xl font-black tracking-tight">
-              Your stages <span className="text-primary">({results.length})</span>
+              {t("shows.yourStages")} <span className="text-primary">({results.length})</span>
             </h2>
             {disclaimer && (
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-[13px] leading-relaxed text-amber-200/90">
@@ -484,28 +482,28 @@ export default function ShowFinder() {
                       <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                         <p className="flex items-center gap-2 text-white/60">
                           <MapPin className="h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" />
-                          {opp.location || "Location TBD — verify"}
+                          {opp.location || t("shows.locationTbd")}
                         </p>
                         <p className="flex items-center gap-2 text-white/60">
                           <CalendarDays className="h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" />
-                          {opp.dateWindow || "Date TBD — verify"}
+                          {opp.dateWindow || t("shows.dateTbd")}
                         </p>
                       </div>
 
                       <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/[0.06] p-4">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">Why it's a fit</p>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">{t("shows.whyFitLabel")}</p>
                         <p className="mt-1.5 text-sm leading-relaxed text-white/75">{opp.whyFit}</p>
                       </div>
 
                       <div className="mt-3">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">How to apply</p>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("shows.howToApplyLabel")}</p>
                         <p className="mt-1.5 text-sm leading-relaxed text-white/70">{opp.howToApply}</p>
                       </div>
 
                       {opp.verifyNote && (
                         <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-amber-200/70">
                           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          Verify: {opp.verifyNote}
+                          {t("shows.verifyPrefix", { note: opp.verifyNote })}
                         </p>
                       )}
 
@@ -516,12 +514,12 @@ export default function ShowFinder() {
                       >
                         {pitchLoading && pitching ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Drafting your pitch…
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("shows.draftingPitch")}
                           </>
                         ) : (
                           <>
                             <Sparkles className="h-4 w-4" aria-hidden="true" />
-                            {pitching ? "Hide pitch draft" : `Draft my pitch · ${PITCH_COST} credit`}
+                            {pitching ? t("shows.hidePitchDraft") : t("shows.draftPitchButton", { cost: PITCH_COST })}
                             <ChevronDown className={`h-4 w-4 transition ${pitching ? "rotate-180" : ""}`} aria-hidden="true" />
                           </>
                         )}
@@ -539,7 +537,7 @@ export default function ShowFinder() {
                             <>
                               <div className="flex items-start justify-between gap-3">
                                 <p className="text-sm font-bold">
-                                  <span className="text-white/40">Subject: </span>
+                                  <span className="text-white/40">{t("shows.subjectLabel")} </span>
                                   {pitch.subject}
                                 </p>
                                 <button
@@ -547,20 +545,20 @@ export default function ShowFinder() {
                                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
                                 >
                                   {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
-                                  {copied ? "Copied" : "Copy"}
+                                  {copied ? t("shows.copiedLabel") : t("shows.copyButton")}
                                 </button>
                               </div>
                               <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-white/75">{pitch.body}</p>
                               {pitchTips.length > 0 && (
                                 <div className="mt-4 border-t border-white/10 pt-4">
                                   <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
-                                    Send it with
+                                    {t("shows.sendItWith")}
                                   </p>
                                   <ul className="mt-2 space-y-1.5">
-                                    {pitchTips.map((t, ti) => (
+                                    {pitchTips.map((tip, ti) => (
                                       <li key={ti} className="flex items-start gap-2 text-[13px] text-white/60">
                                         <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" aria-hidden="true" />
-                                        {t}
+                                        {tip}
                                       </li>
                                     ))}
                                   </ul>

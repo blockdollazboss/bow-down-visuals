@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { useTranslation } from "react-i18next";
 import {
   loadSfxLibrary,
   saveSfxItem,
@@ -26,18 +27,18 @@ import {
 
 interface SfxCategory {
   key: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
-  blurb: string;
+  blurbKey: string;
 }
 
 const CATEGORIES: SfxCategory[] = [
-  { key: "impacts", label: "Impacts", icon: Bomb, blurb: "Booms, hits, slams" },
-  { key: "whooshes", label: "Whooshes", icon: Wind, blurb: "Swooshes, transitions" },
-  { key: "risers", label: "Risers", icon: TrendingUp, blurb: "Build-ups, drops" },
-  { key: "ui", label: "UI Sounds", icon: MousePointerClick, blurb: "Clicks, pops, alerts" },
-  { key: "ambient", label: "Ambient", icon: Cloud, blurb: "Beds, atmospheres" },
-  { key: "foley", label: "Foley", icon: Footprints, blurb: "Everyday sounds" },
+  { key: "impacts", labelKey: "sfx.categoryImpacts", icon: Bomb, blurbKey: "sfx.categoryImpactsBlurb" },
+  { key: "whooshes", labelKey: "sfx.categoryWhooshes", icon: Wind, blurbKey: "sfx.categoryWhooshesBlurb" },
+  { key: "risers", labelKey: "sfx.categoryRisers", icon: TrendingUp, blurbKey: "sfx.categoryRisersBlurb" },
+  { key: "ui", labelKey: "sfx.categoryUi", icon: MousePointerClick, blurbKey: "sfx.categoryUiBlurb" },
+  { key: "ambient", labelKey: "sfx.categoryAmbient", icon: Cloud, blurbKey: "sfx.categoryAmbientBlurb" },
+  { key: "foley", labelKey: "sfx.categoryFoley", icon: Footprints, blurbKey: "sfx.categoryFoleyBlurb" },
 ];
 
 const CREDIT_COST = 1;
@@ -99,6 +100,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export default function TextToSfx() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
@@ -134,7 +136,7 @@ export default function TextToSfx() {
               if (!next.some((p) => p.id === it.id || p.url === it.url)) {
                 next = saveSfxItem(next, {
                   id: it.id,
-                  prompt: it.prompt || "Sound effect",
+                  prompt: it.prompt || t("sfx.soundEffectFallback"),
                   category: "foley",
                   durationSeconds: 0,
                   url: it.url,
@@ -154,7 +156,7 @@ export default function TextToSfx() {
   const generate = useCallback(async () => {
     if (loading || !user) return;
     if (prompt.trim().length < 3) {
-      setError("Describe the sound in a few words first.");
+      setError(t("sfx.errorShortPrompt"));
       return;
     }
     setLoading(true);
@@ -183,7 +185,7 @@ export default function TextToSfx() {
         return;
       }
       if (!res.ok || !data.url) {
-        throw new Error(data.message || data.error || "Sound generation failed — try again.");
+        throw new Error(data.message || data.error || t("sfx.errorGenerationFailed"));
       }
       const item: SfxItem = {
         id: data.genHistoryId ?? `${Date.now()}`,
@@ -207,7 +209,7 @@ export default function TextToSfx() {
         void audioRef.current?.play().catch(() => {});
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sound generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("sfx.errorGenerationFailed"));
     } finally {
       setLoading(false);
     }
@@ -220,7 +222,7 @@ export default function TextToSfx() {
       const wav = await mp3UrlToWav(item.url);
       downloadBlob(new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }), `${sfxSlug(item.prompt)}.wav`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "WAV conversion failed.");
+      setError(err instanceof Error ? err.message : t("sfx.errorWavFailed"));
     } finally {
       setConverting(null);
     }
@@ -260,7 +262,7 @@ export default function TextToSfx() {
       const zip = createZip(entries);
       downloadBlob(new Blob([zip.buffer as ArrayBuffer], { type: "application/zip" }), `bdv-sfx-pack-${items.length}.zip`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pack export failed.");
+      setError(err instanceof Error ? err.message : t("sfx.errorPackFailed"));
     } finally {
       setPacking(false);
     }
@@ -290,14 +292,13 @@ export default function TextToSfx() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's audio tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> {t("sfx.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Text-to-<span className="text-primary">SFX</span>
+            {t("sfx.titleStart")}<span className="text-primary">{t("sfx.titleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Describe any sound effect in words — AI generates it. Impacts,
-            whooshes, risers, UI sounds, ambient beds, foley.
+            {t("sfx.heroDescription")}
           </p>
         </div>
 
@@ -308,19 +309,19 @@ export default function TextToSfx() {
               <AudioWaveform className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-bold">Generate a sound</h2>
+              <h2 className="text-xl font-bold">{t("sfx.generateCardTitle")}</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} Visual Buc per SFX · 1–{MAX_DURATION}s · WAV + MP3 downloads
+                {t("sfx.generateCardSubtitle", { cost: CREDIT_COST, max: MAX_DURATION })}
               </p>
             </div>
           </div>
 
           {/* categories */}
           <p data-min-stars="2" className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Category
+            {t("sfx.categoryLabel")}
           </p>
           <div data-min-stars="2" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {CATEGORIES.map(({ key, label, icon: Icon, blurb }) => (
+            {CATEGORIES.map(({ key, labelKey, icon: Icon, blurbKey }) => (
               <button
                 key={key}
                 type="button"
@@ -333,8 +334,8 @@ export default function TextToSfx() {
               >
                 <Icon className={`h-4 w-4 shrink-0 ${category === key ? "text-primary" : "text-white/40"}`} aria-hidden="true" />
                 <span>
-                  <span className="block text-[13px] font-bold">{label}</span>
-                  <span className="block text-[11px] text-white/40">{blurb}</span>
+                  <span className="block text-[13px] font-bold">{t(labelKey)}</span>
+                  <span className="block text-[11px] text-white/40">{t(blurbKey)}</span>
                 </span>
               </button>
             ))}
@@ -342,14 +343,14 @@ export default function TextToSfx() {
 
           {/* prompt */}
           <label htmlFor="sfx-prompt" className="mt-6 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Describe the sound
+            {t("sfx.promptLabel")}
           </label>
           <textarea
             id="sfx-prompt"
             rows={3}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g. massive cinematic explosion with deep sub-bass rumble…"
+            placeholder={t("sfx.promptPlaceholder")}
             className={`${inputClass} resize-none`}
             maxLength={500}
           />
@@ -357,7 +358,7 @@ export default function TextToSfx() {
           {/* duration */}
           <div data-min-stars="3" className="mt-6 flex items-center gap-4">
             <label htmlFor="sfx-duration" className="text-[11px] font-bold uppercase tracking-widest text-white/40 shrink-0">
-              Duration
+              {t("sfx.durationLabel")}
             </label>
             <input
               id="sfx-duration"
@@ -379,13 +380,13 @@ export default function TextToSfx() {
             className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f7dd7f] to-[#C9A84C] px-6 py-3.5 text-sm font-black uppercase tracking-widest text-black transition hover:brightness-110 active:scale-[0.99] disabled:opacity-40"
           >
             {loading ? (
-              <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating…</>
+              <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("sfx.generatingLabel")}</>
             ) : (
-              <><Zap className="h-4 w-4" aria-hidden="true" /> Generate SFX · {CREDIT_COST} Visual Buc</>
+              <><Zap className="h-4 w-4" aria-hidden="true" /> {t("sfx.generateButton", { cost: CREDIT_COST })}</>
             )}
           </button>
           {!user && (
-            <p className="mt-3 text-center text-xs text-white/40">Sign in to generate sound effects.</p>
+            <p className="mt-3 text-center text-xs text-white/40">{t("sfx.signInPrompt")}</p>
           )}
 
           {error && (
@@ -399,7 +400,7 @@ export default function TextToSfx() {
         {/* ── result ──────────────────────────────────────────────────── */}
         {result && (
           <div id="sfx-result" className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
-            <h2 className="text-lg font-bold">Your sound</h2>
+            <h2 className="text-lg font-bold">{t("sfx.resultTitle")}</h2>
             <p className="mt-1 text-sm text-white/50 line-clamp-2">“{result.prompt}”</p>
             <audio ref={audioRef} src={result.url} controls className="mt-4 w-full accent-[#C9A84C]" />
             <div className="mt-4 flex flex-wrap gap-2">
@@ -433,11 +434,11 @@ export default function TextToSfx() {
                 <Library className="h-5 w-5" aria-hidden="true" />
               </span>
               <div>
-                <h2 className="text-xl font-bold">SFX Library</h2>
+                <h2 className="text-xl font-bold">{t("sfx.libraryTitle")}</h2>
                 <p className="text-sm text-white/45">
                   {library.length === 0
-                    ? "Your generated sounds live here."
-                    : `${library.length} sound${library.length === 1 ? "" : "s"} · select to export a pack`}
+                    ? t("sfx.libraryEmptyDesc")
+                    : t("sfx.librarySubtitle", { count: library.length })}
                 </p>
               </div>
             </div>
@@ -452,14 +453,14 @@ export default function TextToSfx() {
                 {packing
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                   : <Package className="h-3.5 w-3.5" aria-hidden="true" />}
-                Pack ({selectedCount}) · ZIP
+                {t("sfx.packButton", { count: selectedCount })}
               </button>
             )}
           </div>
 
           {library.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-dashed border-white/15 p-10 text-center text-sm text-white/35">
-              Nothing here yet — generate your first sound effect above.
+              {t("sfx.libraryEmpty")}
             </div>
           ) : (
             <ul className="mt-6 space-y-2">
@@ -476,7 +477,7 @@ export default function TextToSfx() {
                       type="button"
                       onClick={() => toggleSelect(item.id)}
                       data-min-stars="5"
-                      aria-label={isSel ? "Deselect" : "Select for pack"}
+                      aria-label={isSel ? t("sfx.deselectLabel") : t("sfx.selectForPackLabel")}
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
                         isSel ? "border-primary bg-primary text-black" : "border-white/20 text-transparent hover:border-white/40"
                       }`}
@@ -505,7 +506,7 @@ export default function TextToSfx() {
                       <button
                         type="button"
                         onClick={() => removeItem(item.id)}
-                        aria-label="Remove from library"
+                        aria-label={t("sfx.removeFromLibraryLabel")}
                         className="flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/60 transition hover:border-red-500/50 hover:text-red-300"
                       >
                         <Trash2 className="h-3 w-3" aria-hidden="true" /> Del

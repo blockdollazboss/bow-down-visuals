@@ -8,21 +8,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
+import { useTranslation } from "react-i18next";
 
 /* ─── Storefront Builder — AI-assisted shop setup wizard ───────────────────
    5 steps: identity → branding → AI description (1cr) → products → domain + launch.
    Shop creation itself is gated to Pro+ on the server; the wizard surfaces
    the upgrade path instead of a dead end. */
 
-const STEPS = ["Identity", "Branding", "AI Description", "Products", "Domain & Launch"];
+/* Step labels are resolved via t() at render; keys stay stable. */
+const STEPS = [
+  { key: "identity", labelKey: "stepIdentity" },
+  { key: "branding", labelKey: "stepBranding" },
+  { key: "aiDescription", labelKey: "stepAiDescription" },
+  { key: "products", labelKey: "stepProducts" },
+  { key: "domainLaunch", labelKey: "stepDomainLaunch" },
+] as const;
 
 const COLOR_PRESETS = [
-  { name: "Gold Noir", banner: "#0a0a0a", accent: "#d4af37" },
-  { name: "Royal Purple", banner: "#150a24", accent: "#a855f7" },
-  { name: "Crimson", banner: "#1c0a0a", accent: "#ef4444" },
-  { name: "Ocean", banner: "#08131c", accent: "#38bdf8" },
-  { name: "Emerald", banner: "#071410", accent: "#34d399" },
-  { name: "Rose", banner: "#190b12", accent: "#fb7185" },
+  { key: "gold-noir", labelKey: "colorGoldNoir", banner: "#0a0a0a", accent: "#d4af37" },
+  { key: "royal-purple", labelKey: "colorRoyalPurple", banner: "#150a24", accent: "#a855f7" },
+  { key: "crimson", labelKey: "colorCrimson", banner: "#1c0a0a", accent: "#ef4444" },
+  { key: "ocean", labelKey: "colorOcean", banner: "#08131c", accent: "#38bdf8" },
+  { key: "emerald", labelKey: "colorEmerald", banner: "#071410", accent: "#34d399" },
+  { key: "rose", labelKey: "colorRose", banner: "#190b12", accent: "#fb7185" },
 ];
 
 const inputClass =
@@ -35,7 +43,8 @@ const ghostBtn =
 interface DraftProduct { name: string; price: string; description: string; }
 
 export default function StorefrontBuilder() {
-  usePageTitle("Build Your Storefront");
+  const { t } = useTranslation();
+  usePageTitle(t("storefrontBuilder.pageTitle"));
   const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [, navigate] = useLocation();
@@ -82,7 +91,7 @@ export default function StorefrontBuilder() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 403 && data.error === "PRO_TIER_REQUIRED") { setTierBlocked(true); return; }
-      if (!res.ok) throw new Error(data.error || "Couldn't create your shop.");
+      if (!res.ok) throw new Error(data.error || t("storefrontBuilder.errorCreateShop"));
       const shop = data.shop;
       setShopId(shop.id); setCreatedHandle(shop.handle);
       /* apply branding immediately */
@@ -108,7 +117,7 @@ export default function StorefrontBuilder() {
       }
       setStep(4);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(e instanceof Error ? e.message : t("storefrontBuilder.errorGeneric"));
     } finally { setBusy(false); }
   }
 
@@ -118,11 +127,11 @@ export default function StorefrontBuilder() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shopName: name.trim(), tagline: tagline.trim(), niche: niche.trim(), products: products.map((p) => p.name).filter(Boolean).join(", ") }),
-      overrideCost: 1, overrideFeature: "AI Shop Description",
+      overrideCost: 1, overrideFeature: t("storefrontBuilder.aiShopDescriptionFeature"),
     });
     if (!res) return; // user cancelled
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setError(data.error || "AI description failed."); return; }
+    if (!res.ok) { setError(data.error || t("storefrontBuilder.errorAiDescription")); return; }
     setDescription(data.description ?? "");
   }
 
@@ -134,9 +143,9 @@ export default function StorefrontBuilder() {
         method: "POST", body: JSON.stringify({ domain: domain.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Couldn't attach that domain.");
+      if (!res.ok) throw new Error(data.error || t("storefrontBuilder.errorAttachDomain"));
       setDomainInfo(data);
-    } catch (e) { setError(e instanceof Error ? e.message : "Domain attach failed."); }
+    } catch (e) { setError(e instanceof Error ? e.message : t("storefrontBuilder.errorDomainAttachFailed")); }
     finally { setBusy(false); }
   }
 
@@ -149,8 +158,8 @@ export default function StorefrontBuilder() {
       });
       const data = await res.json().catch(() => ({}));
       if (data.verified) { setDomainVerified(true); }
-      else setError(data.reason || "Not verified yet — DNS can take a few minutes.");
-    } catch { setError("Verification check failed. Try again."); }
+      else setError(data.reason || t("storefrontBuilder.errorNotVerified"));
+    } catch { setError(t("storefrontBuilder.errorVerifyFailed")); }
     finally { setVerifying(false); }
   }
 
@@ -166,26 +175,27 @@ export default function StorefrontBuilder() {
       <main className="mx-auto max-w-3xl px-4 pb-24 pt-10">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
-            <Store className="h-3.5 w-3.5" /> Storefront Builder
+            <Store className="h-3.5 w-3.5" /> {t("storefrontBuilder.heroBadge")}
           </div>
           <h1 className="mt-4 text-3xl font-black sm:text-4xl">
-            Open your <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent">own shop</span>
+            {t("storefrontBuilder.heroTitleA")} <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent">{t("storefrontBuilder.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
-            Your brand, your products, your domain. Bow Down Visuals takes a
-            flat <span className="font-bold text-amber-300">10% platform fee</span> on each
-            sale — you keep 90%. Requires a <span className="font-bold text-white/80">Pro plan or higher</span>.
+            {t("storefrontBuilder.heroSubtitleA")}
+            <span className="font-bold text-amber-300">{t("storefrontBuilder.heroFee")}</span>
+            {t("storefrontBuilder.heroSubtitleB")}
+            <span className="font-bold text-white/80">{t("storefrontBuilder.heroProPlan")}</span>.
           </p>
         </div>
 
         {/* stepper */}
         <div className="mt-8 flex items-center justify-center gap-1.5">
           {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-1.5">
+            <div key={s.key} className="flex items-center gap-1.5">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${i < step ? "bg-amber-400 text-black" : i === step ? "border-2 border-amber-400 text-amber-300" : "border border-white/15 text-white/30"}`}>
                 {i < step ? <Check className="h-4 w-4" /> : i + 1}
               </div>
-              <span className={`hidden text-xs font-semibold sm:block ${i === step ? "text-amber-300" : "text-white/35"}`}>{s}</span>
+              <span className={`hidden text-xs font-semibold sm:block ${i === step ? "text-amber-300" : "text-white/35"}`}>{t(`storefrontBuilder.${s.labelKey}`)}</span>
               {i < STEPS.length - 1 && <div className="mx-1 h-px w-6 bg-white/10 sm:w-10" />}
             </div>
           ))}
@@ -200,46 +210,47 @@ export default function StorefrontBuilder() {
         {tierBlocked ? (
           <div className="lux-card mt-6 p-8 text-center">
             <Crown className="mx-auto h-10 w-10 text-amber-400" />
-            <h2 className="mt-4 text-xl font-bold">Storefronts are a Pro feature</h2>
+            <h2 className="mt-4 text-xl font-bold">{t("storefrontBuilder.tierBlockedTitle")}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-white/55">
-              Opening your own shop requires a <span className="font-bold text-white/85">Pro plan or higher</span>.
-              Upgrade and your shop is one click away.
+              {t("storefrontBuilder.tierBlockedBodyA")}
+              <span className="font-bold text-white/85">{t("storefrontBuilder.tierBlockedPro")}</span>.
+              {t("storefrontBuilder.tierBlockedBodyB")}
             </p>
             <div className="mt-6 flex justify-center gap-3">
-              <Link href="/pricing"><span className={`${goldBtn} cursor-pointer`}><Crown className="h-4 w-4" /> See Pro plans</span></Link>
-              <Link href="/storefronts"><span className={`${ghostBtn} cursor-pointer`}>Browse shops</span></Link>
+              <Link href="/pricing"><span className={`${goldBtn} cursor-pointer`}><Crown className="h-4 w-4" /> {t("storefrontBuilder.seeProPlans")}</span></Link>
+              <Link href="/storefronts"><span className={`${ghostBtn} cursor-pointer`}>{t("storefrontBuilder.browseShops")}</span></Link>
             </div>
           </div>
         ) : (
           <div className="lux-card mt-6 p-6 sm:p-8">
             {!user && (
               <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
-                <Link href="/login"><span className="cursor-pointer font-bold underline">Sign in</span></Link> to build your shop — it takes 2 minutes.
+                <Link href="/login"><span className="cursor-pointer font-bold underline">{t("storefrontBuilder.signIn")}</span></Link>{t("storefrontBuilder.signInPrompt")}
               </div>
             )}
 
             {/* STEP 1 — identity */}
             {step === 0 && (
               <div>
-                <h2 className="text-lg font-bold">Name your shop</h2>
+                <h2 className="text-lg font-bold">{t("storefrontBuilder.step1Title")}</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Shop name</label>
-                    <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. TRBLZ Merch Co." maxLength={80} />
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopNameLabel")}</label>
+                    <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("storefrontBuilder.shopNamePlaceholder")} maxLength={80} />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Handle — your storefront URL</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.handleLabel")}</label>
                     <div className="flex items-center gap-2">
                       <span className="shrink-0 font-mono text-sm text-white/40">/shop/</span>
-                      <input className={`${inputClass} font-mono`} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="trblz-merch" maxLength={30} />
+                      <input className={`${inputClass} font-mono`} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder={t("storefrontBuilder.handlePlaceholder")} maxLength={30} />
                     </div>
                     {handle && !/^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])$/.test(cleanHandle) && (
-                      <p className="mt-1 text-xs text-red-300">Lowercase letters, numbers, hyphens — 3–30 characters.</p>
+                      <p className="mt-1 text-xs text-red-300">{t("storefrontBuilder.handleError")}</p>
                     )}
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Tagline</label>
-                    <input className={inputClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Official merch & music drops" maxLength={140} />
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.taglineLabel")}</label>
+                    <input className={inputClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t("storefrontBuilder.taglinePlaceholder")} maxLength={140} />
                   </div>
                 </div>
               </div>
@@ -248,24 +259,24 @@ export default function StorefrontBuilder() {
             {/* STEP 2 — branding */}
             {step === 1 && (
               <div>
-                <h2 className="text-lg font-bold">Brand it</h2>
-                <p className="mt-1 text-sm text-white/50">Pick a theme — or dial in your own colors.</p>
+                <h2 className="text-lg font-bold">{t("storefrontBuilder.step2Title")}</h2>
+                <p className="mt-1 text-sm text-white/50">{t("storefrontBuilder.step2Subtitle")}</p>
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {COLOR_PRESETS.map((c) => (
                     <button
-                      key={c.name}
+                      key={c.key}
                       onClick={() => { setBannerColor(c.banner); setAccentColor(c.accent); }}
                       className={`rounded-xl border p-3 text-left transition ${bannerColor === c.banner && accentColor === c.accent ? "border-amber-400 ring-1 ring-amber-400/50" : "border-white/10 hover:border-white/25"}`}
                       style={{ background: `linear-gradient(135deg, ${c.banner}, #111)` }}
                     >
                       <div className="h-6 w-6 rounded-full" style={{ background: c.accent }} />
-                      <div className="mt-2 text-xs font-bold">{c.name}</div>
+                      <div className="mt-2 text-xs font-bold">{t(`storefrontBuilder.${c.labelKey}`)}</div>
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Banner color</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.bannerColorLabel")}</label>
                     <div className="flex items-center gap-2">
                       <input type="color" value={bannerColor} onChange={(e) => setBannerColor(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-black" />
                       <span className="font-mono text-xs text-white/50">{bannerColor}</span>
@@ -282,11 +293,11 @@ export default function StorefrontBuilder() {
                 {/* live preview */}
                 <div className="mt-5 overflow-hidden rounded-xl border border-white/10">
                   <div className="flex h-24 items-end p-4" style={{ background: `linear-gradient(135deg, ${bannerColor}, #111)` }}>
-                    <span className="rounded-full px-3 py-1 text-[11px] font-bold text-black" style={{ background: accentColor }}>{name || "Your Shop"}</span>
+                    <span className="rounded-full px-3 py-1 text-[11px] font-bold text-black" style={{ background: accentColor }}>{name || t("storefrontBuilder.shopPreviewName")}</span>
                   </div>
                   <div className="bg-black/60 p-4">
-                    <div className="font-bold" style={{ color: accentColor }}>{name || "Your Shop"}</div>
-                    <div className="font-mono text-xs text-white/40">/shop/{cleanHandle || "your-handle"}</div>
+                    <div className="font-bold" style={{ color: accentColor }}>{name || t("storefrontBuilder.shopPreviewName")}</div>
+                    <div className="font-mono text-xs text-white/40">/shop/{cleanHandle || t("storefrontBuilder.shopPreviewHandle")}</div>
                   </div>
                 </div>
               </div>
@@ -295,20 +306,21 @@ export default function StorefrontBuilder() {
             {/* STEP 3 — AI description */}
             {step === 2 && (
               <div>
-                <h2 className="text-lg font-bold">Tell your story</h2>
+                <h2 className="text-lg font-bold">{t("storefrontBuilder.step3Title")}</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Let AI write your shop's "about" blurb — <span className="font-bold text-amber-300">100 Visual Bucs</span>. Or write your own for free.
+                  {t("storefrontBuilder.step3SubtitleA")} <span className="font-bold text-amber-300">{t("storefrontBuilder.step3Cost")}</span>.{" "}
+                  {t("storefrontBuilder.step3SubtitleB")}
                 </p>
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">What do you sell? (helps the AI)</label>
-                  <input className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Streetwear, vinyl pressings, sample packs…" maxLength={120} />
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.sellWhatLabel")}</label>
+                  <input className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("storefrontBuilder.sellWhatPlaceholder")} maxLength={120} />
                 </div>
                 <button className={`${goldBtn} mt-3`} onClick={generateDescription} disabled={busy || !name.trim()}>
-                  <Sparkles className="h-4 w-4" /> Generate with AI <span className="text-[11px] font-semibold opacity-70">100 Visual Bucs</span>
+                  <Sparkles className="h-4 w-4" /> {t("storefrontBuilder.generateAi")} <span className="text-[11px] font-semibold opacity-70">{t("storefrontBuilder.step3Cost")}</span>
                 </button>
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Shop description</label>
-                  <textarea className={`${inputClass} min-h-28`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="The official home of…" maxLength={2000} />
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopDescriptionLabel")}</label>
+                  <textarea className={`${inputClass} min-h-28`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("storefrontBuilder.shopDescriptionPlaceholder")} maxLength={2000} />
                 </div>
               </div>
             )}
@@ -316,13 +328,13 @@ export default function StorefrontBuilder() {
             {/* STEP 4 — products */}
             {step === 3 && (
               <div>
-                <h2 className="text-lg font-bold">Add products</h2>
-                <p className="mt-1 text-sm text-white/50">Start with a few — you can add images and more later in <Link href="/my-shop"><span className="cursor-pointer text-amber-300 underline">My Shop</span></Link>.</p>
+                <h2 className="text-lg font-bold">{t("storefrontBuilder.step4Title")}</h2>
+                <p className="mt-1 text-sm text-white/50">{t("storefrontBuilder.step4SubtitleA")} <Link href="/my-shop"><span className="cursor-pointer text-amber-300 underline">{t("storefrontBuilder.myShopLink")}</span></Link>.</p>
                 <div className="mt-4 space-y-3">
                   {products.map((p, i) => (
                     <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">Product {i + 1}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t("storefrontBuilder.productNumber", { n: i + 1 })}</span>
                         {products.length > 1 && (
                           <button className="text-white/40 hover:text-red-300" onClick={() => setProducts(products.filter((_, j) => j !== i))}>
                             <X className="h-4 w-4" />
@@ -330,20 +342,20 @@ export default function StorefrontBuilder() {
                         )}
                       </div>
                       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                        <input className={inputClass} value={p.name} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Product name" maxLength={120} />
-                        <input className={inputClass} value={p.price} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, price: e.target.value } : x))} placeholder="Price (USD)" inputMode="decimal" />
+                        <input className={inputClass} value={p.name} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder={t("storefrontBuilder.productNamePlaceholder")} maxLength={120} />
+                        <input className={inputClass} value={p.price} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, price: e.target.value } : x))} placeholder={t("storefrontBuilder.productPricePlaceholder")} inputMode="decimal" />
                       </div>
-                      <input className={`${inputClass} mt-3`} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Short description (optional)" maxLength={500} />
+                      <input className={`${inputClass} mt-3`} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder={t("storefrontBuilder.productDescPlaceholder")} maxLength={500} />
                       {p.price && dollarsToCents(p.price) != null && (
                         <p className="mt-1.5 text-xs text-white/40">
-                          Listed at <span className="font-bold text-white/70">{centsToDisplay(dollarsToCents(p.price)!)}</span> · you keep <span className="font-bold text-emerald-300">{centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.9))}</span> after the 10% platform fee
+                          {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.9)) })}
                         </p>
                       )}
                     </div>
                   ))}
                 </div>
                 <button className={`${ghostBtn} mt-3`} onClick={() => setProducts([...products, { name: "", price: "", description: "" }])}>
-                  <Plus className="h-4 w-4" /> Add another
+                  <Plus className="h-4 w-4" /> {t("storefrontBuilder.addAnother")}
                 </button>
               </div>
             )}
@@ -351,43 +363,43 @@ export default function StorefrontBuilder() {
             {/* STEP 5 — domain & launch */}
             {step === 4 && (
               <div>
-                <h2 className="text-lg font-bold">Launch it 🚀</h2>
+                <h2 className="text-lg font-bold">{t("storefrontBuilder.step5Title")}</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Your shop is live at <span className="font-mono text-amber-300">/shop/{createdHandle}</span>.
-                  Connect your own domain for the full brand experience.
+                  {t("storefrontBuilder.step5SubtitleA")} <span className="font-mono text-amber-300">/shop/{createdHandle}</span>.{" "}
+                  {t("storefrontBuilder.step5SubtitleB")}
                 </p>
 
                 <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-5">
-                  <div className="flex items-center gap-2 text-sm font-bold"><Globe className="h-4 w-4 text-amber-300" /> Custom domain</div>
+                  <div className="flex items-center gap-2 text-sm font-bold"><Globe className="h-4 w-4 text-amber-300" /> {t("storefrontBuilder.customDomain")}</div>
                   {!domainInfo ? (
                     <div className="mt-3 flex gap-2">
-                      <input className={inputClass} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="shop.yourname.com" />
-                      <button className={goldBtn} onClick={attachDomain} disabled={busy || !domain.trim()}>Connect</button>
+                      <input className={inputClass} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("storefrontBuilder.domainPlaceholder")} />
+                      <button className={goldBtn} onClick={attachDomain} disabled={busy || !domain.trim()}>{t("storefrontBuilder.connect")}</button>
                     </div>
                   ) : (
                     <div className="mt-3 space-y-3 text-sm">
                       <div className="rounded-lg border border-white/10 bg-black/60 p-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs uppercase tracking-wider text-white/40">Step 1 — TXT record (proves you own it)</span>
+                          <span className="text-xs uppercase tracking-wider text-white/40">{t("storefrontBuilder.dnsStep1")}</span>
                           <button className="text-xs font-bold text-amber-300 hover:text-amber-200" onClick={() => copy(domainInfo.verification.value, "txt")}>
                             {copied === "txt" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                         </div>
-                        <p className="mt-1 font-mono text-xs text-white/80">Host: <span className="text-amber-300">{domainInfo.verification.host}</span></p>
-                        <p className="mt-1 break-all font-mono text-xs text-white/80">Value: <span className="text-amber-300">{domainInfo.verification.value}</span></p>
+                        <p className="mt-1 font-mono text-xs text-white/80">{t("storefrontBuilder.hostLabel")}: <span className="text-amber-300">{domainInfo.verification.host}</span></p>
+                        <p className="mt-1 break-all font-mono text-xs text-white/80">{t("storefrontBuilder.valueLabel")}: <span className="text-amber-300">{domainInfo.verification.value}</span></p>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/60 p-3">
-                        <div className="text-xs uppercase tracking-wider text-white/40">Step 2 — CNAME record (points it at your shop)</div>
-                        <p className="mt-1 font-mono text-xs text-white/80">Host: <span className="text-amber-300">@</span> → <span className="text-amber-300">cname.bowdownvisuals.com</span></p>
+                        <div className="text-xs uppercase tracking-wider text-white/40">{t("storefrontBuilder.dnsStep2")}</div>
+                        <p className="mt-1 font-mono text-xs text-white/80">{t("storefrontBuilder.hostLabel")}: <span className="text-amber-300">@</span> → <span className="text-amber-300">cname.bowdownvisuals.com</span></p>
                       </div>
                       <p className="text-xs text-white/45">{domainInfo.dns.step3}</p>
                       <button className={goldBtn} onClick={verifyDomain} disabled={verifying}>
                         {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : domainVerified ? <BadgeCheck className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
-                        {domainVerified ? "Domain verified!" : "Verify domain"}
+                        {domainVerified ? t("storefrontBuilder.domainVerified") : t("storefrontBuilder.verifyDomain")}
                       </button>
                       {domainVerified && (
                         <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
-                          <BadgeCheck className="h-4 w-4" /> {domainInfo.domain} is connected to your shop.
+                          <BadgeCheck className="h-4 w-4" /> {t("storefrontBuilder.domainConnected", { domain: domainInfo.domain })}
                         </p>
                       )}
                     </div>
@@ -396,9 +408,9 @@ export default function StorefrontBuilder() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button className={goldBtn} onClick={() => navigate(`/shop/${createdHandle}`)}>
-                    <ArrowRight className="h-4 w-4" /> View your live shop
+                    <ArrowRight className="h-4 w-4" /> {t("storefrontBuilder.viewLiveShop")}
                   </button>
-                  <Link href="/my-shop"><span className={`${ghostBtn} cursor-pointer`}><ShoppingBag className="h-4 w-4" /> Manage in My Shop</span></Link>
+                  <Link href="/my-shop"><span className={`${ghostBtn} cursor-pointer`}><ShoppingBag className="h-4 w-4" /> {t("storefrontBuilder.manageShop")}</span></Link>
                 </div>
               </div>
             )}
@@ -407,16 +419,16 @@ export default function StorefrontBuilder() {
             {step < 4 && (
               <div className="mt-8 flex items-center justify-between">
                 <button className={ghostBtn} onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
-                  <ArrowLeft className="h-4 w-4" /> Back
+                  <ArrowLeft className="h-4 w-4" /> {t("storefrontBuilder.back")}
                 </button>
                 {step < 3 ? (
                   <button className={goldBtn} onClick={() => setStep(step + 1)} disabled={step === 0 && !canNext1 || !user}>
-                    Continue <ArrowRight className="h-4 w-4" />
+                    {t("storefrontBuilder.continue")} <ArrowRight className="h-4 w-4" />
                   </button>
                 ) : (
                   <button className={goldBtn} onClick={createShop} disabled={busy || !user}>
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
-                    Create my shop
+                    {t("storefrontBuilder.createShop")}
                   </button>
                 )}
               </div>

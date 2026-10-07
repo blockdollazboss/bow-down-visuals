@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 interface LibraryThumbnail {
@@ -26,7 +27,8 @@ function formatDate(iso: string) {
 }
 
 export default function Thumbnails() {
-  usePageTitle("Thumbnail Library", "Browse and manage your generated thumbnails.");
+  const { t } = useTranslation();
+  usePageTitle(t("thumbnails.pageTitle"), t("thumbnails.pageDescription"));
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [thumbnails, setThumbnails] = useState<LibraryThumbnail[]>([]);
@@ -44,11 +46,11 @@ export default function Thumbnails() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch("/api/thumbnails", { headers });
-      if (!res.ok) throw new Error("Failed to load thumbnails");
+      if (!res.ok) throw new Error(t("thumbnails.loadFailed"));
       const data = await res.json();
       setThumbnails(data.thumbnails ?? []);
     } catch {
-      setError("Could not load your thumbnail library.");
+      setError(t("thumbnails.loadError"));
     } finally {
       setLoading(false);
     }
@@ -64,12 +66,12 @@ export default function Thumbnails() {
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`/api/thumbnails/${id}`, { method: "DELETE", headers });
       if (!res.ok) throw new Error("Delete failed");
-      setThumbnails((prev) => prev.filter((t) => t.id !== id));
+      setThumbnails((prev) => prev.filter((thumb) => thumb.id !== id));
       if (lightbox?.id === id) setLightbox(null);
       setConfirmDeleteId(null);
-      toast({ title: "Removed from library" });
+      toast({ title: t("thumbnails.removedToast") });
     } catch {
-      toast({ title: "Could not delete", variant: "destructive" });
+      toast({ title: t("thumbnails.deleteFailedToast"), variant: "destructive" });
     } finally {
       setDeletingId(null);
     }
@@ -82,8 +84,7 @@ export default function Thumbnails() {
       </div>
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </Link>
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />{t("thumbnails.backToDashboard")}</Link>
 
         <div className="mb-10 flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -92,13 +93,12 @@ export default function Thumbnails() {
                 <ImageIcon className="h-5 w-5 text-primary" />
               </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">Thumbnail Library</h1>
-            <p className="text-white/50 text-lg max-w-2xl">Every AI thumbnail you've generated, saved and ready to download.</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">{t("thumbnails.libraryTitle")}</h1>
+            <p className="text-white/50 text-lg max-w-2xl">{t("thumbnails.librarySubtitle")}</p>
           </div>
           <Link href="/thumbnail">
             <Button className="gold-glow font-bold rounded-xl gap-2">
-              <Sparkles className="h-4 w-4" /> Make a Thumbnail
-            </Button>
+              <Sparkles className="h-4 w-4" />{t("thumbnails.makeThumbnail")}</Button>
           </Link>
         </div>
 
@@ -117,30 +117,30 @@ export default function Thumbnails() {
         {!loading && !error && thumbnails.length === 0 && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-12 text-center">
             <ImageIcon className="h-10 w-10 text-white/20 mx-auto mb-4" />
-            <p className="text-white/60 font-medium mb-2">No thumbnails yet</p>
-            <p className="text-white/30 text-sm mb-6">Generate your first AI thumbnail and it'll live here forever.</p>
+            <p className="text-white/60 font-medium mb-2">{t("thumbnails.emptyTitle")}</p>
+            <p className="text-white/30 text-sm mb-6">{t("thumbnails.emptyBody")}</p>
             <Link href="/thumbnail">
-              <Button className="gold-glow font-bold rounded-xl">Open Thumbnail Maker</Button>
+              <Button className="gold-glow font-bold rounded-xl">{t("thumbnails.openMaker")}</Button>
             </Link>
           </div>
         )}
 
         {!loading && !error && thumbnails.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {thumbnails.map((t) => (
+            {thumbnails.map((thumb) => (
               <div
-                key={t.id}
+                key={thumb.id}
                 className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/30 transition-colors"
               >
                 <button
-                  onClick={() => setLightbox(t)}
+                  onClick={() => setLightbox(thumb)}
                   className="block w-full aspect-video bg-black/40 overflow-hidden cursor-pointer"
-                  aria-label={`View ${t.song_title ?? "thumbnail"} full size`}
+                  aria-label={t("thumbnails.viewFullSize", { title: thumb.song_title ?? t("thumbnails.defaultTitle") })}
                 >
-                  {t.thumbnail_url ? (
+                  {thumb.thumbnail_url ? (
                     <img
-                      src={t.thumbnail_url}
-                      alt={t.action_label ?? "AI-generated thumbnail"}
+                      src={thumb.thumbnail_url}
+                      alt={thumb.action_label ?? t("thumbnails.generatedAlt")}
                       className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
                       loading="lazy"
                     />
@@ -152,44 +152,40 @@ export default function Thumbnails() {
                 </button>
                 <div className="p-4">
                   <p className="text-white font-semibold text-sm truncate">
-                    {t.song_title ?? t.action_label ?? "Untitled thumbnail"}
+                    {thumb.song_title ?? thumb.action_label ?? t("thumbnails.untitled")}
                   </p>
                   <p className="text-white/40 text-xs mt-1 flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" /> {formatDate(t.created_at)}
-                    {t.artist_name && <span className="text-white/25">· {t.artist_name}</span>}
+                    <Calendar className="h-3 w-3" /> {formatDate(thumb.created_at)}
+                    {thumb.artist_name && <span className="text-white/25">· {thumb.artist_name}</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-3">
-                    {t.thumbnail_url && (
-                      <a href={t.thumbnail_url} download target="_blank" rel="noreferrer">
+                    {thumb.thumbnail_url && (
+                      <a href={thumb.thumbnail_url} download target="_blank" rel="noreferrer">
                         <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5">
-                          <Download className="h-3.5 w-3.5" /> Download
-                        </Button>
+                          <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                       </a>
                     )}
-                    {confirmDeleteId === t.id ? (
+                    {confirmDeleteId === thumb.id ? (
                       <span className="flex items-center gap-2 ml-auto">
                         <button
-                          onClick={() => handleDelete(t.id)}
-                          disabled={deletingId === t.id}
+                          onClick={() => handleDelete(thumb.id)}
+                          disabled={deletingId === thumb.id}
                           className="text-xs font-bold text-red-400 hover:text-red-300 px-2 py-1"
                         >
-                          {deletingId === t.id ? "Removing…" : "Confirm remove"}
+                          {deletingId === thumb.id ? t("thumbnails.removing") : t("thumbnails.confirmRemove")}
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
                           className="text-xs text-white/40 hover:text-white px-2 py-1"
-                        >
-                          Keep
-                        </button>
+                        >{t("thumbnails.keep")}</button>
                       </span>
                     ) : (
                       <button
-                        onClick={() => setConfirmDeleteId(t.id)}
-                        title="Remove from library (the file itself is never deleted)"
+                        onClick={() => setConfirmDeleteId(thumb.id)}
+                        title={t("thumbnails.removeTitle")}
                         className="ml-auto flex items-center gap-1.5 text-xs text-white/35 hover:text-red-400 transition-colors px-2 py-1.5"
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Remove
-                      </button>
+                        <Trash2 className="h-3.5 w-3.5" />{t("thumbnails.remove")}</button>
                     )}
                   </div>
                 </div>
@@ -212,21 +208,21 @@ export default function Thumbnails() {
             <button
               onClick={() => setLightbox(null)}
               className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
-              aria-label="Close"
+              aria-label={t("thumbnails.closeAria")}
             >
               <X className="h-4 w-4" />
             </button>
             {lightbox.thumbnail_url && (
               <img
                 src={lightbox.thumbnail_url}
-                alt={lightbox.action_label ?? "AI-generated thumbnail"}
+                alt={lightbox.action_label ?? t("thumbnails.generatedAlt")}
                 className="w-full max-h-[75vh] object-contain bg-black"
               />
             )}
             <div className="p-4 md:p-5 flex items-center gap-3 flex-wrap border-t border-white/[0.06]">
               <div className="min-w-0">
                 <p className="text-white font-semibold text-sm truncate">
-                  {lightbox.song_title ?? lightbox.action_label ?? "Untitled thumbnail"}
+                  {lightbox.song_title ?? lightbox.action_label ?? t("thumbnails.untitled")}
                 </p>
                 <p className="text-white/40 text-xs mt-0.5">
                   {formatDate(lightbox.created_at)}
@@ -237,8 +233,7 @@ export default function Thumbnails() {
                 {lightbox.thumbnail_url && (
                   <a href={lightbox.thumbnail_url} download target="_blank" rel="noreferrer">
                     <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5">
-                      <Download className="h-3.5 w-3.5" /> Download
-                    </Button>
+                      <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                   </a>
                 )}
                 <Button
@@ -248,7 +243,7 @@ export default function Thumbnails() {
                   disabled={deletingId === lightbox.id}
                   className="border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 gap-1.5"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> {deletingId === lightbox.id ? "Removing…" : "Remove"}
+                  <Trash2 className="h-3.5 w-3.5" /> {deletingId === lightbox.id ? t("thumbnails.removing") : t("thumbnails.remove")}
                 </Button>
               </div>
             </div>

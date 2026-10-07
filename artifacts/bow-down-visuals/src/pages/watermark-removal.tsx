@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /* ─── Watermark Removal ───────────────────────────────────────────────────
    Removes a static watermark/logo from your own video with ffmpeg's delogo
@@ -21,12 +22,12 @@ const CREDIT_COST = 2;
 
 type PresetKey = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
 
-const PRESETS: Array<{ key: PresetKey; label: string; blurb: string }> = [
-  { key: "bottom-right", label: "Bottom right", blurb: "Most common logo spot" },
-  { key: "bottom-left", label: "Bottom left", blurb: "Captions & bugs" },
-  { key: "top-right", label: "Top right", blurb: "Channel logos" },
-  { key: "top-left", label: "Top left", blurb: "Preview watermarks" },
-  { key: "custom", label: "Custom region", blurb: "Set exact coordinates" },
+const PRESETS: Array<{ key: PresetKey; labelKey: string; blurbKey: string }> = [
+  { key: "bottom-right", labelKey: "watermarkRemoval.presetBottomRight", blurbKey: "watermarkRemoval.presetBottomRightBlurb" },
+  { key: "bottom-left", labelKey: "watermarkRemoval.presetBottomLeft", blurbKey: "watermarkRemoval.presetBottomLeftBlurb" },
+  { key: "top-right", labelKey: "watermarkRemoval.presetTopRight", blurbKey: "watermarkRemoval.presetTopRightBlurb" },
+  { key: "top-left", labelKey: "watermarkRemoval.presetTopLeft", blurbKey: "watermarkRemoval.presetTopLeftBlurb" },
+  { key: "custom", labelKey: "watermarkRemoval.presetCustom", blurbKey: "watermarkRemoval.presetCustomBlurb" },
 ];
 
 type JobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
@@ -47,6 +48,7 @@ interface JobResponse {
  * back link when the tool is rendered inside a tab.
  */
 export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
@@ -72,7 +74,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
         const data: JobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || "Job not found");
+          setError(data.error || t("watermarkRemoval.jobNotFound"));
           return;
         }
         if (data.status === "done") {
@@ -80,7 +82,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Removal failed — your 200 Visual Bucs were refunded.");
+          setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: CREDIT_COST * 100 }));
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -96,11 +98,11 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
   function pickFile(f: File | undefined) {
     if (!f) return;
     if (!f.type.startsWith("video/")) {
-      setError("Please choose a video file.");
+      setError(t("watermarkRemoval.videoFileError"));
       return;
     }
     if (f.size > 80 * 1024 * 1024) {
-      setError("This video exceeds the 80 MB upload limit.");
+      setError(t("watermarkRemoval.videoSizeError"));
       return;
     }
     setFile(f);
@@ -120,7 +122,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
   async function startRemoval() {
     if (!file || !user) return;
     if (preset === "custom" && !customValid()) {
-      setError("Custom region must be x, y, w, h as 0–100 percentages that fit inside the frame.");
+      setError(t("watermarkRemoval.customRegionError"));
       return;
     }
     setStatus("uploading");
@@ -146,7 +148,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start watermark removal.");
+        setError(data.message || data.error || t("watermarkRemoval.startFailedError"));
         return;
       }
       setJobId(data.jobId);
@@ -154,7 +156,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("watermarkRemoval.networkError"));
     }
   }
 
@@ -173,7 +175,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
     <>
       {showBackLink && (
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("watermarkRemoval.back")}
         </Link>
       )}
 
@@ -182,8 +184,8 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           <Eraser className="h-5 w-5" />
         </span>
         <div>
-          <h2 className="text-xl font-black">Watermark Removal</h2>
-          <p className="text-sm text-white/45">Clean logos off your own videos — {CREDIT_COST} Visual Bucs</p>
+          <h2 className="text-xl font-black">{t("watermarkRemoval.toolTitle")}</h2>
+          <p className="text-sm text-white/45">{t("watermarkRemoval.toolSub", { cost: CREDIT_COST })}</p>
         </div>
       </div>
 
@@ -191,11 +193,11 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
       <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
         <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
         <p className="text-xs text-white/55 leading-relaxed">
-          Works best on <span className="text-white/80 font-semibold">small, static corner watermarks</span> —
-          the marked area is blended from surrounding pixels. It{" "}
-          <span className="text-white/80 font-semibold">won't cleanly remove</span> large, moving, or
-          semi-transparent animated watermarks (those smear). Only use on videos you own or have
-          the rights to edit.
+          {t("watermarkRemoval.honestFraming1")}{" "}
+          <span className="text-white/80 font-semibold">{t("watermarkRemoval.honestFramingStrong1")}</span>
+          {t("watermarkRemoval.honestFramingMid")}{" "}
+          <span className="text-white/80 font-semibold">{t("watermarkRemoval.honestFramingStrong2")}</span>
+          {t("watermarkRemoval.honestFraming2")}
         </p>
       </div>
 
@@ -226,12 +228,12 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
             {file ? (
               <div>
                 <p className="font-semibold text-white">{file.name}</p>
-                <p className="text-xs text-white/40 mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB — click to change</p>
+                <p className="text-xs text-white/40 mt-1">{t("watermarkRemoval.fileChosen", { size: (file.size / 1024 / 1024).toFixed(1) })}</p>
               </div>
             ) : (
               <div>
-                <p className="font-semibold text-white/70">Drop a video here, or click to browse</p>
-                <p className="text-xs text-white/35 mt-1">MP4, MOV, WebM — up to 80 MB</p>
+                <p className="font-semibold text-white/70">{t("watermarkRemoval.dropPrompt")}</p>
+                <p className="text-xs text-white/35 mt-1">{t("watermarkRemoval.dropHint")}</p>
               </div>
             )}
             <input
@@ -245,7 +247,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
 
           {/* Location picker */}
           <div data-min-stars="2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Watermark location</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("watermarkRemoval.locationLabel")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {PRESETS.map((p) => (
                 <button
@@ -259,8 +261,8 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
-                  <p className="font-bold text-white text-sm">{p.label}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{p.blurb}</p>
+                  <p className="font-bold text-white text-sm">{t(p.labelKey)}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{t(p.blurbKey)}</p>
                 </button>
               ))}
             </div>
@@ -270,7 +272,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           {preset === "custom" && (
             <div data-min-stars="6" className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">
-                Region (% of frame — x, y from top-left)
+                {t("watermarkRemoval.customRegionLabel")}
               </p>
               <div className="grid grid-cols-4 gap-3">
                 {(["x", "y", "w", "h"] as const).map((k) => (
@@ -289,7 +291,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
               </div>
               {!customValid() && (
                 <p className="mt-2 text-xs text-amber-400/80">
-                  Region must fit inside the frame: x + w ≤ 100, y + h ≤ 100, w and h above 0.
+                  {t("watermarkRemoval.customRegionHint")}
                 </p>
               )}
             </div>
@@ -300,10 +302,10 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
             disabled={!file || !user || (preset === "custom" && !customValid())}
             className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Remove watermark · {CREDIT_COST} Visual Bucs
+            {t("watermarkRemoval.removeButton", { cost: CREDIT_COST })}
           </button>
           {creditsRemaining != null && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+            <p className="text-center text-xs text-white/35">{t("watermarkRemoval.creditsRemaining", { count: creditsRemaining })}</p>
           )}
         </div>
       ) : null}
@@ -313,10 +315,10 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
         <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
           <p className="font-bold text-white">
-            {status === "uploading" ? "Uploading…" : status === "queued" ? "In the render queue…" : "Removing the watermark…"}
+            {status === "uploading" ? t("watermarkRemoval.statusUploading") : status === "queued" ? t("watermarkRemoval.statusQueued") : t("watermarkRemoval.statusProcessing")}
           </p>
           <p className="text-sm text-white/40 mt-1">
-            This runs on our servers — safe to close this tab. Your cleaned video will be waiting in your library.
+            {t("watermarkRemoval.progressNote")}
           </p>
         </div>
       )}
@@ -326,7 +328,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
         <div className="mt-6 space-y-4">
           <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
             <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-            <p className="text-sm font-semibold text-white/80">Watermark removed</p>
+            <p className="text-sm font-semibold text-white/80">{t("watermarkRemoval.removalComplete")}</p>
           </div>
           <video src={outputUrl} controls className="w-full rounded-2xl border border-white/[0.08] bg-black" />
           <div className="flex gap-3">
@@ -335,13 +337,13 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
               download="watermark-removed.mp4"
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 font-bold text-black transition hover:brightness-110"
             >
-              <Download className="h-4 w-4" /> Download
+              <Download className="h-4 w-4" /> {t("watermarkRemoval.download")}
             </a>
             <button
               onClick={reset}
               className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
             >
-              <RefreshCw className="h-4 w-4" /> New video
+              <RefreshCw className="h-4 w-4" /> {t("watermarkRemoval.newVideo")}
             </button>
           </div>
         </div>
@@ -351,7 +353,8 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
 }
 
 export default function WatermarkRemoval() {
-  usePageTitle("Watermark Removal", "Clean watermarks from your own content — pristine exports, no logos.");
+  const { t } = useTranslation();
+  usePageTitle(t("watermarkRemoval.pageTitle"), t("watermarkRemoval.pageDescription"));
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-3xl px-4 py-10">

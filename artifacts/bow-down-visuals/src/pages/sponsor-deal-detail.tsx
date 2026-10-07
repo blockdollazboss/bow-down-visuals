@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/:id — deal detail ──────────────────────────────────────────
    Creators: apply with a pitch (+ AI pitch writer, 1 credit), track status,
@@ -52,7 +53,14 @@ interface Application {
 }
 
 const AI_COST = 1;
-const TONES = ["professional", "bold", "friendly"] as const;
+/* Tone display strings live in the component (via t()); keys stay stable
+   because tone values are sent to the backend. */
+const TONES = [
+  { key: "professional", labelKey: "toneProfessional" },
+  { key: "bold", labelKey: "toneBold" },
+  { key: "friendly", labelKey: "toneFriendly" },
+] as const;
+type ToneKey = (typeof TONES)[number]["key"];
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -61,12 +69,13 @@ const sectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 const STEPS = ["active", "funded", "in_progress", "completed", "paid"] as const;
-const STEP_LABELS: Record<string, string> = {
-  active: "Open",
-  funded: "Funded",
-  in_progress: "In progress",
-  completed: "Delivered",
-  paid: "Paid",
+/* Step labels are resolved via t() at render; keys stay stable. */
+const STEP_LABEL_KEYS: Record<string, string> = {
+  active: "stepOpen",
+  funded: "stepFunded",
+  in_progress: "stepInProgress",
+  completed: "stepDelivered",
+  paid: "stepPaid",
 };
 
 function moneyCents(cents: number | null): string {
@@ -75,6 +84,7 @@ function moneyCents(cents: number | null): string {
 }
 
 export default function SponsorDealDetail() {
+  const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -95,7 +105,7 @@ export default function SponsorDealDetail() {
   const [creatorNiche, setCreatorNiche] = useState("");
   const [creatorFollowers, setCreatorFollowers] = useState("");
   const [achievements, setAchievements] = useState("");
-  const [tone, setTone] = useState<(typeof TONES)[number]>("professional");
+  const [tone, setTone] = useState<ToneKey>("professional");
   const [pitchLoading, setPitchLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   // brand
@@ -119,11 +129,11 @@ export default function SponsorDealDetail() {
     try {
       const res = await fetch(`/api/sponsors/deals/${dealId}`, { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as { deal?: FullDeal; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not load the deal.");
+      if (!res.ok) throw new Error(data.error || t("sponsorDealDetail.errorLoadDeal"));
       setDeal(data.deal ?? null);
       if (data.deal && data.deal.postedBy === user.id) loadApplications(data.deal.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load the deal.");
+      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorLoadDeal"));
     } finally {
       setLoading(false);
     }
@@ -155,11 +165,11 @@ export default function SponsorDealDetail() {
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-      if (!res.ok) throw new Error(data.error || "Action failed.");
+      if (!res.ok) throw new Error(data.error || t("sponsorDealDetail.errorActionFailed"));
       await load();
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed.");
+      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorActionFailed"));
       return null;
     } finally {
       setBusy(null);
@@ -167,7 +177,7 @@ export default function SponsorDealDetail() {
   }
 
   async function applyToDeal() {
-    if (!pitch.trim()) { setError("Write your pitch first."); return; }
+    if (!pitch.trim()) { setError(t("sponsorDealDetail.errorPitchFirst")); return; }
     const data = await postAction(`/api/sponsors/deals/${dealId}/apply`, "POST",
       { pitch: pitch.trim(), portfolioUrl: portfolioUrl.trim() || undefined }, "apply");
     if (data) {
@@ -177,7 +187,7 @@ export default function SponsorDealDetail() {
   }
 
   async function writePitch() {
-    if (!creatorNiche.trim()) { setError("Tell the AI your niche first."); return; }
+    if (!creatorNiche.trim()) { setError(t("sponsorDealDetail.errorNicheFirst")); return; }
     setPitchLoading(true);
     setError(null);
     try {
@@ -197,11 +207,11 @@ export default function SponsorDealDetail() {
       if (!res) return; /* user cancelled the credit confirmation */
       const data = (await res.json().catch(() => ({}))) as { pitch?: string; error?: string };
       if (res.status === 402) { setOutOfCredits(true); refreshProfile(); return; }
-      if (!res.ok || !data.pitch) throw new Error(data.error || "Pitch writer failed.");
+      if (!res.ok || !data.pitch) throw new Error(data.error || t("sponsorDealDetail.errorPitchWriter"));
       setPitch(data.pitch);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pitch writer failed.");
+      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorPitchWriter"));
     } finally {
       setPitchLoading(false);
     }
@@ -215,7 +225,7 @@ export default function SponsorDealDetail() {
 
   async function reviewApplication(appId: string, action: "accept" | "reject") {
     if (action === "accept" && !agreedDollars.trim()) {
-      setError("Set the agreed payout in dollars to accept a creator.");
+      setError(t("sponsorDealDetail.errorAgreedPayout"));
       return;
     }
     setReviewingId(appId);
@@ -232,7 +242,7 @@ export default function SponsorDealDetail() {
 
   async function fundDeal() {
     const amountCents = deal?.agreedAmountCents ?? Math.round(Number(agreedDollars) * 100);
-    if (!amountCents || amountCents <= 0) { setError("No agreed payout to fund."); return; }
+    if (!amountCents || amountCents <= 0) { setError(t("sponsorDealDetail.errorNoAgreedPayout")); return; }
     const data = await postAction(`/api/sponsors/deals/${dealId}/fund`, "POST", { amountCents }, "fund") as
       { sandbox?: boolean; sessionId?: string; checkoutUrl?: string } | null;
     if (!data) return;
@@ -255,7 +265,7 @@ export default function SponsorDealDetail() {
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-28 md:pt-32">
         <button onClick={() => navigate("/sponsors")}
           className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to deals
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("sponsorDealDetail.backToDeals")}
         </button>
 
         {error && (
@@ -264,10 +274,10 @@ export default function SponsorDealDetail() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-white/40">
-            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> Loading deal…
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("sponsorDealDetail.loadingDeal")}
           </div>
         ) : !deal ? (
-          <p className="mt-10 text-center text-white/50">Deal not found.</p>
+          <p className="mt-10 text-center text-white/50">{t("sponsorDealDetail.dealNotFound")}</p>
         ) : (
           <>
             {/* ── deal header ── */}
@@ -291,13 +301,13 @@ export default function SponsorDealDetail() {
 
               <p className="mt-5 text-sm leading-relaxed text-white/75">{deal.description}</p>
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm">
-                <p className={sectionLabel}>Deliverables</p>
+                <p className={sectionLabel}>{t("sponsorDealDetail.deliverables")}</p>
                 <p className="text-white/80">{deal.deliverables}</p>
               </div>
 
               {/* status timeline */}
               <div className="mt-6">
-                <p className={sectionLabel}>Deal progress</p>
+                <p className={sectionLabel}>{t("sponsorDealDetail.dealProgress")}</p>
                 <div className="flex items-center gap-1">
                   {STEPS.map((s, i) => {
                     const done = stepIndex >= 0 && i <= stepIndex;
@@ -310,7 +320,7 @@ export default function SponsorDealDetail() {
                             {i + 1}
                           </span>
                           <span className={`text-[10px] font-bold ${done ? "text-primary" : "text-white/30"}`}>
-                            {STEP_LABELS[s]}
+                            {t(`sponsorDealDetail.${STEP_LABEL_KEYS[s]}`)}
                           </span>
                         </div>
                         {i < STEPS.length - 1 && (
@@ -325,29 +335,28 @@ export default function SponsorDealDetail() {
               {/* escrow box */}
               <div className="mt-6 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Escrow
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t("sponsorDealDetail.escrow")}
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                   <div>
-                    <p className="text-white/40 text-xs">Status</p>
+                    <p className="text-white/40 text-xs">{t("sponsorDealDetail.escrowStatusLabel")}</p>
                     <p className="font-bold capitalize text-white">{deal.escrowStatus.replace("_", " ")}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs">Agreed payout</p>
+                    <p className="text-white/40 text-xs">{t("sponsorDealDetail.agreedPayoutLabel")}</p>
                     <p className="font-bold text-white">{moneyCents(deal.agreedAmountCents)}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs">Platform fee (15%)</p>
+                    <p className="text-white/40 text-xs">{t("sponsorDealDetail.platformFeeLabel")}</p>
                     <p className="font-bold text-white">{moneyCents(deal.platformFeeCents)}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs">Creator gets</p>
+                    <p className="text-white/40 text-xs">{t("sponsorDealDetail.creatorGetsLabel")}</p>
                     <p className="font-bold text-primary">{moneyCents(deal.creatorPayoutCents)}</p>
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-white/40">
-                  The brand's payment is held in escrow and released to the creator on delivery —
-                  Bow Down Visuals keeps 15%, the creator keeps 85%.
+                  {t("sponsorDealDetail.escrowExplainer")}
                 </p>
               </div>
             </div>
@@ -358,69 +367,69 @@ export default function SponsorDealDetail() {
                 {deal.myApplicationStatus ? (
                   <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    Application {deal.myApplicationStatus}
+                    {t("sponsorDealDetail.applicationStatus", { status: deal.myApplicationStatus })}
                   </p>
                 ) : (
                   <>
                     <h2 className="flex items-center gap-2 font-display text-xl font-black">
-                      <PenLine className="h-5 w-5 text-primary" aria-hidden="true" /> Apply to this deal · free
+                      <PenLine className="h-5 w-5 text-primary" aria-hidden="true" /> {t("sponsorDealDetail.applyTitle")}
                     </h2>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       <div>
-                        <p className={sectionLabel}>Your name / handle</p>
+                        <p className={sectionLabel}>{t("sponsorDealDetail.nameLabel")}</p>
                         <input value={creatorName} onChange={(e) => setCreatorName(e.target.value)} maxLength={120}
-                          placeholder="e.g. TRGDY TRBLZ" className={inputClass} />
+                          placeholder={t("sponsorDealDetail.namePlaceholder")} className={inputClass} />
                       </div>
                       <div>
-                        <p className={sectionLabel}>Your niche</p>
+                        <p className={sectionLabel}>{t("sponsorDealDetail.nicheLabel")}</p>
                         <input value={creatorNiche} onChange={(e) => setCreatorNiche(e.target.value)} maxLength={120}
-                          placeholder="e.g. Music" className={inputClass} />
+                          placeholder={t("sponsorDealDetail.nichePlaceholder")} className={inputClass} />
                       </div>
                       <div>
-                        <p className={sectionLabel}>Followers</p>
+                        <p className={sectionLabel}>{t("sponsorDealDetail.followersLabel")}</p>
                         <input value={creatorFollowers} onChange={(e) => setCreatorFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                          inputMode="numeric" placeholder="25000" className={inputClass} />
+                          inputMode="numeric" placeholder={t("sponsorDealDetail.followersPlaceholder")} className={inputClass} />
                       </div>
                       <div>
-                        <p className={sectionLabel}>Tone</p>
+                        <p className={sectionLabel}>{t("sponsorDealDetail.toneLabel")}</p>
                         <div className="flex gap-2">
-                          {TONES.map((t) => (
-                            <button key={t} onClick={() => setTone(t)}
+                          {TONES.map((toneDef) => (
+                            <button key={toneDef.key} onClick={() => setTone(toneDef.key)}
                               className={`rounded-xl border px-4 py-2.5 text-sm font-bold capitalize transition ${
-                                tone === t ? "border-primary bg-primary/15 text-primary" : "border-white/15 text-white/60 hover:text-white"
+                                tone === toneDef.key ? "border-primary bg-primary/15 text-primary" : "border-white/15 text-white/60 hover:text-white"
                               }`}>
-                              {t}
+                              {t(`sponsorDealDetail.${toneDef.labelKey}`)}
                             </button>
                           ))}
                         </div>
                       </div>
                     </div>
-                    <p className={`${sectionLabel} mt-4`}>Your wins (optional)</p>
+                    <p className={`${sectionLabel} mt-4`}>{t("sponsorDealDetail.winsLabel")}</p>
                     <input value={achievements} onChange={(e) => setAchievements(e.target.value)} maxLength={500}
-                      placeholder="e.g. 2M views on my last drop, opened for…" className={inputClass} />
+                      placeholder={t("sponsorDealDetail.winsPlaceholder")} className={inputClass} />
                     <button onClick={writePitch} disabled={pitchLoading}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50">
                       {pitchLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
-                      {pitchLoading ? "Writing…" : `AI pitch writer · ${AI_COST} credit`}
+                      {pitchLoading ? t("sponsorDealDetail.writingPitch") : t("sponsorDealDetail.aiPitchWriter", { count: AI_COST })}
                     </button>
 
-                    <p className={`${sectionLabel} mt-6`}>Your pitch</p>
+                    <p className={`${sectionLabel} mt-6`}>{t("sponsorDealDetail.pitchLabel")}</p>
                     <textarea value={pitch} onChange={(e) => setPitch(e.target.value)} maxLength={2000} rows={5}
-                      placeholder="Why you're the one for this brand…" className={`${inputClass} resize-y`} />
+                      placeholder={t("sponsorDealDetail.pitchPlaceholder")} className={`${inputClass} resize-y`} />
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button onClick={copyPitch} disabled={!pitch.trim()}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/70 transition hover:text-white disabled:opacity-40">
                         {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
-                        {copied ? "Copied" : "Copy"}
+                        {copied ? t("sponsorDealDetail.copied") : t("sponsorDealDetail.copy")}
                       </button>
                     </div>
-                    <p className={`${sectionLabel} mt-4`}>Portfolio / artist vault link (optional)</p>
+                    <p className={`${sectionLabel} mt-4`}>{t("sponsorDealDetail.portfolioLabel")}</p>
                     <input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} maxLength={500}
-                      placeholder="https://… your best work" className={inputClass} />
+                      placeholder={t("sponsorDealDetail.portfolioPlaceholder")} className={inputClass} />
                     <button onClick={applyToDeal} disabled={busy === "apply" || !pitch.trim()}
                       className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-3.5 text-base font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] disabled:opacity-50">
                       {busy === "apply" ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <PenLine className="h-5 w-5" aria-hidden="true" />}
-                      {busy === "apply" ? "Sending…" : "Send application · free"}
+                      {busy === "apply" ? t("sponsorDealDetail.sending") : t("sponsorDealDetail.sendApplication")}
                     </button>
                   </>
                 )}
@@ -430,12 +439,12 @@ export default function SponsorDealDetail() {
             {/* ── creator: work actions ── */}
             {isCreator && (
               <div className="mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
-                <h2 className="font-display text-xl font-black">Your deal</h2>
+                <h2 className="font-display text-xl font-black">{t("sponsorDealDetail.yourDeal")}</h2>
                 <p className="mt-2 text-sm text-white/55">
-                  {deal.status === "funded" && "The brand funded the escrow. Start work when you're ready."}
-                  {deal.status === "in_progress" && "Work is underway — mark it delivered when you ship."}
-                  {deal.status === "completed" && "Delivered! The brand reviews and releases your payment."}
-                  {deal.status === "paid" && `Paid out: ${moneyCents(deal.creatorPayoutCents)} — nice work.`}
+                  {deal.status === "funded" && t("sponsorDealDetail.statusFundedNote")}
+                  {deal.status === "in_progress" && t("sponsorDealDetail.statusInProgressNote")}
+                  {deal.status === "completed" && t("sponsorDealDetail.statusCompletedNote")}
+                  {deal.status === "paid" && t("sponsorDealDetail.statusPaidNote", { amount: moneyCents(deal.creatorPayoutCents) })}
                 </p>
                 <div className="mt-4 flex gap-2">
                   {deal.status === "funded" && (
@@ -443,7 +452,7 @@ export default function SponsorDealDetail() {
                       disabled={!!busy}
                       className="inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
                       {busy === "start" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-                      Start work
+                      {t("sponsorDealDetail.startWork")}
                     </button>
                   )}
                   {deal.status === "in_progress" && (
@@ -451,7 +460,7 @@ export default function SponsorDealDetail() {
                       disabled={!!busy}
                       className="inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
                       {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}
-                      Mark delivered
+                      {t("sponsorDealDetail.markDelivered")}
                     </button>
                   )}
                 </div>
@@ -463,14 +472,14 @@ export default function SponsorDealDetail() {
               <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
                 <h2 className="flex items-center gap-2 font-display text-xl font-black">
                   <Users className="h-5 w-5 text-primary" aria-hidden="true" />
-                  Applications ({deal.applicationCount})
+                  {t("sponsorDealDetail.applicationsTitle", { count: deal.applicationCount })}
                 </h2>
                 {appsLoading ? (
                   <p className="mt-4 flex items-center gap-2 text-sm text-white/40">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading…
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("sponsorDealDetail.loadingShort")}
                   </p>
                 ) : applications.length === 0 ? (
-                  <p className="mt-4 text-sm text-white/50">No applications yet — share your deal to get creators pitching.</p>
+                  <p className="mt-4 text-sm text-white/50">{t("sponsorDealDetail.noApplications")}</p>
                 ) : (
                   <div className="mt-4 space-y-3">
                     {applications.map((a) => (
@@ -489,25 +498,25 @@ export default function SponsorDealDetail() {
                         {a.portfolio_url && (
                           <a href={a.portfolio_url} target="_blank" rel="noreferrer"
                             className="mt-2 inline-block text-sm font-bold text-primary hover:underline">
-                            View portfolio →
+                            {t("sponsorDealDetail.viewPortfolio")}
                           </a>
                         )}
                         {a.status === "pending" && deal.status === "active" && (
                           <div className="mt-4 flex flex-wrap items-center gap-2">
                             <input value={agreedDollars}
                               onChange={(e) => setAgreedDollars(e.target.value.replace(/[^0-9.]/g, "").slice(0, 10))}
-                              inputMode="decimal" placeholder={`Agreed $ (${deal.budgetMin}–${deal.budgetMax})`}
+                              inputMode="decimal" placeholder={t("sponsorDealDetail.agreedPlaceholder", { min: deal.budgetMin, max: deal.budgetMax })}
                               className="w-48 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-primary/60" />
                             <button onClick={() => reviewApplication(a.id, "accept")}
                               disabled={reviewingId === a.id}
                               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
                               {reviewingId === a.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
-                              Accept
+                              {t("sponsorDealDetail.accept")}
                             </button>
                             <button onClick={() => reviewApplication(a.id, "reject")}
                               disabled={reviewingId === a.id}
                               className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/60 transition hover:text-white disabled:opacity-50">
-                              <XCircle className="h-4 w-4" aria-hidden="true" /> Reject
+                              <XCircle className="h-4 w-4" aria-hidden="true" /> {t("sponsorDealDetail.reject")}
                             </button>
                           </div>
                         )}
@@ -521,15 +530,15 @@ export default function SponsorDealDetail() {
                   <div className="mt-6 rounded-2xl border border-primary/25 bg-black/40 p-5">
                     <p className="flex items-center gap-1.5 text-sm font-bold text-white">
                       <Wallet className="h-4 w-4 text-primary" aria-hidden="true" />
-                      Fund the escrow — {moneyCents(deal.agreedAmountCents)}
+                      {t("sponsorDealDetail.fundEscrowTitle", { amount: moneyCents(deal.agreedAmountCents) })}
                     </p>
                     <p className="mt-1 text-xs text-white/50">
-                      Your card is charged now; funds are held until you release them after delivery.
+                      {t("sponsorDealDetail.fundEscrowHint")}
                     </p>
                     <button onClick={fundDeal} disabled={busy === "fund" || busy === "fund-confirm"}
                       className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-6 py-3 text-sm font-black text-black transition hover:scale-[1.03] disabled:opacity-50">
                       {(busy === "fund" || busy === "fund-confirm") ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="h-4 w-4" aria-hidden="true" />}
-                      {busy ? "Processing…" : `Fund ${moneyCents(deal.agreedAmountCents)}`}
+                      {busy ? t("sponsorDealDetail.processing") : t("sponsorDealDetail.fundButton", { amount: moneyCents(deal.agreedAmountCents) })}
                     </button>
                   </div>
                 )}
@@ -537,24 +546,23 @@ export default function SponsorDealDetail() {
                   <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
                     <p className="flex items-center gap-1.5 text-sm font-bold text-white">
                       <Banknote className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                      Work delivered — release {moneyCents(deal.agreedAmountCents)}?
+                      {t("sponsorDealDetail.releaseTitle", { amount: moneyCents(deal.agreedAmountCents) })}
                     </p>
                     <p className="mt-1 text-xs text-white/50">
-                      The creator gets {moneyCents(deal.agreedAmountCents ? Math.round(deal.agreedAmountCents * 0.85) : null)} (85%) —
-                      Bow Down Visuals keeps 15%.
+                      {t("sponsorDealDetail.releaseHint", { payout: moneyCents(deal.agreedAmountCents ? Math.round(deal.agreedAmountCents * 0.85) : null) })}
                     </p>
                     <button onClick={() => postAction(`/api/sponsors/deals/${dealId}/release`, "POST", undefined, "release")}
                       disabled={busy === "release"}
                       className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
                       {busy === "release" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Banknote className="h-4 w-4" aria-hidden="true" />}
-                      {busy === "release" ? "Releasing…" : "Release payment"}
+                      {busy === "release" ? t("sponsorDealDetail.releasing") : t("sponsorDealDetail.releasePayment")}
                     </button>
                   </div>
                 )}
                 {deal.status === "paid" && (
                   <p className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    Paid out {moneyCents(deal.creatorPayoutCents)} to the creator
+                    {t("sponsorDealDetail.paidOut", { amount: moneyCents(deal.creatorPayoutCents) })}
                   </p>
                 )}
               </div>
@@ -563,7 +571,7 @@ export default function SponsorDealDetail() {
             {!isBrand && !isCreator && deal.status !== "active" && (
               <p className="mt-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
                 <AlertTriangle className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                This deal is {STEP_LABELS[deal.status] ?? deal.status} — applications are closed.
+                {t("sponsorDealDetail.dealClosedNotice", { status: STEP_LABEL_KEYS[deal.status] ? t(`sponsorDealDetail.${STEP_LABEL_KEYS[deal.status]}`) : deal.status })}
               </p>
             )}
           </>

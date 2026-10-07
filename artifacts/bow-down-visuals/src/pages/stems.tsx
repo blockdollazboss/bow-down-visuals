@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useTranslation } from "react-i18next";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
    Real 4-stem Demucs separation: upload any song, get back isolated
@@ -25,11 +26,13 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 type StemKey = "vocals" | "drums" | "bass" | "other";
 
-const STEMS: Array<{ key: StemKey; label: string; blurb: string; accent: string }> = [
-  { key: "vocals", label: "Vocals", blurb: "Lead & backing voices", accent: "text-amber-300" },
-  { key: "drums", label: "Drums", blurb: "Kick, snare, hats, cymbals", accent: "text-red-300" },
-  { key: "bass", label: "Bass", blurb: "Bass guitar & sub", accent: "text-emerald-300" },
-  { key: "other", label: "Melody / Other", blurb: "Keys, guitars, synths, FX", accent: "text-sky-300" },
+/* Stem display strings are resolved via t() inside the component (below);
+   keys stay stable because stem keys drive playback/download logic. */
+const STEM_DEFS: Array<{ key: StemKey; labelKey: string; blurbKey: string; accent: string }> = [
+  { key: "vocals", labelKey: "stemVocals", blurbKey: "stemVocalsBlurb", accent: "text-amber-300" },
+  { key: "drums", labelKey: "stemDrums", blurbKey: "stemDrumsBlurb", accent: "text-red-300" },
+  { key: "bass", labelKey: "stemBass", blurbKey: "stemBassBlurb", accent: "text-emerald-300" },
+  { key: "other", labelKey: "stemOther", blurbKey: "stemOtherBlurb", accent: "text-sky-300" },
 ];
 
 type JobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
@@ -44,6 +47,13 @@ interface StemJobResponse {
 }
 
 export default function StemSplitter() {
+  const { t } = useTranslation();
+  /* Translated stem labels/blurbs for display; keys stay stable. */
+  const stemsList = STEM_DEFS.map((s) => ({
+    ...s,
+    label: t(`stems.${s.labelKey}`),
+    blurb: t(`stems.${s.blurbKey}`),
+  }));
   const { user } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
@@ -89,7 +99,7 @@ export default function StemSplitter() {
         const data: StemJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || "Job not found");
+          setError(data.error || t("stems.errorJobNotFound"));
           return;
         }
         if (data.status === "done") {
@@ -100,13 +110,13 @@ export default function StemSplitter() {
             addAsset({
               kind: "stems",
               url: stemUrls.vocals || stemUrls.drums || stemUrls.bass || stemUrls.other || "",
-              label: `Stem split — ${file?.name || "audio"}`,
-              detail: "vocals · drums · bass · melody",
+              label: t("stems.hubAssetLabel", { name: file?.name || t("stems.hubAssetDefaultName") }),
+              detail: t("stems.hubAssetDetail"),
             });
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Stem splitting failed — your 400 Visual Bucs were refunded.");
+          setError(data.error || t("stems.jobFailedRefund", { credits: CREDIT_COST * 100 }));
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -134,12 +144,12 @@ export default function StemSplitter() {
   }
 
   function syncPlayback(next: boolean) {
-    const els = STEMS.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
+    const els = stemsList.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
     if (next) {
       // Align all stems to the furthest-played position before starting.
-      const t = Math.max(...els.map((e) => e.currentTime));
+      const latest = Math.max(...els.map((e) => e.currentTime));
       els.forEach((e) => {
-        e.currentTime = t;
+        e.currentTime = latest;
         e.muted = effectiveMuted((e.dataset.stem as StemKey) ?? "vocals");
         void e.play().catch(() => {});
       });
@@ -150,7 +160,7 @@ export default function StemSplitter() {
   }
 
   function seekAll(ratio: number) {
-    const els = STEMS.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
+    const els = stemsList.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
     const dur = els[0]?.duration;
     if (!dur || !Number.isFinite(dur)) return;
     els.forEach((e) => { e.currentTime = ratio * dur; });
@@ -160,11 +170,11 @@ export default function StemSplitter() {
   function pickFile(f: File | undefined) {
     if (!f) return;
     if (!f.type.startsWith("audio/")) {
-      setError("Please choose an audio file (MP3, WAV, FLAC, M4A, OGG).");
+      setError(t("stems.errorAudioFile"));
       return;
     }
     if (f.size > MAX_BYTES) {
-      setError("This file exceeds the 25 MB upload limit.");
+      setError(t("stems.errorFileTooLarge"));
       return;
     }
     setFile(f);
@@ -194,7 +204,7 @@ export default function StemSplitter() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start stem splitting.");
+        setError(data.message || data.error || t("stems.errorStartSplit"));
         return;
       }
       setJobId(data.jobId);
@@ -203,7 +213,7 @@ export default function StemSplitter() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("stems.errorNetwork"));
     }
   }
 
@@ -220,12 +230,12 @@ export default function StemSplitter() {
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
-        setRemixError(data.error || "Remix failed — please try again.");
+        setRemixError(data.error || t("stems.errorRemix"));
         return;
       }
       setRemixUrl(data.url);
     } catch {
-      setRemixError("Network error — please try again.");
+      setRemixError(t("stems.errorNetwork"));
     } finally {
       setRemixing(false);
     }
@@ -254,7 +264,7 @@ export default function StemSplitter() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("stems.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -262,18 +272,15 @@ export default function StemSplitter() {
             <AudioWaveform className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">AI Stem Splitter</h1>
-            <p className="text-sm text-white/45">Vocals · Drums · Bass · Melody — {CREDIT_COST} Visual Bucs per song</p>
+            <h1 className="text-2xl font-black">{t("stems.pageTitle")}</h1>
+            <p className="text-sm text-white/45">{t("stems.pageSubtitle", { cost: CREDIT_COST })}</p>
           </div>
         </div>
 
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
-            Real Demucs 4-stem separation running on our servers — the same engine
-            producers use to pull acapellas and instrumentals. Splits take a few
-            minutes depending on song length (capped at 10 minutes). Your 400 Visual Bucs
-            are refunded automatically if the split fails.
+            {t("stems.infoBox", { credits: CREDIT_COST * 100 })}
           </p>
         </div>
 
@@ -290,7 +297,7 @@ export default function StemSplitter() {
 
         <ProjectFlowBar
           kinds={["beat", "song"]}
-          actionLabel="Split it"
+          actionLabel={t("stems.flowBarAction")}
           onPick={async (asset) => {
             try {
               const res = await fetch(asset.url);
@@ -299,7 +306,7 @@ export default function StemSplitter() {
               const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mpeg") ? "mp3" : "wav";
               pickFile(new File([blob], `${safeName}.${ext}`, { type: blob.type || "audio/wav" }));
             } catch {
-              setError("Could not load that project audio — try downloading it and uploading the file instead.");
+              setError(t("stems.errorProjectAudio"));
             }
           }}
         />
@@ -320,12 +327,12 @@ export default function StemSplitter() {
               {file ? (
                 <div>
                   <p className="font-semibold text-white">{file.name}</p>
-                  <p className="text-xs text-white/40 mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB — click to change</p>
+                  <p className="text-xs text-white/40 mt-1">{t("stems.fileSelected", { mb: (file.size / 1024 / 1024).toFixed(1) })}</p>
                 </div>
               ) : (
                 <div>
-                  <p className="font-semibold text-white/70">Drop a song here, or click to browse</p>
-                  <p className="text-xs text-white/35 mt-1">MP3, WAV, FLAC, M4A, OGG — up to 25 MB · 10 min max</p>
+                  <p className="font-semibold text-white/70">{t("stems.dropHint")}</p>
+                  <p className="text-xs text-white/35 mt-1">{t("stems.dropFormats")}</p>
                 </div>
               )}
               <input
@@ -342,10 +349,10 @@ export default function StemSplitter() {
               disabled={!file || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Split into 4 stems · {CREDIT_COST} Visual Bucs
+              {t("stems.splitButton", { cost: CREDIT_COST })}
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+              <p className="text-center text-xs text-white/35">{t("stems.creditsRemaining", { count: creditsRemaining })}</p>
             )}
           </div>
         )}
@@ -355,11 +362,10 @@ export default function StemSplitter() {
           <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-bold text-white">
-              {status === "uploading" ? "Uploading…" : status === "queued" ? "In the split queue…" : "Separating stems…"}
+              {status === "uploading" ? t("stems.statusUploading") : status === "queued" ? t("stems.statusQueued") : t("stems.statusProcessing")}
             </p>
             <p className="text-sm text-white/40 mt-1">
-              Demucs is pulling your song apart on our servers — this takes a few minutes.
-              Safe to close this tab; your stems will be waiting here.
+              {t("stems.progressHint")}
             </p>
             {sourceName && <p className="text-xs text-white/30 mt-2">{sourceName}</p>}
           </div>
@@ -370,7 +376,7 @@ export default function StemSplitter() {
           <div className="mt-6 space-y-4">
             <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-              <p className="text-sm font-semibold text-white/80">Split complete — 4 stems ready</p>
+              <p className="text-sm font-semibold text-white/80">{t("stems.splitComplete")}</p>
             </div>
 
             {/* Master transport */}
@@ -380,7 +386,7 @@ export default function StemSplitter() {
                   type="button"
                   onClick={() => syncPlayback(!playing)}
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-black transition hover:brightness-110"
-                  title={playing ? "Pause all stems" : "Play all stems"}
+                  title={playing ? t("stems.pauseAll") : t("stems.playAll")}
                 >
                   {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
                 </button>
@@ -398,8 +404,8 @@ export default function StemSplitter() {
                     />
                   </div>
                   <p className="mt-1.5 text-xs text-white/35">
-                    {solo ? `Soloing ${STEMS.find((s) => s.key === solo)?.label}` : "All stems"} ·
-                    click the bar to seek — every stem stays in sync
+                    {solo ? t("stems.soloing", { label: stemsList.find((s) => s.key === solo)?.label }) : t("stems.allStems")} ·{" "}
+                    {t("stems.seekHint")}
                   </p>
                 </div>
               </div>
@@ -407,7 +413,7 @@ export default function StemSplitter() {
 
             {/* Stem cards */}
             <div className="grid gap-3 sm:grid-cols-2">
-              {STEMS.map((s) => (
+              {stemsList.map((s) => (
                 <div key={s.key} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <div>
@@ -418,9 +424,9 @@ export default function StemSplitter() {
                       href={stems[s.key]}
                       download={`${s.key}.wav`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.1] px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition"
-                      title={`Download ${s.label} (WAV)`}
+                      title={t("stems.downloadWav", { label: s.label })}
                     >
-                      <Download className="h-3.5 w-3.5" /> WAV
+                      <Download className="h-3.5 w-3.5" /> {t("stems.wav")}
                     </a>
                   </div>
                   <audio
@@ -444,17 +450,17 @@ export default function StemSplitter() {
                           ? "border-red-500/40 bg-red-500/10 text-red-300"
                           : "border-white/[0.08] text-white/50 hover:border-white/20 hover:text-white/80"
                       }`}
-                      title={muted[s.key] ? `Unmute ${s.label}` : `Mute ${s.label}`}
+                      title={muted[s.key] ? t("stems.unmute", { label: s.label }) : t("stems.mute", { label: s.label })}
                     >
                       {muted[s.key] && !solo ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-                      {muted[s.key] && !solo ? "Muted" : "Mute"}
+                      {muted[s.key] && !solo ? t("stems.muted") : t("stems.muteButton")}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         const nextSolo = solo === s.key ? null : s.key;
                         setSolo(nextSolo);
-                        STEMS.forEach((st) => {
+                        stemsList.forEach((st) => {
                           const el = audioRefs.current[st.key];
                           if (el) el.muted = nextSolo ? st.key !== nextSolo : muted[st.key];
                         });
@@ -464,9 +470,9 @@ export default function StemSplitter() {
                           ? "border-primary/60 bg-primary/15 text-primary"
                           : "border-white/[0.08] text-white/50 hover:border-white/20 hover:text-white/80"
                       }`}
-                      title={solo === s.key ? `Stop soloing ${s.label}` : `Solo ${s.label}`}
+                      title={solo === s.key ? t("stems.stopSoloing", { label: s.label }) : t("stems.solo", { label: s.label })}
                     >
-                      SOLO
+                      {t("stems.soloButton")}
                     </button>
                   </div>
                 </div>
@@ -482,18 +488,17 @@ export default function StemSplitter() {
               >
                 <span className="flex items-center gap-2 font-bold text-white">
                   <SlidersHorizontal className="h-4 w-4 text-primary" />
-                  Remix mode
-                  <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold text-green-300">FREE</span>
+                  {t("stems.remixMode")}
+                  <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold text-green-300">{t("stems.free")}</span>
                 </span>
-                <span className="text-xs text-white/40">{remixOpen ? "Hide" : "Show"}</span>
+                <span className="text-xs text-white/40">{remixOpen ? t("stems.hide") : t("stems.show")}</span>
               </button>
               {remixOpen && (
                 <div className="mt-4 space-y-3">
                   <p className="text-xs text-white/40">
-                    Rebalance the four stems into your own custom mix. 0% mutes a stem,
-                    100% is its original level, up to 200% boosts it.
+                    {t("stems.remixHint")}
                   </p>
-                  {STEMS.map((s) => (
+                  {stemsList.map((s) => (
                     <div key={s.key} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-xs font-semibold text-white/60">{s.label}</span>
                       <input
@@ -521,7 +526,7 @@ export default function StemSplitter() {
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                     >
                       {remixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music4 className="h-4 w-4" />}
-                      {remixing ? "Mixing…" : "Export custom mix"}
+                      {remixing ? t("stems.mixing") : t("stems.exportMix")}
                     </button>
                     {remixUrl && (
                       <a
@@ -529,7 +534,7 @@ export default function StemSplitter() {
                         download="remix.wav"
                         className="inline-flex items-center gap-2 rounded-xl border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-300 transition hover:bg-green-500/20"
                       >
-                        <Download className="h-4 w-4" /> Download mix
+                        <Download className="h-4 w-4" /> {t("stems.downloadMix")}
                       </a>
                     )}
                   </div>
@@ -544,7 +549,7 @@ export default function StemSplitter() {
               onClick={reset}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
             >
-              <RefreshCw className="h-4 w-4" /> Split another song
+              <RefreshCw className="h-4 w-4" /> {t("stems.splitAnother")}
             </button>
           </div>
         )}

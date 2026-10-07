@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 interface GeneratedImage {
   url: string;
@@ -30,38 +31,38 @@ interface GeneratedImage {
 const STYLE_PRESETS = [
   {
     id: "bold-text-pop",
-    name: "Bold Text Pop",
-    description: "Huge 3D headline text, explosive colors",
+    nameKey: "thumbnailMaker.styleBoldTextPopName",
+    descriptionKey: "thumbnailMaker.styleBoldTextPopDesc",
     emoji: "💥",
   },
   {
     id: "shocked-face",
-    name: "Shocked Face",
-    description: "Extreme reaction close-up, high drama",
+    nameKey: "thumbnailMaker.styleShockedFaceName",
+    descriptionKey: "thumbnailMaker.styleShockedFaceDesc",
     emoji: "😱",
   },
   {
     id: "before-after",
-    name: "Before / After",
-    description: "Split-frame transformation story",
+    nameKey: "thumbnailMaker.styleBeforeAfterName",
+    descriptionKey: "thumbnailMaker.styleBeforeAfterDesc",
     emoji: "⚖️",
   },
   {
     id: "luxury",
-    name: "Luxury",
-    description: "Black & gold, cinematic, expensive",
+    nameKey: "thumbnailMaker.styleLuxuryName",
+    descriptionKey: "thumbnailMaker.styleLuxuryDesc",
     emoji: "👑",
   },
   {
     id: "gaming",
-    name: "Gaming",
-    description: "Neon esports energy, RGB glow",
+    nameKey: "thumbnailMaker.styleGamingName",
+    descriptionKey: "thumbnailMaker.styleGamingDesc",
     emoji: "🎮",
   },
   {
     id: "vlog",
-    name: "Vlog",
-    description: "Bright, friendly, lifestyle feel",
+    nameKey: "thumbnailMaker.styleVlogName",
+    descriptionKey: "thumbnailMaker.styleVlogDesc",
     emoji: "☀️",
   },
 ] as const;
@@ -76,6 +77,7 @@ const textareaClass =
   "focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
 
 export function ThumbnailMakerModule() {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
@@ -98,11 +100,11 @@ export function ThumbnailMakerModule() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file for the face photo.");
+      setError(t("thumbnailMaker.facePhotoImageError"));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError("Face photo must be under 10 MB.");
+      setError(t("thumbnailMaker.facePhotoSizeError"));
       return;
     }
     setFacePhoto(file);
@@ -119,7 +121,7 @@ export function ThumbnailMakerModule() {
 
   async function onGenerate() {
     if (prompt.trim().length < 3) {
-      setError("Describe your thumbnail in a few words first.");
+      setError(t("thumbnailMaker.promptRequiredError"));
       return;
     }
     setLoading(true);
@@ -127,7 +129,7 @@ export function ThumbnailMakerModule() {
     setSelected(null);
     setError(null);
     setOutOfCredits(false);
-    setProgress("Dreaming up 4 variations…");
+    setProgress(t("thumbnailMaker.progressDreaming"));
 
     try {
       const token = await getAccessToken();
@@ -141,7 +143,7 @@ export function ThumbnailMakerModule() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      setProgress("Rendering variation 1 of 4…");
+      setProgress(t("thumbnailMaker.progressRendering"));
       const res = await confirmedFetch("/api/thumbnail-generator", {
         method: "POST",
         headers,
@@ -157,7 +159,7 @@ export function ThumbnailMakerModule() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
-          (data as { error?: string }).error || "Generation failed. Please try again.",
+          (data as { error?: string }).error || t("thumbnailMaker.generationFailed"),
         );
       }
 
@@ -172,8 +174,8 @@ export function ThumbnailMakerModule() {
         addAsset({
           kind: "thumbnail",
           url: first.url,
-          label: overlayText ? `Thumbnail — ${overlayText}` : "AI Thumbnail",
-          detail: `${data.images.length} variation${data.images.length === 1 ? "" : "s"} · ${aspectRatio}`,
+          label: overlayText ? t("thumbnailMaker.thumbnailWithText", { text: overlayText }) : t("thumbnailMaker.thumbnailDefault"),
+          detail: t("thumbnailMaker.variationDetail", { count: data.images.length, suffix: data.images.length === 1 ? "" : "s", aspectRatio }),
         });
       }
       refreshProfile();
@@ -181,7 +183,7 @@ export function ThumbnailMakerModule() {
         document.getElementById("tg-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
+      setError(err instanceof Error ? err.message : t("thumbnailMaker.generationFailed"));
     } finally {
       setLoading(false);
       setProgress("");
@@ -195,13 +197,11 @@ export function ThumbnailMakerModule() {
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
           {/* Prompt */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-              What should the thumbnail show?
-            </Label>
+            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.promptLabel")}</Label>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Me on a golden throne holding a microphone, dramatic spotlight, confetti falling…"
+              placeholder={t("thumbnailMaker.promptPlaceholder")}
               className={textareaClass}
               style={{ minHeight: "96px" }}
             />
@@ -209,9 +209,7 @@ export function ThumbnailMakerModule() {
 
           {/* Style presets */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-              Style preset
-            </Label>
+            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.stylePresetLabel")}</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STYLE_PRESETS.map((s) => (
                 <button
@@ -226,10 +224,10 @@ export function ThumbnailMakerModule() {
                 >
                   <div className="text-2xl mb-2">{s.emoji}</div>
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-bold text-white">{s.name}</p>
+                    <p className="text-sm font-bold text-white">{t(s.nameKey)}</p>
                     {stylePreset === s.id && <Check className="h-4 w-4 text-primary" />}
                   </div>
-                  <p className="text-xs text-white/40 mt-1">{s.description}</p>
+                  <p className="text-xs text-white/40 mt-1">{t(s.descriptionKey)}</p>
                 </button>
               ))}
             </div>
@@ -237,9 +235,7 @@ export function ThumbnailMakerModule() {
 
           {/* Aspect ratio */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-              Format
-            </Label>
+            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.formatLabel")}</Label>
             <div className="grid grid-cols-2 gap-3 max-w-md">
               <button
                 type="button"
@@ -252,8 +248,8 @@ export function ThumbnailMakerModule() {
               >
                 <MonitorPlay className="h-6 w-6 text-primary shrink-0" />
                 <div className="text-left">
-                  <p className="text-sm font-bold text-white">16:9 Landscape</p>
-                  <p className="text-xs text-white/40">YouTube videos</p>
+                  <p className="text-sm font-bold text-white">{t("thumbnailMaker.landscapeLabel")}</p>
+                  <p className="text-xs text-white/40">{t("thumbnailMaker.landscapeBlurb")}</p>
                 </div>
               </button>
               <button
@@ -267,8 +263,8 @@ export function ThumbnailMakerModule() {
               >
                 <Smartphone className="h-6 w-6 text-primary shrink-0" />
                 <div className="text-left">
-                  <p className="text-sm font-bold text-white">9:16 Portrait</p>
-                  <p className="text-xs text-white/40">Shorts · TikTok · Reels</p>
+                  <p className="text-sm font-bold text-white">{t("thumbnailMaker.portraitLabel")}</p>
+                  <p className="text-xs text-white/40">{t("thumbnailMaker.portraitBlurb")}</p>
                 </div>
               </button>
             </div>
@@ -278,33 +274,33 @@ export function ThumbnailMakerModule() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-                Headline text <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span>
+                {t("thumbnailMaker.headlineLabel")} <span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnailMaker.optionalNote")}</span>
               </Label>
               <Input
                 value={overlayText}
                 onChange={(e) => setOverlayText(e.target.value)}
-                placeholder="e.g. I QUIT, $10K IN A DAY…"
+                placeholder={t("thumbnailMaker.headlinePlaceholder")}
                 className={inputClass}
                 maxLength={80}
               />
-              <p className="text-xs text-white/25">Kept to a few huge readable words.</p>
+              <p className="text-xs text-white/25">{t("thumbnailMaker.headlineHint")}</p>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-                Your face <span className="text-white/25 font-normal normal-case tracking-normal">(optional · identity lock)</span>
+                {t("thumbnailMaker.faceLabel")} <span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnailMaker.identityLockNote")}</span>
               </Label>
               {facePreview ? (
                 <div className="relative inline-block">
                   <img
                     src={facePreview}
-                    alt="Face reference"
+                    alt={t("thumbnailMaker.faceAlt")}
                     className="h-24 w-24 rounded-xl object-cover border border-primary/40"
                   />
                   <button
                     type="button"
                     onClick={clearFacePhoto}
                     className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                    aria-label="Remove face photo"
+                    aria-label={t("thumbnailMaker.removeFaceAria")}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -315,8 +311,7 @@ export function ThumbnailMakerModule() {
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full h-[68px] rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex items-center justify-center gap-2 text-sm text-white/40 hover:border-primary/40 hover:text-white/70 transition-colors"
                 >
-                  <Upload className="h-4 w-4" /> Upload a face photo
-                </button>
+                  <Upload className="h-4 w-4" />{t("thumbnailMaker.uploadFace")}</button>
               )}
               <input
                 ref={fileInputRef}
@@ -325,7 +320,7 @@ export function ThumbnailMakerModule() {
                 className="hidden"
                 onChange={handleFaceSelect}
               />
-              <p className="text-xs text-white/25">Your real face is edited into every variation.</p>
+              <p className="text-xs text-white/25">{t("thumbnailMaker.faceHint")}</p>
             </div>
           </div>
 
@@ -341,17 +336,14 @@ export function ThumbnailMakerModule() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> {progress || "Generating…"}
+                  <Loader2 className="h-5 w-5 animate-spin" /> {progress || t("thumbnailMaker.generatingFallback")}
                 </>
               ) : (
                 <>
-                  <ImageIcon className="h-5 w-5" /> Generate 4 Variations · 200 Visual Bucs
-                </>
+                  <ImageIcon className="h-5 w-5" />{t("thumbnailMaker.generateButton")}</>
               )}
             </Button>
-            <p className="text-white/25 text-xs mt-3">
-              200 Visual Bucs per batch of 4. Credits refunded automatically if generation fails.
-            </p>
+            <p className="text-white/25 text-xs mt-3">{t("thumbnailMaker.costNote")}</p>
           </div>
         </div>
 
@@ -367,11 +359,10 @@ export function ThumbnailMakerModule() {
         {images.length > 0 && (
           <div id="tg-results" className="mt-10">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <h2 className="text-lg font-bold text-white">Pick your winner</h2>
+              <h2 className="text-lg font-bold text-white">{t("thumbnailMaker.resultsTitle")}</h2>
               <Link href="/thumbnail-test">
                 <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
-                  <FlaskConical className="h-4 w-4" /> Test these in the A/B Tester
-                </Button>
+                  <FlaskConical className="h-4 w-4" />{t("thumbnailMaker.abTestButton")}</Button>
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -388,12 +379,12 @@ export function ThumbnailMakerModule() {
                 >
                   <img
                     src={img.url}
-                    alt={`Thumbnail variation ${img.variation}`}
+                    alt={t("thumbnailMaker.variationAlt", { n: img.variation })}
                     className={`w-full object-cover ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16] max-h-[480px] mx-auto"}`}
                     loading="lazy"
                   />
                   <span className="absolute top-3 left-3 text-xs font-bold bg-black/70 text-white px-2.5 py-1 rounded-full border border-white/10">
-                    Variation {img.variation}
+                    {t("thumbnailMaker.variationBadge", { n: img.variation })}
                   </span>
                   {selected === img.variation && (
                     <span className="absolute top-3 right-3 h-7 w-7 rounded-full bg-primary text-black flex items-center justify-center">
@@ -407,8 +398,7 @@ export function ThumbnailMakerModule() {
             {selectedImage && (
               <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.04] p-5 flex flex-wrap items-center justify-between gap-4">
                 <p className="text-sm text-white/60">
-                  <span className="text-primary font-bold">Variation {selectedImage.variation}</span> selected
-                  — download it or test all four against each other.
+                  <span className="text-primary font-bold">{t("thumbnailMaker.variationBadge", { n: selectedImage.variation })}</span> {t("thumbnailMaker.selectedSummary")}
                 </p>
                 <div className="flex gap-3">
                   <Button
@@ -416,13 +406,10 @@ export function ThumbnailMakerModule() {
                     size="sm"
                     onClick={() => setLightbox(selectedImage.url)}
                     className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-                  >
-                    Preview full size
-                  </Button>
+                  >{t("thumbnailMaker.previewButton")}</Button>
                   <a href={selectedImage.url} download={`thumbnail-v${selectedImage.variation}.png`} target="_blank" rel="noreferrer">
                     <Button size="sm" className="gold-glow font-bold gap-2">
-                      <Download className="h-4 w-4" /> Download
-                    </Button>
+                      <Download className="h-4 w-4" />{t("thumbnailMaker.downloadButton")}</Button>
                   </a>
                 </div>
               </div>
@@ -438,13 +425,13 @@ export function ThumbnailMakerModule() {
           <button
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
             onClick={() => setLightbox(null)}
-            aria-label="Close preview"
+            aria-label={t("thumbnailMaker.closePreviewAria")}
           >
             <X className="h-5 w-5" />
           </button>
           <img
             src={lightbox}
-            alt="Thumbnail full preview"
+            alt={t("thumbnailMaker.fullPreviewAlt")}
             className="max-h-[90vh] max-w-full rounded-xl border border-white/10"
             onClick={(e) => e.stopPropagation()}
           />
@@ -455,6 +442,7 @@ export function ThumbnailMakerModule() {
 }
 
 export default function ThumbnailMaker() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -465,23 +453,17 @@ export default function ThumbnailMaker() {
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
         >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </Link>
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />{t("thumbnailMaker.backToDashboard")}</Link>
 
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <ImageIcon className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">200 Visual Bucs · 4 variations</MarketingBadge>
+            <MarketingBadge variant="muted">{t("thumbnailMaker.costBadge")}</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            AI Thumbnail Generator
-          </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
-            Describe your video, pick a style, and get 4 scroll-stopping thumbnails in one shot.
-            Add your face for identity lock.
-          </p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">{t("thumbnailMaker.pageTitle")}</h1>
+          <p className="text-white/50 text-lg max-w-2xl">{t("thumbnailMaker.pageSubtitle")}</p>
         </div>
 
         <ThumbnailMakerModule />

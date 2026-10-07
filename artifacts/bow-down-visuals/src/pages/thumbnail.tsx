@@ -14,6 +14,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { vaultToPayload } from "@/lib/prompt-improve";
+import { useTranslation } from "react-i18next";
 
 interface FormValues {
   artistName: string;
@@ -26,23 +27,54 @@ interface FormValues {
   specialRequests: string;
 }
 
-const PLATFORMS  = ["YouTube","Spotify","Apple Music","SoundCloud","All Platforms"];
-const ART_STYLES = ["Photo-Realistic","Illustrated","Minimalist","Bold Graphic","Vintage","Futuristic","Cinematic Dark","Street Art","Anime","3D Render"];
-const MOODS      = ["Luxury","Dark","Emotional","Street","Romantic","Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly"];
+const PLATFORMS = [
+  { value: "YouTube", labelKey: "thumbnail.platformYouTube" },
+  { value: "Spotify", labelKey: "thumbnail.platformSpotify" },
+  { value: "Apple Music", labelKey: "thumbnail.platformAppleMusic" },
+  { value: "SoundCloud", labelKey: "thumbnail.platformSoundCloud" },
+  { value: "All Platforms", labelKey: "thumbnail.platformAll" },
+];
+const ART_STYLES = [
+  { value: "Photo-Realistic", labelKey: "thumbnail.artStylePhotoRealistic" },
+  { value: "Illustrated", labelKey: "thumbnail.artStyleIllustrated" },
+  { value: "Minimalist", labelKey: "thumbnail.artStyleMinimalist" },
+  { value: "Bold Graphic", labelKey: "thumbnail.artStyleBoldGraphic" },
+  { value: "Vintage", labelKey: "thumbnail.artStyleVintage" },
+  { value: "Futuristic", labelKey: "thumbnail.artStyleFuturistic" },
+  { value: "Cinematic Dark", labelKey: "thumbnail.artStyleCinematicDark" },
+  { value: "Street Art", labelKey: "thumbnail.artStyleStreetArt" },
+  { value: "Anime", labelKey: "thumbnail.artStyleAnime" },
+  { value: "3D Render", labelKey: "thumbnail.artStyle3DRender" },
+];
+const MOODS = [
+  { value: "Luxury", labelKey: "thumbnail.moodLuxury" },
+  { value: "Dark", labelKey: "thumbnail.moodDark" },
+  { value: "Emotional", labelKey: "thumbnail.moodEmotional" },
+  { value: "Street", labelKey: "thumbnail.moodStreet" },
+  { value: "Romantic", labelKey: "thumbnail.moodRomantic" },
+  { value: "Energetic", labelKey: "thumbnail.moodEnergetic" },
+  { value: "Pain", labelKey: "thumbnail.moodPain" },
+  { value: "Victory", labelKey: "thumbnail.moodVictory" },
+  { value: "Party", labelKey: "thumbnail.moodParty" },
+  { value: "Inspirational", labelKey: "thumbnail.moodInspirational" },
+  { value: "Funny", labelKey: "thumbnail.moodFunny" },
+  { value: "Kid-Friendly", labelKey: "thumbnail.moodKidFriendly" },
+];
 
 const selectClass   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
 const inputClass    = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
 const textareaClass = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
 
 function StyledSelect({ name, placeholder, options, value, onChange }: {
-  name: string; placeholder: string; options: string[]; value: string; onChange: (v: string) => void;
+  name: string; placeholder: string; options: { value: string; labelKey: string }[]; value: string; onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selectClass} style={{ colorScheme: "dark" }}>
         <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
-        {options.map((o) => <option key={o} value={o} style={{ background: "#111" }}>{o}</option>)}
+        {options.map((o) => <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>)}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
     </div>
@@ -50,6 +82,7 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 }
 
 export default function Thumbnail() {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -122,7 +155,7 @@ export default function Thumbnail() {
         document.getElementById("thumb-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      const msg = err instanceof Error ? err.message : t("thumbnail.generationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -137,20 +170,28 @@ export default function Thumbnail() {
       </div>
       <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </Link>
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />{t("thumbnail.backToDashboard")}</Link>
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <ImageIcon className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">up to 300 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">{t("thumbnail.costBadge")}</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">Thumbnail Maker</h1>
-          <p className="text-white/50 text-lg max-w-2xl">Generate a real, ready-to-use AI thumbnail image plus cover art concepts and prompts for your release.</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">{t("thumbnail.pageTitle")}</h1>
+          <p className="text-white/50 text-lg max-w-2xl">{t("thumbnail.pageSubtitle")}</p>
           <div className="flex flex-wrap gap-2 mt-5">
-            {["AI-Generated Thumbnail Image","3 Thumbnail Concepts","Color Direction","Typography Notes","Background Prompts","Text Overlay Copy","Midjourney Prompts","Cover Art Notes"].map((t) => (
-              <span key={t} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full">{t}</span>
+            {[
+              { labelKey: "thumbnail.chipImage" },
+              { labelKey: "thumbnail.chipConcepts" },
+              { labelKey: "thumbnail.chipColor" },
+              { labelKey: "thumbnail.chipTypography" },
+              { labelKey: "thumbnail.chipBackgrounds" },
+              { labelKey: "thumbnail.chipCopy" },
+              { labelKey: "thumbnail.chipMidjourney" },
+              { labelKey: "thumbnail.chipCoverArt" },
+            ].map((chip) => (
+              <span key={chip.labelKey} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full">{t(chip.labelKey)}</span>
             ))}
           </div>
         </div>
@@ -163,52 +204,52 @@ export default function Thumbnail() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Artist Name</Label>
-                <Input {...register("artistName", { required: true })} placeholder="e.g. Lil Nova" className={inputClass + (errors.artistName ? " border-red-500/50" : "")} />
-                {errors.artistName && <p className="text-red-400 text-xs">Required</p>}
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.artistNameLabel")}</Label>
+                <Input {...register("artistName", { required: true })} placeholder={t("thumbnail.artistNamePlaceholder")} className={inputClass + (errors.artistName ? " border-red-500/50" : "")} />
+                {errors.artistName && <p className="text-red-400 text-xs">{t("thumbnail.requiredError")}</p>}
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Song / Video Title</Label>
-                <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.songTitleLabel")}</Label>
+                <Input {...register("songTitle")} placeholder={t("thumbnail.songTitlePlaceholder")} className={inputClass} />
               </div>
             </div>
             {/* Platform + Art Style — style picks (2) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Platform</Label>
-                <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS} value={watched.platform} onChange={(v) => setValue("platform", v)} />
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.platformLabel")}</Label>
+                <StyledSelect name="platform" placeholder={t("thumbnail.selectPlatform")} options={PLATFORMS} value={watched.platform} onChange={(v) => setValue("platform", v)} />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Art Style</Label>
-                <StyledSelect name="artStyle" placeholder="Select style..." options={ART_STYLES} value={watched.artStyle} onChange={(v) => setValue("artStyle", v)} />
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.artStyleLabel")}</Label>
+                <StyledSelect name="artStyle" placeholder={t("thumbnail.selectStyle")} options={ART_STYLES} value={watched.artStyle} onChange={(v) => setValue("artStyle", v)} />
               </div>
             </div>
             {/* Color Theme + Mood — style picks (2) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Color Theme</Label>
-                <Input {...register("colorTheme")} placeholder="e.g. black and gold, purple and white..." className={inputClass} />
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.colorThemeLabel")}</Label>
+                <Input {...register("colorTheme")} placeholder={t("thumbnail.colorThemePlaceholder")} className={inputClass} />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Mood</Label>
-                <StyledSelect name="mood" placeholder="Select mood..." options={MOODS} value={watched.mood} onChange={(v) => setValue("mood", v)} />
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.moodLabel")}</Label>
+                <StyledSelect name="mood" placeholder={t("thumbnail.selectMood")} options={MOODS} value={watched.mood} onChange={(v) => setValue("mood", v)} />
               </div>
             </div>
             {/* Featured Text — tweak option (3) */}
             <div className="space-y-2" data-min-stars="3">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Featured Text <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span></Label>
-              <Input {...register("featuredText")} placeholder="e.g. OUT NOW, NEW SINGLE, FT. ARTIST..." className={inputClass} />
+              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.featuredTextLabel")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnail.optionalNote")}</span></Label>
+              <Input {...register("featuredText")} placeholder={t("thumbnail.featuredTextPlaceholder")} className={inputClass} />
             </div>
             {/* Special Requests — manual prompt editing (4) */}
             <div className="space-y-2" data-min-stars="4">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Special Requests <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span></Label>
-              <Textarea {...register("specialRequests")} placeholder="Specific visual elements, references, things to include or avoid, cultural context..." className={textareaClass} style={{ minHeight: "100px" }} />
+              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.specialRequestsLabel")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnail.optionalNote")}</span></Label>
+              <Textarea {...register("specialRequests")} placeholder={t("thumbnail.specialRequestsPlaceholder")} className={textareaClass} style={{ minHeight: "100px" }} />
             </div>
             <div className="pt-2">
               <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
-                {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your pack...</> : <><ImageIcon className="h-5 w-5" /> Generate Thumbnail Pack</>}
+                {loading ? <><Loader2 className="h-5 w-5 animate-spin" />{t("thumbnail.buildingPack")}</> : <><ImageIcon className="h-5 w-5" />{t("thumbnail.generateButton")}</>}
               </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 100 Visual Bucs for the concept pack, plus 2 more if the AI thumbnail image renders successfully (3 total)</p>
+              <p className="text-white/25 text-xs mt-3">{t("thumbnail.costNote")}</p>
             </div>
           </form>
         </div>
@@ -218,26 +259,24 @@ export default function Thumbnail() {
         {recentThumbs.length > 0 && (
           <div className="mt-10">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Your recent thumbnails</h2>
-              <Link href="/thumbnails" className="text-xs font-semibold text-primary hover:underline">
-                View full library
-              </Link>
+              <h2 className="text-lg font-bold text-white">{t("thumbnail.recentTitle")}</h2>
+              <Link href="/thumbnails" className="text-xs font-semibold text-primary hover:underline">{t("thumbnail.viewLibrary")}</Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {recentThumbs.map((t) => (
+              {recentThumbs.map((thumb) => (
                 <Link
-                  key={t.id}
+                  key={thumb.id}
                   href="/thumbnails"
                   className="shrink-0 w-44 rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/40 transition-colors"
                 >
-                  {t.thumbnail_url ? (
-                    <img src={t.thumbnail_url} alt={t.song_title ?? "Thumbnail"} className="w-44 aspect-video object-cover" loading="lazy" />
+                  {thumb.thumbnail_url ? (
+                    <img src={thumb.thumbnail_url} alt={thumb.song_title ?? t("thumbnail.thumbnailFallback")} className="w-44 aspect-video object-cover" loading="lazy" />
                   ) : (
                     <div className="w-44 aspect-video flex items-center justify-center bg-black/40">
                       <ImageIcon className="h-6 w-6 text-white/15" />
                     </div>
                   )}
-                  <p className="px-2.5 py-2 text-xs text-white/60 truncate">{t.song_title ?? "Untitled"}</p>
+                  <p className="px-2.5 py-2 text-xs text-white/60 truncate">{thumb.song_title ?? t("thumbnail.untitled")}</p>
                 </Link>
               ))}
             </div>
@@ -254,24 +293,22 @@ export default function Thumbnail() {
           <div id="thumb-result">
             {thumbnailImageUrl ? (
               <div className="mb-6 rounded-2xl border border-primary/25 bg-primary/[0.04] p-5">
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">Your AI-Generated Thumbnail</p>
+                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">{t("thumbnail.generatedHeading")}</p>
                 <img
                   src={thumbnailImageUrl}
-                  alt="AI-generated thumbnail"
+                  alt={t("thumbnail.generatedAlt")}
                   className="w-full rounded-xl border border-white/10"
                   data-testid="img-generated-thumbnail"
                 />
                 <div className="flex justify-end mt-3">
                   <a href={thumbnailImageUrl} download="thumbnail.png" target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10">
-                      Download Image
-                    </Button>
+                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("thumbnail.downloadImage")}</Button>
                   </a>
                 </div>
               </div>
             ) : imageError && (
               <div className="mb-6 p-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5">
-                <p className="text-yellow-400 text-sm font-medium">Couldn't render the AI thumbnail image ({imageError}). Your prompt pack below is ready to use.</p>
+                <p className="text-yellow-400 text-sm font-medium">{t("thumbnail.imageRenderFailed", { error: imageError })}</p>
               </div>
             )}
             <GenerationResult

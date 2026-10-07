@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /* ─── Virality Pre-Flight Check (/virality-check) ───────────────────────────
  Dedicated, deeper standalone scorecard for a post's viral READINESS —
@@ -19,11 +20,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
 
 type PlatformKey = "tiktok" | "instagram" | "youtube" | "x";
 
-const PLATFORMS: { key: PlatformKey; label: string }[] = [
- { key: "tiktok", label: "TikTok" },
- { key: "instagram", label: "Instagram" },
- { key: "youtube", label: "YouTube" },
- { key: "x", label: "X" },
+const PLATFORMS: { key: PlatformKey; labelKey: string }[] = [
+ { key: "tiktok", labelKey: "viralityCheck.platformTiktok" },
+ { key: "instagram", labelKey: "viralityCheck.platformInstagram" },
+ { key: "youtube", labelKey: "viralityCheck.platformYoutube" },
+ { key: "x", labelKey: "viralityCheck.platformX" },
 ];
 
 const CREDIT_COST = 2;
@@ -63,6 +64,7 @@ const inputClass =
 
 /* Animated SVG arc gauge: 0-100 score as a gold gradient semicircle. */
 function GaugeArc({ score }: { score: number }) {
+ const { t } = useTranslation();
  const [display, setDisplay] = useState(0);
  useEffect(() => {
  const start = performance.now();
@@ -84,7 +86,7 @@ function GaugeArc({ score }: { score: number }) {
  const color = display >= 75 ? "#34d399" : display >= 50 ? "#fbbf24" : "#f87171";
 
  return (
- <div className="relative mx-auto w-[240px]" aria-label={`Overall score: ${score} out of 100`}>
+ <div className="relative mx-auto w-[240px]" aria-label={t("viralityCheck.gaugeAriaLabel", { score })}>
  <svg viewBox="0 0 200 116" className="w-full">
  <defs>
  <linearGradient id="virality-gauge-gold" x1="0" y1="0" x2="1" y2="0">
@@ -119,7 +121,7 @@ function GaugeArc({ score }: { score: number }) {
  <span className="text-xl text-white/30">/100</span>
  </p>
  <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Viral readiness
+ {t("viralityCheck.gaugeCaption")}
  </p>
  </div>
  </div>
@@ -185,9 +187,10 @@ function CopyChip({ tag }: { tag: string }) {
 }
 
 export default function ViralityCheck() {
+ const { t } = useTranslation();
  usePageTitle(
- "Virality Pre-Flight Check",
- "Score your post's viral readiness before you ship it — hook strength, caption, hashtags, and best posting time."
+ t("viralityCheck.pageTitle"),
+ t("viralityCheck.pageDescription")
  );
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
@@ -225,7 +228,7 @@ export default function ViralityCheck() {
  async function runCheck() {
  if (loading || !user) return;
  if (!caption.trim()) {
- setError("Drop in your caption first — that's the heart of the pre-flight.");
+ setError(t("viralityCheck.captionRequiredError"));
  return;
  }
  setLoading(true);
@@ -242,7 +245,7 @@ export default function ViralityCheck() {
  const data = (await res.json().catch(() => ({}))) as ViralityCheckResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || typeof data.overallScore !== "number" || !Array.isArray(data.fixes)) {
- throw new Error(data.message || data.error || "The check failed — try again.");
+ throw new Error(data.message || data.error || t("viralityCheck.checkFailedError"));
  }
  setResult(data);
  refreshProfile();
@@ -250,7 +253,7 @@ export default function ViralityCheck() {
  document.getElementById("virality-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "The check failed — try again.");
+ setError(err instanceof Error ? err.message : t("viralityCheck.checkFailedError"));
  } finally {
  setLoading(false);
  }
@@ -270,14 +273,13 @@ export default function ViralityCheck() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <Gauge className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+ <Gauge className="h-3 w-3" aria-hidden="true" /> {t("viralityCheck.kicker")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Virality <span className="text-primary">Pre-Flight Check</span>
+ {t("viralityCheck.heading")} <span className="text-primary">{t("viralityCheck.headingAccent")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- A brutally honest readiness scorecard for your post — before you ship
- it. Not a virality guarantee: no AI can predict what blows up.
+ {t("viralityCheck.heroDescription")}
  </p>
  </div>
 
@@ -288,16 +290,16 @@ export default function ViralityCheck() {
  <Gauge className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Pre-Flight Inspection</h2>
- <p className="text-sm text-white/45">Feed us your post packaging — get scored like a strategist would.</p>
+ <h2 className="text-xl font-bold">{t("viralityCheck.inspectionTitle")}</h2>
+ <p className="text-sm text-white/45">{t("viralityCheck.inspectionSub")}</p>
  </div>
  </div>
 
  {/* platform picker */}
  <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Platform
+ {t("viralityCheck.platformLabel")}
  </p>
- <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label="Platform">
+ <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label={t("viralityCheck.platformLabel")}>
  {PLATFORMS.map((p) => {
  const selected = p.key === platform;
  return (
@@ -312,7 +314,7 @@ export default function ViralityCheck() {
  : "border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
  }`}
  >
- {p.label}
+ {t(p.labelKey)}
  </button>
  );
  })}
@@ -320,40 +322,40 @@ export default function ViralityCheck() {
 
  {/* hook line */}
  <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Hook / first line <span className="normal-case tracking-normal text-white/25">(what viewers see or hear first)</span>
+ {t("viralityCheck.hookLabel")} <span className="normal-case tracking-normal text-white/25">({t("viralityCheck.hookHint")})</span>
  </p>
  <input
  data-min-stars="3"
  value={hookLine}
  onChange={(e) => setHookLine(e.target.value)}
  maxLength={300}
- placeholder={'e.g. "I spent $0 on promo and hit 1M views \u2014 here\u2019s how"'}
+ placeholder={t("viralityCheck.hookPlaceholder")}
  className={inputClass}
  />
 
  {/* caption */}
  <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Caption
+ {t("viralityCheck.captionLabel")}
  </p>
  <textarea
  value={caption}
  onChange={(e) => setCaption(e.target.value)}
  maxLength={2000}
  rows={4}
- placeholder="Paste the full caption you're about to post…"
+ placeholder={t("viralityCheck.captionPlaceholder")}
  className={`${inputClass} resize-none`}
  />
 
  {/* hashtags */}
  <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Hashtags <span className="normal-case tracking-normal text-white/25">(optional)</span>
+ {t("viralityCheck.hashtagsLabel")} <span className="normal-case tracking-normal text-white/25">({t("viralityCheck.optional")})</span>
  </p>
  <input
  data-min-stars="3"
  value={hashtags}
  onChange={(e) => setHashtags(e.target.value)}
  maxLength={500}
- placeholder="#newmusic #independentartist …"
+ placeholder={t("viralityCheck.hashtagsPlaceholder")}
  className={inputClass}
  />
 
@@ -370,7 +372,7 @@ export default function ViralityCheck() {
  ) : (
  <Gauge className="h-6 w-6" aria-hidden="true" />
  )}
- {loading ? "Running pre-flight…" : `Run Pre-Flight Check (${CREDIT_COST} Visual Bucs)`}
+ {loading ? t("viralityCheck.running") : t("viralityCheck.runButton", { cost: CREDIT_COST })}
  </button>
  ) : (
  <Link
@@ -378,12 +380,12 @@ export default function ViralityCheck() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Gauge className="h-6 w-6" aria-hidden="true" />
- Sign in to run the pre-flight
+ {t("viralityCheck.signInToRun")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Bucs per scorecard · powered by Thy Cheat Code
+ {t("viralityCheck.costNote", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -400,19 +402,19 @@ export default function ViralityCheck() {
  <div className="rounded-2xl border border-white/10 bg-black/60 p-6 md:p-8">
  <GaugeArc score={result.overallScore} />
  <p className="mx-auto mt-6 max-w-md text-center text-xs italic text-white/30">
- A readiness score, not a virality guarantee — no AI can predict what blows up.
+ {t("viralityCheck.guaranteeDisclaimer")}
  </p>
  </div>
 
  {/* score cards */}
  <div className="mt-4 grid gap-3 sm:grid-cols-2">
- <ScoreCard icon={Quote} label="Hook Strength" block={result.hookStrength} />
- <ScoreCard icon={Type} label="Caption" block={result.captionScore} />
- <ScoreCard icon={Hash} label="Hashtags" block={result.hashtagAnalysis} />
+ <ScoreCard icon={Quote} label={t("viralityCheck.hookStrengthLabel")} block={result.hookStrength} />
+ <ScoreCard icon={Type} label={t("viralityCheck.captionScoreLabel")} block={result.captionScore} />
+ <ScoreCard icon={Hash} label={t("viralityCheck.hashtagsScoreLabel")} block={result.hashtagAnalysis} />
  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
  <p className="flex items-center gap-2 text-sm font-bold text-white/90">
  <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
- Best Posting Time
+ {t("viralityCheck.bestPostingTime")}
  </p>
  <p className="mt-3 font-display text-2xl font-black text-primary">
  {result.postingTime?.bestTime}
@@ -429,7 +431,7 @@ export default function ViralityCheck() {
  <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
  <div className="mb-3 flex items-center justify-between">
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
- Suggested hashtags — tap to copy
+ {t("viralityCheck.suggestedHashtags")}
  </p>
  <button
  onClick={() =>
@@ -441,7 +443,7 @@ export default function ViralityCheck() {
  }
  className="text-xs font-semibold text-primary hover:underline"
  >
- Copy all
+ {t("viralityCheck.copyAll")}
  </button>
  </div>
  <div className="flex flex-wrap gap-2">
@@ -456,7 +458,7 @@ export default function ViralityCheck() {
  <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-5 md:p-6">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
- 3 fixes to boost your score
+ {t("viralityCheck.fixesTitle")}
  </p>
  <ol className="mt-4 space-y-3">
  {(result.fixes ?? []).map((fix, i) => (
@@ -479,10 +481,10 @@ export default function ViralityCheck() {
  <div>
  <p className="flex items-center gap-1.5 text-sm font-bold text-primary">
  <Zap className="h-4 w-4" aria-hidden="true" />
- Hook scored {hookScore}/100 — strengthen it
+ {t("viralityCheck.hookWeakTitle", { score: hookScore })}
  </p>
  <p className="mt-1 text-sm text-white/55">
- Send it to the Hook Studio generator to fix the weakest part of your post.
+ {t("viralityCheck.hookWeakDesc")}
  </p>
  </div>
  <ChevronRight className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
@@ -499,7 +501,7 @@ export default function ViralityCheck() {
  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
  >
  <Gauge className="h-4 w-4" aria-hidden="true" />
- Re-run check ({CREDIT_COST} Visual Bucs)
+ {t("viralityCheck.rerunButton", { cost: CREDIT_COST })}
  </button>
  </div>
  )}
@@ -509,11 +511,11 @@ export default function ViralityCheck() {
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Need fresh hooks first? Ask{" "}
+ {t("viralityCheck.crossLinkBefore")}{" "}
  <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble — or open{" "}
+ {t("viralityCheck.crossLinkMid")}{" "}
  <Link href="/hooks" className="font-semibold text-primary hover:underline">
- Hook Studio
+ {t("viralityCheck.crossLinkHookStudio")}
  </Link>
  .
  </p>
