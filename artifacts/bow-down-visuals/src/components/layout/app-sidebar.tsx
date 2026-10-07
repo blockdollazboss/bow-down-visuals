@@ -355,13 +355,34 @@ const FOOTER_LINKS: NavLink[] = [
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(true);
+  // Persist collapsed state per section so it survives remounts/navigation.
+  // Defaults to open; auto-opens when the section contains the active page.
+  const storageKey = `bdv-sidebar-${section.titleKey}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) return saved === "1";
+    } catch {}
+    return true;
+  });
   const links = section.links.filter((l) => !l.adminOnly || isAdmin);
   if (links.length === 0) return null;
   const hasActive = links.some((l) => location === l.href);
+  // If the active page is in a collapsed section, auto-expand it.
+  useEffect(() => {
+    if (hasActive && !open) {
+      setOpen(true);
+      try { localStorage.setItem(storageKey, "1"); } catch {}
+    }
+  }, [hasActive]);
+
+  function handleOpenChange(v: boolean) {
+    setOpen(v);
+    try { localStorage.setItem(storageKey, v ? "1" : "0"); } catch {}
+  }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={handleOpenChange}>
       <SidebarGroup className="p-0">
         <CollapsibleTrigger asChild>
           <button
@@ -537,7 +558,7 @@ export function AppSidebar() {
             })).filter((section) => section.links.length > 0)
           : SECTIONS
         ).map((section) => (
-          <SidebarSection key={t(section.titleKey)} section={section} location={location} isAdmin={isAdmin} />
+          <SidebarSection key={section.titleKey} section={section} location={location} isAdmin={isAdmin} />
         ))}
 
         {/* Footer links: pricing, account, admin — always visible */}
@@ -693,7 +714,7 @@ function HorizontalSidebarNav() {
         const Icon = section.icon;
         const isActive = location === section.href;
         return (
-          <Link key={t(section.titleKey)} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+          <Link key={section.titleKey} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
             <Icon className="h-4 w-4" />
             <span className="hidden md:inline">{t(section.titleKey)}</span>
           </Link>
