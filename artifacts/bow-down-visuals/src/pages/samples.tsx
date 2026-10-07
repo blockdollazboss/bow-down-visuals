@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import {
   PACK_SIZE_OPTIONS, creditsForSize, originBadge, formatDuration,
   type SampleOrigin,
@@ -51,6 +52,7 @@ interface Sample {
 export default function SamplePack() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [genre, setGenre] = useState("trap");
@@ -143,6 +145,14 @@ export default function SamplePack() {
         throw new Error(data.error || t("samples.error.generationFailed"));
       }
       setSamples(data.samples ?? []);
+      /* Each sample is a persistent URL — report the pack into the hub project. */
+      for (const s of data.samples ?? []) {
+        if (s.url) {
+          try {
+            addAsset({ kind: "other", url: s.url, label: s.name || "Sample", detail: `${s.typeLabel || "sample"} · ${s.bpm || "?"} BPM` });
+          } catch { /* hub unavailable — non-fatal */ }
+        }
+      }
       setCreditsRemaining(data.creditsRemaining ?? null);
       setPackName(`${genre}-${bpm}bpm-${musicalKey}`.toLowerCase().replace(/[^a-z0-9-]/g, ""));
       setProgress("");

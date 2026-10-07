@@ -22,6 +22,7 @@ import {
 } from "@/lib/editor-settings";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /**
  * Simple-mode intake: one field (idea/lyrics), an optional audio upload, one
@@ -46,6 +47,7 @@ const DEFAULTS = {
 
 export default function CreateSimple() {
   const { t } = useTranslation();
+  const { addAsset } = useHubProject();
   usePageTitle(t("create-simple.metaTitle"), t("create-simple.metaDescription"));
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -253,6 +255,12 @@ export default function CreateSimple() {
       }
 
       toast({ title: t("create-simple.videoReady"), description: t("create-simple.videoReadyDesc") });
+      /* The song flows into the hub project — downstream tools pick it up. */
+      if (audioUrl) {
+        try {
+          addAsset({ kind: "song", url: audioUrl, label: idea.trim().slice(0, 60) || "Song", detail: "Simple mode creation" });
+        } catch { /* hub unavailable — non-fatal */ }
+      }
       setLocation(`/video-editor?project=${saveBody.id}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";

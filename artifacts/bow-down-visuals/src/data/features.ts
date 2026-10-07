@@ -42,6 +42,16 @@ export interface SiteFeature {
 export const SITE_FEATURES: SiteFeature[] = [
   /* ── Create ── */
   {
+    key: "creation-hub",
+    name: "Creation Hub",
+    tagline: "Guided workflows — one project, every tool, nothing lost",
+    route: "/hub",
+    category: "create",
+    creditCost: "Free",
+    icon: Zap,
+    badge: "POPULAR",
+  },
+  {
     key: "video-generator",
     name: "AI Video Generator",
     tagline: "Cinematic AI video scenes with Seedance 2.5",

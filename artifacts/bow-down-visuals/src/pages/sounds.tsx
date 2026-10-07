@@ -394,7 +394,7 @@ export default function ViralSoundFinder() {
 
                     <div className="mt-4 flex gap-2">
                       <Link
-                        href="/make-video"
+                        href={`/make-video?sound=${encodeURIComponent(`${s.title} — ${s.artist}`)}`}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                       >
                         <Clapperboard className="h-4 w-4" aria-hidden="true" />

@@ -186,6 +186,29 @@ export default function StemSplitter() {
     setPlaying(false);
   }
 
+  /* Deep-link protocol: /stems?audioUrl=… pre-loads audio (e.g. a beat from
+     beat-maker) via the same fetch→File path as the project flow bar. */
+  useEffect(() => {
+    try {
+      const audioUrl = new URLSearchParams(window.location.search).get("audioUrl");
+      if (!audioUrl || file) return;
+      (async () => {
+        try {
+          const res = await fetch(audioUrl);
+          const blob = await res.blob();
+          const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mpeg") ? "mp3" : "wav";
+          pickFile(new File([blob], `audio.${ext}`, { type: blob.type || "audio/wav" }));
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {
+          setError(t("stems.errorProjectAudio"));
+        }
+      })();
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function startSplit() {
     if (!file || !user) return;
     setStatus("uploading");

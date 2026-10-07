@@ -290,6 +290,19 @@ export default function MakeVideo() {
 
   const watched = watch();
 
+  /* Deep-link protocol: /make-video?sound=<title> — <artist> pre-fills the song
+     title when arriving from the viral sound finder. */
+  useEffect(() => {
+    try {
+      const sound = new URLSearchParams(window.location.search).get("sound");
+      if (sound) {
+        setValue("songTitle", sound.slice(0, 120));
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── Vault load ── */
   function handleVaultLoad(vault: ArtistVault) {
     if (!watched.artistName) setValue("artistName", vault.artist_name);

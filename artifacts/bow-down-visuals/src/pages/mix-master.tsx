@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── AI Mix & Master ───────────────────────────────────────────────────
    The flagship audio service: upload a finished mix and get back a
@@ -246,6 +247,7 @@ function JobResult({
   onReset: () => void;
 }) {
   const { t } = useTranslation();
+  const { addAsset } = useHubProject();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [abSide, setAbSide] = useState<"before" | "after">("after");
   const [playing, setPlaying] = useState(false);
@@ -253,6 +255,16 @@ function JobResult({
   const stats = data.stats ?? null;
   const mp3Url = data.mp3Url ?? null;
   const wavUrl = data.wavUrl ?? null;
+
+  /* The finished master/mix flows into the project — distribute, video and the hub rail can pick it up. */
+  const reportedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const url = mp3Url || wavUrl;
+    if (url && reportedRef.current !== url) {
+      reportedRef.current = url;
+      addAsset({ kind: "song", url, label: `${kindLabel} — master`, detail: "MixMaster output" });
+    }
+  }, [mp3Url, wavUrl, kindLabel, addAsset]);
 
   /* Loudness-matched A/B: attenuate the louder side via the volume
      property so the comparison is about tone, not level. Real, no Web Audio. */

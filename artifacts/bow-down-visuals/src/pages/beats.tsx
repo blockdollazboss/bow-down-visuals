@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Beat Marketplace ──────────────────────────────────────────────────────
    Producers list beats (free), artists browse / preview / license them.
@@ -65,6 +66,7 @@ function priceFor(beat: Beat, tier: string): number {
 export default function Beats() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const [beats, setBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"browse" | "sell" | "dashboard">("browse");
@@ -240,6 +242,16 @@ export default function Beats() {
         setLicenseMsg(data.error ?? t("beats.errorLicenseFailed"));
       } else {
         setLicenseMsg(data.message ?? t("beats.licenseReserved"));
+        /* The licensed beat flows into the hub project + straight into song-making. */
+        try {
+          addAsset({
+            kind: "beat",
+            url: licenseBeat.audio_url || licenseBeat.preview_url || "",
+            label: licenseBeat.title,
+            detail: `${licenseBeat.genre || ""} · ${licenseBeat.bpm || "?"} BPM`.trim(),
+            meta: { beatId: licenseBeat.id, tier: licenseTier },
+          });
+        } catch { /* hub unavailable — non-fatal */ }
       }
     } catch {
       setLicenseMsg(t("beats.errorLicenseRetry"));
@@ -545,6 +557,14 @@ export default function Beats() {
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
               {t("beats.reserveLicenseButton", { tier: t(LICENSE_TIERS.find((x) => x.key === licenseTier)?.labelKey ?? "") })}
             </button>
+            {licenseBeat && (
+              <Link
+                href={`/make-song?audioUrl=${encodeURIComponent(licenseBeat.audio_url || licenseBeat.preview_url || "")}`}
+                className="mt-2 w-full py-2.5 rounded-xl border border-primary/40 text-primary font-bold hover:bg-primary/10 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                <Disc3 className="w-4 h-4" />{t("beats.useInSong", { defaultValue: "Use this beat in a song" })}
+              </Link>
+            )}
           </div>
         </div>
       )}

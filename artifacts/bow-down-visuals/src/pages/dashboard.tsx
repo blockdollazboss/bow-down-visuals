@@ -421,6 +421,21 @@ export default function Dashboard() {
           </section>
         ) : (
         <section>
+          {/* ── Creation Hub front door: guided workflows where every tool reports back ── */}
+          <Link href="/hub" className="block mb-6 group">
+            <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-gradient-to-br from-primary/[0.16] via-primary/[0.06] to-transparent p-6 md:p-8 shadow-[0_0_40px_rgba(218,165,32,0.12)] transition-all group-hover:border-primary/70 group-hover:shadow-[0_0_60px_rgba(218,165,32,0.2)]">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="max-w-xl">
+                  <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-3">
+                    <Sparkles className="h-3 w-3" />Guided mode</span>
+                  <h2 className="text-xl md:text-2xl font-black text-white tracking-tight leading-tight mb-1">Creation Hub — one project, every tool</h2>
+                  <p className="text-white/45 text-sm font-medium">Pick a workflow (song, video, release…) and walk it step by step. Everything you make lands in one project tray and flows into the next step.</p>
+                </div>
+                <Button size="lg" className="gold-glow font-black gap-2 shrink-0">
+                  Open the Hub<Sparkles className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          </Link>
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black text-white tracking-tight">{t("dashboard.what_do_you_want_to_create")}</h2>

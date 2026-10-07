@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import { useTranslation } from "react-i18next";
 
 /* ─── AI Vocal Remover ──────────────────────────────────────────────────
@@ -43,6 +44,7 @@ interface JobResponse {
 export default function VocalRemover() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [karaoke, setKaraoke] = useState(true);
@@ -79,6 +81,10 @@ export default function VocalRemover() {
           setStatus("done");
           setInstrumentalUrl(data.instrumentalUrl ?? null);
           setAcapellaUrl(data.acapellaUrl ?? null);
+          /* The instrumental flows into the project — mastering, mix and the hub rail can pick it up. */
+          if (data.instrumentalUrl) {
+            addAsset({ kind: "song", url: data.instrumentalUrl, label: "Instrumental", detail: "Vocal removal" });
+          }
           if (data.karaokeUrl) {
             try {
               const kr = await fetch(data.karaokeUrl);

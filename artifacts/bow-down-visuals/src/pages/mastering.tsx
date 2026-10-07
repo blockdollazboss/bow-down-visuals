@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── AI Mastering ─────────────────────────────────────────────────────────
    Real DSP mastering chain (ffmpeg): subsonic cleanup → glue compression →
@@ -58,6 +59,7 @@ function fmtLufs(v: number | null | undefined): string {
 export default function Mastering() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -92,6 +94,10 @@ export default function Mastering() {
           setStats(data.stats ?? null);
           setWavUrl(data.wavUrl ?? null);
           setMp3Url(data.mp3Url ?? null);
+          /* The mastered track flows into the project — distribute, video and the hub rail can pick it up. */
+          if (data.mp3Url || data.wavUrl) {
+            addAsset({ kind: "song", url: data.mp3Url || data.wavUrl || "", label: "Mastered track", detail: `Mastering · ${preset}` });
+          }
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");

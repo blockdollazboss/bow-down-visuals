@@ -16,6 +16,7 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* Single source of truth for the AI beat price — the credit-cost registry. */
 const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 300;
@@ -71,6 +72,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
   const [title, setTitle] = useState("");
   const [generating, setGenerating] = useState(false);
   const [beat, setBeat] = useState<GeneratedBeat | null>(null);
+  const { addAsset } = useHubProject();
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +112,14 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         meta: { genre, bpm: String(bpm), key: musicalKey },
       };
       setBeat(generated);
+      /* The beat flows into the project — make-song, stems and the hub rail can pick it up. */
+      addAsset({
+        kind: "beat",
+        url: data.url,
+        label: generated.title,
+        detail: `${genre} · ${bpm} BPM · ${musicalKey}`,
+        meta: { genre, bpm: String(bpm), key: musicalKey },
+      });
       onGenerated?.(generated);
       if (data.creditsRemaining !== undefined) refreshProfile();
     } catch {
@@ -237,9 +247,9 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
               >
                 <Download className="w-4 h-4" /> {t("beatMaker.downloadMp3")}
               </a>
-              {/* Hub handoffs — the beat flows into the next steps */}
+              {/* Hub handoffs — the beat flows into the next steps (URL carries it; the hub tray keeps it too) */}
               <Link
-                href="/stems"
+                href={`/stems?audioUrl=${encodeURIComponent(beat.url)}`}
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
               >
                 <Scissors className="w-4 h-4" /> {t("beatMaker.splitStems")}
@@ -251,7 +261,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
                 <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace")}
               </Link>
               <Link
-                href="/make-song"
+                href={`/make-song?audioUrl=${encodeURIComponent(beat.url)}`}
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
               >
                 <Disc3 className="w-4 h-4" /> {t("beatMaker.turnIntoSong")}

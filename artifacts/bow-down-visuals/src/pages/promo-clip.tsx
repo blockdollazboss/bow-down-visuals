@@ -20,6 +20,9 @@ import { GenerationResult, type SaveMetadata } from "@/components/GenerationResu
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
+import { useHubProject, type HubAsset } from "@/lib/hub-project";
 import type { SceneData } from "@/lib/scene-parser";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -225,6 +228,35 @@ export default function PromoClip() {
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset, latestOfKind, project } = useHubProject();
+
+  /* ── Hub project spine: prefill the from-scratch form from the active
+     project — song title, artist, hook travel over, no re-typing. ── */
+  function handleProjectPick(asset: HubAsset) {
+    const title = asset.meta?.["title"] ?? asset.label;
+    const artist = asset.meta?.["artist"] ?? "";
+    const hook = asset.meta?.["hook"] ?? "";
+    if (title && !watch("songTitle")) setValue("songTitle", title, { shouldDirty: true });
+    if (artist && !watch("artistName")) setValue("artistName", artist, { shouldDirty: true });
+    if (hook && !watch("songHook")) setValue("songHook", hook, { shouldDirty: true });
+    if (mode !== "from-scratch") switchMode("from-scratch");
+  }
+
+  /* ── Hub project spine: the finished promo plan lands in the project as a
+     script asset so Hook Studio / Scheduler / Social Kit can build on it. ── */
+  function pushPromoPlanToProject(result: string, songTitle: string) {
+    try {
+      addAsset({
+        kind: "script",
+        url: `data:text/plain;charset=utf-8,${encodeURIComponent(result)}`,
+        label: `Promo plan · ${songTitle || "untitled"}`,
+        detail: "Promo Clip Maker",
+        meta: { kind: "promo-plan", title: songTitle },
+      });
+    } catch {
+      /* best-effort */
+    }
+  }
 
   /* ── Mode ── */
   const [mode, setMode] = useState<Mode>("select");
@@ -252,6 +284,22 @@ export default function PromoClip() {
   const watched = watch();
   const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(activeArtist);
   const [scratchAdvancedOpen, setScratchAdvancedOpen] = useState(false);
+
+  /* Deep-link protocol: /promo-clip?song=…&artist=…&hook=… pre-fills the
+     from-scratch form (e.g. coming from song-and-video or the hub). */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const song = params.get("song");
+      const artist = params.get("artist");
+      const hook = params.get("hook");
+      if (song) setValue("songTitle", song);
+      if (artist) setValue("artistName", artist);
+      if (hook) setValue("songHook", hook);
+      if (song || artist || hook) window.history.replaceState(null, "", window.location.pathname);
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Shared output ── */
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -333,6 +381,7 @@ export default function PromoClip() {
       if (!res) return; // user cancelled the credit confirmation
       const { rawResult: result, creditsRemaining } = res;
       setRawResult(result);
+      pushPromoPlanToProject(result, selectedProject?.song_title ?? "");
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -371,6 +420,7 @@ export default function PromoClip() {
       if (!res) return; // user cancelled the credit confirmation
       const { rawResult: result, creditsRemaining } = res;
       setRawResult(result);
+      pushPromoPlanToProject(result, values.songTitle);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -464,6 +514,12 @@ export default function PromoClip() {
             ))}
           </div>
         </div>
+
+        <ProjectFlowBar
+          kinds={["song", "video", "script"]}
+          actionLabel={t("hubSpine.flowBar.useSongInVideo")}
+          onPick={handleProjectPick}
+        />
 
         {/* ═══════════════════════════════════════════════════════════
             MODE SELECTOR
@@ -1012,6 +1068,33 @@ export default function PromoClip() {
                 }
               }
             />
+
+            {/* Spine: next-step handoffs on the finished promo plan — the
+                orphaned clip-description tool writes YouTube-ready copy, and
+                a project image can become a meme. Both save back to the
+                project automatically. */}
+            <div className="mt-8">
+              <AssetHandoffs
+                asset={{
+                  id: `promo-plan-${Date.now().toString(36)}`,
+                  kind: "script",
+                  url: "",
+                  label: watched.songTitle || "Promo plan",
+                  createdAt: Date.now(),
+                }}
+                handoffs={["clip-description"]}
+                topic={watched.songTitle || watched.songHook || project.name}
+              />
+            </div>
+            {(() => {
+              const img = latestOfKind("image") ?? latestOfKind("thumbnail");
+              if (!img) return null;
+              return (
+                <div className="mt-6">
+                  <AssetHandoffs asset={img} handoffs={["meme"]} />
+                </div>
+              );
+            })()}
 
           </div>
         )}

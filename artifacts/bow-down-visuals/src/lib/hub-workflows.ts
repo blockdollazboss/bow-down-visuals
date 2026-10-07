@@ -521,7 +521,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
     tagline: "Niche → clip → post → deals. Turn other people's moments into your money.",
     icon: Scissors,
     steps: [
-      { key: "niche", label: "Niche", icon: Lightbulb, assetKind: null, href: "/niches",
+      { key: "niche", label: "Niche", icon: Lightbulb, assetKind: null, href: "/trends",
         blurb: "Pick your lane — gaming, podcasts, sports, drama.",
         creditNote: "free" },
       { key: "brand", label: "Brand", icon: Palette, assetKind: null, href: "/branding-kit",
@@ -614,7 +614,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
       { key: "copyright", label: "Copyright", icon: Copyright, assetKind: null, href: "/copyright",
         blurb: "Own your work, legally — from day one.",
         creditNote: "free · 100 Visual Bucs AI draft" },
-      { key: "detector", label: "AI Detector", icon: ScanSearch, assetKind: null, href: "/media-detector",
+      { key: "detector", label: "AI Detector", icon: ScanSearch, assetKind: null, href: "/detector",
         blurb: "Spot AI-generated media — know what's real.",
         creditNote: "200 Visual Bucs" },
     ],

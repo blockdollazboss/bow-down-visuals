@@ -29,6 +29,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
 
@@ -310,6 +311,18 @@ export default function SongAndVideo() {
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
+  /* Report the song into the hub project so downstream tools (video, distribute,
+     stems) can pick it up instead of asking for the audio again. */
+  const reportSongAsset = (url: string | null) => {
+    setAudioUrl(url);
+    if (url) {
+      try {
+        const title = watch("songTitle") || watch("existingLyrics")?.slice(0, 60) || "Song";
+        addAsset({ kind: "song", url, label: String(title), detail: "Song + Video studio" });
+      } catch { /* hub unavailable — non-fatal */ }
+    }
+  };
   const [, setLocation] = useLocation();
 
   const [step, setStep] = useState(1);
@@ -962,7 +975,7 @@ export default function SongAndVideo() {
                 </Label>
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("existingLyrics", text); setSongStructure(null); }}
-                  onFileUrl={setAudioUrl}
+                  onFileUrl={reportSongAsset}
                 />
                 <Textarea {...register("existingLyrics")}
                   placeholder={t("songAndVideo.existingLyricsPlaceholder")}
@@ -1283,8 +1296,8 @@ export default function SongAndVideo() {
                   </button>
                 )}
 
-                {/* Generate Promo Clips */}
-                <Link href="/promo-clip">
+                {/* Generate Promo Clips — carries the song + artist so nothing is retyped */}
+                <Link href={`/promo-clip?song=${encodeURIComponent(watch("songTitle") || "")}&artist=${encodeURIComponent(activeArtist?.artist_name || watch("artistName") || "")}`}>
                   <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm cursor-pointer">
                     <Film className="h-4 w-4 shrink-0" /> {t("songAndVideo.generatePromoClips")}
                   </div>

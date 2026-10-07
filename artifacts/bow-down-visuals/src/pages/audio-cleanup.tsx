@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ function WaveformBars({ peaks, active, color }: { peaks: number[] | null; active
 
 export default function AudioCleanup() {
   const { t } = useTranslation();
+  const { addAsset } = useHubProject();
   usePageTitle(t("audioCleanup.pageTitle"), t("audioCleanup.pageSubtitle"));
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -141,6 +143,10 @@ export default function AudioCleanup() {
         if (data.status === "done") {
           setStatus("done");
           setOutputUrl(data.outputUrl ?? null);
+          /* The cleaned audio flows into the project for the next step. */
+          if (data.outputUrl) {
+            addAsset({ kind: "song", url: data.outputUrl, label: "Cleaned audio", detail: `Audio cleanup · ${mode}` });
+          }
           setNoiseReductionDb(typeof data.noiseReductionDb === "number" ? data.noiseReductionDb : null);
         } else if (data.status === "failed") {
           setStatus("failed");
