@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
@@ -150,29 +151,40 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    3. Track task in pendingTasks — credits NOT yet charged.
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
+/* ── Request validation ── */
+const runwayClipSchema = z.object({
+  promptText: z.string().max(5000).optional(),
+  negativePrompt: z.string().max(2000).optional().nullable(),
+  ratio: z.enum(["1280:720", "720:1280"]).optional(),
+  projectId: z.string().max(100).optional().nullable(),
+  referenceImageUrl: z.string().max(2048).optional().nullable(),
+  /** Final frame of the immediately-preceding scene's clip, used to chain
+   *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
+   *  (vault photo) when absent or unusable. */
+  previousClipUrl: z.string().max(2048).optional().nullable(),
+  /** Video model: "gen4.5" (default, 5s) or "seedance2_5" (premium, up to 30s). */
+  model: z.enum(["gen4.5", "seedance2_5"]).optional(),
+  /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
+  durationSec: z.number().finite().min(1).max(60).optional(),
+  /** Output resolution tier for seedance2_5. */
+  resolution: z.enum(["720p", "1080p"]).optional(),
+  /** Locked pre-production pack + shot: when present, the prompt, negative
+   *  prompt, model, duration, and ratio come from the pack's locked
+   *  ingredients — the client's promptText is ignored. */
+  packId: z.string().max(100).optional().nullable(),
+  shotNumber: z.number().int().min(0).max(1000).optional().nullable(),
+});
+
 router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req, res) => {
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = req.body as {
-    promptText?: string;
-    negativePrompt?: string;
-    ratio?: "1280:720" | "720:1280";
-    projectId?: string | null;
-    referenceImageUrl?: string | null;
-    /** Final frame of the immediately-preceding scene's clip, used to chain
-     *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
-     *  (vault photo) when absent or unusable. */
-    previousClipUrl?: string | null;
-    /** Video model: "gen4.5" (default, 5s) or "seedance2_5" (premium, up to 30s). */
-    model?: "gen4.5" | "seedance2_5";
-    /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
-    durationSec?: number;
-    /** Output resolution tier for seedance2_5. */
-    resolution?: "720p" | "1080p";
-    /** Locked pre-production pack + shot: when present, the prompt, negative
-     *  prompt, model, duration, and ratio come from the pack's locked
-     *  ingredients — the client's promptText is ignored. */
-    packId?: string | null;
-    shotNumber?: number | null;
-  };
+  const parsed = runwayClipSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid runway clip request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;

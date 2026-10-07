@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
@@ -113,15 +114,30 @@ async function refundCredits(userId: string, amount: number): Promise<void> {
  * Charge-before-generate: credits are deducted up front and auto-refunded
  * if generation fails before any image succeeds.
  */
+/* ── Request validation ── */
+const thumbnailGeneratorSchema = z.object({
+  prompt: z.string().min(3, "A text prompt (3+ characters) is required.").max(2000),
+  stylePreset: z.string().max(100).optional(),
+  aspectRatio: z.enum(["16:9", "9:16"]).optional(),
+  overlayText: z.string().max(200).optional(),
+});
+
 router.post(
   "/thumbnail-generator",
   requireAuth,
   upload.single("facePhoto"),
   async (req, res) => {
-    const { prompt, stylePreset, aspectRatio, overlayText } =
-      req.body as Partial<GenerateRequest>;
+    const parsed = thumbnailGeneratorSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Invalid thumbnail request.",
+        details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+      });
+      return;
+    }
+    const { prompt, stylePreset, aspectRatio, overlayText } = parsed.data;
 
-    if (!prompt || typeof prompt !== "string" || prompt.trim().length < 3) {
+    if (prompt.trim().length < 3) {
       res.status(400).json({ error: "A text prompt (3+ characters) is required." });
       return;
     }
