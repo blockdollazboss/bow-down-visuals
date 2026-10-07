@@ -5,8 +5,8 @@
 
 export type ClipModel = "gen4.5" | "seedance2_5";
 export type ClipResolution = "720p" | "1080p";
-/** The four Seedance 2.5 ratios this route ever requests. */
-export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
+/** The six Seedance 2.5 ratios this route ever requests (incl. 480p drafts). */
+export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920" | "854:480" | "480:854";
 export const GEN45_CREDIT_COST = 400;
 /* Resolution-aware Seedance 2.5 site-credit rates (credits per output second).
    Grounded in the Runway Dev API rate card (docs.dev.runwayml.com/guides/pricing):
@@ -18,6 +18,13 @@ export const GEN45_CREDIT_COST = 400;
    1080p retails $3.00/sec = ~4.4x margin. */
 export const SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT = 300;
 export const SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT = 600;
+/* Draft mode: cheap 480p preview for iterating on a shot before committing to
+   a full-res render. Mirrors Runway's own draft rate card (20 credits/sec for
+   draft vs 30/sec at 720p and 68/sec at 1080p): draft is 2/3 the 720p rate,
+   so 200/sec keeps the same ~5x margin as the 720p tier. The enhance step is
+   just a re-submission at 1080p with the draft's seed, charged at the 1080p
+   rate — no separate enhance tier needed. */
+export const SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT = 200;
 /** Legacy flat fallback (pre-resolution-aware pricing). Kept exported so old
     imports keep compiling; do not use for new code. */
 export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 150;
@@ -38,6 +45,8 @@ export const SEEDANCE_PRICING_VERSION = "2026-09-25-resolution-aware";
 export interface ClipPlan {
   model: ClipModel;
   useSeedance: boolean;
+  /** True when this plan is a cheap 480p draft preview. */
+  isDraft: boolean;
   /** Resolved clip length in seconds (5 for gen4.5, clamped 3–30 for seedance). */
   durationSec: number;
   /** Site credits charged on success. */
@@ -55,11 +64,17 @@ export function resolveClipPlan(opts: {
   ratio?: string;
   creditsPerSec720p?: number;
   creditsPerSec1080p?: number;
+  creditsPerSecDraft?: number;
+  /** Draft mode: cheap 480p preview. Only valid for seedance2_5. */
+  draft?: boolean;
 }): ClipPlan {
   const useSeedance = opts.model === "seedance2_5";
+  const isDraft = useSeedance && opts.draft === true;
   const landscape = opts.ratio === "1280:720";
-  const hiRes = opts.resolution === "1080p";
-  const creditsPerSec = hiRes
+  const hiRes = opts.resolution === "1080p" && !isDraft;
+  const creditsPerSec = isDraft
+    ? Number(opts.creditsPerSecDraft) || SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT
+    : hiRes
     ? Number(opts.creditsPerSec1080p) || SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT
     : Number(opts.creditsPerSec720p) || SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT;
   const durationSec = useSeedance
@@ -70,11 +85,12 @@ export function resolveClipPlan(opts: {
     : 5;
   const creditCost = useSeedance ? Math.ceil(durationSec * creditsPerSec) : GEN45_CREDIT_COST;
   const seedanceRatio: SeedanceRatio = landscape
-    ? hiRes ? "1920:1080" : "1280:720"
-    : hiRes ? "1080:1920" : "720:1280";
+    ? isDraft ? "854:480" : hiRes ? "1920:1080" : "1280:720"
+    : isDraft ? "480:854" : hiRes ? "1080:1920" : "720:1280";
   return {
     model: useSeedance ? "seedance2_5" : "gen4.5",
     useSeedance,
+    isDraft,
     durationSec,
     creditCost,
     seedanceRatio,

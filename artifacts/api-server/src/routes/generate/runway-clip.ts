@@ -19,6 +19,7 @@ import {
   GEN45_CREDIT_COST,
   SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT,
   SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT,
+  SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT,
   SEEDANCE_PRICING_APPROVED,
   SEEDANCE_PRICING_VERSION,
   resolveClipPlan,
@@ -39,6 +40,9 @@ const SEEDANCE_CREDITS_PER_SEC_1080P =
   Number(process.env["SEEDANCE_CREDITS_PER_SEC_1080P"]) ||
   Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) ||
   SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT;
+const SEEDANCE_CREDITS_PER_SEC_DRAFT =
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC_DRAFT"]) ||
+  SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT;
 
 /**
  * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
@@ -168,6 +172,13 @@ const runwayClipSchema = z.object({
   durationSec: z.number().finite().min(1).max(60).optional(),
   /** Output resolution tier for seedance2_5. */
   resolution: z.enum(["720p", "1080p"]).optional(),
+  /** Draft mode: cheap 480p preview for iterating on a shot. Only for seedance2_5.
+   *  The response includes the seed — re-submit with the same seed +
+   *  resolution "1080p" to enhance the keeper to full res. */
+  draft: z.boolean().optional(),
+  /** Explicit seed for reproducible generations (0–4294967295). The server
+   *  generates one when omitted; the response always includes the seed used. */
+  seed: z.number().int().min(0).max(4294967295).optional(),
   /** Locked pre-production pack + shot: when present, the prompt, negative
    *  prompt, model, duration, and ratio come from the pack's locked
    *  ingredients — the client's promptText is ignored. */
@@ -184,7 +195,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = parsed.data;
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -220,10 +231,13 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     durationSec: effectiveDuration,
     resolution,
     ratio,
+    draft,
     creditsPerSec720p: SEEDANCE_CREDITS_PER_SEC_720P,
     creditsPerSec1080p: SEEDANCE_CREDITS_PER_SEC_1080P,
+    creditsPerSecDraft: SEEDANCE_CREDITS_PER_SEC_DRAFT,
   });
   const useSeedance = plan.useSeedance;
+  const isDraft = plan.isDraft;
   const resolvedDurationSec = plan.durationSec;
   /* Duration-proportional pricing for the premium model; flat 5 for gen4.5. */
   const creditCost = plan.creditCost;
@@ -383,6 +397,13 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
        aggressive truncation gen4.5 needs. */
     const seedancePrompt = `${content} ${PERFORMANCE_DIRECTIVE} | Avoid: ${avoidBlock}`.slice(0, 4000);
 
+    /* Explicit seed for reproducibility — the draft→enhance flow re-submits
+       with the draft's seed at 1080p to preserve its composition/motion.
+       Random when the client doesn't supply one. */
+    const resolvedSeed = useSeedance
+      ? (typeof seed === "number" ? seed : Math.floor(Math.random() * 4294967296))
+      : undefined;
+
     /* Image-to-video: anchor the artist's face/look to their vault photo so every
        generated scene keeps the same visual identity. Falls back to text-to-video
        when no usable reference photo is provided. */
@@ -395,6 +416,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
             audio: false,
+            seed: resolvedSeed,
           })
         : await client.textToVideo.create({
             model: "seedance2_5",
@@ -402,6 +424,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
             audio: false,
+            seed: resolvedSeed,
           })
       : useImageRef
       ? await client.imageToVideo.create({
@@ -422,7 +445,14 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost });
     req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
-    res.json({ taskId: task.id, referenceSource, creditCost, model: useSeedance ? "seedance2_5" : "gen4.5", durationSec: resolvedDurationSec });
+    res.json({
+      taskId: task.id,
+      referenceSource,
+      creditCost,
+      model: useSeedance ? "seedance2_5" : "gen4.5",
+      durationSec: resolvedDurationSec,
+      ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
     req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");

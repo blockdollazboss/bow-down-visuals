@@ -224,6 +224,10 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5">("gen4.5");
   const [clipDuration, setClipDuration] = useState(5);
   const [clipRes, setClipRes]         = useState<"720p" | "1080p">("720p");
+  /* Draft mode (Seedance only): cheap 480p preview for iterating on the shot.
+     The server returns the seed; "Enhance" re-submits the same seed at 1080p. */
+  const [draftMode, setDraftMode] = useState(false);
+  const [draftSeed, setDraftSeed] = useState<number | null>(null);
   const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
     scene.referenceSource ?? null,
   );
@@ -466,9 +470,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     }, 5000);
   }
 
-  async function startGeneration(opts?: { skipConfirm?: boolean }) {
+  async function startGeneration(opts?: { skipConfirm?: boolean; enhance?: boolean }) {
     const finalPrompt = buildFinalPrompt();
     const chaining = hasUsableClip(previousClipUrl);
+    /* Enhance = re-render the draft's keeper at 1080p with the same seed. */
+    const isEnhance = opts?.enhance === true && draftSeed !== null;
 
     setIsGenerating(true);
     setError(null);
@@ -513,17 +519,21 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
           durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
-          resolution: clipRes,
+          resolution: isEnhance ? "1080p" : clipRes,
+          draft: clipModel === "seedance2_5" && draftMode && !isEnhance,
+          seed: isEnhance ? draftSeed : undefined,
         }),
-        overrideCost: clipCost,
-        overrideFeature: "Generate Video Clip",
+        overrideCost: isEnhance ? enhanceCost : clipCost,
+        overrideFeature: isEnhance ? "Enhance Draft to 1080p" : "Generate Video Clip",
         skipConfirm: opts?.skipConfirm,
       });
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
-      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
+      /* Keep the draft's seed so "Enhance to 1080p" can re-render it. */
+      if (typeof data.seed === "number") setDraftSeed(data.seed);
       setTaskId(data.taskId);
       startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
@@ -563,12 +573,17 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const willChain = hasUsableClip(previousClipUrl);
 
   /* Site-credit cost for the current picker selection. The per-second rates
-     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p). */
+     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p,
+     2 for drafts). */
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 3;
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 6;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 2;
+  const isDraftRequest = clipModel === "seedance2_5" && draftMode;
   const clipCost = clipModel === "seedance2_5"
-    ? clipDuration * (clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
+    ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
     : 5;
+  /* Enhance cost: re-render the draft's keeper at 1080p. */
+  const enhanceCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : 0;
   const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 
   /* Human-readable label for whichever reference the last/next generation used or will use. */
@@ -847,6 +862,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           ))}
         </div>
         {clipModel === "seedance2_5" && (
+          <>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Length</span>
             {[5, 10, 15, 30].map((d) => (
@@ -865,22 +881,50 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               </button>
             ))}
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider ml-2">Quality</span>
-            {(["720p", "1080p"] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setClipRes(r)}
-                data-testid={`res-pick-${r}`}
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
-                  clipRes === r
-                    ? "border-primary/60 bg-primary/15 text-primary"
-                    : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+            {draftMode ? (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full border border-primary/60 bg-primary/15 text-primary">
+                480p draft
+              </span>
+            ) : (
+              (["720p", "1080p"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setClipRes(r)}
+                  data-testid={`res-pick-${r}`}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                    clipRes === r
+                      ? "border-primary/60 bg-primary/15 text-primary"
+                      : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))
+            )}
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={draftMode}
+              onClick={() => setDraftMode(!draftMode)}
+              data-testid="draft-mode-toggle"
+              className="flex items-center gap-2 text-[11px] font-bold text-white/60 hover:text-white transition"
+            >
+              <span className={`relative h-5 w-9 rounded-full transition ${draftMode ? "bg-primary" : "bg-white/15"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${draftMode ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+              Draft mode
+              <span className="text-[9px] font-black uppercase tracking-wide text-emerald-400/80">save ~67%</span>
+            </button>
+            {draftMode && (
+              <span className="text-[10px] text-white/40">
+                Cheap 480p previews — re-roll freely, then enhance the keeper to 1080p.
+              </span>
+            )}
+          </div>
+          </>
         )}
       </div>
 
@@ -895,8 +939,20 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           data-testid={`btn-generate-runway`}
         >
           <Video className="h-3.5 w-3.5" />
-          Generate Runway Clip
+          {isDraftRequest ? "Generate Draft" : "Generate Runway Clip"}
         </Button>
+        {/* Enhance: re-render the draft keeper at 1080p with the same seed */}
+        {hasClip && draftSeed !== null && draftMode && (
+          <Button
+            size="sm"
+            onClick={() => startGeneration({ enhance: true })}
+            className="gap-2 bg-primary text-black hover:bg-primary/90 font-bold text-xs h-8"
+            data-testid="btn-enhance-draft"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Enhance to 1080p ({enhanceCost.toLocaleString("en-US")} Bucs)
+          </Button>
+        )}
       </div>
     </div>
   );
