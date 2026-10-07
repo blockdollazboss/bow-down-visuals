@@ -68,6 +68,8 @@ export interface ProToolsFilterInput {
   speed?: number | null;
   /** Variable speed curve (CapCut-style). Takes precedence over flat speed. */
   speedCurve?: SpeedCurvePoint[] | null;
+  /** Keyframed animation. Applied as a pre-pass before other filters. */
+  keyframes?: KeyframePoint[] | null;
   reverse?: boolean;
   rotation?: 0 | 90 | 180 | 270 | null;
   flipH?: boolean;
@@ -245,6 +247,95 @@ export function buildSpeedCurveFilter(curve: SpeedCurvePoint[], durationSec: num
     const end = ((i + 1) * segDur).toFixed(3);
     const outLabel = `[sg${i}]`;
     parts.push(`[s${i}]trim=start=${start}:end=${end},setpts=${f4(1 / speed)}*PTS${outLabel}`);
+    concatInputs.push(outLabel);
+  }
+  parts.push(`${concatInputs.join("")}concat=n=${segments}:v=1:a=0[ptout]`);
+  return parts.join(";");
+}
+
+/* ─── Keyframes ───────────────────────────────────────────────────────── */
+
+export interface KeyframePoint {
+  id: string;
+  time: number;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+}
+
+/** Interpolate keyframe values at time t (seconds). */
+export function keyframeAt(kfs: KeyframePoint[], t: number): { x: number; y: number; scale: number; rotation: number; opacity: number } {
+  const neutral = { x: 0.5, y: 0.5, scale: 1, rotation: 0, opacity: 1 };
+  if (kfs.length === 0) return neutral;
+  const sorted = [...kfs].sort((a, b) => a.time - b.time);
+  if (t <= sorted[0]!.time) {
+    const k = sorted[0]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  if (t >= sorted[sorted.length - 1]!.time) {
+    const k = sorted[sorted.length - 1]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (t >= a.time && t <= b.time) {
+      const f = (t - a.time) / (b.time - a.time || 1);
+      const e = f * f * (3 - 2 * f);
+      return {
+        x: a.x + (b.x - a.x) * e,
+        y: a.y + (b.y - a.y) * e,
+        scale: a.scale + (b.scale - a.scale) * e,
+        rotation: a.rotation + (b.rotation - a.rotation) * e,
+        opacity: a.opacity + (b.opacity - a.opacity) * e,
+      };
+    }
+  }
+  return neutral;
+}
+
+/**
+ * Build a filter_complex that applies keyframed transforms by splitting
+ * into N segments, applying per-segment scale/rotate/opacity, and concatenating.
+ * Position (x,y) is implemented via crop offset for pan effects.
+ */
+export function buildKeyframeFilter(kfs: KeyframePoint[], durationSec: number, segments = 12): string {
+  if (kfs.length === 0 || durationSec <= 0) return "";
+  const segDur = durationSec / segments;
+  const splitLabels = Array.from({ length: segments }, (_, i) => `[k${i}]`).join("");
+  const parts: string[] = [`[0:v]split=${segments}${splitLabels}`];
+
+  const concatInputs: string[] = [];
+  for (let i = 0; i < segments; i++) {
+    const tMid = (i + 0.5) * segDur;
+    const kf = keyframeAt(kfs, tMid);
+    const start = (i * segDur).toFixed(3);
+    const end = ((i + 1) * segDur).toFixed(3);
+    const outLabel = `[kg${i}]`;
+
+    const filters: string[] = [`trim=start=${start}:end=${end}`, "setpts=PTS-STARTPTS"];
+    // Scale
+    if (Math.abs(kf.scale - 1) > 0.01) {
+      filters.push(`scale=iw*${f4(kf.scale)}:ih*${f4(kf.scale)}`);
+    }
+    // Rotation (small angles only; large rotations need more complex handling)
+    if (Math.abs(kf.rotation) > 0.5) {
+      const rad = (kf.rotation * Math.PI / 180).toFixed(4);
+      filters.push(`rotate=${rad}:fillcolor=black`);
+    }
+    // Opacity
+    if (kf.opacity < 0.99) {
+      filters.push(`format=rgba,colorchannelmixer=aa=${f4(kf.opacity)}`);
+    }
+    // Position via crop (pan effect) — offset the crop window
+    if (Math.abs(kf.x - 0.5) > 0.01 || Math.abs(kf.y - 0.5) > 0.01) {
+      const xOff = ((kf.x - 0.5) * 100).toFixed(1);
+      const yOff = ((kf.y - 0.5) * 100).toFixed(1);
+      filters.push(`crop=iw:ih:${xOff}:${yOff}`);
+    }
+
+    parts.push(`[k${i}]${filters.join(",")}${outLabel}`);
     concatInputs.push(outLabel);
   }
   parts.push(`${concatInputs.join("")}concat=n=${segments}:v=1:a=0[ptout]`);

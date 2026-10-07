@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { createReadStream, createWriteStream, readFileSync, writeFileSync, unlinkSync, existsSync, statSync } from "fs";
@@ -14,7 +15,7 @@ import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
-import { buildProToolsFilterChain, buildSpeedCurveFilter, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
+import { buildProToolsFilterChain, buildSpeedCurveFilter, buildKeyframeFilter, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
@@ -714,6 +715,52 @@ function cleanup(...files: string[]) {
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
 export const EXPORT_CREDIT_COST = 400;
 
+/* Request-body schema for POST /export-final-video.
+ * Defaults mirror the destructuring fallbacks in executeExport. Deeply
+ * nested opaque configs (captions, branding, per-clip settings, overlay
+ * items) are accepted as-is — validated structurally, not deeply. */
+const exportFinalVideoSchema = z.object({
+  projectId: z.string().min(1),
+  clipUrls: z.array(z.string()).min(1),
+  audioUrl: z.string().nullish(),
+  timelineOrder: z.array(z.string()).optional(),
+  testMode: z.boolean().optional(),
+  aspectRatio: z.string().default("9:16"),
+  fadeAudioInSec: z.number().default(0),
+  fadeAudioOutSec: z.number().default(0),
+  loopAudio: z.boolean().default(false),
+  audioStartSec: z.number().default(0),
+  matchVideoLength: z.boolean().default(true),
+  addWatermark: z.boolean().default(false),
+  customWatermarkUrl: z.string().nullish(),
+  watermarkPosition: z.string().default("bottom-right"),
+  watermarkSize: z.string().default("medium"),
+  watermarkMargin: z.number().default(16),
+  audioSource: z.string().default("uploaded"),
+  captions: z.any().optional(),
+  branding: z.any().optional(),
+  exportRangeStart: z.number().nullish(),
+  exportRangeEnd: z.number().nullish(),
+  /** If set, use pre-downloaded clip files from a prior /api/prepare-export-files call. */
+  prepareId: z.string().nullish(),
+  /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
+  clipTransitions: z.any().optional(),
+  /** Per-clip Pro Tools settings — index matches clipUrls. null/absent = neutral. */
+  clipProTools: z.any().optional(),
+  /** Seconds of freeze-frame padding to hold BEFORE each clip (index-aligned with clipUrls). */
+  manualGapsBeforeSec: z.array(z.number().nullable()).nullish(),
+  /** Global Auto AI effects — mirrors settings.effects. */
+  effects: z.array(z.string()).nullish(),
+  /** Active overlay effect names from settings.overlays. */
+  overlayEffects: z.array(z.string()).nullish(),
+  /** Per-overlay intensity (0–100) keyed by overlay name. */
+  overlayEffectIntensity: z.any().optional(),
+  /** How source clips fill the target canvas: "fill" | "fit" | "blur". */
+  fitMode: z.string().nullish(),
+  /** Structured overlay items to burn into the video. */
+  overlayItems: z.any().optional(),
+});
+
 export interface ExportRequestBody {
     projectId: string;
     clipUrls: string[];
@@ -1251,6 +1298,43 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
 
       const ptChain = proToolsInput ? buildProToolsFilterChain(proToolsInput) : "";
+
+      // ── 1c-i: Keyframe pre-pass (CapCut-style animation).
+      //    Applies keyframed transforms via segmentation. Runs BEFORE the
+      //    regular pro-tools chain. Skipped when no keyframes are set.
+      const keyframes = (proToolsInput as { keyframes?: { id: string; time: number; x: number; y: number; scale: number; rotation: number; opacity: number }[] | null } | null)?.keyframes;
+      if (keyframes && keyframes.length >= 1) {
+        try {
+          const probeOut = await execFileAsync("ffprobe", [
+            "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", ptSrcPath,
+          ], { timeout: 30_000 });
+          const durationSec = parseFloat(probeOut.stdout.trim());
+          if (Number.isFinite(durationSec) && durationSec > 0) {
+            const kfFilter = buildKeyframeFilter(keyframes, durationSec);
+            if (kfFilter) {
+              const kfPath = path.join(tmpDir, `bdv-keyframes-${exportId}-${origIdx}.mp4`);
+              tmpFiles.push(kfPath);
+              exportStatus.ffmpegStage = `keyframes clip ${j + 1}/${selectedClipOrigIndices.length}`;
+              ctx.log.info({ scene: origIdx + 1, keyframeCount: keyframes.length }, "[export] applying keyframes");
+              await execFileAsync("ffmpeg", [
+                "-threads", "2", "-i", ptSrcPath,
+                "-filter_complex", kfFilter, "-map", "[ptout]",
+                "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+                "-an", "-movflags", "+faststart", "-y", kfPath,
+              ], { timeout: 300_000 });
+              if (existsSync(kfPath) && statSync(kfPath).size >= 1024) {
+                ptSrcPath = kfPath;
+              }
+            }
+          }
+        } catch (e: unknown) {
+          const err = e as { stderr?: string };
+          ctx.log.error({ stderr: err.stderr ?? String(e) }, "[export] keyframe pass failed — continuing without keyframes");
+        }
+      }
+
       if (ptChain) {
         const ptPath = path.join(tmpDir, `bdv-protools-${exportId}-${origIdx}.mp4`);
         tmpFiles.push(ptPath);
@@ -2523,7 +2607,15 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
 }
 
 router.post("/export-final-video", requireAuth, async (req, res) => {
-  const body = req.body as ExportRequestBody;
+  const bodyParse = exportFinalVideoSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: bodyParse.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const body = bodyParse.data;
   const { projectId, clipUrls, exportRangeStart, exportRangeEnd } = body;
 
 
