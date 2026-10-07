@@ -164,6 +164,16 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
   logger.error({ err }, "[app] unhandled route error");
   if (!res.headersSent) {
+    /* Respect status codes from known error types (e.g., CreditsDisabledError). */
+    const errStatus = (err as { status?: number } | null)?.status;
+    const errName = err instanceof Error ? err.name : null;
+    if (errStatus === 403 && errName === "CreditsDisabledError") {
+      res.status(403).json({
+        error: "credits_disabled",
+        message: "Credit spending is temporarily disabled. Please try again later.",
+      });
+      return;
+    }
     /* Never echo raw error text to clients in production — info disclosure. */
     res.status(500).json({
       error: isProd ? "Internal server error" : (err instanceof Error ? err.message : "Internal server error"),

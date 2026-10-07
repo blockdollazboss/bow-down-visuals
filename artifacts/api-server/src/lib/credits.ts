@@ -19,6 +19,75 @@ export class OutOfCreditsError extends Error {
 }
 
 /**
+ * Thrown by deductCredits() when CREDITS_ADMIN_ONLY is set and the user
+ * is not an admin. Routes translate this into a 403 response.
+ */
+export class CreditsDisabledError extends Error {
+  readonly status = 403;
+  constructor() {
+    super("credits_disabled");
+    this.name = "CreditsDisabledError";
+  }
+}
+
+/**
+ * Returns true if CREDITS_ADMIN_ONLY is set to "true".
+ * When enabled, only admin users (per ADMIN_EMAILS) can spend credits.
+ */
+function isAdminOnlyMode(): boolean {
+  return process.env["CREDITS_ADMIN_ONLY"] === "true";
+}
+
+/**
+ * Checks if a user is an admin by looking up their email and comparing
+ * against ADMIN_EMAILS (comma-separated, case-insensitive).
+ */
+async function isAdminUser(userId: string): Promise<boolean> {
+  const adminEmails = (process.env["ADMIN_EMAILS"] ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (adminEmails.length === 0) return false;
+
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .single();
+  if (error || !data) return false;
+  const email = (data as { email?: string }).email?.toLowerCase() ?? "";
+  return adminEmails.includes(email);
+}
+
+/**
+ * Checks if a user has ever received an admin credit grant.
+ * Used in admin-only mode to whitelist users the admin has explicitly approved.
+ */
+async function hasAdminGrant(userId: string): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("credit_usage")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("action", "Admin Credit Grant")
+    .limit(1);
+  if (error) return false;
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Returns true if the user can spend credits.
+ * In normal mode: everyone. In admin-only mode (CREDITS_ADMIN_ONLY=true):
+ * only admins and users who've received an admin grant.
+ */
+async function canUseCredits(userId: string): Promise<boolean> {
+  if (!isAdminOnlyMode()) return true;
+  if (await isAdminUser(userId)) return true;
+  return await hasAdminGrant(userId);
+}
+
+/**
  * Thrown by chargeCredits() when the ledger insert fails after the balance
  * was already deducted. The deduction is rolled back first; this error
  * signals the route to fail loudly (500) instead of silently swallowing
@@ -52,6 +121,11 @@ export class LedgerWriteError extends Error {
 export async function deductCredits(userId: string, cost: number): Promise<number> {
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`deductCredits: invalid cost ${cost}`);
+  }
+  // Admin-only mode: block users who haven't been explicitly approved
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ userId, cost }, "[credits] blocked non-whitelisted spend (admin-only mode)");
+    throw new CreditsDisabledError();
   }
   const admin = getSupabaseAdmin();
   const { data: profile, error: readErr } = await admin
