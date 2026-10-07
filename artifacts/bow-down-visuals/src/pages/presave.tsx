@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon } from "lucide-react";
+import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon, Share2 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
@@ -102,6 +102,31 @@ export default function PresaveLanding() {
                 </div>
               </div>
             )}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={async () => {
+                  const shareData = {
+                    title: `${data.title} — ${data.artistName}`,
+                    text: `${data.title} by ${data.artistName} drops ${data.releaseDate ?? "soon"} — presave it! 🎵 Made with Bow Down Visuals`,
+                    url: window.location.href,
+                  };
+                  try {
+                    if (navigator.share) await navigator.share(shareData);
+                    else await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                  } catch { /* user dismissed */ }
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+              >
+                <Share2 className="h-4 w-4" />{t("presave.shareRelease", { defaultValue: "Share this release" })}
+              </button>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${data.title} by ${data.artistName} drops ${data.releaseDate ?? "soon"} 🎵`)}&url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+              >
+                {t("presave.postToX", { defaultValue: "Post to X" })}
+              </a>
+            </div>
             <p className="mt-8 text-xs text-white/30">
               {t("presave.footer")}
             </p>

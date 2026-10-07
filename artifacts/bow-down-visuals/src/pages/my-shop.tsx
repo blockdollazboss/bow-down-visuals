@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
-  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck,
+  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -444,6 +444,23 @@ export default function MyShop() {
                       <Link href={`/shop/${activeShop.handle}`} className={ghostBtn}>
                         <ExternalLink className="w-4 h-4" /> {t("myShop.viewLive")}
                       </Link>
+                      <button
+                        className={ghostBtn}
+                        onClick={async () => {
+                          const url = `${window.location.origin}/shop/${activeShop.handle}`;
+                          const shareData = {
+                            title: `${activeShop.name} — shop`,
+                            text: `Check out my shop: ${activeShop.name} 🛍️ Powered by Bow Down Visuals`,
+                            url,
+                          };
+                          try {
+                            if (navigator.share) await navigator.share(shareData);
+                            else await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                          } catch { /* user dismissed */ }
+                        }}
+                      >
+                        <Share2 className="w-4 h-4" /> {t("myShop.shareShop", { defaultValue: "Share" })}
+                      </button>
                       <button className={ghostBtn} onClick={deleteShop}>
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>

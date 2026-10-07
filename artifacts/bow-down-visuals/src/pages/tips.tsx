@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
-  MessageCircleHeart, Sparkles, BadgeAlert,
+  MessageCircleHeart, Sparkles, BadgeAlert, Share2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -218,11 +218,29 @@ export default function Tips() {
                     {dashboard?.hasPage ? t("tips.updateButton") : t("tips.createButton")}
                   </button>
                   {dashboard?.hasPage && (
-                    <button onClick={copyLink}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]">
-                      {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                      {copied ? t("tips.linkCopied") : t("tips.copyLink")}
-                    </button>
+                    <>
+                      <button onClick={copyLink}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]">
+                        {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                        {copied ? t("tips.linkCopied") : t("tips.copyLink")}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const shareData = {
+                            title: `Tip ${dashboard.displayName || dashboard.handle} — Bow Down Visuals`,
+                            text: `Support ${dashboard.displayName || dashboard.handle}! 💰 Tip jar powered by Bow Down Visuals`,
+                            url: tipUrl(),
+                          };
+                          try {
+                            if (navigator.share) await navigator.share(shareData);
+                            else await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                          } catch { /* user dismissed */ }
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/20">
+                        <Share2 className="h-4 w-4" />
+                        {t("tips.shareTipPage", { defaultValue: "Share tip page" })}
+                      </button>
+                    </>
                   )}
                 </div>
               </section>

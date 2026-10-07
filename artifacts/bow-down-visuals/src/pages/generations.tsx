@@ -161,13 +161,25 @@ export default function Generations() {
                 </p>
                 <div className="flex gap-2">
                   {gen.file_url && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => window.open(gen.file_url!, "_blank")}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />{t("generations.view")}</Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => window.open(gen.file_url!, "_blank")}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />{t("generations.view")}</Button>
+                      <a
+                        href={gen.file_url}
+                        download={gen.title ? `${gen.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}` : "generation"}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Button size="sm" variant="outline">
+                          <Download className="h-3 w-3 mr-1" />{t("generations.download", { defaultValue: "Download" })}
+                        </Button>
+                      </a>
+                    </>
                   )}
                   <Button
                     size="sm"
