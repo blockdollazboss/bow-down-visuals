@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's AI Community Manager ───────────────────────────────
    /community — audience management: AI moderation queue, smart reply drafts,
@@ -76,6 +77,7 @@ function parsePastedComments(raw: string): CommentInput[] {
 }
 
 export default function CommunityManager() {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>("moderate");
   const [paste, setPaste] = useState("");
@@ -119,7 +121,7 @@ export default function CommunityManager() {
   function getComments(): CommentInput[] | null {
     const comments = parsePastedComments(paste);
     if (comments.length === 0) {
-      setError("Paste some comments first — one per line, like @fan: loved this!");
+      setError(t("community.paste_some_comments_first_one_pe"));
       return null;
     }
     return comments;
@@ -204,32 +206,27 @@ export default function CommunityManager() {
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-amber-300">
-            <Users className="h-3.5 w-3.5" /> AI Community Manager
-          </div>
-          <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-            Your audience, <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">managed.</span>
+            <Users className="h-3.5 w-3.5" />{t("community.ai_community_manager")}</div>
+          <h1 className="text-4xl font-black tracking-tight md:text-5xl">{t("community.your_audience")}<span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("community.managed")}</span>
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">
-            AI moderation queue, smart reply drafts, sentiment radar, and superfan detection.
-            Nothing is ever auto-deleted — every flag waits for your call.
-          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">{t("community.ai_moderation_queue_smart_reply")}</p>
         </div>
 
         {/* Tabs */}
         <div className="mb-6 flex flex-wrap justify-center gap-2">
-          {TABS.map((t) => (
+          {TABS.map((tb) => (
             <button
-              key={t.key}
-              onClick={() => { setTab(t.key); setError(null); }}
+              key={tb.key}
+              onClick={() => { setTab(tb.key); setError(null); }}
               className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                tab === t.key
+                tab === tb.key
                   ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
                   : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
               }`}
             >
-              <t.icon className="h-4 w-4" />
-              {t.label}
-              <span className="text-[10px] font-normal opacity-70">{t.cost}</span>
+              <tb.icon className="h-4 w-4" />
+              {t(`community.tabs.${tb.key}.label`, { defaultValue: tb.label })}
+              <span className="text-[10px] font-normal opacity-70">{t(`community.tabs.${tb.key}.cost`, { defaultValue: tb.cost })}</span>
             </button>
           ))}
         </div>
@@ -237,13 +234,11 @@ export default function CommunityManager() {
         {/* Comment input (shared) */}
         <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-semibold text-zinc-200">Paste comments</label>
+            <label className="text-sm font-semibold text-zinc-200">{t("community.paste_comments")}</label>
             <button
               onClick={() => setPaste(SAMPLE_COMMENTS)}
               className="text-xs text-amber-300/80 hover:text-amber-200"
-            >
-              Load sample
-            </button>
+            >{t("community.load_sample")}</button>
           </div>
           <textarea
             value={paste}
@@ -276,15 +271,12 @@ export default function CommunityManager() {
               Moderate comments · 1 VB / 50
             </button>
             {moderatedCount > 0 && (
-              <p className="mb-3 text-sm text-zinc-400">
-                Reviewed <span className="font-bold text-white">{moderatedCount}</span> ·{" "}
-                <span className="font-bold text-amber-300">{flags.length}</span> flagged for your review
-              </p>
+              <p className="mb-3 text-sm text-zinc-400">{t("community.reviewed")}<span className="font-bold text-white">{moderatedCount}</span> ·{" "}
+                <span className="font-bold text-amber-300">{flags.length}</span>{t("community.flagged_for_your_review")}</p>
             )}
             {flags.length === 0 && moderatedCount > 0 && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-                <CheckCircle2 className="h-5 w-5" /> Clean — nothing needs your attention.
-              </div>
+                <CheckCircle2 className="h-5 w-5" />{t("community.clean_nothing_needs_your_attenti")}</div>
             )}
             <div className="space-y-3">
               {flags.map((f) => {
@@ -308,15 +300,11 @@ export default function CommunityManager() {
                           <button
                             onClick={() => setReviewed((r) => [...r, `ok:${f.index}`])}
                             className="rounded-full border border-emerald-500/40 px-3 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10"
-                          >
-                            Approve
-                          </button>
+                          >{t("community.approve")}</button>
                           <button
                             onClick={() => setReviewed((r) => [...r, `remove:${f.index}`])}
                             className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10"
-                          >
-                            Remove
-                          </button>
+                          >{t("community.remove")}</button>
                         </div>
                       ) : (
                         <span className="shrink-0 text-xs text-zinc-400">
@@ -335,17 +323,17 @@ export default function CommunityManager() {
         {tab === "replies" && (
           <div>
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              {(["friendly", "playful", "professional", "hype"] as const).map((t) => (
+              {(["friendly", "playful", "professional", "hype"] as const).map((tn) => (
                 <button
-                  key={t}
-                  onClick={() => setTone(t)}
+                  key={tn}
+                  onClick={() => setTone(tn)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition ${
-                    tone === t
+                    tone === tn
                       ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
                       : "border-zinc-800 text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  {t}
+                  {t(`community.tones.${tn}`)}
                 </button>
               ))}
               <button
@@ -365,8 +353,7 @@ export default function CommunityManager() {
                     onClick={() => copy(d.reply)}
                     className="mt-2 flex items-center gap-1.5 text-xs text-amber-300/80 hover:text-amber-200"
                   >
-                    <Copy className="h-3.5 w-3.5" /> Copy reply
-                  </button>
+                    <Copy className="h-3.5 w-3.5" />{t("community.copy_reply")}</button>
                 </div>
               ))}
             </div>
@@ -388,7 +375,7 @@ export default function CommunityManager() {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-zinc-300">Overall sentiment</span>
+                    <span className="text-sm font-semibold text-zinc-300">{t("community.overall_sentiment")}</span>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
                       sentiment.overall === "positive" ? "bg-emerald-500/15 text-emerald-300"
                       : sentiment.overall === "negative" ? "bg-red-500/15 text-red-300"
@@ -405,14 +392,14 @@ export default function CommunityManager() {
                 </div>
                 {sentiment.themes && sentiment.themes.length > 0 && (
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
-                    <h3 className="mb-3 text-sm font-bold text-zinc-200">What fans are saying</h3>
+                    <h3 className="mb-3 text-sm font-bold text-zinc-200">{t("community.what_fans_are_saying")}</h3>
                     <div className="space-y-2">
-                      {sentiment.themes.map((t, i) => (
+                      {sentiment.themes.map((th, i) => (
                         <div key={i} className="rounded-xl bg-black/40 p-3">
-                          <p className="text-sm font-semibold text-white">{t.theme}
-                            <span className="ml-2 text-xs font-normal text-zinc-400">{t.sentiment}</span>
+                          <p className="text-sm font-semibold text-white">{th.theme}
+                            <span className="ml-2 text-xs font-normal text-zinc-400">{th.sentiment}</span>
                           </p>
-                          {t.examples?.map((e, j) => (
+                          {th.examples?.map((e, j) => (
                             <p key={j} className="mt-1 text-xs italic text-zinc-400">“{e}”</p>
                           ))}
                         </div>
@@ -423,7 +410,7 @@ export default function CommunityManager() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {sentiment.wins && sentiment.wins.length > 0 && (
                     <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-                      <h3 className="mb-2 text-sm font-bold text-emerald-300">Wins 🏆</h3>
+                      <h3 className="mb-2 text-sm font-bold text-emerald-300">{t("community.wins")}</h3>
                       <ul className="space-y-1 text-sm text-zinc-300">
                         {sentiment.wins.map((w, i) => <li key={i}>· {w}</li>)}
                       </ul>
@@ -432,8 +419,7 @@ export default function CommunityManager() {
                   {sentiment.risks && sentiment.risks.length > 0 && (
                     <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
                       <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-red-300">
-                        <AlertTriangle className="h-4 w-4" /> Watch out
-                      </h3>
+                        <AlertTriangle className="h-4 w-4" />{t("community.watch_out")}</h3>
                       <ul className="space-y-1 text-sm text-zinc-300">
                         {sentiment.risks.map((r, i) => <li key={i}>· {r}</li>)}
                       </ul>
@@ -471,7 +457,7 @@ export default function CommunityManager() {
               ))}
             </div>
             {superfans.length === 0 && !loading && (
-              <p className="text-sm text-zinc-500">Run a scan to find your most engaged supporters.</p>
+              <p className="text-sm text-zinc-500">{t("community.run_a_scan_to_find_your_most_eng")}</p>
             )}
           </div>
         )}
@@ -479,9 +465,9 @@ export default function CommunityManager() {
         {/* ── ALERT RULES (free) ── */}
         <div className="mt-10 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-zinc-200">
-            <Bell className="h-4 w-4 text-amber-300" /> Alert rules <span className="text-xs font-normal text-zinc-500">· free</span>
+            <Bell className="h-4 w-4 text-amber-300" />{t("community.alert_rules")}<span className="text-xs font-normal text-zinc-500">{t("community.free")}</span>
           </h3>
-          <p className="mb-4 text-xs text-zinc-500">Get notified when the AI spots something worth your attention.</p>
+          <p className="mb-4 text-xs text-zinc-500">{t("community.get_notified_when_the_ai_spots_s")}</p>
           <div className="space-y-2.5">
             {(
               [
@@ -492,8 +478,8 @@ export default function CommunityManager() {
             ).map((a) => (
               <label key={a.key} className="flex cursor-pointer items-center justify-between rounded-xl bg-black/40 p-3">
                 <div>
-                  <p className="text-sm font-semibold text-zinc-100">{a.label}</p>
-                  <p className="text-xs text-zinc-500">{a.desc}</p>
+                  <p className="text-sm font-semibold text-zinc-100">{t(`community.alerts.${a.key}.label`, { defaultValue: a.label })}</p>
+                  <p className="text-xs text-zinc-500">{t(`community.alerts.${a.key}.desc`, { defaultValue: a.desc })}</p>
                 </div>
                 <input
                   type="checkbox"
@@ -507,9 +493,7 @@ export default function CommunityManager() {
         </div>
 
         <p className="mt-6 text-center text-xs text-zinc-600">
-          <XCircle className="mr-1 inline h-3.5 w-3.5" />
-          The AI suggests — you decide. Nothing is deleted or posted without your approval.
-        </p>
+          <XCircle className="mr-1 inline h-3.5 w-3.5" />{t("community.the_ai_suggests_you_decide_nothi")}</p>
       </main>
 
     </div>

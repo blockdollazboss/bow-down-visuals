@@ -6,6 +6,7 @@ import {
   FEATURE_CATEGORIES,
   type FeatureCategory,
 } from "@/data/features";
+import { useTranslation } from "react-i18next";
 
 /* ─── Features — the showcase ─────────────────────────────────────────────
    Every user-facing Bow Down Visuals feature in one place: search it, filter
@@ -20,6 +21,7 @@ const cardClass =
   "p-6 transition-all duration-300 hover:border-primary/50 hover:from-white/[0.08] hover:shadow-[0_0_40px_-12px_rgba(212,175,55,0.35)]";
 
 export default function Features() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -52,32 +54,20 @@ export default function Features() {
         />
         <div className="relative mx-auto max-w-7xl px-5 md:px-8 pt-16 md:pt-24 pb-10 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-            <Crown className="h-3.5 w-3.5" />
-            The Arsenal
-          </div>
+            <Crown className="h-3.5 w-3.5" />{t("features.the_arsenal")}</div>
           <h1 className="mt-6 text-4xl md:text-6xl font-extrabold tracking-tight">
             The Content Creator{" "}
-            <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">
-              Cheat Code
-            </span>
+            <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">{t("features.cheat_code")}</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-white/60 text-base md:text-lg">
-            Every AI tool a creator needs — make the music, shoot the video,
-            write the hooks, run the business. One vault, one Visual Buc system,
-            zero excuses.
-          </p>
+          <p className="mx-auto mt-5 max-w-2xl text-white/60 text-base md:text-lg">{t("features.every_ai_tool_a_creator_needs_ma")}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/pricing">
               <span className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 cursor-pointer">
-                <Sparkles className="h-4 w-4" />
-                Get Visual Bucs
-              </span>
+                <Sparkles className="h-4 w-4" />{t("features.get_visual_bucs")}</span>
             </Link>
             <Link href="/promote">
               <span className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-primary/40 hover:text-white cursor-pointer">
-                <Megaphone className="h-4 w-4" />
-                Promote These Features
-              </span>
+                <Megaphone className="h-4 w-4" />{t("features.promote_these_features")}</span>
             </Link>
           </div>
         </div>
@@ -91,7 +81,7 @@ export default function Features() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search features — try 'thumbnail', 'voice', 'money'…"
+              placeholder={t("features.search_features_try_thumbnail_vo")}
               className="w-full rounded-xl border border-white/10 bg-black/60 pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
             />
           </div>
@@ -125,9 +115,7 @@ export default function Features() {
             <p className="text-lg font-semibold text-white/80">Nothing matches “{query}”</p>
             <p className="mt-2 text-sm text-white/40">
               Try a different search — or{" "}
-              <button onClick={() => { setQuery(""); setFilter("all"); }} className="text-primary underline underline-offset-4">
-                reset the filters
-              </button>
+              <button onClick={() => { setQuery(""); setFilter("all"); }} className="text-primary underline underline-offset-4">{t("features.reset_the_filters")}</button>
               .
             </p>
           </div>
@@ -167,8 +155,7 @@ export default function Features() {
                       {cat.label}
                     </span>
                     <Link href={f.route}>
-                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition group-hover:gap-2.5 cursor-pointer">
-                        Try it <ArrowRight className="h-4 w-4" />
+                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition group-hover:gap-2.5 cursor-pointer">{t("features.try_it")}<ArrowRight className="h-4 w-4" />
                       </span>
                     </Link>
                   </div>
@@ -181,17 +168,10 @@ export default function Features() {
         {/* Promote CTA */}
         <div className="mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-r from-amber-500/[0.12] via-transparent to-amber-500/[0.12] p-8 md:p-12 text-center">
           <Megaphone className="mx-auto h-10 w-10 text-primary" />
-          <h2 className="mt-4 text-2xl md:text-3xl font-extrabold">
-            Running a feature launch? Let the AI write the promo.
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-white/60">
-            Pick any feature above and generate ready-to-post social copy, email
-            blasts, banner headlines and ad copy — in your tone, with hashtags
-            and CTAs included.
-          </p>
+          <h2 className="mt-4 text-2xl md:text-3xl font-extrabold">{t("features.running_a_feature_launch_let_the")}</h2>
+          <p className="mx-auto mt-3 max-w-xl text-white/60">{t("features.pick_any_feature_above_and_gener")}</p>
           <Link href="/promote">
-            <span className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-7 py-3.5 text-sm font-bold text-black transition hover:brightness-110 cursor-pointer">
-              Open the Promo Generator <ArrowRight className="h-4 w-4" />
+            <span className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-7 py-3.5 text-sm font-bold text-black transition hover:brightness-110 cursor-pointer">{t("features.open_the_promo_generator")}<ArrowRight className="h-4 w-4" />
             </span>
           </Link>
         </div>

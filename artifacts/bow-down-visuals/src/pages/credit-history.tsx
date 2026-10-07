@@ -5,6 +5,7 @@ import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 
 interface Payment {
@@ -62,7 +63,8 @@ function fmtMoney(cents: number | null, currency: string | null) {
 }
 
 export default function CreditHistory() {
-  usePageTitle("Visual Buc History", "View your Visual Bucs balance and transaction history.");
+  const { t } = useTranslation();
+  usePageTitle(t("credit-history.metaTitle"), t("credit-history.metaDescription"));
   const { profile, getAccessToken } = useAuth();
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [usage, setUsage] = useState<Usage[] | null>(null);
@@ -89,7 +91,7 @@ export default function CreditHistory() {
           setUsage(histData.usage ?? []);
         }
       } catch {
-        if (!cancelled) setError("Could not load Visual Buc history.");
+        if (!cancelled) setError(t("credit-history.could_not_load_visual_buc_histor"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -105,13 +107,12 @@ export default function CreditHistory() {
         {/* Back + title */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </Link>
+            <ArrowLeft className="h-4 w-4" />{t("credit-history.dashboard")}</Link>
         </div>
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Visual Buc History</h1>
-          <p className="text-white/40 mt-1 text-sm">Track your purchases and Visual Buc usage</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("credit-history.visual_buc_history")}</h1>
+          <p className="text-white/40 mt-1 text-sm">{t("credit-history.track_your_purchases_and_visual")}</p>
         </div>
 
         {/* Section 1: Current Balance */}
@@ -119,15 +120,15 @@ export default function CreditHistory() {
           <div className="flex items-center gap-4">
             <VisualBucsIcon className="h-14 w-14" />
             <div>
-              <p className="text-sm text-white/50 font-medium uppercase tracking-widest">Current Balance</p>
+              <p className="text-sm text-white/50 font-medium uppercase tracking-widest">{t("credit-history.current_balance")}</p>
               <p className="text-4xl font-extrabold text-primary leading-tight">
                 {profile?.credits?.toLocaleString("en-US") ?? "—"}
               </p>
-              <p className="text-xs text-white/30 mt-0.5">Visual Bucs available</p>
+              <p className="text-xs text-white/30 mt-0.5">{t("credit-history.visual_bucs_available")}</p>
             </div>
           </div>
           <Button asChild className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_16px_rgba(218,165,32,0.35)]">
-            <Link href="/pricing#credit-packs">Buy More Visual Bucs</Link>
+            <Link href="/pricing#credit-packs">{t("credit-history.buy_more_visual_bucs")}</Link>
           </Button>
         </section>
 
@@ -147,7 +148,7 @@ export default function CreditHistory() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold">Purchase History</h2>
+                <h2 className="text-lg font-bold">{t("credit-history.purchase_history")}</h2>
                 {payments.length > 0 && (
                   <span className="ml-auto text-xs text-white/30">{payments.length} purchase{payments.length !== 1 ? "s" : ""}</span>
                 )}
@@ -156,18 +157,17 @@ export default function CreditHistory() {
               {payments.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
                   No purchases yet.{" "}
-                  <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy Visual Bucs</Link> to get started.
-                </div>
+                  <Link href="/pricing#credit-packs" className="text-primary hover:underline">{t("credit-history.buy_visual_bucs")}</Link>{t("credit-history.to_get_started")}</div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Date</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Pack</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Visual Bucs Added</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Amount Paid</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Status</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.date")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.pack")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.visual_bucs_added")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.amount_paid")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.status")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,25 +198,23 @@ export default function CreditHistory() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
-                <h2 className="text-lg font-bold">Visual Buc Activity</h2>
+                <h2 className="text-lg font-bold">{t("credit-history.visual_buc_activity")}</h2>
                 {usage.length > 0 && (
                   <span className="ml-auto text-xs text-white/30">{usage.length} transaction{usage.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
               {usage.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
-                  No Visual Buc activity yet. Start creating to see your transactions here.
-                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">{t("credit-history.no_visual_buc_activity_yet_start")}</div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Date</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Action</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Type</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Amount</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.date")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.action")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.type")}</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.amount")}</th>
                       </tr>
                     </thead>
                     <tbody>

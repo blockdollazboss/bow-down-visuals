@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { NicheLabel, PlatformLabel, scoreColor, fillProposalTemplate, clampFollowers } from "@/lib/collabs";
+import { useTranslation } from "react-i18next";
 
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
    /collabs — find collaboration partners. AI-powered per the standing rule.
@@ -26,20 +27,13 @@ const NICHES = [
 
 const PLATFORMS = ["tiktok", "instagram", "youtube", "twitch", "x", "discord"] as const;
 
-/* Static outreach templates — written once, zero runtime AI cost, free forever. */
-const PROPOSAL_TEMPLATES: { name: string; body: string }[] = [
-  {
-    name: "The Warm Intro",
-    body: "Hey {name}! I've been following your {niche} content and I'm a big fan of what you're building. I'm {me} — I create {myNiche} content. I had an idea for a collab that I think our audiences would both love. Open to a quick chat about it?",
-  },
-  {
-    name: "The Specific Idea",
-    body: "Hey {name}! Quick pitch: I'm {me} ({myNiche} creator). I'd love to team up on a {niche} collab — I was thinking something like a joint video where we each bring our style to it. No pressure at all, but if you're curious I can send over the full idea.",
-  },
-  {
-    name: "The Casual DM",
-    body: "yo {name} — love your {niche} stuff. i'm {me}, I do {myNiche}. wanna cook up a collab sometime? got a couple ideas that could go crazy for both of us 📈",
-  },
+/* Static outreach templates — written once, zero runtime AI cost, free forever.
+   Bodies keep single-brace placeholders ({name}, {niche}, {me}, {myNiche}) so
+   fillProposalTemplate can substitute them after t() returns the raw string. */
+const PROPOSAL_TEMPLATES: { nameKey: string; bodyKey: string }[] = [
+  { nameKey: "collabs.templateWarmIntroName", bodyKey: "collabs.templateWarmIntroBody" },
+  { nameKey: "collabs.templateSpecificIdeaName", bodyKey: "collabs.templateSpecificIdeaBody" },
+  { nameKey: "collabs.templateCasualDmName", bodyKey: "collabs.templateCasualDmBody" },
 ];
 
 interface PlatformEntry {
@@ -91,6 +85,7 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-white disabled:opacity-50";
 
 export default function CollabFinder() {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<Tab>("browse");
 
@@ -204,7 +199,7 @@ export default function CollabFinder() {
 
   async function saveProfile() {
     if (profileSaving || !displayName.trim()) {
-      if (!displayName.trim()) setProfileMsg("Give your profile a display name first.");
+      if (!displayName.trim()) setProfileMsg(t("collabs.errorNoDisplayName"));
       return;
     }
     setProfileSaving(true);
@@ -227,12 +222,12 @@ export default function CollabFinder() {
           isPublic,
         },
       });
-      if (!res.ok) throw new Error((data.error as string) || "Couldn't save — try again.");
+      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorSaveFailed"));
       setHasProfile(true);
-      setProfileMsg("Profile live. Creators can now find you.");
+      setProfileMsg(t("collabs.profileLive"));
       loadBrowse();
     } catch (err) {
-      setProfileMsg(err instanceof Error ? err.message : "Couldn't save — try again.");
+      setProfileMsg(err instanceof Error ? err.message : t("collabs.errorSaveFailed"));
     } finally {
       setProfileSaving(false);
     }
@@ -241,7 +236,7 @@ export default function CollabFinder() {
   async function runMatch() {
     if (matchLoading || !matchTarget) return;
     if (!hasProfile) {
-      setMatchError("Set up your collab profile first — the AI needs both sides to score.");
+      setMatchError(t("collabs.errorNoProfileForMatch"));
       return;
     }
     setMatchLoading(true);
@@ -256,11 +251,11 @@ export default function CollabFinder() {
         setMatchOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error((data.error as string) || "Match failed — try again.");
+      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorMatchFailed"));
       setReport(data.report as MatchReport);
       document.getElementById("match-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      setMatchError(err instanceof Error ? err.message : "Match failed — try again.");
+      setMatchError(err instanceof Error ? err.message : t("collabs.errorMatchFailed"));
     } finally {
       setMatchLoading(false);
     }
@@ -270,7 +265,7 @@ export default function CollabFinder() {
     setProposalTo(p);
     setProposalText(
       fillProposalTemplate(
-        PROPOSAL_TEMPLATES[0].body,
+        t(PROPOSAL_TEMPLATES[0].bodyKey),
         { displayName: p.displayName, nicheLabel: p.nicheLabel },
         { displayName: displayName.trim(), nicheLabel: NicheLabel(niche) },
       ),
@@ -287,13 +282,13 @@ export default function CollabFinder() {
         method: "POST",
         body: { toUserId: proposalTo.userId, message: proposalText.trim().slice(0, 1000) },
       });
-      if (!res.ok) throw new Error((data.error as string) || "Couldn't send — try again.");
-      setProposalMsg("Request sent. Good luck — go make something great.");
+      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorSendFailed"));
+      setProposalMsg(t("collabs.proposalSent"));
       setProposalTo(null);
       setProposalText("");
       loadInbox();
     } catch (err) {
-      setProposalMsg(err instanceof Error ? err.message : "Couldn't send — try again.");
+      setProposalMsg(err instanceof Error ? err.message : t("collabs.errorSendFailed"));
     } finally {
       setProposalSending(false);
     }
@@ -313,11 +308,12 @@ export default function CollabFinder() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  const pendingCount = received.filter((r) => r.status === "pending").length;
   const tabs: { key: Tab; label: string; icon: typeof Search }[] = [
-    { key: "browse", label: "Browse", icon: Search },
-    { key: "profile", label: "My Profile", icon: UserRound },
-    { key: "match", label: "AI Match", icon: Sparkles },
-    { key: "inbox", label: `Inbox${received.filter((r) => r.status === "pending").length > 0 ? ` (${received.filter((r) => r.status === "pending").length})` : ""}`, icon: Inbox },
+    { key: "browse", label: t("collabs.tabBrowse"), icon: Search },
+    { key: "profile", label: t("collabs.tabProfile"), icon: UserRound },
+    { key: "match", label: t("collabs.tabMatch"), icon: Sparkles },
+    { key: "inbox", label: pendingCount > 0 ? t("collabs.tabInboxWithCount", { count: pendingCount }) : t("collabs.tabInbox"), icon: Inbox },
   ];
 
   return (
@@ -326,14 +322,13 @@ export default function CollabFinder() {
         {/* hero */}
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
-            <Users className="h-3.5 w-3.5" /> Collab Finder
+            <Users className="h-3.5 w-3.5" /> {t("collabs.badge")}
           </div>
           <h1 className="bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
-            Find Your Next Collab Partner
+            {t("collabs.title")}
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-white/60">
-            Browse creators by niche and audience, get an AI compatibility score before you reach out,
-            and send collab requests — free.
+            {t("collabs.subtitle")}
           </p>
         </div>
 
@@ -357,8 +352,7 @@ export default function CollabFinder() {
         {!user && (
           <div className="mx-auto max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6 text-center">
             <p className="text-white/70">
-              <Link href="/login" className="font-bold text-amber-300 underline">Log in</Link> to browse
-              creators and send collab requests.
+              <Link href="/login" className="font-bold text-amber-300 underline">{t("collabs.loginLink")}</Link> {t("collabs.loginPrompt")}
             </p>
           </div>
         )}
@@ -367,18 +361,18 @@ export default function CollabFinder() {
           <section>
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <select value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} className="rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white outline-none focus:border-amber-400/60">
-                <option value="">All niches</option>
+                <option value="">{t("collabs.allNiches")}</option>
                 {NICHES.map((n) => (
                   <option key={n} value={n}>{NicheLabel(n)}</option>
                 ))}
               </select>
-              <span className="text-xs text-white/40">{profiles.length} creator{profiles.length === 1 ? "" : "s"}</span>
+              <span className="text-xs text-white/40">{t("collabs.creatorCount", { count: profiles.length })}</span>
             </div>
             {browseLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-amber-400" /></div>
             ) : profiles.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center text-white/50">
-                No creators here yet — be the first. Set up your profile and they'll find you.
+                {t("collabs.emptyBrowse")}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -386,7 +380,7 @@ export default function CollabFinder() {
                   <div key={p.userId} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-amber-400/40">
                     <div className="mb-1 flex items-center justify-between">
                       <h3 className="text-lg font-extrabold text-white">{p.displayName}</h3>
-                      {p.isOwn && <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">YOU</span>}
+                      {p.isOwn && <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">{t("collabs.youBadge")}</span>}
                     </div>
                     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-amber-300/80">{p.nicheLabel}</p>
                     <div className="mb-3 flex flex-wrap gap-1.5">
@@ -396,15 +390,15 @@ export default function CollabFinder() {
                         </span>
                       ))}
                     </div>
-                    {p.collabInterests && <p className="mb-2 text-sm text-white/70"><span className="font-bold text-white/90">Wants: </span>{p.collabInterests}</p>}
+                    {p.collabInterests && <p className="mb-2 text-sm text-white/70"><span className="font-bold text-white/90">{t("collabs.wantsLabel")}</span>{p.collabInterests}</p>}
                     {p.bio && <p className="mb-4 text-sm text-white/50">{p.bio}</p>}
                     {!p.isOwn && (
                       <div className="flex gap-2">
                         <button onClick={() => { setMatchTarget(p.userId); setTab("match"); }} className={ghostBtn}>
-                          <Sparkles className="h-4 w-4" /> AI Match · 1cr
+                          <Sparkles className="h-4 w-4" /> {t("collabs.aiMatchBtn")}
                         </button>
                         <button onClick={() => openProposal(p)} className={ghostBtn}>
-                          <Send className="h-4 w-4" /> Propose · Free
+                          <Send className="h-4 w-4" /> {t("collabs.proposeBtn")}
                         </button>
                       </div>
                     )}
@@ -418,27 +412,27 @@ export default function CollabFinder() {
         {user && tab === "profile" && (
           <section className="mx-auto max-w-2xl">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="mb-5 text-xl font-extrabold">Your Collab Profile <span className="ml-2 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">FREE</span></h2>
+              <h2 className="mb-5 text-xl font-extrabold">{t("collabs.profileTitle")} <span className="ml-2 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">{t("collabs.freeBadge")}</span></h2>
               <div className="space-y-4">
                 <div>
-                  <label className={labelClass}>Display name</label>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Shark Beats" className={inputClass} maxLength={60} />
+                  <label className={labelClass}>{t("collabs.displayNameLabel")}</label>
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("collabs.displayNamePlaceholder")} className={inputClass} maxLength={60} />
                 </div>
                 <div>
-                  <label className={labelClass}>Niche</label>
+                  <label className={labelClass}>{t("collabs.nicheLabel")}</label>
                   <select value={niche} onChange={(e) => setNiche(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
                     {NICHES.map((n) => <option key={n} value={n}>{NicheLabel(n)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Platforms & audience</label>
+                  <label className={labelClass}>{t("collabs.platformsLabel")}</label>
                   <div className="space-y-2">
                     {platformRows.map((row, i) => (
                       <div key={i} className="flex gap-2">
                         <select value={row.platform} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, platform: e.target.value } : r))} className="rounded-xl border border-white/10 bg-black/60 px-3 py-2.5 text-sm text-white outline-none">
                           {PLATFORMS.map((p) => <option key={p} value={p}>{PlatformLabel(p)}</option>)}
                         </select>
-                        <input value={row.followers} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, followers: e.target.value.replace(/[^0-9]/g, "") } : r))} placeholder="Followers" inputMode="numeric" className={inputClass} />
+                        <input value={row.followers} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, followers: e.target.value.replace(/[^0-9]/g, "") } : r))} placeholder={t("collabs.followersPlaceholder")} inputMode="numeric" className={inputClass} />
                         {platformRows.length > 1 && (
                           <button onClick={() => setPlatformRows(platformRows.filter((_, j) => j !== i))} className="rounded-xl border border-white/10 px-3 text-white/50 hover:text-red-400">✕</button>
                         )}
@@ -446,24 +440,24 @@ export default function CollabFinder() {
                     ))}
                   </div>
                   {platformRows.length < 6 && (
-                    <button onClick={() => setPlatformRows([...platformRows, { platform: "instagram", followers: "" }])} className="mt-2 text-sm font-bold text-amber-300 hover:underline">+ Add platform</button>
+                    <button onClick={() => setPlatformRows([...platformRows, { platform: "instagram", followers: "" }])} className="mt-2 text-sm font-bold text-amber-300 hover:underline">{t("collabs.addPlatform")}</button>
                   )}
                 </div>
                 <div>
-                  <label className={labelClass}>What do you want to collab on?</label>
-                  <input value={collabInterests} onChange={(e) => setCollabInterests(e.target.value)} placeholder="e.g. Joint singles, reaction videos, live beat battles" className={inputClass} maxLength={500} />
+                  <label className={labelClass}>{t("collabs.collabInterestsLabel")}</label>
+                  <input value={collabInterests} onChange={(e) => setCollabInterests(e.target.value)} placeholder={t("collabs.collabInterestsPlaceholder")} className={inputClass} maxLength={500} />
                 </div>
                 <div>
-                  <label className={labelClass}>Bio</label>
-                  <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Who you are in one or two lines." rows={3} className={inputClass} maxLength={500} />
+                  <label className={labelClass}>{t("collabs.bioLabel")}</label>
+                  <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t("collabs.bioPlaceholder")} rows={3} className={inputClass} maxLength={500} />
                 </div>
                 <label className="flex items-center gap-3 text-sm text-white/70">
                   <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="h-4 w-4 accent-amber-400" />
-                  Public — other creators can find me
+                  {t("collabs.publicLabel")}
                 </label>
                 <button onClick={saveProfile} disabled={profileSaving} className={goldBtn}>
                   {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  {profileSaving ? "Saving…" : "Save Profile"}
+                  {profileSaving ? t("collabs.saving") : t("collabs.saveProfile")}
                 </button>
                 {profileMsg && <p className="text-sm text-white/60">{profileMsg}</p>}
               </div>
@@ -474,21 +468,20 @@ export default function CollabFinder() {
         {user && tab === "match" && (
           <section className="mx-auto max-w-2xl">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="mb-2 text-xl font-extrabold">AI Compatibility Report</h2>
+              <h2 className="mb-2 text-xl font-extrabold">{t("collabs.matchTitle")}</h2>
               <p className="mb-5 text-sm text-white/50">
-                Pick a creator — the AI scores your fit on niche overlap, audience complement, and collab
-                interests, then gives you 3 collab ideas built for the pair. <span className="font-bold text-amber-300">100 Visual Bucs per report.</span>
+                {t("collabs.matchDescription")} <span className="font-bold text-amber-300">{t("collabs.matchCostNote")}</span>
               </p>
               <div className="mb-4 flex gap-2">
                 <select value={matchTarget} onChange={(e) => setMatchTarget(e.target.value)} className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
-                  <option value="">Choose a creator…</option>
+                  <option value="">{t("collabs.chooseCreator")}</option>
                   {profiles.filter((p) => !p.isOwn).map((p) => (
                     <option key={p.userId} value={p.userId}>{p.displayName} · {p.nicheLabel}</option>
                   ))}
                 </select>
                 <button onClick={runMatch} disabled={matchLoading || !matchTarget} className={goldBtn}>
                   {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {matchLoading ? "Scoring…" : "Score · 1cr"}
+                  {matchLoading ? t("collabs.scoring") : t("collabs.scoreBtn")}
                 </button>
               </div>
               {matchOutOfCredits && <div className="mb-4"><OutOfCredits /></div>}
@@ -498,25 +491,25 @@ export default function CollabFinder() {
                   <div className="mb-4 flex items-center gap-4">
                     <div className={`text-5xl font-black ${scoreColor(report.score)}`}>{report.score}</div>
                     <div>
-                      <div className="text-xs font-bold uppercase tracking-widest text-white/40">Compatibility with {report.targetDisplayName}</div>
+                      <div className="text-xs font-bold uppercase tracking-widest text-white/40">{t("collabs.compatibilityWith", { name: report.targetDisplayName })}</div>
                       <div className="text-lg font-extrabold text-white">{report.verdict}</div>
                     </div>
                   </div>
                   {report.strengths.length > 0 && (
                     <div className="mb-4">
-                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-emerald-300">Why it works</div>
+                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-emerald-300">{t("collabs.whyItWorks")}</div>
                       <ul className="space-y-1 text-sm text-white/75">{report.strengths.map((s, i) => <li key={i} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />{s}</li>)}</ul>
                     </div>
                   )}
                   {report.risks.length > 0 && (
                     <div className="mb-4">
-                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-red-300">Watch out for</div>
+                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-red-300">{t("collabs.watchOutFor")}</div>
                       <ul className="space-y-1 text-sm text-white/75">{report.risks.map((s, i) => <li key={i} className="flex gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />{s}</li>)}</ul>
                     </div>
                   )}
                   {report.ideas.length > 0 && (
                     <div className="mb-5">
-                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">Collab ideas</div>
+                      <div className="mb-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">{t("collabs.collabIdeas")}</div>
                       <ul className="space-y-1 text-sm text-white/75">{report.ideas.map((s, i) => <li key={i} className="flex gap-2"><ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />{s}</li>)}</ul>
                     </div>
                   )}
@@ -527,7 +520,7 @@ export default function CollabFinder() {
                     }}
                     className={goldBtn}
                   >
-                    <Send className="h-4 w-4" /> Send them a proposal · Free
+                    <Send className="h-4 w-4" /> {t("collabs.sendProposalBtn")}
                   </button>
                 </div>
               )}
@@ -542,22 +535,22 @@ export default function CollabFinder() {
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
-                  <h2 className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Inbox className="h-5 w-5 text-amber-300" /> Received</h2>
+                  <h2 className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Inbox className="h-5 w-5 text-amber-300" /> {t("collabs.received")}</h2>
                   {received.length === 0 ? (
-                    <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/40">Nothing yet — your profile is your fishing line.</p>
+                    <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/40">{t("collabs.emptyReceived")}</p>
                   ) : (
                     <div className="space-y-3">
                       {received.map((r) => (
                         <div key={r.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                           <div className="mb-1 flex items-center justify-between">
-                            <span className="font-bold text-white">{r.fromDisplayName ?? "A creator"}</span>
+                            <span className="font-bold text-white">{r.fromDisplayName ?? t("collabs.anonymousCreator")}</span>
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${r.status === "pending" ? "bg-amber-400/15 text-amber-300" : r.status === "accepted" ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>{r.status}</span>
                           </div>
                           <p className="mb-3 text-sm text-white/70">{r.message}</p>
                           {r.status === "pending" && (
                             <div className="flex gap-2">
-                              <button onClick={() => respond(r.id, "accepted")} className={ghostBtn}><CheckCircle2 className="h-4 w-4" /> Accept</button>
-                              <button onClick={() => respond(r.id, "declined")} className={ghostBtn}><XCircle className="h-4 w-4" /> Decline</button>
+                              <button onClick={() => respond(r.id, "accepted")} className={ghostBtn}><CheckCircle2 className="h-4 w-4" /> {t("collabs.accept")}</button>
+                              <button onClick={() => respond(r.id, "declined")} className={ghostBtn}><XCircle className="h-4 w-4" /> {t("collabs.decline")}</button>
                             </div>
                           )}
                         </div>
@@ -566,15 +559,15 @@ export default function CollabFinder() {
                   )}
                 </div>
                 <div>
-                  <h2 className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Send className="h-5 w-5 text-amber-300" /> Sent</h2>
+                  <h2 className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Send className="h-5 w-5 text-amber-300" /> {t("collabs.sent")}</h2>
                   {sent.length === 0 ? (
-                    <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/40">You haven't pitched anyone yet. Browse and shoot your shot.</p>
+                    <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/40">{t("collabs.emptySent")}</p>
                   ) : (
                     <div className="space-y-3">
                       {sent.map((r) => (
                         <div key={r.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                           <div className="mb-1 flex items-center justify-between">
-                            <span className="font-bold text-white">{r.toDisplayName ?? "A creator"}</span>
+                            <span className="font-bold text-white">{r.toDisplayName ?? t("collabs.anonymousCreator")}</span>
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${r.status === "pending" ? "bg-amber-400/15 text-amber-300" : r.status === "accepted" ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>{r.status}</span>
                           </div>
                           <p className="text-sm text-white/60">{r.message}</p>
@@ -592,20 +585,20 @@ export default function CollabFinder() {
         {proposalTo && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setProposalTo(null)}>
             <div className="w-full max-w-lg rounded-2xl border border-amber-400/30 bg-[#0d0d0d] p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="mb-1 text-xl font-extrabold">Propose a collab <span className="ml-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">FREE</span></h3>
-              <p className="mb-4 text-sm text-white/50">To {proposalTo.displayName} · pick a template, make it yours, send.</p>
+              <h3 className="mb-1 text-xl font-extrabold">{t("collabs.proposeTitle")} <span className="ml-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">{t("collabs.freeBadge")}</span></h3>
+              <p className="mb-4 text-sm text-white/50">{t("collabs.proposalSubtitle", { name: proposalTo.displayName })}</p>
               <div className="mb-3 flex flex-wrap gap-2">
-                {PROPOSAL_TEMPLATES.map((t) => (
+                {PROPOSAL_TEMPLATES.map((tpl) => (
                   <button
-                    key={t.name}
+                    key={tpl.nameKey}
                     onClick={() => setProposalText(fillProposalTemplate(
-                      t.body,
+                      t(tpl.bodyKey),
                       { displayName: proposalTo.displayName, nicheLabel: proposalTo.nicheLabel },
                       { displayName: displayName.trim(), nicheLabel: NicheLabel(niche) },
                     ))}
                     className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/70 hover:border-amber-400/50 hover:text-white"
                   >
-                    <MessageSquareText className="mr-1 inline h-3.5 w-3.5" />{t.name}
+                    <MessageSquareText className="mr-1 inline h-3.5 w-3.5" />{t(tpl.nameKey)}
                   </button>
                 ))}
               </div>
@@ -613,13 +606,13 @@ export default function CollabFinder() {
               <div className="mt-4 flex items-center justify-between">
                 <button onClick={copyProposal} className={ghostBtn}>
                   {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("collabs.copied") : t("collabs.copy")}
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => setProposalTo(null)} className={ghostBtn}>Cancel</button>
+                  <button onClick={() => setProposalTo(null)} className={ghostBtn}>{t("collabs.cancel")}</button>
                   <button onClick={sendProposal} disabled={proposalSending || !proposalText.trim()} className={goldBtn}>
                     {proposalSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    {proposalSending ? "Sending…" : "Send Request"}
+                    {proposalSending ? t("collabs.sending") : t("collabs.sendRequest")}
                   </button>
                 </div>
               </div>

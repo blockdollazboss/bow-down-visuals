@@ -11,17 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
-const schema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
 export default function Login() {
-  usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
+  const { t } = useTranslation();
+  const schema = z.object({
+    email: z.string().email(t("auth.invalidEmail")),
+    password: z.string().min(6, t("auth.passwordMinLength")),
+  });
+  usePageTitle(t("auth.pageTitle"), t("auth.pageDescription"));
   const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export default function Login() {
         setResetSent(true);
       }
     } catch (err) {
-      setResetError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setResetError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
     } finally {
       setResetLoading(false);
     }
@@ -153,13 +154,13 @@ export default function Login() {
           {resetMode ? (
             resetSent ? (
               <div className="flex items-center justify-center gap-3 text-sm">
-                <p className="text-white/80">Check your email for a reset link.</p>
+                <p className="text-white/80">{t("auth.resetLinkSent")}</p>
                 <button
                   type="button"
                   onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
                   className="text-[#c9a84c] hover:underline font-medium"
                 >
-                  Back to sign in
+                  {t("auth.backToSignIn")}
                 </button>
               </div>
             ) : (
@@ -167,18 +168,18 @@ export default function Login() {
                 <Input
                   data-testid="input-reset-email"
                   type="email"
-                  aria-label="Email"
-                  placeholder="you@example.com"
+                  aria-label={t("auth.email")}
+                  placeholder={t("auth.emailPlaceholder")}
                   className="h-9 w-56 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
                   value={resetEmail}
                   onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
                 />
                 {resetError && <span className="text-xs text-destructive">{resetError}</span>}
                 <Button data-testid="btn-reset-password" type="submit" className="h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> : "Send Reset Link"}
+                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.sending")}</> : t("auth.sendResetLink")}
                 </Button>
                 <button type="button" onClick={() => setResetMode(false)} className="text-xs text-white/50 hover:text-white hover:underline font-medium">
-                  Back to sign in
+                  {t("auth.backToSignIn")}
                 </button>
               </form>
             )
@@ -200,8 +201,8 @@ export default function Login() {
                 <Input
                   data-testid="input-email"
                   type="email"
-                  aria-label="Email"
-                  placeholder="Email"
+                  aria-label={t("auth.email")}
+                  placeholder={t("auth.email")}
                   autoComplete="email"
                   className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
                   {...form.register("email")}
@@ -209,14 +210,14 @@ export default function Login() {
                 <Input
                   data-testid="input-password"
                   type="password"
-                  aria-label="Password"
-                  placeholder="Password"
+                  aria-label={t("auth.password")}
+                  placeholder={t("auth.password")}
                   autoComplete="current-password"
                   className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
                   {...form.register("password")}
                 />
                 <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
-                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.signingIn")}</> : t("auth.signInButton")}
                 </Button>
               </form>
               <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45">
@@ -225,13 +226,13 @@ export default function Login() {
                   onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
                   className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
                 >
-                  Forgot password?
+                  {t("auth.forgotPassword")}
                 </button>
                 <span aria-hidden className="text-white/20">·</span>
                 <span>
-                  Don't have an account?{" "}
+                  {t("auth.noAccount")}{" "}
                   <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
-                    Sign up free
+                    {t("auth.signUpFree")}
                   </Link>
                 </span>
               </div>

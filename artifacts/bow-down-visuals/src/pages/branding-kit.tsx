@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Palette, Clapperboard, Tv } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
@@ -10,17 +11,20 @@ import { StreamPackTool } from "@/pages/stream-pack";
    Studio, and Stream Bundle. Each tool lives as a named export on its own
    page so it can be used standalone or embedded here behind tabs. */
 
-const TABS = [
-  { key: "logo", label: "Logo Studio", blurb: "AI brand marks in seconds", Icon: Palette },
-  { key: "intros", label: "Intro & Outro Studio", blurb: "Branded 5-second video stings", Icon: Clapperboard },
-  { key: "stream", label: "Stream Bundle", blurb: "Overlays, alerts & panels", Icon: Tv },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
+/* Tab labels translate inside the component (via t()); icons stay static.
+   The blurbs are reference metadata and are not rendered on this page. */
+type TabKey = "logo" | "intros" | "stream";
 
 export default function BrandingKit() {
-  usePageTitle("Branding Kit", "AI brand identity studio for creators — logos, intros, outros, and stream bundles.");
+  const { t } = useTranslation();
+  usePageTitle(t("brandingKit.pageTitle"), "AI brand identity studio for creators — logos, intros, outros, and stream bundles.");
   const [tab, setTab] = useState<TabKey>("logo");
+
+  const TABS = [
+    { key: "logo", label: t("brandingKit.tabs.logo.label"), Icon: Palette },
+    { key: "intros", label: t("brandingKit.tabs.intros.label"), Icon: Clapperboard },
+    { key: "stream", label: t("brandingKit.tabs.stream.label"), Icon: Tv },
+  ] as const;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -28,16 +32,15 @@ export default function BrandingKit() {
       {/* Hero */}
       <div className="mx-auto max-w-5xl px-4 pt-12 pb-6 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-primary/70 mb-3">
-          Brand Identity
+          {t("brandingKit.eyebrow")}
         </p>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
           <span className="bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent">
-            Branding Kit
+            {t("brandingKit.title")}
           </span>
         </h1>
         <p className="mt-3 text-sm text-white/45 max-w-xl mx-auto">
-          Everything your channel needs to look premium — logos, video stings,
-          and a full stream bundle, all generated in one matching identity.
+          {t("brandingKit.subtitle")}
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   ClipboardCheck, Loader2, Sparkles, ArrowRight, Wrench, AlertTriangle,
@@ -19,10 +20,10 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 const CREDIT_COST = 3;
 
 const PLATFORMS = [
-  { key: "tiktok", label: "TikTok" },
-  { key: "instagram", label: "Instagram" },
-  { key: "youtube", label: "YouTube" },
-  { key: "multi", label: "Multiple" },
+  { key: "tiktok", labelKey: "audit.platformTikTok" },
+  { key: "instagram", labelKey: "audit.platformInstagram" },
+  { key: "youtube", labelKey: "audit.platformYouTube" },
+  { key: "multi", labelKey: "audit.platformMultiple" },
 ] as const;
 type PlatformKey = (typeof PLATFORMS)[number]["key"];
 
@@ -99,6 +100,7 @@ const labelClass =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 export default function ChannelAudit() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -136,7 +138,7 @@ export default function ChannelAudit() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 3
-        overrideFeature: "Channel Audit",
+        overrideFeature: t("audit.featureName"),
         body: JSON.stringify({
           niche: niche.trim(),
           handle: handle.trim(),
@@ -154,7 +156,7 @@ export default function ChannelAudit() {
         return;
       }
       if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || "The audit failed — try again.");
+        throw new Error(data.message || data.error || t("audit.errorAuditFailed"));
       }
       setResult(data);
       refreshProfile();
@@ -162,7 +164,7 @@ export default function ChannelAudit() {
         document.getElementById("audit-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The audit failed — try again.");
+      setError(err instanceof Error ? err.message : t("audit.errorAuditFailed"));
     } finally {
       setLoading(false);
     }
@@ -176,14 +178,13 @@ export default function ChannelAudit() {
         <div className="text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
             <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            Channel Audit
+            {t("audit.badge")}
           </span>
           <h1 className="mt-5 text-4xl font-black tracking-tight md:text-5xl">
-            Get Your Channel <span className="text-primary">Graded</span>
+            {t("audit.heroTitle")} <span className="text-primary">{t("audit.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
-            AI grades your content on 6 dimensions — hooks, branding, captions, CTAs,
-            consistency, and your bio — then hands you the exact fixes to level up.
+            {t("audit.heroSubtitle")}
           </p>
         </div>
 
@@ -191,27 +192,27 @@ export default function ChannelAudit() {
         <div className="mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
-              <p className={labelClass}>Your niche *</p>
+              <p className={labelClass}>{t("audit.nicheLabel")}</p>
               <input
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
-                placeholder="e.g. luxury hip-hop, fitness coaching"
+                placeholder={t("audit.nichePlaceholder")}
                 className={inputClass}
               />
             </div>
             <div>
-              <p className={labelClass}>Handle <span className="normal-case font-normal text-white/30">(optional)</span></p>
+              <p className={labelClass}>{t("audit.handleLabel")} <span className="normal-case font-normal text-white/30">{t("audit.optional")}</span></p>
               <input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
-                placeholder="@yourhandle"
+                placeholder={t("audit.handlePlaceholder")}
                 className={inputClass}
               />
             </div>
           </div>
 
           <div className="mt-5">
-            <p className={labelClass}>Primary platform</p>
+            <p className={labelClass}>{t("audit.platformLabel")}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {PLATFORMS.map((p) => (
                 <button
@@ -223,41 +224,41 @@ export default function ChannelAudit() {
                       : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
                   }`}
                 >
-                  {p.label}
+                  {t(p.labelKey)}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="mt-5">
-            <p className={labelClass}>Your bio <span className="normal-case font-normal text-white/30">(optional — paste it)</span></p>
+            <p className={labelClass}>{t("audit.bioLabel")} <span className="normal-case font-normal text-white/30">{t("audit.bioOptional")}</span></p>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="Paste your current profile bio…"
+              placeholder={t("audit.bioPlaceholder")}
               rows={2}
               className={inputClass}
             />
           </div>
 
           <div className="mt-5">
-            <p className={labelClass}>Posting cadence <span className="normal-case font-normal text-white/30">(optional)</span></p>
+            <p className={labelClass}>{t("audit.cadenceLabel")} <span className="normal-case font-normal text-white/30">{t("audit.optional")}</span></p>
             <input
               value={postsPerWeek}
               onChange={(e) => setPostsPerWeek(e.target.value)}
-              placeholder="e.g. 3x per week, daily, whenever I feel like it"
+              placeholder={t("audit.cadencePlaceholder")}
               className={inputClass}
             />
           </div>
 
           <div className="mt-5">
             <p className={labelClass}>
-              Recent posts <span className="normal-case font-normal text-white/30">(optional — up to 10, one per line: URL or paste the caption)</span>
+              {t("audit.recentPostsLabel")} <span className="normal-case font-normal text-white/30">{t("audit.recentPostsOptional")}</span>
             </p>
             <textarea
               value={recentPosts}
               onChange={(e) => setRecentPosts(e.target.value)}
-              placeholder={"https://tiktok.com/@you/video/123…\nMy new single just dropped — link in bio 🔥"}
+              placeholder={t("audit.recentPostsPlaceholder")}
               rows={4}
               className={inputClass}
             />
@@ -266,7 +267,7 @@ export default function ChannelAudit() {
           {!user && (
             <p className="mt-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
               <AlertTriangle className="mr-1.5 inline h-4 w-4" aria-hidden="true" />
-              <Link href="/login" className="font-semibold underline">Sign in</Link> to run an audit — it costs {CREDIT_COST} Visual Bucs.
+              <Link href="/login" className="font-semibold underline">{t("audit.signInLink")}</Link>{" "}{t("audit.signInPrompt", { cost: CREDIT_COST })}
             </p>
           )}
 
@@ -276,9 +277,9 @@ export default function ChannelAudit() {
             className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Auditing your channel…</>
+              <><Loader2 className="h-5 w-5 animate-spin" /> {t("audit.auditingButton")}</>
             ) : (
-              <><Sparkles className="h-5 w-5" /> Run my audit — {CREDIT_COST} Visual Bucs</>
+              <><Sparkles className="h-5 w-5" /> {t("audit.runAuditButton", { cost: CREDIT_COST })}</>
             )}
           </button>
 
@@ -307,7 +308,7 @@ export default function ChannelAudit() {
                 </div>
                 <div className="text-center md:text-left">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
-                    Overall channel grade · {result.overallScore}/100
+                    {t("audit.overallGrade", { score: result.overallScore })}
                   </p>
                   <p className="mt-2 text-lg font-semibold leading-relaxed text-white/90">
                     “{result.verdict}”
@@ -321,7 +322,7 @@ export default function ChannelAudit() {
             <div>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Gauge className="h-5 w-5 text-primary" aria-hidden="true" />
-                The Report Card
+                {t("audit.reportCardTitle")}
               </h2>
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                 {result.dimensions?.map((d) => (
@@ -342,7 +343,7 @@ export default function ChannelAudit() {
                     <p className="mt-3 text-sm text-white/70">{d.finding}</p>
                     <p className="mt-2 flex items-start gap-1.5 text-sm text-white/90">
                       <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                      <span><span className="font-semibold text-primary">Fix: </span>{d.fix}</span>
+                      <span><span className="font-semibold text-primary">{t("audit.fixLabel")}</span>{d.fix}</span>
                     </p>
                   </div>
                 ))}
@@ -353,7 +354,7 @@ export default function ChannelAudit() {
             <div className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Target className="h-5 w-5 text-primary" aria-hidden="true" />
-                Your Top 3 Priorities
+                {t("audit.topPrioritiesTitle")}
               </h2>
               <div className="mt-5 space-y-4">
                 {result.topPriorities?.map((p, i) => (
@@ -374,9 +375,9 @@ export default function ChannelAudit() {
             <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Trophy className="h-5 w-5 text-primary" aria-hidden="true" />
-                Fix It Now
+                {t("audit.fixItNowTitle")}
               </h2>
-              <p className="mt-1 text-sm text-white/45">Jump straight into the tools that fix what the audit found.</p>
+              <p className="mt-1 text-sm text-white/45">{t("audit.fixItNowSubtitle")}</p>
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {result.quickActions?.map((a) => (
                   <Link
@@ -394,7 +395,7 @@ export default function ChannelAudit() {
               </div>
               <p className="mt-5 flex items-center justify-center gap-2 text-xs text-white/30">
                 <Megaphone className="h-3.5 w-3.5" aria-hidden="true" />
-                Want hooks rewritten for you? The Hook Studio does 5 scroll-stoppers per Visual Buc.
+                {t("audit.hookStudioNote")}
               </p>
             </div>
           </div>

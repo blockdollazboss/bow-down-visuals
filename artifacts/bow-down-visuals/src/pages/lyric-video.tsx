@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 import {
   formatLyricTime,
   parseLyricTime,
@@ -58,6 +59,7 @@ const ASPECTS: { key: LyricVideoAspect; label: string; icon: typeof MonitorPlay 
 ];
 
 export default function LyricVideo() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* step 1: song */
@@ -131,11 +133,11 @@ export default function LyricVideo() {
   async function alignLyrics() {
     if (aligning || !user) return;
     if (!lyrics.trim()) {
-      setError("Paste your lyrics first.");
+      setError(t("lyricVideo.pasteLyricsFirst"));
       return;
     }
     if (!audioFile && !selectedSongId) {
-      setError("Upload an audio file or pick a song from your library first.");
+      setError(t("lyricVideo.needAudioFirst"));
       return;
     }
     setAligning(true);
@@ -157,7 +159,7 @@ export default function LyricVideo() {
       const data = (await res.json().catch(() => ({}))) as AlignResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.lines) || !data.audioRef) {
-        throw new Error(data.message || data.error || "Lyric alignment failed — try again.");
+        throw new Error(data.message || data.error || t("lyricVideo.alignFailed"));
       }
       setAlignment(data);
       setLines(data.lines);
@@ -166,7 +168,7 @@ export default function LyricVideo() {
         document.getElementById("lyric-timing")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lyric alignment failed — try again.");
+      setError(err instanceof Error ? err.message : t("lyricVideo.alignFailed"));
     } finally {
       setAligning(false);
     }
@@ -205,14 +207,14 @@ export default function LyricVideo() {
       const data = (await res.json().catch(() => ({}))) as RenderJobResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.jobId) {
-        throw new Error(data.message || "Render failed to start — try again.");
+        throw new Error(data.message || t("lyricVideo.renderStartFailed"));
       }
       setJobId(data.jobId);
       refreshProfile();
       pollRef.current = window.setInterval(() => void pollJob(data.jobId!), 4000);
       void pollJob(data.jobId!);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Render failed to start — try again.");
+      setError(err instanceof Error ? err.message : t("lyricVideo.renderStartFailed"));
       setRendering(false);
     }
   }
@@ -229,7 +231,7 @@ export default function LyricVideo() {
         setRendering(false);
         refreshProfile();
         if (data.status === "failed") {
-          setError(data.error || "Render failed — your Visual Bucs were refunded.");
+          setError(data.error || t("lyricVideo.renderFailedRefunded"));
         }
       }
     } catch {
@@ -245,15 +247,13 @@ export default function LyricVideo() {
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-10">
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-            <Music4 className="h-3.5 w-3.5" /> AI Lyric Video Maker
+            <Music4 className="h-3.5 w-3.5" /> {t("lyricVideo.badge")}
           </div>
           <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-            Turn your song into a <span className="text-primary">karaoke lyric video</span>
+            {t("lyricVideo.titlePrefix")}<span className="text-primary">{t("lyricVideo.titleHighlight")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-white/55">
-            AI syncs every word to your audio with karaoke highlighting, then renders
-            an animated video in your style. {ALIGN_CREDITS} Visual Bucs to align ·{" "}
-            {RENDER_CREDITS} Visual Bucs to render.
+            {t("lyricVideo.subtitle", { alignCredits: ALIGN_CREDITS, renderCredits: RENDER_CREDITS })}
           </p>
         </div>
 
@@ -271,15 +271,15 @@ export default function LyricVideo() {
         <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">1</span>
-            Your song
+            {t("lyricVideo.step1Title")}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
               <Upload className="h-6 w-6 text-primary" />
               <span className="text-sm font-semibold">
-                {audioFile ? audioFile.name : "Upload audio (MP3/WAV, ≤25 MB)"}
+                {audioFile ? audioFile.name : t("lyricVideo.uploadAudio")}
               </span>
-              <span className="text-xs text-white/40">or drag & drop here</span>
+              <span className="text-xs text-white/40">{t("lyricVideo.dragDropHint")}</span>
               <input
                 type="file"
                 accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac"
@@ -292,14 +292,14 @@ export default function LyricVideo() {
             </label>
             <div className="rounded-xl border border-white/10 bg-black/40 p-4">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                <ListMusic className="h-4 w-4 text-primary" /> From your song library
+                <ListMusic className="h-4 w-4 text-primary" /> {t("lyricVideo.fromLibrary")}
               </div>
               {songsLoading ? (
                 <div className="flex items-center gap-2 text-xs text-white/40">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading songs…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("lyricVideo.loadingSongs")}
                 </div>
               ) : songs.length === 0 ? (
-                <p className="text-xs text-white/40">No songs yet — upload one above, or make one in Song Studio.</p>
+                <p className="text-xs text-white/40">{t("lyricVideo.noSongs")}</p>
               ) : (
                 <select
                   value={selectedSongId}
@@ -309,7 +309,7 @@ export default function LyricVideo() {
                   }}
                   className={inputClass}
                 >
-                  <option value="">Pick a song…</option>
+                  <option value="">{t("lyricVideo.pickSong")}</option>
                   {songs.map((s) => (
                     <option key={s.id} value={s.id}>{s.title}</option>
                   ))}
@@ -323,13 +323,13 @@ export default function LyricVideo() {
         <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">2</span>
-            Paste your lyrics
+            {t("lyricVideo.step2Title")}
           </h2>
           <textarea
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
             rows={8}
-            placeholder={"[Verse 1]\nWe bow down to no one…\n\n[Chorus]\nGold on gold, let the anthem play…"}
+            placeholder={t("lyricVideo.lyricsPlaceholder")}
             className={`${inputClass} font-mono leading-relaxed`}
           />
           <button
@@ -338,11 +338,10 @@ export default function LyricVideo() {
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
           >
             {aligning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {aligning ? "Listening to your song…" : `Align lyrics · ${ALIGN_CREDITS} credits`}
+            {aligning ? t("lyricVideo.listening") : t("lyricVideo.alignLyrics", { credits: ALIGN_CREDITS })}
           </button>
           <p className="mt-2 text-xs text-white/40">
-            AI transcribes your audio word-by-word and maps each lyric line to its moment.
-            Refunded automatically if it hears no vocals or the lyrics don't match.
+            {t("lyricVideo.alignHint")}
           </p>
         </section>
 
@@ -351,13 +350,13 @@ export default function LyricVideo() {
           <section id="lyric-timing" data-min-stars="3" className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">3</span>
-              Fine-tune the timing <span className="text-xs font-normal text-white/40">(free)</span>
+              {t("lyricVideo.step3Title")} <span className="text-xs font-normal text-white/40">{t("lyricVideo.freeBadge")}</span>
             </h2>
             {matchPct != null && (
               <p className="mb-4 text-sm text-white/55">
-                Matched <span className="font-bold text-primary">{matchPct}%</span> of your words to the audio.
+                {t("lyricVideo.matchedPrefix")}<span className="font-bold text-primary">{matchPct}%</span>{t("lyricVideo.matchedSuffix")}
                 {unmatched > 0 && (
-                  <span className="text-amber-300"> {unmatched} line{unmatched === 1 ? "" : "s"} couldn't be matched confidently — check {unmatched === 1 ? "its" : "their"} timing below.</span>
+                  <span className="text-amber-300"> {t("lyricVideo.unmatchedLines", { count: unmatched })}</span>
                 )}
               </p>
             )}
@@ -376,7 +375,7 @@ export default function LyricVideo() {
                         <span className="text-[11px] font-mono text-white/35">L{i + 1}</span>
                         {!line.matched && (
                           <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                            check timing
+                            {t("lyricVideo.checkTiming")}
                           </span>
                         )}
                         {err && <span className="text-[10px] text-red-300">{err}</span>}
@@ -386,7 +385,7 @@ export default function LyricVideo() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => nudge(i, -0.5)}
-                        title="Shift earlier 0.5s"
+                        title={t("lyricVideo.shiftEarlier")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"
                       >
                         <Minus className="h-3.5 w-3.5" />
@@ -401,7 +400,7 @@ export default function LyricVideo() {
                           }
                         }}
                         className="w-20 rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-center font-mono text-xs text-white outline-none focus:border-primary/60"
-                        aria-label={`Line ${i + 1} start time`}
+                        aria-label={t("lyricVideo.lineStartTime", { n: i + 1 })}
                       />
                       <span className="text-white/30">→</span>
                       <input
@@ -411,11 +410,11 @@ export default function LyricVideo() {
                           if (v != null) updateLine(i, { endSec: Math.round(v * 100) / 100 });
                         }}
                         className="w-20 rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-center font-mono text-xs text-white outline-none focus:border-primary/60"
-                        aria-label={`Line ${i + 1} end time`}
+                        aria-label={t("lyricVideo.lineEndTime", { n: i + 1 })}
                       />
                       <button
                         onClick={() => nudge(i, 0.5)}
-                        title="Shift later 0.5s"
+                        title={t("lyricVideo.shiftLater")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -433,7 +432,7 @@ export default function LyricVideo() {
           <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">4</span>
-              Style it & render
+              {t("lyricVideo.step4Title")}
             </h2>
 
             <div data-min-stars="2" className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -477,11 +476,11 @@ export default function LyricVideo() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
             >
               {rendering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              {rendering ? "Rendering your video…" : `Render lyric video · ${RENDER_CREDITS} credits`}
+              {rendering ? t("lyricVideo.rendering") : t("lyricVideo.renderButton", { credits: RENDER_CREDITS })}
             </button>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-white/40">
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Server renders the full video — close the tab, it'll be waiting. Refunded automatically if the render fails.
+              {t("lyricVideo.renderHint")}
             </p>
 
             {job && (
@@ -489,7 +488,7 @@ export default function LyricVideo() {
                 {job.status === "done" && job.outputUrl ? (
                   <div>
                     <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-300">
-                      <Check className="h-4 w-4" /> Your lyric video is ready
+                      <Check className="h-4 w-4" /> {t("lyricVideo.videoReady")}
                     </div>
                     <video src={job.outputUrl} controls className="w-full rounded-xl border border-white/10" />
                     <a
@@ -497,17 +496,17 @@ export default function LyricVideo() {
                       download
                       className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10"
                     >
-                      <Download className="h-4 w-4" /> Download MP4
+                      <Download className="h-4 w-4" /> {t("lyricVideo.downloadMp4")}
                     </a>
                   </div>
                 ) : job.status === "failed" ? (
                   <div className="flex items-center gap-2 text-sm text-red-300">
-                    <AlertTriangle className="h-4 w-4" /> {job.error || "Render failed — your Visual Bucs were refunded."}
+                    <AlertTriangle className="h-4 w-4" /> {job.error || t("lyricVideo.renderFailedRefunded")}
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 text-sm text-white/60">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    {job.status === "queued" ? "Queued — your video is up next…" : "Rendering — animated background, karaoke text, your audio…"}
+                    {job.status === "queued" ? t("lyricVideo.queued") : t("lyricVideo.renderingStatus")}
                   </div>
                 )}
               </div>
@@ -517,7 +516,7 @@ export default function LyricVideo() {
 
         {!user && (
           <p className="text-center text-sm text-white/40">
-            <Type className="mr-1 inline h-4 w-4" /> Sign in to make lyric videos.
+            <Type className="mr-1 inline h-4 w-4" /> {t("lyricVideo.signInPrompt")}
           </p>
         )}
       </main>

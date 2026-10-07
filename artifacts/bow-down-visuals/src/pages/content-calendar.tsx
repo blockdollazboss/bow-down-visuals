@@ -16,6 +16,7 @@ import {
   type CalendarPlatformKey,
 } from "@/lib/content-calendar";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
    Creators pick a niche + platforms, GPT-6 builds a 30-day posting
@@ -87,6 +88,7 @@ const inputClass =
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ContentCalendar() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -136,16 +138,16 @@ export default function ContentCalendar() {
     if (loading || !user) return;
     const finalNiche = (customNiche.trim() || niche).slice(0, 120);
     if (!finalNiche) {
-      setError("Pick a niche first — that's what the calendar is built around.");
+      setError(t("content-calendar.pick_a_niche_first_that_s_what_t"));
       return;
     }
     if (platforms.length === 0) {
-      setError("Pick at least one platform to plan for.");
+      setError(t("content-calendar.pick_at_least_one_platform_to_pl"));
       return;
     }
     const cadence = Math.max(1, Math.min(14, parseInt(postsPerWeek, 10) || 0));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-      setError("Pick a valid start date.");
+      setError(t("content-calendar.pick_a_valid_start_date"));
       return;
     }
 
@@ -217,23 +219,16 @@ export default function ContentCalendar() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <CalendarDays className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's planning tools
-          </p>
-          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            AI Content <span className="text-primary">Calendar</span>
+            <CalendarDays className="h-3 w-3" aria-hidden="true" />{t("content-calendar.thy_cheat_code_s_planning_tools")}</p>
+          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">{t("content-calendar.ai_content")}<span className="text-primary">{t("content-calendar.calendar")}</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Never wonder what to post again. AI maps your next 30 days —
-            every post's concept, hook, format, platform, and best time to drop it.
-          </p>
+          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("content-calendar.never_wonder_what_to_post_again")}</p>
         </div>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
         <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           {/* niche */}
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Your niche
-          </p>
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("content-calendar.your_niche")}</p>
           <div data-min-stars="2" className="flex flex-wrap gap-2">
             {NICHE_PRESETS.map((n) => {
               const selected = !customNiche.trim() && niche === n;
@@ -256,14 +251,12 @@ export default function ContentCalendar() {
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             maxLength={120}
-            placeholder="Or type your own niche…"
+            placeholder={t("content-calendar.or_type_your_own_niche")}
             className={`${inputClass} mt-3`}
           />
 
           {/* platforms */}
-          <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Platforms
-          </p>
+          <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("content-calendar.platforms")}</p>
           <div data-min-stars="2" className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {PLATFORM_OPTS.map((p) => {
               const Icon = p.icon;
@@ -297,27 +290,23 @@ export default function ContentCalendar() {
           {/* cadence + start date */}
           <div data-min-stars="3" className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Posts per week
-              </p>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("content-calendar.posts_per_week")}</p>
               <input
                 value={postsPerWeek}
                 onChange={(e) => setPostsPerWeek(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
                 inputMode="numeric"
                 placeholder="3"
-                aria-label="Posts per week"
+                aria-label={t("content-calendar.posts_per_week")}
                 className={inputClass}
               />
             </div>
             <div>
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Start date
-              </p>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("content-calendar.start_date")}</p>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                aria-label="Calendar start date"
+                aria-label={t("content-calendar.calendar_start_date")}
                 className={`${inputClass} [color-scheme:dark]`}
               />
             </div>
@@ -343,9 +332,7 @@ export default function ContentCalendar() {
                 href="/login"
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
-                <CalendarDays className="h-6 w-6" aria-hidden="true" />
-                Sign in to plan your 30 days
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                <CalendarDays className="h-6 w-6" aria-hidden="true" />{t("content-calendar.sign_in_to_plan_your_30_days")}<ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
@@ -474,25 +461,21 @@ export default function ContentCalendar() {
                         )}
                       </div>
                     ) : (
-                      <p className="mt-2 text-[11px] italic text-white/25">Rest day</p>
+                      <p className="mt-2 text-[11px] italic text-white/25">{t("content-calendar.rest_day")}</p>
                     )}
                   </div>
                 );
               })}
             </div>
 
-            <p className="mt-4 text-center text-xs text-white/30">
-              Tap the checkbox on any day to mark it done — your progress saves automatically.
-            </p>
+            <p className="mt-4 text-center text-xs text-white/30">{t("content-calendar.tap_the_checkbox_on_any_day_to_m")}</p>
           </div>
         )}
 
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Calendar in hand? Run your best ideas through the{" "}
-          <Link href="/hooks" className="font-semibold text-primary hover:underline">
-            Hook Studio
-          </Link>{" "}
+          <Link href="/hooks" className="font-semibold text-primary hover:underline">{t("content-calendar.hook_studio")}</Link>{" "}
           before you film.
         </p>
       </main>

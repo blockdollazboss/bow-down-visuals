@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Captions, Info, Sparkles,
@@ -21,25 +22,19 @@ type StyleKey = "hormozi" | "minimal" | "karaoke" | "neon" | "luxury-gold";
 type PositionKey = "top" | "middle" | "bottom";
 type FontSizeKey = "small" | "medium" | "large";
 
-const STYLES: Array<{ key: StyleKey; label: string; blurb: string }> = [
-  { key: "hormozi", label: "Hormozi", blurb: "Bold pop — the TikTok/Reels look" },
-  { key: "minimal", label: "Minimal", blurb: "Clean and quiet" },
-  { key: "karaoke", label: "Karaoke", blurb: "Classic word sweep" },
-  { key: "neon", label: "Neon", blurb: "Glowing cyan pop" },
-  { key: "luxury-gold", label: "Luxury Gold", blurb: "Gold-on-black brand style" },
-];
+/* Display strings for these live inside the component (via t()); keys stay
+   stable because they are sent to the backend as the job config. */
+const STYLE_DEFS: StyleKey[] = ["hormozi", "minimal", "karaoke", "neon", "luxury-gold"];
+const POSITION_DEFS: PositionKey[] = ["top", "middle", "bottom"];
+const FONT_SIZE_DEFS: FontSizeKey[] = ["small", "medium", "large"];
 
-const POSITIONS: Array<{ key: PositionKey; label: string }> = [
-  { key: "top", label: "Top" },
-  { key: "middle", label: "Middle" },
-  { key: "bottom", label: "Bottom" },
-];
-
-const FONT_SIZES: Array<{ key: FontSizeKey; label: string }> = [
-  { key: "small", label: "Small" },
-  { key: "medium", label: "Medium" },
-  { key: "large", label: "Large" },
-];
+const STYLE_LABEL_KEYS: Record<StyleKey, string> = {
+  hormozi: "hormozi",
+  minimal: "minimal",
+  karaoke: "karaoke",
+  neon: "neon",
+  "luxury-gold": "luxuryGold",
+};
 
 type JobStatus = "idle" | "uploading" | "queued" | "transcribing" | "rendering" | "done" | "failed";
 
@@ -53,8 +48,31 @@ interface StylerJobResponse {
 }
 
 export default function CaptionStyler() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+
+  /* Translated display strings for the style/position/size pickers and the
+     busy status labels. */
+  const STYLES: Array<{ key: StyleKey; label: string; blurb: string }> = STYLE_DEFS.map((key) => ({
+    key,
+    label: t(`captionStyler.styles.${STYLE_LABEL_KEYS[key]}.label`),
+    blurb: t(`captionStyler.styles.${STYLE_LABEL_KEYS[key]}.blurb`),
+  }));
+  const POSITIONS: Array<{ key: PositionKey; label: string }> = POSITION_DEFS.map((key) => ({
+    key,
+    label: t(`captionStyler.positions.${key}`),
+  }));
+  const FONT_SIZES: Array<{ key: FontSizeKey; label: string }> = FONT_SIZE_DEFS.map((key) => ({
+    key,
+    label: t(`captionStyler.fontSizes.${key}`),
+  }));
+  const statusLabel: Record<string, string> = {
+    uploading: t("captionStyler.statusUploading"),
+    queued: t("captionStyler.statusQueued"),
+    transcribing: t("captionStyler.statusTranscribing"),
+    rendering: t("captionStyler.statusRendering"),
+  };
   const [file, setFile] = useState<File | null>(null);
   const [style, setStyle] = useState<StyleKey>("hormozi");
   const [position, setPosition] = useState<PositionKey>("bottom");
@@ -80,7 +98,7 @@ export default function CaptionStyler() {
         const data: StylerJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || "Job not found");
+          setError(data.error || t("captionStyler.errorJobNotFound"));
           return;
         }
         if (data.status === "done") {
@@ -88,7 +106,7 @@ export default function CaptionStyler() {
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Caption styling failed — your 300 Visual Bucs were refunded.");
+          setError(data.error || t("captionStyler.errorJobFailed"));
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -104,11 +122,11 @@ export default function CaptionStyler() {
   function pickFile(f: File | undefined) {
     if (!f) return;
     if (!f.type.startsWith("video/")) {
-      setError("Please choose a video file.");
+      setError(t("captionStyler.errorNotVideo"));
       return;
     }
     if (f.size > 80 * 1024 * 1024) {
-      setError("This video exceeds the 80 MB upload limit.");
+      setError(t("captionStyler.errorTooLarge"));
       return;
     }
     setFile(f);
@@ -145,7 +163,7 @@ export default function CaptionStyler() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start the caption job.");
+        setError(data.message || data.error || t("captionStyler.errorStartFailed"));
         return;
       }
       setJobId(data.jobId);
@@ -153,23 +171,17 @@ export default function CaptionStyler() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("captionStyler.errorNetwork"));
     }
   }
 
   const busy = ["uploading", "queued", "transcribing", "rendering"].includes(status);
-  const statusLabel: Record<string, string> = {
-    uploading: "Uploading…",
-    queued: "Queued…",
-    transcribing: "Transcribing your video…",
-    rendering: "Burning in captions…",
-  };
 
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-amber-300">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> {t("captionStyler.backToDashboard")}
         </Link>
 
         <div className="mt-6 flex items-center gap-3">
@@ -178,9 +190,9 @@ export default function CaptionStyler() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              AI <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">Caption Styler</span>
+              {t("captionStyler.titleAi")} <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("captionStyler.title")}</span>
             </h1>
-            <p className="text-sm text-zinc-400">Hormozi-style animated captions, burned into your video.</p>
+            <p className="text-sm text-zinc-400">{t("captionStyler.subtitle")}</p>
           </div>
         </div>
 
@@ -203,12 +215,12 @@ export default function CaptionStyler() {
               onChange={(e) => pickFile(e.target.files?.[0])}
             />
             <Upload className="mx-auto h-8 w-8 text-amber-400" />
-            <p className="mt-3 font-medium">{file ? file.name : "Drop your video here or click to browse"}</p>
-            <p className="mt-1 text-xs text-zinc-500">MP4, MOV, WebM — up to 80 MB</p>
+            <p className="mt-3 font-medium">{file ? file.name : t("captionStyler.dropPrompt")}</p>
+            <p className="mt-1 text-xs text-zinc-500">{t("captionStyler.fileHint")}</p>
           </div>
 
           {/* Style presets */}
-          <p data-min-stars="2" className="mt-6 text-sm font-semibold text-zinc-300">Caption style</p>
+          <p data-min-stars="2" className="mt-6 text-sm font-semibold text-zinc-300">{t("captionStyler.styleLabel")}</p>
           <div data-min-stars="2" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {STYLES.map((s) => (
               <button
@@ -229,7 +241,7 @@ export default function CaptionStyler() {
           {/* Position + size */}
           <div data-min-stars="3" className="mt-4 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm font-semibold text-zinc-300">Position</p>
+              <p className="text-sm font-semibold text-zinc-300">{t("captionStyler.positionLabel")}</p>
               <div className="mt-2 flex gap-2">
                 {POSITIONS.map((p) => (
                   <button
@@ -247,7 +259,7 @@ export default function CaptionStyler() {
               </div>
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-300">Font size</p>
+              <p className="text-sm font-semibold text-zinc-300">{t("captionStyler.fontSizeLabel")}</p>
               <div className="mt-2 flex gap-2">
                 {FONT_SIZES.map((f) => (
                   <button
@@ -275,8 +287,8 @@ export default function CaptionStyler() {
               className="h-4 w-4 accent-amber-400"
             />
             <span className="text-sm">
-              <span className="font-semibold">Auto-emoji</span>{" "}
-              <span className="text-zinc-500">— adds 🔥💰👑 where the words call for it (beta)</span>
+              <span className="font-semibold">{t("captionStyler.autoEmoji")}</span>{" "}
+              <span className="text-zinc-500">{t("captionStyler.autoEmojiHint")}</span>
             </span>
           </label>
 
@@ -287,11 +299,11 @@ export default function CaptionStyler() {
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-6 py-3 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            {busy ? statusLabel[status] ?? "Working…" : `Style my captions · ${CREDIT_COST} credits`}
+            {busy ? statusLabel[status] ?? t("captionStyler.statusWorking") : t("captionStyler.styleButton", { n: CREDIT_COST })}
           </button>
           {!user && (
             <p className="mt-2 text-center text-xs text-zinc-500">
-              <Link href="/login" className="text-amber-300 underline">Sign in</Link> to style captions.
+              <Link href="/login" className="text-amber-300 underline">{t("captionStyler.signIn")}</Link> {t("captionStyler.signInToStyle")}
             </p>
           )}
 
@@ -305,7 +317,7 @@ export default function CaptionStyler() {
           {status === "done" && outputUrl && (
             <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
               <p className="flex items-center gap-2 text-sm font-semibold text-green-200">
-                <CheckCircle2 className="h-4 w-4" /> Your captioned video is ready
+                <CheckCircle2 className="h-4 w-4" /> {t("captionStyler.doneTitle")}
               </p>
               <video src={outputUrl} controls className="mt-3 w-full rounded-lg" />
               <a
@@ -313,22 +325,20 @@ export default function CaptionStyler() {
                 download
                 className="mt-3 inline-flex items-center gap-2 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-black hover:brightness-110"
               >
-                <Download className="h-4 w-4" /> Download MP4
+                <Download className="h-4 w-4" /> {t("captionStyler.downloadButton")}
               </a>
             </div>
           )}
 
           {typeof creditsRemaining === "number" && (
-            <p className="mt-3 text-center text-xs text-zinc-500">{creditsRemaining} Visual Bucs remaining</p>
+            <p className="mt-3 text-center text-xs text-zinc-500">{t("captionStyler.creditsRemaining", { n: creditsRemaining })}</p>
           )}
         </div>
 
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs text-zinc-500">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
           <p>
-            Captions are generated from AI transcription with word-level timing and burned in with
-            real karaoke highlighting. If your video has no clear speech, the job is refunded
-            automatically. Emoji rendering depends on system fonts.
+            {t("captionStyler.infoText")}
           </p>
         </div>
       </main>

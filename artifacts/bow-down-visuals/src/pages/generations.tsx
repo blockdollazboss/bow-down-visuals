@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, Music, Video, Mic, Loader2, Trash2, Download, Eye } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 interface Generation {
   id: string;
@@ -30,7 +31,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function Generations() {
-  usePageTitle("My Generations");
+  const { t } = useTranslation();
+  usePageTitle(t("generations.metaTitle"));
   const { getAccessToken } = useAuth();
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,22 +85,20 @@ export default function Generations() {
 
   return (
     <div className="content-panel mx-4 my-4 md:mx-6 md:my-6 p-4 md:p-6">
-      <h1 className="text-2xl font-bold text-white mb-2">My Generations</h1>
-      <p className="text-white/60 text-sm mb-6">
-        Every image, video, song, and voice you generate is automatically saved here.
-      </p>
+      <h1 className="text-2xl font-bold text-white mb-2">{t("generations.my_generations")}</h1>
+      <p className="text-white/60 text-sm mb-6">{t("generations.every_image_video_song_and_voice")}</p>
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {["all", "image", "video", "song", "voice"].map((t) => (
+        {["all", "image", "video", "song", "voice"].map((f) => (
           <Button
-            key={t}
-            variant={filter === t ? "default" : "outline"}
+            key={f}
+            variant={filter === f ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilter(t)}
-            className={filter === t ? "bg-gold text-black" : ""}
+            onClick={() => setFilter(f)}
+            className={filter === f ? "bg-gold text-black" : ""}
           >
-            {t === "all" ? "All" : TYPE_LABELS[t] ?? t}
+            {f === "all" ? t("generations.all") : t(`generations.type.${f}`, { defaultValue: TYPE_LABELS[f] ?? f })}
           </Button>
         ))}
       </div>
@@ -106,10 +106,8 @@ export default function Generations() {
       {filtered.length === 0 ? (
         <div className="text-center py-12">
           <ImageIcon className="h-12 w-12 mx-auto text-white/20 mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">No generations yet</h2>
-          <p className="text-white/50 text-sm">
-            Your AI generations will appear here automatically.
-          </p>
+          <h2 className="text-xl font-bold text-white mb-2">{t("generations.no_generations_yet")}</h2>
+          <p className="text-white/50 text-sm">{t("generations.your_ai_generations_will_appear")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -147,7 +145,7 @@ export default function Generations() {
                 <div className="flex items-center gap-2 mb-1">
                   {TYPE_ICONS[gen.type]}
                   <span className="text-xs font-semibold text-gold">
-                    {TYPE_LABELS[gen.type] ?? gen.type}
+                    {t(`generations.type.${gen.type}`, { defaultValue: TYPE_LABELS[gen.type] ?? gen.type })}
                   </span>
                   <span className="text-xs text-white/40 ml-auto">
                     {gen.credits_spent}VB
@@ -169,8 +167,7 @@ export default function Generations() {
                       className="flex-1"
                       onClick={() => window.open(gen.file_url!, "_blank")}
                     >
-                      <Eye className="h-3 w-3 mr-1" /> View
-                    </Button>
+                      <Eye className="h-3 w-3 mr-1" />{t("generations.view")}</Button>
                   )}
                   <Button
                     size="sm"

@@ -13,6 +13,7 @@ import {
  type AcademyCourse,
  type AcademyLevel,
 } from "@/lib/academy-courses";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
@@ -82,10 +83,10 @@ function saveJson(key: string, value: unknown) {
  }
 }
 
-const LEVEL_META: Record<AcademyLevel, { label: string; cls: string }> = {
- beginner: { label: "Beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
- intermediate: { label: "Intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
- advanced: { label: "Advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+const LEVEL_META: Record<AcademyLevel, { labelKey: string; cls: string }> = {
+ beginner: { labelKey: "academy.levels.beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+ intermediate: { labelKey: "academy.levels.intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+ advanced: { labelKey: "academy.levels.advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
 };
 
 const PLATFORM_OPTS = [
@@ -96,10 +97,10 @@ const PLATFORM_OPTS = [
  { key: "x", label: "X" },
 ];
 
-const LEVEL_OPTS: { key: AcademyLevel; label: string; blurb: string }[] = [
- { key: "beginner", label: "Beginner", blurb: "Just starting out" },
- { key: "intermediate", label: "Intermediate", blurb: "Posting already, want growth" },
- { key: "advanced", label: "Advanced", blurb: "Scaling like a studio" },
+const LEVEL_OPTS: { key: AcademyLevel; blurbKey: string }[] = [
+ { key: "beginner", blurbKey: "academy.levelBlurbs.beginner" },
+ { key: "intermediate", blurbKey: "academy.levelBlurbs.intermediate" },
+ { key: "advanced", blurbKey: "academy.levelBlurbs.advanced" },
 ];
 
 const inputClass =
@@ -119,13 +120,14 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
  throw new Error("__OUT_OF_CREDITS__");
  }
  if (!res.ok) {
- throw new Error(data.message || data.error || "Request failed — try again.");
+ throw new Error(data.message || data.error || "__REQUEST_FAILED__");
  }
  return data;
 }
 
 export default function CreatorAcademy() {
- usePageTitle("Creator Academy", "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.");
+ const { t } = useTranslation();
+ usePageTitle(t("academy.pageTitle"), t("academy.pageDescription"));
  const { user, getAccessToken, refreshProfile } = useAuth();
 
  /* navigation: catalog → course detail */
@@ -169,8 +171,10 @@ export default function CreatorAcademy() {
  function handleError(err: unknown) {
  if (err instanceof Error && err.message === "__OUT_OF_CREDITS__") {
  handleOutOfCredits();
+ } else if (err instanceof Error && err.message === "__REQUEST_FAILED__") {
+ setError(t("academy.errorRequestFailed"));
  } else {
- setError(err instanceof Error ? err.message : "Something went wrong — try again.");
+ setError(err instanceof Error ? err.message : t("academy.errorGeneric"));
  }
  }
 
@@ -182,11 +186,11 @@ export default function CreatorAcademy() {
  async function buildLearningPath() {
  if (pathLoading || !user) return;
  if (goals.trim().length < 4) {
- setError("Tell the academy your goal first — that's what your path is built on.");
+ setError(t("academy.errorGoalFirst"));
  return;
  }
  if (platforms.length === 0) {
- setError("Pick at least one platform.");
+ setError(t("academy.errorPickPlatform"));
  return;
  }
  setPathLoading(true);
@@ -202,7 +206,7 @@ export default function CreatorAcademy() {
  hoursPerWeek: Math.max(1, Math.min(80, parseInt(hours, 10) || 5)),
  }, token);
  if (!data.path || data.path.length === 0 || !data.firstStep) {
- throw new Error("Learning path came back empty — try again.");
+ throw new Error(t("academy.errorPathEmpty"));
  }
  setLearningPath(data);
  refreshProfile();
@@ -232,7 +236,7 @@ export default function CreatorAcademy() {
  lessonId,
  }, token);
  if (!data.lesson || !data.lesson.sections?.length) {
- throw new Error("Lesson came back empty — try again.");
+ throw new Error(t("academy.errorLessonEmpty"));
  }
  setLessonCache((prev) => ({ ...prev, [key]: data.lesson }));
  refreshProfile();
@@ -255,7 +259,7 @@ export default function CreatorAcademy() {
  if (coachLoading || !user) return;
  const question = coachInput.trim();
  if (question.length < 4) {
- setError("Ask a real question — the coach needs something to work with.");
+ setError(t("academy.errorAskQuestion"));
  return;
  }
  setCoachLoading(true);
@@ -270,7 +274,7 @@ export default function CreatorAcademy() {
  courseId: course.id,
  question: question.slice(0, 1000),
  }, token);
- if (!data.answer) throw new Error("The coach came back empty — try again.");
+ if (!data.answer) throw new Error(t("academy.errorCoachEmpty"));
  setCoachThreads((prev) => ({
  ...prev,
  [course.id]: [...(prev[course.id] ?? []), { role: "coach", text: data.answer }],
@@ -329,61 +333,59 @@ export default function CreatorAcademy() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <GraduationCap className="h-3 w-3" aria-hidden="true" /> The creator education hub
+ <GraduationCap className="h-3 w-3" aria-hidden="true" /> {t("academy.heroEyebrow")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Creator <span className="text-primary">Academy</span>
+ {t("academy.heroTitleStart")} <span className="text-primary">{t("academy.heroTitleAccent")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- Courses on production, growth, monetization, and branding —
- taught by AI, personalized to your goals. Browse free,
- learn for 100 Visual Bucs a lesson.
+ {t("academy.heroSubtitle")}
  </p>
  </div>
 
  {/* ── AI LEARNING PATH ─────────────────────────────────── */}
  <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI learning path · {CREDIT_COST} Visual Buc
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.pathBadge", { credits: CREDIT_COST })}
  </p>
- <h2 className="mt-2 font-display text-2xl font-black">Your personalized course path</h2>
+ <h2 className="mt-2 font-display text-2xl font-black">{t("academy.pathTitle")}</h2>
  <p className="mt-1.5 text-sm text-white/50">
- Tell the academy where you're headed — it builds your curriculum from the catalog.
+ {t("academy.pathDescription")}
  </p>
 
- <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">Your goal</p>
+ <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.goalLabel")}</p>
  <input
  value={goals}
  onChange={(e) => setGoals(e.target.value)}
  maxLength={500}
- placeholder="e.g. Grow my music channel to 100k subscribers this year"
+ placeholder={t("academy.goalPlaceholder")}
  className={inputClass}
  />
 
  <div className="mt-5 grid gap-5 sm:grid-cols-2">
  <div>
- <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Niche</p>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.nicheLabel")}</p>
  <input
  value={niche}
  onChange={(e) => setNiche(e.target.value)}
  maxLength={120}
- placeholder="Music"
+ placeholder={t("academy.nichePlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
- <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Hours per week</p>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.hoursLabel")}</p>
  <input
  value={hours}
  onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
  inputMode="numeric"
- placeholder="5"
+ placeholder={t("academy.hoursPlaceholder")}
  className={inputClass}
  />
  </div>
  </div>
 
- <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Your level</p>
+ <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.levelLabel")}</p>
  <div data-min-stars="2" className="grid gap-2.5 sm:grid-cols-3">
  {LEVEL_OPTS.map((l) => {
  const selected = level === l.key;
@@ -397,14 +399,14 @@ export default function CreatorAcademy() {
  : "border-white/10 bg-white/[0.03] hover:border-primary/40"
  }`}
  >
- <span className={`block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{l.label}</span>
- <span className="block text-[11px] text-white/35">{l.blurb}</span>
+ <span className={`block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{t(LEVEL_META[l.key].labelKey)}</span>
+ <span className="block text-[11px] text-white/35">{t(l.blurbKey)}</span>
  </button>
  );
  })}
  </div>
 
- <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Platforms</p>
+ <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.platformsLabel")}</p>
  <div className="flex flex-wrap gap-2">
  {PLATFORM_OPTS.map((p) => {
  const selected = platforms.includes(p.key);
@@ -436,7 +438,7 @@ export default function CreatorAcademy() {
  ) : (
  <Sparkles className="h-6 w-6" aria-hidden="true" />
  )}
- {pathLoading ? "Building your path…" : "Build my learning path"}
+ {pathLoading ? t("academy.buildingPath") : t("academy.buildPath")}
  </button>
  ) : (
  <Link
@@ -444,11 +446,11 @@ export default function CreatorAcademy() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Sparkles className="h-6 w-6" aria-hidden="true" />
- Sign in to build your path
+ {t("academy.signInToBuild")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
- <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} Visual Buc per path · powered by Thy Cheat Code</p>
+ <p className="mt-2.5 text-xs text-white/35">{t("academy.pathCostNote", { credits: CREDIT_COST })}</p>
  </div>
 
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -462,7 +464,7 @@ export default function CreatorAcademy() {
  {learningPath && (
  <div id="learning-path-results" className="mt-8 border-t border-white/10 pt-8">
  <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Target className="h-3.5 w-3.5" aria-hidden="true" /> Your path
+ <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.yourPath")}
  </p>
  <div className="grid gap-3">
  {learningPath.path.map((item) => (
@@ -486,12 +488,12 @@ export default function CreatorAcademy() {
  {learningPath.weeklyPlan.length > 0 && (
  <>
  <p className="mb-3 mt-7 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Your next 4 weeks
+ <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.next4Weeks")}
  </p>
  <div className="grid gap-2.5 sm:grid-cols-2">
  {learningPath.weeklyPlan.map((w, i) => (
  <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Week {i + 1}</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.week", { n: i + 1 })}</p>
  <p className="mt-1 text-sm leading-relaxed text-white/85">{w}</p>
  </div>
  ))}
@@ -501,7 +503,7 @@ export default function CreatorAcademy() {
 
  <div className="mt-6 rounded-2xl border border-primary/40 bg-primary/[0.08] p-5">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
- <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Your first step
+ <Zap className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.firstStep")}
  </p>
  <p className="mt-2 text-[15px] font-semibold leading-relaxed text-white">{learningPath.firstStep}</p>
  </div>
@@ -512,9 +514,9 @@ export default function CreatorAcademy() {
  {/* ── COURSE CATALOG ───────────────────────────────────── */}
  <div className="relative mt-12">
  <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> Course catalog · free to browse
+ <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.catalogBadge")}
  </p>
- <h2 className="font-display text-2xl font-black">Pick your course</h2>
+ <h2 className="font-display text-2xl font-black">{t("academy.catalogTitle")}</h2>
  <div className="mt-5 grid gap-4 sm:grid-cols-2">
  {ACADEMY_COURSES.map((course) => {
  const prog = courseProgress[course.id] ?? { done: 0, total: course.lessons.length };
@@ -528,7 +530,7 @@ export default function CreatorAcademy() {
  >
  <div className="flex items-start justify-between gap-3">
  <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>
- {badge.label}
+ {t(badge.labelKey)}
  </span>
  <span className="flex items-center gap-1 text-[11px] text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
@@ -548,12 +550,12 @@ export default function CreatorAcademy() {
  />
  </div>
  <p className="mt-1.5 text-[11px] text-white/40">
- {prog.done}/{prog.total} lessons complete
+ {t("academy.lessonsComplete", { done: prog.done, total: prog.total })}
  </p>
  </div>
  )}
  <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-primary">
- {prog.done > 0 ? "Continue" : "Start course"}
+ {prog.done > 0 ? t("academy.continueCourse") : t("academy.startCourse")}
  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
  </p>
  </button>
@@ -599,6 +601,7 @@ function CourseDetail(props: CourseDetailProps) {
  coachThreads, coachInput, coachLoading, user, error, outOfCredits,
  onBack, onOpenLesson, onCloseLesson, onToggleDone, onCoachInput, onAskCoach,
  } = props;
+ const { t } = useTranslation();
  const badge = LEVEL_META[course.level];
  const doneCount = course.lessons.filter((l) => progress[l.id]).length;
 
@@ -608,17 +611,17 @@ function CourseDetail(props: CourseDetailProps) {
  onClick={onBack}
  className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white/50 transition hover:text-primary"
  >
- <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All courses
+ <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("academy.allCourses")}
  </button>
 
  <div className="flex flex-wrap items-center gap-3">
- <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>{badge.label}</span>
+ <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>{t(badge.labelKey)}</span>
  <span className="flex items-center gap-1 text-xs text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
  </span>
  {doneCount > 0 && (
  <span className="text-xs font-semibold text-primary">
- {doneCount}/{course.lessons.length} complete
+ {t("academy.courseComplete", { done: doneCount, total: course.lessons.length })}
  </span>
  )}
  </div>
@@ -636,7 +639,7 @@ function CourseDetail(props: CourseDetailProps) {
 
  {/* lessons */}
  <p className="mb-4 mt-10 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Play className="h-3.5 w-3.5" aria-hidden="true" /> Lessons · AI-taught, {CREDIT_COST} Visual Buc each
+ <Play className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.lessonsHeader", { credits: CREDIT_COST })}
  </p>
  <div className="grid gap-3">
  {course.lessons.map((lesson, i) => {
@@ -654,7 +657,7 @@ function CourseDetail(props: CourseDetailProps) {
  <div className="flex items-center gap-3.5 p-4">
  <button
  onClick={() => onToggleDone(lesson.id, !done)}
- aria-label={done ? `Mark ${lesson.title} incomplete` : `Mark ${lesson.title} complete`}
+ aria-label={done ? t("academy.markIncomplete", { title: lesson.title }) : t("academy.markComplete", { title: lesson.title })}
  className="shrink-0"
  >
  {done
@@ -668,7 +671,7 @@ function CourseDetail(props: CourseDetailProps) {
  </p>
  <p className="mt-0.5 truncate text-sm text-white/45">{lesson.summary}</p>
  </button>
- <span className="hidden shrink-0 text-[11px] text-white/35 sm:block">{lesson.minutes} min</span>
+ <span className="hidden shrink-0 text-[11px] text-white/35 sm:block">{t("academy.lessonMinutes", { minutes: lesson.minutes })}</span>
  <button
  onClick={() => onOpenLesson(lesson.id)}
  className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
@@ -677,7 +680,7 @@ function CourseDetail(props: CourseDetailProps) {
  : "bg-primary text-black hover:brightness-110"
  }`}
  >
- {cached ? "Read" : `Learn · ${CREDIT_COST}VB`}
+ {cached ? t("academy.readLesson") : t("academy.learnLesson", { credits: CREDIT_COST })}
  </button>
  </div>
 
@@ -686,7 +689,7 @@ function CourseDetail(props: CourseDetailProps) {
  {lessonLoading && !activeLesson ? (
  <p className="flex items-center gap-2 text-sm text-white/50">
  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
- The instructor is preparing your lesson…
+ {t("academy.preparingLesson")}
  </p>
  ) : activeLesson ? (
  <div>
@@ -699,7 +702,7 @@ function CourseDetail(props: CourseDetailProps) {
  {activeLesson.takeaways.length > 0 && (
  <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
- <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> Key takeaways
+ <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.keyTakeaways")}
  </p>
  <ul className="mt-2.5 space-y-1.5">
  {activeLesson.takeaways.map((t, ti) => (
@@ -713,7 +716,7 @@ function CourseDetail(props: CourseDetailProps) {
  )}
  <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/[0.08] p-4">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
- <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Do it today
+ <Zap className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.doItToday")}
  </p>
  <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-white">
  {activeLesson.actionStep}
@@ -724,7 +727,7 @@ function CourseDetail(props: CourseDetailProps) {
  onClick={onCloseLesson}
  className="text-sm font-semibold text-white/40 transition hover:text-white"
  >
- Close lesson
+ {t("academy.closeLesson")}
  </button>
  {!done && (
  <button
@@ -732,15 +735,15 @@ function CourseDetail(props: CourseDetailProps) {
  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
  >
  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
- Mark complete
+ {t("academy.markCompleteBtn")}
  </button>
  )}
  </div>
  </div>
  ) : !user ? (
  <p className="text-sm text-white/50">
- <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
- {" "}to generate this AI lesson ({CREDIT_COST} Visual Buc).
+ <Link href="/login" className="font-semibold text-primary hover:underline">{t("academy.signIn")}</Link>
+ {" "}{t("academy.signInToGenerate", { credits: CREDIT_COST })}.
  </p>
  ) : null}
  </div>
@@ -753,11 +756,11 @@ function CourseDetail(props: CourseDetailProps) {
  {/* ask the coach */}
  <div className="mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> Ask the coach · {CREDIT_COST} Visual Buc per answer
+ <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.coachHeader", { credits: CREDIT_COST })}
  </p>
- <h3 className="mt-2 font-display text-xl font-black">Stuck on {course.title}?</h3>
+ <h3 className="mt-2 font-display text-xl font-black">{t("academy.stuckOn", { title: course.title })}</h3>
  <p className="mt-1 text-sm text-white/50">
- Ask anything about this course — the AI instructor answers in plain, practical terms.
+ {t("academy.coachDescription")}
  </p>
 
  <div className="mt-5 space-y-3">
@@ -771,14 +774,14 @@ function CourseDetail(props: CourseDetailProps) {
  }`}
  >
  {m.role === "coach" && (
- <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">Coach</p>
+ <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">{t("academy.coachRole")}</p>
  )}
  <p className="whitespace-pre-wrap">{m.text}</p>
  </div>
  ))}
  {coachLoading && (
  <p className="flex items-center gap-2 text-sm text-white/40">
- <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> The coach is thinking…
+ <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("academy.coachThinking")}
  </p>
  )}
  </div>
@@ -789,14 +792,14 @@ function CourseDetail(props: CourseDetailProps) {
  onChange={(e) => onCoachInput(e.target.value)}
  onKeyDown={(e) => { if (e.key === "Enter") onAskCoach(); }}
  maxLength={1000}
- placeholder={`Ask about ${course.title.toLowerCase()}…`}
+ placeholder={t("academy.askPlaceholder", { title: course.title.toLowerCase() })}
  disabled={coachLoading}
  className={inputClass}
  />
  <button
  onClick={onAskCoach}
  disabled={coachLoading || !coachInput.trim()}
- aria-label="Ask the coach"
+ aria-label={t("academy.askCoachAria")}
  className="flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 text-black transition hover:brightness-110 disabled:opacity-40"
  >
  {coachLoading ? (
@@ -808,8 +811,8 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
  {!user && (
  <p className="mt-3 text-sm text-white/40">
- <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
- {" "}to ask the coach.
+ <Link href="/login" className="font-semibold text-primary hover:underline">{t("academy.signIn")}</Link>
+ {" "}{t("academy.signInToAsk")}.
  </p>
  )}
  </div>

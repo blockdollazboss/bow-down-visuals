@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -148,18 +149,19 @@ function loadState(): HubState {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
-const FIELD_LABELS: { key: keyof PlatformStats; label: string; hint: string; isPercent?: boolean }[] = [
-  { key: "followers", label: "Followers", hint: "e.g. 12500" },
-  { key: "views7d", label: "Views (7d)", hint: "last 7 days" },
-  { key: "views30d", label: "Views (30d)", hint: "last 30 days" },
-  { key: "engagementRate", label: "Engagement %", hint: "e.g. 4.2", isPercent: true },
-  { key: "topPostViews", label: "Top post views", hint: "best post all-time" },
+const FIELD_LABELS: { key: keyof PlatformStats; labelKey: string; hintKey: string; isPercent?: boolean }[] = [
+  { key: "followers", labelKey: "analyticsHub.fields.followers", hintKey: "analyticsHub.fieldHints.followers" },
+  { key: "views7d", labelKey: "analyticsHub.fields.views7d", hintKey: "analyticsHub.fieldHints.views7d" },
+  { key: "views30d", labelKey: "analyticsHub.fields.views30d", hintKey: "analyticsHub.fieldHints.views30d" },
+  { key: "engagementRate", labelKey: "analyticsHub.fields.engagementRate", hintKey: "analyticsHub.fieldHints.engagementRate", isPercent: true },
+  { key: "topPostViews", labelKey: "analyticsHub.fields.topPostViews", hintKey: "analyticsHub.fieldHints.topPostViews" },
 ];
 
 export default function AnalyticsHub() {
+  const { t } = useTranslation();
   usePageTitle(
-    "Analytics Hub — Cross-Platform Dashboard",
-    "Track TikTok, Instagram, YouTube, and X in one dashboard, then get an AI growth plan built on your real numbers."
+    t("analyticsHub.pageTitle"),
+    t("analyticsHub.pageDescription")
   );
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -236,7 +238,7 @@ export default function AnalyticsHub() {
     };
     persist(next);
     setOpenForm(null);
-    setCsvNote({ ok: true, text: `${PLATFORMS[key].label} updated — snapshot saved.` });
+    setCsvNote({ ok: true, text: t("analyticsHub.platformUpdated", { platform: PLATFORMS[key].label }) });
   }
 
   /* CSV import: platform,followers,views7d,views30d,engagementRate,topPostViews
@@ -247,7 +249,7 @@ export default function AnalyticsHub() {
       const text = String(reader.result ?? "");
       const rows = text.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
       if (rows.length === 0) {
-        setCsvNote({ ok: false, text: "That file looks empty — nothing imported." });
+        setCsvNote({ ok: false, text: t("analyticsHub.csvEmpty") });
         return;
       }
       const next = { ...hub };
@@ -284,8 +286,10 @@ export default function AnalyticsHub() {
         ok: imported > 0,
         text:
           imported > 0
-            ? `Imported ${imported} platform${imported === 1 ? "" : "s"}${skipped > 0 ? ` — skipped ${skipped} bad row${skipped === 1 ? "" : "s"}` : ""}.`
-            : `No valid rows found — skipped ${skipped} row${skipped === 1 ? "" : "s"}. Expected: platform,followers,views7d,views30d,engagementRate,topPostViews`,
+            ? skipped > 0
+              ? t("analyticsHub.csvImportedSkipped", { count: imported, skipped })
+              : t("analyticsHub.csvImported", { count: imported })
+            : t("analyticsHub.csvNoValidRows", { skipped }),
       });
     };
     reader.readAsText(file);
@@ -315,7 +319,7 @@ export default function AnalyticsHub() {
   async function getGrowthPlan() {
     if (insightsLoading || !user) return;
     if (!hasData) {
-      setError("Add your numbers first — the AI plan is built on your real stats, not guesses.");
+      setError(t("analyticsHub.errorNoData"));
       return;
     }
     setInsightsLoading(true);
@@ -329,7 +333,7 @@ export default function AnalyticsHub() {
       const data = (await res.json().catch(() => ({}))) as InsightsResult;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.summary || !Array.isArray(data.recommendations) || data.recommendations.length === 0) {
-        throw new Error(data.message || data.error || "Growth plan failed — try again.");
+        throw new Error(data.message || data.error || t("analyticsHub.errorGrowthPlanFailed"));
       }
       setInsights(data);
       refreshProfile();
@@ -337,7 +341,7 @@ export default function AnalyticsHub() {
         document.getElementById("insights-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Growth plan failed — try again.");
+      setError(err instanceof Error ? err.message : t("analyticsHub.errorGrowthPlanFailed"));
     } finally {
       setInsightsLoading(false);
     }
@@ -370,14 +374,13 @@ export default function AnalyticsHub() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <BarChart3 className="h-3 w-3" aria-hidden="true" /> Creator tools
+            <BarChart3 className="h-3 w-3" aria-hidden="true" /> {t("analyticsHub.heroEyebrow")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-6xl">
-            Analytics Hub
+            {t("analyticsHub.heroTitle")}
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Every platform, one dashboard — TikTok, Instagram, YouTube, and X.
-            Tracking is free forever; the AI Growth Plan is {INSIGHT_COST} Visual Bucs.
+            {t("analyticsHub.heroSubtitle", { cost: INSIGHT_COST })}
           </p>
           {!hasData && hydrated && (
             <a
@@ -385,7 +388,7 @@ export default function AnalyticsHub() {
               className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-6 py-3 text-sm font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95"
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
-              Add your numbers
+              {t("analyticsHub.addNumbers")}
             </a>
           )}
         </div>
@@ -406,33 +409,33 @@ export default function AnalyticsHub() {
         <div className="relative mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              <Users className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Total followers
+              <Users className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.totalFollowers")}
             </p>
             <p className="mt-2 font-display text-4xl font-black text-white">
               {hasData ? fmt(totalFollowers) : "—"}
             </p>
-            <p className="mt-1 text-xs text-white/35">across all four platforms</p>
+            <p className="mt-1 text-xs text-white/35">{t("analyticsHub.acrossPlatforms")}</p>
           </div>
           <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              <Eye className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Total views · 30d
+              <Eye className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.totalViews30d")}
             </p>
             <p className="mt-2 font-display text-4xl font-black text-white">
               {hasData ? fmt(totalViews30d) : "—"}
             </p>
-            <p className="mt-1 text-xs text-white/35">last 30 days, all platforms</p>
+            <p className="mt-1 text-xs text-white/35">{t("analyticsHub.last30Days")}</p>
           </div>
           <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              <Crown className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Best engagement
+              <Crown className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.bestEngagement")}
             </p>
             <p className="mt-2 font-display text-4xl font-black text-white">
               {bestByEngagement ? PLATFORMS[bestByEngagement].label : "—"}
             </p>
             <p className="mt-1 text-xs text-white/35">
               {bestByEngagement
-                ? `${hub[bestByEngagement].stats.engagementRate}% engagement rate`
-                : "add your numbers to find your strongest platform"}
+                ? t("analyticsHub.engagementRateValue", { rate: hub[bestByEngagement].stats.engagementRate })
+                : t("analyticsHub.addNumbersToFind")}
             </p>
           </div>
         </div>
@@ -443,12 +446,12 @@ export default function AnalyticsHub() {
             <div>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <TrendingUp className="h-5 w-5 text-primary" aria-hidden="true" />
-                30-day views by platform
+                {t("analyticsHub.chartTitle")}
               </h2>
               <p className="mt-1 text-sm text-white/45">
                 {hasData
-                  ? "Your current snapshots, side by side."
-                  : "Nothing to chart yet — your bars appear here once you add numbers."}
+                  ? t("analyticsHub.chartSubtitleData")
+                  : t("analyticsHub.chartSubtitleEmpty")}
               </p>
             </div>
             {/* CSV import */}
@@ -467,10 +470,10 @@ export default function AnalyticsHub() {
               <button
                 onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-bold text-white/70 transition hover:border-primary/40 hover:text-white"
-                title="Import a CSV: platform,followers,views7d,views30d,engagementRate,topPostViews (header optional)"
+                title={t("analyticsHub.importCsvTitle")}
               >
                 <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                Import CSV
+                {t("analyticsHub.importCsv")}
               </button>
             </div>
           </div>
@@ -487,7 +490,7 @@ export default function AnalyticsHub() {
                 />
                 <Tooltip
                   contentStyle={{ background: "#0a0a0a", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 12, color: "#fff" }}
-                  formatter={(value) => [`${Number(value).toLocaleString("en-US")} views`, "30d views"]}
+                  formatter={(value) => [`${Number(value).toLocaleString("en-US")} ${t("analyticsHub.views")}`, t("analyticsHub.views30d")]}
                 />
                 <Bar dataKey="views" radius={[8, 8, 0, 0]}>
                   {barData.map((entry) => (
@@ -520,18 +523,18 @@ export default function AnalyticsHub() {
                         <h3 className="text-lg font-bold">{label}</h3>
                         <p className="text-xs text-white/40">
                           {data.history.length > 0
-                            ? `${data.history.length} snapshot${data.history.length === 1 ? "" : "s"} saved`
-                            : "no data yet"}
+                            ? t("analyticsHub.snapshotsSaved", { count: data.history.length })
+                            : t("analyticsHub.noDataYet")}
                         </p>
                       </div>
                     </div>
                     <button
                       disabled
-                      title="OAuth connections are coming soon — enter your numbers manually for now."
+                      title={t("analyticsHub.connectTitle")}
                       className="flex cursor-not-allowed items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/30"
                     >
                       <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Connect · Coming soon
+                      {t("analyticsHub.connectComingSoon")}
                     </button>
                   </div>
 
@@ -539,11 +542,11 @@ export default function AnalyticsHub() {
                   <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                     {(
                       [
-                        { label: "Followers", value: fmt(data.stats.followers) },
-                        { label: "Views · 7d", value: fmt(data.stats.views7d) },
-                        { label: "Views · 30d", value: fmt(data.stats.views30d) },
-                        { label: "Engagement", value: `${data.stats.engagementRate}%` },
-                        { label: "Top post", value: fmt(data.stats.topPostViews) },
+                        { label: t("analyticsHub.statFollowers"), value: fmt(data.stats.followers) },
+                        { label: t("analyticsHub.statViews7d"), value: fmt(data.stats.views7d) },
+                        { label: t("analyticsHub.statViews30d"), value: fmt(data.stats.views30d) },
+                        { label: t("analyticsHub.statEngagement"), value: `${data.stats.engagementRate}%` },
+                        { label: t("analyticsHub.statTopPost"), value: fmt(data.stats.topPostViews) },
                       ] as { label: string; value: string }[]
                     ).map((s) => (
                       <div key={s.label} className="rounded-xl border border-white/10 bg-black/50 px-3.5 py-3">
@@ -553,7 +556,7 @@ export default function AnalyticsHub() {
                     ))}
                     {/* sparkline tile */}
                     <div className="rounded-xl border border-white/10 bg-black/50 px-3.5 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">Trend</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{t("analyticsHub.trendLabel")}</p>
                       <div className="mt-1 h-[42px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={sparklineData(key)} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
@@ -570,8 +573,8 @@ export default function AnalyticsHub() {
                       </div>
                       <p className="mt-1 text-[10px] leading-tight text-white/30">
                         {data.history.length <= 1
-                          ? "add more snapshots over time"
-                          : `${data.history.length} snapshots`}
+                          ? t("analyticsHub.addMoreSnapshots")
+                          : t("analyticsHub.snapshotCount", { count: data.history.length })}
                       </p>
                     </div>
                   </div>
@@ -583,7 +586,7 @@ export default function AnalyticsHub() {
                   >
                     <span className="flex items-center gap-2">
                       <Pencil className="h-4 w-4 text-primary" aria-hidden="true" />
-                      Update numbers
+                      {t("analyticsHub.updateNumbers")}
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 transition-transform ${editing ? "rotate-180" : ""}`}
@@ -593,10 +596,10 @@ export default function AnalyticsHub() {
                   {editing && draft && (
                     <div className="mt-3 rounded-2xl border border-primary/20 bg-black/50 p-4">
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {FIELD_LABELS.map(({ key: field, label, hint, isPercent }) => (
+                        {FIELD_LABELS.map(({ key: field, labelKey, hintKey, isPercent }) => (
                           <div key={field}>
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                              {label}
+                              {t(labelKey)}
                             </label>
                             <input
                               type="number"
@@ -609,7 +612,7 @@ export default function AnalyticsHub() {
                                   prev ? { ...prev, [key]: { ...prev[key], [field]: e.target.value } } : prev
                                 )
                               }
-                              placeholder={hint}
+                              placeholder={t(hintKey)}
                               className={inputClass}
                             />
                           </div>
@@ -621,17 +624,17 @@ export default function AnalyticsHub() {
                           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                         >
                           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                          Save snapshot
+                          {t("analyticsHub.saveSnapshot")}
                         </button>
                         <button
                           onClick={() => setOpenForm(null)}
                           className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-white/60 transition hover:border-white/30 hover:text-white"
                         >
-                          Cancel
+                          {t("analyticsHub.cancel")}
                         </button>
                       </div>
                       <p className="mt-2.5 text-[11px] text-white/30">
-                        Each save appends a timestamped snapshot — that's what powers your trend lines.
+                        {t("analyticsHub.snapshotHint")}
                       </p>
                     </div>
                   )}
@@ -648,9 +651,9 @@ export default function AnalyticsHub() {
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-bold">AI Growth Plan</h2>
+              <h2 className="text-xl font-bold">{t("analyticsHub.growthPlanTitle")}</h2>
               <p className="text-sm text-white/45">
-                A strategist that reads your actual numbers and tells you exactly where to push next.
+                {t("analyticsHub.growthPlanDescription")}
               </p>
             </div>
           </div>
@@ -667,7 +670,7 @@ export default function AnalyticsHub() {
                 ) : (
                   <Target className="h-6 w-6" aria-hidden="true" />
                 )}
-                {insightsLoading ? "Reading your numbers…" : "Get AI Growth Plan"}
+                {insightsLoading ? t("analyticsHub.readingNumbers") : t("analyticsHub.getGrowthPlan")}
               </button>
             ) : (
               <Link
@@ -675,17 +678,17 @@ export default function AnalyticsHub() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
                 <Sparkles className="h-6 w-6" aria-hidden="true" />
-                Sign in to get your AI growth plan
+                {t("analyticsHub.signInForPlan")}
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {INSIGHT_COST} Visual Bucs per plan · built on your real numbers · powered by Thy Cheat Code
+              {t("analyticsHub.planCostNote", { cost: INSIGHT_COST })}
             </p>
             {!hasData && (
               <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-sm text-amber-300/90">
                 <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-                Add your numbers on the platform cards above first.
+                {t("analyticsHub.addNumbersFirst")}
               </p>
             )}
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -701,29 +704,27 @@ export default function AnalyticsHub() {
             <div id="insights-results" className="mt-8">
               <div className="rounded-2xl border border-white/10 bg-black/60 p-6">
                 <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Where you stand
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("analyticsHub.whereYouStand")}
                 </p>
                 <p className="text-[15px] leading-relaxed text-white/85">{insights.summary}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {insights.bestPlatform && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary">
                       <Crown className="h-3.5 w-3.5" aria-hidden="true" />
-                      Best platform: {PLATFORM_KEYS.includes(insights.bestPlatform as PlatformKey)
-                        ? PLATFORMS[insights.bestPlatform as PlatformKey].label
-                        : insights.bestPlatform}
+                      {t("analyticsHub.bestPlatform", { platform: PLATFORM_KEYS.includes(insights.bestPlatform as PlatformKey) ? PLATFORMS[insights.bestPlatform as PlatformKey].label : insights.bestPlatform })}
                     </span>
                   )}
                   {insights.focusArea && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-1.5 text-xs font-bold text-white/75">
                       <Target className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                      Focus: {insights.focusArea}
+                      {t("analyticsHub.focus", { area: insights.focusArea })}
                     </span>
                   )}
                 </div>
               </div>
 
               <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your 3 moves
+                {t("analyticsHub.your3Moves")}
               </p>
               <div className="grid gap-3">
                 {insights.recommendations!.map((rec, i) => (
@@ -751,7 +752,7 @@ export default function AnalyticsHub() {
                     ) : (
                       <Sparkles className="h-4 w-4" aria-hidden="true" />
                     )}
-                    Re-run plan ({INSIGHT_COST} Visual Bucs)
+                    {t("analyticsHub.rerunPlan", { cost: INSIGHT_COST })}
                   </button>
                 </div>
               )}
@@ -761,11 +762,11 @@ export default function AnalyticsHub() {
 
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
-          Got the plan? Run your next post through{" "}
+          {t("analyticsHub.crossLinkPrefix")}{" "}
           <Link href="/hooks" className="font-semibold text-primary hover:underline">
-            Hook Studio
+            {t("analyticsHub.hookStudio")}
           </Link>{" "}
-          before you ship it.
+          {t("analyticsHub.crossLinkSuffix")}
         </p>
       </main>
 

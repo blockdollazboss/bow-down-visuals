@@ -6,6 +6,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
@@ -40,9 +41,10 @@ function toDatetimeLocal(d: Date): string {
 }
 
 function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const { t } = useTranslation();
   const [events, setEvents] = useState<JackpotEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("Special Event");
+  const [name, setName] = useState(t("admin.jackpot.defaultEventName"));
   const [sequence, setSequence] = useState<Direction[]>([]);
   const [prize, setPrize] = useState("100");
   const [startsAt, setStartsAt] = useState(() => toDatetimeLocal(new Date()));
@@ -78,16 +80,16 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
     setError(null);
     setMessage(null);
     if (sequence.length < 4) {
-      setError("Tap at least 4 directions on the D-pad to set the code.");
+      setError(t("admin.jackpot.errorMinMoves"));
       return;
     }
     const prizeCredits = parseInt(prize, 10);
     if (!Number.isFinite(prizeCredits) || prizeCredits < 100 || prizeCredits > 1000000) {
-      setError("Prize must be between 100 and 1,000,000 Visual Bucs.");
+      setError(t("admin.jackpot.errorPrizeRange"));
       return;
     }
     if (!name.trim()) {
-      setError("Give the event a name.");
+      setError(t("admin.jackpot.errorNameRequired"));
       return;
     }
     setSaving(true);
@@ -104,12 +106,12 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         }),
       });
       const data = (await res.json()) as { error?: string; event?: JackpotEvent };
-      if (!res.ok) throw new Error(data.error || "Could not create the event.");
-      setMessage(`"${data.event?.name}" created — only the code's hash is stored, never the code itself. Activate it below to go live.`);
+      if (!res.ok) throw new Error(data.error || t("admin.jackpot.errorCreate"));
+      setMessage(t("admin.jackpot.createdMessage", { name: data.event?.name }));
       setSequence([]);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create the event.");
+      setError(e instanceof Error ? e.message : t("admin.jackpot.errorCreate"));
     } finally {
       setSaving(false);
     }
@@ -126,11 +128,11 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || `Could not ${action}.`);
-      setMessage(ev.isActive ? "Event deactivated." : `"${ev.name}" is LIVE — players can hunt the code now.`);
+      if (!res.ok) throw new Error(data.error || t("admin.jackpot.errorAction", { action }));
+      setMessage(ev.isActive ? t("admin.jackpot.deactivated") : t("admin.jackpot.activatedMessage", { name: ev.name }));
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed.");
+      setError(e instanceof Error ? e.message : t("admin.jackpot.errorActionFailed"));
     } finally {
       setBusyId(null);
     }
@@ -148,22 +150,19 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       <div className="flex items-center gap-2 mb-1">
         <Trophy className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-          Cheat Code Jackpot
+          {t("admin.jackpot.title")}
         </p>
       </div>
       <p className="text-sm text-white/60 mb-4">
-        The jackpot runs itself every month — the server creates each month's
-        event with a fresh random code automatically. Use this panel to pause a
-        month, or to run a special manual event with a code you choose (only a
-        hash of a manual code is ever stored).
+        {t("admin.jackpot.description")}
       </p>
 
       {/* Create a manual event */}
       <div className="rounded-xl bg-black/40 border border-white/10 p-4 mb-4">
-        <p className="text-sm font-semibold text-white mb-3">Run a special event</p>
+        <p className="text-sm font-semibold text-white mb-3">{t("admin.jackpot.runSpecialEvent")}</p>
         <div className="grid gap-3 sm:grid-cols-2 mb-4">
           <label className="block">
-            <span className="text-xs text-white/50">Event name</span>
+            <span className="text-xs text-white/50">{t("admin.jackpot.eventName")}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -172,7 +171,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
             />
           </label>
           <label className="block">
-            <span className="text-xs text-white/50">Prize (Visual Bucs)</span>
+            <span className="text-xs text-white/50">{t("admin.jackpot.prizeLabel")}</span>
             <input
               type="number" min={1} max={10000}
               value={prize}
@@ -182,7 +181,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
             />
           </label>
           <label className="block">
-            <span className="text-xs text-white/50">Starts</span>
+            <span className="text-xs text-white/50">{t("admin.jackpot.startsLabel")}</span>
             <input
               type="datetime-local"
               value={startsAt}
@@ -192,7 +191,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
             />
           </label>
           <label className="block">
-            <span className="text-xs text-white/50">Ends</span>
+            <span className="text-xs text-white/50">{t("admin.jackpot.endsLabel")}</span>
             <input
               type="datetime-local"
               value={endsAt}
@@ -204,28 +203,28 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         </div>
 
         {/* D-pad code entry */}
-        <p className="text-xs text-white/50 mb-2">Tap the D-pad to build the secret code (4–10 moves)</p>
+        <p className="text-xs text-white/50 mb-2">{t("admin.jackpot.dpadHint")}</p>
         <div className="flex flex-wrap items-center gap-4 mb-4">
-          <div className="grid grid-cols-3 gap-1.5 w-fit" aria-label="D-pad code entry">
+          <div className="grid grid-cols-3 gap-1.5 w-fit" aria-label={t("admin.jackpot.dpadAria")}>
             <span />
             <button type="button" onClick={() => pushDir("up")} disabled={saving}
-              aria-label="Up"
+              aria-label={t("admin.jackpot.dirUp")}
               className="h-12 w-12 rounded-xl bg-white/[0.06] border border-white/15 text-white flex items-center justify-center active:bg-primary/40 active:border-primary transition">
               <ArrowUp className="h-5 w-5" />
             </button>
             <span />
             <button type="button" onClick={() => pushDir("left")} disabled={saving}
-              aria-label="Left"
+              aria-label={t("admin.jackpot.dirLeft")}
               className="h-12 w-12 rounded-xl bg-white/[0.06] border border-white/15 text-white flex items-center justify-center active:bg-primary/40 active:border-primary transition">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <button type="button" onClick={() => pushDir("down")} disabled={saving}
-              aria-label="Down"
+              aria-label={t("admin.jackpot.dirDown")}
               className="h-12 w-12 rounded-xl bg-white/[0.06] border border-white/15 text-white flex items-center justify-center active:bg-primary/40 active:border-primary transition">
               <ArrowDown className="h-5 w-5" />
             </button>
             <button type="button" onClick={() => pushDir("right")} disabled={saving}
-              aria-label="Right"
+              aria-label={t("admin.jackpot.dirRight")}
               className="h-12 w-12 rounded-xl bg-white/[0.06] border border-white/15 text-white flex items-center justify-center active:bg-primary/40 active:border-primary transition">
               <ArrowRight className="h-5 w-5" />
             </button>
@@ -233,7 +232,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
           <div className="flex-1 min-w-[140px]">
             <div className="flex flex-wrap gap-1 mb-2 min-h-[28px]">
               {sequence.length === 0 && (
-                <span className="text-xs text-white/30">No moves yet — tap the pad.</span>
+                <span className="text-xs text-white/30">{t("admin.jackpot.noMoves")}</span>
               )}
               {sequence.map((d, i) => {
                 const Icon = DIR_ICON[d];
@@ -245,13 +244,13 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
               })}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-white/40">{sequence.length}/10 moves</span>
+              <span className="text-xs text-white/40">{t("admin.jackpot.movesCount", { count: sequence.length })}</span>
               <button type="button" onClick={() => setSequence((s) => s.slice(0, -1))} disabled={saving || sequence.length === 0}
-                className="rounded-lg bg-white/[0.06] border border-white/10 p-1.5 text-white/70 disabled:opacity-40" aria-label="Delete last move">
+                className="rounded-lg bg-white/[0.06] border border-white/10 p-1.5 text-white/70 disabled:opacity-40" aria-label={t("admin.jackpot.deleteLastMove")}>
                 <Delete className="h-4 w-4" />
               </button>
               <button type="button" onClick={() => setSequence([])} disabled={saving || sequence.length === 0}
-                className="rounded-lg bg-white/[0.06] border border-white/10 p-1.5 text-white/70 disabled:opacity-40" aria-label="Clear code">
+                className="rounded-lg bg-white/[0.06] border border-white/10 p-1.5 text-white/70 disabled:opacity-40" aria-label={t("admin.jackpot.clearCode")}>
                 <RotateCcw className="h-4 w-4" />
               </button>
             </div>
@@ -260,18 +259,18 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
 
         <Button onClick={() => { void handleCreate(); }} disabled={saving} className="rounded-xl w-full sm:w-auto">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Create event
+          {t("admin.jackpot.createEvent")}
         </Button>
         {message && <p className="mt-3 text-sm text-green-400">{message}</p>}
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       </div>
 
       {/* Existing events */}
-      <p className="text-sm font-semibold text-white mb-2">Events</p>
+      <p className="text-sm font-semibold text-white mb-2">{t("admin.jackpot.eventsTitle")}</p>
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-white/40" /></div>
       ) : events.length === 0 ? (
-        <p className="text-sm text-white/40 py-4 text-center">No jackpot events yet.</p>
+        <p className="text-sm text-white/40 py-4 text-center">{t("admin.jackpot.noEvents")}</p>
       ) : (
         <div className="space-y-2">
           {events.map((ev) => {
@@ -281,19 +280,19 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
                 <div className="flex-1 min-w-[160px]">
                   <p className="text-sm font-semibold text-white">{ev.name}</p>
                   <p className="text-xs text-white/40">
-                    {ev.prizeCredits} Visual Bucs · {ev.codeLength}-move code ·{" "}
-                    {ev.endsAt ? new Date(ev.endsAt).toLocaleDateString() : "no end"} ·{" "}
+                    {t("admin.jackpot.eventDetails", { credits: ev.prizeCredits, moves: ev.codeLength })}{" "}
+                    {ev.endsAt ? new Date(ev.endsAt).toLocaleDateString() : t("admin.jackpot.noEnd")} ·{" "}
                     <span className={
                       phase === "live" ? "text-green-400 font-semibold"
                       : phase === "claimed" ? "text-primary font-semibold"
                       : "text-white/40"
                     }>
-                      {phase === "live" ? "LIVE" : phase === "claimed" ? `claimed by ${ev.winnerDisplayName ?? "a player"}` : phase}
+                      {phase === "live" ? t("admin.jackpot.phaseLive") : phase === "claimed" ? t("admin.jackpot.claimedBy", { name: ev.winnerDisplayName ?? t("admin.jackpot.aPlayer") }) : t(`admin.jackpot.phases.${phase}`)}
                     </span>
                   </p>
                   {ev.codeSequence && (
                     <p className="text-xs text-primary font-mono mt-1">
-                      Code: {ev.codeSequence.split(",").join(" → ")}
+                      {t("admin.jackpot.codeLabel")} {ev.codeSequence.split(",").join(" → ")}
                     </p>
                   )}
                 </div>
@@ -305,8 +304,8 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
                   className="rounded-xl"
                 >
                   {busyId === ev.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : ev.isActive ? <><Square className="h-3.5 w-3.5" /> Deactivate</>
-                    : <><Play className="h-3.5 w-3.5" /> Activate</>}
+                    : ev.isActive ? <><Square className="h-3.5 w-3.5" /> {t("admin.jackpot.deactivate")}</>
+                    : <><Play className="h-3.5 w-3.5" /> {t("admin.jackpot.activate")}</>}
                 </Button>
               </div>
             );
@@ -314,15 +313,15 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         </div>
       )}
       <p className="mt-3 text-[11px] text-white/30">
-        Only one season can be live at a time — activating one deactivates the rest.
-        Keep your code private: anyone who knows it can claim the prize.
+        {t("admin.jackpot.footerNote")}
       </p>
     </div>
   );
 }
 
 export default function AdminPage() {
-  usePageTitle("Admin", "Site administration.");
+  const { t } = useTranslation();
+  usePageTitle(t("admin.pageTitle"), t("admin.pageDescription"));
   const { getAccessToken, profile, refreshProfile } = useAuth();
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -377,7 +376,7 @@ export default function AdminPage() {
       const headers = await authHeaders();
       const res = await fetch("/api/admin/bow-challenge", { headers });
       if (!res.ok) {
-        setBowMsg(`Bow race data unavailable (API ${res.status}) — database tables may not be set up yet.`);
+        setBowMsg(t("admin.bowRaceUnavailable", { status: res.status }));
         return;
       }
       const data = await res.json();
@@ -388,7 +387,7 @@ export default function AdminPage() {
       setBowHistory(data.history ?? []);
       setBowMsg(null);
     } catch (err) {
-      setBowMsg(`Could not load bow race data: ${err instanceof Error ? err.message : "network error"}`);
+      setBowMsg(t("admin.bowRaceLoadError", { reason: err instanceof Error ? err.message : t("admin.networkError") }));
     }
   }, [authHeaders]);
 
@@ -418,11 +417,11 @@ export default function AdminPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Save failed.");
+      if (!res.ok) throw new Error(data.error || t("admin.errorSaveFailed"));
       await loadBowRace();
-      setBowMsg("Bow race updated.");
+      setBowMsg(t("admin.bowRaceUpdated"));
     } catch (e) {
-      setBowMsg(e instanceof Error ? e.message : "Save failed.");
+      setBowMsg(e instanceof Error ? e.message : t("admin.errorSaveFailed"));
     } finally {
       setBowSaving(false);
     }
@@ -448,7 +447,7 @@ export default function AdminPage() {
   async function handleGrant() {
     const n = parseInt(amount, 10);
     if (!Number.isFinite(n) || n < 1 || n > 100000) {
-      setError("Enter an amount between 1 and 100000.");
+      setError(t("admin.errorAmountRange"));
       return;
     }
     setGranting(true);
@@ -461,11 +460,11 @@ export default function AdminPage() {
         body: JSON.stringify({ amount: n }),
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
-      if (!res.ok) throw new Error(data.error || "Grant failed.");
-      setMessage(`Granted ${data.granted} Visual Bucs. New balance: ${data.credits}.`);
+      if (!res.ok) throw new Error(data.error || t("admin.errorGrantFailed"));
+      setMessage(t("admin.grantedMessage", { amount: data.granted, balance: data.credits }));
       await refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Grant failed.");
+      setError(e instanceof Error ? e.message : t("admin.errorGrantFailed"));
     } finally {
       setGranting(false);
     }
@@ -474,11 +473,11 @@ export default function AdminPage() {
   async function handleFriendGrant() {
     const n = parseInt(friendAmount, 10);
     if (!Number.isFinite(n) || n < 1 || n > 100000) {
-      setFriendError("Enter an amount between 1 and 100000.");
+      setFriendError(t("admin.errorAmountRange"));
       return;
     }
     if (!friendEmail.trim()) {
-      setFriendError("Enter your friend's email.");
+      setFriendError(t("admin.errorFriendEmail"));
       return;
     }
     setFriendGranting(true);
@@ -491,24 +490,24 @@ export default function AdminPage() {
         body: JSON.stringify({ amount: n, email: friendEmail.trim() }),
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
-      if (!res.ok) throw new Error(data.error || "Grant failed.");
-      setFriendMessage(`Granted ${data.granted} Visual Bucs to ${friendEmail.trim()}. Their new balance: ${data.credits}.`);
+      if (!res.ok) throw new Error(data.error || t("admin.errorGrantFailed"));
+      setFriendMessage(t("admin.friendGrantedMessage", { amount: data.granted, email: friendEmail.trim(), balance: data.credits }));
       setFriendEmail("");
     } catch (e) {
-      setFriendError(e instanceof Error ? e.message : "Grant failed.");
+      setFriendError(e instanceof Error ? e.message : t("admin.errorGrantFailed"));
     } finally {
       setFriendGranting(false);
     }
   }
 
   async function handlePlanSet() {
-    const t = parseInt(planTier, 10);
-    if (!Number.isFinite(t) || t < 1 || t > 6) {
-      setPlanError("Pick a tier from 1 to 6.");
+    const tierNum = parseInt(planTier, 10);
+    if (!Number.isFinite(tierNum) || tierNum < 1 || tierNum > 6) {
+      setPlanError(t("admin.errorTierRange"));
       return;
     }
     if (!planEmail.trim()) {
-      setPlanError("Enter the user's email.");
+      setPlanError(t("admin.errorUserEmail"));
       return;
     }
     setPlanSaving(true);
@@ -518,14 +517,14 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/plan/set", {
         method: "POST",
         headers: { ...(await authHeaders()), "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: t, email: planEmail.trim() }),
+        body: JSON.stringify({ tier: tierNum, email: planEmail.trim() }),
       });
       const data = (await res.json()) as { tier?: number; rank?: string; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not set plan tier.");
-      setPlanMessage(`Set ${planEmail.trim()} to ${data.rank} (tier ${data.tier}).`);
+      if (!res.ok) throw new Error(data.error || t("admin.errorPlanSet"));
+      setPlanMessage(t("admin.planSetMessage", { email: planEmail.trim(), rank: data.rank, tier: data.tier }));
       setPlanEmail("");
     } catch (e) {
-      setPlanError(e instanceof Error ? e.message : "Could not set plan tier.");
+      setPlanError(e instanceof Error ? e.message : t("admin.errorPlanSet"));
     } finally {
       setPlanSaving(false);
     }
@@ -535,9 +534,9 @@ export default function AdminPage() {
     <div className="min-h-screen bg-black text-white px-4 py-8 max-w-xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
         <ShieldCheck className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Admin</h1>
+        <h1 className="text-2xl font-bold">{t("admin.pageTitle")}</h1>
       </div>
-      <p className="text-sm text-white/50 mb-6">Owner-only controls.</p>
+      <p className="text-sm text-white/50 mb-6">{t("admin.ownerOnly")}</p>
 
 
 
@@ -548,18 +547,18 @@ export default function AdminPage() {
           <Loader2 className="h-6 w-6 animate-spin text-white/40" />
         </div>
       ) : !isAdmin ? (
-        <p className="text-sm text-white/40 py-8 text-center">Not authorized.</p>
+        <p className="text-sm text-white/40 py-8 text-center">{t("admin.notAuthorized")}</p>
       ) : (
         <>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
             <div className="flex items-center gap-2 mb-1">
               <VisualBucsIcon className="h-4 w-4" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Give myself Visual Bucs
+                {t("admin.giveSelfTitle")}
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Current balance: <span className="font-bold text-white">{profile?.credits?.toLocaleString("en-US") ?? "—"}</span> Visual Bucs
+              {t("admin.currentBalance", { balance: profile?.credits?.toLocaleString("en-US") ?? "—" })}
             </p>
             <div className="flex gap-2">
               <input
@@ -573,29 +572,29 @@ export default function AdminPage() {
               />
               <Button onClick={() => { void handleGrant(); }} disabled={granting} className="rounded-xl">
                 {granting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Grant Visual Bucs
+                {t("admin.grantButton")}
               </Button>
             </div>
             {message && <p className="mt-3 text-sm text-green-400">{message}</p>}
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
             <p className="mt-4 text-[11px] text-white/30">
-              Grants are logged as "Admin Visual Buc Grant" in the Visual Buc ledger.
+              {t("admin.grantLogNote")}
             </p>
           </div>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
             <div className="flex items-center gap-2 mb-1">
               <Users className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Give a friend Visual Bucs
+                {t("admin.giveFriendTitle")}
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Send Visual Bucs to any user by their sign-in email.
+              {t("admin.giveFriendDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
               <input
                 type="email"
-                placeholder="friend@email.com"
+                placeholder={t("admin.friendEmailPlaceholder")}
                 value={friendEmail}
                 onChange={(e) => setFriendEmail(e.target.value)}
                 disabled={friendGranting}
@@ -612,7 +611,7 @@ export default function AdminPage() {
               />
               <Button onClick={() => { void handleFriendGrant(); }} disabled={friendGranting} className="rounded-xl">
                 {friendGranting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Send Visual Bucs
+                {t("admin.sendButton")}
               </Button>
             </div>
             {friendMessage && <p className="mt-3 text-sm text-green-400">{friendMessage}</p>}
@@ -622,16 +621,16 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1">
               <Star className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Set plan tier
+                {t("admin.planTitle")}
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              A user's plan tier caps their Creator Level stars — tier 1 gets 1 star, tier 6 gets all 6.
+              {t("admin.planDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
               <input
                 type="email"
-                placeholder="user@email.com"
+                placeholder={t("admin.planEmailPlaceholder")}
                 value={planEmail}
                 onChange={(e) => setPlanEmail(e.target.value)}
                 disabled={planSaving}
@@ -643,16 +642,16 @@ export default function AdminPage() {
                 disabled={planSaving}
                 className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
               >
-                <option value="1">1 — Street Punk</option>
-                <option value="2">2 — Hustler</option>
-                <option value="3">3 — Gangster</option>
-                <option value="4">4 — Shot Caller</option>
-                <option value="5">5 — Crime Boss</option>
-                <option value="6">6 — Kingpin</option>
+                <option value="1">1 — {t("admin.tiers.tier1")}</option>
+                <option value="2">2 — {t("admin.tiers.tier2")}</option>
+                <option value="3">3 — {t("admin.tiers.tier3")}</option>
+                <option value="4">4 — {t("admin.tiers.tier4")}</option>
+                <option value="5">5 — {t("admin.tiers.tier5")}</option>
+                <option value="6">6 — {t("admin.tiers.tier6")}</option>
               </select>
               <Button onClick={() => { void handlePlanSet(); }} disabled={planSaving} className="rounded-xl">
                 {planSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Set tier
+                {t("admin.setTierButton")}
               </Button>
             </div>
             {planMessage && <p className="mt-3 text-sm text-green-400">{planMessage}</p>}
@@ -662,49 +661,42 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1">
               <Crown className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Global Bow Race
+                {t("admin.bowRaceTitle")}
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              One secret site-wide race per month. Every signed-in user&rsquo;s bows feed a
-              single counter; each month draws a random target of 1,000&ndash;5,000 bows.
-              Whoever&rsquo;s bow lands exactly on the target wins the Visual Buc reward and sees
-              the surprise &ldquo;You Cracked the Code!&rdquo; popup. The race is never announced
-              anywhere &mdash; this panel is the only place it surfaces.
+              {t("admin.bowRaceDescription")}
             </p>
             {bowRace?.raceOver && bowRace.winnerEmail && (
               <div className="mb-4 rounded-xl border border-[#C9A84C]/60 bg-[#C9A84C]/10 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-[#e8c86a]" />
                   <p className="text-sm font-semibold text-[#e8c86a]">
-                    Race won &mdash; {bowRace.period}
+                    {t("admin.raceWon", { period: bowRace.period })}
                   </p>
                 </div>
                 <p className="mt-1 text-sm text-white/80">
-                  {bowRace.winnerEmail} landed bow #{bowRace.target.toLocaleString()} of{" "}
-                  {bowRace.target.toLocaleString()}
-                  {bowRace.wonAt ? ` on ${new Date(bowRace.wonAt).toLocaleString()}` : ""} and
-                  was awarded the Visual Buc reward.
+                  {t("admin.raceWonDetail", { email: bowRace.winnerEmail, target: bowRace.target.toLocaleString(), wonAt: bowRace.wonAt ? ` ${new Date(bowRace.wonAt).toLocaleString()}` : "" })}
                 </p>
               </div>
             )}
             {bowRace && !bowRace.raceOver && (
               <p className="mb-4 text-sm text-white/60">
-                Current race <span className="text-white/90 font-semibold">{bowRace.period}</span>:
+                {t("admin.currentRacePrefix")} <span className="text-white/90 font-semibold">{bowRace.period}</span>:
                 {" "}<span className="text-white/90 font-semibold">{bowRace.totalBows.toLocaleString()}</span>
-                {" "}bows so far &mdash; target{" "}
+                {" "}{t("admin.bowsSoFar")} — {t("admin.targetLabel")}{" "}
                 <span className="text-white/90 font-semibold">{bowRace.target.toLocaleString()}</span>.
-                No winner yet.
+                {t("admin.noWinnerYet")}
               </p>
             )}
             {!bowRace && (
               <p className="mb-4 text-sm text-white/40">
-                No race has started this month yet &mdash; the first signed-in bow draws the target.
+                {t("admin.noRaceYet")}
               </p>
             )}
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs text-white/40">
-                Visual Buc reward
+                {t("admin.bowRewardLabel")}
                 <input
                   type="number" min={1} max={10000}
                   value={bowReward}
@@ -714,10 +706,10 @@ export default function AdminPage() {
                 />
               </label>
               <label className="text-xs text-white/40">
-                Target override (1000&ndash;5000, blank = random)
+                {t("admin.targetOverrideLabel")}
                 <input
                   type="number" min={1000} max={5000}
-                  placeholder="random"
+                  placeholder={t("admin.randomPlaceholder")}
                   value={bowOverride}
                   onChange={(e) => setBowOverride(e.target.value)}
                   disabled={bowSaving}
@@ -732,40 +724,38 @@ export default function AdminPage() {
                   disabled={bowSaving}
                   className="h-4 w-4 accent-[#C9A84C]"
                 />
-                Enabled
+                {t("admin.enabledLabel")}
               </label>
               <Button onClick={() => { void handleBowSave(); }} disabled={bowSaving} className="rounded-xl">
                 {bowSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Save
+                {t("admin.saveButton")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setBowTestPopup(true)}
                 className="rounded-xl"
-                title="Preview the winner popup (no Visual Bucs granted, no race state changed)"
+                title={t("admin.testPopupTitle")}
               >
-                Test winner popup
+                {t("admin.testPopupButton")}
               </Button>
             </div>
             {bowMsg && <p className="mt-3 text-sm text-green-400">{bowMsg}</p>}
             <p className="mt-4 text-[11px] text-white/30">
-              A new month automatically starts a new race with a fresh random target &mdash; no
-              manual reset. The override applies one time to the next race month, then
-              clears itself. Rewards are logged as &ldquo;Global Bow Race&rdquo; in the Visual Buc ledger.
+              {t("admin.bowRaceFooterNote")}
             </p>
             {bowHistory.length > 0 && (
               <div className="mt-4">
                 <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">
-                  Win history
+                  {t("admin.winHistory")}
                 </p>
                 <div className="overflow-hidden rounded-xl border border-white/[0.06]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-white/[0.03] text-left text-xs text-white/40">
-                        <th className="px-3 py-2 font-semibold">Month</th>
-                        <th className="px-3 py-2 font-semibold">Target</th>
-                        <th className="px-3 py-2 font-semibold">Winner</th>
-                        <th className="px-3 py-2 font-semibold">Won at</th>
+                        <th className="px-3 py-2 font-semibold">{t("admin.tableMonth")}</th>
+                        <th className="px-3 py-2 font-semibold">{t("admin.tableTarget")}</th>
+                        <th className="px-3 py-2 font-semibold">{t("admin.tableWinner")}</th>
+                        <th className="px-3 py-2 font-semibold">{t("admin.tableWonAt")}</th>
                       </tr>
                     </thead>
                     <tbody>

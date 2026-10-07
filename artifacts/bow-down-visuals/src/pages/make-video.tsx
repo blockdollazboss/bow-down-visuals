@@ -33,6 +33,7 @@ import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useTranslation } from "react-i18next";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -55,40 +56,73 @@ interface VideoFormValues {
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
 
-const GENRES = [
-  "Hip Hop","Drill","Trap","R&B","Pop",
-  "Afrobeats","Dancehall","Gospel","Kids Music","Rock","Country","Other",
+const GENRES: Array<{ value: string; labelKey: string }> = [
+  { value: "Hip Hop", labelKey: "makeVideo.genreHipHop" },
+  { value: "Drill", labelKey: "makeVideo.genreDrill" },
+  { value: "Trap", labelKey: "makeVideo.genreTrap" },
+  { value: "R&B", labelKey: "makeVideo.genreRB" },
+  { value: "Pop", labelKey: "makeVideo.genrePop" },
+  { value: "Afrobeats", labelKey: "makeVideo.genreAfrobeats" },
+  { value: "Dancehall", labelKey: "makeVideo.genreDancehall" },
+  { value: "Gospel", labelKey: "makeVideo.genreGospel" },
+  { value: "Kids Music", labelKey: "makeVideo.genreKidsMusic" },
+  { value: "Rock", labelKey: "makeVideo.genreRock" },
+  { value: "Country", labelKey: "makeVideo.genreCountry" },
+  { value: "Other", labelKey: "makeVideo.genreOther" },
 ];
 
-const MOODS = [
-  "Luxury","Dark","Emotional","Street","Romantic",
-  "Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly",
+const MOODS: Array<{ value: string; labelKey: string }> = [
+  { value: "Luxury", labelKey: "makeVideo.moodLuxury" },
+  { value: "Dark", labelKey: "makeVideo.moodDark" },
+  { value: "Emotional", labelKey: "makeVideo.moodEmotional" },
+  { value: "Street", labelKey: "makeVideo.moodStreet" },
+  { value: "Romantic", labelKey: "makeVideo.moodRomantic" },
+  { value: "Energetic", labelKey: "makeVideo.moodEnergetic" },
+  { value: "Pain", labelKey: "makeVideo.moodPain" },
+  { value: "Victory", labelKey: "makeVideo.moodVictory" },
+  { value: "Party", labelKey: "makeVideo.moodParty" },
+  { value: "Inspirational", labelKey: "makeVideo.moodInspirational" },
+  { value: "Funny", labelKey: "makeVideo.moodFunny" },
+  { value: "Kid-Friendly", labelKey: "makeVideo.moodKidFriendly" },
 ];
 
-const VIDEO_STYLES = [
-  "Street Cinematic","Luxury Rap Video","Brooklyn Drill","Dark Emotional Story",
-  "Performance Video","Club Video","Cartoon Music Video","Anime Music Video",
-  "Kids Nursery Rhyme","Romantic R&B Visual","Documentary Style",
+const VIDEO_STYLES: Array<{ value: string; labelKey: string }> = [
+  { value: "Street Cinematic", labelKey: "makeVideo.videoStyleStreetCinematic" },
+  { value: "Luxury Rap Video", labelKey: "makeVideo.videoStyleLuxuryRap" },
+  { value: "Brooklyn Drill", labelKey: "makeVideo.videoStyleBrooklynDrill" },
+  { value: "Dark Emotional Story", labelKey: "makeVideo.videoStyleDarkEmotional" },
+  { value: "Performance Video", labelKey: "makeVideo.videoStylePerformance" },
+  { value: "Club Video", labelKey: "makeVideo.videoStyleClub" },
+  { value: "Cartoon Music Video", labelKey: "makeVideo.videoStyleCartoon" },
+  { value: "Anime Music Video", labelKey: "makeVideo.videoStyleAnime" },
+  { value: "Kids Nursery Rhyme", labelKey: "makeVideo.videoStyleKids" },
+  { value: "Romantic R&B Visual", labelKey: "makeVideo.videoStyleRomanticRB" },
+  { value: "Documentary Style", labelKey: "makeVideo.videoStyleDocumentary" },
 ];
 
-const PLATFORMS = [
-  "TikTok / Reels / Shorts - 9:16",
-  "YouTube Music Video - 16:9",
-  "Square Social Post - 1:1",
-  "All Formats",
+const PLATFORMS: Array<{ value: string; labelKey: string }> = [
+  { value: "TikTok / Reels / Shorts - 9:16", labelKey: "makeVideo.platformTiktok" },
+  { value: "YouTube Music Video - 16:9", labelKey: "makeVideo.platformYoutube" },
+  { value: "Square Social Post - 1:1", labelKey: "makeVideo.platformSquare" },
+  { value: "All Formats", labelKey: "makeVideo.platformAll" },
 ];
 
-const LENGTHS = ["15 seconds","30 seconds","60 seconds","Full song"];
+const LENGTHS: Array<{ value: string; labelKey: string }> = [
+  { value: "15 seconds", labelKey: "makeVideo.length15s" },
+  { value: "30 seconds", labelKey: "makeVideo.length30s" },
+  { value: "60 seconds", labelKey: "makeVideo.length60s" },
+  { value: "Full song", labelKey: "makeVideo.lengthFull" },
+];
 
 /* ─────────────────────────── STEPPER DEFINITION ─────────────────────────── */
 
 const STEPS = [
-  { n: 1, label: "Song Setup",       short: "Song",     icon: Music2 },
-  { n: 2, label: "Artist / Brand",   short: "Artist",   icon: Palette },
-  { n: 3, label: "Video Direction",  short: "Direction",icon: Camera },
-  { n: 4, label: "Create Plan",       short: "Create",   icon: Sparkles },
-  { n: 5, label: "Scene Clips",      short: "Scenes",   icon: Clapperboard },
-  { n: 6, label: "Download & Share",  short: "Share",    icon: Download },
+  { n: 1, labelKey: "makeVideo.step1Label", shortKey: "makeVideo.step1Short", icon: Music2 },
+  { n: 2, labelKey: "makeVideo.step2Label", shortKey: "makeVideo.step2Short", icon: Palette },
+  { n: 3, labelKey: "makeVideo.step3Label", shortKey: "makeVideo.step3Short", icon: Camera },
+  { n: 4, labelKey: "makeVideo.step4Label", shortKey: "makeVideo.step4Short", icon: Sparkles },
+  { n: 5, labelKey: "makeVideo.step5Label", shortKey: "makeVideo.step5Short", icon: Clapperboard },
+  { n: 6, labelKey: "makeVideo.step6Label", shortKey: "makeVideo.step6Short", icon: Download },
 ];
 
 /* ─────────────────────────── FORM HELPERS ─────────────────────────── */
@@ -115,9 +149,10 @@ const selectClass =
 function StyledSelect({
   name, placeholder, options, value, onChange,
 }: {
-  name: string; placeholder: string; options: string[];
+  name: string; placeholder: string; options: Array<{ value: string; labelKey: string }>;
   value: string; onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="relative">
       <select
@@ -129,7 +164,7 @@ function StyledSelect({
       >
         <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
         {options.map((o) => (
-          <option key={o} value={o} style={{ background: "#111" }}>{o}</option>
+          <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>
         ))}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
@@ -182,25 +217,26 @@ function parseSections(raw: string): Array<{ key: string; content: string }> {
   return result;
 }
 
-const SECTION_META: Record<string, { label: string; icon: React.ElementType }> = {
-  "DIRECTOR'S TREATMENT":   { label: "Director's Treatment",    icon: Video },
-  "VISUAL CONCEPT":         { label: "Visual Concept",          icon: Palette },
-  "COLOR PALETTE":          { label: "Color Palette",           icon: Palette },
-  "MAIN LOCATIONS":         { label: "Main Locations",          icon: MapPin },
-  "WARDROBE & ARTIST LOOK": { label: "Wardrobe & Artist Look",  icon: Music2 },
-  "CAMERA DIRECTIONS":      { label: "Camera Directions",       icon: Camera },
-  "SCENE-BY-SCENE BREAKDOWN": { label: "Scene-by-Scene Breakdown", icon: Clapperboard },
-  "AI VIDEO PROMPTS":       { label: "AI Video Prompts",        icon: Sparkles },
-  "NEGATIVE PROMPTS":       { label: "Negative Prompts",        icon: Film },
-  "THUMBNAIL PROMPTS":      { label: "Thumbnail Prompts",       icon: Film },
-  "PROMO CLIP IDEAS":       { label: "Promo Clip Ideas",        icon: Film },
-  "CAPTION IDEAS":          { label: "Caption Ideas",           icon: FileText },
+const SECTION_META: Record<string, { labelKey: string; icon: React.ElementType }> = {
+  "DIRECTOR'S TREATMENT":   { labelKey: "makeVideo.sectionDirectorsTreatment", icon: Video },
+  "VISUAL CONCEPT":         { labelKey: "makeVideo.sectionVisualConcept",     icon: Palette },
+  "COLOR PALETTE":          { labelKey: "makeVideo.sectionColorPalette",      icon: Palette },
+  "MAIN LOCATIONS":         { labelKey: "makeVideo.sectionMainLocations",     icon: MapPin },
+  "WARDROBE & ARTIST LOOK": { labelKey: "makeVideo.sectionWardrobe",          icon: Music2 },
+  "CAMERA DIRECTIONS":      { labelKey: "makeVideo.sectionCamera",            icon: Camera },
+  "SCENE-BY-SCENE BREAKDOWN": { labelKey: "makeVideo.sectionSceneBreakdown",  icon: Clapperboard },
+  "AI VIDEO PROMPTS":       { labelKey: "makeVideo.sectionAiPrompts",         icon: Sparkles },
+  "NEGATIVE PROMPTS":       { labelKey: "makeVideo.sectionNegativePrompts",   icon: Film },
+  "THUMBNAIL PROMPTS":      { labelKey: "makeVideo.sectionThumbnailPrompts",  icon: Film },
+  "PROMO CLIP IDEAS":       { labelKey: "makeVideo.sectionPromoClips",        icon: Film },
+  "CAPTION IDEAS":          { labelKey: "makeVideo.sectionCaptionIdeas",       icon: FileText },
 };
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeVideo() {
-  usePageTitle("Make a Music Video", "Turn your song into a cinematic music video with AI scene generation.");
+  const { t } = useTranslation();
+  usePageTitle(t("makeVideo.pageTitle"), t("makeVideo.pageDescription"));
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
@@ -260,10 +296,10 @@ export default function MakeVideo() {
     if (!watched.artistDescription) {
       const parts = [
         vault.personality,
-        vault.hair ? `Hair: ${vault.hair}` : null,
-        vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
-        vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,
-        vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
+        vault.hair ? `${t("makeVideo.hairLabel")}: ${vault.hair}` : null,
+        vault.tattoos ? `${t("makeVideo.tattoosLabel")}: ${vault.tattoos}` : null,
+        vault.jewelry ? `${t("makeVideo.jewelryLabel")}: ${vault.jewelry}` : null,
+        vault.clothing_style ? `${t("makeVideo.clothingLabel")}: ${vault.clothing_style}` : null,
       ].filter(Boolean);
       if (parts.length > 0) setValue("artistDescription", parts.join(". "));
     }
@@ -289,7 +325,7 @@ export default function MakeVideo() {
       const data = (await res.json()) as SongStructure;
       setSongStructure(data);
     } catch {
-      setAnalyzeError("Analysis failed. You can still generate without it.");
+      setAnalyzeError(t("makeVideo.analysisFailedNote"));
     } finally {
       setAnalyzing(false);
     }
@@ -318,7 +354,7 @@ export default function MakeVideo() {
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
     } catch (err) {
-      setAudioSceneError(err instanceof Error ? err.message : "Could not generate scenes from this song.");
+      setAudioSceneError(err instanceof Error ? err.message : t("makeVideo.audioSceneFailed"));
     } finally {
       setGeneratingScenesFromAudio(false);
     }
@@ -386,7 +422,7 @@ export default function MakeVideo() {
       void performSave({ result, sceneData: parsedScenes, ghid: gid ?? null });
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      const msg = err instanceof Error ? err.message : t("makeVideo.generationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -413,7 +449,7 @@ export default function MakeVideo() {
             const fv = parsed.formValues ?? {};
             const titleParts = [fv["artistName"], fv["songTitle"]].filter(Boolean).join(" — ");
             if (!cancelled) {
-              setDraftInfo({ title: titleParts || "Unsaved draft", updated: new Date(parsed.timestamp ?? 0).toLocaleString() });
+              setDraftInfo({ title: titleParts || t("makeVideo.unsavedDraft"), updated: new Date(parsed.timestamp ?? 0).toLocaleString() });
               setDraftState("found");
             }
             return;
@@ -434,7 +470,7 @@ export default function MakeVideo() {
           const d = data.drafts[0];
           if (!cancelled) {
             setDraftId(d.id);
-            setDraftInfo({ title: d.title ?? "Unsaved draft", updated: new Date(d.updated_at).toLocaleString() });
+            setDraftInfo({ title: d.title ?? t("makeVideo.unsavedDraft"), updated: new Date(d.updated_at).toLocaleString() });
             setDraftState("found");
           }
         }
@@ -466,7 +502,7 @@ export default function MakeVideo() {
       if (Date.now() < suppressDraftSaveUntil.current) return;
       try {
         const token = await getAccessToken();
-        const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make a Music Video Draft";
+        const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || t("makeVideo.draftTitleFallback");
         await fetch("/api/drafts", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
@@ -540,7 +576,7 @@ export default function MakeVideo() {
         }
       }
 
-      if (!payload) throw new Error("Draft data not found — it may have expired.");
+      if (!payload) throw new Error(t("makeVideo.draftNotFound"));
 
       // Restore all fields
       if (payload.rawResult) setRawResult(payload.rawResult);
@@ -576,7 +612,7 @@ export default function MakeVideo() {
       setDraftState("recovered");
       setTimeout(() => setDraftState("idle"), 2500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Draft data not found — it may have expired. Try the backup JSON.";
+      const msg = err instanceof Error ? err.message : t("makeVideo.draftNotFoundBackup");
       setDraftError(msg);
       setDraftState("failed");
     }
@@ -614,7 +650,7 @@ export default function MakeVideo() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
           projectType:  "Make a Music Video",
-          title:        [watched.artistName, watched.songTitle].filter(Boolean).join(" - ") || "Make a Music Video",
+          title:        [watched.artistName, watched.songTitle].filter(Boolean).join(" - ") || t("makeVideo.defaultProjectTitle"),
           artistName:   watched.artistName || null,
           songTitle:    watched.songTitle  || null,
           genre:        watched.genre      || null,
@@ -634,11 +670,11 @@ export default function MakeVideo() {
         if (body.refunded) {
           setCreditRefunded(true);
           refreshProfile();
-          toast({ title: "Visual Bucs refunded", description: "Project save failed — Visual Bucs returned. Your generation is in Generation History.", variant: "destructive" });
+          toast({ title: t("makeVideo.toastRefundedTitle"), description: t("makeVideo.toastRefundedDesc"), variant: "destructive" });
         } else {
           const msg = body.error ?? `Save failed (HTTP ${res.status})`;
           setSaveError(msg);
-          toast({ title: "Save failed", description: msg, variant: "destructive" });
+          toast({ title: t("makeVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });
         }
         setAutoSaveStatus("failed");
         return;
@@ -651,9 +687,9 @@ export default function MakeVideo() {
         fetch(`/api/drafts/${draftId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } }).catch(() => {});
         setDraftId(null);
       }
-      toast({ title: "Project saved!", description: "Find it in My Projects." });
+      toast({ title: t("makeVideo.toastProjectSavedTitle"), description: t("makeVideo.toastProjectSavedDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save failed — please try again";
+      const msg = err instanceof Error ? err.message : t("makeVideo.saveFailedRetry");
       setSaveError(msg);
       setAutoSaveStatus("failed");
       toast({ title: "Save failed", description: msg, variant: "destructive" });
@@ -674,8 +710,8 @@ export default function MakeVideo() {
         addAsset({
           kind: "video",
           url,
-          label: `Scene ${sc.sceneNumber} — ${sc.section || "clip"}`,
-          detail: sc.action ? sc.action.slice(0, 60) : "AI scene clip",
+          label: t("makeVideo.sceneAssetLabel", { n: sc.sceneNumber, section: sc.section || t("makeVideo.clipFallback") }),
+          detail: sc.action ? sc.action.slice(0, 60) : t("makeVideo.sceneAssetDetail"),
         });
       }
     }
@@ -692,7 +728,7 @@ export default function MakeVideo() {
 
   async function saveScenes() {
     if (!savedProjectId) {
-      toast({ title: "Save your project first", description: "Use Save Project in Next Actions.", variant: "destructive" });
+      toast({ title: t("makeVideo.toastSaveFirstTitle"), description: t("makeVideo.toastSaveFirstDesc"), variant: "destructive" });
       return;
     }
     setSavingScenes(true);
@@ -704,7 +740,7 @@ export default function MakeVideo() {
         body: JSON.stringify({ scenes }),
       });
       if (!res.ok) throw new Error();
-      toast({ title: "Scenes saved" });
+      toast({ title: t("makeVideo.toastScenesSavedTitle") });
     } catch {
       toast({ title: "Save failed", variant: "destructive" });
     } finally {
@@ -719,10 +755,10 @@ export default function MakeVideo() {
     setValue("artistName", vault.artist_name);
     const desc = [
       vault.personality,
-      vault.hair           ? `Hair: ${vault.hair}`                 : null,
-      vault.tattoos        ? `Tattoos: ${vault.tattoos}`           : null,
-      vault.jewelry        ? `Jewelry: ${vault.jewelry}`           : null,
-      vault.clothing_style ? `Clothing: ${vault.clothing_style}`   : null,
+      vault.hair           ? `${t("makeVideo.hairLabel")}: ${vault.hair}`                 : null,
+      vault.tattoos        ? `${t("makeVideo.tattoosLabel")}: ${vault.tattoos}`           : null,
+      vault.jewelry        ? `${t("makeVideo.jewelryLabel")}: ${vault.jewelry}`           : null,
+      vault.clothing_style ? `${t("makeVideo.clothingLabel")}: ${vault.clothing_style}`   : null,
     ].filter(Boolean).join(". ");
     setValue("artistDescription", desc || vault.artist_name);
     if (vault.brand_colors)       setValue("brandColors", vault.brand_colors);
@@ -759,12 +795,12 @@ export default function MakeVideo() {
 
   /* ── Next button label ── */
   function nextLabel(s: number): string {
-    if (s === 1) return "Artist & Brand";
-    if (s === 2) return "Video Direction";
-    if (s === 3) return "Review & Create Plan";
-    if (s === 4) return rawResult ? "Scene Clips" : "Create plan first";
-    if (s === 5) return "Download & Share";
-    return "Next";
+    if (s === 1) return t("makeVideo.nextArtistBrand");
+    if (s === 2) return t("makeVideo.nextVideoDirection");
+    if (s === 3) return t("makeVideo.nextReviewCreate");
+    if (s === 4) return rawResult ? t("makeVideo.nextSceneClips") : t("makeVideo.createPlanFirst");
+    if (s === 5) return t("makeVideo.nextDownloadShare");
+    return t("makeVideo.next");
   }
 
   /* ── Download helpers ── */
@@ -815,7 +851,7 @@ export default function MakeVideo() {
         {/* Breadcrumb */}
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Dashboard
+          {t("makeVideo.backToDashboard")}
         </Link>
 
         {/* ── Draft Recovery Modal ── */}
@@ -826,22 +862,22 @@ export default function MakeVideo() {
               {draftState === "found" && (
                 <div className="p-6 space-y-5">
                   <div>
-                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">Unsaved Draft Found</p>
-                    <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? "Previous session"}</p>
+                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">{t("makeVideo.draftFoundTitle")}</p>
+                    <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? t("makeVideo.previousSession")}</p>
                     {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
                   </div>
-                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no Visual Bucs will be charged.</p>
+                  <p className="text-sm text-white/50">{t("makeVideo.draftFoundHint")}</p>
                   <div className="space-y-2.5">
                     <Button onClick={() => { void handleRecover(); }} className="w-full gold-glow font-bold gap-2 h-11">
-                      <RefreshCcw className="h-4 w-4" /> Recover Draft
+                      <RefreshCcw className="h-4 w-4" /> {t("makeVideo.recoverDraft")}
                     </Button>
                     <button onClick={downloadDraftBackup}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-sm text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors font-semibold">
-                      <Download className="h-4 w-4" /> Download Backup JSON
+                      <Download className="h-4 w-4" /> {t("makeVideo.downloadBackupJson")}
                     </button>
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
-                      Discard Draft
+                      {t("makeVideo.discardDraft")}
                     </button>
                   </div>
                 </div>
@@ -850,8 +886,8 @@ export default function MakeVideo() {
                 <div className="p-8 flex flex-col items-center gap-4">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
                   <div className="text-center">
-                    <p className="font-bold text-white">Recovering draft…</p>
-                    <p className="text-xs text-white/40 mt-1">Restoring all your content</p>
+                    <p className="font-bold text-white">{t("makeVideo.recoveringDraft")}</p>
+                    <p className="text-xs text-white/40 mt-1">{t("makeVideo.restoringContent")}</p>
                   </div>
                 </div>
               )}
@@ -861,8 +897,8 @@ export default function MakeVideo() {
                     <Check className="h-7 w-7 text-green-400" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-white text-lg">Draft Recovered</p>
-                    <p className="text-xs text-white/40 mt-1">Your project has been fully restored</p>
+                    <p className="font-black text-white text-lg">{t("makeVideo.draftRecovered")}</p>
+                    <p className="text-xs text-white/40 mt-1">{t("makeVideo.projectRestored")}</p>
                   </div>
                 </div>
               )}
@@ -873,18 +909,18 @@ export default function MakeVideo() {
                       <X className="h-4 w-4 text-red-400" />
                     </div>
                     <div>
-                      <p className="font-bold text-white text-sm">Recovery Failed</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.recoveryFailed")}</p>
                       <p className="text-xs text-red-300/80 mt-0.5 leading-relaxed">{draftError}</p>
                     </div>
                   </div>
                   <div className="space-y-2.5">
                     <button onClick={downloadDraftBackup}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/[0.07] text-sm text-primary hover:bg-primary/15 transition-colors font-semibold">
-                      <Download className="h-4 w-4" /> Download Backup JSON
+                      <Download className="h-4 w-4" /> {t("makeVideo.downloadBackupJson")}
                     </button>
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
-                      Dismiss
+                      {t("makeVideo.dismiss")}
                     </button>
                   </div>
                 </div>
@@ -899,13 +935,13 @@ export default function MakeVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Video className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">100 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">{t("makeVideo.priceBadge")}</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            Make a Music Video
+            {t("makeVideo.title")}
           </h1>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
-            A step-by-step studio — from song setup to a cinematic AI music video plan.
+            {t("makeVideo.subtitle")}
           </p>
         </div>
 
@@ -945,7 +981,7 @@ export default function MakeVideo() {
                   <span className={`text-[10px] font-bold hidden sm:block whitespace-nowrap ${
                     isActive ? "text-primary" : isDone ? "text-white/50" : "text-white/30"
                   }`}>
-                    {s.short}
+                    {t(s.shortKey)}
                   </span>
                 </button>
               );
@@ -968,42 +1004,42 @@ export default function MakeVideo() {
           {step === 1 && (
             <div className="space-y-7">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Song Setup</h2>
-                <p className="text-sm text-white/40">Tell us about the track, upload your song, and add lyrics.</p>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step1Label")}</h2>
+                <p className="text-sm text-white/40">{t("makeVideo.step1Hint")}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Artist Name">
+                <FieldWrapper label={t("makeVideo.artistNameLabel")}>
                   <Input
                     {...register("artistName", { required: true })}
-                    placeholder="e.g. Lil Nova"
+                    placeholder={t("makeVideo.artistNamePlaceholder")}
                     className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
                   />
-                  {errors.artistName && <p className="text-red-400 text-xs mt-1">Required</p>}
+                  {errors.artistName && <p className="text-red-400 text-xs mt-1">{t("makeVideo.required")}</p>}
                 </FieldWrapper>
-                <FieldWrapper label="Song Title">
-                  <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
+                <FieldWrapper label={t("makeVideo.songTitleLabel")}>
+                  <Input {...register("songTitle")} placeholder={t("makeVideo.songTitlePlaceholder")} className={inputClass} />
                 </FieldWrapper>
               </div>
 
               {/* Genre + Mood — style picks (2) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
-                <FieldWrapper label="Genre">
-                  <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
+                <FieldWrapper label={t("makeVideo.genreLabel")}>
+                  <StyledSelect name="genre" placeholder={t("makeVideo.selectGenre")} options={GENRES}
                     value={watched.genre} onChange={(v) => setValue("genre", v)} />
                 </FieldWrapper>
-                <FieldWrapper label="Mood">
-                  <StyledSelect name="mood" placeholder="Select mood..." options={MOODS}
+                <FieldWrapper label={t("makeVideo.moodLabel")}>
+                  <StyledSelect name="mood" placeholder={t("makeVideo.selectMood")} options={MOODS}
                     value={watched.mood} onChange={(v) => setValue("mood", v)} />
                 </FieldWrapper>
               </div>
 
               <ProjectFlowBar
                 kinds={["song"]}
-                actionLabel="Use track"
+                actionLabel={t("makeVideo.useTrack")}
                 onPick={(asset) => { setAudioUrl(asset.url); setSongSegment(null); }}
               />
-              <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
+              <FieldWrapper label={t("makeVideo.uploadSongLabel")} hint={t("makeVideo.uploadSongHint")}>
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
                   onFileUrl={(url) => { setAudioUrl(url); setSongSegment(null); }}
@@ -1022,10 +1058,10 @@ export default function MakeVideo() {
                 )}
               </FieldWrapper>
 
-              <FieldWrapper label="Lyrics" hint="Paste lyrics below, or upload audio above and click Transcribe.">
+              <FieldWrapper label={t("makeVideo.lyricsLabel")} hint={t("makeVideo.lyricsHint")}>
                 <Textarea
                   {...register("lyrics")}
-                  placeholder="Paste your lyrics here — or transcribe from audio above..."
+                  placeholder={t("makeVideo.lyricsPlaceholder")}
                   className={textareaClass}
                   style={{ minHeight: "160px" }}
                 />
@@ -1038,12 +1074,12 @@ export default function MakeVideo() {
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
                     >
                       {analyzing
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
-                        : <><BarChart2 className="h-4 w-4" /> Find Hook &amp; Verses</>}
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("makeVideo.analyzing")}</>
+                        : <><BarChart2 className="h-4 w-4" /> {t("makeVideo.findHookVerses")}</>}
                     </button>
                     {songStructure && !analyzing && (
                       <span className="text-xs text-primary/60 flex items-center gap-1.5">
-                        <Check className="h-3 w-3" /> Analysis complete
+                        <Check className="h-3 w-3" /> {t("makeVideo.analysisComplete")}
                       </span>
                     )}
                     {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
@@ -1058,10 +1094,10 @@ export default function MakeVideo() {
                 <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary shrink-0" /> Skip the text plan
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" /> {t("makeVideo.skipTextPlan")}
                     </p>
                     <p className="text-xs text-white/40 mt-0.5">
-                      Generate a timed scene list straight from this song's beat and structure — no AI text breakdown needed.
+                      {t("makeVideo.skipTextPlanHint")}
                     </p>
                   </div>
                   <button
@@ -1072,8 +1108,8 @@ export default function MakeVideo() {
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
                   >
                     {generatingScenesFromAudio
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating scenes...</>
-                      : <><Clapperboard className="h-4 w-4" /> Generate Scenes From Song</>}
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("makeVideo.generatingScenes")}</>
+                      : <><Clapperboard className="h-4 w-4" /> {t("makeVideo.generateScenesFromSong")}</>}
                   </button>
                   {audioSceneError && <p className="text-xs text-red-400/80 basis-full">{audioSceneError}</p>}
                 </div>
@@ -1085,9 +1121,9 @@ export default function MakeVideo() {
           {step === 2 && (
             <div className="space-y-7">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Artist / Brand</h2>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step2Label")}</h2>
                 <p className="text-sm text-white/40">
-                  {activeArtist ? "Your active artist is ready to go." : "Load your vault profile or describe the artist's look and brand."}
+                  {activeArtist ? t("makeVideo.activeArtistReady") : t("makeVideo.step2Hint")}
                 </p>
               </div>
 
@@ -1104,22 +1140,22 @@ export default function MakeVideo() {
                     <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
                   </div>
 
-                  <FieldWrapper label="Artist Description">
+                  <FieldWrapper label={t("makeVideo.artistDescriptionLabel")}>
                     <Textarea
                       {...register("artistDescription", { required: !loadedVault })}
-                      placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe, style references, typical vibe, and anything important for the video..."
+                      placeholder={t("makeVideo.artistDescriptionPlaceholder")}
                       className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
                       style={{ minHeight: "120px" }}
                     />
-                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
+                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">{t("makeVideo.required")}</p>}
                   </FieldWrapper>
 
                   {/* Brand Colors — tweak option (3) */}
                   <div data-min-stars="3">
-                    <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
+                    <FieldWrapper label={t("makeVideo.brandColorsLabel")} hint={t("makeVideo.brandColorsHint")}>
                       <Input
                         {...register("brandColors")}
-                        placeholder="e.g. All black, silver accents, deep purple"
+                        placeholder={t("makeVideo.brandColorsPlaceholder")}
                         className={inputClass}
                       />
                     </FieldWrapper>
@@ -1127,10 +1163,10 @@ export default function MakeVideo() {
 
                   {/* Visual Style Rules — tweak options (3) */}
                   <div data-min-stars="3">
-                    <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
+                    <FieldWrapper label={t("makeVideo.visualStyleRulesLabel")} hint={t("makeVideo.visualStyleRulesHint")}>
                       <Textarea
                         {...register("visualStyleRules")}
-                        placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
+                        placeholder={t("makeVideo.visualStyleRulesPlaceholder")}
                         className={textareaClass}
                         style={{ minHeight: "90px" }}
                       />
@@ -1139,10 +1175,10 @@ export default function MakeVideo() {
 
                   {/* Do Not Change Rules — manual overrides (4) */}
                   <div data-min-stars="4">
-                    <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
+                    <FieldWrapper label={t("makeVideo.doNotChangeRulesLabel")} hint={t("makeVideo.doNotChangeRulesHint")}>
                       <Textarea
                         {...register("doNotChangeRules")}
-                        placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
+                        placeholder={t("makeVideo.doNotChangeRulesPlaceholder")}
                         className={textareaClass}
                         style={{ minHeight: "90px" }}
                       />
@@ -1157,36 +1193,36 @@ export default function MakeVideo() {
           {step === 3 && (
             <div className="space-y-7">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Video Direction</h2>
-                <p className="text-sm text-white/40">Choose the style, platform, and creative direction for your video.</p>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step3Label")}</h2>
+                <p className="text-sm text-white/40">{t("makeVideo.step3Hint")}</p>
               </div>
 
               {/* Video Style + Platform — style picks (2) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
-                <FieldWrapper label="Video Style">
-                  <StyledSelect name="videoStyle" placeholder="Select style..." options={VIDEO_STYLES}
+                <FieldWrapper label={t("makeVideo.videoStyleLabel")}>
+                  <StyledSelect name="videoStyle" placeholder={t("makeVideo.selectStyle")} options={VIDEO_STYLES}
                     value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
                 </FieldWrapper>
-                <FieldWrapper label="Platform">
-                  <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS}
+                <FieldWrapper label={t("makeVideo.platformLabel")}>
+                  <StyledSelect name="platform" placeholder={t("makeVideo.selectPlatform")} options={PLATFORMS}
                     value={watched.platform} onChange={(v) => setValue("platform", v)} />
                 </FieldWrapper>
               </div>
 
               {/* Video Length — tweak option (3) */}
               <div data-min-stars="3">
-                <FieldWrapper label="Video Length">
-                  <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
+                <FieldWrapper label={t("makeVideo.videoLengthLabel")}>
+                  <StyledSelect name="videoLength" placeholder={t("makeVideo.selectLength")} options={LENGTHS}
                     value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
                 </FieldWrapper>
               </div>
 
               {/* Location Ideas — tweak options (3) */}
               <div data-min-stars="3">
-                <FieldWrapper label="Location Ideas" hint="Suggest locations, environments, or settings for your scenes.">
+                <FieldWrapper label={t("makeVideo.locationIdeasLabel")} hint={t("makeVideo.locationIdeasHint")}>
                   <Textarea
                     {...register("locationIdeas")}
-                    placeholder="e.g. Brooklyn streets at night, rooftop overlooking the city, abandoned warehouse..."
+                    placeholder={t("makeVideo.locationIdeasPlaceholder")}
                     className={textareaClass}
                     style={{ minHeight: "90px" }}
                   />
@@ -1195,10 +1231,10 @@ export default function MakeVideo() {
 
               {/* Special Visual Instructions — manual prompt editing (4) */}
               <div data-min-stars="4">
-                <FieldWrapper label="Special Visual Instructions" hint="Specific shots, themes, cultural references, or things to avoid.">
+                <FieldWrapper label={t("makeVideo.specialInstructionsLabel")} hint={t("makeVideo.specialInstructionsHint")}>
                   <Textarea
                     {...register("specialInstructions")}
-                    placeholder="Any specific shots, visual themes, cultural elements, or things to avoid..."
+                    placeholder={t("makeVideo.specialInstructionsPlaceholder")}
                     className={textareaClass}
                     style={{ minHeight: "90px" }}
                   />
@@ -1211,8 +1247,8 @@ export default function MakeVideo() {
           {step === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Create Your Video Plan</h2>
-                <p className="text-sm text-white/40">Review your setup, then create your Director's Treatment, scene breakdown, and AI prompts.</p>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step4Title")}</h2>
+                <p className="text-sm text-white/40">{t("makeVideo.step4Hint")}</p>
               </div>
 
               {!rawResult ? (
@@ -1220,12 +1256,12 @@ export default function MakeVideo() {
                   {/* Summary tiles */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
-                      { label: "Artist", value: watched.artistName || "—" },
-                      { label: "Song", value: watched.songTitle || "—" },
-                      { label: "Genre", value: watched.genre || "—" },
-                      { label: "Mood", value: watched.mood || "—" },
-                      { label: "Style", value: watched.videoStyle || "—" },
-                      { label: "Platform", value: watched.platform || "—" },
+                      { label: t("makeVideo.summaryArtist"), value: watched.artistName || "—" },
+                      { label: t("makeVideo.summarySong"), value: watched.songTitle || "—" },
+                      { label: t("makeVideo.summaryGenre"), value: watched.genre || "—" },
+                      { label: t("makeVideo.summaryMood"), value: watched.mood || "—" },
+                      { label: t("makeVideo.summaryStyle"), value: watched.videoStyle || "—" },
+                      { label: t("makeVideo.summaryPlatform"), value: watched.platform || "—" },
                     ].map(({ label, value }) => (
                       <div key={label} className="lux-card-static px-4 py-3">
                         <p className="text-[10px] font-bold text-white/35 uppercase tracking-wider mb-1">{label}</p>
@@ -1236,17 +1272,17 @@ export default function MakeVideo() {
 
                   {/* What you get */}
                   <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5 space-y-4">
-                    <p className="text-sm font-bold text-white/70 uppercase tracking-wider">What you'll get</p>
+                    <p className="text-sm font-bold text-white/70 uppercase tracking-wider">{t("makeVideo.whatYouGet")}</p>
                     <ul className="space-y-2">
                       {[
-                        "Director's Treatment",
-                        "Scene-by-Scene Breakdown",
-                        "AI Video Prompts (Runway-ready)",
-                        "Visual Concept & Color Palette",
-                        "Thumbnail Prompts",
-                        "Promo Clip Ideas",
-                        "Caption Ideas",
-                        ...(songStructure ? ["Song Structure Analysis ✓"] : []),
+                        t("makeVideo.sectionDirectorsTreatment"),
+                        t("makeVideo.sectionSceneBreakdown"),
+                        t("makeVideo.getAiPrompts"),
+                        t("makeVideo.getVisualConcept"),
+                        t("makeVideo.sectionThumbnailPrompts"),
+                        t("makeVideo.sectionPromoClips"),
+                        t("makeVideo.sectionCaptionIdeas"),
+                        ...(songStructure ? [t("makeVideo.getSongStructure")] : []),
                       ].map((item) => (
                         <li key={item} className="flex items-center gap-2 text-sm text-white/60">
                           <Check className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -1265,10 +1301,10 @@ export default function MakeVideo() {
                       data-testid="btn-generate-plan"
                     >
                       {loading
-                        ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
-                        : <><Sparkles className="h-5 w-5" /> Create Video Plan</>}
+                        ? <><Loader2 className="h-5 w-5 animate-spin" /> {t("makeVideo.buildingPlan")}</>
+                        : <><Sparkles className="h-5 w-5" /> {t("makeVideo.createVideoPlan")}</>}
                     </Button>
-                    <p className="text-white/25 text-xs text-center">Uses 100 Visual Bucs per generation</p>
+                    <p className="text-white/25 text-xs text-center">{t("makeVideo.usesCredits")}</p>
                   </div>
                 </div>
               ) : (
@@ -1276,24 +1312,24 @@ export default function MakeVideo() {
                   {/* Result ready header */}
                   <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/20 bg-green-500/5">
                     <span className="h-2.5 w-2.5 rounded-full bg-green-400 shrink-0 animate-pulse" />
-                    <p className="text-sm font-bold text-white/80">Video plan ready</p>
+                    <p className="text-sm font-bold text-white/80">{t("makeVideo.planReady")}</p>
                     <button
                       type="button"
                       onClick={() => { setRawResult(null); setScenes([]); }}
                       className="ml-auto text-xs text-white/30 hover:text-white/60 transition-colors"
                     >
-                      Regenerate
+                      {t("makeVideo.regenerate")}
                     </button>
                   </div>
 
                   {/* Collapsible output cards */}
                   <div className="space-y-2">
                     {parsedSections.map((section, i) => {
-                      const meta = SECTION_META[section.key] ?? { label: section.key.replace(/_/g, " "), icon: FileText };
+                      const meta = SECTION_META[section.key];
                       return (
                         <OutputCard
                           key={section.key}
-                          label={meta.label}
+                          label={meta ? t(meta.labelKey) : section.key.replace(/_/g, " ")}
                           content={section.content}
                           icon={meta.icon}
                           defaultOpen={i === 0}
@@ -1308,7 +1344,7 @@ export default function MakeVideo() {
                           <span className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                             <BarChart2 className="h-3.5 w-3.5 text-primary" />
                           </span>
-                          <span className="font-bold text-sm text-white">Song Structure Analysis</span>
+                          <span className="font-bold text-sm text-white">{t("makeVideo.songStructureAnalysis")}</span>
                         </div>
                         <div className="px-5 pb-5 border-t border-white/[0.06]">
                           <SongSectionAnalysis analysis={songStructure} />
@@ -1322,7 +1358,7 @@ export default function MakeVideo() {
                     <div className="flex items-center gap-2 pt-1">
                       <Clapperboard className="h-4 w-4 text-primary/60" />
                       <p className="text-sm text-white/50">
-                        <span className="text-white/80 font-semibold">{scenes.length} scenes</span> extracted — continue to Scene Clips to generate Runway videos.
+                        <span className="text-white/80 font-semibold">{t("makeVideo.scenesExtracted", { count: scenes.length })}</span>
                       </p>
                     </div>
                   )}
@@ -1335,15 +1371,15 @@ export default function MakeVideo() {
           {step === 5 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Your Scene Clips</h2>
-                <p className="text-sm text-white/40">Review each scene, refine the AI prompts if needed, then generate Runway clips and approve the best ones.</p>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step5Title")}</h2>
+                <p className="text-sm text-white/40">{t("makeVideo.step5Hint")}</p>
               </div>
 
               {/* Runway note */}
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
                 <Volume2 className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
                 <p className="text-xs text-white/55 leading-relaxed">
-                  Runway clips are <span className="text-white/80 font-semibold">silent previews</span>. Your uploaded song or Music Studio mix will be added during final export.
+                  {t("makeVideo.runwayNotePrefix")}<span className="text-white/80 font-semibold">{t("makeVideo.runwayNoteEmphasis")}</span>{t("makeVideo.runwayNoteSuffix")}
                 </p>
               </div>
 
@@ -1373,13 +1409,13 @@ export default function MakeVideo() {
               ) : (
                 <div className="lux-card-static px-6 py-10 text-center">
                   <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
-                  <p className="text-sm text-white/40">No scenes yet — go back to step 4 and generate your plan.</p>
+                  <p className="text-sm text-white/40">{t("makeVideo.noScenes")}</p>
                   <button
                     type="button"
                     onClick={() => goToStep(4)}
                     className="mt-4 text-sm text-primary/70 hover:text-primary transition-colors"
                   >
-                    ← Back to Create Plan
+                    {t("makeVideo.backToCreatePlan")}
                   </button>
                 </div>
               )}
@@ -1390,8 +1426,8 @@ export default function MakeVideo() {
           {step === 6 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Download & Share</h2>
-                <p className="text-sm text-white/40">Save your project, open the Video Editor to build your clip, and download your files.</p>
+                <h2 className="text-xl font-black text-white mb-1">{t("makeVideo.step6Label")}</h2>
+                <p className="text-sm text-white/40">{t("makeVideo.step6Hint")}</p>
               </div>
 
               <div className="space-y-3">
@@ -1403,23 +1439,23 @@ export default function MakeVideo() {
                       <Save className="h-4 w-4 text-primary" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">Save Project</p>
-                      <p className="text-xs text-white/40 mt-0.5">Save your video plan and scenes to My Projects.</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.saveProject")}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{t("makeVideo.saveProjectHint")}</p>
                     </div>
                   </div>
                   {saved ? (
                     <div className="flex items-center gap-2 text-green-400 font-bold text-sm shrink-0">
-                      <Check className="h-4 w-4" /> Project Saved
+                      <Check className="h-4 w-4" /> {t("makeVideo.projectSaved")}
                     </div>
                   ) : (
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       {autoSaveStatus === "saving" && (
                         <p className="text-[11px] text-white/40 flex items-center gap-1.5">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Saving generation…
+                          <Loader2 className="h-3 w-3 animate-spin" /> {t("makeVideo.savingGeneration")}
                         </p>
                       )}
                       {autoSaveStatus === "failed" && creditRefunded && (
-                        <p className="text-[11px] text-amber-400 text-right max-w-[220px]">Visual Bucs refunded — find your content in <strong>Generation History</strong>.</p>
+                        <p className="text-[11px] text-amber-400 text-right max-w-[220px]">{t("makeVideo.refundedNoticePrefix")}<strong>{t("makeVideo.generationHistory")}</strong>{t("makeVideo.refundedNoticeSuffix")}</p>
                       )}
                       <Button
                         onClick={handleSave}
@@ -1427,10 +1463,10 @@ export default function MakeVideo() {
                         className="gold-glow font-bold gap-2"
                         data-testid="btn-save-project"
                       >
-                        {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save Project</>}
+                        {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("makeVideo.saving")}</> : <><Save className="h-4 w-4" /> {t("makeVideo.saveProject")}</>}
                       </Button>
                       {saveError && (
-                        <p className="text-[11px] text-red-400 text-right max-w-[200px]">Save failed: {saveError}</p>
+                        <p className="text-[11px] text-red-400 text-right max-w-[200px]">{t("makeVideo.saveFailedPrefix")}{saveError}</p>
                       )}
                     </div>
                   )}
@@ -1443,16 +1479,16 @@ export default function MakeVideo() {
                       <Clapperboard className="h-4 w-4 text-primary" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">Open Video Editor</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.openVideoEditor")}</p>
                       <p className="text-xs text-white/40 mt-0.5">
-                        {savedProjectId ? "Edit scenes, add captions, mix audio, and export." : "Save your project first to open it in the editor."}
+                        {savedProjectId ? t("makeVideo.openEditorHint") : t("makeVideo.openEditorHintLocked")}
                       </p>
                     </div>
                   </div>
                   {savedProjectId ? (
                     <Link href={`/video-editor?project=${savedProjectId}`}>
                       <Button className="gold-glow font-bold gap-2 shrink-0" data-testid="btn-open-video-editor">
-                        <ExternalLink className="h-4 w-4" /> Open Editor
+                        <ExternalLink className="h-4 w-4" /> {t("makeVideo.openEditor")}
                       </Button>
                     </Link>
                   ) : (
@@ -1461,7 +1497,7 @@ export default function MakeVideo() {
                       className="font-bold gap-2 shrink-0 opacity-40"
                       data-testid="btn-open-video-editor-disabled"
                     >
-                      <ExternalLink className="h-4 w-4" /> Open Editor
+                      <ExternalLink className="h-4 w-4" /> {t("makeVideo.openEditor")}
                     </Button>
                   )}
                 </div>
@@ -1473,13 +1509,13 @@ export default function MakeVideo() {
                       <Video className="h-4 w-4 text-primary" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">My Generated Clips</p>
-                      <p className="text-xs text-white/40 mt-0.5">All your Runway clips are auto-saved here — even if project saving fails.</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.myGeneratedClips")}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{t("makeVideo.myClipsHint")}</p>
                     </div>
                   </div>
                   <Link href="/my-clips">
                     <Button className="gold-glow font-bold gap-2 shrink-0">
-                      <Video className="h-4 w-4" /> View My Clips
+                      <Video className="h-4 w-4" /> {t("makeVideo.viewMyClips")}
                     </Button>
                   </Link>
                 </div>
@@ -1491,13 +1527,13 @@ export default function MakeVideo() {
                       <Film className="h-4 w-4 text-primary" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">Generate Promo Clips</p>
-                      <p className="text-xs text-white/40 mt-0.5">Create short-form promo content for TikTok, Reels, and YouTube Shorts.</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.generatePromoClips")}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{t("makeVideo.promoClipsHint")}</p>
                     </div>
                   </div>
                   <Link href="/promo-clip">
                     <Button variant="outline" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0">
-                      <ExternalLink className="h-4 w-4" /> Make Promo Clips
+                      <ExternalLink className="h-4 w-4" /> {t("makeVideo.makePromoClips")}
                     </Button>
                   </Link>
                 </div>
@@ -1509,8 +1545,8 @@ export default function MakeVideo() {
                       <FileText className="h-4 w-4 text-white/50" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">Download TXT</p>
-                      <p className="text-xs text-white/40 mt-0.5">Plain text export of your full video plan.</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.downloadTxt")}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{t("makeVideo.downloadTxtHint")}</p>
                     </div>
                   </div>
                   <Button
@@ -1520,7 +1556,7 @@ export default function MakeVideo() {
                     className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0"
                     data-testid="btn-download-txt"
                   >
-                    <Download className="h-4 w-4" /> Download TXT
+                    <Download className="h-4 w-4" /> {t("makeVideo.downloadTxt")}
                   </Button>
                 </div>
 
@@ -1531,8 +1567,8 @@ export default function MakeVideo() {
                       <FileText className="h-4 w-4 text-white/50" />
                     </span>
                     <div>
-                      <p className="font-bold text-white text-sm">Download PDF</p>
-                      <p className="text-xs text-white/40 mt-0.5">Premium branded PDF with your full video plan.</p>
+                      <p className="font-bold text-white text-sm">{t("makeVideo.downloadPdf")}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{t("makeVideo.downloadPdfHint")}</p>
                     </div>
                   </div>
                   <Button
@@ -1542,7 +1578,7 @@ export default function MakeVideo() {
                     className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0"
                     data-testid="btn-download-pdf"
                   >
-                    <Download className="h-4 w-4" /> Download PDF
+                    <Download className="h-4 w-4" /> {t("makeVideo.downloadPdf")}
                   </Button>
                 </div>
               </div>
@@ -1554,7 +1590,7 @@ export default function MakeVideo() {
                   onClick={handleReset}
                   className="text-xs text-white/30 hover:text-white/60 transition-colors"
                 >
-                  Start a new Music Video plan
+                  {t("makeVideo.startNewPlan")}
                 </button>
               </p>
             </div>
@@ -1570,7 +1606,7 @@ export default function MakeVideo() {
               className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white gap-2 disabled:opacity-30"
               data-testid="btn-wizard-back"
             >
-              <ChevronLeft className="h-4 w-4" /> Back
+              <ChevronLeft className="h-4 w-4" /> {t("makeVideo.back")}
             </Button>
 
             {step < 6 && (
@@ -1592,7 +1628,7 @@ export default function MakeVideo() {
       {/* ── Dev debug overlay ── */}
       {import.meta.env.DEV && (
         <div className="fixed bottom-4 left-4 z-40 text-[10px] font-mono text-white/30 bg-black/70 rounded-lg px-3 py-2 space-y-0.5 border border-white/5 pointer-events-none">
-          <p>Step {step}: {STEPS.find(s => s.n === step)?.label ?? "?"}</p>
+          <p>Step {step}: {t(STEPS.find(s => s.n === step)?.labelKey ?? "makeVideo.unknownStep")}</p>
           <p>Draft: {draftState}{draftId ? " (server)" : draftState !== "idle" ? " (local)" : ""}</p>
           <p>Plan: {rawResult ? `${rawResult.length} chars` : "none"} · Scenes: {scenes.length}</p>
         </div>

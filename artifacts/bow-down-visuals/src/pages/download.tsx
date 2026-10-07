@@ -10,6 +10,7 @@ import {
   Smartphone, Puzzle, Download as DownloadIcon, Check, ShieldCheck,
   Zap, BellRing, MessageCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /* ─── Unified download page: Android app + Chrome extension ─── */
 
@@ -36,7 +37,8 @@ const FAQS = [
 ];
 
 export default function Download() {
-  usePageTitle("Download — Android App & Chrome Extension | Bow Down Visuals");
+  const { t } = useTranslation();
+  usePageTitle(t("download.metaTitle"));
   const onAndroid = typeof navigator !== "undefined" && isAndroidDevice();
 
   return (
@@ -50,15 +52,10 @@ export default function Download() {
       <div className="mx-auto max-w-4xl px-6 py-16">
         <LuxReveal>
           <div className="text-center mb-12">
-            <MarketingBadge variant="kicker">Get Bow Down Visuals everywhere</MarketingBadge>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-              Take the studio <span className="text-[#e8c86a]">with you</span>
+            <MarketingBadge variant="kicker">{t("download.get_bow_down_visuals_everywhere")}</MarketingBadge>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{t("download.take_the_studio")}<span className="text-[#e8c86a]">{t("download.with_you")}</span>
             </h1>
-            <p className="mt-4 text-white/50 max-w-xl mx-auto">
-              The full AI content studio as an Android app, plus Thy Cheat Code
-              for your desktop browser. Free to download — your account, credits
-              and bonuses carry over everywhere.
-            </p>
+            <p className="mt-4 text-white/50 max-w-xl mx-auto">{t("download.the_full_ai_content_studio_as_an")}</p>
           </div>
         </LuxReveal>
 
@@ -69,23 +66,19 @@ export default function Download() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Smartphone className="h-7 w-7 text-[#e8c86a]" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Android App</h2>
-              <p className="text-sm text-white/50 mb-6">
-                Every studio tool — songs, videos, thumbnails, promo clips —
-                in a native-feel app on your phone.
-              </p>
+              <h2 className="text-2xl font-bold mb-2">{t("download.android_app")}</h2>
+              <p className="text-sm text-white/50 mb-6">{t("download.every_studio_tool_songs_videos_t")}</p>
               <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Full studio, optimized for touch</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Daily bonus + hourly crate on the go</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Same account, same credits</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.full_studio_optimized_for_touch")}</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.daily_bonus_hourly_crate_on_the")}</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.same_account_same_credits")}</li>
               </ul>
               <a href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.1-android/bow-down-visuals.apk" download onClick={markAndroidDownloaded}>
                 <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6">
-                  <DownloadIcon className="h-5 w-5 mr-2" /> Download APK
-                </Button>
+                  <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_apk")}</Button>
               </a>
               {onAndroid && (
-                <p className="mt-3 text-center text-xs text-[#e8c86a]">← You're on Android — this one's for you</p>
+                <p className="mt-3 text-center text-xs text-[#e8c86a]">{t("download.you_re_on_android_this_one_s_for")}</p>
               )}
             </div>
           </LuxReveal>
@@ -96,24 +89,18 @@ export default function Download() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Puzzle className="h-7 w-7 text-[#e8c86a]" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Chrome Extension</h2>
-              <p className="text-sm text-white/50 mb-6">
-                Thy Cheat Code in your browser toolbar — AI chat, every site
-                tool, and bonus claims without leaving the page.
-              </p>
+              <h2 className="text-2xl font-bold mb-2">{t("download.chrome_extension")}</h2>
+              <p className="text-sm text-white/50 mb-6">{t("download.thy_cheat_code_in_your_browser_t")}</p>
               <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-[#e8c86a]" /> AI chat on any page</li>
-                <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#e8c86a]" /> Right-click AI actions</li>
-                <li className="flex items-center gap-2"><BellRing className="h-4 w-4 text-[#e8c86a]" /> Never miss free credits</li>
+                <li className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-[#e8c86a]" />{t("download.ai_chat_on_any_page")}</li>
+                <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#e8c86a]" />{t("download.right_click_ai_actions")}</li>
+                <li className="flex items-center gap-2"><BellRing className="h-4 w-4 text-[#e8c86a]" />{t("download.never_miss_free_credits")}</li>
               </ul>
               <a href="/bow-down-visuals-extension-v2.zip" download onClick={markExtensionDownloaded}>
                 <Button variant="outline" className="w-full border-white/15 text-base py-6 hover:bg-white/5">
-                  <DownloadIcon className="h-5 w-5 mr-2" /> Download Extension
-                </Button>
+                  <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_extension")}</Button>
               </a>
-              <Link href="/extension" className="mt-3 block text-center text-xs text-white/40 hover:text-white/70">
-                Learn more about the extension →
-              </Link>
+              <Link href="/extension" className="mt-3 block text-center text-xs text-white/40 hover:text-white/70">{t("download.learn_more_about_the_extension")}</Link>
             </div>
           </LuxReveal>
         </div>
@@ -122,8 +109,7 @@ export default function Download() {
         <div className="mt-16 grid gap-8 md:grid-cols-2">
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" /> Installing the APK
-            </h3>
+              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" />{t("download.installing_the_apk")}</h3>
             <ol className="space-y-4">
               {APK_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
@@ -138,8 +124,7 @@ export default function Download() {
           </div>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" /> Installing the extension
-            </h3>
+              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" />{t("download.installing_the_extension")}</h3>
             <ol className="space-y-4">
               {EXT_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
@@ -156,7 +141,7 @@ export default function Download() {
 
         {/* FAQs */}
         <div className="mt-16">
-          <h3 className="text-lg font-bold mb-6 text-center">Questions</h3>
+          <h3 className="text-lg font-bold mb-6 text-center">{t("download.questions")}</h3>
           <div className="space-y-3 max-w-2xl mx-auto">
             {FAQS.map((f, i) => (
               <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">

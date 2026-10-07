@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 export default function Contact() {
-  usePageTitle("Contact", "Get in touch with the Bow Down Visuals team.");
+  const { t } = useTranslation();
+  usePageTitle(t("contact.metaTitle"), t("contact.metaDescription"));
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [message, setMessage] = useState("");
@@ -28,13 +30,13 @@ export default function Contact() {
       });
       const data = (await res.json()) as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setError(data.message ?? data.error ?? t("contact.genericError"));
         setLoading(false);
         return;
       }
       setSent(true);
     } catch {
-      setError("Connection error. Please try again.");
+      setError(t("contact.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -51,10 +53,8 @@ export default function Contact() {
             <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
               <Mail className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Get in Touch</h1>
-            <p className="text-white/40 text-sm leading-relaxed">
-              Questions, feedback, or partnership inquiries — we respond to every message.
-            </p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t("contact.get_in_touch")}</h1>
+            <p className="text-white/40 text-sm leading-relaxed">{t("contact.questions_feedback_or_partnershi")}</p>
             <a
               href="mailto:support@bowdownvisuals.com"
               className="inline-block mt-3 text-xs text-primary/70 hover:text-primary transition-colors"
@@ -68,26 +68,24 @@ export default function Contact() {
             {sent ? (
               <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
                 <CheckCircle2 className="h-12 w-12 text-primary" />
-                <h2 className="text-xl font-bold text-white">Message Sent!</h2>
+                <h2 className="text-xl font-bold text-white">{t("contact.message_sent")}</h2>
                 <p className="text-white/45 text-sm max-w-xs leading-relaxed">
-                  Thanks for reaching out. We'll get back to you at <span className="text-white/70">{email}</span> shortly.
+                  {t("contact.thanksMessage", { email })}
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
                   className="mt-2 border-white/10 text-white/50 hover:text-white"
                   onClick={() => { setSent(false); setName(""); setEmail(""); setMessage(""); }}
-                >
-                  Send Another
-                </Button>
+                >{t("contact.send_another")}</Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Name</Label>
+                  <Label htmlFor="name" className="text-white/60 text-xs font-semibold uppercase tracking-wider">{t("contact.name")}</Label>
                   <Input
                     id="name"
-                    placeholder="Your name"
+                    placeholder={t("contact.your_name")}
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -96,7 +94,7 @@ export default function Contact() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Email</Label>
+                  <Label htmlFor="email" className="text-white/60 text-xs font-semibold uppercase tracking-wider">{t("contact.email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -109,10 +107,10 @@ export default function Contact() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="message" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Message</Label>
+                  <Label htmlFor="message" className="text-white/60 text-xs font-semibold uppercase tracking-wider">{t("contact.message")}</Label>
                   <Textarea
                     id="message"
-                    placeholder="Tell us what's on your mind..."
+                    placeholder={t("contact.tell_us_what_s_on_your_mind")}
                     required
                     rows={5}
                     value={message}
@@ -134,14 +132,10 @@ export default function Contact() {
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                      Sending…
-                    </span>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>{t("contact.sending")}</span>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" />
-                      Send Message
-                    </>
+                      <Send className="h-4 w-4" />{t("contact.send_message")}</>
                   )}
                 </Button>
               </form>

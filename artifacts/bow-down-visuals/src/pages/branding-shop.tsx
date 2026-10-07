@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Shirt, Loader2, Sparkles, ShoppingCart, Trash2, Plus, Minus,
   CheckCircle2, Package, Palette, Tag, Truck, X, ChevronRight,
@@ -53,11 +54,8 @@ const ICONS: Record<ProductKey, LucideIcon> = {
 /* Catalog lives in @/lib/branding-shop (testable); icons stay page-local. */
 const PRODUCTS: Product[] = BRANDING_PRODUCTS.map((p) => ({ ...p, icon: ICONS[p.key] }));
 
-const COLORS: Array<{ key: ColorKey; label: string; swatch: string }> = [
-  { key: "black", label: "Black", swatch: "bg-neutral-900 border-white/20" },
-  { key: "gold", label: "Gold", swatch: "bg-amber-400 border-amber-200" },
-  { key: "white", label: "White", swatch: "bg-white border-white/40" },
-];
+/* Colors + order statuses live inside the component (via t()); the keys stay
+   stable because they are stored on carts/orders sent to the backend. */
 
 const STYLES = BRANDING_STYLES;
 
@@ -100,15 +98,21 @@ interface Order {
   createdAt: string;
 }
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  received:           { label: "Order received",    className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
-  pending_fulfillment:{ label: "Sent to printer",   className: "border-sky-400/30 bg-sky-400/10 text-sky-300" },
-  in_production:      { label: "In production",     className: "border-violet-400/30 bg-violet-400/10 text-violet-300" },
-  shipped:            { label: "Shipped",           className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
-  delivered:          { label: "Delivered",         className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
-  canceled:           { label: "Canceled",          className: "border-red-400/30 bg-red-400/10 text-red-300" },
-  failed:             { label: "Failed",            className: "border-red-400/30 bg-red-400/10 text-red-300" },
+const STATUS_DEFS: Record<string, { labelKey: string; className: string }> = {
+  received:            { labelKey: "received",           className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  pending_fulfillment: { labelKey: "pendingFulfillment", className: "border-sky-400/30 bg-sky-400/10 text-sky-300" },
+  in_production:       { labelKey: "inProduction",       className: "border-violet-400/30 bg-violet-400/10 text-violet-300" },
+  shipped:             { labelKey: "shipped",            className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+  delivered:           { labelKey: "delivered",          className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+  canceled:            { labelKey: "canceled",           className: "border-red-400/30 bg-red-400/10 text-red-300" },
+  failed:              { labelKey: "failed",             className: "border-red-400/30 bg-red-400/10 text-red-300" },
 };
+
+const COLOR_DEFS: Array<{ key: ColorKey; labelKey: string; swatch: string }> = [
+  { key: "black", labelKey: "black", swatch: "bg-neutral-900 border-white/20" },
+  { key: "gold", labelKey: "gold", swatch: "bg-amber-400 border-amber-200" },
+  { key: "white", labelKey: "white", swatch: "bg-white border-white/40" },
+];
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -121,9 +125,22 @@ function productByKey(key: ProductKey): Product {
 }
 
 export default function BrandingShop() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>("shop");
   const [shopCat, setShopCat] = useState<"merch" | "smart" | "jewelry">("merch");
+
+  /* Translated display strings for the color swatches and order statuses. */
+  const COLORS: Array<{ key: ColorKey; label: string; swatch: string }> = COLOR_DEFS.map((c) => ({
+    ...c,
+    label: t(`brandingShop.colors.${c.labelKey}`),
+  }));
+  const STATUS_META: Record<string, { label: string; className: string }> = Object.fromEntries(
+    Object.entries(STATUS_DEFS).map(([key, def]) => [
+      key,
+      { label: t(`brandingShop.statuses.${def.labelKey}`), className: def.className },
+    ])
+  );
 
   /* shop config state (per-product selections) */
   const [sel, setSel] = useState<Record<ProductKey, { color: ColorKey; size: string; qty: number }>>(() =>
@@ -222,11 +239,11 @@ export default function BrandingShop() {
   async function designBrandKit() {
     if (designing || !user) return;
     if (!brandName.trim() || !niche.trim()) {
-      setError("Give your brand a name and a niche first.");
+      setError(t("brandingShop.errorBrandName"));
       return;
     }
     if (designProducts.length === 0) {
-      setError("Pick at least one product to mock up.");
+      setError(t("brandingShop.errorProducts"));
       return;
     }
     setDesigning(true);
@@ -252,7 +269,7 @@ export default function BrandingShop() {
         return;
       }
       if (!res.ok || !data.logo?.url) {
-        throw new Error(data.message || data.error || "Brand kit design failed — try again.");
+        throw new Error(data.message || data.error || t("brandingShop.errorDesignFailed"));
       }
       setDesign(data);
       refreshProfile();
@@ -260,7 +277,7 @@ export default function BrandingShop() {
         document.getElementById("design-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Brand kit design failed — try again.");
+      setError(err instanceof Error ? err.message : t("brandingShop.errorDesignFailed"));
     } finally {
       setDesigning(false);
     }
@@ -285,7 +302,7 @@ export default function BrandingShop() {
         message?: string;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Checkout failed — try again.");
+      if (!res.ok) throw new Error(data.error || t("brandingShop.errorCheckoutFailed"));
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
         return;
@@ -293,7 +310,7 @@ export default function BrandingShop() {
       /* Demo checkout completed instantly — refresh the list. */
       await loadOrders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed — try again.");
+      setError(err instanceof Error ? err.message : t("brandingShop.errorCheckoutFailed"));
     } finally {
       setPaying(null);
     }
@@ -302,7 +319,7 @@ export default function BrandingShop() {
   async function placeOrder() {
     if (ordering || checkingOut || !user || cart.length === 0) return;
     if (!name.trim() || !email.trim() || !address.trim() || !city.trim() || !state_.trim() || !zip.trim()) {
-      setError("Fill in every shipping field so we know where to send your merch.");
+      setError(t("brandingShop.errorShipping"));
       return;
     }
     setOrdering(true);
@@ -326,7 +343,7 @@ export default function BrandingShop() {
         message?: string;
       };
       if (!res.ok || !data.order?.id) {
-        throw new Error(data.message || data.error || "Order failed — try again.");
+        throw new Error(data.message || data.error || t("brandingShop.errorOrderFailed"));
       }
       const orderId = data.order.id;
       setOrdering(false);
@@ -344,17 +361,17 @@ export default function BrandingShop() {
         message?: string;
       };
       if (!coRes.ok) {
-        throw new Error(coData.error || "Checkout failed — your order is saved; try paying from My Orders.");
+        throw new Error(coData.error || t("brandingShop.errorCheckoutSaved"));
       }
       if (coData.checkoutUrl) {
         window.location.href = coData.checkoutUrl;
         return;
       }
-      setOrderSuccess(coData.message || "Order received!");
+      setOrderSuccess(coData.message || t("brandingShop.orderReceived"));
       setCart([]);
       setCartOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Order failed — try again.");
+      setError(err instanceof Error ? err.message : t("brandingShop.errorOrderFailed"));
     } finally {
       setOrdering(false);
       setCheckingOut(false);
@@ -390,7 +407,7 @@ export default function BrandingShop() {
         trackingUrl?: string | null;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Refresh failed.");
+      if (!res.ok) throw new Error(data.error || t("brandingShop.errorRefreshFailed"));
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
@@ -399,7 +416,7 @@ export default function BrandingShop() {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Refresh failed.");
+      setError(err instanceof Error ? err.message : t("brandingShop.errorRefreshFailed"));
     } finally {
       setRefreshing(null);
     }
@@ -416,7 +433,7 @@ export default function BrandingShop() {
       const q = new URLSearchParams(window.location.search);
       if (q.get("paid") === "1") {
         setTab("orders");
-        setOrderSuccess("Payment received — your merch is headed to production!");
+        setOrderSuccess(t("brandingShop.paymentReceived"));
         window.history.replaceState({}, "", "/branding-shop");
       }
     } catch {
@@ -432,10 +449,10 @@ export default function BrandingShop() {
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
             <div className="flex-1">
-              <p className="text-sm font-bold text-emerald-300">Order received!</p>
+              <p className="text-sm font-bold text-emerald-300">{t("brandingShop.orderReceived")}</p>
               <p className="mt-1 text-sm text-white/60">{orderSuccess}</p>
             </div>
-            <button onClick={() => setOrderSuccess(null)} className="p-1 text-white/40 hover:text-white" aria-label="Dismiss">
+            <button onClick={() => setOrderSuccess(null)} className="p-1 text-white/40 hover:text-white" aria-label={t("brandingShop.dismissAria")}>
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -444,14 +461,13 @@ export default function BrandingShop() {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <Sparkles className="h-3.5 w-3.5" /> AI Branding Shop
+              <Sparkles className="h-3.5 w-3.5" /> {t("brandingShop.heroBadge")}
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Your brand. <span className="bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">On everything.</span>
+              {t("brandingShop.title")} <span className="bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">{t("brandingShop.titleAccent")}</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/50">
-              AI designs your logo and product mockups, you sell the merch, our
-              dropship partners ship it straight to your fans. You never touch inventory.
+              {t("brandingShop.subtitle")}
             </p>
           </div>
           <button
@@ -459,7 +475,7 @@ export default function BrandingShop() {
             className="relative inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold transition hover:border-primary/40"
           >
             <ShoppingCart className="h-4 w-4 text-primary" />
-            Cart
+            {t("brandingShop.cartButton")}
             {cartCount > 0 && (
               <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-black text-black">
                 {cartCount}
@@ -472,21 +488,21 @@ export default function BrandingShop() {
         <div className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
           {(
             [
-              { key: "shop", label: "Shop" },
-              { key: "studio", label: "AI Design Studio" },
-              { key: "orders", label: "My Orders" },
+              { key: "shop", label: t("brandingShop.tabs.shop") },
+              { key: "studio", label: t("brandingShop.tabs.studio") },
+              { key: "orders", label: t("brandingShop.tabs.orders") },
             ] as Array<{ key: TabKey; label: string }>
-          ).map((t) => (
+          ).map((t2) => (
             <button
-              key={t.key}
-              onClick={() => switchTab(t.key)}
+              key={t2.key}
+              onClick={() => switchTab(t2.key)}
               className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                tab === t.key
+                tab === t2.key
                   ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-black"
                   : "text-white/50 hover:text-white"
               }`}
             >
-              {t.label}
+              {t2.label}
             </button>
           ))}
         </div>
@@ -509,9 +525,9 @@ export default function BrandingShop() {
             <div className="mb-6 flex flex-wrap gap-2">
               {(
                 [
-                  { key: "merch", label: "Merch", icon: Shirt },
-                  { key: "smart", label: "Smart Cards", icon: Nfc },
-                  { key: "jewelry", label: "Jewelry", icon: Gem },
+                  { key: "merch", label: t("brandingShop.departments.merch"), icon: Shirt },
+                  { key: "smart", label: t("brandingShop.departments.smart"), icon: Nfc },
+                  { key: "jewelry", label: t("brandingShop.departments.jewelry"), icon: Gem },
                 ] as Array<{ key: "merch" | "smart" | "jewelry"; label: string; icon: LucideIcon }>
               ).map((c) => {
                 const Icon = c.icon;
@@ -541,19 +557,17 @@ export default function BrandingShop() {
                   </div>
                   <div className="flex flex-col justify-center p-8">
                     <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      <Sparkles className="h-3.5 w-3.5" /> Smart Cards
+                      <Sparkles className="h-3.5 w-3.5" /> {t("brandingShop.smartCardsBadge")}
                     </div>
-                    <h2 className="text-2xl font-black">NFC Smart Business Cards</h2>
+                    <h2 className="text-2xl font-black">{t("brandingShop.smartCardsTitle")}</h2>
                     <p className="mt-2 text-sm text-white/50">
-                      Tap-to-share cards in PVC, bamboo and metal — each one links to
-                      your live digital card with vCard, links and a QR backup.
-                      Reserve yours free; payment is collected when production is confirmed.
+                      {t("brandingShop.smartCardsText")}
                     </p>
                     <Link
                       href="/nfc-cards"
                       className="mt-5 inline-flex w-fit items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
                     >
-                      Design my smart card <ChevronRight className="h-4 w-4" />
+                      {t("brandingShop.smartCardsCta")} <ChevronRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </div>
@@ -573,27 +587,24 @@ export default function BrandingShop() {
                   </div>
                   <div className="flex flex-col justify-center p-8">
                     <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      <Gem className="h-3.5 w-3.5" /> Custom Jewelry
+                      <Gem className="h-3.5 w-3.5" /> {t("brandingShop.jewelryBadge")}
                     </div>
-                    <h2 className="text-2xl font-black">Wear the brand. Literally.</h2>
+                    <h2 className="text-2xl font-black">{t("brandingShop.jewelryTitle")}</h2>
                     <p className="mt-2 text-sm text-white/50">
-                      Made-to-order pendants, Cuban chains, signet rings and ID
-                      bracelets with your logo or initials — cast in gold, silver
-                      or black. Reserve yours free; payment is collected when
-                      production is confirmed.
+                      {t("brandingShop.jewelryText")}
                     </p>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <Link
                         href="/jewelry-shop"
                         className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
                       >
-                        Shop jewelry <ChevronRight className="h-4 w-4" />
+                        {t("brandingShop.jewelryCtaShop")} <ChevronRight className="h-4 w-4" />
                       </Link>
                       <Link
                         href="/jewelry"
                         className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-sm font-semibold text-white/70 transition hover:border-primary/40 hover:text-white"
                       >
-                        <Palette className="h-4 w-4" /> Custom design studio
+                        <Palette className="h-4 w-4" /> {t("brandingShop.jewelryCtaStudio")}
                       </Link>
                     </div>
                   </div>
@@ -625,7 +636,7 @@ export default function BrandingShop() {
                       <span className="text-lg font-black text-primary">{money(p.priceCents)}</span>
                     </div>
                     <div className="mt-4 flex items-center gap-2">
-                      <span className="text-xs text-white/40">Color</span>
+                      <span className="text-xs text-white/40">{t("brandingShop.colorLabel")}</span>
                       {COLORS.map((c) => (
                         <button
                           key={c.key}
@@ -638,7 +649,7 @@ export default function BrandingShop() {
                       ))}
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="text-xs text-white/40">Size</span>
+                      <span className="text-xs text-white/40">{t("brandingShop.sizeLabel")}</span>
                       <div className="flex flex-wrap gap-1.5">
                         {p.sizes.map((sz) => (
                           <button
@@ -662,7 +673,7 @@ export default function BrandingShop() {
                             setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], qty: Math.max(1, prev[p.key].qty - 1) } }))
                           }
                           className="p-1 text-white/60 hover:text-white"
-                          aria-label="Decrease quantity"
+                          aria-label={t("brandingShop.decreaseQtyAria")}
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
@@ -672,13 +683,13 @@ export default function BrandingShop() {
                             setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], qty: Math.min(99, prev[p.key].qty + 1) } }))
                           }
                           className="p-1 text-white/60 hover:text-white"
-                          aria-label="Increase quantity"
+                          aria-label={t("brandingShop.increaseQtyAria")}
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       <button onClick={() => addToCart(p.key)} className={`${goldBtn} flex-1 !px-4 !py-2.5`}>
-                        <ShoppingCart className="h-4 w-4" /> Add to cart
+                        <ShoppingCart className="h-4 w-4" /> {t("brandingShop.addToCart")}
                       </button>
                     </div>
                   </div>
@@ -695,34 +706,34 @@ export default function BrandingShop() {
           <div className="grid gap-6 lg:grid-cols-5">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 lg:col-span-2">
               <h2 className="flex items-center gap-2 text-lg font-bold">
-                <Sparkles className="h-5 w-5 text-primary" /> Design my brand kit
+                <Sparkles className="h-5 w-5 text-primary" /> {t("brandingShop.studioTitle")}
               </h2>
               <p className="mt-1 text-xs text-white/45">
-                AI creates your logo plus mockups on up to 3 products — {DESIGN_COST} Visual Bucs per set.
+                {t("brandingShop.studioSubtitle", { n: DESIGN_COST })}
               </p>
               <div className="mt-5 space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-white/60">Brand name</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("brandingShop.brandNameLabel")}</label>
                   <input
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="e.g. Shark King Supply"
+                    placeholder={t("brandingShop.brandNamePlaceholder")}
                     maxLength={80}
                     className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-white/60">Your niche</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("brandingShop.nicheLabel")}</label>
                   <input
                     value={niche}
                     onChange={(e) => setNiche(e.target.value)}
-                    placeholder="e.g. luxury hip-hop streetwear"
+                    placeholder={t("brandingShop.nichePlaceholder")}
                     maxLength={120}
                     className={inputClass}
                   />
                 </div>
                 <div data-min-stars="2">
-                  <label className="mb-1.5 block text-xs font-semibold text-white/60">Style</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("brandingShop.styleLabel")}</label>
                   <div className="grid grid-cols-2 gap-2">
                     {STYLES.map((st) => (
                       <button
@@ -742,7 +753,7 @@ export default function BrandingShop() {
                 </div>
                 <div data-min-stars="2">
                   <label className="mb-1.5 block text-xs font-semibold text-white/60">
-                    Mock up on (up to 3)
+                    {t("brandingShop.mockupLabel")}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PRODUCTS.map((p) => (
@@ -762,22 +773,22 @@ export default function BrandingShop() {
                 </div>
                 {!user && (
                   <p className="text-xs text-white/40">
-                    <a href="/login" className="text-primary underline">Sign in</a> to design your brand kit.
+                    <a href="/login" className="text-primary underline">{t("brandingShop.signIn")}</a> {t("brandingShop.signInToDesign")}
                   </p>
                 )}
                 <button onClick={designBrandKit} disabled={designing || !user} className={goldBtn + " w-full"}>
                   {designing ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Designing your brand kit…
+                      <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.designingButton")}
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4" /> Design my brand kit · {DESIGN_COST} Visual Bucs
+                      <Sparkles className="h-4 w-4" /> {t("brandingShop.designButton", { n: DESIGN_COST })}
                     </>
                   )}
                 </button>
                 <p className="text-xs text-white/35">
-                  Visual Bucs are only charged on success — if the AI fails, you're refunded automatically.
+                  {t("brandingShop.refundNote")}
                 </p>
               </div>
             </div>
@@ -786,17 +797,17 @@ export default function BrandingShop() {
               {!design && !designing && (
                 <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 p-8 text-center">
                   <Palette className="mb-3 h-10 w-10 text-white/20" />
-                  <p className="text-sm font-semibold text-white/50">Your brand kit appears here</p>
+                  <p className="text-sm font-semibold text-white/50">{t("brandingShop.emptyDesignTitle")}</p>
                   <p className="mt-1 max-w-sm text-xs text-white/35">
-                    Logo, tagline, color palette, and product mockups — ready to slap on merch and sell.
+                    {t("brandingShop.emptyDesignText")}
                   </p>
                 </div>
               )}
               {designing && (
                 <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl border border-white/10 p-8 text-center">
                   <Loader2 className="mb-3 h-10 w-10 animate-spin text-primary" />
-                  <p className="text-sm font-semibold">Designing logo + {designProducts.length} mockups…</p>
-                  <p className="mt-1 text-xs text-white/40">This takes about a minute. Good brands take time.</p>
+                  <p className="text-sm font-semibold">{t("brandingShop.designingStatus", { n: designProducts.length })}</p>
+                  <p className="mt-1 text-xs text-white/40">{t("brandingShop.designingHint")}</p>
                 </div>
               )}
               {design && (
@@ -805,11 +816,11 @@ export default function BrandingShop() {
                     <div className="flex flex-wrap items-center gap-4">
                       <img
                         src={design.logo.url}
-                        alt="AI-generated brand logo"
+                        alt={t("brandingShop.logoAlt")}
                         className="h-28 w-28 rounded-2xl border border-white/10 object-cover"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs uppercase tracking-widest text-white/40">Brand identity</div>
+                        <div className="text-xs uppercase tracking-widest text-white/40">{t("brandingShop.brandIdentityLabel")}</div>
                         {design.brief.tagline && (
                           <p className="mt-1 text-lg font-bold text-primary">“{design.brief.tagline}”</p>
                         )}
@@ -831,7 +842,7 @@ export default function BrandingShop() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {design.mockups.map((m) => (
                       <div key={m.product} className="overflow-hidden rounded-2xl border border-white/10">
-                        <img src={m.url} alt={`${productByKey(m.product).label} mockup`} className="aspect-square w-full object-cover" />
+                        <img src={m.url} alt={t("brandingShop.mockupAlt", { product: productByKey(m.product).label })} className="aspect-square w-full object-cover" />
                         <div className="flex items-center justify-between bg-black/60 px-4 py-2.5">
                           <span className="text-sm font-semibold">{productByKey(m.product).label}</span>
                           <span className="text-sm font-bold text-primary">{money(productByKey(m.product).priceCents)}</span>
@@ -845,7 +856,7 @@ export default function BrandingShop() {
                     }}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                   >
-                    Love it? Sell it in the shop <ChevronRight className="h-4 w-4" />
+                    {t("brandingShop.sellCta")} <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               )}
@@ -858,24 +869,24 @@ export default function BrandingShop() {
           <div>
             {!user ? (
               <p className="text-sm text-white/50">
-                <a href="/login" className="text-primary underline">Sign in</a> to see your orders.
+                <a href="/login" className="text-primary underline">{t("brandingShop.signIn")}</a> {t("brandingShop.signInToSeeOrders")}
               </p>
             ) : ordersLoading ? (
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading orders…
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.loadingOrders")}
               </div>
             ) : orders.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
                 <Package className="mx-auto mb-3 h-10 w-10 text-white/20" />
-                <p className="text-sm font-semibold text-white/50">No orders yet</p>
-                <p className="mt-1 text-xs text-white/35">Your merch orders will show up here.</p>
+                <p className="text-sm font-semibold text-white/50">{t("brandingShop.noOrdersTitle")}</p>
+                <p className="mt-1 text-xs text-white/35">{t("brandingShop.noOrdersText")}</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {demoMode && (
                   <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-xs text-amber-200">
-                    <span className="font-bold">Demo fulfillment:</span> no Printful API key is
-                    configured, so order statuses are simulated. Connect PRINTFUL_API_KEY to ship real products.
+                    <span className="font-bold">{t("brandingShop.demoFulfillmentTitle")}</span>{" "}
+                    {t("brandingShop.demoFulfillmentText")}
                   </div>
                 )}
                 {orders.map((o) => {
@@ -890,7 +901,7 @@ export default function BrandingShop() {
                         </span>
                         {o.paid && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-                            <BadgeCheck className="h-3 w-3" /> Paid
+                            <BadgeCheck className="h-3 w-3" /> {t("brandingShop.paidBadge")}
                           </span>
                         )}
                         {!o.paid && (
@@ -900,7 +911,7 @@ export default function BrandingShop() {
                             className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-primary/20 disabled:opacity-50"
                           >
                             {paying === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />}
-                            Pay {money(o.totalCents)}
+                            {t("brandingShop.payOrder", { amount: money(o.totalCents) })}
                           </button>
                         )}
                       </div>
@@ -914,10 +925,10 @@ export default function BrandingShop() {
                             onClick={() => refreshOrder(o.id)}
                             disabled={refreshing === o.id}
                             className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/60 hover:text-white disabled:opacity-50"
-                            title="Check the latest status with the print partner"
+                            title={t("brandingShop.refreshTitle")}
                           >
                             {refreshing === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                            Refresh
+                            {t("brandingShop.refreshButton")}
                           </button>
                         )}
                       </div>
@@ -926,22 +937,22 @@ export default function BrandingShop() {
                       {o.items.map((it, i) => (
                         <div key={i} className="flex justify-between text-sm">
                           <span className="text-white/60">
-                            {it.qty}× {productByKey(it.product).label} · {it.color} · {it.size}
+                            {it.qty}× {productByKey(it.product).label} · {t(`brandingShop.colors.${it.color}`)} · {it.size}
                           </span>
                           <span className="font-semibold">{money(it.unitPriceCents * it.qty)}</span>
                         </div>
                       ))}
                     </div>
                     <div className="mt-3 flex justify-between border-t border-white/10 pt-3 text-sm font-bold">
-                      <span>Total</span>
+                      <span>{t("brandingShop.totalLabel")}</span>
                       <span className="text-primary">{money(o.totalCents)}</span>
                     </div>
                     {(o.trackingNumber || o.trackingUrl) && (
                       <p className="mt-2 text-xs text-white/55">
-                        Tracking:{" "}
+                        {t("brandingShop.trackingLabel")}{" "}
                         {o.trackingUrl ? (
                           <a href={o.trackingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-                            {o.trackingNumber ?? "Track package"} <ExternalLink className="h-3 w-3" />
+                            {o.trackingNumber ?? t("brandingShop.trackPackage")} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : (
                           <span className="font-mono">{o.trackingNumber}</span>
@@ -950,8 +961,8 @@ export default function BrandingShop() {
                     )}
                     <p className="mt-2 text-xs text-white/35">
                       {o.provider === "printful"
-                        ? "Printed and shipped by our Printful partner — Bow Down Visuals never touches inventory."
-                        : "Demo fulfillment — connect a Printful API key to ship real products."}
+                        ? t("brandingShop.providerNotePrintful")
+                        : t("brandingShop.providerNoteDemo")}
                     </p>
                   </div>
                   );
@@ -965,11 +976,8 @@ export default function BrandingShop() {
         <div className="mt-12 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
           <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <p className="text-xs leading-relaxed text-white/45">
-            <span className="font-bold text-white/70">How fulfillment works:</span> this is a
-            pure dropship store — our print partner manufactures and ships your merch
-            directly to your fans, so you never touch inventory. AI brand-kit designs cost{" "}
-            {DESIGN_COST} Visual Bucs; merch is sold at retail in USD via secure Stripe checkout.
-            Tracking appears on your order as soon as the carrier picks it up.
+            <span className="font-bold text-white/70">{t("brandingShop.fulfillmentTitle")}</span>{" "}
+            {t("brandingShop.fulfillmentText", { n: DESIGN_COST })}
           </p>
         </div>
       </main>
@@ -981,9 +989,9 @@ export default function BrandingShop() {
           <div className="relative flex h-full w-full max-w-md flex-col bg-neutral-950 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 p-5">
               <h2 className="flex items-center gap-2 text-lg font-bold">
-                <ShoppingCart className="h-5 w-5 text-primary" /> Your cart
+                <ShoppingCart className="h-5 w-5 text-primary" /> {t("brandingShop.cartTitle")}
               </h2>
-              <button onClick={() => setCartOpen(false)} className="p-1 text-white/50 hover:text-white" aria-label="Close cart">
+              <button onClick={() => setCartOpen(false)} className="p-1 text-white/50 hover:text-white" aria-label={t("brandingShop.closeCartAria")}>
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -992,7 +1000,7 @@ export default function BrandingShop() {
               {orderSuccess ? (
                 <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
                   <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
-                  <h3 className="font-bold text-emerald-300">Order received!</h3>
+                  <h3 className="font-bold text-emerald-300">{t("brandingShop.orderReceived")}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/60">{orderSuccess}</p>
                   <button
                     onClick={() => {
@@ -1002,15 +1010,15 @@ export default function BrandingShop() {
                     }}
                     className={`${goldBtn} mt-5 w-full`}
                   >
-                    View my orders
+                    {t("brandingShop.viewOrders")}
                   </button>
                 </div>
               ) : cart.length === 0 ? (
                 <div className="py-16 text-center">
                   <ShoppingCart className="mx-auto mb-3 h-10 w-10 text-white/15" />
-                  <p className="text-sm text-white/45">Your cart is empty.</p>
+                  <p className="text-sm text-white/45">{t("brandingShop.cartEmpty")}</p>
                   <button onClick={() => { setCartOpen(false); switchTab("shop"); }} className="mt-3 text-sm font-semibold text-primary hover:underline">
-                    Browse the shop
+                    {t("brandingShop.browseShop")}
                   </button>
                 </div>
               ) : (
@@ -1025,21 +1033,21 @@ export default function BrandingShop() {
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-bold">{p.label}</div>
                           <div className="text-xs text-white/40 capitalize">
-                            {item.color} · {item.size}
+                            {t(`brandingShop.colors.${item.color}`)} · {item.size}
                           </div>
                           <div className="mt-1 flex items-center gap-2">
-                            <button onClick={() => updateQty(idx, -1)} className="rounded border border-white/10 p-0.5 text-white/60 hover:text-white" aria-label="Decrease">
+                            <button onClick={() => updateQty(idx, -1)} className="rounded border border-white/10 p-0.5 text-white/60 hover:text-white" aria-label={t("brandingShop.decreaseAria")}>
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="text-xs font-bold">{item.qty}</span>
-                            <button onClick={() => updateQty(idx, 1)} className="rounded border border-white/10 p-0.5 text-white/60 hover:text-white" aria-label="Increase">
+                            <button onClick={() => updateQty(idx, 1)} className="rounded border border-white/10 p-0.5 text-white/60 hover:text-white" aria-label={t("brandingShop.increaseAria")}>
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-bold text-primary">{money(p.priceCents * item.qty)}</div>
-                          <button onClick={() => updateQty(idx, -item.qty)} className="mt-1 text-white/30 hover:text-red-400" aria-label="Remove item">
+                          <button onClick={() => updateQty(idx, -item.qty)} className="mt-1 text-white/30 hover:text-red-400" aria-label={t("brandingShop.removeItemAria")}>
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -1049,15 +1057,15 @@ export default function BrandingShop() {
 
                   {/* checkout form */}
                   <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <h3 className="mb-3 text-sm font-bold">Shipping details</h3>
+                    <h3 className="mb-3 text-sm font-bold">{t("brandingShop.shippingTitle")}</h3>
                     <div className="space-y-2.5">
-                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className={inputClass} />
-                      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className={inputClass} />
-                      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" className={inputClass} />
+                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandingShop.fullNamePlaceholder")} className={inputClass} />
+                      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("brandingShop.emailPlaceholder")} type="email" className={inputClass} />
+                      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("brandingShop.streetPlaceholder")} className={inputClass} />
                       <div className="grid grid-cols-3 gap-2.5">
-                        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className={inputClass} />
-                        <input value={state_} onChange={(e) => setState_(e.target.value)} placeholder="State" className={inputClass} />
-                        <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP" className={inputClass} />
+                        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("brandingShop.cityPlaceholder")} className={inputClass} />
+                        <input value={state_} onChange={(e) => setState_(e.target.value)} placeholder={t("brandingShop.statePlaceholder")} className={inputClass} />
+                        <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder={t("brandingShop.zipPlaceholder")} className={inputClass} />
                       </div>
                     </div>
                   </div>
@@ -1068,24 +1076,24 @@ export default function BrandingShop() {
             {!orderSuccess && cart.length > 0 && (
               <div className="border-t border-white/10 p-5">
                 <div className="mb-3 flex justify-between text-sm">
-                  <span className="text-white/50">Total</span>
+                  <span className="text-white/50">{t("brandingShop.totalLabel")}</span>
                   <span className="text-lg font-black text-primary">{money(cartTotal)}</span>
                 </div>
                 <button onClick={placeOrder} disabled={ordering || !user} className={goldBtn + " w-full"}>
                   {ordering ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Placing order…
+                      <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.placingOrder")}
                     </>
                   ) : (
-                    <>Place order · {money(cartTotal)}</>
+                    <>{t("brandingShop.placeOrder", { amount: money(cartTotal) })}</>
                   )}
                 </button>
                 <p className="mt-2 text-center text-xs text-white/35">
-                  No payment taken today — dropship partner integration coming soon.
+                  {t("brandingShop.noPaymentNote")}
                 </p>
                 {!user && (
                   <p className="mt-1 text-center text-xs text-white/40">
-                    <a href="/login" className="text-primary underline">Sign in</a> to check out.
+                    <a href="/login" className="text-primary underline">{t("brandingShop.signIn")}</a> {t("brandingShop.signInToCheckout")}
                   </p>
                 )}
               </div>
