@@ -212,6 +212,144 @@ const ASPECT_DIMS: Record<string, [number, number]> = {
 const TARGET_FPS = 30;
 const FFMPEG_TIMEOUT_MS = 8 * 60 * 1000;
 
+/* ── Export quality controls (Feature Wave 6, worker 10) ────────────────
+ * The quality dialog docks inside the Video Editor Export tab and extends
+ * this same pipeline — no fork. When `quality.enabled` is set, the final
+ * FFmpeg pass is parameterized by these settings; every default matches the
+ * legacy hardcoded behavior (1080p-ish dims, CRF 18 delivery / CRF 20
+ * normalize, 30 fps, ultrafast, MP4). */
+const QUALITY_RESOLUTION_SCALE: Record<string, number> = {
+  "720p":  720 / 1080,
+  "1080p": 1,
+  "4k":    2,
+};
+
+export interface QualityOptions {
+  enabled: boolean;
+  /** "720p" | "1080p" | "4k" */
+  resolution: string;
+  /** Quality slider 0–100 (higher = better). */
+  quality: number;
+  /** 24 | 30 | 60 */
+  fps: number;
+  /** "mp4" | "mov" */
+  container: string;
+}
+
+/** Aspect-ratio base dims scaled to the requested resolution, kept even
+ *  (x264 requires even dimensions). */
+export function resolveQualityDims(aspectRatio: string, resolution: string): [number, number] {
+  const [bw, bh] = ASPECT_DIMS[aspectRatio] ?? ASPECT_DIMS["9:16"]!;
+  const scale = QUALITY_RESOLUTION_SCALE[resolution] ?? 1;
+  const even = (v: number): number => Math.max(2, Math.round((v * scale) / 2) * 2);
+  return [even(bw), even(bh)];
+}
+
+/** Quality slider (0–100) → x264 CRF. 80 maps to 18, matching the legacy
+ *  delivery pass; 100 → 16 (max), 0 → 26 (draft). */
+export function crfForQuality(q: number): number {
+  const clamped = Math.min(100, Math.max(0, q));
+  return Math.min(26, Math.max(16, Math.round(26 - (clamped / 100) * 10)));
+}
+
+/** Normalize possibly-absent quality options into a complete, safe object. */
+export function normalizeQualityOptions(raw: QualityOptions | null | undefined): QualityOptions {
+  const r = (raw ?? {}) as Partial<QualityOptions>;
+  const resolution = ["720p", "1080p", "4k"].includes(r.resolution ?? "")
+    ? (r.resolution as string) : "1080p";
+  const fps = [24, 30, 60].includes(Number(r.fps)) ? Number(r.fps) : 30;
+  const container = r.container === "mov" ? "mov" : "mp4";
+  const quality = Number.isFinite(Number(r.quality))
+    ? Math.min(100, Math.max(0, Number(r.quality))) : 80;
+  return { enabled: r.enabled === true, resolution, quality, fps, container };
+}
+
+export interface QualityEstimateInput {
+  aspectRatio?: string;
+  resolution?: string;
+  quality?: number;
+  fps?: number;
+  container?: string;
+  durationSec: number;
+  hasAudio?: boolean;
+}
+
+export interface QualityEstimate {
+  bytes: number;
+  sizeLabel: string;
+  renderSec: number;
+  renderLabel: string;
+  /** True when the estimate hit the Supabase per-file ceiling and was capped. */
+  capped: boolean;
+  settings: {
+    width: number;
+    height: number;
+    fps: number;
+    crf: number;
+    container: string;
+    resolution: string;
+    quality: number;
+  };
+}
+
+/** Estimate the final file size + render time for a set of quality settings.
+ *  Size model: video bitrate ≈ pixels × fps × bits-per-pixel(CRF), with the
+ *  classic x264 rule of thumb (bitrate halves per +6 CRF, anchored at
+ *  ~0.10 bpp for CRF 18 on 1080p30 — calibrated against real exports),
+ *  then clamped to the same VBV ceiling the render applies so the estimate
+ *  stays honest for long/high-res exports. Render model: the delivery pass
+ *  is single-threaded x264 (~0.05–0.1x realtime at 1080p), so render time
+ *  scales with pixel count and fps plus a fixed pipeline overhead. */
+export function estimateExportQuality(input: QualityEstimateInput): QualityEstimate {
+  const q = normalizeQualityOptions({
+    enabled: true,
+    resolution: input.resolution,
+    quality: input.quality,
+    fps: input.fps,
+    container: input.container,
+  } as QualityOptions);
+  const durationSec = Math.max(0.25, input.durationSec);
+  const [w, h] = resolveQualityDims(input.aspectRatio ?? "9:16", q.resolution);
+  const crf = crfForQuality(q.quality);
+  // bits per pixel per frame: 0.10 at CRF 18, halves every +6 CRF.
+  const bpp = 0.10 * Math.pow(2, (18 - crf) / 6);
+  let videoKbps = (w * h * q.fps * bpp) / 1000;
+  // Same VBV ceiling the render applies (keeps uploads under Supabase's
+  // per-file ceiling): 45 MB video+audio budget minus overhead.
+  const AUDIO_BPS = 192000;
+  const maxBytes = 45 * 1024 * 1024;
+  const overheadBytes = 2 * 1024 * 1024;
+  const budgetKbps = Math.floor(
+    ((((maxBytes - (AUDIO_BPS / 8) * durationSec - overheadBytes) * 8) / Math.max(1, durationSec)) / 1000),
+  );
+  const capped = videoKbps > budgetKbps && budgetKbps > 0;
+  if (capped) videoKbps = budgetKbps;
+  const audioKbps = input.hasAudio === false ? 0 : AUDIO_BPS / 1000;
+  const bytes = Math.round((((videoKbps * 1000) / 8) + (audioKbps * 1000) / 8) * durationSec);
+  const sizeLabel = bytes >= 10 * 1024 * 1024
+    ? `≈ ${Math.round(bytes / 1024 / 1024)} MB`
+    : bytes >= 1024 * 1024
+      ? `≈ ${(bytes / 1024 / 1024).toFixed(1)} MB`
+      : `≈ ${Math.round(bytes / 1024)} KB`;
+  // Render: single-threaded x264 ≈ 12x realtime at 1080p30, scaling with
+  // pixels (720p ≈ 6x, 4K ≈ 45x) and fps, +45s fixed pipeline overhead.
+  const pixelScale = (w * h) / (1080 * 1920);
+  const renderSec = Math.round(durationSec * 12 * pixelScale * Math.pow(q.fps / 30, 0.7) + 45);
+  const renderLabel = renderSec >= 120
+    ? `~${Math.round(renderSec / 60)} min render`
+    : renderSec >= 60
+      ? `~1 min render`
+      : `~${Math.max(10, Math.round(renderSec / 5) * 5)} sec render`;
+  return {
+    bytes,
+    sizeLabel,
+    renderSec,
+    renderLabel,
+    capped,
+    settings: { width: w, height: h, fps: q.fps, crf, container: q.container, resolution: q.resolution, quality: q.quality },
+  };
+}
+
 /* ── helpers ─────────────────────────────────────────── */
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
@@ -275,7 +413,9 @@ async function probeVideo(filePath: string): Promise<VideoInfo> {
   }
 }
 
-/** Normalize one clip to target resolution/fps/codec so all clips are concat-compatible. */
+/** Normalize one clip to target resolution/fps/codec so all clips are concat-compatible.
+ *  `crf` parameterizes the encode quality (default 20 = legacy behavior);
+ *  the quality dialog passes deliveryCrf + 2 for a slightly cleaner intermediate. */
 async function normalizeClip(
   inputPath: string,
   outputPath: string,
@@ -283,8 +423,10 @@ async function normalizeClip(
   targetH: number,
   targetFps: number,
   fitMode?: string,
+  crf: number = 20,
 ): Promise<string> {
   let args: string[];
+  const crfStr = String(crf);
 
   if (fitMode === "blur") {
     // Blur Background: split → (scale-up+crop+boxblur as bg) + (scale-to-fit as fg) → overlay
@@ -304,7 +446,7 @@ async function normalizeClip(
       "-c:v", "libx264",
       "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
-      "-crf", "20",
+      "-crf", crfStr,
       "-pix_fmt", "yuv420p",
       "-video_track_timescale", "90000",
       "-an",
@@ -327,7 +469,7 @@ async function normalizeClip(
       "-c:v", "libx264",
       "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
-      "-crf", "20",
+      "-crf", crfStr,
       "-pix_fmt", "yuv420p",
       "-video_track_timescale", "90000",
       "-an",
@@ -349,7 +491,7 @@ async function normalizeClip(
       "-c:v", "libx264",
       "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
-      "-crf", "20",
+      "-crf", crfStr,
       "-pix_fmt", "yuv420p",
       "-video_track_timescale", "90000",
       "-an",
@@ -714,6 +856,20 @@ function cleanup(...files: string[]) {
 /* ── POST /api/export-final-video ────────────────────── */
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
 export const EXPORT_CREDIT_COST = 400;
+/** Flat cost for a quality-controlled export (Feature Wave 6) — 4K costs the
+ *  same; simple and generous per CapCut's moat. */
+export const QUALITY_EXPORT_COST = 150;
+
+/* Quality controls for POST /export-final-video and POST /export-quality.
+ * All optional with legacy-matching defaults, so the plain one-click export
+ * is byte-identical to before. */
+const qualityOptionsSchema = z.object({
+  enabled: z.boolean().default(false),
+  resolution: z.enum(["720p", "1080p", "4k"]).default("1080p"),
+  quality: z.number().min(0).max(100).default(80),
+  fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(30),
+  container: z.enum(["mp4", "mov"]).default("mp4"),
+});
 
 /* Request-body schema for POST /export-final-video.
  * Defaults mirror the destructuring fallbacks in executeExport. Deeply
@@ -759,6 +915,9 @@ const exportFinalVideoSchema = z.object({
   fitMode: z.string().nullish(),
   /** Structured overlay items to burn into the video. */
   overlayItems: z.any().optional(),
+  /** Export quality controls (resolution / quality slider / fps / container).
+   *  Optional — defaults match the legacy hardcoded encode exactly. */
+  quality: qualityOptionsSchema.nullish(),
 });
 
 export interface ExportRequestBody {
@@ -843,6 +1002,10 @@ export interface ExportRequestBody {
       /** 1–200, interpreted as % width for images. */
       size?: number;
     }[] | null;
+    /** Export quality controls (Feature Wave 6). When `enabled`, the final
+     *  FFmpeg pass is parameterized by these settings; defaults match the
+     *  legacy hardcoded encode. */
+    quality?: QualityOptions | null;
 }
 
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
@@ -893,9 +1056,18 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     overlayEffects,
     overlayEffectIntensity,
     fitMode,
+    quality: rawQuality,
   } = ctx.body;
 
-  const [TARGET_W, TARGET_H] = ASPECT_DIMS[aspectRatio] ?? ASPECT_DIMS["9:16"]!;
+  /* ── Export quality controls (Feature Wave 6): parameterize the final
+   *  encode. Defaults match the legacy hardcoded behavior exactly, so the
+   *  plain one-click export renders byte-identical output. ── */
+  const quality = normalizeQualityOptions(rawQuality);
+  const [TARGET_W, TARGET_H] = resolveQualityDims(aspectRatio, quality.resolution);
+  const TARGET_FPS = quality.fps; // shadows the module default within this scope
+  const deliveryCrf = crfForQuality(quality.quality);
+  const outExt = quality.container === "mov" ? "mov" : "mp4";
+  const outContentType = quality.container === "mov" ? "video/quicktime" : "video/mp4";
 
   const exportId = randomUUID();
   const tmpDir = os.tmpdir();
@@ -917,6 +1089,13 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       clipCount: clipUrls.length,
       aspectRatio,
       resolution: `${TARGET_W}x${TARGET_H}`,
+      quality: quality.enabled ? {
+        resolution: quality.resolution,
+        slider: quality.quality,
+        crf: deliveryCrf,
+        fps: quality.fps,
+        container: quality.container,
+      } : "legacy-defaults",
       audioSource,
       hasAudio: !!audioUrl,
       fadeAudioInSec,
@@ -1364,7 +1543,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
       ctx.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
 
-      await normalizeClip(ptSrcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
+      await normalizeClip(ptSrcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined, deliveryCrf + 2);
 
       if (!existsSync(normPath) || statSync(normPath).size < 1024) {
         throw new Error(`Scene ${origIdx + 1} failed to normalize — output file missing or empty`);
@@ -1981,7 +2160,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     /* ── 5: Build FFmpeg args ── */
     // Input ordering: intro? → normalizedClips → outro? → audio? → watermark?
-    const outputPath = path.join(tmpDir, `bdv-export-${exportId}.mp4`);
+    const outputPath = path.join(tmpDir, `bdv-export-${exportId}.${outExt}`);
     tmpFiles.push(outputPath);
 
     const ffmpegArgs: string[] = [];
@@ -2260,7 +2439,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       // cores and OOM-killing the 512MB instance within a minute of pass A.)
       "-threads", "1",
       "-preset", "ultrafast",
-      "-crf", "18",
+      // Quality dialog (Feature Wave 6): CRF is parameterized; 18 is the
+      // legacy default. Normalize intermediates sit one generation above this.
+      "-crf", String(deliveryCrf),
       // Bitrate budget (computed above): Pass A is the real x264 encode, so the
       // VBV cap must live here — not on the legacy single-pass ffmpegArgs,
       // which Pass A/B replaced. Pass B stream-copies this video, so the cap
@@ -2277,7 +2458,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       "-y", passAPath,
     ];
     ctx.log.info(
-      { crf: 18, maxrateKbps: exportMaxVideoKbps, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
+      { crf: deliveryCrf, quality: quality.quality, resolution: quality.resolution, maxrateKbps: exportMaxVideoKbps, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
       "[export] pass A (video) starting",
     );
     // Pass A is single-threaded 1080x1920 x264: on a throttled instance it can
@@ -2386,17 +2567,17 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     await ensureVideoExportsBucket();
     
 
-    const objectName = `exports/${exportId}.mp4`;
+    const objectName = `exports/${exportId}.${outExt}`;
     // Stream the upload — readFileSync on a multi-hundred-MB final MP4 OOMs
     // small instances. The file stays on disk; only small chunks are in RAM.
-    const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, outputPath, "video/mp4");
+    const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, outputPath, outContentType);
     const { data: signData, error: signErr } = await getSupabaseAdmin().storage.from(VIDEO_EXPORTS_BUCKET).createSignedUrl(objectName, SUPABASE_SIGNED_URL_TTL_SEC);
     if (signErr || !signData?.signedUrl) throw new Error(`Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}`);
     ctx.log.info({ objectName, storageRef }, "[export] uploaded to Supabase storage");
 
     /* ── 9: Sign URL (fresh signed URL for the response; stable ref persisted) ── */
     const signedUrl = signData.signedUrl;
-    const objectPath = `/objects/exports/${exportId}.mp4`;
+    const objectPath = `/objects/exports/${exportId}.${outExt}`;
 
     /* ── 10: Save to project ── */
     if (!testMode) {
@@ -2465,6 +2646,15 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       duration: outInfo.duration,
       testMode: !!testMode,
       exportStatus,
+      quality: {
+        enabled: quality.enabled,
+        resolution: quality.resolution,
+        width: TARGET_W,
+        height: TARGET_H,
+        fps: TARGET_FPS,
+        crf: deliveryCrf,
+        container: quality.container,
+      },
       debug: {
         identicalClipsDetected,
         fingerprints: clipFingerprints,
@@ -2566,20 +2756,27 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
   try {
     const result = await executeExport(ctx);
 
-    /* ── Deduct credits + record usage on export success ── */
+    /* ── Deduct credits + record usage on export success ──
+     *  Quality-controlled exports (POST /api/export-quality) charge the flat
+     *  QUALITY_EXPORT_COST instead of the standard EXPORT_CREDIT_COST. The
+     *  job's persisted params carry the quality flag, so boot recovery
+     *  re-runs charge the same price — never double, never the wrong tier. */
     if (!IS_DEV) {
+      const isQualityExport = ctx.body.quality?.enabled === true;
+      const exportCost = isQualityExport ? QUALITY_EXPORT_COST : EXPORT_CREDIT_COST;
+      const exportAction = isQualityExport ? "Quality-Controlled Export" : "Final Video Export";
       try {
-        const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, EXPORT_CREDIT_COST);
+        const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, exportCost);
         if (charged) {
           // Strict ledger write: the export was delivered, so on failure the
           // deduction stands and the gap is logged CRITICAL for manual
           // reconciliation — never silently swallowed.
           try {
-            await recordCreditUsageStrict({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null });
+            await recordCreditUsageStrict({ userId: ctx.userId, action: exportAction, creditsUsed: exportCost, projectId: ctx.body.projectId ?? null });
           } catch (ledgerErr) {
             ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
           }
-          ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
+          ctx.log.info({ userId: ctx.userId, creditsAfter, cost: exportCost, action: exportAction }, "[export] credits deducted");
         } else {
           ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");
         }
@@ -2606,26 +2803,21 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
   }
 }
 
-router.post("/export-final-video", requireAuth, async (req, res) => {
-  const bodyParse = exportFinalVideoSchema.safeParse(req.body ?? {});
-  if (!bodyParse.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: bodyParse.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-  const body = bodyParse.data;
+/** Shared preflight for both export routes (one-click + quality-controlled).
+ *  Returns a { status, json } error response to send, or null when valid. */
+function preflightExportBody(body: {
+  projectId?: string | null;
+  clipUrls?: unknown;
+  exportRangeStart?: number | null;
+  exportRangeEnd?: number | null;
+}): { status: number; json: Record<string, unknown> } | null {
   const { projectId, clipUrls, exportRangeStart, exportRangeEnd } = body;
 
-
   if (!projectId?.trim()) {
-    res.status(400).json({ error: "projectId is required" });
-    return;
+    return { status: 400, json: { error: "projectId is required" } };
   }
   if (!Array.isArray(clipUrls) || clipUrls.length === 0) {
-    res.status(400).json({ error: "clipUrls must be a non-empty array" });
-    return;
+    return { status: 400, json: { error: "clipUrls must be a non-empty array" } };
   }
 
   /* ── Custom export range validation ──
@@ -2643,13 +2835,55 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       startNum >= 0 &&
       endNum - startNum >= MIN_EXPORT_RANGE_DURATION_SEC;
     if (!rangeIsUsable) {
-      res.status(400).json({
-        error: `Invalid export range: start=${exportRangeStart ?? "null"}, end=${exportRangeEnd ?? "null"}. ` +
-          `The range must have a valid start (>= 0) and an end at least ${MIN_EXPORT_RANGE_DURATION_SEC}s after the start.`,
-        code: "INVALID_EXPORT_RANGE",
-      });
-      return;
+      return {
+        status: 400,
+        json: {
+          error: `Invalid export range: start=${exportRangeStart ?? "null"}, end=${exportRangeEnd ?? "null"}. ` +
+            `The range must have a valid start (>= 0) and an end at least ${MIN_EXPORT_RANGE_DURATION_SEC}s after the start.`,
+          code: "INVALID_EXPORT_RANGE",
+        },
+      };
     }
+  }
+  return null;
+}
+
+/** Shared async-job kickoff: persist the job row, return 202, and enqueue the
+ *  background render. Both export routes use the same pipeline. */
+async function startExportJob(
+  req: { userId?: string; userPlan?: string; userSupabase?: SupabaseClient; log?: ExportJobContext["log"] },
+  res: { status: (code: number) => { json: (body: unknown) => void } },
+  body: ExportRequestBody,
+): Promise<void> {
+  const job = await createExportJob(req.userId!, body.projectId.trim(), body);
+  res.status(202).json({ jobId: job.id, status: job.state });
+
+  const ctx: ExportJobContext = {
+    body,
+    userId: req.userId!,
+    userPlan: req.userPlan,
+    userSupabase: req.userSupabase,
+    log: req.log ?? logger,
+    statusRef: { current: null },
+  };
+  enqueueExport(() => runExportJobInBackground(job.id, ctx));
+}
+
+router.post("/export-final-video", requireAuth, async (req, res) => {
+  const bodyParse = exportFinalVideoSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: bodyParse.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const body = bodyParse.data;
+
+  const preflight = preflightExportBody(body);
+  if (preflight) {
+    res.status(preflight.status).json(preflight.json);
+    return;
   }
 
   /* ── Credit check (5 credits for final export) ── */
@@ -2676,18 +2910,91 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
    * interrupted jobs and the client keeps polling the same jobId.
    * Credits are deducted only when the render actually succeeds
    * (chargeCreditsForJob, exactly once). */
-  const job = await createExportJob(req.userId, projectId.trim(), body);
-  res.status(202).json({ jobId: job.id, status: job.state });
+  await startExportJob(req, res, body);
+});
 
-  const ctx: ExportJobContext = {
-    body,
-    userId: req.userId,
-    userPlan: req.userPlan,
-    userSupabase: req.userSupabase,
-    log: req.log ?? logger,
-    statusRef: { current: null },
+/* ── POST /api/export-quality ─────────────────────────────────────────
+ * Quality-controlled export (Feature Wave 6): the same single pipeline as
+ * POST /export-final-video — NOT a fork — with the `quality` options forced
+ * on, charged at the flat QUALITY_EXPORT_COST (150 Visual Bucs, 4K included).
+ * Credits: 402 pre-check up front; the deduction itself happens exactly once
+ * after a successful render (chargeCreditsForJob), so a failed render never
+ * charges — no refund path needed. */
+router.post("/export-quality", requireAuth, async (req, res) => {
+  const bodyParse = exportFinalVideoSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: bodyParse.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const body = bodyParse.data;
+
+  const preflight = preflightExportBody(body);
+  if (preflight) {
+    res.status(preflight.status).json(preflight.json);
+    return;
+  }
+
+  /* ── Credit check: 150 Visual Bucs flat for a quality-controlled export ── */
+  const currentCredits = req.userCredits ?? 0;
+  if (!IS_DEV && currentCredits < QUALITY_EXPORT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough Visual Bucs. Quality export costs 150 Visual Bucs — top up to continue.",
+    });
+    return;
+  }
+
+  if (!req.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  // Quality mode is always on for this route; normalize fills safe defaults
+  // for anything the client omitted (matching legacy behavior).
+  const nq = normalizeQualityOptions(body.quality);
+  body.quality = {
+    enabled: true,
+    resolution: nq.resolution as "720p" | "1080p" | "4k",
+    quality: nq.quality,
+    fps: nq.fps as 24 | 30 | 60,
+    container: nq.container as "mp4" | "mov",
   };
-  enqueueExport(() => runExportJobInBackground(job.id, ctx));
+
+  await startExportJob(req, res, body);
+});
+
+/* ── POST /api/export-quality/estimate ────────────────────────────────
+ * Free, instant size + render-time estimate for a set of quality settings —
+ * called by the Quality dialog before the user confirms. No credits move. */
+const exportQualityEstimateSchema = z.object({
+  aspectRatio: z.string().default("9:16"),
+  durationSec: z.number().min(0.25).max(4 * 3600),
+  hasAudio: z.boolean().default(true),
+  quality: qualityOptionsSchema.nullish(),
+});
+
+router.post("/export-quality/estimate", requireAuth, async (req, res) => {
+  const parsed = exportQualityEstimateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid estimate request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const d = parsed.data;
+  res.json(estimateExportQuality({
+    aspectRatio: d.aspectRatio,
+    durationSec: d.durationSec,
+    hasAudio: d.hasAudio,
+    resolution: d.quality?.resolution,
+    quality: d.quality?.quality,
+    fps: d.quality?.fps,
+    container: d.quality?.container,
+  }));
 });
 
 router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {

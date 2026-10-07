@@ -982,6 +982,7 @@ export function ExportSection({
         overlays={settings.overlays}
         overlayIntensity={settings.overlayIntensity}
         fitMode={settings.export.fitMode ?? "fill"}
+        isSubscriber={isSubscriber}
         onExportComplete={(record) => setFinalVideoUrl(record.final_video_url ?? null)}
       />
 
