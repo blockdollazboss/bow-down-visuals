@@ -195,7 +195,7 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
  * background job → poll GET /api/upscale/:jobId → download/stream result.
  * Failed jobs are refunded automatically.
  */
-router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res) => {
+router.post("/upscale", requireAuth, upload.single("video"), async (req, res) => {
   const parsed = upscaleSchema.safeParse(req.body ?? {});
   const target = parsed.success ? parsed.data.target : undefined;
   if (target !== "1080p" && target !== "4k") {
@@ -268,7 +268,7 @@ router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL
  * for the upscaled video retained in Supabase storage).
  */
-router.get("/api/upscale/:jobId", requireAuth, (req, res) => {
+router.get("/upscale/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

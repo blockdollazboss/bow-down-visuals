@@ -388,7 +388,7 @@ const importSchema = z.object({
  * Legal framing (also in the UI): this is for the user's OWN content,
  * backups, and royalty-free material — not a piracy tool.
  */
-router.post("/api/media-import", requireAuth, async (req, res) => {
+router.post("/media-import", requireAuth, async (req, res) => {
   const parsed = importSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -471,7 +471,7 @@ router.post("/api/media-import", requireAuth, async (req, res) => {
  *
  * Poll this until status is "done" or "failed".
  */
-router.get("/api/media-import/:jobId", requireAuth, (req, res) => {
+router.get("/media-import/:jobId", requireAuth, (req, res) => {
   const rawId = req.params.jobId;
   const jobId = Array.isArray(rawId) ? rawId[0] : rawId;
   const job = getMediaImportJob(jobId ?? "");

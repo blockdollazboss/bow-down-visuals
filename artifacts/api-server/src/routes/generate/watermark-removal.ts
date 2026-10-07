@@ -222,7 +222,7 @@ export async function runWatermarkJob(job: WatermarkJob, inputBuffer: Buffer, or
  * poll GET /api/watermark-removal/:jobId → download/stream result.
  * Failed jobs are refunded automatically.
  */
-router.post("/api/watermark-removal", requireAuth, upload.single("video"), async (req, res) => {
+router.post("/watermark-removal", requireAuth, upload.single("video"), async (req, res) => {
   const parsed = watermarkRemovalSchema.safeParse(req.body ?? {});
   const body = parsed.success ? parsed.data : {};
   let custom: unknown = null;
@@ -305,7 +305,7 @@ router.post("/api/watermark-removal", requireAuth, upload.single("video"), async
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL
  * for the cleaned video retained in Supabase storage).
  */
-router.get("/api/watermark-removal/:jobId", requireAuth, (req, res) => {
+router.get("/watermark-removal/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

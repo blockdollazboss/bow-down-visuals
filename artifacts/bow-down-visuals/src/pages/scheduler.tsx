@@ -684,6 +684,15 @@ function QueueTab(props: {
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
+            {/* Spine reverse handoff: scheduler → back to Promo Clips. */}
+            <a
+              href={`/promo-clip?hook=${encodeURIComponent((p.caption ?? "").slice(0, 200))}`}
+              className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-primary"
+              aria-label={t("scheduler.queue.remixLabel")}
+              title={t("scheduler.queue.remixTitle")}
+            >
+              <Clapperboard className="h-4 w-4" />
+            </a>
             <button
               onClick={() => props.onEdit(p)}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white"
@@ -1620,6 +1629,9 @@ function ComposerModal(props: {
   const { toast } = useToast();
   const { post, prefill } = props;
   const isEdit = !!post;
+  /* Spine: project-level attribution + referral link flow into published
+     captions (default ON, toggleable from the Hub). */
+  const { project: hubProject, getShareLink } = useHubProject();
 
   const [mediaRef, setMediaRef] = useState(post?.mediaUrl ?? props.mediaPrefill ?? "");
   const [previewUrl, setPreviewUrl] = useState(() => {
@@ -1729,10 +1741,17 @@ function ComposerModal(props: {
     try {
       const token = await getAccessToken();
       const scheduledAt = forSchedule ? combineLocalDateTime(date, time)!.toISOString() : null;
+      /* Spine: published posts carry the project's "Made with" credit + the
+         creator's referral link (earning loop). Drafts stay clean; the line
+         is added once — never duplicated on re-edits. */
+      let finalCaption = caption.trim();
+      if (forSchedule && hubProject.attribution && !finalCaption.includes("Made with Bow Down Visuals")) {
+        finalCaption = `${finalCaption}\n\nMade with Bow Down Visuals\n${getShareLink()}`.trim();
+      }
       const payload = {
         mediaUrl: mediaRef,
         mediaType: "video",
-        caption: caption.trim(),
+        caption: finalCaption,
         hashtags: normalizeHashtags(hashtags),
         platforms,
         accountIds,
@@ -1863,6 +1882,12 @@ function ComposerModal(props: {
             placeholder={t("scheduler.composer.captionPlaceholder")}
             className={`${inputClass} resize-y`}
           />
+          {hubProject.attribution ? (
+            <p className="mt-1.5 text-[11px] text-white/35">
+              {t("hubSpine.madeWith")} · {t("scheduler.composer.attributionNote")}{" "}
+              <a href="/hub" className="text-primary/80 hover:underline">{t("scheduler.composer.attributionChange")}</a>
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-4">

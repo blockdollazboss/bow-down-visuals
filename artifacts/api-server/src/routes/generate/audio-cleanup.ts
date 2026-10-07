@@ -225,7 +225,7 @@ export async function runAudioCleanupJob(
  * background job → poll GET /api/audio-cleanup/:jobId → download
  * result. Failed jobs are refunded automatically.
  */
-router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
+router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
   const parsed = audioCleanupSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -303,7 +303,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
  * (a signed, reviewable URL for the cleaned audio retained in
  * Supabase storage).
  */
-router.get("/api/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

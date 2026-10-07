@@ -549,7 +549,7 @@ function AllStepsView() {
 
 export default function Hub() {
   const { t } = useTranslation();
-  const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, newProject, clearStepDones } = useHubProject();
+  const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [pickingType, setPickingType] = useState(project.assets.length === 0);
@@ -665,6 +665,25 @@ export default function Hub() {
             )}
             <span className="text-white/30 text-sm">·</span>
             <span className="text-white/30 text-sm">{getWorkflow(project.type).title}</span>
+            {/* Virality: project-level "Made with Bow Down Visuals" credit.
+                Default ON — flows into every export/share from every tool. */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={project.attribution}
+              onClick={() => setAttribution(!project.attribution)}
+              title={t("hubSpine.attributionDesc")}
+              className={`ml-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all ${
+                project.attribution
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70"
+              }`}
+            >
+              <span className={`relative h-4 w-7 rounded-full transition-colors ${project.attribution ? "bg-primary" : "bg-white/15"}`}>
+                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-black transition-all ${project.attribution ? "left-3.5" : "left-0.5"}`} />
+              </span>
+              {t("hubSpine.attributionTitle")}
+            </button>
           </div>
 
           {view === "guided" ? (

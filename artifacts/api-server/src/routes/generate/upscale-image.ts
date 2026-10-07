@@ -80,7 +80,7 @@ export function buildImageFfmpegArgs(
  * respond { status: "done", url, creditsRemaining }. Failed jobs are
  * refunded automatically (charged-but-failed paths hit the catch below).
  */
-router.post("/api/upscale/image", requireAuth, upload.single("image"), async (req, res) => {
+router.post("/upscale/image", requireAuth, upload.single("image"), async (req, res) => {
   const parsed = upscaleImageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -484,7 +484,7 @@ function jobResponse(job: MixMasterJob) {
  * Failed jobs are refunded automatically.
  */
 router.post(
-  "/api/mix-master/master",
+  "/mix-master/master",
   requireAuth,
   fieldsUpload([
     { name: "audio", maxCount: 1 },
@@ -578,7 +578,7 @@ router.post(
  * background job → poll GET /api/mix-master/job/:id. Refund on failure.
  */
 router.post(
-  "/api/mix-master/mix",
+  "/mix-master/mix",
   requireAuth,
   fieldsUpload([
     { name: "stems", maxCount: MAX_STEMS },
@@ -671,7 +671,7 @@ router.post(
  * Poll job status. Returns the Master Report stats and download URLs
  * when done (reviewable output, never faked).
  */
-router.get("/api/mix-master/job/:id", requireAuth, (req: Request, res: Response) => {
+router.get("/mix-master/job/:id", requireAuth, (req: Request, res: Response) => {
   const job = getMixMasterJob(req.params["id"] as string);
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });

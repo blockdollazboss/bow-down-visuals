@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -9,6 +9,9 @@ export const hubProjectsTable = pgTable("hub_projects", {
   assets: jsonb("assets").notNull().default([]),
   concept: text("concept").notNull().default(""),
   templateKey: text("template_key"),
+  /** "Made with Bow Down Visuals" credit toggle — project-level, default ON.
+      Flows into every export/share output from every tool in the project. */
+  attribution: boolean("attribution").notNull().default(true),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -26,6 +26,8 @@ const SaveHubProjectSchema = z.object({
   assets: z.array(HubAssetSchema).max(200),
   concept: z.string().max(2000).default(""),
   templateKey: z.string().max(80).nullable().default(null),
+  /* "Made with Bow Down Visuals" credit toggle — project-level, default ON. */
+  attribution: z.boolean().default(true),
   updatedAt: z.number(),
 });
 
@@ -49,6 +51,7 @@ router.get("/hub/project", requireAuth, async (req, res) => {
       assets: Array.isArray(row.assets) ? row.assets : [],
       concept: row.concept ?? "",
       templateKey: row.templateKey ?? null,
+      attribution: row.attribution ?? true,
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
     },
   });
@@ -73,6 +76,7 @@ router.put("/hub/project", requireAuth, async (req, res) => {
       assets: d.assets,
       concept: d.concept,
       templateKey: d.templateKey,
+      attribution: d.attribution,
       updated_at: new Date(d.updatedAt),
     })
     .onConflictDoUpdate({
@@ -83,6 +87,7 @@ router.put("/hub/project", requireAuth, async (req, res) => {
         assets: d.assets,
         concept: d.concept,
         templateKey: d.templateKey,
+        attribution: d.attribution,
         updated_at: new Date(d.updatedAt),
       },
     });

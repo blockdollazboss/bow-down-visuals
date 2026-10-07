@@ -35,6 +35,9 @@ export interface HubProject {
   concept: string;
   /** Template key the concept came from (for per-step preloaded hints). */
   templateKey: string | null;
+  /** "Made with Bow Down Visuals" credit toggle — project-level, default ON.
+      Flows into every export/share output from every tool in the project. */
+  attribution: boolean;
 }
 
 export type HubSyncStatus = "local" | "syncing" | "synced" | "error";
@@ -46,6 +49,8 @@ interface HubProjectContextValue {
   setProjectType: (type: HubProjectType) => void;
   setProjectConcept: (concept: string) => void;
   setTemplateKey: (key: string | null) => void;
+  /** "Made with Bow Down Visuals" credit toggle (default ON). */
+  setAttribution: (on: boolean) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
   removeAsset: (id: string) => void;
   newProject: () => void;
@@ -55,6 +60,12 @@ interface HubProjectContextValue {
   stepDones: string[];
   markStepDone: (key: string) => void;
   clearStepDones: (type: HubProjectType) => void;
+  /** Creator's referral code (null when signed out / not loaded yet).
+      Shared outputs carry ?ref=CODE so they become earning loops. */
+  referralCode: string | null;
+  /** Clean share link for the project (or a specific asset): origin + ?ref=CODE.
+      Falls back to plain origin when no code is loaded yet. */
+  getShareLink: (assetLabel?: string) => string;
 }
 
 const HubProjectContext = createContext<HubProjectContextValue | null>(null);
@@ -71,6 +82,7 @@ function freshProject(): HubProject {
     updatedAt: Date.now(),
     concept: "",
     templateKey: null,
+    attribution: true,
   };
 }
 
@@ -91,6 +103,7 @@ function loadProject(): HubProject {
       type: validTypes.includes(parsed.type) ? parsed.type : "song",
       concept: typeof parsed.concept === "string" ? parsed.concept : "",
       templateKey: typeof parsed.templateKey === "string" ? parsed.templateKey : null,
+      attribution: typeof parsed.attribution === "boolean" ? parsed.attribution : true,
     };
   } catch {
     return freshProject();
@@ -111,9 +124,49 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
   const [project, setProject] = useState<HubProject>(loadProject);
   const [dones, setDones] = useState<Record<string, string[]>>(loadDones);
   const [syncStatus, setSyncStatus] = useState<HubSyncStatus>("local");
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const { user, getAccessToken } = useAuth();
   const projectRef = useRef(project);
   const lastSyncedJson = useRef<string | null>(null);
+
+  /* Load the creator's referral code once per sign-in so shared project
+     outputs can carry ?ref=CODE — every share becomes an earning loop. */
+  useEffect(() => {
+    if (!user) {
+      setReferralCode(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/referrals/me", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { code?: string };
+        if (!cancelled && typeof data.code === "string" && data.code) {
+          setReferralCode(data.code);
+        }
+      } catch {
+        /* referral code is a nice-to-have — share links still work without it */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /** Clean, SEO-friendly share link for the project: site root carrying the
+      creator's referral code so every shared output is an earning loop. */
+  const getShareLink = useCallback(
+    (_assetLabel?: string) => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      return referralCode ? `${origin}/?ref=${encodeURIComponent(referralCode)}` : `${origin}/`;
+    },
+    [referralCode]
+  );
 
   useEffect(() => {
     projectRef.current = project;
@@ -145,6 +198,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         assets: snapshot.assets,
         concept: snapshot.concept,
         templateKey: snapshot.templateKey,
+        attribution: snapshot.attribution,
         updatedAt: snapshot.updatedAt,
       }),
     });
@@ -167,7 +221,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         });
         if (!res.ok) throw new Error(`hub pull failed: ${res.status}`);
         const data = (await res.json()) as {
-          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; updatedAt: number } | null;
+          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; attribution?: boolean; updatedAt: number } | null;
         };
         if (cancelled) return;
         const local = projectRef.current;
@@ -180,6 +234,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
             assets: Array.isArray(server.assets) ? server.assets : [],
             concept: typeof server.concept === "string" ? server.concept : "",
             templateKey: typeof server.templateKey === "string" ? server.templateKey : null,
+            attribution: typeof server.attribution === "boolean" ? server.attribution : true,
             updatedAt: server.updatedAt,
           };
           lastSyncedJson.current = JSON.stringify(adopted);
@@ -238,6 +293,10 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject((p) => ({ ...p, templateKey: key, updatedAt: Date.now() }));
   }, []);
 
+  const setAttribution = useCallback((on: boolean) => {
+    setProject((p) => ({ ...p, attribution: on, updatedAt: Date.now() }));
+  }, []);
+
   const addAsset = useCallback((asset: Omit<HubAsset, "id" | "createdAt">) => {
     const full: HubAsset = {
       ...asset,
@@ -287,6 +346,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       setProjectType,
       setProjectConcept,
       setTemplateKey,
+      setAttribution,
       addAsset,
       removeAsset,
       newProject,
@@ -295,8 +355,10 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       stepDones: dones[project.type] ?? [],
       markStepDone,
       clearStepDones,
+      referralCode,
+      getShareLink,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones]);
+  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -315,6 +377,7 @@ export function useHubProject(): HubProjectContextValue {
       setProjectType: () => {},
       setProjectConcept: () => {},
       setTemplateKey: () => {},
+      setAttribution: () => {},
       addAsset: noopAsset,
       removeAsset: () => {},
       newProject: () => {},
@@ -323,6 +386,8 @@ export function useHubProject(): HubProjectContextValue {
       stepDones: [],
       markStepDone: () => {},
       clearStepDones: () => {},
+      referralCode: null,
+      getShareLink: () => (typeof window !== "undefined" ? window.location.origin + "/" : "/"),
     };
   }
   return ctx;

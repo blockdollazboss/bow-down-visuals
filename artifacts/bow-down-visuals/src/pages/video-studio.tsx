@@ -9,6 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { callGenerateApi } from "@/lib/generate-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
+import { useHubProject, type HubAsset } from "@/lib/hub-project";
 
 /* ─── Higgsfield-style camera movements ─── */
 
@@ -101,6 +104,24 @@ export default function VideoStudio() {
   const [videos, setVideos] = useState<GeneratedVideo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { addAsset } = useHubProject();
+
+  /* Spine: pick up the project's song — its music-video idea becomes the
+     prompt, and a project thumbnail can anchor image-to-video. */
+  function handleProjectPick(asset: HubAsset) {
+    if (asset.kind === "song") {
+      const idea = asset.meta?.["musicVideoIdea"];
+      if (idea && !prompt.trim()) setPrompt(idea);
+      else if (!prompt.trim()) setPrompt(`${asset.label} — cinematic music video shot`);
+      setAspect("16:9");
+    } else if (asset.kind === "script") {
+      const hook = asset.meta?.["hook"];
+      if (hook && !prompt.trim()) setPrompt(`Cinematic visual for: ${hook}`);
+    } else if (asset.kind === "thumbnail" || asset.kind === "image") {
+      setMode("image");
+      setReferenceImage(asset.url);
+    }
+  }
 
   function applyPreset(preset: typeof ONE_CLICK_PRESETS[number]) {
     setPrompt(preset.prompt);
@@ -142,6 +163,15 @@ export default function VideoStudio() {
           camera,
           createdAt: new Date().toISOString(),
         }, ...prev]);
+        /* Spine: every finished clip lands in the hub project — the editor,
+           promo clips and scheduler pick it up with one tap. */
+        addAsset({
+          kind: "video",
+          url: videoUrl,
+          label: prompt.trim().slice(0, 80) || "AI video",
+          detail: `${duration}s · ${aspect} · ${camera}`,
+          meta: { prompt: prompt.trim().slice(0, 300), camera, duration: String(duration), aspect },
+        });
         refreshProfile();
       }
     } catch (err) {
@@ -175,6 +205,11 @@ export default function VideoStudio() {
 
         {/* One-click presets */}
         <div className="mb-8">
+          <ProjectFlowBar
+            kinds={["song", "script", "thumbnail", "image"]}
+            actionLabel={t("hubSpine.flowBar.useSongInVideo")}
+            onPick={handleProjectPick}
+          />
           <label className="block text-sm font-medium text-white/70 mb-3">
             One-click workflows
           </label>
@@ -378,6 +413,20 @@ export default function VideoStudio() {
         {videos.length > 0 && (
           <div className="mt-12">
             <h2 className="text-xl font-bold mb-4">Your videos</h2>
+            {videos[0] && (
+              <div className="mb-6">
+                <AssetHandoffs
+                  asset={{
+                    id: `vs-${videos[0].createdAt}`,
+                    kind: "video",
+                    url: videos[0].url,
+                    label: videos[0].prompt.slice(0, 80) || "AI video",
+                    createdAt: Date.parse(videos[0].createdAt) || Date.now(),
+                  }}
+                  handoffs={["loop", "auto-captions"]}
+                />
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {videos.map((v, i) => (
                 <div key={i} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">

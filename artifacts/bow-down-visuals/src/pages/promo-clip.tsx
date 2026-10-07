@@ -228,7 +228,7 @@ export default function PromoClip() {
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
-  const { addAsset, latestOfKind, project } = useHubProject();
+  const { addAsset, latestOfKind, project: hubProject } = useHubProject();
 
   /* ── Hub project spine: prefill the from-scratch form from the active
      project — song title, artist, hook travel over, no re-typing. ── */
@@ -1083,7 +1083,7 @@ export default function PromoClip() {
                   createdAt: Date.now(),
                 }}
                 handoffs={["clip-description"]}
-                topic={watched.songTitle || watched.songHook || project.name}
+                topic={watched.songTitle || watched.songHook || hubProject.name}
               />
             </div>
             {(() => {

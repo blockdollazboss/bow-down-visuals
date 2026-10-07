@@ -9,7 +9,7 @@ import {
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
-  SlidersHorizontal, Undo2, Redo2,
+  SlidersHorizontal, Undo2, Redo2, LayoutTemplate,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -60,6 +60,7 @@ import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
+import TemplatesTabPanel from "@/components/video-editor/TemplatesTabPanel";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
@@ -79,6 +80,8 @@ import {
 } from "@/lib/pro-tools-preview";
 import { TimelineDock } from "@/components/editor/TimelineDock";
 import TemplatePicker from "@/components/TemplatePicker";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import type { HubAsset } from "@/lib/hub-project";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
@@ -96,7 +99,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
+type EditorTab = "clips" | "templates" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -167,7 +170,7 @@ export default function VideoEditor() {
   const { isSimple } = useUserMode();
   /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
-  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
+  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "templates", "pre-production", "lip-sync", "timeline", "export"];
   /** Creator Level star thresholds per rail tab — clips / music / timeline /
    *  export are core (level 1) and never gated. */
   const TAB_MIN_STARS: Partial<Record<EditorTab, number>> = {
@@ -264,6 +267,19 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* ── Video-template deep link: /video-editor?tab=templates&template=<key> ──
+     Used by the /templates/videos gallery and share links. The tab is in
+     SIMPLE_VISIBLE_TABS so the deep link works in guide mode too. */
+  const [deepLinkedTemplateKey, setDeepLinkedTemplateKey] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("tab") === "templates") {
+      setTab("templates");
+      const key = params.get("template");
+      if (key) setDeepLinkedTemplateKey(key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the pinned
    *  master player's height clamp clears it instead of running underneath it. */
@@ -463,6 +479,74 @@ export default function VideoEditor() {
     scenesRef.current = next;
     setScenesState(next);
   }, [pushHistory, snapshotNow]);
+
+  /* ── Hub project spine: drop a project clip/video straight into the
+     timeline as its own scene (marked intentionally-reused so the export's
+     duplicate-URL check exempts it). ── */
+  const addHubAssetAsScene = useCallback((asset: HubAsset) => {
+    const scene: SceneData = {
+      id: `hub-${Date.now().toString(36)}`,
+      sceneNumber: scenesRef.current.length + 1,
+      timestamp: "",
+      section: "",
+      lyricLine: "",
+      location: "",
+      action: asset.label,
+      cameraMovement: "",
+      lighting: "",
+      mood: "",
+      aiVideoPrompt: asset.meta?.["prompt"] ?? "",
+      negativePrompt: "",
+      approved: true,
+      demoClipUrl: asset.url,
+      thumbnailUrl: null,
+      clipId: null,
+      runwayJobId: null,
+      provider: null,
+      generationStatus: "completed",
+      promptUsed: asset.meta?.["prompt"] ?? null,
+      generatedAt: new Date().toISOString(),
+      clipReusedIntentionally: true,
+    };
+    setScenes((prev) => [...prev, scene]);
+    toast({ title: t("hubSpine.flowBar.clipAdded"), description: asset.label });
+  }, [setScenes, toast, t]);
+
+  /* ── Video-template handoff: finished template video → "Add captions" ──
+     Appends the rendered video as a new scene clip and opens the captions
+     tab so the creator can caption it immediately. */
+  const handleTemplateVideoForCaptions = useCallback((videoUrl: string, title: string) => {
+    const scene: SceneData = {
+      id: `template-${Date.now().toString(36)}`,
+      sceneNumber: scenesRef.current.length + 1,
+      timestamp: "",
+      section: title,
+      lyricLine: "",
+      location: "",
+      action: title,
+      cameraMovement: "",
+      lighting: "",
+      mood: "",
+      aiVideoPrompt: title,
+      negativePrompt: "",
+      approved: true,
+      demoClipUrl: videoUrl,
+      thumbnailUrl: null,
+      clipId: null,
+      runwayJobId: null,
+      provider: "video-template",
+      generationStatus: "completed",
+      promptUsed: null,
+      generatedAt: new Date().toISOString(),
+      clipReusedIntentionally: true,
+    };
+    setScenes((prev) => [...prev, scene]);
+    setTab("captions");
+    toast({
+      title: t("videoEditor.templateVideoAddedTitle"),
+      description: t("videoEditor.templateVideoAddedDesc"),
+    });
+  }, [setScenes, setTab, toast, t]);
 
   const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
     const prev = settingsRef.current;
@@ -1023,6 +1107,7 @@ export default function VideoEditor() {
               <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
                 {orderedRailTabs([
                     { id: "clips", label: t("videoEditor.railMedia"), icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
+                    { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
                     { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
                     { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
                     { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
@@ -1034,7 +1119,7 @@ export default function VideoEditor() {
                     { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                     { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                   ])
-                    .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
+                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
                       <button
                         key={item.id}
@@ -1059,6 +1144,7 @@ export default function VideoEditor() {
                   <h2 className="text-xs font-black text-white uppercase tracking-widest">
                     {{
                       clips: t("videoEditor.railMedia"),
+                      templates: t("videoEditor.railTemplates"),
                       music: t("videoEditor.railAudio"),
                       timeline: t("videoEditor.railTimeline"),
                       captions: t("videoEditor.railText"),
@@ -1115,6 +1201,12 @@ export default function VideoEditor() {
 
                   {tab === "clips" && (
                         <div className="space-y-6">
+                          {/* Hub project spine — pull finished clips/videos straight into the timeline */}
+                          <ProjectFlowBar
+                            kinds={["video", "clip"]}
+                            actionLabel={t("hubSpine.flowBar.useInEditor")}
+                            onPick={addHubAssetAsScene}
+                          />
                           {/* Apply consistency banner */}
                           {consistencyPrompt && scenes.length > 0 && (
                             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
@@ -1275,6 +1367,15 @@ export default function VideoEditor() {
                           />
                         </div>
                       )}
+
+                  {tab === "templates" && (
+                    <TemplatesTabPanel
+                      scenes={scenes}
+                      deepLinkedKey={deepLinkedTemplateKey}
+                      onDeepLinkConsumed={() => setDeepLinkedTemplateKey(null)}
+                      onAddCaptions={handleTemplateVideoForCaptions}
+                    />
+                  )}
 
                   {tab === "music" && (
                     <MusicStudio

@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
+import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
    Pick a feature, pick a format and tone, and get ready-to-post marketing
@@ -345,6 +346,12 @@ export default function Promote() {
             </div>
           </div>
         )}
+
+        {/* Social Kit — the orphaned /api/social-kit backend, mounted here.
+            Brand kit for the project's socials, prefilled from the hub. */}
+        <div className="mt-10">
+          <SocialKitPanel />
+        </div>
       </section>
 
 

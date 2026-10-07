@@ -16,10 +16,14 @@ import {
   Check,
   MonitorPlay,
   Smartphone,
+  Clapperboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import type { HubAsset } from "@/lib/hub-project";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
@@ -82,8 +86,7 @@ export function ThumbnailMakerModule() {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
-  const { confirmedFetch } = useConfirmedApi();
-  const [mode, setMode] = useState<"simple" | "custom">("simple");
+  const { confirmedFetch } = useConfirmedApi();  const [mode, setMode] = useState<"simple" | "custom">("simple");
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
@@ -98,6 +101,19 @@ export function ThumbnailMakerModule() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [progress, setProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Spine: pull the project's song/video in — the song title becomes overlay
+     text, the video's prompt seeds the art direction. No re-typing. */
+  function handleProjectPick(asset: HubAsset) {
+    if (asset.kind === "song") {
+      const title = asset.meta?.["title"] ?? asset.label;
+      if (!overlayText.trim()) setOverlayText(title.slice(0, 60));
+      if (!prompt.trim()) setPrompt(`YouTube thumbnail art for the song "${title}" — bold, eye-catching, gold luxury style`);
+    } else if (asset.kind === "video" || asset.kind === "clip") {
+      const p = asset.meta?.["prompt"];
+      if (p && !prompt.trim()) setPrompt(`YouTube thumbnail inspired by: ${p.slice(0, 200)}`);
+    }
+  }
 
   /* One-click presets for Simple mode */
   const SIMPLE_PRESETS = [
@@ -225,6 +241,11 @@ export function ThumbnailMakerModule() {
 
   return (
     <>
+      <ProjectFlowBar
+        kinds={["song", "video", "clip"]}
+        actionLabel={t("hubSpine.flowBar.useSongInVideo")}
+        onPick={handleProjectPick}
+      />
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
           {/* Simple / Custom toggle */}
           <div className="flex gap-2">
@@ -492,12 +513,37 @@ export function ThumbnailMakerModule() {
                     <Button size="sm" className="gold-glow font-bold gap-2">
                       <Download className="h-4 w-4" />{t("thumbnailMaker.downloadButton")}</Button>
                   </a>
+                  {/* Spine reverse handoff: the thumbnail is already in the hub
+                      project — Video Studio picks it up as an image reference. */}
+                  <Link href="/video-studio">
+                    <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
+                      <Clapperboard className="h-4 w-4" />{t("thumbnailMaker.sendToVideoStudio")}
+                    </Button>
+                  </Link>
                   <PublishToShowcase
                     mediaType="image"
                     mediaUrl={selectedImage.url}
                     defaultTitle={`Thumbnail v${selectedImage.variation}`}
                   />
                 </div>
+              </div>
+            )}
+
+            {selectedImage && (
+              <div className="mt-6">
+                <AssetHandoffs
+                  asset={{
+                    id: `thumb-${selectedImage.variation}-${Date.now().toString(36)}`,
+                    kind: "thumbnail",
+                    url: selectedImage.url,
+                    label: overlayText || prompt.slice(0, 80) || "Thumbnail",
+                    createdAt: Date.now(),
+                    meta: { ...(overlayText ? { title: overlayText } : {}), prompt: prompt.slice(0, 300) },
+                  }}
+                  handoffs={["thumbnail-ab", "meme"]}
+                  prompt={prompt}
+                  overlayText={overlayText}
+                />
               </div>
             )}
           </div>
