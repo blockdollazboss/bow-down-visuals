@@ -4632,7 +4632,21 @@
     "toneLabel": "Tone",
     "topicLabel": "What's the video about?",
     "topicPlaceholder": "e.g. How I produced my first beat in one night",
-    "writeScriptButton": "Write my script · {{cost}} Visual Bucs"
+    "writeScriptButton": "Write my script · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ Launch Teleprompter",
+    "teleprompterClose": "Close teleprompter",
+    "teleprompterPlay": "Play",
+    "teleprompterPause": "Pause",
+    "teleprompterRestart": "Restart from top",
+    "teleprompterWpm": "Speed",
+    "teleprompterWpmValue": "{{wpm}} WPM",
+    "teleprompterFontSmaller": "Smaller text",
+    "teleprompterFontLarger": "Larger text",
+    "teleprompterMirror": "Mirror for teleprompter hardware",
+    "teleprompterFullscreen": "Fullscreen",
+    "teleprompterWords": "{{count}} words",
+    "teleprompterReadTime": "~{{min}} min read",
+    "teleprompterHint": "Space = play/pause · ↑↓ = speed · +/− = text size · Esc = close · click script = pause"
   },
   "setlist": {
     "addButton": "Add",
@@ -7743,7 +7757,8 @@
       "calendar": "Calendar",
       "queue": "Queue ({{num}})",
       "drafts": "Drafts ({{num}})",
-      "posted": "Posted"
+      "posted": "Posted",
+      "community": "Community Posts"
     },
     "platforms": {
       "instagram": {
@@ -7895,6 +7910,35 @@
       "noPlatform": "Pick at least one platform.",
       "noAccount": "Pick a connected account for: {{platforms}}.",
       "futureTime": "Pick a date and time at least a minute in the future."
+    },
+    "communityPosts": {
+      "badge": "AI copywriter",
+      "title": "Community Post Generator",
+      "desc": "Text-first engagement posts for YouTube Community, X, Instagram, and Threads. {{cost}} Visual Bucs per batch of 3 — refunded automatically if generation fails.",
+      "topic": "Topic",
+      "topicPlaceholder": "e.g. new single dropping Friday, poll: which cover next, hot take on the industry...",
+      "platform": "Platform",
+      "tone": "Tone",
+      "cta": "Call to action (optional)",
+      "ctaPlaceholder": "e.g. comment your pick below, pre-save link in bio...",
+      "niche": "Niche hint (optional)",
+      "nichePlaceholder": "e.g. indie artists",
+      "generate": "Generate 3 posts",
+      "generating": "Writing...",
+      "generated": "Pick your favorite — or schedule any of them with the existing scheduler flow.",
+      "charCount": "{{num}} / {{limit}} characters",
+      "bestTime": "Best time to post",
+      "scheduleThis": "Schedule this post",
+      "copy": "Copy",
+      "copied": "Copied to clipboard.",
+      "variants": "Variant {{num}}",
+      "failed": "Generation failed",
+      "platformLabels": {
+        "youtube-community": "YouTube Community",
+        "x": "X",
+        "instagram": "Instagram",
+        "threads": "Threads"
+      }
     }
   },
   "myShop": {

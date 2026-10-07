@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { TeleprompterPlayer } from "@/components/TeleprompterPlayer";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { useTranslation } from "react-i18next";
@@ -87,6 +88,7 @@ export default function ScriptWriter() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
+  const [teleprompterOpen, setTeleprompterOpen] = useState(false);
 
   async function copyText(key: string, text: string) {
     try {
@@ -105,6 +107,7 @@ export default function ScriptWriter() {
     setOutOfCredits(false);
     setResult(null);
     setShowTeleprompter(false);
+    setTeleprompterOpen(false);
     try {
       const res = await confirmedFetch("/api/script-writer", {
         method: "POST",
@@ -430,6 +433,12 @@ export default function ScriptWriter() {
                   <h3 className="text-lg font-bold">{t("scriptWriter.teleprompterTitle")}</h3>
                   <div className="flex gap-2">
                     <button
+                      onClick={() => setTeleprompterOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-3 py-1.5 hover:brightness-110 transition-all"
+                    >
+                      {t("scriptWriter.teleprompterLaunch")}
+                    </button>
+                    <button
                       onClick={() => setShowTeleprompter((s) => !s)}
                       className="text-sm rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
                     >
@@ -460,6 +469,13 @@ export default function ScriptWriter() {
               {t("scriptWriter.creditsFooter", { used: result.creditsUsed, remaining: result.creditsRemaining })}
             </p>
           </section>
+        )}
+
+        {teleprompterOpen && result?.teleprompter && (
+          <TeleprompterPlayer
+            script={result.teleprompter}
+            onClose={() => setTeleprompterOpen(false)}
+          />
         )}
       </main>
 
