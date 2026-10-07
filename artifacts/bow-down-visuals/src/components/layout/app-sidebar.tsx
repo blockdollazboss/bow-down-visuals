@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
 import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
