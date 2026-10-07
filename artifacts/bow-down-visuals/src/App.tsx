@@ -54,6 +54,7 @@ import HookTemplates from "@/pages/templates/hooks";
 import CaptionPacks from "@/pages/templates/captions";
 import Showcase from "@/pages/showcase/index";
 import ShowcaseItemPage from "@/pages/showcase/item";
+import PublicAlbumPage from "@/pages/albums/public";
 import PlanPublic from "@/pages/plan-public";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
@@ -399,6 +400,7 @@ function AppShell() {
           <Route path="/templates/captions"><CaptionPacks /></Route>
           <Route path="/showcase"><Showcase /></Route>
           <Route path="/showcase/:slug"><ShowcaseItemPage /></Route>
+          <Route path="/albums/:slug"><PublicAlbumPage /></Route>
           <Route path="/plan/:slug"><PlanPublic /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>

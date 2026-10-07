@@ -6,20 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic } from "lucide-react";
 import InspoTab, { type InspoGeneratedData } from "@/components/InspoTab";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
+import SongMashup from "@/components/SongMashup";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
+import { CoverSongModal } from "@/components/song/CoverSongModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationResult } from "@/components/GenerationResult";
+import { HumToSong } from "@/components/HumToSong";
+import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
@@ -143,6 +147,11 @@ export default function MakeSong() {
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [mode, setMode] = useState<"simple" | "custom" | "inspo">("simple");
+  /* Mashup tab — docked Song Mashup (Suno parity), no separate page.
+     "hum" — docked Hum-to-Song (Suno parity), no separate page. */
+  const [mashupTab, setMashupTab] = useState<"create" | "mashup" | "hum">("create");
+  const [mashupA, setMashupA] = useState<string | null>(null);
+  const [mashupB, setMashupB] = useState<string | null>(null);
   const [simplePrompt, setSimplePrompt] = useState("");
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -153,6 +162,8 @@ export default function MakeSong() {
   const [uploadedSongUrl, setUploadedSongUrl] = useState<string | null>(null);
   const [uploadedSongFile, setUploadedSongFile] = useState<File | null>(null);
   const [projectBeat, setProjectBeat] = useState<HubAsset | null>(null);
+  /* Cover Song (Suno Cover parity) — modal over the finished song. */
+  const [coverOpen, setCoverOpen] = useState(false);
   const { toast } = useToast();
   const {
     setProjectName, setProjectType, setProjectConcept,
@@ -161,7 +172,9 @@ export default function MakeSong() {
 
   /* Deep-link protocols:
      - /make-song?audioUrl=… pre-fills an extracted audio track as the song.
-     - /make-song?mode=inspo opens the Inspo tab (shared vibe links). */
+     - /make-song?mode=inspo opens the Inspo tab (shared vibe links).
+     - /make-song?tab=mashup&songA=<id>&songB=<id> opens the Mashup tab
+       with songs pre-selected (from "Mashup with another" links). */
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -172,6 +185,17 @@ export default function MakeSong() {
       }
       if (params.get("mode") === "inspo") {
         setMode("inspo");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      const deepA = params.get("songA");
+      const deepB = params.get("songB");
+      if (params.get("tab") === "mashup" || deepA) {
+        setMashupTab("mashup");
+        if (deepA) setMashupA(deepA);
+        if (deepB) setMashupB(deepB);
+        window.history.replaceState(null, "", window.location.pathname);
+      } else if (params.get("tab") === "hum") {
+        setMashupTab("hum");
         window.history.replaceState(null, "", window.location.pathname);
       }
     } catch {
@@ -389,6 +413,56 @@ export default function MakeSong() {
           </div>
         )}
 
+        {/* Create / Mashup tabs — Mashup is docked inside Song Maker (no separate page) */}
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => setMashupTab("create")}
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              mashupTab === "create"
+                ? "bg-primary text-black font-bold"
+                : "bg-white/5 text-white/60 hover:bg-white/10 border border-white/10"
+            }`}
+          >
+            <Music className="h-4 w-4" />
+            {t("mashup.tabCreate")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMashupTab("mashup")}
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              mashupTab === "mashup"
+                ? "bg-primary text-black font-bold"
+                : "bg-white/5 text-white/60 hover:bg-white/10 border border-white/10"
+            }`}
+          >
+            <Blend className="h-4 w-4" />
+            {t("mashup.tabMashup")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMashupTab("hum")}
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              mashupTab === "hum"
+                ? "bg-primary text-black font-bold"
+                : "bg-white/5 text-white/60 hover:bg-white/10 border border-white/10"
+            }`}
+          >
+            <Mic className="h-4 w-4" />
+            Hum it
+          </button>
+        </div>
+
+        {mashupTab === "hum" ? (
+          <div className="lux-card-static p-6 md:p-8">
+            <HumToSong />
+          </div>
+        ) : mashupTab === "mashup" ? (
+          <div className="lux-card-static p-6 md:p-8">
+            <SongMashup preselectA={mashupA} preselectB={mashupB} />
+          </div>
+        ) : (
+        <>
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
           {/* Simple / Custom / Inspo mode toggle - Suno pattern */}
@@ -657,6 +731,8 @@ export default function MakeSong() {
           </form>
           )}
         </div>
+        </>
+        )}
 
         {outOfCredits && <OutOfCredits />}
 
@@ -683,17 +759,54 @@ export default function MakeSong() {
             />
             {(() => {
               const songAsset = latestOfKind("song");
-              if (!songAsset || songAsset.url.startsWith("blob:")) return null;
+              const audioUrl = songAsset && !songAsset.url.startsWith("blob:") ? songAsset.url : null;
               const pkg = extractSongPackage(rawResult);
               return (
-                <AssetHandoffs
-                  asset={songAsset}
-                  handoffs={["karaoke", "audiogram", "social-kit"]}
-                  lyricsText={pkg.lyrics}
-                  coverUrl={latestOfKind("image")?.url}
-                  brandName={watched.artistName || project.name}
-                  tagline={pkg.concept.slice(0, 120) || undefined}
-                />
+                <>
+                  {audioUrl && (
+                    <AssetHandoffs
+                      asset={songAsset!}
+                      handoffs={["karaoke", "audiogram", "social-kit"]}
+                      lyricsText={pkg.lyrics}
+                      coverUrl={latestOfKind("image")?.url}
+                      brandName={watched.artistName || project.name}
+                      tagline={pkg.concept.slice(0, 120) || undefined}
+                    />
+                  )}
+                  {audioUrl && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setCoverOpen(true)}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                      >
+                        <Disc3 className="h-4 w-4" />
+                        Make a cover — same song, new style (400 Visual Bucs)
+                      </button>
+                      <CoverSongModal
+                        open={coverOpen}
+                        onClose={() => setCoverOpen(false)}
+                        source={{
+                          audioUrl,
+                          title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                          artistName: watched.artistName || undefined,
+                        }}
+                        initialLyrics={pkg.lyrics}
+                      />
+                    </>
+                  )}
+                  {/* Suno-parity rework: remix the arrangement or replace one section. */}
+                  <SongReworkPanel
+                    source={{
+                      title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                      artistName: watched.artistName || undefined,
+                      genre: watched.genre || undefined,
+                      mood: watched.mood || undefined,
+                      lyrics: pkg.lyrics || undefined,
+                      audioUrl,
+                    }}
+                  />
+                </>
               );
             })()}
           </div>
