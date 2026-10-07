@@ -277,6 +277,7 @@ router.use(clipDescriptionsRouter);
 router.use(thumbnailTextRouter);
 router.use(audiogramRouter);
 router.use(hashtagsRouter);
+router.use(virtualBgRouter);
 router.use(masteringRouter);
 router.use(repurposeRouter);
 router.use(samplePackRouter);
