@@ -55,8 +55,8 @@ jobs:
       - name: Set up release signing
         working-directory: artifacts/bow-down-visuals/android
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > app/release.p12
-          test -f app/release.p12 || { echo "KEYSTORE DECODE FAILED"; exit 1; }
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | tr -d ' \n\r\t' | base64 -d > app/release.p12
+          test -s app/release.p12 || { echo "KEYSTORE DECODE FAILED"; exit 1; }
           python3 - <<'PYEOF'
           import re
           p = 'app/build.gradle'
