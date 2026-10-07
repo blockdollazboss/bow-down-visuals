@@ -5,6 +5,14 @@ import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/cr
 import { db, artistVaultsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { swapSongVocalsToVoice } from "../../lib/voice-swap";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { writeFile, readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { randomUUID } from "crypto";
+
+const execFileAsync = promisify(execFile);
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -241,3 +249,162 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
 });
 
 export default router;
+
+/* ─── Extend a song (Suno parity Phase 2) ───
+   Generates a continuation segment and crossfades it onto the original.
+   POST /generate-music-audio/extend */
+
+const EXTEND_MIN_MS = 10_000;
+const EXTEND_MAX_MS = 120_000;
+const CROSSFADE_MS = 3000;
+
+async function downloadAudio(url: string): Promise<Buffer> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) throw new Error(`Could not download original audio (${res.status})`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+async function crossfadeJoin(first: Buffer, second: Buffer): Promise<Buffer> {
+  const id = randomUUID();
+  const firstPath = join(tmpdir(), `${id}-a.mp3`);
+  const secondPath = join(tmpdir(), `${id}-b.mp3`);
+  const outPath = join(tmpdir(), `${id}-out.mp3`);
+  try {
+    await writeFile(firstPath, first);
+    await writeFile(secondPath, second);
+    // acrossfade joins with a smooth crossfade instead of a hard cut.
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", firstPath, "-i", secondPath,
+      "-filter_complex", `acrossfade=d=${CROSSFADE_MS / 1000}:c1=tri:c2=tri`,
+      "-c:a", "libmp3lame", "-b:a", "192k",
+      outPath,
+    ], { timeout: 120_000 });
+    return await readFile(outPath);
+  } finally {
+    await unlink(firstPath).catch(() => {});
+    await unlink(secondPath).catch(() => {});
+    await unlink(outPath).catch(() => {});
+  }
+}
+
+router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
+  const { originalAudioUrl, originalPrompt, extendPrompt, extendSeconds,
+    lyrics, instrumental, vocalGender, songTitle, artistName } = (req.body ?? {}) as {
+    originalAudioUrl?: string;
+    originalPrompt?: string;
+    extendPrompt?: string;
+    extendSeconds?: number;
+    lyrics?: string;
+    instrumental?: boolean;
+    vocalGender?: string;
+    songTitle?: string;
+    artistName?: string;
+  };
+
+  if (!originalAudioUrl?.trim() || !extendPrompt?.trim()) {
+    res.status(400).json({ error: "originalAudioUrl and extendPrompt are required." });
+    return;
+  }
+
+  const apiKey = process.env["ELEVENLABS_API_KEY"];
+  if (!apiKey) {
+    res.status(500).json({ error: "Music generation is not configured on this server." });
+    return;
+  }
+
+  const extendMs = Math.min(EXTEND_MAX_MS, Math.max(EXTEND_MIN_MS,
+    Math.round(Number(extendSeconds || 30) * 1000)));
+  const creditCost = creditCostForLength(extendMs);
+
+  const currentCredits = req.userCredits ?? 0;
+  if (currentCredits < creditCost) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
+    });
+    return;
+  }
+
+  const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
+
+  // Continuation prompt: carry the original's style into the new section.
+  let segPrompt = `Continuation of this song: ${(originalPrompt || "").trim().slice(0, 1000)}. `.slice(0, 1200);
+  segPrompt += `New section: ${extendPrompt.trim().slice(0, 500)}. Seamless flow, same key and tempo.`;
+  const cleanGender = vocalGender === "male" || vocalGender === "female" ? vocalGender : null;
+  if (cleanGender && !instrumental) segPrompt += ` ${cleanGender} vocals.`;
+  const cleanLyrics = typeof lyrics === "string" ? lyrics.trim().slice(0, 5000) : "";
+  if (cleanLyrics && !instrumental) segPrompt += `\n\nLyrics for this section:\n${cleanLyrics}`;
+  segPrompt = segPrompt.slice(0, 2000);
+
+  try {
+    // 1. Generate the continuation segment.
+    const elevenRes = await fetch("https://api.elevenlabs.io/v1/music", {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: segPrompt,
+        music_length_ms: extendMs,
+        model_id: musicModel,
+        force_instrumental: instrumental === true,
+      }),
+    });
+    if (!elevenRes.ok) {
+      const errText = await elevenRes.text().catch(() => "");
+      throw new Error(`ElevenLabs ${elevenRes.status}: ${errText.slice(0, 200)}`);
+    }
+    const segment = Buffer.from(await elevenRes.arrayBuffer());
+    if (segment.length === 0) throw new Error("Extension segment came back empty.");
+
+    // 2. Download the original and crossfade-join.
+    const original = await downloadAudio(originalAudioUrl.trim());
+    const joined = await crossfadeJoin(original, segment);
+
+    // 3. Upload.
+    const sb = req.userSupabase!;
+    const path = `${req.userId}/generated/${Date.now()}-music-extended.mp3`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, joined, {
+      contentType: "audio/mpeg",
+      upsert: true,
+    });
+    if (upErr) throw new Error("Could not save the extended audio.");
+    const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+
+    // 4. History + charge (same pattern as the main endpoint).
+    const genHistoryId = await recordGenerationHistory({
+      userId: req.userId!,
+      generationType: "Extend Audio",
+      prompt: segPrompt.slice(0, 500),
+      content: data.publicUrl,
+      artistName: artistName || undefined,
+      songTitle: songTitle ? `${songTitle} (Extended)` : undefined,
+      creditsUsed: creditCost,
+    });
+
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Extend Audio" });
+    } catch (deductErr) {
+      if (deductErr instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+        return;
+      }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
+        return;
+      }
+      throw deductErr;
+    }
+    markGenerationHistoryCharged(genHistoryId).catch(() => {});
+
+    res.json({
+      url: data.publicUrl,
+      storagePath: path,
+      creditsRemaining: creditsAfter,
+      genHistoryId,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Extension failed";
+    req.log.error({ err }, "generate-music-audio/extend: failed");
+    res.status(500).json({ error: message });
+  }
+});

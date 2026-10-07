@@ -65,6 +65,10 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [error, setError] = useState<string | null>(null);
   const [lastGenerated, setLastGenerated] = useState<AudioStem | null>(null);
   const [lastVariants, setLastVariants] = useState<Array<{ url: string; label: string }>>([]);
+  const [showExtend, setShowExtend] = useState(false);
+  const [extendPrompt, setExtendPrompt] = useState("");
+  const [extendSeconds, setExtendSeconds] = useState("30");
+  const [extending, setExtending] = useState(false);
 
   async function handleGenerate() {
     if (!prompt.trim()) {
@@ -132,6 +136,68 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       }
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleExtend() {
+    if (!lastGenerated || !extendPrompt.trim()) {
+      toast({ title: "Describe the extension", description: "Tell the AI what to add (e.g. epic outro, second verse).", variant: "destructive" });
+      return;
+    }
+    setExtending(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to extend audio.");
+      const lenMs = Number(extendSeconds) * 1000;
+      const cost = lenMs <= 60_000 ? 400 : lenMs <= 180_000 ? 800 : 1200;
+      const res = await confirmedFetch("/api/generate-music-audio/extend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          originalAudioUrl: lastGenerated.url,
+          originalPrompt: prompt.trim(),
+          extendPrompt: extendPrompt.trim(),
+          extendSeconds: Number(extendSeconds),
+          lyrics: showLyrics && lyrics.trim() ? lyrics.trim() : undefined,
+          instrumental,
+          vocalGender: vocalGender === "auto" ? undefined : vocalGender,
+          songTitle,
+          artistName,
+        }),
+        overrideCost: cost,
+        overrideFeature: "Extend Song",
+      });
+      if (!res) return; // user cancelled
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Extension failed.");
+
+      // Replace the stem with the extended version.
+      const extendedStem: AudioStem = {
+        ...lastGenerated,
+        id: `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: `${lastGenerated.name} (Extended)`,
+        url: data.url,
+        storagePath: data.storagePath,
+        durationSec: (lastGenerated.durationSec ?? 0) + Number(extendSeconds),
+      };
+      onChange({ ...settings, musicStudio: { ...ms, stems: [extendedStem, ...ms.stems.filter((s) => s.id !== lastGenerated.id)] } });
+      setLastGenerated(extendedStem);
+      setLastVariants([]);
+      setShowExtend(false);
+      setExtendPrompt("");
+      refreshProfile();
+      toast({ title: "Song extended!", description: "The new section was crossfaded onto your track." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not extend audio.";
+      if (msg === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setExtending(false);
     }
   }
 
@@ -256,6 +322,55 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               mediaUrl={lastGenerated.url}
               defaultTitle={lastGenerated.name}
             />
+            <a
+              href="/lyric-video"
+              className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"
+            >
+              → Make a lyric video with timestamped lyrics
+            </a>
+            {/* Extend (Suno-style) */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowExtend(!showExtend)}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                {showExtend ? "− Hide extend" : "+ Extend this song"}
+              </button>
+              {showExtend && (
+                <div className="mt-2 space-y-3">
+                  <Field label="What to add" hint="e.g. epic outro, second verse, bridge">
+                    <TextInput
+                      value={extendPrompt}
+                      onChange={setExtendPrompt}
+                      placeholder="epic orchestral outro with choir"
+                      testId="input-extend-prompt"
+                    />
+                  </Field>
+                  <Field label="Extension length">
+                    <Segmented
+                      value={extendSeconds}
+                      options={[
+                        { value: "15", label: "15s" },
+                        { value: "30", label: "30s" },
+                        { value: "60", label: "60s" },
+                      ]}
+                      onChange={setExtendSeconds}
+                    />
+                  </Field>
+                  <Button
+                    onClick={handleExtend}
+                    disabled={extending}
+                    className="w-full h-10 text-sm font-black bg-primary text-black hover:bg-primary/90"
+                  >
+                    {extending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extending…</> : "Extend song"}
+                  </Button>
+                  <p className="text-[11px] text-white/35">
+                    Generates a continuation and crossfades it onto your track. Charged for the new section only.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
