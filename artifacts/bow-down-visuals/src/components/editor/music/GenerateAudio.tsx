@@ -25,6 +25,27 @@ const LENGTH_OPTIONS = [
   { value: "180", label: "3min" },
 ];
 
+const VOCAL_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+];
+
+const VARIANT_OPTIONS = [
+  { value: "1", label: "1 take" },
+  { value: "2", label: "2 takes (2×)" },
+];
+
+/* One-tap style starters — Suno-style prompt helpers. */
+const STYLE_PRESETS = [
+  "Dark trap, 140 BPM, heavy 808s",
+  "Lo-fi hip hop, chill, vinyl crackle",
+  "Epic orchestral, cinematic build",
+  "Afrobeats, danceable, log drums",
+  "Pop anthem, uplifting, big chorus",
+  "R&B slow jam, silky, late night",
+];
+
 export function GenerateAudio({ settings, onChange, artistName, songTitle, artistVaultId }: GenerateAudioProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -33,10 +54,16 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
 
   const [prompt, setPrompt] = useState("");
   const [lengthSeconds, setLengthSeconds] = useState("60");
+  const [lyrics, setLyrics] = useState("");
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [instrumental, setInstrumental] = useState(false);
+  const [vocalGender, setVocalGender] = useState("auto");
+  const [variantCount, setVariantCount] = useState("1");
   const [generating, setGenerating] = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastGenerated, setLastGenerated] = useState<AudioStem | null>(null);
+  const [lastVariants, setLastVariants] = useState<Array<{ url: string; label: string }>>([]);
 
   async function handleGenerate() {
     if (!prompt.trim()) {
@@ -48,21 +75,32 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("You need to be signed in to generate audio.");
+      // Mirror the server's tiered pricing so the confirm dialog shows the real cost.
+      const lenMs = Number(lengthSeconds) * 1000;
+      const baseCost = lenMs <= 60_000 ? 400 : lenMs <= 180_000 ? 800 : 1200;
+      const actualCost = baseCost * Number(variantCount);
       const resp = await generateMusicAudio(token, {
         prompt: prompt.trim(),
         lengthSeconds: Number(lengthSeconds),
         artistName,
         songTitle,
         artistVaultId,
-      }, confirmedFetch);
+        lyrics: showLyrics && lyrics.trim() ? lyrics.trim() : undefined,
+        instrumental,
+        vocalGender: vocalGender === "auto" ? undefined : vocalGender,
+        variants: Number(variantCount),
+      }, confirmedFetch, actualCost);
       if (!resp) return; // user cancelled the credit confirmation
+
+      const variants = resp.variants?.length ? resp.variants : [{ url: resp.url, storagePath: resp.storagePath, label: "A" }];
+      setLastVariants(variants.map((v) => ({ url: v.url, label: v.label })));
 
       const stem: AudioStem = {
         id: `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: songTitle ? `${songTitle} (AI Generated)` : "AI Generated Audio",
         type: "Full Song Mix",
-        url: resp.url,
-        storagePath: resp.storagePath,
+        url: variants[0].url,
+        storagePath: variants[0].storagePath,
         fileType: "audio/mpeg",
         fileSize: 0,
         uploadedAt: new Date().toISOString(),
@@ -107,9 +145,71 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             testId="input-generate-audio-prompt"
           />
         </Field>
-        <Field label="Length">
-          <Segmented value={lengthSeconds} options={LENGTH_OPTIONS} onChange={setLengthSeconds} />
-        </Field>
+
+        {/* Style presets */}
+        <div className="flex flex-wrap gap-1.5">
+          {STYLE_PRESETS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setPrompt(s)}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/60 hover:border-primary/40 hover:text-white transition"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Length">
+            <Segmented value={lengthSeconds} options={LENGTH_OPTIONS} onChange={setLengthSeconds} />
+          </Field>
+          <Field label="Vocals" hint={instrumental ? "Off — instrumental" : undefined}>
+            <Segmented value={vocalGender} options={VOCAL_OPTIONS} onChange={setVocalGender} />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Takes" hint="2 takes costs 2× credits">
+            <Segmented value={variantCount} options={VARIANT_OPTIONS} onChange={setVariantCount} />
+          </Field>
+          <Field label="Instrumental">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={instrumental}
+              onClick={() => setInstrumental(!instrumental)}
+              className={`relative h-6 w-11 rounded-full transition ${instrumental ? "bg-primary" : "bg-white/15"}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${instrumental ? "left-[22px]" : "left-0.5"}`} />
+            </button>
+          </Field>
+        </div>
+
+        {/* Custom lyrics (Suno-style custom mode) */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowLyrics(!showLyrics)}
+            className="text-xs font-bold text-primary hover:underline"
+          >
+            {showLyrics ? "− Hide custom lyrics" : "+ Add custom lyrics"}
+          </button>
+          {showLyrics && (
+            <div className="mt-2">
+              <Field label="Your lyrics" hint="Sung verbatim. Use [Verse], [Chorus] etc. for structure.">
+                <textarea
+                  value={lyrics}
+                  onChange={(e) => setLyrics(e.target.value)}
+                  placeholder={"[Verse]\nWalking through the midnight rain...\n\n[Chorus]\nWe rise, we rise..."}
+                  rows={6}
+                  className="w-full rounded-xl bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 text-sm p-3 focus:border-primary/50 focus:outline-none resize-y"
+                  data-testid="input-generate-audio-lyrics"
+                />
+              </Field>
+            </div>
+          )}
+        </div>
 
         {outOfCredits && <OutOfCredits />}
 
@@ -135,7 +235,21 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
               <p className="text-xs font-black text-emerald-300">{lastGenerated.name}</p>
             </div>
-            <audio controls src={lastGenerated.url} className="w-full" data-testid="audio-generate-real-preview" />
+            {lastVariants.length > 1 ? (
+              <div className="space-y-2">
+                {lastVariants.map((v) => (
+                  <div key={v.label} className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[11px] font-black text-primary">
+                      {v.label}
+                    </span>
+                    <audio controls src={v.url} className="w-full" />
+                  </div>
+                ))}
+                <p className="text-[11px] text-white/40">Pick your favorite — take A was added to your stems.</p>
+              </div>
+            ) : (
+              <audio controls src={lastGenerated.url} className="w-full" data-testid="audio-generate-real-preview" />
+            )}
           </div>
         )}
       </div>

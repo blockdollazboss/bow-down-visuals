@@ -33,12 +33,21 @@ function clampLengthMs(raw: unknown): number {
 }
 
 router.post("/generate-music-audio", requireAuth, async (req, res) => {
-  const { prompt, lengthSeconds, artistName, songTitle, artistVaultId } = (req.body ?? {}) as {
+  const { prompt, lengthSeconds, artistName, songTitle, artistVaultId,
+    lyrics, instrumental, vocalGender, variants } = (req.body ?? {}) as {
     prompt?: string;
     lengthSeconds?: number;
     artistName?: string;
     songTitle?: string;
     artistVaultId?: string;
+    /** Custom lyrics (Suno-style custom mode) — embedded into the music prompt. */
+    lyrics?: string;
+    /** Force instrumental, no vocals. */
+    instrumental?: boolean;
+    /** "male" | "female" | undefined — appended to the prompt as vocal direction. */
+    vocalGender?: string;
+    /** 1 or 2 — generate two variants (Suno-style A/B). Costs 2x credits. */
+    variants?: number;
   };
 
   if (!prompt || !prompt.trim()) {
@@ -59,7 +68,10 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
   const musicLengthMs = clampLengthMs(lengthSeconds);
-  const creditCost = creditCostForLength(musicLengthMs);
+  const variantCount = variants === 2 ? 2 : 1;
+  const baseCost = creditCostForLength(musicLengthMs);
+  // Dual-variant costs 2x — two provider calls.
+  const creditCost = baseCost * variantCount;
   if (!isDev && currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
@@ -73,7 +85,19 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
   // Override with ELEVENLABS_MUSIC_MODEL if a newer model ships.
   const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
 
-  try {
+  // Build the full music prompt: style + vocal direction + custom lyrics.
+  let fullPrompt = prompt.trim().slice(0, 2000);
+  const cleanGender = vocalGender === "male" || vocalGender === "female" ? vocalGender : null;
+  if (cleanGender && !instrumental) {
+    fullPrompt += ` ${cleanGender} vocals.`;
+  }
+  const cleanLyrics = typeof lyrics === "string" ? lyrics.trim().slice(0, 5000) : "";
+  if (cleanLyrics && !instrumental) {
+    fullPrompt += `\n\nLyrics:\n${cleanLyrics}`;
+  }
+  const forceInstrumental = instrumental === true;
+
+  async function generateOne(): Promise<Buffer> {
     const elevenRes = await fetch("https://api.elevenlabs.io/v1/music", {
       method: "POST",
       headers: {
@@ -81,91 +105,103 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt: prompt.trim().slice(0, 2000),
+        prompt: fullPrompt,
         music_length_ms: musicLengthMs,
         model_id: musicModel,
+        force_instrumental: forceInstrumental,
       }),
     });
 
     if (!elevenRes.ok) {
       const errText = await elevenRes.text().catch(() => "");
-      req.log.error({ status: elevenRes.status, errText }, "generate-music-audio: ElevenLabs request failed");
-      res.status(502).json({
-        error: "Music generation failed. Please try a different prompt or try again shortly.",
-        code: "audio_gen_failed",
-      });
-      return;
+      throw new Error(`ElevenLabs ${elevenRes.status}: ${errText.slice(0, 200)}`);
     }
 
     const arrayBuffer = await elevenRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buf = Buffer.from(arrayBuffer);
+    if (buf.length === 0) throw new Error("Music generation returned no audio.");
+    return buf;
+  }
 
-    if (buffer.length === 0) {
-      res.status(502).json({ error: "Music generation returned no audio.", code: "audio_gen_empty" });
-      return;
+  try {
+    // Generate variants sequentially (provider rate limits favor this).
+    const buffers: Buffer[] = [];
+    for (let v = 0; v < variantCount; v++) {
+      buffers.push(await generateOne());
     }
 
-    // Artist voice lock: if the active vault has a locked voice, swap the
-    // song's vocals to it. Cost is baked into the song price.
+    // Artist voice lock: if the active vault has a locked voice, swap each
+    // variant's vocals to it. Cost is baked into the song price.
     // On any failure, fall back to the original mix — never fail the song.
-    let finalBuffer: Buffer = buffer;
     let voiceSwapped = false;
-    if (artistVaultId) {
-      try {
-        const [vault] = await db
-          .select({ voice_id: artistVaultsTable.voice_id })
-          .from(artistVaultsTable)
-          .where(
-            and(
-              eq(artistVaultsTable.id, artistVaultId),
-              eq(artistVaultsTable.user_id, req.userId!),
-            ),
-          )
-          .limit(1);
-        if (vault?.voice_id && process.env["ARTIST_VOICE_SWAP_ENABLED"] !== "false") {
-          finalBuffer = await swapSongVocalsToVoice(buffer, vault.voice_id, apiKey);
-          voiceSwapped = true;
-          req.log.info(
-            { vaultId: artistVaultId, voiceId: vault.voice_id },
-            "generate-music-audio: vocals swapped to locked artist voice",
+    const finalBuffers: Buffer[] = [];
+    for (const buffer of buffers) {
+      let finalBuffer: Buffer = buffer;
+      if (artistVaultId) {
+        try {
+          const [vault] = await db
+            .select({ voice_id: artistVaultsTable.voice_id })
+            .from(artistVaultsTable)
+            .where(
+              and(
+                eq(artistVaultsTable.id, artistVaultId),
+                eq(artistVaultsTable.user_id, req.userId!),
+              ),
+            )
+            .limit(1);
+          if (vault?.voice_id && process.env["ARTIST_VOICE_SWAP_ENABLED"] !== "false") {
+            finalBuffer = await swapSongVocalsToVoice(buffer, vault.voice_id, apiKey);
+            voiceSwapped = true;
+            req.log.info(
+              { vaultId: artistVaultId, voiceId: vault.voice_id },
+              "generate-music-audio: vocals swapped to locked artist voice",
+            );
+          }
+        } catch (swapErr) {
+          req.log.error(
+            { err: swapErr },
+            "generate-music-audio: voice swap failed, using original mix",
           );
+          finalBuffer = buffer;
         }
-      } catch (swapErr) {
-        req.log.error(
-          { err: swapErr },
-          "generate-music-audio: voice swap failed, using original mix",
-        );
-        finalBuffer = buffer;
-        voiceSwapped = false;
       }
+      finalBuffers.push(finalBuffer);
     }
 
+    // Upload each variant.
     const sb = req.userSupabase!;
-    const path = `${req.userId}/generated/${Date.now()}-music.mp3`;
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, finalBuffer, {
-      contentType: "audio/mpeg",
-      upsert: true,
-    });
-    if (upErr) {
-      req.log.error({ err: upErr }, "generate-music-audio: upload failed");
-      res.status(500).json({ error: "Could not save the generated audio.", code: "upload_failed" });
-      return;
+    const variantsOut: Array<{ url: string; storagePath: string; label: string }> = [];
+    for (let v = 0; v < finalBuffers.length; v++) {
+      const path = `${req.userId}/generated/${Date.now()}-music-v${v + 1}.mp3`;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, finalBuffers[v], {
+        contentType: "audio/mpeg",
+        upsert: true,
+      });
+      if (upErr) {
+        req.log.error({ err: upErr }, "generate-music-audio: upload failed");
+        res.status(500).json({ error: "Could not save the generated audio.", code: "upload_failed" });
+        return;
+      }
+      const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+      variantsOut.push({
+        url: data.publicUrl,
+        storagePath: path,
+        label: variantCount > 1 ? (v === 0 ? "A" : "B") : "A",
+      });
     }
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
 
     // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Generate Audio",
-      prompt:         prompt.trim().slice(0, 500),
-      content:        data.publicUrl,
+      prompt:         fullPrompt.slice(0, 500),
+      content:        variantsOut[0].url,
       artistName:     artistName || undefined,
       songTitle:      songTitle || undefined,
       creditsUsed:    creditCost,
     });
 
     // Step 2: Deduct credits only after history is confirmed saved.
-    // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
       creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" });
@@ -188,8 +224,10 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({
-      url: data.publicUrl,
-      storagePath: path,
+      // Back-compat: single-variant shape
+      url: variantsOut[0].url,
+      storagePath: variantsOut[0].storagePath,
+      variants: variantsOut,
       durationMs: musicLengthMs,
       creditsRemaining: creditsAfter,
       genHistoryId,

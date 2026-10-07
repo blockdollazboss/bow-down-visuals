@@ -8,14 +8,30 @@ export interface GenerateMusicAudioRequest {
   songTitle?: string;
   /** Active artist vault — server swaps vocals to its locked voice if set. */
   artistVaultId?: string;
+  /** Custom lyrics (Suno-style custom mode). */
+  lyrics?: string;
+  /** Force instrumental, no vocals. */
+  instrumental?: boolean;
+  /** "male" | "female" — vocal direction. */
+  vocalGender?: string;
+  /** 1 or 2 — dual-variant costs 2x credits. */
+  variants?: number;
+}
+
+export interface MusicVariant {
+  url: string;
+  storagePath: string;
+  label: string;
 }
 
 export interface GenerateMusicAudioResponse {
   url: string;
   storagePath: string;
+  variants: MusicVariant[];
   durationMs: number;
   creditsRemaining: number;
   genHistoryId: string;
+  voiceSwapped?: boolean;
 }
 
 const FRIENDLY_ERRORS: Record<string, string> = {
@@ -31,6 +47,8 @@ export async function generateMusicAudio(
   payload: GenerateMusicAudioRequest,
   /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
   fetchImpl: FetchImpl = fetch,
+  /** Actual credit cost (e.g. 2x for dual-variant) — shown in the confirm dialog. */
+  overrideCost?: number,
 ): Promise<GenerateMusicAudioResponse | null> {
   let res: Response | null;
   try {
@@ -38,6 +56,7 @@ export async function generateMusicAudio(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
+      ...(overrideCost ? { overrideCost } : {}),
     });
   } catch {
     throw new Error("Network error while generating audio. Please try again.");
