@@ -582,10 +582,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-sidebar-foreground/50">{t("language.current")}</span>
-          <LanguageSwitcher variant="full" />
-        </div>
         {user && profile ? (
           <>
             <Link
