@@ -120,7 +120,6 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { BowTestLogo } from "@/components/BowTestLogo";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -649,9 +648,6 @@ export function AppSidebar() {
             </Button>
           </Link>
         )}
-        <div className="flex justify-center pt-1">
-          <LanguageSwitcher variant="icon" />
-        </div>
       </SidebarFooter>
       </Sidebar>
       </div>
