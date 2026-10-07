@@ -39,7 +39,7 @@ export default function AndroidPromoBanner() {
         </p>
       </div>
       <a
-        href="/bow-down-visuals.apk"
+        href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.0-android/bow-down-visuals.apk"
         download
         onClick={markAndroidDownloaded}
         className="shrink-0 flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] px-4 py-2 text-xs font-bold text-black hover:brightness-110 transition"
