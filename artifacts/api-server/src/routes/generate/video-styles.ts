@@ -53,6 +53,31 @@ const VIDEO_STYLES = {
     blurb: "Soft glow and pastel haze",
     filter: "gblur=sigma=2,eq=saturation=1.3:brightness=0.1",
   },
+  cyberpunk: {
+    label: "Cyberpunk",
+    blurb: "Neon city nights",
+    filter: "eq=saturation=1.8:contrast=1.3,hue=h=20",
+  },
+  wesanderson: {
+    label: "Wes Anderson",
+    blurb: "Symmetrical pastel perfection",
+    filter: "eq=saturation=1.2:brightness=0.05:contrast=0.9,curves=all='0/0 0.5/0.6 1/1'",
+  },
+  horror: {
+    label: "Horror",
+    blurb: "Dark and unsettling",
+    filter: "eq=brightness=-0.2:contrast=1.4:saturation=0.5,vignette=PI/4",
+  },
+  popart: {
+    label: "Pop Art",
+    blurb: "Bold Warhol colors",
+    filter: "eq=saturation=2.5:contrast=1.5,posterize=4",
+  },
+  infrared: {
+    label: "Infrared",
+    blurb: "Surreal heat vision",
+    filter: "negate,hue=h=90,eq=saturation=1.5",
+  },
 } as const;
 
 type VideoStyleKey = keyof typeof VIDEO_STYLES;

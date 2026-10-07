@@ -53,6 +53,31 @@ const VOICE_EFFECTS = {
     blurb: "Muffled and submerged",
     filter: "lowpass=f=800,aresample=44100,aecho=0.8:0.9:200:0.5",
   },
+  monster: {
+    label: "Monster",
+    blurb: "Deep growling beast",
+    filter: "asetrate=44100*0.5,aresample=44100,atempo=2.0,acompressor,rubberband=pitch=0.5",
+  },
+  alien: {
+    label: "Alien",
+    blurb: "Otherworldly warble",
+    filter: "vibrato=f=8:d=0.5,asetrate=44100*1.2,aresample=44100",
+  },
+  telephone: {
+    label: "Telephone",
+    blurb: "Classic phone call",
+    filter: "highpass=f=300,lowpass=f=3400",
+  },
+  cathedral: {
+    label: "Cathedral",
+    blurb: "Massive reverb hall",
+    filter: "aecho=0.8:0.9:500:0.5,aecho=0.8:0.9:1000:0.3",
+  },
+  whisper: {
+    label: "Whisper",
+    blurb: "Soft and intimate",
+    filter: "volume=0.6,highpass=f=1000,acompressor",
+  },
 } as const;
 
 type VoiceEffectKey = keyof typeof VOICE_EFFECTS;

@@ -762,6 +762,36 @@ export const SPEED_CURVE_PRESETS: { id: string; label: string; blurb: string; po
     blurb: "Breathe in, breathe out",
     points: [{ t: 0, speed: 1 }, { t: 0.25, speed: 1.5 }, { t: 0.5, speed: 0.75 }, { t: 0.75, speed: 1.5 }, { t: 1, speed: 1 }],
   },
+  {
+    id: "bullet-time",
+    label: "Bullet Time",
+    blurb: "Matrix-style slow-mo dive",
+    points: [{ t: 0, speed: 1 }, { t: 0.3, speed: 0.3 }, { t: 0.7, speed: 0.3 }, { t: 1, speed: 1.5 }],
+  },
+  {
+    id: "hyper-lapse",
+    label: "Hyper Lapse",
+    blurb: "Speed through the boring parts",
+    points: [{ t: 0, speed: 1 }, { t: 0.2, speed: 3 }, { t: 0.8, speed: 3 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "heartbeat",
+    label: "Heartbeat",
+    blurb: "Pulsing rhythm — lub-dub",
+    points: [{ t: 0, speed: 1 }, { t: 0.15, speed: 0.5 }, { t: 0.3, speed: 1 }, { t: 0.45, speed: 0.5 }, { t: 0.6, speed: 1 }, { t: 0.75, speed: 0.5 }, { t: 0.9, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "crescendo",
+    label: "Crescendo",
+    blurb: "Building intensity to climax",
+    points: [{ t: 0, speed: 0.75 }, { t: 0.25, speed: 1 }, { t: 0.5, speed: 1.25 }, { t: 0.75, speed: 1.75 }, { t: 1, speed: 2.5 }],
+  },
+  {
+    id: "flashback",
+    label: "Flashback",
+    blurb: "Dreamy memory sequence",
+    points: [{ t: 0, speed: 0.5 }, { t: 0.5, speed: 0.5 }, { t: 0.6, speed: 1.5 }, { t: 1, speed: 0.5 }],
+  },
 ];
 
 /** Interpolate speed at normalized time t (0-1) along a curve. */
