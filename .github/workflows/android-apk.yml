@@ -1,0 +1,118 @@
+# Builds a signed release APK for sideloading. Triggered on pushes to main
+# touching the frontend or this workflow, or manually via workflow_dispatch.
+# Keystore is assembled from ANDROID_KEYSTORE_1..4 chunk secrets.
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/bow-down-visuals/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/bow-down-visuals
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build web app
+        run: pnpm build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Add Android platform
+        run: |
+          set -o pipefail
+          ls -la dist/public/index.html || echo "NO INDEX.HTML"
+          ./node_modules/.bin/cap add android
+          test -f android/app/build.gradle || { echo "CAP ADD FAILED - android dir not created"; exit 1; }
+          # Security: disable Android auto-backup to prevent auth tokens
+          # in WebView localStorage from being copied to Google Drive
+          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml || { echo "BACKUP DISABLE FAILED"; exit 1; }
+
+      - name: Set up release signing
+        working-directory: artifacts/bow-down-visuals/android
+        run: |
+          (echo -n "${{ secrets.ANDROID_KEYSTORE_1 }}"; echo -n "${{ secrets.ANDROID_KEYSTORE_2 }}"; echo -n "${{ secrets.ANDROID_KEYSTORE_3 }}"; echo -n "${{ secrets.ANDROID_KEYSTORE_4 }}") | tr -d ' \n\r\t' | base64 -d > app/release.p12
+          test -s app/release.p12 || { echo "KEYSTORE DECODE FAILED"; exit 1; }
+          python3 - <<'PYEOF'
+          import re
+          p = 'app/build.gradle'
+          s = open(p).read()
+          signing = '''
+          signingConfigs {
+              release {
+                  storeFile file('release.p12')
+                  storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                  keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                  keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+              }
+          }
+          '''
+          assert 'buildTypes {' in s, "buildTypes block not found"
+          s = s.replace('buildTypes {', signing + '\n    buildTypes {', 1)
+          s2, n = re.subn(
+              r'(buildTypes\s*\{\s*release\s*\{)',
+              r'\1\n            signingConfig signingConfigs.release',
+              s, count=1
+          )
+          assert n == 1, "release buildType not found"
+          open(p, 'w').write(s2)
+          print("build.gradle patched for release signing")
+          PYEOF
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Build release APK
+        working-directory: artifacts/bow-down-visuals/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Verify APK exists
+        working-directory: artifacts/bow-down-visuals/android
+        run: |
+          echo "=== Searching for APKs ==="
+          find . -name "*.apk" 2>/dev/null || echo "FIND FOUND NOTHING"
+          echo "=== app/build tree ==="
+          ls -la app/build/outputs/ 2>/dev/null || echo "NO OUTPUTS DIR"
+          echo "=== android dir contents ==="
+          ls -la
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bow-down-visuals-apk
+          path: artifacts/bow-down-visuals/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90

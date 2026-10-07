@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
 import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
@@ -197,7 +199,7 @@ function ModeToggle() {
 
 interface NavLink {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   adminOnly?: boolean;
   tour?: string;
@@ -205,7 +207,7 @@ interface NavLink {
 }
 
 interface NavSection {
-  title: string;
+  titleKey: string;
   links: NavLink[];
 }
 
@@ -223,136 +225,137 @@ function NavItemBadge({ text }: { text: string }) {
 /* ── Grouped navigation: every routed page reachable, no dead links ── */
 const SECTIONS: NavSection[] = [
   {
-    title: "Home",
+    titleKey: "nav.home",
     links: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/", labelKey: "nav.home", icon: Home },
+      { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    title: "Create",
+    titleKey: "nav.create",
     links: [
-      { href: "/hub", label: "Creation Hub", icon: Layers },
-      { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
-      { href: "/make-song", label: "Make a Song", icon: Music },
-      { href: "/beat-maker", label: "Beat Maker", icon: Drum },
-      { href: "/make-video", label: "Video for My Song", icon: Video },
-      { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
-      { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
-      { href: "/clip-maker", label: "AI Streamer Clips", icon: Scissors },
-      { href: "/create", label: "Quick Create", icon: Zap },
-      { href: "/my-projects", label: "My Projects", icon: FolderOpen },
-      { href: "/my-clips", label: "My Clips", icon: Library },
-      { href: "/songs", label: "Songs", icon: Music2 },
-      { href: "/artist-vault", label: "Creator Vault", icon: ShieldCheck },
-      { href: "/locations", label: "Locations", icon: MapPin },
-      { href: "/jewelry", label: "Logo-to-Luxury Studio", icon: Gem },
-      { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },
+      { href: "/hub", labelKey: "nav.creationHub", icon: Layers },
+      { href: "/song-and-video", labelKey: "nav.startFromScratch", icon: Mic2 },
+      { href: "/make-song", labelKey: "nav.makeSong", icon: Music },
+      { href: "/beat-maker", labelKey: "nav.beatMaker", icon: Drum },
+      { href: "/make-video", labelKey: "nav.videoForSong", icon: Video },
+      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
+      { href: "/promo-clip", labelKey: "nav.promoClipMaker", icon: Film },
+      { href: "/clip-maker", labelKey: "nav.aiStreamerClips", icon: Scissors },
+      { href: "/create", labelKey: "nav.quickCreate", icon: Zap },
+      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
+      { href: "/my-clips", labelKey: "nav.myClips", icon: Library },
+      { href: "/songs", labelKey: "nav.songs", icon: Music2 },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
+      { href: "/locations", labelKey: "nav.locations", icon: MapPin },
+      { href: "/jewelry", labelKey: "nav.logoToLuxury", icon: Gem },
+      { href: "/gamers", labelKey: "nav.homeOfGamers", icon: Gamepad2 },
     ],
   },
   {
-    title: "AI Studio",
+    titleKey: "nav.aiStudio",
     links: [
-      { href: "/hooks", label: "Hook Studio", icon: Lightbulb },
-      { href: "/script-writer", label: "Script Writer", icon: PenLine },
-      { href: "/randomizer", label: "Content Randomizer", icon: Dices },
-      { href: "/caption-styler", label: "Caption Styler", icon: Captions },
-      { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
-      { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
-      { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
-      { href: "/cover-art", label: "Cover Art", icon: Disc3 },
-      { href: "/lyric-video", label: "Lyric Video Maker", icon: AudioWaveform },
-      { href: "/voiceover", label: "Voiceover Studio", icon: Mic2 },
-      { href: "/translate", label: "Translator", icon: Languages },
-      { href: "/titles", label: "Title Studio", icon: Type },
+      { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
+      { href: "/script-writer", labelKey: "nav.scriptWriter", icon: PenLine },
+      { href: "/randomizer", labelKey: "nav.contentRandomizer", icon: Dices },
+      { href: "/caption-styler", labelKey: "nav.captionStyler", icon: Captions },
+      { href: "/thumbnail", labelKey: "nav.thumbnailMaker", icon: Image },
+      { href: "/thumbnail-maker", labelKey: "nav.aiThumbnailGenerator", icon: Sparkles },
+      { href: "/thumbnails", labelKey: "nav.thumbnailLibrary", icon: Images },
+      { href: "/cover-art", labelKey: "nav.coverArt", icon: Disc3 },
+      { href: "/lyric-video", labelKey: "nav.lyricVideoMaker", icon: AudioWaveform },
+      { href: "/voiceover", labelKey: "nav.voiceoverStudio", icon: Mic2 },
+      { href: "/translate", labelKey: "nav.translator", icon: Languages },
+      { href: "/titles", labelKey: "nav.titleStudio", icon: Type },
     ],
   },
   {
-    title: "Grow",
+    titleKey: "nav.grow",
     links: [
-      { href: "/content-calendar", label: "Content Calendar", icon: CalendarDays },
-      { href: "/scheduler", label: "Scheduler", icon: Clock },
-      { href: "/comment-replies", label: "Comment Replies", icon: MessageSquareReply },
-      { href: "/trends", label: "Trend Predictor", icon: TrendingUp },
-      { href: "/repurpose", label: "Content Repurposer", icon: Repeat },
-      { href: "/sounds", label: "Sound Finder", icon: AudioWaveform },
-      { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
-      { href: "/virality-check", label: "Virality Check", icon: Gauge },
-      { href: "/analytics-hub", label: "Analytics Hub", icon: BarChart3 },
-      { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
-      { href: "/go-live", label: "Go Live", icon: Radio },
-      { href: "/shows", label: "Show Finder", icon: Ticket },
-      { href: "/discord-bot", label: "Discord Bot", icon: Bot },
+      { href: "/content-calendar", labelKey: "nav.contentCalendar", icon: CalendarDays },
+      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
+      { href: "/comment-replies", labelKey: "nav.commentReplies", icon: MessageSquareReply },
+      { href: "/trends", labelKey: "nav.trendPredictor", icon: TrendingUp },
+      { href: "/repurpose", labelKey: "nav.contentRepurposer", icon: Repeat },
+      { href: "/sounds", labelKey: "nav.soundFinder", icon: AudioWaveform },
+      { href: "/channel-audit", labelKey: "nav.channelAudit", icon: SearchCheck },
+      { href: "/virality-check", labelKey: "nav.viralityCheck", icon: Gauge },
+      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
+      { href: "/playlist-pitch", labelKey: "nav.playlistPitcher", icon: ListMusic },
+      { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
+      { href: "/shows", labelKey: "nav.showFinder", icon: Ticket },
+      { href: "/discord-bot", labelKey: "nav.discordBot", icon: Bot },
     ],
   },
   {
-    title: "Monetize",
+    titleKey: "nav.monetize",
     links: [
-      { href: "/distribute", label: "Distribute Music", icon: Rocket },
-      { href: "/coach", label: "Monetization Coach", icon: DollarSign },
-      { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
-      { href: "/brand-deals", label: "Brand Deal Finder", icon: Handshake },
-      { href: "/sponsors", label: "Sponsor Marketplace", icon: Users },
-      { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
-      { href: "/tips", label: "Tips", icon: HeartHandshake },
-      { href: "/merch", label: "Merch Designer", icon: Shirt },
-      { href: "/branding-shop", label: "Branding Shop", icon: Store },
-      { href: "/beats", label: "Beats Marketplace", icon: Disc },
-      { href: "/live-shopping", label: "Live Shopping", icon: ShoppingCart },
-      { href: "/memberships", label: "Memberships", icon: Star },
-      { href: "/royalties", label: "Royalties", icon: Wallet },
-      { href: "/storefronts", label: "Storefronts", icon: ShoppingBag },
-      { href: "/my-shop", label: "My Shop", icon: Store },
-      { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
-      { href: "/press-kit", label: "Press Kit", icon: Newspaper },
-      { href: "/email-list", label: "Email List", icon: Mail },
-      { href: "/collabs", label: "Collabs", icon: UsersRound },
-      { href: "/contests", label: "Contests", icon: Trophy },
-      { href: "/referrals", label: "Referrals", icon: Gift },
-      { href: "/team", label: "Team", icon: Users },
+      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
+      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      { href: "/sponsorship-outreach", labelKey: "nav.sponsorshipOutreach", icon: Handshake },
+      { href: "/brand-deals", labelKey: "nav.brandDealFinder", icon: Handshake },
+      { href: "/sponsors", labelKey: "nav.sponsorMarketplace", icon: Users },
+      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone },
+      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake },
+      { href: "/merch", labelKey: "nav.merchDesigner", icon: Shirt },
+      { href: "/branding-shop", labelKey: "nav.brandingShop", icon: Store },
+      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc },
+      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart },
+      { href: "/memberships", labelKey: "nav.memberships", icon: Star },
+      { href: "/royalties", labelKey: "nav.royalties", icon: Wallet },
+      { href: "/storefronts", labelKey: "nav.storefronts", icon: ShoppingBag },
+      { href: "/my-shop", labelKey: "nav.myShop", icon: Store },
+      { href: "/release-checklist", labelKey: "nav.releaseChecklist", icon: ClipboardCheck },
+      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
+      { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
+      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
+      { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
+      { href: "/team", labelKey: "nav.team", icon: Users },
     ],
   },
   {
-    title: "Learn",
+    titleKey: "nav.learn",
     links: [
-      { href: "/guides", label: "Guides & Services", icon: BookOpen },
-      { href: "/academy", label: "Creator Academy", icon: GraduationCap },
-      { href: "/copyright", label: "Copyright", icon: Copyright },
-      { href: "/llc-guide", label: "LLC Guide", icon: Scale },
-      { href: "/community", label: "Community", icon: UsersRound },
+      { href: "/guides", labelKey: "nav.guidesServices", icon: BookOpen },
+      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
+      { href: "/copyright", labelKey: "nav.copyright", icon: Copyright },
+      { href: "/llc-guide", labelKey: "nav.llcGuide", icon: Scale },
+      { href: "/community", labelKey: "nav.community", icon: UsersRound },
     ],
   },
   {
-    title: "Tools",
+    titleKey: "nav.tools",
     links: [
-      { href: "/extension", label: "Chrome Extension", icon: Puzzle, badge: "NEW" },
-      { href: "/upscale", label: "Upscale & Clean", icon: Maximize },
-      { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
-      { href: "/audio-cleanup", label: "Audio Cleanup", icon: Waves },
-      { href: "/vocal-removal", label: "Vocal Removal", icon: MicOff },
-      { href: "/stems", label: "Stem Splitter", icon: Split },
-      { href: "/mastering", label: "AI Mastering", icon: SlidersHorizontal },
-      { href: "/mix-master", label: "Mix & Master", icon: AudioLines },
-      { href: "/sfx", label: "SFX Generator", icon: Volume2 },
-      { href: "/samples", label: "Sample Packs", icon: Package },
-      { href: "/logo-maker", label: "Logo Maker", icon: Palette },
-      { href: "/branding-kit", label: "Branding Kit", icon: Crown },
-      { href: "/intros-outros", label: "Intros & Outros", icon: PlaySquare },
-      { href: "/stream-pack", label: "Stream Pack", icon: Tv },
-      { href: "/thumbnail-test", label: "Thumbnail A/B Test", icon: FlaskConical },
-      { href: "/podcast", label: "Podcast Studio", icon: Podcast },
+      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
+      { href: "/upscale", labelKey: "nav.upscaleClean", icon: Maximize },
+      { href: "/watermark-removal", labelKey: "nav.watermarkRemoval", icon: Eraser },
+      { href: "/audio-cleanup", labelKey: "nav.audioCleanup", icon: Waves },
+      { href: "/vocal-removal", labelKey: "nav.vocalRemoval", icon: MicOff },
+      { href: "/stems", labelKey: "nav.stemSplitter", icon: Split },
+      { href: "/mastering", labelKey: "nav.aiMastering", icon: SlidersHorizontal },
+      { href: "/mix-master", labelKey: "nav.mixMaster", icon: AudioLines },
+      { href: "/sfx", labelKey: "nav.sfxGenerator", icon: Volume2 },
+      { href: "/samples", labelKey: "nav.samplePacks", icon: Package },
+      { href: "/logo-maker", labelKey: "nav.logoMaker", icon: Palette },
+      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
+      { href: "/intros-outros", labelKey: "nav.introsOutros", icon: PlaySquare },
+      { href: "/stream-pack", labelKey: "nav.streamPack", icon: Tv },
+      { href: "/thumbnail-test", labelKey: "nav.thumbnailABTest", icon: FlaskConical },
+      { href: "/podcast", labelKey: "nav.podcastStudio", icon: Podcast },
     ],
   },
 ];
 
 const FOOTER_LINKS: NavLink[] = [
-  { href: "/pricing", label: "Pricing", icon: CreditCard },
-  { href: "/credit-history", label: "Visual Buc History", icon: Zap },
-  { href: "/cursor-lab", label: "Cursor Style", icon: MousePointer2 },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
+  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
+  { href: "/cursor-lab", labelKey: "nav.cursorStyle", icon: MousePointer2 },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const links = section.links.filter((l) => !l.adminOnly || isAdmin);
   if (links.length === 0) return null;
@@ -368,7 +371,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
               hasActive ? "text-primary" : "text-white/30"
             }`}
           >
-            <span>{section.title}</span>
+            <span>{t(section.titleKey)}</span>
             <ChevronsUpDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
           </button>
         </CollapsibleTrigger>
@@ -384,7 +387,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
                   >
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
                       <link.icon className="h-5 w-5" />
-                      <span className="font-medium">{link.label}</span>
+                      <span className="font-medium">{t(link.labelKey)}</span>
                       {link.badge && <NavItemBadge text={link.badge} />}
                     </Link>
                   </SidebarMenuButton>
@@ -399,6 +402,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
 }
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [location] = useLocation();
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
@@ -529,12 +533,12 @@ export function AppSidebar() {
           ? SECTIONS.map((section) => ({
               ...section,
               links: section.links.filter((link) =>
-                link.label.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                t(link.labelKey).toLowerCase().includes(searchQuery.trim().toLowerCase())
               ),
             })).filter((section) => section.links.length > 0)
           : SECTIONS
         ).map((section) => (
-          <SidebarSection key={section.title} section={section} location={location} isAdmin={isAdmin} />
+          <SidebarSection key={t(section.titleKey)} section={section} location={location} isAdmin={isAdmin} />
         ))}
 
         {/* Footer links: pricing, account, admin — always visible */}
@@ -550,7 +554,7 @@ export function AppSidebar() {
                   >
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour}>
                       <link.icon className="h-5 w-5" />
-                      <span className="font-medium">{link.label}</span>
+                      <span className="font-medium">{t(link.labelKey)}</span>
                       {link.href === "/credit-history" && profile && (
                         <span className="ml-auto text-xs font-black text-primary">
                           {profile.credits.toLocaleString("en-US")}
@@ -579,6 +583,10 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-sidebar-foreground/50">{t("language.current")}</span>
+          <LanguageSwitcher variant="full" />
+        </div>
         {user && profile ? (
           <>
             <Link
@@ -673,15 +681,16 @@ function DockIndicator({ x, y }: { x: number; y: number }) {
 
 /** Horizontal navigation for top/bottom docked sidebar */
 function HorizontalSidebarNav() {
+  const { t } = useTranslation();
   const [location] = useLocation();
   const mainSections = [
-    { title: "Home", href: "/", icon: Home },
-    { title: "Create", href: "/hub", icon: Layers },
-    { title: "AI Studio", href: "/hooks", icon: Sparkles },
-    { title: "Grow", href: "/content-calendar", icon: TrendingUp },
-    { title: "Monetize", href: "/pricing", icon: DollarSign },
-    { title: "Learn", href: "/academy", icon: GraduationCap },
-    { title: "Tools", href: "/settings", icon: Settings },
+    { titleKey: "nav.home", href: "/", icon: Home },
+    { titleKey: "nav.create", href: "/hub", icon: Layers },
+    { titleKey: "nav.aiStudio", href: "/hooks", icon: Sparkles },
+    { titleKey: "nav.grow", href: "/content-calendar", icon: TrendingUp },
+    { titleKey: "nav.monetize", href: "/pricing", icon: DollarSign },
+    { titleKey: "nav.learn", href: "/academy", icon: GraduationCap },
+    { titleKey: "nav.tools", href: "/settings", icon: Settings },
   ];
   return (
     <>
@@ -689,9 +698,9 @@ function HorizontalSidebarNav() {
         const Icon = section.icon;
         const isActive = location === section.href;
         return (
-          <Link key={section.title} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+          <Link key={t(section.titleKey)} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
             <Icon className="h-4 w-4" />
-            <span className="hidden md:inline">{section.title}</span>
+            <span className="hidden md:inline">{t(section.titleKey)}</span>
           </Link>
         );
       })}
