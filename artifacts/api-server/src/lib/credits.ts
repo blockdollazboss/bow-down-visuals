@@ -2,8 +2,8 @@ import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
 import { getUserActiveTeam, deductTeamCredits } from "./teams";
-import { db, teamsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { db, teamsTable, creditUsageTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 
 /**
  * Thrown by deductCredits() when the profile is missing or the balance is
@@ -63,17 +63,24 @@ async function isAdminUser(userId: string): Promise<boolean> {
 /**
  * Checks if a user has ever received an admin credit grant.
  * Used in admin-only mode to whitelist users the admin has explicitly approved.
+ * Note: the credit ledger lives in Render Postgres (not Supabase).
  */
 async function hasAdminGrant(userId: string): Promise<boolean> {
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from("credit_usage")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("action", "Admin Credit Grant")
-    .limit(1);
-  if (error) return false;
-  return (data?.length ?? 0) > 0;
+  try {
+    const rows = await db
+      .select({ id: creditUsageTable.id })
+      .from(creditUsageTable)
+      .where(
+        and(
+          eq(creditUsageTable.userId, userId),
+          eq(creditUsageTable.action, "Admin Credit Grant")
+        )
+      )
+      .limit(1);
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
