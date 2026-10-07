@@ -105,12 +105,25 @@ describe("pricing + styles", () => {
     expect(RENDER_CREDITS).toBe(5);
   });
 
-  it("covers all four style presets", () => {
+  it("covers all fourteen style presets", () => {
     expect(Object.keys(STYLE_META)).toEqual([
       "gold-luxury",
       "neon",
       "minimal",
       "grunge",
+      "karaoke-bounce",
+      "typewriter",
+      "neon-glow",
+      "cinematic-fade",
+      "word-pop",
+      "gradient-sweep",
+      "glitch",
+      "handwritten",
+      "bold-impact",
+      "minimal-clean",
     ]);
+    for (const key of Object.keys(STYLE_META)) {
+      expect(STYLE_META[key as keyof typeof STYLE_META].cssClass).toMatch(/^lv-/);
+    }
   });
 });

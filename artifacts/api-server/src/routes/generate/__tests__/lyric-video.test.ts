@@ -52,6 +52,7 @@ import {
   LYRIC_RENDER_CREDIT_COST,
   MIN_MATCH_RATE,
   STYLE_SPECS,
+  STYLE_CSS,
   LYRIC_STYLES,
   ASPECT_DIMS,
   __clearLyricRenderJobs,
@@ -73,16 +74,35 @@ describe("pricing", () => {
     expect(LYRIC_RENDER_CREDIT_COST).toBe(500);
   });
 
-  it("offers the four documented style presets", () => {
+  it("offers the fourteen documented style presets", () => {
     expect([...LYRIC_STYLES]).toEqual([
       "gold-luxury",
       "neon",
       "minimal",
       "grunge",
+      "karaoke-bounce",
+      "typewriter",
+      "neon-glow",
+      "cinematic-fade",
+      "word-pop",
+      "gradient-sweep",
+      "glitch",
+      "handwritten",
+      "bold-impact",
+      "minimal-clean",
     ]);
     for (const key of LYRIC_STYLES) {
       expect(STYLE_SPECS[key].label).toBeTruthy();
       expect(STYLE_SPECS[key].bgColors).toHaveLength(3);
+    }
+  });
+
+  it("ships frontend CSS for every style", () => {
+    for (const key of LYRIC_STYLES) {
+      expect(STYLE_CSS[key].containerClass).toMatch(/^lv-/);
+      expect(STYLE_CSS[key].activeWordClass).toBeTruthy();
+      expect(STYLE_CSS[key].fontFamily).toBeTruthy();
+      expect(STYLE_CSS[key].css).toContain("@keyframes");
     }
   });
 

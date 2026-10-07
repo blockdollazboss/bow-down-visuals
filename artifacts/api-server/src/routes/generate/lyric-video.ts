@@ -67,7 +67,22 @@ export const MIN_MATCH_RATE = 0.35;
 
 /* ── Style presets ─────────────────────────────────────────────────────── */
 
-export const LYRIC_STYLES = ["gold-luxury", "neon", "minimal", "grunge"] as const;
+export const LYRIC_STYLES = [
+  "gold-luxury",
+  "neon",
+  "minimal",
+  "grunge",
+  "karaoke-bounce",
+  "typewriter",
+  "neon-glow",
+  "cinematic-fade",
+  "word-pop",
+  "gradient-sweep",
+  "glitch",
+  "handwritten",
+  "bold-impact",
+  "minimal-clean",
+] as const;
 export type LyricStyle = (typeof LYRIC_STYLES)[number];
 
 export const LYRIC_ASPECTS = ["16:9", "9:16"] as const;
@@ -133,6 +148,255 @@ export const STYLE_SPECS: Record<LyricStyle, StyleSpec> = {
     outlineColor: "&H00000000",
     grain: 14,
     fontSize: 66,
+  },
+  "karaoke-bounce": {
+    label: "Karaoke Bounce",
+    blurb: "Classic karaoke energy — the sung word bounces",
+    bgColors: ["0x0a0a2e", "0x1a1a4e", "0x2e2e8e"],
+    bgSpeed: 0.2,
+    primaryColor: "&H0000FFFF", // bright yellow
+    secondaryColor: "&H80FFFFFF",
+    outlineColor: "&H00880000", // dark blue edge
+    grain: 2,
+    fontSize: 66,
+  },
+  typewriter: {
+    label: "Typewriter",
+    blurb: "Terminal-green monospace with a blinking caret",
+    bgColors: ["0x000000", "0x0a0f0a", "0x1a2e1a"],
+    bgSpeed: 0.02,
+    primaryColor: "&H0000FF00", // terminal green
+    secondaryColor: "&H80008080",
+    outlineColor: "&H00000000",
+    grain: 3,
+    fontSize: 58,
+  },
+  "neon-glow": {
+    label: "Neon Glow",
+    blurb: "Hot-pink glow pulsing on deep purple",
+    bgColors: ["0x0d0015", "0x1f0a33", "0xff2fd6"],
+    bgSpeed: 0.3,
+    primaryColor: "&H00D62FFF", // hot pink #FF2FD6
+    secondaryColor: "&H80666666",
+    outlineColor: "&H00E15FFF", // lighter pink halo
+    grain: 3,
+    fontSize: 64,
+  },
+  "cinematic-fade": {
+    label: "Cinematic Fade",
+    blurb: "Elegant serif lines dissolving in and out",
+    bgColors: ["0x050505", "0x0f0f0f", "0x3a3a3a"],
+    bgSpeed: 0.04,
+    primaryColor: "&H00E8DCC8", // warm white
+    secondaryColor: "&H80999999",
+    outlineColor: "&H00000000",
+    grain: 6,
+    fontSize: 60,
+  },
+  "word-pop": {
+    label: "Word Pop",
+    blurb: "Word-by-word pop with a springy scale bounce",
+    bgColors: ["0x0f0518", "0x241040", "0x7c3aed"],
+    bgSpeed: 0.22,
+    primaryColor: "&H0000FFFF", // yellow
+    secondaryColor: "&H80BBBBBB",
+    outlineColor: "&H007C3AED", // violet edge
+    grain: 2,
+    fontSize: 68,
+  },
+  "gradient-sweep": {
+    label: "Gradient Sweep",
+    blurb: "Animated gradient washing across each sung word",
+    bgColors: ["0x080810", "0x141428", "0x00d4ff"],
+    bgSpeed: 0.35,
+    primaryColor: "&H00FFFFFF",
+    secondaryColor: "&H80777777",
+    outlineColor: "&H00444444",
+    grain: 2,
+    fontSize: 62,
+  },
+  glitch: {
+    label: "Glitch",
+    blurb: "RGB-split digital glitch for aggressive tracks",
+    bgColors: ["0x0a0a0a", "0x141414", "0x00ffcc"],
+    bgSpeed: 0.4,
+    primaryColor: "&H00FFFFFF",
+    secondaryColor: "&H80888888",
+    outlineColor: "&H000000FF", // red split
+    grain: 10,
+    fontSize: 64,
+  },
+  handwritten: {
+    label: "Handwritten",
+    blurb: "Warm script ink with a gentle wobble",
+    bgColors: ["0x120d08", "0x241a10", "0x8b5a2b"],
+    bgSpeed: 0.06,
+    primaryColor: "&H00F5EFE0", // cream ink
+    secondaryColor: "&H80AAAAAA",
+    outlineColor: "&H00000000",
+    grain: 5,
+    fontSize: 62,
+  },
+  "bold-impact": {
+    label: "Bold Impact",
+    blurb: "Massive uppercase slams — poster-style",
+    bgColors: ["0x000000", "0x111111", "0xff3300"],
+    bgSpeed: 0.18,
+    primaryColor: "&H00FFFFFF",
+    secondaryColor: "&H80555555",
+    outlineColor: "&H00000000",
+    grain: 4,
+    fontSize: 76,
+  },
+  "minimal-clean": {
+    label: "Minimal Clean",
+    blurb: "Pure black, thin type, gentle fade — nothing else",
+    bgColors: ["0x000000", "0x0a0a0a", "0x1a1a1a"],
+    bgSpeed: 0.01,
+    primaryColor: "&H00FFFFFF",
+    secondaryColor: "&H60AAAAAA",
+    outlineColor: "&H00000000",
+    grain: 0,
+    fontSize: 54,
+  },
+};
+
+/* ── Frontend preview CSS ──────────────────────────────────────────────────
+   Each style ships CSS the frontend injects into a <style> tag so the
+   in-browser lyric preview animates like the rendered video.
+   Conventions: words carry class "lv-word", the sung word also gets
+   "lv-word-active", lines carry "lv-line" / "lv-line-active". */
+
+export interface LyricStyleCSS {
+  /** Namespaced container class, e.g. "lv-karaoke-bounce". */
+  containerClass: string;
+  /** Class applied to the currently-sung word. */
+  activeWordClass: string;
+  /** Font stack hint for the preview. */
+  fontFamily: string;
+  /** Full CSS (keyframes + classes) the frontend injects. */
+  css: string;
+}
+
+export const STYLE_CSS: Record<LyricStyle, LyricStyleCSS> = {
+  "gold-luxury": {
+    containerClass: "lv-gold-luxury",
+    activeWordClass: "lv-word-active",
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    css: `@keyframes lv-goldshimmer{0%,100%{text-shadow:0 0 6px rgba(212,175,55,.4)}50%{text-shadow:0 0 18px rgba(212,175,55,.9)}}
+.lv-gold-luxury .lv-word{display:inline-block;transition:color .15s}
+.lv-gold-luxury .lv-word-active{color:#FFD700;animation:lv-goldshimmer 2s ease-in-out infinite}`,
+  },
+  neon: {
+    containerClass: "lv-neon",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Arial Black', Arial, sans-serif",
+    css: `@keyframes lv-neonpulse{0%,100%{text-shadow:0 0 8px #00FFFF,0 0 24px #00FFFF}50%{text-shadow:0 0 16px #00FFFF,0 0 48px #FF00FF}}
+.lv-neon .lv-word{display:inline-block;transition:color .15s}
+.lv-neon .lv-word-active{color:#00FFFF;animation:lv-neonpulse 1.4s ease-in-out infinite}`,
+  },
+  minimal: {
+    containerClass: "lv-minimal",
+    activeWordClass: "lv-word-active",
+    fontFamily: "Helvetica, Arial, sans-serif",
+    css: `@keyframes lv-minfade{from{opacity:.3}to{opacity:1}}
+.lv-minimal .lv-word{display:inline-block;transition:color .2s}
+.lv-minimal .lv-word-active{color:#FFFFFF;animation:lv-minfade .6s ease both}`,
+  },
+  grunge: {
+    containerClass: "lv-grunge",
+    activeWordClass: "lv-word-active",
+    fontFamily: "Impact, 'Arial Black', sans-serif",
+    css: `@keyframes lv-grungejit{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-1px,1px) rotate(-.5deg)}75%{transform:translate(1px,-1px) rotate(.5deg)}}
+.lv-grunge .lv-word{display:inline-block}
+.lv-grunge .lv-word-active{color:#FF0000;animation:lv-grungejit .5s steps(2) infinite}`,
+  },
+  "karaoke-bounce": {
+    containerClass: "lv-karaoke-bounce",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Trebuchet MS', Verdana, sans-serif",
+    css: `@keyframes lv-bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-0.35em) scale(1.15)}}
+.lv-karaoke-bounce .lv-word{display:inline-block;transition:color .15s}
+.lv-karaoke-bounce .lv-word-active{color:#FFFF00;animation:lv-bounce .5s ease infinite;text-shadow:0 2px 12px rgba(255,255,0,.6)}`,
+  },
+  typewriter: {
+    containerClass: "lv-typewriter",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Courier New', Courier, monospace",
+    css: `@keyframes lv-caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+.lv-typewriter .lv-line{font-family:'Courier New',Courier,monospace;letter-spacing:.05em}
+.lv-typewriter .lv-word{display:inline-block}
+.lv-typewriter .lv-word-active{color:#00FF00}
+.lv-typewriter .lv-line-active::after{content:'\\258C';animation:lv-caret 1s steps(1) infinite;color:#00FF00}`,
+  },
+  "neon-glow": {
+    containerClass: "lv-neon-glow",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Arial Rounded MT Bold','Arial Black',sans-serif",
+    css: `@keyframes lv-pinkpulse{0%,100%{text-shadow:0 0 8px #ff2fd6,0 0 24px #ff2fd6}50%{text-shadow:0 0 16px #ff2fd6,0 0 48px #b14bff}}
+.lv-neon-glow .lv-word{display:inline-block;transition:color .15s}
+.lv-neon-glow .lv-word-active{color:#ff2fd6;animation:lv-pinkpulse 1.6s ease-in-out infinite}`,
+  },
+  "cinematic-fade": {
+    containerClass: "lv-cinematic-fade",
+    activeWordClass: "lv-word-active",
+    fontFamily: "Georgia, 'Palatino Linotype', serif",
+    css: `@keyframes lv-cinefade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.lv-cinematic-fade .lv-line{font-style:italic}
+.lv-cinematic-fade .lv-line-active{animation:lv-cinefade 1.2s ease both}
+.lv-cinematic-fade .lv-word{display:inline-block;transition:color .4s}
+.lv-cinematic-fade .lv-word-active{color:#E8DCC8}`,
+  },
+  "word-pop": {
+    containerClass: "lv-word-pop",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Arial Black', 'Helvetica Neue', sans-serif",
+    css: `@keyframes lv-poppin{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1)}}
+.lv-word-pop .lv-word{display:inline-block}
+.lv-word-pop .lv-word-active{color:#FFFF00;animation:lv-poppin .35s cubic-bezier(.2,1.6,.4,1) both;text-shadow:0 3px 0 #7c3aed}`,
+  },
+  "gradient-sweep": {
+    containerClass: "lv-gradient-sweep",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Helvetica Neue', Arial, sans-serif",
+    css: `@keyframes lv-sweep{to{background-position:200% center}}
+.lv-gradient-sweep .lv-word{display:inline-block}
+.lv-gradient-sweep .lv-word-active{background:linear-gradient(90deg,#00d4ff,#b14bff,#ff2fd6,#00d4ff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lv-sweep 2s linear infinite}`,
+  },
+  glitch: {
+    containerClass: "lv-glitch",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Lucida Console', Monaco, monospace",
+    css: `@keyframes lv-glitchanim{0%,100%{transform:none}20%{transform:translate(-2px,1px)}40%{transform:translate(2px,-1px)}60%{transform:translate(-1px,-1px)}80%{transform:translate(1px,2px)}}
+.lv-glitch .lv-word{display:inline-block}
+.lv-glitch .lv-word-active{color:#fff;animation:lv-glitchanim .3s steps(2) infinite;text-shadow:-2px 0 #ff003c,2px 0 #00ffcc}`,
+  },
+  handwritten: {
+    containerClass: "lv-handwritten",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Segoe Script','Bradley Hand','Comic Sans MS',cursive",
+    css: `@keyframes lv-inkwobble{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}}
+.lv-handwritten .lv-line{font-family:'Segoe Script','Bradley Hand','Comic Sans MS',cursive}
+.lv-handwritten .lv-word{display:inline-block}
+.lv-handwritten .lv-word-active{color:#F5EFE0;animation:lv-inkwobble 2.4s ease-in-out infinite;display:inline-block}`,
+  },
+  "bold-impact": {
+    containerClass: "lv-bold-impact",
+    activeWordClass: "lv-word-active",
+    fontFamily: "Impact, 'Arial Black', sans-serif",
+    css: `@keyframes lv-slam{0%{transform:scale(2.2);opacity:0}100%{transform:scale(1);opacity:1}}
+.lv-bold-impact .lv-line{font-family:Impact,'Arial Black',sans-serif;text-transform:uppercase;letter-spacing:.02em}
+.lv-bold-impact .lv-word{display:inline-block}
+.lv-bold-impact .lv-word-active{color:#fff;animation:lv-slam .25s ease-out both}`,
+  },
+  "minimal-clean": {
+    containerClass: "lv-minimal-clean",
+    activeWordClass: "lv-word-active",
+    fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+    css: `@keyframes lv-softfade{from{opacity:.25}to{opacity:1}}
+.lv-minimal-clean .lv-line{font-weight:300;letter-spacing:.08em}
+.lv-minimal-clean .lv-word{display:inline-block;transition:opacity .5s}
+.lv-minimal-clean .lv-word-active{color:#fff;animation:lv-softfade .8s ease both}`,
   },
 };
 
@@ -1078,13 +1342,19 @@ router.get(
   },
 );
 
-/** GET /api/lyric-video/styles — preset metadata for the style picker UI. */
+/** GET /api/lyric-video/styles — preset metadata for the style picker UI.
+    Each style includes frontend preview CSS (keyframes + classes) so the
+    in-browser picker can animate exactly like the rendered video. */
 router.get("/lyric-video/styles", requireAuth, (_req: Request, res: Response) => {
   res.json({
     styles: LYRIC_STYLES.map((key) => ({
       key,
       label: STYLE_SPECS[key].label,
       blurb: STYLE_SPECS[key].blurb,
+      containerClass: STYLE_CSS[key].containerClass,
+      activeWordClass: STYLE_CSS[key].activeWordClass,
+      fontFamily: STYLE_CSS[key].fontFamily,
+      css: STYLE_CSS[key].css,
     })),
     aspects: LYRIC_ASPECTS,
     pricing: {
