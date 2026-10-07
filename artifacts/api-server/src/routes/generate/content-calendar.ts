@@ -16,7 +16,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    NOTE: uses max_completion_tokens (NOT max_tokens) — GPT-6 rejects
    max_tokens. */
 
-export const CALENDAR_CREDIT_COST = Number(process.env["CONTENT_CALENDAR_CREDIT_COST"]) || 100;
+export const CALENDAR_CREDIT_COST = Number(process.env["CONTENT_CALENDAR_CREDIT_COST"]) || 150;
 export const CALENDAR_DAYS = 30;
 
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
