@@ -186,6 +186,7 @@ import subtitleStylerRouter from "./generate/subtitle-styler";
 import watermarkRouter from "./generate/watermark";
 import gifConverterRouter from "./generate/gif-converter";
 import thumbExtractRouter from "./generate/thumb-extract";
+import ctrPredictorRouter from "./generate/ctr-predictor";
 import quoteFinderRouter from "./generate/quote-finder";
 
 const router: IRouter = Router();
@@ -377,6 +378,7 @@ router.use(textAnimatorRouter);
 router.use(watermarkRouter);
 router.use(gifConverterRouter);
 router.use(thumbExtractRouter);
+router.use(ctrPredictorRouter);
 router.use(quoteFinderRouter);
 
 export default router;
