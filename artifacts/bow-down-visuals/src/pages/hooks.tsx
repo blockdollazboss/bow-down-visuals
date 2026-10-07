@@ -139,12 +139,27 @@ export default function HookStudio() {
 
  /* Template deep-link: ?template=<slug> preloads the hook generator;
     ?tab=captions&template=<slug> preloads the caption writer.
-    Used by the public template galleries (/templates/hooks, /templates/captions). */
+    Used by the public template galleries (/templates/hooks, /templates/captions).
+    Round-trip deep-link: ?topic=<text> on the hooks tab prefills the hook
+    generator topic — used by the Competitor Tracker / Content Intelligence
+    "generate ideas from this gap" handoffs so the gap travels with the creator. */
  useEffect(() => {
  try {
  const params = new URLSearchParams(window.location.search);
  const tabParam = params.get("tab");
  if (tabParam === "captions" || tabParam === "cta") setTab(tabParam);
+ const topicParam = params.get("topic")?.trim().slice(0, 300);
+ /* Multi-ratio export handoff: ?tab=captions&platform=tiktok&topic=…
+    pre-selects the platform and topic on the caption writer. */
+ if (tabParam === "captions") {
+ const platformParam = (params.get("platform") ?? "").toLowerCase();
+ if (["tiktok", "instagram", "youtube", "twitter"].includes(platformParam)) {
+ setCapPlatform(platformParam as "tiktok" | "instagram" | "youtube" | "twitter");
+ }
+ if (topicParam) setCapTopic(topicParam);
+ } else if (topicParam) {
+ setTopic(topicParam);
+ }
  const slug = params.get("template");
  if (!slug) return;
  if (tabParam === "captions") {
@@ -556,6 +571,23 @@ export default function HookStudio() {
  {error && !outOfCredits && (
  <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
  {error}
+ </p>
+ )}
+ {/* ── Content Intelligence round-trip ───────────────────────────────
+     Drops the current hook into Step 2 of the Content Intelligence chain
+     (/analytics-hub → Intelligence tab): validate the idea, score the
+     hook for the viral loop, check the niche, find competitor gaps, and
+     build the calendar — one guided flow. */}
+ {(hooks.length > 0 || topic.trim()) && (
+ <p className="mt-4">
+ <Link
+ href={`/analytics-hub?tab=intelligence&hook=${encodeURIComponent((hooks[0] ?? topic).trim().slice(0, 600))}`}
+ className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ <Zap className="h-4 w-4" aria-hidden="true" />
+ {t("hooks.fullIntelligenceCheck")}
+ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+ </Link>
  </p>
  )}
  </div>

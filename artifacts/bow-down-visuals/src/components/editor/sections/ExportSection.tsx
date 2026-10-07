@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
+import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
@@ -50,6 +51,8 @@ interface ExportSectionProps {
   projectDurationSec?: number;
   /** Simple mode: hide advanced export controls (range, watermark, debug, audio options). */
   isSimple?: boolean;
+  /** Project/song title — prefills caption handoffs in the multi-ratio card. */
+  topic?: string;
 }
 
 /* ── Export range helpers ──────────────────────────────── */
@@ -212,7 +215,7 @@ function isSourceAvailable(
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
-  onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false,
+  onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false, topic,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -231,6 +234,10 @@ export function ExportSection({
   const [wmUploading, setWmUploading] = useState(false);
   const [wmError, setWmError] = useState<string | null>(null);
   const wmInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Finished export URL — captured from FinalVideoExport so the
+     multi-ratio card can render straight from the finished video. ── */
+  const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
 
   /* ── Audio reachability probe ── */
   const [audioReachable,  setAudioReachable ] = useState<boolean | null>(null);
@@ -975,7 +982,14 @@ export function ExportSection({
         overlays={settings.overlays}
         overlayIntensity={settings.overlayIntensity}
         fitMode={settings.export.fitMode ?? "fill"}
+        onExportComplete={(record) => setFinalVideoUrl(record.final_video_url ?? null)}
       />
+
+      {/* ── Export for all platforms: one-click multi-ratio export ── */}
+      <MultiRatioExportCard videoUrl={finalVideoUrl} topic={topic} />
+
+      {/* ── Extract audio from the finished video ── */}
+      <ExtractAudioCard videoUrl={finalVideoUrl} />
 
       {/* ── Auto-Clip: vertical promo clips from the same timeline ── */}
       <AutoClipSection

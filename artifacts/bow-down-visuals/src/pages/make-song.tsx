@@ -13,7 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import type { HubAsset } from "@/lib/hub-project";
+import { useHubProject } from "@/lib/hub-project";
+import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
+import { useToast } from "@/hooks/use-toast";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -148,6 +152,26 @@ export default function MakeSong() {
   const [uploadedSongUrl, setUploadedSongUrl] = useState<string | null>(null);
   const [uploadedSongFile, setUploadedSongFile] = useState<File | null>(null);
   const [projectBeat, setProjectBeat] = useState<HubAsset | null>(null);
+  const { toast } = useToast();
+  const {
+    setProjectName, setProjectType, setProjectConcept,
+    addAsset, hasKind, latestOfKind, project,
+  } = useHubProject();
+
+  /* Deep-link protocol (used by the Audio Extract handoff):
+     /make-song?audioUrl=… pre-fills an extracted audio track as the song. */
+  useEffect(() => {
+    try {
+      const audioUrl = new URLSearchParams(window.location.search).get("audioUrl");
+      if (audioUrl) {
+        setUploadedSongUrl(audioUrl);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SongFormValues>({
     defaultValues: {
@@ -214,6 +238,29 @@ export default function MakeSong() {
       if (!result) return;
       const { rawResult, creditsRemaining } = result;
       setRawResult(rawResult);
+      /* Spine: the finished song package flows into the hub project —
+         name, concept, lyrics, video idea, cover prompt — so Video Studio,
+         Thumbnail Maker, Promo Clips, Hook Studio and Scheduler pick it up
+         with zero re-typing. */
+      try {
+        pushSongPackageToProject({
+          artistName: params.artistName,
+          songTitle: params.songTitle,
+          genre: params.genre,
+          mood: params.mood,
+          rawResult,
+          audioUrl: null,
+          setProjectName,
+          setProjectType,
+          setProjectConcept,
+          addAsset,
+          hasKind,
+          latestOfKind,
+        });
+        toast({ title: t("hubSpine.songSavedTitle"), description: t("hubSpine.songSavedDesc") });
+      } catch {
+        /* hub push is best-effort — the song result itself already rendered */
+      }
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("song-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -226,6 +273,31 @@ export default function MakeSong() {
       setLoading(false);
     }
   }
+
+  /* Spine: an uploaded song also joins the hub project — audio + transcribed
+     lyrics travel to Video Studio / Editor / Promo Clips like a generated one. */
+  useEffect(() => {
+    if (!uploadedSongUrl || uploadedSongUrl.startsWith("blob:")) return;
+    try {
+      pushSongPackageToProject({
+        artistName: watched.artistName,
+        songTitle: watched.songTitle || uploadedSongFile?.name?.replace(/\.[^.]+$/, "") || "",
+        genre: watched.genre,
+        mood: watched.mood,
+        rawResult: uploadedLyrics ? `## FULL LYRICS\n${uploadedLyrics}` : "",
+        audioUrl: uploadedSongUrl,
+        setProjectName,
+        setProjectType,
+        setProjectConcept,
+        addAsset,
+        hasKind,
+        latestOfKind,
+      });
+    } catch {
+      /* best-effort */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedSongUrl]);
 
   return (
     <div className="min-h-screen bg-black text-white lux-page">
@@ -539,7 +611,7 @@ export default function MakeSong() {
         )}
 
         {rawResult && (
-          <div id="song-result">
+          <div id="song-result" className="space-y-6">
             <GenerationResult
               result={rawResult}
               onReset={() => { setRawResult(null); setError(null); }}
@@ -553,6 +625,21 @@ export default function MakeSong() {
                 creditsUsed: 1,
               }}
             />
+            {(() => {
+              const songAsset = latestOfKind("song");
+              if (!songAsset || songAsset.url.startsWith("blob:")) return null;
+              const pkg = extractSongPackage(rawResult);
+              return (
+                <AssetHandoffs
+                  asset={songAsset}
+                  handoffs={["karaoke", "audiogram", "social-kit"]}
+                  lyricsText={pkg.lyrics}
+                  coverUrl={latestOfKind("image")?.url}
+                  brandName={watched.artistName || project.name}
+                  tagline={pkg.concept.slice(0, 120) || undefined}
+                />
+              );
+            })()}
           </div>
         )}
 

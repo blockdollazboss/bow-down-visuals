@@ -167,6 +167,25 @@ export default function PodcastStudio() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [rssCopied, setRssCopied] = useState(false);
 
+  /* Deep-link protocol (used by the Audio Extract handoff):
+     /podcast?mode=video&videoUrl=… (audio URLs work too — the backend
+     extracts from any media URL) pre-selects video mode with the source. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = params.get("mode");
+      const urlParam = params.get("videoUrl") ?? params.get("audioUrl");
+      if (modeParam === "video" && urlParam) {
+        setMode("video");
+        setVideoUrl(urlParam);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const estimate =
     mode === "script" ? estimatePodcastCost(script) : estimateTopicModeCost();
 
