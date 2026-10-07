@@ -11,6 +11,7 @@ import {
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -153,7 +154,8 @@ function canAutoPiP(v: HTMLVideoElement | null | undefined): v is HTMLVideoEleme
 }
 
 export default function VideoEditor() {
-  usePageTitle("Video Editor", "Professional video editor — cut, caption, and polish your content.");
+  const { t } = useTranslation();
+  usePageTitle(t("videoEditor.pageTitle"), t("videoEditor.pageDescription"));
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
@@ -248,8 +250,12 @@ export default function VideoEditor() {
       };
       if (!handoff.audioUrl) return;
       toast({
-        title: "Voiceover ready",
-        description: `Your AI narration (${handoff.wordCount ?? "?"} words, ${String(handoff.format ?? "mp3").toUpperCase()}) is ready. Download it from the Voiceover Studio or paste this URL into your audio layer: ${handoff.audioUrl}`,
+        title: t("videoEditor.voiceoverReadyTitle"),
+        description: t("videoEditor.voiceoverReadyDesc", {
+          words: handoff.wordCount ?? "?",
+          format: String(handoff.format ?? "mp3").toUpperCase(),
+          url: handoff.audioUrl,
+        }),
       });
     } catch {
       /* malformed handoff — ignore */
@@ -363,7 +369,7 @@ export default function VideoEditor() {
         const res = await fetch(`/api/projects/${projectId}`, {
           headers: { Authorization: `Bearer ${token ?? ""}` },
         });
-        if (!res.ok) throw new Error(res.status === 404 ? "Project not found" : "Failed to load project");
+        if (!res.ok) throw new Error(res.status === 404 ? t("videoEditor.projectNotFound") : t("videoEditor.loadProjectFailed"));
         const data = (await res.json()) as { project: LoadedProject };
         if (cancelled) return;
         setProject(data.project);
@@ -383,7 +389,7 @@ export default function VideoEditor() {
         resetHistory();
         hydrated.current = true;
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load project");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : t("videoEditor.loadProjectFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -514,8 +520,8 @@ export default function VideoEditor() {
     const ok = await persist();
     toast(
       ok
-        ? { title: "Saved", description: "Editor changes saved to your project." }
-        : { title: "Save failed", description: "Could not save your changes. Please try again.", variant: "destructive" },
+        ? { title: t("videoEditor.saveOkTitle"), description: t("videoEditor.saveOkDesc") }
+        : { title: t("videoEditor.saveFailedTitle"), description: t("videoEditor.saveFailedDesc"), variant: "destructive" },
     );
   }
 
@@ -526,7 +532,7 @@ export default function VideoEditor() {
 
     if (!rawResult) {
       setRebuildStatus("error");
-      setRebuildError("No saved plan found for this project.");
+      setRebuildError(t("videoEditor.noSavedPlanError"));
       return;
     }
 
@@ -541,7 +547,7 @@ export default function VideoEditor() {
 
       if (parsed.length === 0) {
         setRebuildStatus("error");
-        setRebuildError("Could not find scene breakdown in saved project. The saved plan must contain Timestamp or AI Video Prompt fields for each scene.");
+        setRebuildError(t("videoEditor.noSceneBreakdownError"));
         return;
       }
 
@@ -578,27 +584,27 @@ export default function VideoEditor() {
           } else {
             const errText = await patchRes.text().catch(() => String(patchRes.status));
             toast({
-              title: "Scenes rebuilt but save failed",
-              description: `Scenes are visible now but may not survive a refresh. Error: ${patchRes.status} — ${errText.slice(0, 120)}`,
+              title: t("videoEditor.scenesRebuiltButSaveFailedTitle"),
+              description: t("videoEditor.scenesRebuiltButSaveFailedDesc", { status: patchRes.status, detail: errText.slice(0, 120) }),
               variant: "destructive",
             });
           }
         } catch (saveErr) {
           const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
           toast({
-            title: "Scenes rebuilt but save failed",
-            description: `Scenes are visible now but may not survive a refresh. ${msg}`,
+            title: t("videoEditor.scenesRebuiltButSaveFailedTitle"),
+            description: t("videoEditor.rebuildSaveFailedDetail", { msg }),
             variant: "destructive",
           });
         }
       }
 
-      toast({ title: `${parsed.length} scenes rebuilt and saved`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
+      toast({ title: t("videoEditor.scenesRebuiltSaved", { count: parsed.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setRebuildStatus("error");
-      setRebuildError(`Could not parse scenes: ${msg}`);
-      toast({ title: "Could not parse scenes", description: msg, variant: "destructive" });
+      setRebuildError(t("videoEditor.parseScenesError", { msg }));
+      toast({ title: t("videoEditor.parseScenesTitle"), description: msg, variant: "destructive" });
     }
   }
 
@@ -625,9 +631,9 @@ export default function VideoEditor() {
       scenesRef.current = newScenes;
       setScenes(newScenes);
       setAutoSceneStatus("idle");
-      toast({ title: `${newScenes.length} scenes generated from your song`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
+      toast({ title: t("videoEditor.scenesGeneratedFromSong", { count: newScenes.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not generate scenes from this song.";
+      const msg = err instanceof Error ? err.message : t("videoEditor.autoSceneErrorDefault");
       setAutoSceneStatus("error");
       setAutoSceneError(msg);
     }
@@ -655,7 +661,7 @@ export default function VideoEditor() {
         const errMsg = json.error ?? `Server error ${res.status}`;
         setSyncState("error");
         setSyncMsg(errMsg);
-        toast({ title: "Sync failed", description: errMsg, variant: "destructive" });
+        toast({ title: t("videoEditor.syncFailedTitle"), description: errMsg, variant: "destructive" });
         return;
       }
       const synced = json.synced ?? 0;
@@ -667,16 +673,16 @@ export default function VideoEditor() {
       }
       if (synced === 0 && recovered === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? "No new clips to attach.");
-        toast({ title: "Nothing to sync", description: json.message ?? "All scenes already have clips or no matching clips were found." });
+        setSyncMsg(json.message ?? t("videoEditor.noNewClipsMsg"));
+        toast({ title: t("videoEditor.nothingToSyncTitle"), description: json.message ?? t("videoEditor.nothingToSyncDesc") });
         return;
       }
       if (recovered > 0 && synced === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? `Recovered ${recovered} clip${recovered !== 1 ? "s" : ""}.`);
+        setSyncMsg(json.message ?? t("videoEditor.recoveredClipsMsg", { count: recovered, plural: recovered !== 1 ? "s" : "" }));
         toast({
-          title: `${recovered} clip${recovered !== 1 ? "s" : ""} recovered!`,
-          description: "Your clips were restored from storage and should now play.",
+          title: t("videoEditor.clipsRecoveredTitle", { count: recovered, plural: recovered !== 1 ? "s" : "" }),
+          description: t("videoEditor.clipsRecoveredDesc"),
         });
         return;
       }
@@ -686,16 +692,16 @@ export default function VideoEditor() {
         setScenes(json.scenes);
       }
       setSyncState("done");
-      setSyncMsg(`Synced ${synced} clip${synced !== 1 ? "s" : ""}.`);
+      setSyncMsg(t("videoEditor.syncedClipsMsg", { count: synced, plural: synced !== 1 ? "s" : "" }));
       toast({
-        title: `${synced} clip${synced !== 1 ? "s" : ""} synced!`,
-        description: "Scenes updated with your generated clips. Clip Ready will now appear.",
+        title: t("videoEditor.clipsSyncedTitle", { count: synced, plural: synced !== 1 ? "s" : "" }),
+        description: t("videoEditor.clipsSyncedDesc"),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setSyncState("error");
       setSyncMsg(msg);
-      toast({ title: "Sync failed", description: msg, variant: "destructive" });
+      toast({ title: t("videoEditor.syncFailedTitle"), description: msg, variant: "destructive" });
     }
   }
 
@@ -752,8 +758,8 @@ export default function VideoEditor() {
     missingMixExportType !== null &&
     canRenderVideoAudioSource(settings.musicStudio.videoAudio.source, settings.musicStudio.stems);
   const missingMixExportLabel = missingMixExportType
-    ? AUDIO_EXPORT_BUTTONS.find((button) => button.id === missingMixExportType)?.label ?? "Render mix"
-    : "Render mix";
+    ? AUDIO_EXPORT_BUTTONS.find((button) => button.id === missingMixExportType)?.label ?? t("videoEditor.renderMix")
+    : t("videoEditor.renderMix");
 
   function requestMissingMixRender() {
     if (!missingMixExportType || !canDirectRenderMissingMix) {
@@ -896,28 +902,28 @@ export default function VideoEditor() {
     });
     setScenes(updated);
     toast({
-      title: "Character consistency applied!",
-      description: `Consistency prompt added to ${scenes.length} scene prompt${scenes.length !== 1 ? "s" : ""}.`,
+      title: t("videoEditor.consistencyAppliedTitle"),
+      description: t("videoEditor.consistencyAppliedDesc", { count: scenes.length, plural: scenes.length !== 1 ? "s" : "" }),
     });
   }
 
   /* ── Context-aware tips for the Help Panel ── */
   const helpTips = [
     !previewScene && scenes.length > 0
-      ? "You have scenes but no clip is selected. Click Preview on any scene in the Clips tab."
+      ? t("videoEditor.tipNoPreviewScene")
       : null,
     !audioUrl && settings.musicStudio.stems.length === 0
-      ? "No audio loaded yet. Go to the Music tab and upload your song."
+      ? t("videoEditor.tipNoAudio")
       : null,
     settings.captions.lines.length === 0
-      ? "No captions yet. Go to Captions and click Generate Captions From Lyrics."
+      ? t("videoEditor.tipNoCaptions")
       : null,
     settings.effects.length > 0
-      ? `${settings.effects.length} effect${settings.effects.length !== 1 ? "s" : ""} selected. Check the Effects tab to see the live CSS preview.`
-      : "No effects selected. Go to Effects and pick a color grade or look.",
+      ? t("videoEditor.tipEffectsSelected", { count: settings.effects.length, plural: settings.effects.length !== 1 ? "s" : "" })
+      : t("videoEditor.tipNoEffects"),
     approvedCount > 0
-      ? `${approvedCount} clip${approvedCount !== 1 ? "s" : ""} approved. Go to Export when you are ready.`
-      : "No clips approved yet. Approve clips in the Clips tab to build your timeline.",
+      ? t("videoEditor.tipClipsApproved", { count: approvedCount, plural: approvedCount !== 1 ? "s" : "" })
+      : t("videoEditor.tipNoApprovedClips"),
   ].filter(Boolean) as string[];
 
   return (
@@ -926,7 +932,7 @@ export default function VideoEditor() {
       <VideoBanner onHeightChange={setHeaderHeight} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
-        <Link href="/my-projects" className="sr-only">Back to Projects</Link>
+        <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
 
         {!projectId ? (
           <NoProject />
@@ -937,7 +943,7 @@ export default function VideoEditor() {
         ) : loadError ? (
           <div className="py-20 text-center space-y-3">
             <p className="text-red-400 font-semibold">{loadError}</p>
-            <Link href="/my-projects"><Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10">Back to Projects</Button></Link>
+            <Link href="/my-projects"><Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("videoEditor.backToProjects")}</Button></Link>
           </div>
         ) : (
           <>
@@ -945,12 +951,12 @@ export default function VideoEditor() {
             <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b border-white/10 bg-black">
               <Link href="/my-projects" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
                 <ArrowLeft className="h-4 w-4" />
-                <span className="text-xs font-bold hidden sm:inline">Projects</span>
+                <span className="text-xs font-bold hidden sm:inline">{t("videoEditor.projectsNav")}</span>
               </Link>
               <div className="w-px h-5 bg-white/10" aria-hidden="true" />
               <div className="flex items-center gap-2 min-w-0">
                 <Clapperboard className="h-4 w-4 text-primary shrink-0" />
-                <h1 className="text-sm font-bold text-white tracking-tight truncate">{project?.title || "Untitled project"}</h1>
+                <h1 className="text-sm font-bold text-white tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
               </div>
               <SaveIndicator state={saveState} />
               <div className="flex-1" />
@@ -959,22 +965,22 @@ export default function VideoEditor() {
                 size="sm"
                 variant="ghost"
                 className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30"
-                title="Change template — what are you making?"
+                title={t("videoEditor.changeTemplateTitle")}
                 data-testid="btn-template-picker"
               >
                 <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
               </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title="Undo (Ctrl+Z)" data-testid="btn-undo-editor">
-                <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">Undo</span>
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+                <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
               </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title="Redo (Ctrl+Shift+Z)" data-testid="btn-redo-editor">
-                <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">Redo</span>
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+                <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
               <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
-                <Save className="h-3.5 w-3.5" /> Save
+                <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
               <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-8" data-testid="btn-export-topbar">
-                <Download className="h-3.5 w-3.5" /> Export
+                <Download className="h-3.5 w-3.5" /> {t("videoEditor.export")}
               </Button>
             </div>
 
@@ -984,17 +990,17 @@ export default function VideoEditor() {
               {/* ── LEFT RAIL: icon nav ── */}
               <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
                 {orderedRailTabs([
-                    { id: "clips", label: "Media", icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
-                    { id: "music", label: "Audio", icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
-                    { id: "timeline", label: "Timeline", icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
-                    { id: "captions", label: "Text", icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
-                    { id: "effects", label: "Effects", icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
-                    { id: "branding", label: "Brand", icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
-                    { id: "lip-sync", label: "Lip Sync", icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
-                    { id: "pre-production", label: "Pre-Pro", icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
-                    { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
-                    { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
-                    { id: "pro-tools", label: "Pro Tools", icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
+                    { id: "clips", label: t("videoEditor.railMedia"), icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
+                    { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
+                    { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
+                    { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
+                    { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
+                    { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
+                    { id: "lip-sync", label: t("videoEditor.railLipSync"), icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
+                    { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
+                    { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
+                    { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                   ])
                     .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -1020,17 +1026,17 @@ export default function VideoEditor() {
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest">
                     {{
-                      clips: "Media",
-                      music: "Audio",
-                      timeline: "Timeline",
-                      captions: "Text",
-                      effects: "Effects",
-                      branding: "Brand",
-                      "lip-sync": "Lip Sync",
-                      "pre-production": "Pre-Pro",
-                      export: "Export",
-                      studio: "Advanced",
-                      "pro-tools": "Pro Tools",
+                      clips: t("videoEditor.railMedia"),
+                      music: t("videoEditor.railAudio"),
+                      timeline: t("videoEditor.railTimeline"),
+                      captions: t("videoEditor.railText"),
+                      effects: t("videoEditor.railEffects"),
+                      branding: t("videoEditor.railBrand"),
+                      "lip-sync": t("videoEditor.railLipSync"),
+                      "pre-production": t("videoEditor.railPrePro"),
+                      export: t("videoEditor.railExport"),
+                      studio: t("videoEditor.railAdvanced"),
+                      "pro-tools": t("videoEditor.railProTools"),
                     }[tab]}
                   </h2>
                 </div>
@@ -1079,9 +1085,9 @@ export default function VideoEditor() {
                           {consistencyPrompt && scenes.length > 0 && (
                             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-primary">Character Consistency Lock is active</p>
+                                <p className="text-xs font-bold text-primary">{t("videoEditor.consistencyLockActive")}</p>
                                 <p className="text-[10px] text-white/40 mt-0.5">
-                                  {activeArtist ? `${activeArtist.artist_name}'s consistency prompt will be added to all scene prompts.` : "A consistency prompt is saved."}
+                                  {activeArtist ? t("videoEditor.consistencyLockDesc", { name: activeArtist.artist_name }) : t("videoEditor.consistencyLockDescGeneric")}
                                 </p>
                               </div>
                               <button
@@ -1089,7 +1095,7 @@ export default function VideoEditor() {
                                 onClick={applyConsistencyToAllScenes}
                                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Apply to All Scenes
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t("videoEditor.applyToAllScenes")}
                               </button>
                             </div>
                           )}
@@ -1101,10 +1107,10 @@ export default function VideoEditor() {
                               <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-bold text-white flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-primary shrink-0" /> Generate scenes from your song
+                                    <Sparkles className="h-4 w-4 text-primary shrink-0" /> {t("videoEditor.generateScenesTitle")}
                                   </p>
                                   <p className="text-xs text-white/40 mt-0.5">
-                                    We'll analyze your song's structure and beats to build a timed scene list automatically — no text plan needed.
+                                    {t("videoEditor.generateScenesDesc")}
                                   </p>
                                 </div>
                                 <button
@@ -1115,8 +1121,8 @@ export default function VideoEditor() {
                                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
                                 >
                                   {autoSceneStatus === "generating"
-                                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating scenes…</>
-                                    : <><Clapperboard className="h-4 w-4" /> Generate Scenes From Song</>}
+                                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("videoEditor.generatingScenes")}</>
+                                    : <><Clapperboard className="h-4 w-4" /> {t("videoEditor.generateScenesButton")}</>}
                                 </button>
                                 {autoSceneStatus === "error" && autoSceneError && (
                                   <p className="text-xs text-red-400/80 basis-full">{autoSceneError}</p>
@@ -1125,15 +1131,15 @@ export default function VideoEditor() {
                             ) : !previewAudioUrl ? (
                               <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-white/60">No song loaded yet</p>
-                                  <p className="text-[10px] text-white/35 mt-0.5">Add your song in the Song tab first, then come back here to build scenes.</p>
+                                  <p className="text-xs font-bold text-white/60">{t("videoEditor.noSongLoaded")}</p>
+                                  <p className="text-[10px] text-white/35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => setTab("music")}
                                   className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
                                 >
-                                  <Music2 className="h-3.5 w-3.5" /> Go to Song
+                                  <Music2 className="h-3.5 w-3.5" /> {t("videoEditor.goToSong")}
                                 </button>
                               </div>
                             ) : null
@@ -1145,23 +1151,23 @@ export default function VideoEditor() {
                               <div className="flex-1 min-w-0">
                                 {scenes.length === 0 ? (
                                   <>
-                                    <p className="text-xs font-bold text-amber-400">No scenes loaded — saved plan found</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">This project has a saved video plan. Click "Rebuild Scenes" to parse scene cards from it.</p>
+                                    <p className="text-xs font-bold text-amber-400">{t("videoEditor.noScenesSavedPlan")}</p>
+                                    <p className="text-[10px] text-white/40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
                                   </>
                                 ) : rebuildStatus === "done" ? (
                                   <>
-                                    <p className="text-xs font-bold text-green-400">{scenes.length} scenes loaded from saved plan</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">Scenes parsed from your saved video plan and saved automatically.</p>
+                                    <p className="text-xs font-bold text-green-400">{t("videoEditor.scenesLoadedFromPlan", { count: scenes.length })}</p>
+                                    <p className="text-[10px] text-white/40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
                                   </>
                                 ) : rebuildStatus === "error" ? (
                                   <>
-                                    <p className="text-xs font-bold text-red-400">Could not parse scenes</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{rebuildError ?? "The saved plan may not include a scene-by-scene breakdown."}</p>
+                                    <p className="text-xs font-bold text-red-400">{t("videoEditor.parseScenesTitle")}</p>
+                                    <p className="text-[10px] text-white/40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
                                   </>
                                 ) : (
                                   <>
-                                    <p className="text-xs font-bold text-white/50">Saved plan available</p>
-                                    <p className="text-[10px] text-white/35 mt-0.5">Re-parse scene cards from the saved video plan text.</p>
+                                    <p className="text-xs font-bold text-white/50">{t("videoEditor.savedPlanAvailable")}</p>
+                                    <p className="text-[10px] text-white/35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
                                   </>
                                 )}
                               </div>
@@ -1173,9 +1179,9 @@ export default function VideoEditor() {
                                 data-testid="btn-rebuild-scenes"
                               >
                                 {rebuildStatus === "rebuilding" ? (
-                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Rebuilding…</>
+                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.rebuilding")}</>
                                 ) : (
-                                  <><RefreshCw className="h-3.5 w-3.5" /> Rebuild Scenes</>
+                                  <><RefreshCw className="h-3.5 w-3.5" /> {t("videoEditor.rebuildScenes")}</>
                                 )}
                               </button>
                             </div>
@@ -1197,12 +1203,12 @@ export default function VideoEditor() {
                                 onClick={() => { setSyncState("idle"); void syncMissingClips(); }}
                                 disabled={syncState === "syncing"}
                                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
-                                title="Scan your generated clips and attach any matching ones to scenes that are missing a clip — no Visual Bucs charged"
+                                title={t("videoEditor.syncMissingClipsTitle")}
                               >
                                 {syncState === "syncing" ? (
-                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing…</>
+                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.syncing")}</>
                                 ) : (
-                                  <><Zap className="h-3.5 w-3.5" /> Sync Missing Clips</>
+                                  <><Zap className="h-3.5 w-3.5" /> {t("videoEditor.syncMissingClips")}</>
                                 )}
                               </button>
                             </div>
@@ -1389,7 +1395,7 @@ export default function VideoEditor() {
               >
                 {previewDropActive && (
                   <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#C9A84C]/10 border-2 border-dashed border-[#C9A84C]/60 rounded-xl m-2">
-                    <p className="text-[#C9A84C] font-black text-sm bg-black/70 px-4 py-2 rounded-full">Drop to apply</p>
+                    <p className="text-[#C9A84C] font-black text-sm bg-black/70 px-4 py-2 rounded-full">{t("videoEditor.dropToApply")}</p>
                   </div>
                 )}
                 {/* ── MASTER PLAYER — pinned to the top of the workspace column.
@@ -1471,7 +1477,7 @@ export default function VideoEditor() {
                         </div>
                         {consistencyPrompt && (
                           <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
-                            🔒 Locked
+                            {t("videoEditor.lockedBadge")}
                           </div>
                         )}
                       </div>
@@ -1484,11 +1490,14 @@ export default function VideoEditor() {
                     >
                       <AlertCircle className="h-3.5 w-3.5 text-amber-400/80 shrink-0" />
                       <p className="text-[11px] text-amber-200/70 leading-snug min-w-0 flex-1 truncate">
-                        Previewing with {previewAudioResolution.fallbackSource === "project-audio"
-                          ? "the uploaded song"
-                          : previewAudioResolution.fallbackSource === "first-stem"
-                          ? "the first stem"
-                          : "no audio"} — {VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source]} isn't rendered yet.
+                        {t("videoEditor.previewingWithFallback", {
+                          fallback: previewAudioResolution.fallbackSource === "project-audio"
+                            ? t("videoEditor.fallbackUploadedSong")
+                            : previewAudioResolution.fallbackSource === "first-stem"
+                            ? t("videoEditor.fallbackFirstStem")
+                            : t("videoEditor.fallbackNoAudio"),
+                          label: VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source],
+                        })}
                       </p>
                       <button
                         type="button"
@@ -1498,11 +1507,11 @@ export default function VideoEditor() {
                         className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
                       >
                         {directAudioExportStatus.status === "rendering" ? (
-                          <><Loader2 className="h-3 w-3 animate-spin no-underline" /> Rendering…</>
+                          <><Loader2 className="h-3 w-3 animate-spin no-underline" /> {t("videoEditor.rendering")}</>
                         ) : canDirectRenderMissingMix ? (
-                          "Render mix"
+                          t("videoEditor.renderMix")
                         ) : (
-                          "Open Music Studio"
+                          t("videoEditor.openMusicStudio")
                         )}
                       </button>
                     </div>
@@ -1517,7 +1526,7 @@ export default function VideoEditor() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.03] transition-colors"
                     >
                       <Bug className="h-3 w-3 text-white/20" />
-                      <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest flex-1">Debug Panel</span>
+                      <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
                       {debugOpen ? <ChevronUp className="h-3 w-3 text-white/20" /> : <ChevronDown className="h-3 w-3 text-white/20" />}
                     </button>
                     {debugOpen && (
@@ -1566,9 +1575,9 @@ export default function VideoEditor() {
               </main>
 
               {/* ── RIGHT: inspector ── */}
-              <aside className="w-[280px] shrink-0 bg-[#0a0a0a] border-l border-white/10 overflow-y-auto hidden xl:block" aria-label="Inspector">
+              <aside className="w-[280px] shrink-0 bg-[#0a0a0a] border-l border-white/10 overflow-y-auto hidden xl:block" aria-label={t("videoEditor.inspector")}>
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Inspector</h2>
+                  <h2 className="text-xs font-black text-white uppercase tracking-widest">{t("videoEditor.inspector")}</h2>
                 </div>
                 <div className="p-4">
                   {selectedIdx != null && scenes[selectedIdx] ? (
@@ -1578,17 +1587,17 @@ export default function VideoEditor() {
                       return (
                         <div className="space-y-3">
                           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Scene {selectedIdx + 1} of {scenes.length}</p>
-                            <p className="text-xs text-white/70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || "No prompt"}</p>
+                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
+                            <p className="text-xs text-white/70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || t("videoEditor.noPrompt")}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Clip</p>
-                              <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "text-white/40"}`}>{hasClip ? "Attached" : "No clip"}</p>
+                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
+                              <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "text-white/40"}`}>{hasClip ? t("videoEditor.clipAttached") : t("videoEditor.clipNoClip")}</p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Approved</p>
-                              <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "text-white/40"}`}>{scene.approved ? "Yes" : "No"}</p>
+                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
+                              <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "text-white/40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
                             </div>
                           </div>
                           <button
@@ -1596,25 +1605,25 @@ export default function VideoEditor() {
                             onClick={() => setScenes(scenes.map((s, i) => (i === selectedIdx ? { ...s, approved: !s.approved } : s)))}
                             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
                           >
-                            {scene.approved ? <><CheckCircle2 className="h-3.5 w-3.5" /> Unapprove Scene</> : <><Circle className="h-3.5 w-3.5" /> Approve Scene</>}
+                            {scene.approved ? <><CheckCircle2 className="h-3.5 w-3.5" /> {t("videoEditor.unapproveScene")}</> : <><Circle className="h-3.5 w-3.5" /> {t("videoEditor.approveScene")}</>}
                           </button>
                           <button
                             type="button"
                             onClick={() => setTab("clips")}
                             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
                           >
-                            <Film className="h-3.5 w-3.5" /> Go to Clips
+                            <Film className="h-3.5 w-3.5" /> {t("videoEditor.goToClips")}
                           </button>
                         </div>
                       );
                     })()
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-white/40 leading-relaxed">Select a scene in the timeline to inspect it here.</p>
+                      <p className="text-xs text-white/40 leading-relaxed">{t("videoEditor.selectSceneHint")}</p>
                       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">Scenes</span><span className="text-xs font-bold text-white">{scenes.length}</span></div>
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">With clips</span><span className="text-xs font-bold text-white">{scenes.filter((s) => sceneHasClip(s)).length}</span></div>
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">Approved</span><span className="text-xs font-bold text-white">{scenes.filter((s) => s.approved && sceneHasClip(s)).length}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.scenesLabel")}</span><span className="text-xs font-bold text-white">{scenes.length}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.withClipsLabel")}</span><span className="text-xs font-bold text-white">{scenes.filter((s) => sceneHasClip(s)).length}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.approvedLabel")}</span><span className="text-xs font-bold text-white">{scenes.filter((s) => s.approved && sceneHasClip(s)).length}</span></div>
                       </div>
                     </div>
                   )}
@@ -1839,13 +1848,18 @@ function floatPlayerAspect(fmt: VideoFormat): number {
 }
 
 /** Short badge label shown on the Fit Mode button. */
-const FIT_BADGE: Record<FitMode, string> = { fill: "FILL", fit: "FIT", blur: "BLUR" };
+/** Badge text key for each Fit Mode (render with t()). */
+const FIT_BADGE: Record<FitMode, string> = {
+  fill: "videoEditor.fitBadgeFill",
+  fit:  "videoEditor.fitBadgeFit",
+  blur: "videoEditor.fitBadgeBlur",
+};
 
-/** Toast-friendly label for each Fit Mode. */
+/** Toast-friendly label key for each Fit Mode (render with t()). */
 const FIT_TOAST: Record<FitMode, string> = {
-  fill: "Fill / Crop",
-  fit:  "Fit / Letterbox",
-  blur: "Blur Background Fill",
+  fill: "videoEditor.fitToastFill",
+  fit:  "videoEditor.fitToastFit",
+  blur: "videoEditor.fitToastBlur",
 };
 
 /** Available playback speeds. */
@@ -1893,6 +1907,7 @@ function MasterPreviewPlayer({
   dockHeight: number;
   headerHeight: number;
 }) {
+  const { t } = useTranslation();
   const containerRef  = useRef<HTMLDivElement | null>(null);
   const chromeHeaderRef = useRef<HTMLDivElement | null>(null);
   const chromeFooterRef = useRef<HTMLDivElement | null>(null);
@@ -2070,7 +2085,7 @@ function MasterPreviewPlayer({
     const idx  = CYCLE_FIT_MODES.indexOf(curr);
     const next = CYCLE_FIT_MODES[(idx + 1) % CYCLE_FIT_MODES.length]!;
     setSettings({ ...settings, export: { ...settings.export, fitMode: next } });
-    toast({ description: `Fit Mode: ${FIT_TOAST[next]}`, duration: 2000 });
+    toast({ description: t("videoEditor.fitModeToast", { label: t(FIT_TOAST[next]) }), duration: 2000 });
   };
 
   /* ── Transport: volume / mute / speed / loop ── */
@@ -2251,7 +2266,7 @@ function MasterPreviewPlayer({
           v.play()
             .then(() => setPlaybackRestored(true))
             .catch((e) => {
-              setPipError(`Could not resume after PiP: ${e instanceof Error ? e.message : String(e)}`);
+              setPipError(t("videoEditor.pipResumeError", { msg: e instanceof Error ? e.message : String(e) }));
               setPlaybackRestored(false);
             });
         } else {
@@ -2269,7 +2284,7 @@ function MasterPreviewPlayer({
       if (hidden && autoPiPRef.current && !document.fullscreenElement && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch((e) => {
           const msg = e instanceof Error ? e.message : String(e);
-          setPipError(`Browser blocked automatic PiP. Click Enable Auto PiP again. (${msg})`);
+          setPipError(t("videoEditor.pipBlockedError", { msg }));
         });
       }
       /* When returning visible: leavepictureinpicture fires naturally; playback is restored there */
@@ -2330,7 +2345,7 @@ function MasterPreviewPlayer({
       canAutoPiP(lv)
     ) {
       lv.requestPictureInPicture().catch((e) => {
-        setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
+        setPipError(t("videoEditor.autoPipError", { msg: e instanceof Error ? e.message : String(e) }));
       });
     }
     prevTabRef.current = tab;
@@ -2347,12 +2362,12 @@ function MasterPreviewPlayer({
     setPipError(null);
     const v = liveVideoRef.current;
     if (!v) return;
-    if (!pipSupported) { setPipError("Picture-in-Picture is not supported in this browser."); return; }
+    if (!pipSupported) { setPipError(t("videoEditor.pipNotSupported")); return; }
     try {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await v.requestPictureInPicture();
     } catch (e) {
-      setPipError(`PiP failed: ${e instanceof Error ? e.message : String(e)}`);
+      setPipError(t("videoEditor.pipFailedError", { msg: e instanceof Error ? e.message : String(e) }));
     }
   }
 
@@ -2368,7 +2383,7 @@ function MasterPreviewPlayer({
     try {
       if (!document.pictureInPictureElement) await v.requestPictureInPicture();
     } catch {
-      setPipError("Auto PiP needs one click first. Press the PiP button to allow it.");
+      setPipError(t("videoEditor.pipNeedsClick"));
     }
   }
 
@@ -2587,7 +2602,7 @@ function MasterPreviewPlayer({
     ? "rgba(220,30,30,0.55)"
     : null;
 
-  const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
+  const testText = testEffectActive ? t("videoEditor.effectTestActive") : null;
 
   /* ── Before/after compare slider ──────────────────────────────────
    * When on, a raw mirror of the live video (no filters, no overlays, no
@@ -2708,11 +2723,11 @@ function MasterPreviewPlayer({
           type="button"
           onClick={toggleHidden}
           data-testid="master-player-show-tab"
-          title="Show master player"
+          title={t("videoEditor.showMasterPlayer")}
           className="mx-auto flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
         >
           <Eye className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Show Player</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider">{t("videoEditor.showPlayer")}</span>
         </button>
       )}
     {/* ── Visual mode: true focus mode. The background is essentially blacked out
@@ -2783,7 +2798,7 @@ function MasterPreviewPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => setCompareOn((v) => !v)}
                 data-testid="master-player-compare-toggle"
-                title={compareOn ? "Exit before/after compare" : "Compare before/after effects"}
+                title={compareOn ? t("videoEditor.exitCompare") : t("videoEditor.compareEffects")}
                 aria-pressed={compareOn}
                 className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                   compareOn
@@ -2799,7 +2814,7 @@ function MasterPreviewPlayer({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleTheater}
               data-testid="master-player-theater-toggle"
-              title={theaterOn ? "Exit visual mode (T)" : "Visual mode (T)"}
+              title={theaterOn ? t("videoEditor.exitVisualMode") : t("videoEditor.visualMode")}
               className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                 theaterOn
                   ? "text-[#f7dd7f] bg-[#C9A84C]/20"
@@ -2813,7 +2828,7 @@ function MasterPreviewPlayer({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleMinimize}
               data-testid="master-player-minimize-toggle"
-              title={isMinimized ? "Restore master player" : "Minimize master player"}
+              title={isMinimized ? t("videoEditor.restorePlayer") : t("videoEditor.minimizePlayer")}
               className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
             >
               {isMinimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
@@ -2823,7 +2838,7 @@ function MasterPreviewPlayer({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleHidden}
               data-testid="master-player-hide-toggle"
-              title="Hide master player"
+              title={t("videoEditor.hidePlayer")}
               className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
             >
               <EyeOff className="h-3 w-3" />
@@ -3003,7 +3018,7 @@ function MasterPreviewPlayer({
             <button
               type="button"
               role="slider"
-              aria-label="Before and after compare position"
+              aria-label={t("videoEditor.comparePositionLabel")}
               aria-valuemin={COMPARE_POS_MIN}
               aria-valuemax={COMPARE_POS_MAX}
               aria-valuenow={clampComparePos(comparePos)}
@@ -3035,10 +3050,10 @@ function MasterPreviewPlayer({
             <Film className="h-12 w-12" />
             <p className="text-sm font-medium text-center px-6">
               {scenes.length === 0
-                ? "Generate scenes to preview"
+                ? t("videoEditor.generateScenesToPreview")
                 : eng
-                  ? "Active scene has no clip — audio still playing"
-                  : "Click Preview on a clip card, or press Play to start"}
+                  ? t("videoEditor.activeSceneNoClip")
+                  : t("videoEditor.clickPreviewHint")}
             </p>
           </div>
         )}
@@ -3060,7 +3075,7 @@ function MasterPreviewPlayer({
               color: "rgba(201,168,76,0.75)",
               fontFamily: "monospace", fontWeight: "bold",
               letterSpacing: "0.06em", textTransform: "uppercase",
-            }}>Caption Safe Area</span>
+            }}>            {t("videoEditor.captionSafeArea")}</span>
           </div>
         )}
 
@@ -3137,7 +3152,7 @@ function MasterPreviewPlayer({
         {isPlaying && (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
             <Volume2 className="h-3 w-3 text-black animate-pulse" />
-            <span className="text-[10px] font-black text-black uppercase tracking-wide">Live</span>
+            <span className="text-[10px] font-black text-black uppercase tracking-wide">{t("videoEditor.liveBadge")}</span>
           </div>
         )}
 
@@ -3147,7 +3162,7 @@ function MasterPreviewPlayer({
             type="button"
             onClick={onTogglePlay}
             className="absolute inset-0 flex items-center justify-center"
-            aria-label="Start preview"
+            aria-label={t("videoEditor.startPreview")}
           >
             <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center hover:bg-primary/30 transition-colors backdrop-blur-sm">
               <Play className="h-6 w-6 text-primary ml-0.5" />
@@ -3168,7 +3183,7 @@ function MasterPreviewPlayer({
         <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-t border-white/[0.06] shrink-0">
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
             className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30 shrink-0"
-            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
+            title={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           </button>
         </div>
@@ -3180,7 +3195,7 @@ function MasterPreviewPlayer({
           {hasScenes && sceneOffsets.length > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[10px] font-bold text-[#f0d488]">
               <Film className="h-2.5 w-2.5" />
-              Scene {activeSceneIdx + 1}/{sceneOffsets.length}
+              {t("videoEditor.sceneChip", { current: activeSceneIdx + 1, total: sceneOffsets.length })}
             </span>
           )}
           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] font-black text-white/50 tracking-widest">
@@ -3189,7 +3204,7 @@ function MasterPreviewPlayer({
           {loop && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/15 border border-[#C9A84C]/40 text-[10px] font-bold text-[#f0d488] uppercase tracking-wider">
               <Repeat className="h-2.5 w-2.5" />
-              Loop
+              {t("videoEditor.loopChip")}
             </span>
           )}
         </div>
@@ -3210,33 +3225,33 @@ function MasterPreviewPlayer({
         <div className="flex items-center justify-center gap-1 flex-wrap">
           {/* Restart */}
           <button type="button" onClick={onRestart} disabled={!hasScenes}
-            className={tBtnSm} title="Restart (Home)">
+            className={tBtnSm} title={t("videoEditor.restartTitle")}>
             <RotateCcw className="h-3 w-3" />
           </button>
           {/* Prev Scene */}
           <button type="button" onClick={prevClip} disabled={!hasScenes}
-            className={tBtnSm} title="Previous Scene (Shift+Left)">
+            className={tBtnSm} title={t("videoEditor.prevSceneTitle")}>
             <Rewind className="h-3 w-3" />
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Back 10s (J)">-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
-            className={tBtnSm} title="Step 1 frame back (,)">
+            className={tBtnSm} title={t("videoEditor.stepBackTitle")}>
             <StepBack className="h-3 w-3" />
           </button>
           {/* Frame step forward */}
           <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
-            className={tBtnSm} title="Step 1 frame forward (.)">
+            className={tBtnSm} title={t("videoEditor.stepForwardTitle")}>
             <StepForward className="h-3 w-3" />
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Forward 10s (L)">+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
-            className={tBtnSm} title="Next Scene (Shift+Right)">
+            className={tBtnSm} title={t("videoEditor.nextSceneTitle")}>
             <FastForward className="h-3 w-3" />
           </button>
           {/* Loop */}
@@ -3246,27 +3261,27 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30"
             }`}
-            title={loop ? "Loop: on — click to turn off" : "Loop playback"}>
+            title={loop ? t("videoEditor.loopOnTitle") : t("videoEditor.loopOffTitle")}>
             <Repeat className="h-3 w-3" />
           </button>
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
             className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[9px] font-black tabular-nums`}
-            title={`Speed: ${speed}x — click to cycle`}>
+            title={t("videoEditor.speedTitle", { speed })}>
             {speed}x
           </button>
           {/* Aspect Ratio cycle */}
           <button type="button" onClick={cycleFormat}
             className={tBtnSm}
-            title={`Aspect Ratio: ${settings.export.format ?? "9:16"} — click to cycle`}>
+            title={t("videoEditor.aspectRatioTitle", { format: settings.export.format ?? "9:16" })}>
             {FORMAT_ICONS_MAP[(settings.export.format ?? "9:16") as VideoFormat]}
           </button>
           {/* Fit Mode cycle */}
           <button type="button" onClick={cycleFitMode}
             className={`${tBtnSm} min-w-[2rem] px-1`}
-            title={`Fit: ${FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]} — click to cycle`}>
+            title={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}>
             <span className="text-[7px] font-black tracking-widest uppercase leading-none">
-              {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
+              {t(FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode])}
             </span>
           </button>
           {/* PiP — one button, manual only; Auto PiP toggled via settings row below */}
@@ -3276,7 +3291,7 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/[0.08]"
             }`}
-            title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
+            title={pipActive ? t("videoEditor.exitPipTitle") : t("videoEditor.pipTitle")}>
             <PictureInPicture2 className="h-3 w-3" />
           </button>
         </div>
@@ -3286,7 +3301,7 @@ function MasterPreviewPlayer({
           {/* Play / Pause — hero button */}
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
             className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
-            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
+            title={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
           {/* Scrubable progress bar — flexible width */}
@@ -3318,7 +3333,7 @@ function MasterPreviewPlayer({
             value={muted ? 0 : volume}
             onChange={(e) => handleVolume(Number(e.target.value))}
             className="w-12 sm:w-14 accent-[#C9A84C] cursor-pointer shrink-0"
-            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+            title={t("videoEditor.volumeTitle", { pct: Math.round((muted ? 0 : volume) * 100) })}
           />
           {/* Fullscreen — launches from the pinned player */}
           <button type="button" onClick={toggleFullscreen}
@@ -3327,7 +3342,7 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08]"
             }`}
-            title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}>
+            title={isFullscreen ? t("videoEditor.exitFullscreen") : t("videoEditor.fullscreen")}>
             {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
           </button>
         </div>
@@ -3337,7 +3352,7 @@ function MasterPreviewPlayer({
       {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
       {!isFullscreen && !isMinimized && (
         <div className="px-4 py-2 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-5 gap-y-1">
-          <span className="text-[10px] font-bold text-white/30 shrink-0">Auto PiP:</span>
+          <span className="text-[10px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -3345,7 +3360,7 @@ function MasterPreviewPlayer({
               onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
               className="accent-primary w-3 h-3"
             />
-            <span className="text-[10px] text-white/50">Enable Auto PiP</span>
+            <span className="text-[10px] text-white/50">{t("videoEditor.enableAutoPip")}</span>
           </label>
           {autoPiP && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -3355,7 +3370,7 @@ function MasterPreviewPlayer({
                 onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
                 className="accent-primary w-3 h-3"
               />
-              <span className="text-[10px] text-white/50">On tab switch</span>
+              <span className="text-[10px] text-white/50">{t("videoEditor.onTabSwitch")}</span>
             </label>
           )}
         </div>
@@ -3433,7 +3448,7 @@ function MasterPreviewPlayer({
         <div
           onPointerDown={handleResizeStart}
           data-testid="master-player-resize-handle"
-          title="Drag to resize"
+          title={t("videoEditor.dragToResize")}
           className={`absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize flex items-end justify-end p-0.5 ${
             isResizingFloat ? "opacity-100" : "opacity-40 hover:opacity-90"
           } transition-opacity`}
@@ -3462,25 +3477,27 @@ function MasterPreviewPlayer({
 /* ─────────────────────── SAVE INDICATOR ─────────────────────── */
 
 function SaveIndicator({ state }: { state: SaveState }) {
-  if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</span>;
-  if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> Saved</span>;
-  if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> Save failed</span>;
+  const { t } = useTranslation();
+  if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.saving")}</span>;
+  if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> {t("videoEditor.saved")}</span>;
+  if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> {t("videoEditor.saveFailed")}</span>;
   return null;
 }
 
 /* ─────────────────────── NO PROJECT ─────────────────────── */
 
 function NoProject() {
+  const { t } = useTranslation();
   return (
     <div className="py-20 text-center space-y-4">
       <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center mx-auto">
         <Clapperboard className="h-8 w-8 text-white/20" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-white">No project selected</h2>
-        <p className="text-white/45 max-w-sm mx-auto">Choose a saved music video project or generate a music video plan first.</p>
+        <h2 className="text-xl font-bold text-white">{t("videoEditor.noProjectSelected")}</h2>
+        <p className="text-white/45 max-w-sm mx-auto">{t("videoEditor.noProjectDesc")}</p>
       </div>
-      <Link href="/my-projects"><Button className="gold-glow font-semibold gap-2"><ArrowLeft className="h-4 w-4" /> Go to My Projects</Button></Link>
+      <Link href="/my-projects"><Button className="gold-glow font-semibold gap-2"><ArrowLeft className="h-4 w-4" /> {t("videoEditor.goToMyProjects")}</Button></Link>
     </div>
   );
 }

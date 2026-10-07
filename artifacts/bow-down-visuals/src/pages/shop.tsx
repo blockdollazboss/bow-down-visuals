@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
 import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
@@ -38,6 +39,7 @@ interface PublicProduct {
 }
 
 export default function ShopStorefront() {
+  const { t } = useTranslation();
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
@@ -142,13 +144,13 @@ export default function ShopStorefront() {
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Order failed.");
+        if (!res.ok) throw new Error(data.error || t("shop.errorOrderFailed"));
         gross += data.gross_cents; fee += data.platform_fee_cents; net += data.seller_net_cents;
       }
       setOrderDone({ lines: cartDetailed.length, gross, fee, net });
       setCart([]);
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Order failed. Try again.");
+      setOrderError(e instanceof Error ? e.message : t("shop.errorOrderFailedRetry"));
     } finally {
       setPlacing(false);
     }
@@ -164,10 +166,10 @@ export default function ShopStorefront() {
       ) : notFound || !shop ? (
         <main className="max-w-2xl mx-auto px-5 py-32 text-center">
           <Store className="w-12 h-12 mx-auto text-white/25" />
-          <h1 className="mt-6 text-3xl font-black">Shop not found</h1>
-          <p className="mt-3 text-white/50 text-sm">There's no storefront at <span className="font-mono text-amber-300">/shop/{handle}</span> — check the link or start your own shop.</p>
+          <h1 className="mt-6 text-3xl font-black">{t("shop.notFoundTitle")}</h1>
+          <p className="mt-3 text-white/50 text-sm">{t("shop.notFoundDescStart")} <span className="font-mono text-amber-300">/shop/{handle}</span> {t("shop.notFoundDescEnd")}</p>
           <Link href="/my-shop" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black">
-            <Store className="w-4 h-4" /> Start my shop
+            <Store className="w-4 h-4" /> {t("shop.startMyShop")}
           </Link>
         </main>
       ) : (
@@ -199,10 +201,10 @@ export default function ShopStorefront() {
                 <button
                   onClick={() => setCartOpen(true)}
                   className="relative shrink-0 rounded-xl border border-white/15 bg-black/60 backdrop-blur px-4 py-3 flex items-center gap-2 hover:bg-black/80 transition"
-                  aria-label="Open cart"
+                  aria-label={t("shop.openCartLabel")}
                 >
                   <ShoppingBag className="w-5 h-5" />
-                  <span className="text-sm font-bold hidden sm:inline">Cart</span>
+                  <span className="text-sm font-bold hidden sm:inline">{t("shop.cartLabel")}</span>
                   {cartCount > 0 && (
                     <span
                       className="absolute -top-2 -right-2 min-w-[22px] h-[22px] rounded-full text-[11px] font-black text-black flex items-center justify-center px-1"
@@ -221,7 +223,7 @@ export default function ShopStorefront() {
             {products.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
                 <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
-                <p className="mt-4 text-white/50 text-sm">This shop is setting up — products are on the way.</p>
+                <p className="mt-4 text-white/50 text-sm">{t("shop.noProducts")}</p>
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -247,8 +249,8 @@ export default function ShopStorefront() {
               </div>
             )}
             <p className="mt-10 text-center text-xs text-white/30">
-              Powered by <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · Sellers keep 90% of every sale ·{" "}
-              <Link href="/storefronts" className="underline hover:text-white/60">Browse all shops</Link>
+              {t("shop.poweredBy")} <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · {t("shop.sellersKeep")} ·{" "}
+              <Link href="/storefronts" className="underline hover:text-white/60">{t("shop.browseAllShops")}</Link>
             </p>
           </div>
         </main>
@@ -271,7 +273,7 @@ export default function ShopStorefront() {
             <div className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-xl font-black">{selected.name}</h2>
-                <button className="text-white/40 hover:text-white" onClick={() => setSelected(null)} aria-label="Close">
+                <button className="text-white/40 hover:text-white" onClick={() => setSelected(null)} aria-label={t("shop.closeLabel")}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -284,7 +286,7 @@ export default function ShopStorefront() {
                 style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 onClick={() => { addToCart(selected.id); setSelected(null); setCartOpen(true); }}
               >
-                Add to cart
+                {t("shop.addToCart")}
               </button>
             </div>
           </div>
@@ -300,14 +302,14 @@ export default function ShopStorefront() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">Your cart {cartCount > 0 && <span className="text-white/40 font-normal">({cartCount})</span>}</h2>
-              <button className="text-white/40 hover:text-white" onClick={() => setCartOpen(false)} aria-label="Close cart">
+              <h2 className="text-lg font-black">{t("shop.yourCart")} {cartCount > 0 && <span className="text-white/40 font-normal">({cartCount})</span>}</h2>
+              <button className="text-white/40 hover:text-white" onClick={() => setCartOpen(false)} aria-label={t("shop.closeCartLabel")}>
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="mt-4 flex-1 overflow-y-auto space-y-3">
               {cartDetailed.length === 0 ? (
-                <p className="text-sm text-white/40 text-center py-12">Your cart is empty.</p>
+                <p className="text-sm text-white/40 text-center py-12">{t("shop.cartEmpty")}</p>
               ) : (
                 cartDetailed.map((l) => (
                   <div key={l.productId} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
@@ -322,14 +324,14 @@ export default function ShopStorefront() {
                       <div className="text-sm font-bold truncate">{l.product!.name}</div>
                       <div className="text-sm font-bold" style={{ color: accent }}>{centsToDisplay(l.product!.price_cents)}</div>
                       <div className="mt-1.5 flex items-center gap-2">
-                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label="Decrease">
+                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label={t("shop.decreaseLabel")}>
                           <Minus className="w-3.5 h-3.5" />
                         </button>
                         <span className="text-sm font-bold w-6 text-center">{l.qty}</span>
-                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty + 1)} aria-label="Increase">
+                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty + 1)} aria-label={t("shop.increaseLabel")}>
                           <Plus className="w-3.5 h-3.5" />
                         </button>
-                        <button className="ml-auto text-red-400/70 hover:text-red-400" onClick={() => setQty(l.productId, 0)} aria-label="Remove">
+                        <button className="ml-auto text-red-400/70 hover:text-red-400" onClick={() => setQty(l.productId, 0)} aria-label={t("shop.removeItemLabel")}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -341,14 +343,14 @@ export default function ShopStorefront() {
             {cartDetailed.length > 0 && !orderDone && (
               <div className="mt-4 border-t border-white/10 pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/50">Total</span>
+                  <span className="text-white/50">{t("shop.totalLabel")}</span>
                   <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
                 </div>
                 <input
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   type="email"
-                  placeholder="Email for order follow-up"
+                  placeholder={t("shop.emailPlaceholder")}
                   className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
                 />
                 {orderError && <p className="mt-2 text-xs text-red-300">{orderError}</p>}
@@ -358,12 +360,10 @@ export default function ShopStorefront() {
                   className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                   style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : `Place order — ${centsToDisplay(cartTotal)}`}
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(cartTotal) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/35">
-                  Order capture — card processing via Stripe Connect is coming soon; the seller
-                  follows up to complete payment. You pay the listed price; Bow Down Visuals
-                  takes a {feePct}% platform fee from the seller's cut.
+                  {t("shop.checkoutNote", { feePct })}
                 </p>
               </div>
             )}
@@ -372,15 +372,15 @@ export default function ShopStorefront() {
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
                   <Check className="h-6 w-6 text-emerald-300" />
                 </div>
-                <h3 className="mt-3 font-black">Order recorded!</h3>
-                <p className="mt-1 text-xs text-white/50">{orderDone.lines} item{orderDone.lines === 1 ? "" : "s"} — the seller will follow up to complete payment.</p>
+                <h3 className="mt-3 font-black">{t("shop.orderRecorded")}</h3>
+                <p className="mt-1 text-xs text-white/50">{t("shop.orderRecordedDesc", { count: orderDone.lines })}</p>
                 <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs">
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">Order total</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">Platform fee ({feePct}%)</span><span>{centsToDisplay(orderDone.fee)}</span></div>
-                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">Seller receives</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.orderTotalLabel")}</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.platformFeeLabel", { feePct })}</span><span>{centsToDisplay(orderDone.fee)}</span></div>
+                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">{t("shop.sellerReceivesLabel")}</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
                 </div>
                 <button className="mt-3 text-xs font-bold text-white/50 hover:text-white" onClick={() => { setOrderDone(null); setCartOpen(false); }}>
-                  Continue shopping
+                  {t("shop.continueShopping")}
                 </button>
               </div>
             )}
@@ -390,7 +390,7 @@ export default function ShopStorefront() {
 
       <div className="max-w-6xl mx-auto px-5 md:px-8 pb-6">
         <Link href="/my-shop" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white">
-          <ArrowLeft className="w-4 h-4" /> Open my own shop
+          <ArrowLeft className="w-4 h-4" /> {t("shop.openMyShop")}
         </Link>
       </div>
 

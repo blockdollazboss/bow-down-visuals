@@ -4,6 +4,7 @@ import {
   MessageCircleHeart, Sparkles, BadgeAlert,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 
 /* ─── Tip Jar — creator dashboard ──────────────────────────────────────────
    Set up your public tip page at /tips/:handle, share the link, and watch
@@ -51,6 +52,7 @@ const cardClass =
 const DEFAULT_SUGGESTED = "5, 10, 25";
 
 export default function Tips() {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,7 @@ export default function Tips() {
     const { res, data } = await authFetch("/api/tips/dashboard");
     setLoading(false);
     if (!res.ok) {
-      setError(data.error ?? "Couldn't load your tip jar.");
+      setError(data.error ?? t("tips.loadError"));
       return;
     }
     setDashboard(data);
@@ -124,7 +126,7 @@ export default function Tips() {
     });
     setSaving(false);
     if (!res.ok) {
-      setError(data.details?.[0]?.message ?? data.error ?? "Couldn't save your tip page.");
+      setError(data.details?.[0]?.message ?? data.error ?? t("tips.saveError"));
       return;
     }
     await load();
@@ -148,22 +150,16 @@ export default function Tips() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
-          <HandCoins className="h-4 w-4" /> Creator monetization
-        </div>
+          <HandCoins className="h-4 w-4" />{t("tips.kicker")}</div>
         <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
-          Your <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">Tip Jar</span>
+          {t("tips.titlePrefix")} <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">{t("tips.titleHighlight")}</span>
         </h1>
-        <p className="mt-3 max-w-2xl text-white/55">
-          Give fans a beautiful place to support you. Set up your page, share the link,
-          and every tip shows up here. Free to set up.
-        </p>
+        <p className="mt-3 max-w-2xl text-white/55">{t("tips.subtitle")}</p>
 
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-200/90">
           <BadgeAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
           <p>
-            <strong className="text-amber-100">Payments are coming soon.</strong> Tips are recorded as
-            intent only right now — no charge is ever made and nothing is marked paid. We'll flip the
-            switch when real payments go live.
+            <strong className="text-amber-100">{t("tips.paymentsSoonTitle")}</strong> {t("tips.paymentsSoonBody")}
           </p>
         </div>
 
@@ -179,54 +175,53 @@ export default function Tips() {
               {/* Setup */}
               <section className={cardClass}>
                 <h2 className="flex items-center gap-2 text-lg font-bold">
-                  <Link2 className="h-5 w-5 text-primary" /> Your tip page
-                </h2>
+                  <Link2 className="h-5 w-5 text-primary" />{t("tips.setupTitle")}</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-white/50">Handle (your public link)</label>
+                    <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.handleLabel")}</label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-white/40">/tips/</span>
                       <input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-                        placeholder="sharkking" className={inputClass} maxLength={30} />
+                        placeholder={t("tips.handlePlaceholder")} className={inputClass} maxLength={30} />
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-white/50">Display name</label>
+                    <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.displayNameLabel")}</label>
                     <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Shark King" className={inputClass} maxLength={60} />
+                      placeholder={t("tips.displayNamePlaceholder")} className={inputClass} maxLength={60} />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-white/50">Message to fans</label>
+                    <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.messageLabel")}</label>
                     <textarea value={message} onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your support keeps the music coming. Every tip means the world." className={inputClass} rows={3} maxLength={500} />
+                      placeholder={t("tips.messagePlaceholder")} className={inputClass} rows={3} maxLength={500} />
                   </div>
                   <div data-min-stars="3">
-                    <label className="mb-1 block text-xs font-medium text-white/50">Suggested amounts (comma-separated, USD)</label>
+                    <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.suggestedLabel")}</label>
                     <input value={suggested} onChange={(e) => setSuggested(e.target.value)}
-                      placeholder="5, 10, 25" className={inputClass} />
+                      placeholder={t("tips.suggestedPlaceholder")} className={inputClass} />
                   </div>
                   <div data-min-stars="3" className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-white/50">Goal amount (optional)</label>
+                      <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.goalAmountLabel")}</label>
                       <input value={goalAmount} onChange={(e) => setGoalAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                        placeholder="500" className={inputClass} inputMode="decimal" />
+                        placeholder={t("tips.goalAmountPlaceholder")} className={inputClass} inputMode="decimal" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-white/50">Goal label</label>
+                      <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.goalLabelLabel")}</label>
                       <input value={goalLabel} onChange={(e) => setGoalLabel(e.target.value)}
-                        placeholder="New studio mic" className={inputClass} maxLength={80} />
+                        placeholder={t("tips.goalLabelPlaceholder")} className={inputClass} maxLength={80} />
                     </div>
                   </div>
                   <button onClick={save} disabled={saving || !handle.trim() || !displayName.trim()}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-primary px-4 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {dashboard?.hasPage ? "Update tip page" : "Create my tip page"}
+                    {dashboard?.hasPage ? t("tips.updateButton") : t("tips.createButton")}
                   </button>
                   {dashboard?.hasPage && (
                     <button onClick={copyLink}
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]">
                       {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                      {copied ? "Link copied!" : "Copy my tip link"}
+                      {copied ? t("tips.linkCopied") : t("tips.copyLink")}
                     </button>
                   )}
                 </div>
@@ -235,32 +230,29 @@ export default function Tips() {
               {/* Dashboard */}
               <section className={cardClass}>
                 <h2 className="flex items-center gap-2 text-lg font-bold">
-                  <PiggyBank className="h-5 w-5 text-primary" /> Tip jar totals
-                </h2>
+                  <PiggyBank className="h-5 w-5 text-primary" />{t("tips.totalsTitle")}</h2>
                 {!dashboard?.hasPage ? (
-                  <p className="mt-4 text-sm text-white/50">
-                    Set up your tip page to start collecting tips. Your totals and tip feed will appear here.
-                  </p>
+                  <p className="mt-4 text-sm text-white/50">{t("tips.noPageBody")}</p>
                 ) : (
                   <>
                     <div className="mt-4 grid grid-cols-3 gap-3">
                       <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-center">
                         <div className="text-2xl font-extrabold text-primary">${dashboard.total.toFixed(2)}</div>
-                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">tipped</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{t("tips.tippedLabel")}</div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-center">
                         <div className="flex items-center justify-center gap-1 text-2xl font-extrabold"><Users className="h-5 w-5 text-primary" />{dashboard.count}</div>
-                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">tips</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{t("tips.tipsLabel")}</div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-center">
                         <div className="flex items-center justify-center gap-1 text-2xl font-extrabold"><TrendingUp className="h-5 w-5 text-primary" />${dashboard.average.toFixed(2)}</div>
-                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">average</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{t("tips.averageLabel")}</div>
                       </div>
                     </div>
                     {dashboard.goalAmount != null && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between text-xs text-white/50">
-                          <span>{dashboard.goalLabel || "Goal"} — ${dashboard.total.toFixed(2)} of ${dashboard.goalAmount.toFixed(2)}</span>
+                          <span>{t("tips.goalProgress", { label: dashboard.goalLabel || t("tips.goalDefault"), total: dashboard.total.toFixed(2), goal: dashboard.goalAmount.toFixed(2) })}</span>
                           <span>{Math.round((dashboard.goalProgress ?? 0) * 100)}%</span>
                         </div>
                         <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
@@ -270,21 +262,20 @@ export default function Tips() {
                       </div>
                     )}
                     <h3 className="mt-6 flex items-center gap-2 text-sm font-bold text-white/70">
-                      <MessageCircleHeart className="h-4 w-4 text-primary" /> Recent tips
-                    </h3>
+                      <MessageCircleHeart className="h-4 w-4 text-primary" />{t("tips.recentTips")}</h3>
                     <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
                       {dashboard.feed.length === 0 && (
-                        <p className="text-sm text-white/40">No tips yet — share your link and they'll land here.</p>
+                        <p className="text-sm text-white/40">{t("tips.noTipsYet")}</p>
                       )}
-                      {dashboard.feed.map((t) => (
-                        <div key={t.id} className="rounded-xl border border-white/10 bg-black/40 p-3">
+                      {dashboard.feed.map((tip) => (
+                        <div key={tip.id} className="rounded-xl border border-white/10 bg-black/40 p-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-white/85">{t.fanName || "Anonymous fan"}</span>
-                            <span className="text-sm font-bold text-primary">${t.amount.toFixed(2)}</span>
+                            <span className="text-sm font-semibold text-white/85">{tip.fanName || t("tips.anonymousFan")}</span>
+                            <span className="text-sm font-bold text-primary">${tip.amount.toFixed(2)}</span>
                           </div>
-                          {t.message && <p className="mt-1 text-xs text-white/50">“{t.message}”</p>}
+                          {tip.message && <p className="mt-1 text-xs text-white/50">“{tip.message}”</p>}
                           <p className="mt-1 text-[11px] text-white/30">
-                            {new Date(t.createdAt).toLocaleString()} · {t.status === "pending_payment" ? "intent recorded" : t.status}
+                            {t("tips.tipMeta", { date: new Date(tip.createdAt).toLocaleString(), status: tip.status === "pending_payment" ? t("tips.intentRecorded") : tip.status })}
                           </p>
                         </div>
                       ))}

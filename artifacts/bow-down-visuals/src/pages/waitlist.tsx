@@ -11,28 +11,46 @@ import {
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /* ─── data ─── */
 
-const ARTIST_TYPES = ["Rapper", "Singer", "Producer", "AI Artist", "Content Creator", "Label", "Kids Music Creator", "Other"];
-const WANT_TO_CREATE = ["Songs", "Music Videos", "Promo Clips", "Thumbnails", "Full Song + Video Packages", "AI Artist Content", "Other"];
+const ARTIST_TYPES = [
+  { value: "Rapper", labelKey: "waitlist.artistTypeRapper" },
+  { value: "Singer", labelKey: "waitlist.artistTypeSinger" },
+  { value: "Producer", labelKey: "waitlist.artistTypeProducer" },
+  { value: "AI Artist", labelKey: "waitlist.artistTypeAiArtist" },
+  { value: "Content Creator", labelKey: "waitlist.artistTypeContentCreator" },
+  { value: "Label", labelKey: "waitlist.artistTypeLabel" },
+  { value: "Kids Music Creator", labelKey: "waitlist.artistTypeKidsMusicCreator" },
+  { value: "Other", labelKey: "waitlist.artistTypeOther" },
+];
+const WANT_TO_CREATE = [
+  { value: "Songs", labelKey: "waitlist.wantSongs" },
+  { value: "Music Videos", labelKey: "waitlist.wantMusicVideos" },
+  { value: "Promo Clips", labelKey: "waitlist.wantPromoClips" },
+  { value: "Thumbnails", labelKey: "waitlist.wantThumbnails" },
+  { value: "Full Song + Video Packages", labelKey: "waitlist.wantSongVideoPackages" },
+  { value: "AI Artist Content", labelKey: "waitlist.wantAiArtistContent" },
+  { value: "Other", labelKey: "waitlist.wantOther" },
+];
 
 const BENEFITS = [
-  { icon: Zap,   title: "First Access",       body: "Get into the platform before the public launch. Be among the first artists to use every tool." },
-  { icon: Star,  title: "Founding Rate",      body: "Waitlist members lock in a discounted founding rate — never pay full price." },
-  { icon: Lock,  title: "Bonus Visual Bucs",      body: "Join the waitlist and get 100 bonus Visual Bucs added to your account on launch day." },
-  { icon: Users, title: "Creator Community",  body: "Connect with other independent artists building their careers with AI from day one." },
-  { icon: Globe, title: "Priority Support",   body: "Founding members get priority responses and direct access to the founding team." },
-  { icon: Music, title: "Feature Voting",     body: "Your feedback shapes what we build next. Waitlist members vote on upcoming tools and features." },
+  { icon: Zap,   titleKey: "waitlist.benefitFirstAccess",       bodyKey: "waitlist.benefitFirstAccessBody" },
+  { icon: Star,  titleKey: "waitlist.benefitFoundingRate",      bodyKey: "waitlist.benefitFoundingRateBody" },
+  { icon: Lock,  titleKey: "waitlist.benefitBonusBucs",         bodyKey: "waitlist.benefitBonusBucsBody" },
+  { icon: Users, titleKey: "waitlist.benefitCommunity",         bodyKey: "waitlist.benefitCommunityBody" },
+  { icon: Globe, titleKey: "waitlist.benefitPrioritySupport",   bodyKey: "waitlist.benefitPrioritySupportBody" },
+  { icon: Music, titleKey: "waitlist.benefitFeatureVoting",     bodyKey: "waitlist.benefitFeatureVotingBody" },
 ];
 
 const TOOLS = [
-  { label: "Make a Song",        icon: Music,     badge: null },
-  { label: "Video for My Song", icon: Video,     badge: null },
-  { label: "Start from Scratch",  icon: Mic2,      badge: "Most Popular" },
-  { label: "Promo Clip Maker",   icon: Film,      badge: null },
-  { label: "Thumbnail Maker",    icon: ImageIcon, badge: null },
-  { label: "Artist Profiles",       icon: Archive,   badge: "Free" },
+  { labelKey: "waitlist.toolMakeSong",        icon: Music,     badge: null },
+  { labelKey: "waitlist.toolVideoForSong",    icon: Video,     badge: null },
+  { labelKey: "waitlist.toolStartFromScratch", icon: Mic2,     badge: "Most Popular" },
+  { labelKey: "waitlist.toolPromoClips",      icon: Film,      badge: null },
+  { labelKey: "waitlist.toolThumbnails",      icon: ImageIcon, badge: null },
+  { labelKey: "waitlist.toolArtistProfiles",  icon: Archive,   badge: "Free" },
 ];
 
 const WAITLIST_CONTACT_JSON_LD = {
@@ -65,7 +83,8 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function Waitlist() {
-  usePageTitle("Join the Waitlist", "Be first in line for new Bow Down Visuals features.");
+  const { t } = useTranslation();
+  usePageTitle(t("waitlist.pageTitle"), t("waitlist.pageDescription"));
   const [form, setForm] = useState<FormValues>({
     name: "", email: "", artistType: "", wantToCreate: "", socialHandle: "", message: "",
   });
@@ -80,8 +99,8 @@ export default function Waitlist() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { setError("Please enter your name."); return; }
-    if (!form.email.trim() || !form.email.includes("@")) { setError("Please enter a valid email address."); return; }
+    if (!form.name.trim()) { setError(t("waitlist.nameError")); return; }
+    if (!form.email.trim() || !form.email.includes("@")) { setError(t("waitlist.emailError")); return; }
     setError("");
     setLoading(true);
     try {
@@ -99,13 +118,13 @@ export default function Waitlist() {
       });
       const data = await res.json() as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setError(data.message ?? data.error ?? t("waitlist.submitError"));
         setLoading(false);
         return;
       }
       setSubmitted(true);
     } catch {
-      setError("Connection error. Please try again.");
+      setError(t("waitlist.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -126,14 +145,14 @@ export default function Waitlist() {
         {/* ── HERO ── */}
         <section className="max-w-4xl mx-auto px-5 md:px-8 pt-20 pb-10 text-center">
           <MarketingBadge variant="kicker" className="mb-6 px-4 py-1.5">
-            🔥 Early Access — Limited Spots
+            {t("waitlist.kicker")}
           </MarketingBadge>
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight mb-6 leading-[0.92]">
             Join the Bow Down<br />
             <span className="text-primary">Visuals Waitlist</span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            Get early access to AI song creation, music video generation, promo clips, thumbnails, and creator tools.
+            {t("waitlist.heroSub")}
           </p>
 
           {/* social proof counter */}
@@ -145,7 +164,7 @@ export default function Waitlist() {
                 </div>
               ))}
             </div>
-            <span className="text-sm text-white/40">Join the waitlist for early access</span>
+            <span className="text-sm text-white/40">{t("waitlist.socialProof")}</span>
           </div>
         </section>
 
@@ -154,46 +173,46 @@ export default function Waitlist() {
           {submitted ? (
             <div className="rounded-2xl border border-primary/25 bg-primary/5 p-10 text-center">
               <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
-              <h3 className="text-2xl font-semibold text-white mb-3">You're on the list.</h3>
+              <h3 className="text-2xl font-semibold text-white mb-3">{t("waitlist.successTitle")}</h3>
               <p className="text-white/55 text-base mb-6 max-w-sm mx-auto leading-relaxed">
-                You're on the Bow Down Visuals waitlist. We'll notify you when early access opens.
+                {t("waitlist.successDesc")}
               </p>
               <div className="flex flex-col gap-2 text-sm text-white/40 mb-8">
-                <p>🎁 100 bonus Visual Bucs reserved for you</p>
-                <p>⚡ Early access before public launch</p>
-                <p>🔒 Founding member rate locked in</p>
+                <p>{t("waitlist.successPerk1")}</p>
+                <p>{t("waitlist.successPerk2")}</p>
+                <p>{t("waitlist.successPerk3")}</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href="/">
                   <Button variant="outline" className="border-white/10 text-white/60 hover:text-white hover:bg-white/5">
-                    Back to Home
+                    {t("waitlist.backHome")}
                   </Button>
                 </Link>
                 <Link href="/dashboard">
                   <Button className="gold-glow font-semibold gap-2">
-                    <Zap className="h-4 w-4" /> Try the Tools
+                    <Zap className="h-4 w-4" /> {t("waitlist.tryTools")}
                   </Button>
                 </Link>
               </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 md:p-9">
-              <h2 className="text-xl font-semibold text-white mb-6">Tell us about yourself</h2>
+              <h2 className="text-xl font-semibold text-white mb-6">{t("waitlist.formTitle")}</h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Name + Email */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Name *</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.nameLabel")}</Label>
                     <Input
                       value={form.name}
                       onChange={(e) => update("name", e.target.value)}
-                      placeholder="Your name"
+                      placeholder={t("waitlist.namePlaceholder")}
                       className={inputClass}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Email *</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.emailLabel")}</Label>
                     <Input
                       type="email"
                       value={form.email}
@@ -207,28 +226,28 @@ export default function Waitlist() {
                 {/* Artist Type + What to Create */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Artist Type</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.artistTypeLabel")}</Label>
                     <select
                       value={form.artistType}
                       onChange={(e) => update("artistType", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="" disabled className="bg-zinc-900">Select artist type...</option>
-                      {ARTIST_TYPES.map((t) => (
-                        <option key={t} value={t} className="bg-zinc-900">{t}</option>
+                      <option value="" disabled className="bg-zinc-900">{t("waitlist.selectArtistType")}</option>
+                      {ARTIST_TYPES.map((opt) => (
+                        <option key={opt.value} value={opt.value} className="bg-zinc-900">{t(opt.labelKey)}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">What do you want to create?</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.wantToCreateLabel")}</Label>
                     <select
                       value={form.wantToCreate}
                       onChange={(e) => update("wantToCreate", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="" disabled className="bg-zinc-900">Select focus area...</option>
-                      {WANT_TO_CREATE.map((t) => (
-                        <option key={t} value={t} className="bg-zinc-900">{t}</option>
+                      <option value="" disabled className="bg-zinc-900">{t("waitlist.selectFocusArea")}</option>
+                      {WANT_TO_CREATE.map((opt) => (
+                        <option key={opt.value} value={opt.value} className="bg-zinc-900">{t(opt.labelKey)}</option>
                       ))}
                     </select>
                   </div>
@@ -236,7 +255,7 @@ export default function Waitlist() {
 
                 {/* Social Handle */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Instagram or TikTok Handle</Label>
+                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.socialHandleLabel")}</Label>
                   <Input
                     value={form.socialHandle}
                     onChange={(e) => update("socialHandle", e.target.value)}
@@ -247,11 +266,11 @@ export default function Waitlist() {
 
                 {/* Message */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Message <span className="text-white/30 font-normal normal-case tracking-normal">(optional)</span></Label>
+                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("waitlist.messageLabel")} <span className="text-white/30 font-normal normal-case tracking-normal">({t("waitlist.optional")})</span></Label>
                   <Textarea
                     value={form.message}
                     onChange={(e) => update("message", e.target.value)}
-                    placeholder="Tell us what you're working on, or any questions you have..."
+                    placeholder={t("waitlist.messagePlaceholder")}
                     rows={3}
                     className="bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 rounded-xl text-sm resize-none"
                   />
@@ -270,10 +289,10 @@ export default function Waitlist() {
                   className="w-full gold-glow font-bold text-base rounded-xl gap-3"
                   style={{ height: "52px" }}
                 >
-                  {loading ? "Joining the waitlist..." : <><Zap className="h-5 w-5" /> Join the Waitlist <ArrowRight className="h-4 w-4" /></>}
+                  {loading ? t("waitlist.joining") : <><Zap className="h-5 w-5" /> {t("waitlist.joinButton")} <ArrowRight className="h-4 w-4" /></>}
                 </Button>
 
-                <p className="text-white/25 text-xs text-center">No spam. No Visual Buc card. Early access when we launch.</p>
+                <p className="text-white/25 text-xs text-center">{t("waitlist.noSpamNote")}</p>
               </form>
             </div>
           )}
@@ -282,23 +301,23 @@ export default function Waitlist() {
         {/* ── TOOLS PREVIEW ── */}
         <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Everything you need to create and promote</h2>
-            <p className="text-white/40 text-lg">6 professional tools built specifically for independent artists.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("waitlist.toolsTitle")}</h2>
+            <p className="text-white/40 text-lg">{t("waitlist.toolsSub")}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {TOOLS.map((tool) => (
-              <div key={tool.label} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex items-start gap-3">
+              <div key={tool.labelKey} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex items-start gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
                   <tool.icon className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white leading-snug">{tool.label}</p>
+                  <p className="text-sm font-semibold text-white leading-snug">{t(tool.labelKey)}</p>
                   {tool.badge === "Most Popular" ? (
-                    <MarketingBadge variant="popular" className="mt-1.5 text-[10px]">Most Popular</MarketingBadge>
+                    <MarketingBadge variant="popular" className="mt-1.5 text-[10px]">{t("waitlist.badgeMostPopular")}</MarketingBadge>
                   ) : tool.badge === "Beta" ? (
-                    <MarketingBadge variant="soon" className="mt-1.5 text-[10px]">Beta</MarketingBadge>
+                    <MarketingBadge variant="soon" className="mt-1.5 text-[10px]">{t("waitlist.badgeBeta")}</MarketingBadge>
                   ) : tool.badge === "Free" ? (
-                    <MarketingBadge variant="free" className="mt-1.5 text-[10px]">Free</MarketingBadge>
+                    <MarketingBadge variant="free" className="mt-1.5 text-[10px]">{t("waitlist.badgeFree")}</MarketingBadge>
                   ) : null}
                 </div>
               </div>
@@ -309,17 +328,17 @@ export default function Waitlist() {
         {/* ── BENEFITS ── */}
         <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Why join early?</h2>
-            <p className="text-white/40 text-lg">Waitlist members get exclusive perks not available after launch.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("waitlist.benefitsTitle")}</h2>
+            <p className="text-white/40 text-lg">{t("waitlist.benefitsSub")}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {BENEFITS.map((b) => (
-              <div key={b.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 hover:border-primary/20 transition-colors">
+              <div key={b.titleKey} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 hover:border-primary/20 transition-colors">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
                   <b.icon className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-base font-semibold text-white mb-2">{b.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{b.body}</p>
+                <h3 className="text-base font-semibold text-white mb-2">{t(b.titleKey)}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{t(b.bodyKey)}</p>
               </div>
             ))}
           </div>
@@ -333,12 +352,12 @@ export default function Waitlist() {
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs font-bold tracking-widest text-primary/70 uppercase mb-0.5">Contact</p>
-                <h2 className="text-xl font-semibold text-white">Get in Touch</h2>
+                <p className="text-xs font-bold tracking-widest text-primary/70 uppercase mb-0.5">{t("waitlist.contactKicker")}</p>
+                <h2 className="text-xl font-semibold text-white">{t("waitlist.contactTitle")}</h2>
               </div>
             </div>
             <p className="text-white/50 text-base leading-relaxed mb-5">
-              For partnerships, creator access, or support, contact the Bow Down Visuals team.
+              {t("waitlist.contactDesc")}
             </p>
             <a
               href="mailto:support@bowdownvisuals.com"

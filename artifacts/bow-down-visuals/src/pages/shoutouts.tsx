@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 /* ─── Fan Shoutouts ─────────────────────────────────────────────────────────
    Creators sell personalized video shoutouts to fans.
@@ -56,12 +57,12 @@ interface Revenue {
   platformFeePct: number;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending_payment: "Awaiting payment",
-  accepted: "Accepted",
-  in_progress: "Recording",
-  delivered: "Delivered",
-  declined: "Declined",
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  pending_payment: "shoutouts.statusAwaitingPayment",
+  accepted: "shoutouts.statusAccepted",
+  in_progress: "shoutouts.statusRecording",
+  delivered: "shoutouts.statusDelivered",
+  declined: "shoutouts.statusDeclined",
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -82,6 +83,7 @@ const inputCls = "w-full bg-black border border-white/10 rounded-lg px-3 py-2 te
 const labelCls = "block text-xs font-semibold text-white/50 uppercase tracking-wide mb-1.5";
 
 export default function Shoutouts() {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"request" | "creator">("request");
 
@@ -184,12 +186,12 @@ export default function Shoutouts() {
       });
       const j = await res.json();
       if (!res.ok) {
-        setError(j.error || "Couldn't send your request.");
+        setError(j.error || t("shoutouts.errorSubmitFailed"));
         return;
       }
       setSubmitted(true);
     } catch {
-      setError("Network error — try again.");
+      setError(t("shoutouts.errorNetwork"));
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +199,7 @@ export default function Shoutouts() {
 
   async function polishMessage() {
     if (!user) {
-      setAiError("Sign in to use the AI message helper.");
+      setAiError(t("shoutouts.errorSignInAi"));
       return;
     }
     setAiError("");
@@ -218,12 +220,12 @@ export default function Shoutouts() {
         return;
       }
       if (!res.ok) {
-        setAiError(j.error || "Couldn't polish your message.");
+        setAiError(j.error || t("shoutouts.errorPolishFailed"));
         return;
       }
       setMessage(j.message);
     } catch {
-      setAiError("Network error — try again.");
+      setAiError(t("shoutouts.errorNetwork"));
     } finally {
       setAiBusy(false);
     }
@@ -278,7 +280,7 @@ export default function Shoutouts() {
     setUploadError((e) => ({ ...e, [id]: "" }));
     try {
       const token = await getAccessToken();
-      if (!token) throw new Error("Sign in again to upload.");
+      if (!token) throw new Error(t("shoutouts.errorUploadSignIn"));
       const form = new FormData();
       form.append("clip", file, file.name);
       const upRes = await fetch("/api/upload-clip", {
@@ -291,7 +293,7 @@ export default function Shoutouts() {
       };
       if (!upRes.ok) throw new Error(upData.message ?? upData.error ?? `Upload failed (${upRes.status})`);
       const stored = upData.ref ?? upData.url;
-      if (!stored) throw new Error("Upload succeeded but returned no video reference.");
+      if (!stored) throw new Error(t("shoutouts.errorUploadNoRef"));
       const res = await fetch(`/api/shoutouts/requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -307,15 +309,15 @@ export default function Shoutouts() {
       setDeliveryUrls((d) => ({ ...d, [id]: "" }));
       fetchCreatorData();
     } catch (err) {
-      setUploadError((e) => ({ ...e, [id]: err instanceof Error ? err.message : "Upload failed" }));
+      setUploadError((e) => ({ ...e, [id]: err instanceof Error ? err.message : t("shoutouts.errorUploadFailed") }));
     } finally {
       setUploading((u) => ({ ...u, [id]: false }));
     }
   }
 
   const tabs = [
-    { key: "request" as const, label: "Request a Shoutout", icon: Megaphone },
-    { key: "creator" as const, label: "Creator Dashboard", icon: Settings2 },
+    { key: "request" as const, labelKey: "shoutouts.tabRequest", icon: Megaphone },
+    { key: "creator" as const, labelKey: "shoutouts.tabCreator", icon: Settings2 },
   ];
 
   return (
@@ -323,26 +325,25 @@ export default function Shoutouts() {
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
           <Video className="w-7 h-7 text-yellow-400" />
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Fan Shoutouts</h1>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("shoutouts.pageTitle")}</h1>
         </div>
         <p className="text-white/50 mb-3 max-w-2xl">
-          Personalized video shoutouts from your favorite creators — birthdays, hype-ups,
-          celebrations. Creators set their price and turnaround; fans request in seconds.
+          {t("shoutouts.pageDescription")}
         </p>
         <div className="flex items-start gap-2 mb-8 p-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] text-sm text-amber-200/90">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Payments are coming soon — requests are recorded now and creators fulfill them once checkout goes live. No money moves yet.</span>
+          <span>{t("shoutouts.paymentsNotice")}</span>
         </div>
 
         <div className="flex gap-2 mb-8">
-          {tabs.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+          {tabs.map((tb) => (
+            <button key={tb.key} onClick={() => setTab(tb.key)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-                tab === t.key
+                tab === tb.key
                   ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-200"
                   : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
               }`}>
-              <t.icon className="w-4 h-4" /> {t.label}
+              <tb.icon className="w-4 h-4" /> {t(tb.labelKey)}
             </button>
           ))}
         </div>
@@ -354,7 +355,7 @@ export default function Shoutouts() {
             ) : creators.length === 0 ? (
               <div className="text-center py-16 text-white/40">
                 <Megaphone className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                No creators are offering shoutouts yet. Check back soon — or set yours up in the Creator Dashboard.
+                {t("shoutouts.noCreators")}
               </div>
             ) : !selected ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -362,66 +363,65 @@ export default function Shoutouts() {
                   <button key={c.id} onClick={() => { setSelected(c); setSubmitted(false); setError(""); }}
                     className="text-left rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:border-yellow-500/40 transition-colors">
                     <h3 className="font-bold text-lg">{c.displayName}</h3>
-                    <p className="text-yellow-300 font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">per shoutout</span></p>
-                    <p className="text-xs text-white/40 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> ~{c.turnaroundDays}-day turnaround</p>
+                    <p className="text-yellow-300 font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">{t("shoutouts.perShoutout")}</span></p>
+                    <p className="text-xs text-white/40 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("shoutouts.turnaroundDays", { days: c.turnaroundDays })}</p>
                     {c.guidelines && <p className="text-xs text-white/50 mt-2 line-clamp-2">{c.guidelines}</p>}
-                    <span className="inline-flex items-center gap-1 mt-3 text-sm text-yellow-300 font-semibold">Request <Send className="w-3.5 h-3.5" /></span>
+                    <span className="inline-flex items-center gap-1 mt-3 text-sm text-yellow-300 font-semibold">{t("shoutouts.requestButton")} <Send className="w-3.5 h-3.5" /></span>
                   </button>
                 ))}
               </div>
             ) : submitted ? (
               <div className="max-w-xl mx-auto text-center py-12 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-emerald-400" />
-                <h2 className="text-xl font-bold mb-2">Request sent to {selected.displayName}!</h2>
+                <h2 className="text-xl font-bold mb-2">{t("shoutouts.requestSentTitle", { name: selected.displayName })}</h2>
                 <p className="text-white/50 text-sm mb-6">
-                  They'll review it and record your shoutout. You'll be notified when payment
-                  checkout goes live to complete your {money(selected.priceDollars)} order.
+                  {t("shoutouts.requestSentDesc", { price: money(selected.priceDollars) })}
                 </p>
                 <button onClick={() => { setSelected(null); setFanName(""); setFanEmail(""); setMessage(""); }}
                   className="px-5 py-2 rounded-lg border border-white/15 text-sm hover:border-yellow-500/40">
-                  Request another
+                  {t("shoutouts.requestAnother")}
                 </button>
               </div>
             ) : (
               <div className="max-w-xl mx-auto rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                <button onClick={() => setSelected(null)} className="text-xs text-white/40 hover:text-white mb-4">← All creators</button>
-                <h2 className="text-xl font-bold mb-1">Shoutout from {selected.displayName}</h2>
-                <p className="text-sm text-white/40 mb-6">{money(selected.priceDollars)} · ~{selected.turnaroundDays}-day turnaround</p>
+                <button onClick={() => setSelected(null)} className="text-xs text-white/40 hover:text-white mb-4">{t("shoutouts.allCreators")}</button>
+                <h2 className="text-xl font-bold mb-1">{t("shoutouts.shoutoutFrom", { name: selected.displayName })}</h2>
+                <p className="text-sm text-white/40 mb-6">{t("shoutouts.priceTurnaround", { price: money(selected.priceDollars), days: selected.turnaroundDays })}</p>
                 {selected.guidelines && (
                   <div className="mb-5 p-3 rounded-xl border border-white/10 bg-black/40 text-xs text-white/60">
-                    <span className="font-semibold text-white/80">Creator guidelines: </span>{selected.guidelines}
+                    <span className="font-semibold text-white/80">{t("shoutouts.creatorGuidelines")} </span>{selected.guidelines}
                   </div>
                 )}
                 <div className="space-y-4">
                   <div>
-                    <label className={labelCls}>Your name</label>
-                    <input value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder="Who's this shoutout for?" className={inputCls} />
+                    <label className={labelCls}>{t("shoutouts.yourNameLabel")}</label>
+                    <input value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder={t("shoutouts.yourNamePlaceholder")} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Email (optional)</label>
-                    <input value={fanEmail} onChange={(e) => setFanEmail(e.target.value)} placeholder="you@example.com" className={inputCls} />
+                    <label className={labelCls}>{t("shoutouts.emailLabel")}</label>
+                    <input value={fanEmail} onChange={(e) => setFanEmail(e.target.value)} placeholder={t("shoutouts.emailPlaceholder")} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Occasion</label>
+                    <label className={labelCls}>{t("shoutouts.occasionLabel")}</label>
                     <select value={occasion} onChange={(e) => setOccasion(e.target.value)} className={`${inputCls} bg-black`}>
                       {OCCASIONS.map((o) => <option key={o}>{o}</option>)}
                       <option>Custom…</option>
                     </select>
                     {occasion === "Custom…" && (
-                      <input value={customOccasion} onChange={(e) => setCustomOccasion(e.target.value)} placeholder="Describe the occasion" className={`${inputCls} mt-2`} />
+                      <input value={customOccasion} onChange={(e) => setCustomOccasion(e.target.value)} placeholder={t("shoutouts.customOccasionPlaceholder")} className={`${inputCls} mt-2`} />
                     )}
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className={`${labelCls} !mb-0`}>Message for the video</label>
+                      <label className={`${labelCls} !mb-0`}>{t("shoutouts.messageLabel")}</label>
                       <button onClick={polishMessage} disabled={aiBusy}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-300 border border-yellow-500/30 rounded-lg px-2.5 py-1 hover:bg-yellow-500/10 disabled:opacity-50">
                         {aiBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                        AI polish · 100 Visual Bucs
+                        {t("shoutouts.aiPolishButton")}
                       </button>
                     </div>
                     <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4}
-                      placeholder="e.g. Tell my brother Marcus happy 21st — he's your biggest fan and just got drafted"
+                      placeholder={t("shoutouts.messagePlaceholder")}
                       className={inputCls} />
                     {aiError && <p className="text-xs text-red-400 mt-1">{aiError}</p>}
                     {outOfCredits && <div className="mt-2"><OutOfCredits /></div>}
@@ -430,9 +430,9 @@ export default function Shoutouts() {
                   <button onClick={submitRequest} disabled={submitting || !fanName.trim() || !message.trim()}
                     className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-40">
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Request shoutout · {money(selected.priceDollars)}
+                    {t("shoutouts.submitRequestButton", { price: money(selected.priceDollars) })}
                   </button>
-                  <p className="text-[11px] text-white/35 text-center">No charge today — payment checkout is coming soon.</p>
+                  <p className="text-[11px] text-white/35 text-center">{t("shoutouts.noChargeNote")}</p>
                 </div>
               </div>
             )}
@@ -444,84 +444,84 @@ export default function Shoutouts() {
             {!user ? (
               <div className="text-center py-16 text-white/40">
                 <Settings2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                Sign in to set up your shoutout page and manage requests.
+                {t("shoutouts.creatorSignInPrompt")}
               </div>
             ) : settingsLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-yellow-400" /></div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 h-fit">
-                  <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-yellow-400" /> Your shoutout page</h2>
+                  <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-yellow-400" /> {t("shoutouts.yourShoutoutPage")}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className={labelCls}>Display name</label>
-                      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Shark King" className={inputCls} />
+                      <label className={labelCls}>{t("shoutouts.displayNameLabel")}</label>
+                      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("shoutouts.displayNamePlaceholder")} className={inputCls} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Price (USD)</label>
+                        <label className={labelCls}>{t("shoutouts.priceLabel")}</label>
                         <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" min="0" max="999.99" step="0.01" className={inputCls} />
                       </div>
                       <div>
-                        <label className={labelCls}>Turnaround (days)</label>
+                        <label className={labelCls}>{t("shoutouts.turnaroundLabel")}</label>
                         <input value={turnaround} onChange={(e) => setTurnaround(e.target.value)} type="number" min="1" max="90" className={inputCls} />
                       </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Guidelines</label>
+                      <label className={labelCls}>{t("shoutouts.guidelinesLabel")}</label>
                       <textarea value={guidelines} onChange={(e) => setGuidelines(e.target.value)} rows={3}
-                        placeholder="What you'll say, video length, what you won't do…" className={inputCls} />
+                        placeholder={t("shoutouts.guidelinesPlaceholder")} className={inputCls} />
                     </div>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={accepting} onChange={(e) => setAccepting(e.target.checked)}
                         className="w-4 h-4 accent-yellow-500" />
-                      <span className="text-white/70">Accepting requests (listed publicly)</span>
+                      <span className="text-white/70">{t("shoutouts.acceptingLabel")}</span>
                     </label>
                     <button onClick={saveSettings} disabled={saving || !displayName.trim()}
                       className="w-full px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-40">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save"}
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t("shoutouts.saveButton")}
                     </button>
-                    <p className="text-[11px] text-white/35">Free to set up. A {revenue?.platformFeePct ?? 10}% platform fee will apply once payments go live.</p>
+                    <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 10 })}</p>
                   </div>
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                    <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-yellow-400" /> Revenue</h2>
+                    <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-yellow-400" /> {t("shoutouts.revenueTitle")}</h2>
                     {revenue ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
-                          { label: "Requests", value: String(revenue.total), icon: Inbox },
-                          { label: "Delivered", value: String(revenue.delivered), icon: CheckCircle2 },
-                          { label: "Gross", value: money(revenue.grossDollars), icon: BadgeDollarSign },
-                          { label: "You keep", value: money(revenue.netDollars), icon: Sparkles },
-                        ].map((s) => (
-                          <div key={s.label} className="rounded-xl border border-white/10 bg-black/40 p-3">
-                            <s.icon className="w-4 h-4 text-yellow-400 mb-1" />
-                            <p className="text-xl font-black">{s.value}</p>
-                            <p className="text-[11px] text-white/40">{s.label}</p>
+                          { labelKey: "shoutouts.statRequests", value: String(revenue.total), icon: Inbox },
+                          { labelKey: "shoutouts.statDelivered", value: String(revenue.delivered), icon: CheckCircle2 },
+                          { labelKey: "shoutouts.statGross", value: money(revenue.grossDollars), icon: BadgeDollarSign },
+                          { labelKey: "shoutouts.statYouKeep", value: money(revenue.netDollars), icon: Sparkles },
+                        ].map((st) => (
+                          <div key={st.labelKey} className="rounded-xl border border-white/10 bg-black/40 p-3">
+                            <st.icon className="w-4 h-4 text-yellow-400 mb-1" />
+                            <p className="text-xl font-black">{st.value}</p>
+                            <p className="text-[11px] text-white/40">{t(st.labelKey)}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-white/40">No data yet.</p>
+                      <p className="text-sm text-white/40">{t("shoutouts.noDataYet")}</p>
                     )}
-                    <p className="text-[11px] text-white/35 mt-3">Tracked from real requests. Payments coming soon — nothing claimed as paid.</p>
+                    <p className="text-[11px] text-white/35 mt-3">{t("shoutouts.revenueDisclaimer")}</p>
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-yellow-400" /> Incoming requests</h2>
+                      <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-yellow-400" /> {t("shoutouts.incomingRequests")}</h2>
                       <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); }}
                         className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80">
-                        <option value="">All statuses</option>
-                        {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        <option value="">{t("shoutouts.allStatuses")}</option>
+                        {Object.entries(STATUS_LABEL_KEYS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                       </select>
                     </div>
                     {reqLoading ? (
                       <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-yellow-400" /></div>
                     ) : requests.length === 0 ? (
-                      <p className="text-sm text-white/40 py-6 text-center">No requests yet. Share your shoutout page to get the first one.</p>
+                      <p className="text-sm text-white/40 py-6 text-center">{t("shoutouts.noRequests")}</p>
                     ) : (
                       <div className="space-y-3">
                         {requests.map((r) => (
@@ -532,34 +532,34 @@ export default function Shoutouts() {
                                 <p className="text-sm text-white/60 mt-1">“{r.message}”</p>
                                 <p className="text-[11px] text-white/35 mt-1">{money(r.priceDollars)} · {new Date(r.createdAt).toLocaleDateString()}</p>
                                 {r.deliveryUrl && (
-                                  <a href={r.deliveryUrl} target="_blank" rel="noreferrer" className="text-xs text-yellow-300 underline mt-1 inline-block">View delivered video</a>
+                                  <a href={r.deliveryUrl} target="_blank" rel="noreferrer" className="text-xs text-yellow-300 underline mt-1 inline-block">{t("shoutouts.viewDeliveredVideo")}</a>
                                 )}
                               </div>
                               <span className={`shrink-0 text-[11px] font-semibold border rounded-full px-2.5 py-1 ${STATUS_CLASS[r.status] ?? ""}`}>
-                                {STATUS_LABEL[r.status] ?? r.status}
+                                {t(STATUS_LABEL_KEYS[r.status] ?? r.status)}
                               </span>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-3">
                               {r.status === "pending_payment" && (
                                 <button onClick={() => updateRequest(r.id, "accepted")} disabled={!!acting}
-                                  className="px-3 py-1.5 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-200 text-xs font-bold hover:bg-yellow-500/25">Accept</button>
+                                  className="px-3 py-1.5 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-200 text-xs font-bold hover:bg-yellow-500/25">{t("shoutouts.acceptButton")}</button>
                               )}
                               {r.status === "accepted" && (
                                 <button onClick={() => updateRequest(r.id, "in_progress")} disabled={!!acting}
-                                  className="px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/40 text-violet-200 text-xs font-bold hover:bg-violet-500/25">Start recording</button>
+                                  className="px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/40 text-violet-200 text-xs font-bold hover:bg-violet-500/25">{t("shoutouts.startRecordingButton")}</button>
                               )}
                               {r.status === "in_progress" && (
                                 <>
                                   <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold hover:bg-emerald-500/25 cursor-pointer ${uploading[r.id] ? "opacity-50 pointer-events-none" : ""}`}>
                                     {uploading[r.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                                    {uploading[r.id] ? "Uploading…" : "Upload video & deliver"}
+                                    {uploading[r.id] ? t("shoutouts.uploadingLabel") : t("shoutouts.uploadAndDeliverButton")}
                                     <input type="file" accept="video/*" className="hidden"
                                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDeliveryVideo(r.id, r.status, f); e.target.value = ""; }} />
                                   </label>
                                   <input value={deliveryUrls[r.id] ?? ""} onChange={(e) => setDeliveryUrls({ ...deliveryUrls, [r.id]: e.target.value })}
-                                    placeholder="…or paste a video URL, then Mark delivered" className="flex-1 min-w-[180px] bg-black border border-white/10 rounded-lg px-3 py-1.5 text-xs placeholder:text-white/25" />
+                                    placeholder={t("shoutouts.pasteUrlPlaceholder")} className="flex-1 min-w-[180px] bg-black border border-white/10 rounded-lg px-3 py-1.5 text-xs placeholder:text-white/25" />
                                   <button onClick={() => updateRequest(r.id, "delivered")} disabled={!!acting}
-                                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold hover:bg-emerald-500/25">Mark delivered</button>
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold hover:bg-emerald-500/25">{t("shoutouts.markDeliveredButton")}</button>
                                 </>
                               )}
                               {uploadError[r.id] && (
@@ -568,7 +568,7 @@ export default function Shoutouts() {
                               {r.status !== "delivered" && r.status !== "declined" && (
                                 <button onClick={() => updateRequest(r.id, "declined")} disabled={!!acting}
                                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/15 text-white/50 text-xs hover:border-red-500/40 hover:text-red-300">
-                                  <X className="w-3 h-3" /> Decline
+                                  <X className="w-3 h-3" /> {t("shoutouts.declineButton")}
                                 </button>
                               )}
                             </div>

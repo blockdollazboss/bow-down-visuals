@@ -22,6 +22,7 @@ import {
   buildPromoChecklist,
 } from "@/lib/tour";
 import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
+import { useTranslation } from "react-i18next";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
    Plan tours and live shows:
@@ -35,17 +36,17 @@ import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
 const CREDIT_COST = 3;
 
 const STATUS_LABELS: Record<TourDate["status"], string> = {
-  upcoming: "Upcoming",
-  confirmed: "Confirmed",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  upcoming: "tour.statusUpcoming",
+  confirmed: "tour.statusConfirmed",
+  completed: "tour.statusCompleted",
+  cancelled: "tour.statusCancelled",
 };
 
 const TRANSPORTS = [
-  { key: "van", label: "Van", blurb: "DIY run, cheapest" },
-  { key: "bus", label: "Tour bus", blurb: "Sleeper comfort" },
-  { key: "flights", label: "Flights", blurb: "Fly between cities" },
-  { key: "mixed", label: "Mixed", blurb: "Best of each" },
+  { key: "van", labelKey: "tour.transportVan", blurbKey: "tour.transportVanBlurb" },
+  { key: "bus", labelKey: "tour.transportBus", blurbKey: "tour.transportBusBlurb" },
+  { key: "flights", labelKey: "tour.transportFlights", blurbKey: "tour.transportFlightsBlurb" },
+  { key: "mixed", labelKey: "tour.transportMixed", blurbKey: "tour.transportMixedBlurb" },
 ] as const;
 
 const inputClass =
@@ -57,6 +58,7 @@ interface ApiError {
 }
 
 export default function Tour() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [dates, setDates] = useState<TourDate[]>([]);
   const [loadingDates, setLoadingDates] = useState(true);
@@ -162,12 +164,12 @@ export default function Tour() {
         date?: TourDate;
       } & ApiError;
       if (!res.ok || !data.date) {
-        throw new Error(data.message || data.error || "Couldn't save the tour date — try again.");
+        throw new Error(data.message || data.error || t("tour.saveFailed"));
       }
       resetForm();
       await fetchDates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the tour date — try again.");
+      setError(err instanceof Error ? err.message : t("tour.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -184,14 +186,14 @@ export default function Tour() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as ApiError;
-        throw new Error(data.message || data.error || "Couldn't delete the tour date — try again.");
+        throw new Error(data.message || data.error || t("tour.deleteFailed"));
       }
       setDates((prev) => prev.filter((d) => d.id !== id));
       /* Invalidate the cached plan — its stops may reference a deleted date. */
       setPlan(null);
       clearTourPlan();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete the tour date — try again.");
+      setError(err instanceof Error ? err.message : t("tour.deleteFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -200,11 +202,11 @@ export default function Tour() {
   async function optimize() {
     if (optimizing || !user) return;
     if (dates.length < 2) {
-      setError("Add at least 2 tour dates before running the AI optimizer.");
+      setError(t("tour.needTwoDates"));
       return;
     }
     if (!homeBase.trim()) {
-      setError("Tell the optimizer your home base city first.");
+      setError(t("tour.homeBaseRequired"));
       return;
     }
     setOptimizing(true);
@@ -235,7 +237,7 @@ export default function Tour() {
         return;
       }
       if (!res.ok || !Array.isArray(data.stops) || !data.budget) {
-        throw new Error(data.message || data.error || "The optimizer hiccupped — try again.");
+        throw new Error(data.message || data.error || t("tour.optimizeFailed"));
       }
       const newPlan: TourPlan = {
         stops: data.stops as OptimizedStop[],
@@ -250,7 +252,7 @@ export default function Tour() {
         document.getElementById("tour-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The optimizer hiccupped — try again.");
+      setError(err instanceof Error ? err.message : t("tour.optimizeFailed"));
     } finally {
       setOptimizing(false);
     }
@@ -263,14 +265,14 @@ export default function Tour() {
   const sorted = sortDatesChronologically(dates);
   const miles = plan ? totalMiles(plan.stops) : 0;
 
-  const budgetRows: Array<{ label: string; value: number }> = plan
+  const budgetRows: Array<{ labelKey: string; value: number }> = plan
     ? [
-        { label: "Travel", value: plan.budget.travel },
-        { label: "Lodging", value: plan.budget.lodging },
-        { label: "Venues", value: plan.budget.venues },
-        { label: "Crew", value: plan.budget.crew },
-        { label: "Food per-diem", value: plan.budget.food_per_diem },
-        { label: "Contingency", value: plan.budget.contingency },
+        { labelKey: "tour.budgetTravel", value: plan.budget.travel },
+        { labelKey: "tour.budgetLodging", value: plan.budget.lodging },
+        { labelKey: "tour.budgetVenues", value: plan.budget.venues },
+        { labelKey: "tour.budgetCrew", value: plan.budget.crew },
+        { labelKey: "tour.budgetFood", value: plan.budget.food_per_diem },
+        { labelKey: "tour.budgetContingency", value: plan.budget.contingency },
       ]
     : [];
 
@@ -286,21 +288,15 @@ export default function Tour() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <MapPin className="h-3 w-3" aria-hidden="true" /> Tour planning
-          </p>
+            <MapPin className="h-3 w-3" aria-hidden="true" />{t("tour.heroBadge")}</p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Tour <span className="text-primary">Planner</span>
+            {t("tour.heroTitleA")} <span className="text-primary">{t("tour.heroTitleB")}</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Map your dates, let AI find the smartest route, and budget the run —
-            then promote every city like a headliner.
-          </p>
+          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("tour.heroSubtitle")}</p>
         </div>
 
         {!user && (
-          <p className="relative mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/55">
-            Sign in to save tour dates and run the AI optimizer.
-          </p>
+          <p className="relative mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/55">{t("tour.signInPrompt")}</p>
         )}
 
         {/* ── composer ─────────────────────────────────────────────── */}
@@ -314,45 +310,39 @@ export default function Tour() {
             </span>
             <div>
               <h2 className="text-xl font-bold">
-                {editingId ? "Edit tour date" : "Add a tour date"}
+                {editingId ? t("tour.editDateTitle") : t("tour.addDateTitle")}
               </h2>
-              <p className="text-sm text-white/45">Date management is free — add as many as you want</p>
+              <p className="text-sm text-white/45">{t("tour.composerSub")}</p>
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="tour-city" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                City
-              </label>
+              <label htmlFor="tour-city" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.cityLabel")}</label>
               <input
                 id="tour-city"
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 maxLength={120}
-                placeholder="e.g. Atlanta"
+                placeholder={t("tour.cityPlaceholder")}
                 className={inputClass}
               />
             </div>
             <div>
-              <label htmlFor="tour-venue" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Venue
-              </label>
+              <label htmlFor="tour-venue" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.venueLabel")}</label>
               <input
                 id="tour-venue"
                 type="text"
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
                 maxLength={200}
-                placeholder="e.g. The Masquerade"
+                placeholder={t("tour.venuePlaceholder")}
                 className={inputClass}
               />
             </div>
             <div>
-              <label htmlFor="tour-date" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Show date
-              </label>
+              <label htmlFor="tour-date" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.showDateLabel")}</label>
               <input
                 id="tour-date"
                 type="datetime-local"
@@ -363,7 +353,7 @@ export default function Tour() {
             </div>
             <div>
               <label htmlFor="tour-notes" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Notes <span className="normal-case text-white/25">(optional)</span>
+                {t("tour.notesLabel")} <span className="normal-case text-white/25">{t("tour.optionalNote")}</span>
               </label>
               <input
                 id="tour-notes"
@@ -371,7 +361,7 @@ export default function Tour() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 maxLength={1000}
-                placeholder="Load-in time, promoter contact, ticket link…"
+                placeholder={t("tour.notesPlaceholder")}
                 className={inputClass}
               />
             </div>
@@ -391,16 +381,13 @@ export default function Tour() {
             >
               {saving ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> Saving…
-                </>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />{t("tour.saving")}</>
               ) : editingId ? (
                 <>
-                  <Pencil className="h-5 w-5" aria-hidden="true" /> Save changes · Free
-                </>
+                  <Pencil className="h-5 w-5" aria-hidden="true" />{t("tour.saveChangesFree")}</>
               ) : (
                 <>
-                  <Plus className="h-5 w-5" aria-hidden="true" /> Add tour date · Free
-                </>
+                  <Plus className="h-5 w-5" aria-hidden="true" />{t("tour.addDateFree")}</>
               )}
             </button>
             {editingId && (
@@ -408,28 +395,23 @@ export default function Tour() {
                 onClick={resetForm}
                 className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 px-6 py-4 text-sm font-bold text-white/70 transition hover:border-white/30 hover:text-white"
               >
-                <X className="h-4 w-4" aria-hidden="true" /> Cancel
-              </button>
+                <X className="h-4 w-4" aria-hidden="true" />{t("tour.cancel")}</button>
             )}
           </div>
         </div>
 
         {/* ── date list ────────────────────────────────────────────── */}
         <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
-          <h2 className="text-lg font-bold">
-            Your dates{" "}
+          <h2 className="text-lg font-bold">{t("tour.yourDates")}{" "}
             <span className="text-sm font-semibold text-white/40">
               ({dates.length})
             </span>
           </h2>
           {loadingDates ? (
             <p className="mt-4 flex items-center gap-2 text-sm text-white/45">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading your dates…
-            </p>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("tour.loadingDates")}</p>
           ) : dates.length === 0 ? (
-            <p className="mt-4 text-sm text-white/45">
-              No dates yet — add your first show above and the optimizer will do the rest.
-            </p>
+            <p className="mt-4 text-sm text-white/45">{t("tour.noDates")}</p>
           ) : (
             <div className="mt-4 space-y-2.5">
               {sorted.map((d) => {
@@ -447,12 +429,12 @@ export default function Tour() {
                         {showDateTimeLabel(d.show_date)}
                         {" · "}
                         <span className="font-semibold text-primary/90">
-                          {STATUS_LABELS[d.status]}
+                          {t(STATUS_LABELS[d.status])}
                         </span>
                         {until >= 0 && d.status !== "cancelled" && (
                           <span className="text-white/35">
                             {" · "}
-                            {until === 0 ? "Today" : until === 1 ? "Tomorrow" : `in ${until} days`}
+                            {until === 0 ? t("tour.today") : until === 1 ? t("tour.tomorrow") : t("tour.inDays", { days: until })}
                           </span>
                         )}
                       </p>
@@ -463,7 +445,7 @@ export default function Tour() {
                     <div className="flex shrink-0 items-center gap-1.5">
                       <button
                         onClick={() => startEdit(d)}
-                        aria-label={`Edit ${d.city}`}
+                        aria-label={t("tour.editCityAria", { city: d.city })}
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/60 transition hover:border-primary/50 hover:text-primary"
                       >
                         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -471,7 +453,7 @@ export default function Tour() {
                       <button
                         onClick={() => deleteDate(d.id)}
                         disabled={deletingId === d.id}
-                        aria-label={`Delete ${d.city}`}
+                        aria-label={t("tour.deleteCityAria", { city: d.city })}
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/60 transition hover:border-red-500/50 hover:text-red-300 disabled:opacity-40"
                       >
                         {deletingId === d.id ? (
@@ -495,32 +477,28 @@ export default function Tour() {
               <Route className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-bold">AI routing + budget</h2>
+              <h2 className="text-xl font-bold">{t("tour.optimizerTitle")}</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} Visual Bucs per plan · optimal stop order + full budget breakdown
+                {t("tour.optimizerSub", { cost: CREDIT_COST })}
               </p>
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <div>
-              <label htmlFor="tour-home" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Home base
-              </label>
+              <label htmlFor="tour-home" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.homeBaseLabel")}</label>
               <input
                 id="tour-home"
                 type="text"
                 value={homeBase}
                 onChange={(e) => setHomeBase(e.target.value)}
                 maxLength={120}
-                placeholder="e.g. Miami"
+                placeholder={t("tour.homeBasePlaceholder")}
                 className={inputClass}
               />
             </div>
             <div data-min-stars="3">
-              <label htmlFor="tour-crew" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Crew size
-              </label>
+              <label htmlFor="tour-crew" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.crewSizeLabel")}</label>
               <input
                 id="tour-crew"
                 type="number"
@@ -532,16 +510,14 @@ export default function Tour() {
               />
             </div>
             <div data-min-stars="2" className="sm:col-span-1">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Transport
-              </p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("tour.transportLabel")}</p>
               <div className="grid grid-cols-2 gap-2">
-                {TRANSPORTS.map((t) => {
-                  const selected = t.key === transport;
+                {TRANSPORTS.map((opt) => {
+                  const selected = opt.key === transport;
                   return (
                     <button
-                      key={t.key}
-                      onClick={() => setTransport(t.key)}
+                      key={opt.key}
+                      onClick={() => setTransport(opt.key)}
                       aria-pressed={selected}
                       className={`rounded-xl border p-2.5 text-left transition ${
                         selected
@@ -550,9 +526,9 @@ export default function Tour() {
                       }`}
                     >
                       <p className={`text-xs font-bold ${selected ? "text-white" : "text-white/70"}`}>
-                        {t.label}
+                        {t(opt.labelKey)}
                       </p>
-                      <p className="text-[10px] text-white/35">{t.blurb}</p>
+                      <p className="text-[10px] text-white/35">{t(opt.blurbKey)}</p>
                     </button>
                   );
                 })}
@@ -567,24 +543,18 @@ export default function Tour() {
           >
             {optimizing ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> Optimizing your route…
-              </>
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />{t("tour.optimizing")}</>
             ) : (
               <>
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Optimize {dates.length} {dates.length === 1 ? "stop" : "stops"} · {CREDIT_COST} Visual Bucs
+                {t("tour.optimizeButton", { count: dates.length, cost: CREDIT_COST })}
               </>
             )}
           </button>
           {dates.length < 2 && (
-            <p className="mt-3 text-center text-xs text-white/35">
-              Add at least 2 tour dates to unlock the optimizer.
-            </p>
+            <p className="mt-3 text-center text-xs text-white/35">{t("tour.needTwoDatesUnlock")}</p>
           )}
-          <p className="mt-4 text-center text-xs leading-relaxed text-white/35">
-            Routing and budget figures are AI estimates based on typical indie-tour costs —
-            not quotes or guarantees. Confirm real prices before you book anything.
-          </p>
+          <p className="mt-4 text-center text-xs leading-relaxed text-white/35">{t("tour.estimateDisclaimer")}</p>
         </div>
 
         {outOfCredits && (
@@ -600,10 +570,9 @@ export default function Tour() {
             <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold">
-                  <Route className="h-5 w-5 text-primary" aria-hidden="true" /> Optimized route
-                </h2>
+                  <Route className="h-5 w-5 text-primary" aria-hidden="true" />{t("tour.routeTitle")}</h2>
                 <span className="text-xs font-semibold text-white/40">
-                  ~{miles.toLocaleString("en-US")} mi total
+                  {t("tour.totalMiles", { miles: miles.toLocaleString("en-US") })}
                 </span>
               </div>
               {plan.routing_notes && (
@@ -647,25 +616,22 @@ export default function Tour() {
             {/* budget */}
             <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
               <h2 className="flex items-center gap-2 text-xl font-bold">
-                <Wallet className="h-5 w-5 text-primary" aria-hidden="true" /> Budget estimate
-              </h2>
-              <p className="mt-1 text-sm text-white/45">
-                Indie-tour estimates — confirm real prices before booking.
-              </p>
+                <Wallet className="h-5 w-5 text-primary" aria-hidden="true" />{t("tour.budgetTitle")}</h2>
+              <p className="mt-1 text-sm text-white/45">{t("tour.budgetSub")}</p>
               <div className="mt-6 space-y-2.5">
                 {budgetRows.map((row) => (
                   <div
-                    key={row.label}
+                    key={row.labelKey}
                     className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-4 py-3"
                   >
-                    <span className="text-sm font-semibold text-white/70">{row.label}</span>
+                    <span className="text-sm font-semibold text-white/70">{t(row.labelKey)}</span>
                     <span className="text-sm font-black text-white">
                       {formatMoney(row.value, plan.budget.currency)}
                     </span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between rounded-xl border border-primary/40 bg-primary/10 px-4 py-4">
-                  <span className="text-base font-black text-white">Estimated total</span>
+                  <span className="text-base font-black text-white">{t("tour.estimatedTotal")}</span>
                   <span className="text-xl font-black text-primary">
                     {formatMoney(plan.budget.total, plan.budget.currency)}
                   </span>
@@ -681,7 +647,7 @@ export default function Tour() {
                 </ul>
               )}
               <p className="mt-4 text-center text-[11px] text-white/30">
-                Plan generated {new Date(plan.created_at).toLocaleString()}
+                {t("tour.planGenerated", { date: new Date(plan.created_at).toLocaleString() })}
               </p>
             </div>
           </div>
@@ -690,10 +656,8 @@ export default function Tour() {
         {/* ── promo checklist ──────────────────────────────────────── */}
         {dates.length > 0 && (
           <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
-            <h2 className="text-lg font-bold">Promo checklist per city</h2>
-            <p className="mt-1 text-sm text-white/45">
-              Work the list for every stop — promotion is free, the algorithm isn't.
-            </p>
+            <h2 className="text-lg font-bold">{t("tour.promoTitle")}</h2>
+            <p className="mt-1 text-sm text-white/45">{t("tour.promoSub")}</p>
             <div className="mt-5 space-y-3">
               {sorted.map((d) => {
                 const expanded = expandedCity === d.id;
@@ -714,7 +678,7 @@ export default function Tour() {
                           {d.city} <span className="font-semibold text-white/40">· {d.venue}</span>
                         </span>
                         <span className="block text-xs text-white/40">
-                          {showDateLabel(d.show_date)} · {done}/{items.length} done
+                          {showDateLabel(d.show_date)} · {t("tour.doneCount", { done, total: items.length })}
                         </span>
                       </span>
                       {expanded ? (
@@ -733,7 +697,7 @@ export default function Tour() {
                               <button
                                 onClick={() => toggleCheck(key)}
                                 aria-pressed={checked}
-                                aria-label={checked ? `Uncheck ${it.label}` : `Check ${it.label}`}
+                                aria-label={checked ? t("tour.uncheckAria", { label: it.label }) : t("tour.checkAria", { label: it.label })}
                                 className="mt-0.5 shrink-0 text-primary transition hover:scale-110"
                               >
                                 {checked ? (

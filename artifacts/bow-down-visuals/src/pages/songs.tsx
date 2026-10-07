@@ -3,6 +3,7 @@ import { Loader2, Upload, Music2, Sparkles, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 interface SongRecord {
   id: string;
@@ -20,14 +21,15 @@ interface VaultLite {
   voice_id: string | null;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  upload: "Upload",
-  generated: "Generated",
-  remix: "Remix",
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  upload: "songs.sourceUpload",
+  generated: "songs.sourceGenerated",
+  remix: "songs.sourceRemix",
 };
 
 export default function SongsPage() {
-  usePageTitle("My Songs", "Your AI-generated song library.");
+  const { t } = useTranslation();
+  usePageTitle(t("songs.pageTitle"), t("songs.pageDescription"));
   const { getAccessToken } = useAuth();
   const [songs, setSongs] = useState<SongRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +50,10 @@ export default function SongsPage() {
     try {
       const res = await fetch("/api/songs", { headers: await authHeaders() });
       const data = (await res.json()) as { songs?: SongRecord[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not load songs.");
+      if (!res.ok) throw new Error(data.error || t("songs.errorLoadSongs"));
       setSongs(data.songs ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load songs.");
+      setError(e instanceof Error ? e.message : t("songs.errorLoadSongs"));
     } finally {
       setLoading(false);
     }
@@ -85,11 +87,11 @@ export default function SongsPage() {
         body: form,
       });
       const data = (await res.json()) as { song?: SongRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || "Upload failed.");
+      if (!res.ok) throw new Error(data.error || t("songs.errorUploadFailed"));
       setTitle("");
       await loadSongs();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed.");
+      setError(e instanceof Error ? e.message : t("songs.errorUploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -106,12 +108,12 @@ export default function SongsPage() {
         body: JSON.stringify({ artistVaultId: remixVault }),
       });
       const data = (await res.json()) as { song?: SongRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || "Remix failed.");
+      if (!res.ok) throw new Error(data.error || t("songs.errorRemixFailed"));
       setRemixTarget(null);
       setRemixVault("");
       await loadSongs();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Remix failed.");
+      setError(e instanceof Error ? e.message : t("songs.errorRemixFailed"));
     } finally {
       setRemixing(false);
     }
@@ -121,24 +123,23 @@ export default function SongsPage() {
     <div className="min-h-screen bg-black text-white px-4 py-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
         <Music2 className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Songs</h1>
+        <h1 className="text-2xl font-bold">{t("songs.title")}</h1>
       </div>
       <p className="text-sm text-white/50 mb-6">
-        Upload songs to your library — then strip them to vocals for a character voice,
-        or remix them so the locked voice sings them.
+        {t("songs.intro")}
       </p>
 
       {/* Upload */}
       <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 mb-6">
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">
-          Upload a song
+          {t("songs.uploadTitle")}
         </p>
         <div className="flex flex-wrap gap-2">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Song title (optional)"
+            placeholder={t("songs.titlePlaceholder")}
             disabled={uploading}
             className="flex-1 min-w-[160px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25"
           />
@@ -146,7 +147,7 @@ export default function SongsPage() {
             className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${uploading ? "opacity-50 pointer-events-none" : ""}`}
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {uploading ? "Uploading…" : "Choose audio file"}
+            {uploading ? t("songs.uploadingLabel") : t("songs.chooseFileButton")}
             <input
               type="file"
               accept="audio/*"
@@ -171,7 +172,7 @@ export default function SongsPage() {
         </div>
       ) : songs.length === 0 ? (
         <p className="text-sm text-white/40 py-12 text-center">
-          No songs yet. Upload your first one above.
+          {t("songs.emptyLibrary")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -183,7 +184,7 @@ export default function SongsPage() {
               <div className="flex items-center justify-between gap-3 mb-2">
                 <p className="text-sm font-bold truncate">{s.title}</p>
                 <span className="text-[11px] uppercase tracking-wider text-white/40 border border-white/10 rounded-full px-2 py-0.5 shrink-0">
-                  {SOURCE_LABEL[s.source] ?? s.source}
+                  {t(SOURCE_LABEL_KEYS[s.source] ?? s.source)}
                 </span>
               </div>
               <audio controls src={s.audio_url} className="w-full h-8" />
@@ -196,7 +197,7 @@ export default function SongsPage() {
                       disabled={remixing}
                       className="flex-1 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
                     >
-                      <option value="">Sing it as…</option>
+                      <option value="">{t("songs.singItAs")}</option>
                       {vaults.map((v) => (
                         <option key={v.id} value={v.id}>
                           {v.artist_name}
@@ -210,7 +211,7 @@ export default function SongsPage() {
                       className="rounded-xl"
                     >
                       {remixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Remix (300 Visual Bucs)
+                      {t("songs.remixButton")}
                     </Button>
                     <Button
                       size="sm"
@@ -218,7 +219,7 @@ export default function SongsPage() {
                       onClick={() => { setRemixTarget(null); setRemixVault(""); }}
                       disabled={remixing}
                     >
-                      Cancel
+                      {t("songs.cancelButton")}
                     </Button>
                   </>
                 ) : (
@@ -229,19 +230,19 @@ export default function SongsPage() {
                     className="rounded-xl border-white/15 text-white/80"
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
-                    Remix with locked voice
+                    {t("songs.remixWithVoice")}
                   </Button>
                 )}
               </div>
               {remixTarget === s.id && remixing && (
                 <p className="mt-2 text-xs text-white/50 flex items-center gap-2">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Isolating vocals and re-singing in the locked voice — a few minutes.
+                  {t("songs.remixingStatus")}
                 </p>
               )}
               {remixTarget === s.id && vaults.length === 0 && (
                 <p className="mt-2 text-xs text-white/40">
-                  No artist has a locked voice yet. Lock one on an artist's page first.
+                  {t("songs.noLockedVoice")}
                 </p>
               )}
             </div>

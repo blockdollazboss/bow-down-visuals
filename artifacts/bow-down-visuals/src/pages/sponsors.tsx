@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Sponsor Marketplace — browse ────────────────────────────────────────
    Brands post paid sponsorship deals, creators apply with a pitch —
@@ -45,6 +46,7 @@ const sectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 export default function Sponsors() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -82,10 +84,10 @@ export default function Sponsors() {
     try {
       const res = await fetch("/api/sponsors/deals", { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as { deals?: Deal[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not load deals.");
+      if (!res.ok) throw new Error(data.error || t("sponsors.errorLoadDeals"));
       setDeals(Array.isArray(data.deals) ? data.deals : []);
     } catch (err) {
-      setDealsError(err instanceof Error ? err.message : "Could not load deals.");
+      setDealsError(err instanceof Error ? err.message : t("sponsors.errorLoadDeals"));
     } finally {
       setDealsLoading(false);
     }
@@ -98,7 +100,7 @@ export default function Sponsors() {
 
   async function runMatcher() {
     if (!matchNiche.trim()) {
-      setError("Tell the AI your niche first.");
+      setError(t("sponsors.errorNicheFirst"));
       return;
     }
     setMatchLoading(true);
@@ -122,12 +124,12 @@ export default function Sponsors() {
         refreshProfile();
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Matcher failed.");
+      if (!res.ok) throw new Error(data.error || t("sponsors.errorMatcher"));
       setMatches(Array.isArray(data.matches) ? data.matches : []);
       setMatchNote(data.note || "");
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Matcher failed.");
+      setError(err instanceof Error ? err.message : t("sponsors.errorMatcher"));
     } finally {
       setMatchLoading(false);
     }
@@ -144,24 +146,23 @@ export default function Sponsors() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-              <Handshake className="h-3.5 w-3.5" aria-hidden="true" /> Sponsor marketplace
+              <Handshake className="h-3.5 w-3.5" aria-hidden="true" /> {t("sponsors.eyebrow")}
             </p>
             <h1 className="font-display text-4xl font-black md:text-5xl">
-              Get <span className="text-primary">paid</span> by brands
+              {t("sponsors.pageTitleA")} <span className="text-primary">{t("sponsors.pageTitleAccent")}</span> {t("sponsors.pageTitleB")}
             </h1>
             <p className="mt-3 max-w-xl text-sm text-white/55">
-              Browse live sponsorship deals, apply with a pitch, and close real money.
-              Escrow protects both sides — brands fund up front, creators get paid on delivery.
+              {t("sponsors.pageSubtitle")}
             </p>
           </div>
           <div className="flex gap-2">
             <Link href="/sponsors/dashboard"
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-white">
-              <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> My dashboard
+              <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> {t("sponsors.myDashboard")}
             </Link>
             <Link href="/sponsors/post"
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-4 py-2.5 text-sm font-black text-black shadow-[0_4px_24px_rgba(212,175,55,0.35)] transition hover:scale-[1.03]">
-              <PlusCircle className="h-4 w-4" aria-hidden="true" /> Post a deal
+              <PlusCircle className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postDeal")}
             </Link>
           </div>
         </div>
@@ -173,36 +174,36 @@ export default function Sponsors() {
         {/* filter */}
         <div className="mt-8 flex max-w-sm items-center gap-2" data-min-stars="2">
           <input value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} maxLength={60}
-            placeholder="Filter by niche…" className={inputClass} />
+            placeholder={t("sponsors.filterPlaceholder")} className={inputClass} />
         </div>
 
         {/* deals grid */}
         <div className="mt-6">
           {!user ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
-              <p className="text-white/60">Sign in to browse live sponsor deals.</p>
+              <p className="text-white/60">{t("sponsors.signInPrompt")}</p>
               <Link href="/login"
                 className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3 font-bold text-primary transition hover:bg-primary hover:text-black">
-                Sign in <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                {t("sponsors.signIn")} <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
           ) : dealsLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-white/40">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> Loading deals…
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("sponsors.loadingDeals")}
             </div>
           ) : dealsError ? (
             <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{dealsError}</p>
           ) : filtered.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
               <Handshake className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
-              <p className="mt-3 font-bold text-white">{deals.length === 0 ? "No active deals yet" : "No deals match that niche"}</p>
+              <p className="mt-3 font-bold text-white">{deals.length === 0 ? t("sponsors.emptyNoDeals") : t("sponsors.emptyNoMatch")}</p>
               <p className="mt-1 text-sm text-white/50">
-                {deals.length === 0 ? "Be the first brand to post — or run the AI matcher below." : "Try a different niche, or clear the filter."}
+                {deals.length === 0 ? t("sponsors.emptyNoDealsHint") : t("sponsors.emptyNoMatchHint")}
               </p>
               {deals.length === 0 && (
                 <Link href="/sponsors/post"
                   className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 font-black text-black transition hover:brightness-110">
-                  <Megaphone className="h-4 w-4" aria-hidden="true" /> Post the first deal
+                  <Megaphone className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postFirstDeal")}
                 </Link>
               )}
             </div>
@@ -231,7 +232,7 @@ export default function Sponsors() {
                       {daysLeftLabel(d.deadline)}
                     </p>
                     <span className="inline-flex items-center gap-1 font-bold text-primary opacity-0 transition group-hover:opacity-100">
-                      View deal <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t("sponsors.viewDeal")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </span>
                   </div>
                 </Link>
@@ -243,33 +244,33 @@ export default function Sponsors() {
         {/* ── AI DEAL MATCHER ──────────────────────────────────────── */}
         <div className="relative mt-12 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-            <Target className="h-3.5 w-3.5" aria-hidden="true" /> AI deal matcher · {AI_COST} Visual Buc
+            <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("sponsors.matcherEyebrow", { cost: AI_COST })}
           </p>
-          <h2 className="font-display text-2xl font-black">Which deals fit <span className="text-primary">you?</span></h2>
+          <h2 className="font-display text-2xl font-black">{t("sponsors.matcherTitleA")} <span className="text-primary">{t("sponsors.matcherTitleAccent")}</span></h2>
           <p className="mt-2 max-w-xl text-sm text-white/55">
-            Drop your niche and audience size — the AI ranks the active deals by fit.
+            {t("sponsors.matcherSubtitle")}
           </p>
           <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
-              <p className={sectionLabel}>Your niche</p>
+              <p className={sectionLabel}>{t("sponsors.matchNicheLabel")}</p>
               <input value={matchNiche} onChange={(e) => setMatchNiche(e.target.value)} maxLength={120}
-                placeholder="e.g. Music" className={inputClass} />
+                placeholder={t("sponsors.matchNichePlaceholder")} className={inputClass} />
             </div>
             <div data-min-stars="3">
-              <p className={sectionLabel}>Followers</p>
+              <p className={sectionLabel}>{t("sponsors.matchFollowersLabel")}</p>
               <input value={matchFollowers} onChange={(e) => setMatchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                inputMode="numeric" placeholder="25000" className={inputClass} />
+                inputMode="numeric" placeholder={t("sponsors.matchFollowersPlaceholder")} className={inputClass} />
             </div>
             <div data-min-stars="3">
-              <p className={sectionLabel}>Platforms (comma separated)</p>
+              <p className={sectionLabel}>{t("sponsors.matchPlatformsLabel")}</p>
               <input value={matchPlatforms} onChange={(e) => setMatchPlatforms(e.target.value)} maxLength={200}
-                placeholder="tiktok, instagram" className={inputClass} />
+                placeholder={t("sponsors.matchPlatformsPlaceholder")} className={inputClass} />
             </div>
           </div>
           <button onClick={runMatcher} disabled={matchLoading}
             className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-7 py-3 text-sm font-black text-black shadow-[0_4px_24px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] disabled:opacity-50">
             {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
-            {matchLoading ? "Matching…" : `Find my matches · ${AI_COST} credit`}
+            {matchLoading ? t("sponsors.matching") : t("sponsors.findMatchesButton", { cost: AI_COST })}
           </button>
           {matchNote && <p className="mt-4 text-sm italic text-white/60">{matchNote}</p>}
           {matches.length > 0 && (

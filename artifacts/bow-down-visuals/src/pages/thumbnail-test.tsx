@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
    Upload 2-4 thumbnail variants, AI predicts which one gets the most clicks
@@ -44,12 +45,12 @@ interface TestResult {
   disclaimer: string;
 }
 
-const SCORE_LABELS: Array<{ key: keyof Scores; label: string }> = [
-  { key: "curiosityGap", label: "Curiosity gap" },
-  { key: "readability", label: "Small-size readability" },
-  { key: "emotionalImpact", label: "Emotional impact" },
-  { key: "colorContrast", label: "Color contrast" },
-  { key: "facePresence", label: "Face presence" },
+const SCORE_LABELS: Array<{ key: keyof Scores; labelKey: string }> = [
+  { key: "curiosityGap", labelKey: "thumbnailTest.scoreCuriosity" },
+  { key: "readability", labelKey: "thumbnailTest.scoreReadability" },
+  { key: "emotionalImpact", labelKey: "thumbnailTest.scoreEmotion" },
+  { key: "colorContrast", labelKey: "thumbnailTest.scoreContrast" },
+  { key: "facePresence", labelKey: "thumbnailTest.scoreFace" },
 ];
 
 function scoreColor(v: number): string {
@@ -71,6 +72,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 }
 
 export default function ThumbnailTest() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -117,10 +119,10 @@ export default function ThumbnailTest() {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.message || data.error || "Test failed");
+      if (!res.ok) throw new Error(data.message || data.error || t("thumbnailTest.testFailed"));
       setResult(data.result as TestResult);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Test failed");
+      setError(e instanceof Error ? e.message : t("thumbnailTest.testFailed"));
     } finally {
       setTesting(false);
     }
@@ -141,10 +143,10 @@ export default function ThumbnailTest() {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.message || data.error || "Could not generate the improved version");
+      if (!res.ok) throw new Error(data.message || data.error || t("thumbnailTest.improveFailedLong"));
       setImprovedUrls((prev) => ({ ...prev, [index]: data.imageUrl as string }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Improve failed");
+      setError(e instanceof Error ? e.message : t("thumbnailTest.improveFailed"));
     } finally {
       setImproving(null);
     }
@@ -154,19 +156,13 @@ export default function ThumbnailTest() {
     <div className="min-h-screen bg-black text-zinc-100">
       <main className="max-w-6xl mx-auto px-4 py-10">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-amber-400/80 hover:text-amber-300 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to dashboard
-        </Link>
+          <ArrowLeft className="w-4 h-4" />{t("thumbnailTest.backToDashboard")}</Link>
 
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="w-8 h-8 text-amber-400" />
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
-            Thumbnail A/B Tester
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">{t("thumbnailTest.pageTitle")}</h1>
         </div>
-        <p className="text-zinc-400 max-w-2xl mb-8">
-          Upload 2–4 thumbnail variants. AI scores each one on what actually drives clicks —
-          curiosity, readability, emotion, contrast — and predicts your winner with specific
-          fixes for the rest. <span className="text-zinc-500">A prediction based on best practices, not a guarantee.</span>
+        <p className="text-zinc-400 max-w-2xl mb-8">{t("thumbnailTest.pageSubtitle")}<span className="text-zinc-500">{t("thumbnailTest.subtitleNote")}</span>
         </p>
 
         {outOfCredits && <OutOfCredits />}
@@ -190,8 +186,8 @@ export default function ThumbnailTest() {
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
           />
           <Upload className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-          <p className="text-zinc-300 font-medium">Drop 2–4 thumbnails here, or click to browse</p>
-          <p className="text-zinc-500 text-sm mt-1">PNG/JPG/WebP · {files.length}/{MAX_FILES} uploaded</p>
+          <p className="text-zinc-300 font-medium">{t("thumbnailTest.uploadCta")}</p>
+          <p className="text-zinc-500 text-sm mt-1">{t("thumbnailTest.uploadFormats", { uploaded: files.length, max: MAX_FILES })}</p>
         </div>
 
         {/* Previews */}
@@ -199,14 +195,14 @@ export default function ThumbnailTest() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {previews.map((src, i) => (
               <div key={i} className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
-                <img src={src} alt={`Thumbnail ${i + 1}`} className="w-full aspect-video object-cover" />
+                <img src={src} alt={t("thumbnailTest.thumbnailAlt", { n: i + 1 })} className="w-full aspect-video object-cover" />
                 <span className="absolute top-2 left-2 text-xs font-bold bg-black/70 text-amber-300 px-2 py-0.5 rounded">
                   {i + 1}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                   className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-zinc-300 hover:text-red-400"
-                  aria-label={`Remove thumbnail ${i + 1}`}
+                  aria-label={t("thumbnailTest.removeThumbnailAria", { n: i + 1 })}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -220,14 +216,14 @@ export default function ThumbnailTest() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Video title (optional — helps the AI judge curiosity)"
+            placeholder={t("thumbnailTest.titlePlaceholder")}
             maxLength={200}
             className="rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3 text-sm placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
           />
           <input
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
-            placeholder="Niche, e.g. hip-hop, gaming, finance (optional)"
+            placeholder={t("thumbnailTest.nichePlaceholder")}
             maxLength={100}
             className="rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3 text-sm placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
           />
@@ -239,9 +235,9 @@ export default function ThumbnailTest() {
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-3 font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed hover:from-amber-400 hover:to-amber-500 transition-colors"
         >
           {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-          {testing ? "Analyzing…" : `Run test · ${CREDIT_COST} credits`}
+          {testing ? t("thumbnailTest.analyzing") : t("thumbnailTest.runTestButton", { cost: CREDIT_COST })}
         </button>
-        {!user && <p className="text-zinc-500 text-sm mt-2">Sign in to run a test.</p>}
+        {!user && <p className="text-zinc-500 text-sm mt-2">{t("thumbnailTest.signInPrompt")}</p>}
 
         {error && (
           <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-300">
@@ -256,10 +252,10 @@ export default function ThumbnailTest() {
               <div className="flex items-center gap-3 mb-2">
                 <Trophy className="w-6 h-6 text-amber-400" />
                 <h2 className="text-xl font-bold text-amber-200">
-                  Predicted winner: Thumbnail {result.winnerIndex + 1}
+                  {t("thumbnailTest.predictedWinner", { n: result.winnerIndex + 1 })}
                 </h2>
                 <span className="text-xs font-semibold bg-amber-400/20 text-amber-300 px-2 py-1 rounded-full">
-                  {result.confidence}% confidence
+                  {t("thumbnailTest.confidence", { confidence: result.confidence })}
                 </span>
               </div>
               <p className="text-zinc-300 text-sm">{result.reasoning}</p>
@@ -278,11 +274,10 @@ export default function ThumbnailTest() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-zinc-200">Thumbnail {a.index + 1}</span>
+                        <span className="text-sm font-bold text-zinc-200">{t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}</span>
                         {isWinner && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
-                            <CheckCircle2 className="w-4 h-4" /> Winner
-                          </span>
+                            <CheckCircle2 className="w-4 h-4" />{t("thumbnailTest.winnerBadge")}</span>
                         )}
                       </div>
                       <span className="text-2xl font-black text-amber-300 tabular-nums">{a.scores.overall}</span>
@@ -290,18 +285,18 @@ export default function ThumbnailTest() {
                     {previews[a.index] && (
                       <img
                         src={previews[a.index]}
-                        alt={`Thumbnail ${a.index + 1}`}
+                        alt={t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}
                         className="w-full aspect-video object-cover rounded-lg border border-zinc-800 mb-4"
                       />
                     )}
                     <div className="space-y-2.5 mb-4">
-                      {SCORE_LABELS.map(({ key, label }) => (
-                        <ScoreBar key={key} label={label} value={a.scores[key]} />
+                      {SCORE_LABELS.map(({ key, labelKey }) => (
+                        <ScoreBar key={key} label={t(labelKey)} value={a.scores[key]} />
                       ))}
                     </div>
                     {a.strengths.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-xs font-semibold text-emerald-300 mb-1">Strengths</p>
+                        <p className="text-xs font-semibold text-emerald-300 mb-1">{t("thumbnailTest.strengthsLabel")}</p>
                         <ul className="text-xs text-zinc-400 list-disc list-inside space-y-0.5">
                           {a.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
@@ -309,7 +304,7 @@ export default function ThumbnailTest() {
                     )}
                     {a.weaknesses.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-xs font-semibold text-red-300 mb-1">Weaknesses</p>
+                        <p className="text-xs font-semibold text-red-300 mb-1">{t("thumbnailTest.weaknessesLabel")}</p>
                         <ul className="text-xs text-zinc-400 list-disc list-inside space-y-0.5">
                           {a.weaknesses.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
@@ -317,7 +312,7 @@ export default function ThumbnailTest() {
                     )}
                     {a.tips.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-xs font-semibold text-amber-300 mb-1">Fixes</p>
+                        <p className="text-xs font-semibold text-amber-300 mb-1">{t("thumbnailTest.fixesLabel")}</p>
                         <ul className="text-xs text-zinc-300 list-disc list-inside space-y-0.5">
                           {a.tips.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
@@ -325,19 +320,17 @@ export default function ThumbnailTest() {
                     )}
                     {improvedUrls[a.index] ? (
                       <div>
-                        <p className="text-xs font-semibold text-emerald-300 mb-2">Improved version</p>
+                        <p className="text-xs font-semibold text-emerald-300 mb-2">{t("thumbnailTest.improvedHeading")}</p>
                         <img
                           src={improvedUrls[a.index]}
-                          alt="Improved thumbnail"
+                          alt={t("thumbnailTest.improvedAlt")}
                           className="w-full aspect-video object-cover rounded-lg border border-emerald-800 mb-2"
                         />
                         <a
                           href={improvedUrls[a.index]}
                           download={`thumbnail-${a.index + 1}-improved.png`}
                           className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200"
-                        >
-                          Download
-                        </a>
+                        >{t("thumbnailTest.downloadLink")}</a>
                       </div>
                     ) : (
                       <button
@@ -350,7 +343,7 @@ export default function ThumbnailTest() {
                         ) : (
                           <Wand2 className="w-4 h-4" />
                         )}
-                        {improving === a.index ? "Generating…" : `Apply suggestions · ${IMPROVE_COST} credits`}
+                        {improving === a.index ? t("thumbnailTest.generating") : t("thumbnailTest.applySuggestions", { cost: IMPROVE_COST })}
                       </button>
                     )}
                   </div>
@@ -362,27 +355,22 @@ export default function ThumbnailTest() {
               onClick={() => { setResult(null); setImprovedUrls({}); }}
               className="mt-8 inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200"
             >
-              <RefreshCw className="w-4 h-4" /> Test different thumbnails
-            </button>
+              <RefreshCw className="w-4 h-4" />{t("thumbnailTest.testDifferent")}</button>
           </section>
         )}
 
         {/* How it works */}
         <section className="mt-12 rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
           <h3 className="font-bold text-zinc-200 mb-3 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-amber-400" /> How the scoring works
-          </h3>
+            <ImageIcon className="w-5 h-5 text-amber-400" />{t("thumbnailTest.howItWorks")}</h3>
           <ul className="text-sm text-zinc-400 space-y-2 list-disc list-inside">
-            <li><span className="text-zinc-200">Curiosity gap</span> — does the thumbnail create an open loop you need to click to resolve?</li>
-            <li><span className="text-zinc-200">Small-size readability</span> — is any text legible in a mobile feed? (No text scores neutral, not penalized.)</li>
-            <li><span className="text-zinc-200">Emotional impact</span> — does it trigger shock, awe, desire, or outrage?</li>
-            <li><span className="text-zinc-200">Color contrast</span> — does it pop in a crowded feed?</li>
-            <li><span className="text-zinc-200">Face presence</span> — a clear, expressive face boosts clicks. (No face scores neutral.)</li>
+            <li><span className="text-zinc-200">{t("thumbnailTest.scoreCuriosity")}</span> — {t("thumbnailTest.scoreCuriosityText")}</li>
+            <li><span className="text-zinc-200">{t("thumbnailTest.scoreReadability")}</span> — {t("thumbnailTest.scoreReadabilityText")}</li>
+            <li><span className="text-zinc-200">{t("thumbnailTest.scoreEmotion")}</span> — {t("thumbnailTest.scoreEmotionText")}</li>
+            <li><span className="text-zinc-200">{t("thumbnailTest.scoreContrast")}</span> — {t("thumbnailTest.scoreContrastText")}</li>
+            <li><span className="text-zinc-200">{t("thumbnailTest.scoreFace")}</span> — {t("thumbnailTest.scoreFaceText")}</li>
           </ul>
-          <p className="text-xs text-zinc-500 mt-4">
-            2 Visual Bucs per test · 2 Visual Bucs per improved render · refunded automatically if the AI fails.
-            Scores are AI predictions, not guarantees — your title, audience, and timing matter too.
-          </p>
+          <p className="text-xs text-zinc-500 mt-4">{t("thumbnailTest.costNote")}</p>
         </section>
       </main>
 

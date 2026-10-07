@@ -28,13 +28,57 @@ import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
 
-const GENRES = ["Hip Hop","Drill","Trap","R&B","Pop","Afrobeats","Dancehall","Gospel","Kids Music","Rock","Country","Other"];
-const MOODS  = ["Luxury","Dark","Emotional","Street","Romantic","Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly"];
-const VIDEO_STYLES = ["Street Cinematic","Luxury Rap Video","Brooklyn Drill","Dark Emotional Story","Performance Video","Club Video","Cartoon Music Video","Anime Music Video","Kids Nursery Rhyme","Romantic R&B Visual","Documentary Style"];
-const PLATFORMS = ["TikTok / Reels / Shorts - 9:16","YouTube Music Video - 16:9","Square Social Post - 1:1","All Formats"];
+const GENRES: Array<{ value: string; labelKey: string }> = [
+  { value: "Hip Hop", labelKey: "songAndVideo.genreHipHop" },
+  { value: "Drill", labelKey: "songAndVideo.genreDrill" },
+  { value: "Trap", labelKey: "songAndVideo.genreTrap" },
+  { value: "R&B", labelKey: "songAndVideo.genreRB" },
+  { value: "Pop", labelKey: "songAndVideo.genrePop" },
+  { value: "Afrobeats", labelKey: "songAndVideo.genreAfrobeats" },
+  { value: "Dancehall", labelKey: "songAndVideo.genreDancehall" },
+  { value: "Gospel", labelKey: "songAndVideo.genreGospel" },
+  { value: "Kids Music", labelKey: "songAndVideo.genreKidsMusic" },
+  { value: "Rock", labelKey: "songAndVideo.genreRock" },
+  { value: "Country", labelKey: "songAndVideo.genreCountry" },
+  { value: "Other", labelKey: "songAndVideo.genreOther" },
+];
+const MOODS: Array<{ value: string; labelKey: string }> = [
+  { value: "Luxury", labelKey: "songAndVideo.moodLuxury" },
+  { value: "Dark", labelKey: "songAndVideo.moodDark" },
+  { value: "Emotional", labelKey: "songAndVideo.moodEmotional" },
+  { value: "Street", labelKey: "songAndVideo.moodStreet" },
+  { value: "Romantic", labelKey: "songAndVideo.moodRomantic" },
+  { value: "Energetic", labelKey: "songAndVideo.moodEnergetic" },
+  { value: "Pain", labelKey: "songAndVideo.moodPain" },
+  { value: "Victory", labelKey: "songAndVideo.moodVictory" },
+  { value: "Party", labelKey: "songAndVideo.moodParty" },
+  { value: "Inspirational", labelKey: "songAndVideo.moodInspirational" },
+  { value: "Funny", labelKey: "songAndVideo.moodFunny" },
+  { value: "Kid-Friendly", labelKey: "songAndVideo.moodKidFriendly" },
+];
+const VIDEO_STYLES: Array<{ value: string; labelKey: string }> = [
+  { value: "Street Cinematic", labelKey: "songAndVideo.videoStyleStreetCinematic" },
+  { value: "Luxury Rap Video", labelKey: "songAndVideo.videoStyleLuxuryRap" },
+  { value: "Brooklyn Drill", labelKey: "songAndVideo.videoStyleBrooklynDrill" },
+  { value: "Dark Emotional Story", labelKey: "songAndVideo.videoStyleDarkEmotional" },
+  { value: "Performance Video", labelKey: "songAndVideo.videoStylePerformance" },
+  { value: "Club Video", labelKey: "songAndVideo.videoStyleClub" },
+  { value: "Cartoon Music Video", labelKey: "songAndVideo.videoStyleCartoon" },
+  { value: "Anime Music Video", labelKey: "songAndVideo.videoStyleAnime" },
+  { value: "Kids Nursery Rhyme", labelKey: "songAndVideo.videoStyleKids" },
+  { value: "Romantic R&B Visual", labelKey: "songAndVideo.videoStyleRomanticRB" },
+  { value: "Documentary Style", labelKey: "songAndVideo.videoStyleDocumentary" },
+];
+const PLATFORMS: Array<{ value: string; labelKey: string }> = [
+  { value: "TikTok / Reels / Shorts - 9:16", labelKey: "songAndVideo.platformTiktokReels" },
+  { value: "YouTube Music Video - 16:9", labelKey: "songAndVideo.platformYoutube" },
+  { value: "Square Social Post - 1:1", labelKey: "songAndVideo.platformSquare" },
+  { value: "All Formats", labelKey: "songAndVideo.platformAll" },
+];
 
 const SONG_SECTION_KEYS = [
   "song concept","best song title","alternate title","full lyrics","hook",
@@ -42,11 +86,11 @@ const SONG_SECTION_KEYS = [
 ];
 
 const STEPS = [
-  { id: 1, label: "Song Setup",        icon: Music },
-  { id: 2, label: "Artist / Brand",    icon: Mic2  },
-  { id: 3, label: "Video Direction",   icon: Camera },
-  { id: 4, label: "Generate",          icon: Sparkles },
-  { id: 5, label: "Results",           icon: BookOpen },
+  { id: 1, labelKey: "songAndVideo.step1Label",      icon: Music },
+  { id: 2, labelKey: "songAndVideo.step2Label",      icon: Mic2  },
+  { id: 3, labelKey: "songAndVideo.step3Label",      icon: Camera },
+  { id: 4, labelKey: "songAndVideo.step4Label",      icon: Sparkles },
+  { id: 5, labelKey: "songAndVideo.step5Label",      icon: BookOpen },
 ];
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -122,14 +166,15 @@ const textCls  = "bg-white/[0.04] border-white/[0.08] text-white placeholder:tex
 const selCls   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none cursor-pointer";
 
 function Sel({ name, placeholder, options, value, onChange }: {
-  name: string; placeholder: string; options: string[]; value: string; onChange: (v: string) => void;
+  name: string; placeholder: string; options: Array<{ value: string; labelKey: string }>; value: string; onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selCls} style={{ colorScheme: "dark" }}>
         <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
-        {options.map((o) => <option key={o} value={o} style={{ background: "#111" }}>{o}</option>)}
+        {options.map((o) => <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>)}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
     </div>
@@ -137,11 +182,12 @@ function Sel({ name, placeholder, options, value, onChange }: {
 }
 
 function CopyBtn({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
       className="flex items-center gap-1 text-xs text-white/30 hover:text-primary transition-colors px-2 py-1 rounded-md hover:bg-primary/10">
-      {copied ? <><Check className="h-3 w-3 text-green-400" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy</>}
+      {copied ? <><Check className="h-3 w-3 text-green-400" /> {t("songAndVideo.copiedLabel")}</> : <><Copy className="h-3 w-3" /> {t("songAndVideo.copyButton")}</>}
     </button>
   );
 }
@@ -169,6 +215,7 @@ function ResultCard({ section, defaultOpen }: { section: ParsedSection; defaultO
 /* ─────────────────────── STEPPER ─────────────────────── */
 
 function Stepper({ step }: { step: number }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-10">
       {/* Progress bar */}
@@ -195,7 +242,7 @@ function Stepper({ step }: { step: number }) {
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wide text-center leading-tight hidden sm:block transition-colors ${
                 active ? "text-primary" : done ? "text-white/50" : "text-white/20"
-              }`}>{s.label}</span>
+              }`}>{t(s.labelKey)}</span>
             </div>
           );
         })}
@@ -227,7 +274,7 @@ function StepShell({ title, subtitle, icon: Icon, children }: {
 
 /* ─────────────────────── NAV BUTTONS ─────────────────────── */
 
-function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = false, backHidden = false }: {
+function NavRow({ onBack, onNext, nextLabel, nextIcon, loading = false, backHidden = false }: {
   onBack?: () => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -235,19 +282,20 @@ function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = f
   loading?: boolean;
   backHidden?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className={`flex items-center ${backHidden ? "justify-end" : "justify-between"} pt-2`}>
       {!backHidden && (
         <button type="button" onClick={onBack}
           className="flex items-center gap-2 text-sm text-white/30 hover:text-white transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("songAndVideo.backButton")}
         </button>
       )}
       <Button type="button" onClick={onNext} disabled={loading}
         className="gold-glow font-bold gap-2 px-8 rounded-xl"
         style={{ height: "44px" }}>
-        {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</> :
-          <>{nextIcon ?? <ArrowRight className="h-4 w-4" />} {nextLabel}</>}
+        {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("songAndVideo.generatingLabel")}</> :
+          <>{nextIcon ?? <ArrowRight className="h-4 w-4" />} {nextLabel ?? t("songAndVideo.nextStepDefault")}</>}
       </Button>
     </div>
   );
@@ -256,7 +304,8 @@ function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = f
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function SongAndVideo() {
-  usePageTitle("Make Song + Video", "The full package — generate a song and its music video in one flow.");
+  const { t } = useTranslation();
+  usePageTitle(t("songAndVideo.pageTitle"), t("songAndVideo.pageDescription"));
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
@@ -308,10 +357,10 @@ export default function SongAndVideo() {
     if (!watched.artistDescription && vault.personality) {
       const parts = [
         vault.personality,
-        vault.hair ? `Hair: ${vault.hair}` : null,
-        vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
-        vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,
-        vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
+        vault.hair ? `${t("songAndVideo.vaultHairLabel")}: ${vault.hair}` : null,
+        vault.tattoos ? `${t("songAndVideo.vaultTattoosLabel")}: ${vault.tattoos}` : null,
+        vault.jewelry ? `${t("songAndVideo.vaultJewelryLabel")}: ${vault.jewelry}` : null,
+        vault.clothing_style ? `${t("songAndVideo.vaultClothingLabel")}: ${vault.clothing_style}` : null,
       ].filter(Boolean);
       setValue("artistDescription", parts.join(". "));
     }
@@ -338,7 +387,7 @@ export default function SongAndVideo() {
       const data = (await res.json()) as SongStructure;
       setSongStructure(data);
     } catch {
-      setAnalyzeError("Analysis failed — you can still generate without it.");
+      setAnalyzeError(t("songAndVideo.analyzeErrorText"));
     } finally {
       setAnalyzing(false);
     }
@@ -351,10 +400,10 @@ export default function SongAndVideo() {
     setValue("artistName", vault.artist_name);
     const desc = [
       vault.personality,
-      vault.hair           ? `Hair: ${vault.hair}`               : null,
-      vault.tattoos        ? `Tattoos: ${vault.tattoos}`         : null,
-      vault.jewelry        ? `Jewelry: ${vault.jewelry}`         : null,
-      vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
+      vault.hair           ? `${t("songAndVideo.vaultHairLabel")}: ${vault.hair}`               : null,
+      vault.tattoos        ? `${t("songAndVideo.vaultTattoosLabel")}: ${vault.tattoos}`         : null,
+      vault.jewelry        ? `${t("songAndVideo.vaultJewelryLabel")}: ${vault.jewelry}`         : null,
+      vault.clothing_style ? `${t("songAndVideo.vaultClothingLabel")}: ${vault.clothing_style}` : null,
     ].filter(Boolean).join(". ");
     setValue("artistDescription", desc || vault.artist_name);
     if (vault.brand_colors)        setValue("brandColors", vault.brand_colors);
@@ -439,7 +488,7 @@ export default function SongAndVideo() {
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      const msg = err instanceof Error ? err.message : t("songAndVideo.errorGenerationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -466,7 +515,7 @@ export default function SongAndVideo() {
             const fv = parsed.formValues ?? {};
             const titleParts = [fv["artistName"], fv["songTitle"]].filter(Boolean).join(" — ");
             if (!cancelled) {
-              setDraftInfo({ title: titleParts || "Unsaved draft", updated: new Date(parsed.timestamp ?? 0).toLocaleString() });
+              setDraftInfo({ title: titleParts || t("songAndVideo.draftTitleFallback"), updated: new Date(parsed.timestamp ?? 0).toLocaleString() });
               setDraftState("found");
             }
             return;
@@ -487,7 +536,7 @@ export default function SongAndVideo() {
           const d = data.drafts[0];
           if (!cancelled) {
             setDraftId(d.id);
-            setDraftInfo({ title: d.title ?? "Unsaved draft", updated: new Date(d.updated_at).toLocaleString() });
+            setDraftInfo({ title: d.title ?? t("songAndVideo.draftTitleFallback"), updated: new Date(d.updated_at).toLocaleString() });
             setDraftState("found");
           }
         }
@@ -519,7 +568,7 @@ export default function SongAndVideo() {
       if (Date.now() < suppressDraftSaveUntil.current) return;
       try {
         const token = await getAccessToken();
-        const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make Song + Video Draft";
+        const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || t("songAndVideo.draftAutoTitleFallback");
         await fetch("/api/drafts", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
@@ -592,7 +641,7 @@ export default function SongAndVideo() {
         }
       }
 
-      if (!payload) throw new Error("Draft data not found — it may have expired.");
+      if (!payload) throw new Error(t("songAndVideo.errorDraftNotFound"));
 
       // Restore all fields
       if (payload.rawResult) setRawResult(payload.rawResult);
@@ -628,7 +677,7 @@ export default function SongAndVideo() {
       setDraftState("recovered");
       setTimeout(() => setDraftState("idle"), 2500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Draft data not found — it may have expired. Try the backup JSON.";
+      const msg = err instanceof Error ? err.message : t("songAndVideo.errorDraftNotFoundBackup");
       setDraftError(msg);
       setDraftState("failed");
     }
@@ -649,7 +698,7 @@ export default function SongAndVideo() {
 
   /* ── Save ── */
   async function performSave(opts?: { result?: string; sceneData?: SceneData[]; ghid?: string | null }) {
-    if (!user) { toast({ title: "Sign in required", variant: "destructive" }); return; }
+    if (!user) { toast({ title: t("songAndVideo.toastSignInRequired"), variant: "destructive" }); return; }
     const resultToSave = opts?.result    ?? rawResult ?? "";
     const scenesToSave = opts?.sceneData ?? scenes;
     const histId       = (opts !== undefined && "ghid" in opts) ? opts.ghid : genHistoryId;
@@ -665,7 +714,7 @@ export default function SongAndVideo() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
           projectType:  "Make Song + Video",
-          title:        [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make Song + Video",
+          title:        [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || t("songAndVideo.defaultProjectTitle"),
           artistName:   watched.artistName || null,
           songTitle:    watched.songTitle  || null,
           genre:        watched.genre      || null,
@@ -685,11 +734,11 @@ export default function SongAndVideo() {
         if (body.refunded) {
           setCreditRefunded(true);
           refreshProfile();
-          toast({ title: "Visual Bucs refunded", description: "Project save failed — Visual Bucs returned. Your generation is in Generation History.", variant: "destructive" });
+          toast({ title: t("songAndVideo.toastRefundedTitle"), description: t("songAndVideo.toastRefundedDesc"), variant: "destructive" });
         } else {
-          const msg = body.error ?? `Save failed (HTTP ${res.status})`;
+          const msg = body.error ?? t("songAndVideo.errorSaveHttp", { status: res.status });
           setSaveError(msg);
-          toast({ title: "Save failed", description: msg, variant: "destructive" });
+          toast({ title: t("songAndVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });
         }
         setAutoSaveStatus("failed");
         return;
@@ -702,12 +751,12 @@ export default function SongAndVideo() {
         fetch(`/api/drafts/${draftId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } }).catch(() => {});
         setDraftId(null);
       }
-      toast({ title: "Project saved!", description: "Find it in My Projects." });
+      toast({ title: t("songAndVideo.toastProjectSavedTitle"), description: t("songAndVideo.toastProjectSavedDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save failed — please try again";
+      const msg = err instanceof Error ? err.message : t("songAndVideo.errorSaveFailed");
       setSaveError(msg);
       setAutoSaveStatus("failed");
-      toast({ title: "Save failed", description: msg, variant: "destructive" });
+      toast({ title: t("songAndVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -750,7 +799,7 @@ export default function SongAndVideo() {
 
         {/* Breadcrumb */}
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/35 hover:text-white transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> {t("songAndVideo.backToDashboard")}
         </Link>
 
         {/* ── Draft Recovery Modal ── */}
@@ -761,22 +810,22 @@ export default function SongAndVideo() {
               {draftState === "found" && (
                 <div className="p-6 space-y-5">
                   <div>
-                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">Unsaved Draft Found</p>
-                    <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? "Previous session"}</p>
-                    {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
+                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">{t("songAndVideo.draftFoundTitle")}</p>
+                    <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? t("songAndVideo.draftPreviousSession")}</p>
+                    {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">{t("songAndVideo.draftLastSaved", { updated: draftInfo.updated })}</p>}
                   </div>
-                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no Visual Bucs will be charged.</p>
+                  <p className="text-sm text-white/50">{t("songAndVideo.draftRecoverDesc")}</p>
                   <div className="space-y-2.5">
                     <Button onClick={() => { void handleRecover(); }} className="w-full gold-glow font-bold gap-2 h-11">
-                      <RefreshCcw className="h-4 w-4" /> Recover Draft
+                      <RefreshCcw className="h-4 w-4" /> {t("songAndVideo.recoverDraftButton")}
                     </Button>
                     <button onClick={downloadDraftBackup}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-sm text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors font-semibold">
-                      <Download className="h-4 w-4" /> Download Backup JSON
+                      <Download className="h-4 w-4" /> {t("songAndVideo.downloadBackupJson")}
                     </button>
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
-                      Discard Draft
+                      {t("songAndVideo.discardDraftButton")}
                     </button>
                   </div>
                 </div>
@@ -785,8 +834,8 @@ export default function SongAndVideo() {
                 <div className="p-8 flex flex-col items-center gap-4">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
                   <div className="text-center">
-                    <p className="font-bold text-white">Recovering draft…</p>
-                    <p className="text-xs text-white/40 mt-1">Restoring all your content</p>
+                    <p className="font-bold text-white">{t("songAndVideo.recoveringDraftTitle")}</p>
+                    <p className="text-xs text-white/40 mt-1">{t("songAndVideo.recoveringDraftDesc")}</p>
                   </div>
                 </div>
               )}
@@ -796,8 +845,8 @@ export default function SongAndVideo() {
                     <Check className="h-7 w-7 text-green-400" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-white text-lg">Draft Recovered</p>
-                    <p className="text-xs text-white/40 mt-1">Your project has been fully restored</p>
+                    <p className="font-black text-white text-lg">{t("songAndVideo.draftRecoveredTitle")}</p>
+                    <p className="text-xs text-white/40 mt-1">{t("songAndVideo.draftRecoveredDesc")}</p>
                   </div>
                 </div>
               )}
@@ -808,18 +857,18 @@ export default function SongAndVideo() {
                       <X className="h-4 w-4 text-red-400" />
                     </div>
                     <div>
-                      <p className="font-bold text-white text-sm">Recovery Failed</p>
+                      <p className="font-bold text-white text-sm">{t("songAndVideo.recoveryFailedTitle")}</p>
                       <p className="text-xs text-red-300/80 mt-0.5 leading-relaxed">{draftError}</p>
                     </div>
                   </div>
                   <div className="space-y-2.5">
                     <button onClick={downloadDraftBackup}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/[0.07] text-sm text-primary hover:bg-primary/15 transition-colors font-semibold">
-                      <Download className="h-4 w-4" /> Download Backup JSON
+                      <Download className="h-4 w-4" /> {t("songAndVideo.downloadBackupJson")}
                     </button>
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
-                      Dismiss
+                      {t("songAndVideo.dismissButton")}
                     </button>
                   </div>
                 </div>
@@ -834,13 +883,13 @@ export default function SongAndVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Mic2 className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">200 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">{t("songAndVideo.costBadge")}</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            Make Song + Video
+            {t("songAndVideo.pageTitle")}
           </h1>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
-            Complete AI song + music video workflow — lyrics, visuals, and promo in one pass.
+            {t("songAndVideo.pageHeadingDesc")}
           </p>
         </div>
 
@@ -850,85 +899,85 @@ export default function SongAndVideo() {
         {/* ──────────── STEP 1: SONG SETUP ──────────── */}
         {step === 1 && (
           <div className="space-y-6">
-            <StepShell icon={Music} title="Song Setup" subtitle="Tell us about the song you want to create">
+            <StepShell icon={Music} title={t("songAndVideo.step1Title")} subtitle={t("songAndVideo.step1Subtitle")}>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Artist Name">
+                <FieldWrapper label={t("songAndVideo.fieldArtistName")}>
                   <Input {...register("artistName", { required: true })}
-                    placeholder="e.g. Lil Nova"
+                    placeholder={t("songAndVideo.artistNamePlaceholder")}
                     className={inputCls + (errors.artistName ? " border-red-500/50" : "")} />
-                  {errors.artistName && <p className="text-red-400 text-xs mt-1">Required</p>}
+                  {errors.artistName && <p className="text-red-400 text-xs mt-1">{t("songAndVideo.requiredLabel")}</p>}
                 </FieldWrapper>
-                <FieldWrapper label="Song Title" hint="optional">
-                  <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputCls} />
+                <FieldWrapper label={t("songAndVideo.fieldSongTitle")} hint={t("songAndVideo.optionalHint")}>
+                  <Input {...register("songTitle")} placeholder={t("songAndVideo.songTitlePlaceholder")} className={inputCls} />
                 </FieldWrapper>
               </div>
 
               {/* Genre + Mood — style picks (2) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
-                <FieldWrapper label="Genre">
-                  <Sel name="genre" placeholder="Select genre…" options={GENRES}
+                <FieldWrapper label={t("songAndVideo.fieldGenre")}>
+                  <Sel name="genre" placeholder={t("songAndVideo.selectGenrePlaceholder")} options={GENRES}
                     value={watched.genre} onChange={(v) => setValue("genre", v)} />
                 </FieldWrapper>
-                <FieldWrapper label="Mood">
-                  <Sel name="mood" placeholder="Select mood…" options={MOODS}
+                <FieldWrapper label={t("songAndVideo.fieldMood")}>
+                  <Sel name="mood" placeholder={t("songAndVideo.selectMoodPlaceholder")} options={MOODS}
                     value={watched.mood} onChange={(v) => setValue("mood", v)} />
                 </FieldWrapper>
               </div>
 
-              <FieldWrapper label="Song Topic">
+              <FieldWrapper label={t("songAndVideo.fieldSongTopic")}>
                 <Textarea {...register("songTopic", { required: true })}
-                  placeholder="Describe the story, theme, or feeling of the song. Include personal details, metaphors, or narrative elements you want woven into the lyrics…"
+                  placeholder={t("songAndVideo.songTopicPlaceholder")}
                   className={textCls + (errors.songTopic ? " border-red-500/50" : "")}
                   style={{ minHeight: "110px" }} />
-                {errors.songTopic && <p className="text-red-400 text-xs mt-1">Required</p>}
+                {errors.songTopic && <p className="text-red-400 text-xs mt-1">{t("songAndVideo.requiredLabel")}</p>}
               </FieldWrapper>
 
               {/* Clean/Explicit + Voice Style + Song Length — tweak options (3) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5" data-min-stars="3">
-                <FieldWrapper label="Clean or Explicit">
-                  <Sel name="cleanOrExplicit" placeholder="Select…" options={["Clean","Explicit"]}
+                <FieldWrapper label={t("songAndVideo.fieldCleanOrExplicit")}>
+                  <Sel name="cleanOrExplicit" placeholder={t("songAndVideo.selectPlaceholder")} options={[{ value: "Clean", labelKey: "songAndVideo.cleanOption" }, { value: "Explicit", labelKey: "songAndVideo.explicitOption" }]}
                     value={watched.cleanOrExplicit} onChange={(v) => setValue("cleanOrExplicit", v)} />
                 </FieldWrapper>
-                <FieldWrapper label="Voice Style" hint="optional">
-                  <Input {...register("voiceStyle")} placeholder="e.g. deep, raspy, melodic…" className={inputCls} />
+                <FieldWrapper label={t("songAndVideo.fieldVoiceStyle")} hint={t("songAndVideo.optionalHint")}>
+                  <Input {...register("voiceStyle")} placeholder={t("songAndVideo.voiceStylePlaceholder")} className={inputCls} />
                 </FieldWrapper>
-                <FieldWrapper label="Song Length" hint="optional">
-                  <Input {...register("songLength")} placeholder="e.g. 3:30, 2 minutes…" className={inputCls} />
+                <FieldWrapper label={t("songAndVideo.fieldSongLength")} hint={t("songAndVideo.optionalHint")}>
+                  <Input {...register("songLength")} placeholder={t("songAndVideo.songLengthPlaceholder")} className={inputCls} />
                 </FieldWrapper>
               </div>
 
               {/* Beat Style — tweak option (3) */}
               <div data-min-stars="3">
-                <FieldWrapper label="Beat Style" hint="optional">
-                  <Input {...register("beatStyle")} placeholder="e.g. dark 808s, trap drums, live piano, boom bap…" className={inputCls} />
+                <FieldWrapper label={t("songAndVideo.fieldBeatStyle")} hint={t("songAndVideo.optionalHint")}>
+                  <Input {...register("beatStyle")} placeholder={t("songAndVideo.beatStylePlaceholder")} className={inputCls} />
                 </FieldWrapper>
               </div>
 
               {/* Existing Lyrics */}
               <div className="space-y-2 pt-1">
                 <Label className="text-sm font-semibold text-white/65 uppercase tracking-wider flex items-baseline gap-2">
-                  Existing Lyrics
-                  <span className="text-[10px] normal-case tracking-normal font-normal text-white/25">Optional — AI uses these as the base</span>
+                  {t("songAndVideo.fieldExistingLyrics")}
+                  <span className="text-[10px] normal-case tracking-normal font-normal text-white/25">{t("songAndVideo.existingLyricsNote")}</span>
                 </Label>
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("existingLyrics", text); setSongStructure(null); }}
                   onFileUrl={setAudioUrl}
                 />
                 <Textarea {...register("existingLyrics")}
-                  placeholder="Paste existing lyrics here, or upload audio above to auto-transcribe…"
+                  placeholder={t("songAndVideo.existingLyricsPlaceholder")}
                   className={textCls} style={{ minHeight: "120px" }} />
                 {watched.existingLyrics.length > 10 && (
                   <div className="flex items-center gap-3 flex-wrap pt-1">
                     <button type="button" onClick={handleAnalyze} disabled={analyzing}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors">
                       {analyzing
-                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing…</>
-                        : <><BarChart2 className="h-3.5 w-3.5" /> Analyze Song Sections</>}
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("songAndVideo.analyzingLabel")}</>
+                        : <><BarChart2 className="h-3.5 w-3.5" /> {t("songAndVideo.analyzeSectionsButton")}</>}
                     </button>
                     {songStructure && !analyzing && (
                       <span className="text-xs text-primary/60 flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Analysis complete
+                        <Check className="h-3 w-3" /> {t("songAndVideo.analysisComplete")}
                       </span>
                     )}
                     {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
@@ -939,7 +988,7 @@ export default function SongAndVideo() {
 
             </StepShell>
 
-            <NavRow backHidden onNext={goNext} nextLabel="Artist & Brand" nextIcon={<ArrowRight className="h-4 w-4" />} />
+            <NavRow backHidden onNext={goNext} nextLabel={t("songAndVideo.navArtistBrand")} nextIcon={<ArrowRight className="h-4 w-4" />} />
           </div>
         )}
 
@@ -948,8 +997,8 @@ export default function SongAndVideo() {
           <div className="space-y-6">
             <StepShell
               icon={Mic2}
-              title="Artist / Brand"
-              subtitle={activeArtist ? "Your active artist is ready to go." : "Help the AI match your look, style, and brand identity"}
+              title={t("songAndVideo.step2Title")}
+              subtitle={activeArtist ? t("songAndVideo.step2SubtitleActive") : t("songAndVideo.step2SubtitleDefault")}
             >
               {/* ── Active artist shortcut ── */}
               {activeArtist ? (
@@ -964,36 +1013,36 @@ export default function SongAndVideo() {
                     <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
                   </div>
 
-                  <FieldWrapper label="Artist Description">
+                  <FieldWrapper label={t("songAndVideo.fieldArtistDescription")}>
                     <Textarea {...register("artistDescription", { required: !loadedVault })}
-                      placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe style, tattoos, jewelry, vibe, and any references…"
+                      placeholder={t("songAndVideo.artistDescriptionPlaceholder")}
                       className={textCls + (errors.artistDescription ? " border-red-500/50" : "")}
                       style={{ minHeight: "120px" }} />
-                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
+                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">{t("songAndVideo.requiredLabel")}</p>}
                   </FieldWrapper>
 
                   {/* Visual Style Rules — tweak options (3) */}
                   <div data-min-stars="3">
-                    <FieldWrapper label="Visual Style Rules" hint="optional">
+                    <FieldWrapper label={t("songAndVideo.fieldVisualStyleRules")} hint={t("songAndVideo.optionalHint")}>
                       <Textarea {...register("visualStyleRules")}
-                        placeholder="Describe the visual aesthetic, cinematography style, color palette rules, or references…"
+                        placeholder={t("songAndVideo.visualStyleRulesPlaceholder")}
                         className={textCls} style={{ minHeight: "90px" }} />
                     </FieldWrapper>
                   </div>
 
                   {/* Brand Colors — tweak option (3) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
-                    <FieldWrapper label="Brand Colors" hint="optional">
-                      <Input {...register("brandColors")} placeholder="e.g. black, gold, deep purple" className={inputCls} />
+                    <FieldWrapper label={t("songAndVideo.fieldBrandColors")} hint={t("songAndVideo.optionalHint")}>
+                      <Input {...register("brandColors")} placeholder={t("songAndVideo.brandColorsPlaceholder")} className={inputCls} />
                     </FieldWrapper>
                     <div />
                   </div>
 
                   {/* Do Not Change Rules — manual overrides (4) */}
                   <div data-min-stars="4">
-                    <FieldWrapper label="Do Not Change Rules" hint="optional">
+                    <FieldWrapper label={t("songAndVideo.fieldDoNotChangeRules")} hint={t("songAndVideo.optionalHint")}>
                       <Textarea {...register("doNotChangeRules")}
-                        placeholder="List anything the AI should NEVER change — artist name spelling, signature phrases, visual elements, etc…"
+                        placeholder={t("songAndVideo.doNotChangeRulesPlaceholder")}
                         className={textCls} style={{ minHeight: "80px" }} />
                     </FieldWrapper>
                   </div>
@@ -1002,10 +1051,10 @@ export default function SongAndVideo() {
             </StepShell>
 
             {!activeArtist && (
-              <NavRow onBack={() => setStep(1)} onNext={goNext} nextLabel="Video Direction" nextIcon={<ArrowRight className="h-4 w-4" />} />
+              <NavRow onBack={() => setStep(1)} onNext={goNext} nextLabel={t("songAndVideo.navVideoDirection")} nextIcon={<ArrowRight className="h-4 w-4" />} />
             )}
             {activeArtist && (
-              <NavRow onBack={() => setStep(1)} onNext={handleContinueWithActiveArtist} nextLabel="Video Direction" nextIcon={<ArrowRight className="h-4 w-4" />} />
+              <NavRow onBack={() => setStep(1)} onNext={handleContinueWithActiveArtist} nextLabel={t("songAndVideo.navVideoDirection")} nextIcon={<ArrowRight className="h-4 w-4" />} />
             )}
           </div>
         )}
@@ -1013,69 +1062,69 @@ export default function SongAndVideo() {
         {/* ──────────── STEP 3: VIDEO DIRECTION ──────────── */}
         {step === 3 && (
           <div className="space-y-6">
-            <StepShell icon={Video} title="Video Direction" subtitle="Set the visual world for your music video">
+            <StepShell icon={Video} title={t("songAndVideo.step3Title")} subtitle={t("songAndVideo.step3Subtitle")}>
 
               {/* Video Style + Platform — style picks (2) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
-                <FieldWrapper label="Video Style">
-                  <Sel name="videoStyle" placeholder="Select style…" options={VIDEO_STYLES}
+                <FieldWrapper label={t("songAndVideo.fieldVideoStyle")}>
+                  <Sel name="videoStyle" placeholder={t("songAndVideo.selectStylePlaceholder")} options={VIDEO_STYLES}
                     value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
                 </FieldWrapper>
-                <FieldWrapper label="Platform">
-                  <Sel name="platform" placeholder="Select platform…" options={PLATFORMS}
+                <FieldWrapper label={t("songAndVideo.fieldPlatform")}>
+                  <Sel name="platform" placeholder={t("songAndVideo.selectPlatformPlaceholder")} options={PLATFORMS}
                     value={watched.platform} onChange={(v) => setValue("platform", v)} />
                 </FieldWrapper>
               </div>
 
               {/* Video Length — tweak option (3) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
-                <FieldWrapper label="Video Length" hint="optional">
-                  <Input {...register("videoLength")} placeholder="e.g. 3 minutes, match song length…" className={inputCls} />
+                <FieldWrapper label={t("songAndVideo.fieldVideoLength")} hint={t("songAndVideo.optionalHint")}>
+                  <Input {...register("videoLength")} placeholder={t("songAndVideo.videoLengthPlaceholder")} className={inputCls} />
                 </FieldWrapper>
                 <div />
               </div>
 
               {/* Location Ideas — tweak options (3) */}
               <div data-min-stars="3">
-                <FieldWrapper label="Location Ideas" hint="optional">
+                <FieldWrapper label={t("songAndVideo.fieldLocationIdeas")} hint={t("songAndVideo.optionalHint")}>
                   <Textarea {...register("locationIdeas")}
-                    placeholder="Describe location concepts — city streets, rooftop, beach, abandoned warehouse, studio, specific cities or vibes…"
+                    placeholder={t("songAndVideo.locationIdeasPlaceholder")}
                     className={textCls} style={{ minHeight: "90px" }} />
                 </FieldWrapper>
               </div>
 
               {/* Special Visual Instructions — manual prompt editing (4) */}
               <div data-min-stars="4">
-                <FieldWrapper label="Special Visual Instructions" hint="optional">
+                <FieldWrapper label={t("songAndVideo.fieldSpecialInstructions")} hint={t("songAndVideo.optionalHint")}>
                   <Textarea {...register("specialInstructions")}
-                    placeholder="Specific shots, cultural elements, visual references, things to avoid, color notes, or anything else the AI should know…"
+                    placeholder={t("songAndVideo.specialInstructionsPlaceholder")}
                     className={textCls} style={{ minHeight: "90px" }} />
                 </FieldWrapper>
               </div>
 
             </StepShell>
 
-            <NavRow onBack={() => setStep(2)} onNext={() => setStep(4)} nextLabel="Review & Generate" nextIcon={<Sparkles className="h-4 w-4" />} />
+            <NavRow onBack={() => setStep(2)} onNext={() => setStep(4)} nextLabel={t("songAndVideo.navReviewGenerate")} nextIcon={<Sparkles className="h-4 w-4" />} />
           </div>
         )}
 
         {/* ──────────── STEP 4: GENERATE ──────────── */}
         {step === 4 && (
           <div className="space-y-6">
-            <StepShell icon={Sparkles} title="Generate Package" subtitle="Review your setup and generate the full Song + Video package">
+            <StepShell icon={Sparkles} title={t("songAndVideo.step4Title")} subtitle={t("songAndVideo.step4Subtitle")}>
 
               {/* Summary */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  { label: "Artist", value: watched.artistName || "—" },
-                  { label: "Song",   value: watched.songTitle  || "Untitled" },
-                  { label: "Genre",  value: watched.genre      || "—" },
-                  { label: "Mood",   value: watched.mood       || "—" },
-                  { label: "Video",  value: watched.videoStyle || "—" },
-                  { label: "Platform", value: watched.platform ? watched.platform.split(" -")[0] : "—" },
-                ].map(({ label, value }) => (
-                  <div key={label} className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">{label}</p>
+                  { labelKey: "songAndVideo.summaryArtist", value: watched.artistName || "—" },
+                  { labelKey: "songAndVideo.summarySong", value: watched.songTitle || t("songAndVideo.untitledFallback") },
+                  { labelKey: "songAndVideo.summaryGenre", value: watched.genre || "—" },
+                  { labelKey: "songAndVideo.summaryMood", value: watched.mood || "—" },
+                  { labelKey: "songAndVideo.summaryVideo", value: watched.videoStyle || "—" },
+                  { labelKey: "songAndVideo.summaryPlatform", value: watched.platform ? watched.platform.split(" -")[0] : "—" },
+                ].map(({ labelKey, value }) => (
+                  <div key={labelKey} className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">{t(labelKey)}</p>
                     <p className="text-sm font-bold text-white truncate">{value}</p>
                   </div>
                 ))}
@@ -1083,16 +1132,16 @@ export default function SongAndVideo() {
 
               {/* What you get */}
               <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-5">
-                <p className="text-xs font-bold text-primary/70 uppercase tracking-widest mb-3">What you'll get</p>
+                <p className="text-xs font-bold text-primary/70 uppercase tracking-widest mb-3">{t("songAndVideo.whatYouGetTitle")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
                   {[
-                    "Song Concept + Best Title","Full Lyrics (Verse / Hook / Bridge)","AI Music Prompt for Suno / Udio",
-                    "Beat Direction","Vocal Direction","Director's Treatment",
-                    "Scene-by-Scene Breakdown","AI Video Prompts (Runway / Sora)","Thumbnail Prompts",
-                    "Promo Clip Ideas","Caption Pack",
-                  ].map((item) => (
-                    <div key={item} className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="h-3 w-3 text-primary shrink-0" /> {item}
+                    "songAndVideo.whatYouGetSongConcept","songAndVideo.whatYouGetFullLyrics","songAndVideo.whatYouGetMusicPrompt",
+                    "songAndVideo.whatYouGetBeatDirection","songAndVideo.whatYouGetVocalDirection","songAndVideo.whatYouGetTreatment",
+                    "songAndVideo.whatYouGetBreakdown","songAndVideo.whatYouGetVideoPrompts","songAndVideo.whatYouGetThumbnails",
+                    "songAndVideo.whatYouGetPromoClips","songAndVideo.whatYouGetCaptions",
+                  ].map((itemKey) => (
+                    <div key={itemKey} className="flex items-center gap-2 text-sm text-white/60">
+                      <Check className="h-3 w-3 text-primary shrink-0" /> {t(itemKey)}
                     </div>
                   ))}
                 </div>
@@ -1100,7 +1149,7 @@ export default function SongAndVideo() {
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-white/25 flex items-center gap-1.5">
-                  <Zap className="h-3 w-3 text-primary" /> Uses 200 Visual Bucs
+                  <Zap className="h-3 w-3 text-primary" /> {t("songAndVideo.usesCreditsNote")}
                 </p>
               </div>
 
@@ -1116,7 +1165,7 @@ export default function SongAndVideo() {
             <NavRow
               onBack={() => setStep(3)}
               onNext={handleGenerate}
-              nextLabel="Create Song + Video Package"
+              nextLabel={t("songAndVideo.navCreatePackage")}
               nextIcon={<Sparkles className="h-4 w-4" />}
               loading={loading}
             />
@@ -1132,10 +1181,10 @@ export default function SongAndVideo() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-xs font-bold tracking-widest text-green-400 uppercase">Package Ready</span>
+                  <span className="text-xs font-bold tracking-widest text-green-400 uppercase">{t("songAndVideo.packageReadyBadge")}</span>
                 </div>
                 <h2 className="text-xl font-black text-white">
-                  {[watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Your Song + Video Package"}
+                  {[watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || t("songAndVideo.fallbackPackageTitle")}
                 </h2>
               </div>
             </div>
@@ -1147,7 +1196,7 @@ export default function SongAndVideo() {
                   <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
                     <Music className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <h3 className="text-xs font-black text-primary uppercase tracking-widest">Song Package</h3>
+                  <h3 className="text-xs font-black text-primary uppercase tracking-widest">{t("songAndVideo.songPackageTitle")}</h3>
                   <div className="flex-1 h-px bg-primary/20" />
                 </div>
                 <div className="space-y-2">
@@ -1163,7 +1212,7 @@ export default function SongAndVideo() {
                   <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
                     <Video className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest">Video Package</h3>
+                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest">{t("songAndVideo.videoPackageTitle")}</h3>
                   <div className="flex-1 h-px bg-blue-600/20" />
                 </div>
                 <div className="space-y-2">
@@ -1189,7 +1238,7 @@ export default function SongAndVideo() {
                 <div className="h-7 w-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
                   <Sparkles className="h-3.5 w-3.5 text-white/40" />
                 </div>
-                <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Download & Share</h3>
+                <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">{t("songAndVideo.downloadShareTitle")}</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1205,18 +1254,18 @@ export default function SongAndVideo() {
                     {saving ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                       : saved ? <Check className="h-4 w-4 shrink-0" />
                       : <Save className="h-4 w-4 shrink-0" />}
-                    {saved ? "Project Saved" : saving ? "Saving…" : "Save Project"}
+                    {saved ? t("songAndVideo.projectSaved") : saving ? t("songAndVideo.savingLabel") : t("songAndVideo.saveProjectButton")}
                   </button>
                   {autoSaveStatus === "saving" && !saved && (
                     <p className="text-[11px] text-white/40 flex items-center gap-1.5">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Saving generation…
+                      <Loader2 className="h-3 w-3 animate-spin" /> {t("songAndVideo.savingGenerationNote")}
                     </p>
                   )}
                   {autoSaveStatus === "failed" && creditRefunded && (
-                    <p className="text-[11px] text-amber-400">Visual Bucs refunded — find your content in <strong>Generation History</strong>.</p>
+                    <p className="text-[11px] text-amber-400">{t("songAndVideo.creditRefundedNote")} <strong>{t("songAndVideo.generationHistory")}</strong>.</p>
                   )}
                   {saveError && (
-                    <p className="text-[11px] text-red-400">Save failed: {saveError}</p>
+                    <p className="text-[11px] text-red-400">{t("songAndVideo.saveFailedWithError", { error: saveError })}</p>
                   )}
                 </div>
 
@@ -1224,33 +1273,33 @@ export default function SongAndVideo() {
                 {savedProjectId ? (
                   <Link href={`/video-editor?project=${savedProjectId}`}>
                     <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm cursor-pointer">
-                      <Video className="h-4 w-4 shrink-0" /> Open Video Editor
+                      <Video className="h-4 w-4 shrink-0" /> {t("songAndVideo.openVideoEditor")}
                     </div>
                   </Link>
                 ) : (
-                  <button onClick={() => { toast({ title: "Save your project first", description: "Save to unlock the Video Editor." }); }}
+                  <button onClick={() => { toast({ title: t("songAndVideo.toastSaveFirstTitle"), description: t("songAndVideo.toastSaveFirstDesc") }); }}
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/30 font-semibold text-sm cursor-pointer hover:text-white/50 transition-colors">
-                    <Video className="h-4 w-4 shrink-0" /> Open Video Editor
+                    <Video className="h-4 w-4 shrink-0" /> {t("songAndVideo.openVideoEditor")}
                   </button>
                 )}
 
                 {/* Generate Promo Clips */}
                 <Link href="/promo-clip">
                   <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm cursor-pointer">
-                    <Film className="h-4 w-4 shrink-0" /> Generate Promo Clips
+                    <Film className="h-4 w-4 shrink-0" /> {t("songAndVideo.generatePromoClips")}
                   </div>
                 </Link>
 
                 {/* Download TXT */}
                 <button onClick={() => downloadTxt(exportMeta)}
                   className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm">
-                  <FileText className="h-4 w-4 shrink-0" /> Download TXT
+                  <FileText className="h-4 w-4 shrink-0" /> {t("songAndVideo.downloadTxtButton")}
                 </button>
 
                 {/* Download PDF */}
                 <button onClick={() => downloadPdf(exportMeta)}
                   className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm">
-                  <FileDown className="h-4 w-4 shrink-0" /> Download PDF
+                  <FileDown className="h-4 w-4 shrink-0" /> {t("songAndVideo.downloadPdfButton")}
                 </button>
 
               </div>
@@ -1259,7 +1308,7 @@ export default function SongAndVideo() {
               <div className="pt-2 border-t border-white/[0.05]">
                 <button onClick={handleReset}
                   className="text-xs text-white/20 hover:text-white/50 transition-colors">
-                  ← Start a new Song + Video
+                  {t("songAndVideo.startNewButton")}
                 </button>
               </div>
             </div>

@@ -1,7 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import helmet from "helmet";
 import pinoHttp from "pino-http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -13,23 +12,28 @@ import { stagingGate } from "./lib/staging-gate";
 
 const app: Express = express();
 
-/* Security headers. CSP is permissive for the Vite SPA bundle while
-   blocking the most common injection vectors. */
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://*.supabase.co", "https://api.stripe.com", "wss://*.supabase.co"],
-      frameSrc: ["https://js.stripe.com"],
-      fontSrc: ["'self'", "data:", "https:"],
-      mediaSrc: ["'self'", "https:", "blob:"],
-    },
-  },
-  crossOriginEmbedderPolicy: false, // allows loading cross-origin media assets
-}));
+/* Security headers (manual implementation — no helmet dependency).
+   CSP is permissive for the Vite SPA bundle while blocking common injection vectors. */
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https: blob:",
+      "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co",
+      "frame-src https://js.stripe.com",
+      "font-src 'self' data: https:",
+      "media-src 'self' https: blob:",
+    ].join("; ")
+  );
+  next();
+});
 
 /**
  * Global rate limiter: backstop for all routes.

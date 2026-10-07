@@ -4,52 +4,49 @@ import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* Account settings. The social OAuth callbacks redirect here with
    ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
    (or ?social=error&reason=...). */
 
-const REASON_MESSAGES: Record<string, string> = {
-  oauth_failed:
-    "Instagram refused the connection — check the account is Business/Creator and linked to a Facebook Page.",
-  facebook_oauth_failed:
-    "Facebook refused the connection — try again, or reconnect from a browser where you're logged into Facebook.",
-  facebook_no_pages:
-    "No Facebook Pages were found on that account — create a Page first, then connect.",
-  facebook_bad_state:
-    "The login session expired before Facebook finished. Try connecting again.",
-  facebook_missing_params:
-    "Facebook didn't send back a complete response. Try connecting again.",
+const REASON_MESSAGE_KEYS: Record<string, string> = {
+  oauth_failed: "settings.reasonOauthFailed",
+  facebook_oauth_failed: "settings.reasonFacebookOauthFailed",
+  facebook_no_pages: "settings.reasonFacebookNoPages",
+  facebook_bad_state: "settings.reasonFacebookBadState",
+  facebook_missing_params: "settings.reasonFacebookMissingParams",
 };
 
-const SOCIAL_MESSAGES: Record<string, { title: string; description: string; destructive?: boolean }> = {
+const SOCIAL_MESSAGE_KEYS: Record<string, { titleKey: string; descKey: string; destructive?: boolean }> = {
   instagram_connected: {
-    title: "Instagram connected",
-    description: "Your account is ready — post exports straight to Reels.",
+    titleKey: "settings.socialInstagramTitle",
+    descKey: "settings.socialInstagramDesc",
   },
   tiktok_connected: {
-    title: "TikTok connected",
-    description: "Your account is ready — exports go to your TikTok drafts.",
+    titleKey: "settings.socialTiktokTitle",
+    descKey: "settings.socialTiktokDesc",
   },
   facebook_connected: {
-    title: "Facebook connected",
-    description: "Your Pages are ready — post exports straight to Facebook as Reels.",
+    titleKey: "settings.socialFacebookTitle",
+    descKey: "settings.socialFacebookDesc",
   },
   error: {
-    title: "Connection failed",
-    description: "The connection didn't complete. Try again.",
+    titleKey: "settings.socialErrorTitle",
+    descKey: "settings.socialErrorDesc",
     destructive: true,
   },
   tiktok_error: {
-    title: "TikTok connection failed",
-    description: "The connection didn't complete. Try again, and make sure you approved the upload permission.",
+    titleKey: "settings.socialTiktokErrorTitle",
+    descKey: "settings.socialTiktokErrorDesc",
     destructive: true,
   },
 };
 
 export default function Settings() {
-  usePageTitle("Settings", "Manage your account, preferences, and connected accounts.");
+  const { t } = useTranslation();
+  usePageTitle(t("settings.pageTitle"), t("settings.pageDescription"));
   const search = useSearch();
   const { toast } = useToast();
 
@@ -57,12 +54,13 @@ export default function Settings() {
     const params = new URLSearchParams(search);
     const social = params.get("social");
     if (!social) return;
-    const msg = SOCIAL_MESSAGES[social] ?? SOCIAL_MESSAGES["error"];
+    const msg = SOCIAL_MESSAGE_KEYS[social] ?? SOCIAL_MESSAGE_KEYS["error"];
     if (msg) {
       const reason = params.get("reason") ?? "";
+      const reasonKey = REASON_MESSAGE_KEYS[reason];
       toast({
-        title: msg.title,
-        description: REASON_MESSAGES[reason] ?? msg.description,
+        title: t(msg.titleKey),
+        description: reasonKey ? t(reasonKey) : t(msg.descKey),
         variant: msg.destructive ? "destructive" : "default",
       });
     }
@@ -82,7 +80,7 @@ export default function Settings() {
             href="/dashboard"
             className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" /> {t("settings.backToDashboard")}
           </Link>
         </div>
 
@@ -91,8 +89,8 @@ export default function Settings() {
             <SettingsIcon className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-white/40 mt-1 text-sm">Your account and connections</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h1>
+            <p className="text-white/40 mt-1 text-sm">{t("settings.subtitle")}</p>
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { useTranslation } from "react-i18next";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
    High-retention video scripts: platform-optimized hooks, timestamped beats
@@ -43,24 +44,24 @@ interface ScriptResult {
   creditsRemaining: number;
 }
 
-const PLATFORMS: Array<{ id: Platform; label: string; blurb: string; icon: typeof MonitorPlay }> = [
-  { id: "youtube", label: "YouTube", blurb: "Search-friendly, chapters, mid-roll pacing", icon: MonitorPlay },
-  { id: "tiktok", label: "TikTok", blurb: "Vertical energy, comment-bait", icon: Music2 },
-  { id: "reels", label: "Reels", blurb: "Aesthetic-first, save/share triggers", icon: Smartphone },
+const PLATFORMS: Array<{ id: Platform; labelKey: string; blurbKey: string; icon: typeof MonitorPlay }> = [
+  { id: "youtube", labelKey: "scriptWriter.platformYoutube", blurbKey: "scriptWriter.platformYoutubeBlurb", icon: MonitorPlay },
+  { id: "tiktok", labelKey: "scriptWriter.platformTiktok", blurbKey: "scriptWriter.platformTiktokBlurb", icon: Music2 },
+  { id: "reels", labelKey: "scriptWriter.platformReels", blurbKey: "scriptWriter.platformReelsBlurb", icon: Smartphone },
 ];
 
-const LENGTHS: Array<{ id: Length; label: string; blurb: string }> = [
-  { id: "short", label: "Under 60s", blurb: "One tight idea" },
-  { id: "medium", label: "1–3 min", blurb: "A clear arc" },
-  { id: "long", label: "3–10 min", blurb: "Chapters + re-hooks" },
-  { id: "deep", label: "10+ min", blurb: "Documentary depth" },
+const LENGTHS: Array<{ id: Length; labelKey: string; blurbKey: string }> = [
+  { id: "short", labelKey: "scriptWriter.lengthShort", blurbKey: "scriptWriter.lengthShortBlurb" },
+  { id: "medium", labelKey: "scriptWriter.lengthMedium", blurbKey: "scriptWriter.lengthMediumBlurb" },
+  { id: "long", labelKey: "scriptWriter.lengthLong", blurbKey: "scriptWriter.lengthLongBlurb" },
+  { id: "deep", labelKey: "scriptWriter.lengthDeep", blurbKey: "scriptWriter.lengthDeepBlurb" },
 ];
 
-const TONES: Array<{ id: Tone; label: string; blurb: string }> = [
-  { id: "educational", label: "Educational", blurb: "Teach like an expert" },
-  { id: "entertaining", label: "Entertaining", blurb: "High energy, funny" },
-  { id: "inspirational", label: "Inspirational", blurb: "Story-driven, emotional" },
-  { id: "controversial", label: "Controversial", blurb: "Bold takes, spicy" },
+const TONES: Array<{ id: Tone; labelKey: string; blurbKey: string }> = [
+  { id: "educational", labelKey: "scriptWriter.toneEducational", blurbKey: "scriptWriter.toneEducationalBlurb" },
+  { id: "entertaining", labelKey: "scriptWriter.toneEntertaining", blurbKey: "scriptWriter.toneEntertainingBlurb" },
+  { id: "inspirational", labelKey: "scriptWriter.toneInspirational", blurbKey: "scriptWriter.toneInspirationalBlurb" },
+  { id: "controversial", labelKey: "scriptWriter.toneControversial", blurbKey: "scriptWriter.toneControversialBlurb" },
 ];
 
 const CREDIT_COST = 2;
@@ -70,6 +71,7 @@ const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(2
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
+  const { t } = useTranslation();
   const { addAsset } = useHubProject();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -125,20 +127,20 @@ export default function ScriptWriter() {
         return;
       }
       if (!res.ok || !data.beats?.length) {
-        throw new Error(data.error || "The studio hiccupped — try again.");
+        throw new Error(data.error || t("scriptWriter.errorGenerationFailed"));
       }
       setResult(data);
       if (data.teleprompter) {
         addAsset({
           kind: "script",
           url: `data:text/plain;charset=utf-8,${encodeURIComponent(data.teleprompter)}`,
-          label: data.title || `Script — ${topic.trim().slice(0, 40)}`,
+          label: data.title || t("scriptWriter.scriptAssetLabel", { topic: topic.trim().slice(0, 40) }),
           detail: data.hook ? data.hook.slice(0, 80) : undefined,
           meta: { text: data.teleprompter, hook: data.hook || "" },
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : t("scriptWriter.errorGeneric"));
     } finally {
       setGenerating(false);
     }
@@ -152,31 +154,29 @@ export default function ScriptWriter() {
             <ScrollText className="w-6 h-6 text-amber-300" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            AI <span className="text-amber-300">Script Writer</span>
+            {t("scriptWriter.titlePrefix")} <span className="text-amber-300">{t("scriptWriter.titleHighlight")}</span>
           </h1>
         </div>
         <p className="text-white/55 max-w-2xl mb-8">
-          High-retention scripts with scroll-stopping hooks, timestamped beats,
-          visual cues, B-roll ideas, and retention triggers every 30 seconds.
-          Pick your platform, set the vibe, get a shoot-ready script.
+          {t("scriptWriter.pageDescription")}
         </p>
 
         {/* ── Controls ── */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
           <label className="block text-sm font-semibold text-white/70 mb-2">
-            What&apos;s the video about?
+            {t("scriptWriter.topicLabel")}
           </label>
           <input
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. How I produced my first beat in one night"
+            placeholder={t("scriptWriter.topicPlaceholder")}
             maxLength={300}
             className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60 mb-6"
           />
 
           <div className="grid md:grid-cols-3 gap-6 mb-6">
             <div data-min-stars="2">
-              <p className="text-sm font-semibold text-white/70 mb-2">Platform</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.platformLabel")}</p>
               <div className="flex flex-col gap-2">
                 {PLATFORMS.map((p) => (
                   <button
@@ -186,15 +186,15 @@ export default function ScriptWriter() {
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <p.icon className="w-4 h-4 text-amber-300" />
-                      {p.label}
+                      {t(p.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{p.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(p.blurbKey)}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div data-min-stars="3">
-              <p className="text-sm font-semibold text-white/70 mb-2">Length</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.lengthLabel")}</p>
               <div className="flex flex-col gap-2">
                 {LENGTHS.map((l) => (
                   <button
@@ -204,27 +204,27 @@ export default function ScriptWriter() {
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Clock className="w-4 h-4 text-amber-300" />
-                      {l.label}
+                      {t(l.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{l.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(l.blurbKey)}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div data-min-stars="3">
-              <p className="text-sm font-semibold text-white/70 mb-2">Tone</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.toneLabel")}</p>
               <div className="flex flex-col gap-2">
-                {TONES.map((t) => (
+                {TONES.map((tn) => (
                   <button
-                    key={t.id}
-                    onClick={() => setTone(t.id)}
-                    className={`${PICK} ${tone === t.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    key={tn.id}
+                    onClick={() => setTone(tn.id)}
+                    className={`${PICK} ${tone === tn.id ? PICK_ACTIVE : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Zap className="w-4 h-4 text-amber-300" />
-                      {t.label}
+                      {t(tn.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{t.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(tn.blurbKey)}</span>
                   </button>
                 ))}
               </div>
@@ -234,24 +234,24 @@ export default function ScriptWriter() {
           <div data-min-stars="3" className="grid md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-semibold text-white/70 mb-2">
-                Audience <span className="text-white/30 font-normal">(optional)</span>
+                {t("scriptWriter.audienceLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
               <input
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
-                placeholder="e.g. bedroom producers"
+                placeholder={t("scriptWriter.audiencePlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60"
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-white/70 mb-2">
-                CTA goal <span className="text-white/30 font-normal">(optional)</span>
+                {t("scriptWriter.ctaGoalLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
               <input
                 value={ctaGoal}
                 onChange={(e) => setCtaGoal(e.target.value)}
-                placeholder="e.g. join my Discord"
+                placeholder={t("scriptWriter.ctaGoalPlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60"
               />
@@ -266,17 +266,17 @@ export default function ScriptWriter() {
             {generating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Writing your script…
+                {t("scriptWriter.generatingLabel")}
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Write my script · {CREDIT_COST} Visual Bucs
+                {t("scriptWriter.writeScriptButton", { cost: CREDIT_COST })}
               </>
             )}
           </button>
           {!user && (
-            <p className="text-sm text-white/40 mt-2">Sign in to write scripts.</p>
+            <p className="text-sm text-white/40 mt-2">{t("scriptWriter.signInPrompt")}</p>
           )}
         </section>
 
@@ -300,14 +300,14 @@ export default function ScriptWriter() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold mb-1">
-                      Suggested title
+                      {t("scriptWriter.suggestedTitle")}
                     </p>
                     <h2 className="text-xl font-bold">{result.title}</h2>
                   </div>
                   <button
                     onClick={() => copyText("title", result.title)}
                     className="p-2 rounded-lg border border-white/10 hover:border-amber-400/50 transition-colors"
-                    aria-label="Copy title"
+                    aria-label={t("scriptWriter.copyTitleLabel")}
                   >
                     {copied === "title" ? (
                       <Check className="w-4 h-4 text-green-400" />
@@ -322,12 +322,12 @@ export default function ScriptWriter() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" /> The hook — first 3 seconds
+                  <Zap className="w-3.5 h-3.5" /> {t("scriptWriter.hookLabel")}
                 </p>
                 <button
                   onClick={() => copyText("hook", result.hook)}
                   className="p-2 rounded-lg border border-white/10 hover:border-amber-400/50 transition-colors"
-                  aria-label="Copy hook"
+                  aria-label={t("scriptWriter.copyHookLabel")}
                 >
                   {copied === "hook" ? (
                     <Check className="w-4 h-4 text-green-400" />
@@ -344,7 +344,7 @@ export default function ScriptWriter() {
             <div>
               <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <Clapperboard className="w-5 h-5 text-amber-300" />
-                The script — {result.beats.length} beats
+                {t("scriptWriter.scriptBeatsTitle", { count: result.beats.length })}
               </h3>
               <div className="space-y-3">
                 {result.beats.map((beat, i) => (
@@ -356,7 +356,7 @@ export default function ScriptWriter() {
                       <span className="text-xs font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/25 rounded-md px-2 py-0.5">
                         {beat.timestamp}
                       </span>
-                      <span className="text-xs text-white/35">Beat {i + 1}</span>
+                      <span className="text-xs text-white/35">{t("scriptWriter.beatLabel", { n: i + 1 })}</span>
                     </div>
                     <p className="text-white/90 leading-relaxed mb-2">{beat.spoken}</p>
                     <div className="grid sm:grid-cols-2 gap-2 text-xs">
@@ -364,7 +364,7 @@ export default function ScriptWriter() {
                         <p className="flex gap-1.5 text-white/50">
                           <Eye className="w-3.5 h-3.5 shrink-0 mt-0.5 text-white/35" />
                           <span>
-                            <span className="font-semibold text-white/65">On screen: </span>
+                            <span className="font-semibold text-white/65">{t("scriptWriter.onScreenLabel")} </span>
                             {beat.visualCue}
                           </span>
                         </p>
@@ -373,7 +373,7 @@ export default function ScriptWriter() {
                         <p className="flex gap-1.5 text-white/50">
                           <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5 text-white/35" />
                           <span>
-                            <span className="font-semibold text-white/65">B-roll: </span>
+                            <span className="font-semibold text-white/65">{t("scriptWriter.bRollLabel")} </span>
                             {beat.broll}
                           </span>
                         </p>
@@ -388,7 +388,7 @@ export default function ScriptWriter() {
               <div>
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-300" />
-                  Retention beats
+                  {t("scriptWriter.retentionBeatsTitle")}
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {result.retentionBeats.map((r, i) => (
@@ -418,7 +418,7 @@ export default function ScriptWriter() {
             {result.cta && (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold mb-1 flex items-center gap-1.5">
-                  <Megaphone className="w-3.5 h-3.5" /> Call to action
+                  <Megaphone className="w-3.5 h-3.5" /> {t("scriptWriter.ctaTitle")}
                 </p>
                 <p className="text-white/90">&ldquo;{result.cta}&rdquo;</p>
               </div>
@@ -427,13 +427,13 @@ export default function ScriptWriter() {
             {result.teleprompter && (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold">Teleprompter</h3>
+                  <h3 className="text-lg font-bold">{t("scriptWriter.teleprompterTitle")}</h3>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowTeleprompter((s) => !s)}
                       className="text-sm rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
                     >
-                      {showTeleprompter ? "Hide" : "Show"}
+                      {showTeleprompter ? t("scriptWriter.hideLabel") : t("scriptWriter.showLabel")}
                     </button>
                     <button
                       onClick={() => copyText("teleprompter", result.teleprompter)}
@@ -444,7 +444,7 @@ export default function ScriptWriter() {
                       ) : (
                         <Copy className="w-4 h-4" />
                       )}
-                      Copy script
+                      {t("scriptWriter.copyScriptButton")}
                     </button>
                   </div>
                 </div>
@@ -457,7 +457,7 @@ export default function ScriptWriter() {
             )}
 
             <p className="text-xs text-white/35 text-center">
-              {result.creditsUsed} Visual Bucs used · {result.creditsRemaining} remaining
+              {t("scriptWriter.creditsFooter", { used: result.creditsUsed, remaining: result.creditsRemaining })}
             </p>
           </section>
         )}
