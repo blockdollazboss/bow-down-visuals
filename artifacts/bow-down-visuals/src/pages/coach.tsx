@@ -9,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -25,17 +26,6 @@ interface PlatformOpt {
  icon: LucideIcon;
  blurb: string;
 }
-
-const PLATFORM_OPTS: PlatformOpt[] = [
- { key: "youtube", label: "YouTube", icon: Play, blurb: "Partner Program" },
- { key: "tiktok", label: "TikTok", icon: Music2, blurb: "Creator Rewards" },
- { key: "instagram", label: "Instagram", icon: Camera, blurb: "Bonuses & gifts" },
-];
-
-const NICHE_PRESETS = [
- "Music", "Gaming", "Comedy", "Fitness",
- "Beauty & Fashion", "Tech", "Education", "Lifestyle",
-];
 
 const CREDIT_COST = 1;
 
@@ -77,14 +67,14 @@ function progressBar(p: number): string {
  return "from-red-500 to-red-300";
 }
 
-function statusBadge(status: EligibilityItem["status"]): { label: string; cls: string } {
+function statusBadge(status: EligibilityItem["status"]): { labelKey: string; cls: string } {
  switch (status) {
  case "eligible":
- return { label: "Eligible", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" };
+ return { labelKey: "coach.statusEligible", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" };
  case "close":
- return { label: "Almost there", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" };
+ return { labelKey: "coach.statusClose", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" };
  default:
- return { label: "Building", cls: "border-white/15 bg-white/[0.04] text-white/50" };
+ return { labelKey: "coach.statusBuilding", cls: "border-white/15 bg-white/[0.04] text-white/50" };
  }
 }
 
@@ -92,8 +82,26 @@ const inputClass =
  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function MonetizationCoach() {
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
+
+ const PLATFORM_OPTS: PlatformOpt[] = [
+  { key: "youtube", label: t("coach.platformYouTube"), icon: Play, blurb: t("coach.platformYouTubeBlurb") },
+  { key: "tiktok", label: t("coach.platformTikTok"), icon: Music2, blurb: t("coach.platformTikTokBlurb") },
+  { key: "instagram", label: t("coach.platformInstagram"), icon: Camera, blurb: t("coach.platformInstagramBlurb") },
+ ];
+
+ const NICHE_OPTIONS: { value: string; label: string }[] = [
+  { value: "Music", label: t("coach.nicheMusic") },
+  { value: "Gaming", label: t("coach.nicheGaming") },
+  { value: "Comedy", label: t("coach.nicheComedy") },
+  { value: "Fitness", label: t("coach.nicheFitness") },
+  { value: "Beauty & Fashion", label: t("coach.nicheBeautyFashion") },
+  { value: "Tech", label: t("coach.nicheTech") },
+  { value: "Education", label: t("coach.nicheEducation") },
+  { value: "Lifestyle", label: t("coach.nicheLifestyle") },
+ ];
 
  const [niche, setNiche] = useState("Music");
  const [customNiche, setCustomNiche] = useState("");
@@ -125,11 +133,11 @@ export default function MonetizationCoach() {
  if (loading || !user) return;
  const finalNiche = (customNiche.trim() || niche).slice(0, 120);
  if (!finalNiche) {
- setError("Tell the coach your niche first — that's what the money math runs on.");
+ setError(t("coach.errorNoNiche"));
  return;
  }
  if (platforms.length === 0) {
- setError("Pick at least one platform to check eligibility for.");
+ setError(t("coach.errorNoPlatform"));
  return;
  }
  const cadenceNum = Math.max(0, Math.min(100, parseInt(cadence, 10) || 0));
@@ -164,7 +172,7 @@ export default function MonetizationCoach() {
  return;
  }
  if (!res.ok || !Array.isArray(data.eligibility) || data.eligibility.length === 0 || !Array.isArray(data.moneyMoves) || data.moneyMoves.length === 0) {
- throw new Error(data.message || data.error || "Money plan failed — try again.");
+ throw new Error(data.message || data.error || t("coach.errorPlanFailed"));
  }
  setPlan(data);
  refreshProfile();
@@ -172,7 +180,7 @@ export default function MonetizationCoach() {
  document.getElementById("coach-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Money plan failed — try again.");
+ setError(err instanceof Error ? err.message : t("coach.errorPlanFailed"));
  } finally {
  setLoading(false);
  }
@@ -190,15 +198,13 @@ export default function MonetizationCoach() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <DollarSign className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+ <DollarSign className="h-3 w-3" aria-hidden="true" /> {t("coach.heroBadge")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Monetization <span className="text-primary">Coach</span>
+ {t("coach.titleStart")} <span className="text-primary">{t("coach.titleHighlight")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- The money end of the creator loop: where you stand on every
- monetization program, what your niche actually pays, and your
- next 3 money moves.
+ {t("coach.subtitle")}
  </p>
  </div>
 
@@ -206,22 +212,22 @@ export default function MonetizationCoach() {
  <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
  {/* niche */}
  <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Your niche
+ {t("coach.yourNiche")}
  </p>
  <div data-min-stars="2" className="flex flex-wrap gap-2">
- {NICHE_PRESETS.map((n) => {
- const selected = !customNiche.trim() && niche === n;
+ {NICHE_OPTIONS.map((opt) => {
+ const selected = !customNiche.trim() && niche === opt.value;
  return (
  <button
- key={n}
- onClick={() => { setNiche(n); setCustomNiche(""); }}
+ key={opt.value}
+ onClick={() => { setNiche(opt.value); setCustomNiche(""); }}
  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
  selected
  ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
  : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
  }`}
  >
- {n}
+ {opt.label}
  </button>
  );
  })}
@@ -230,13 +236,13 @@ export default function MonetizationCoach() {
  value={customNiche}
  onChange={(e) => setCustomNiche(e.target.value)}
  maxLength={120}
- placeholder="Or type your own niche…"
+ placeholder={t("coach.customNichePlaceholder")}
  className={`${inputClass} mt-3`}
  />
 
  {/* platforms */}
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Where do you post?
+ {t("coach.whereDoYouPost")}
  </p>
  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
  {PLATFORM_OPTS.map((p) => {
@@ -276,8 +282,8 @@ export default function MonetizationCoach() {
  value={followers[p.key]}
  onChange={(e) => setFollowerCount(p.key, e.target.value)}
  inputMode="numeric"
- placeholder={p.key === "youtube" ? "Subscribers" : "Followers"}
- aria-label={`${p.label} follower count`}
+ placeholder={p.key === "youtube" ? t("coach.subscribersPlaceholder") : t("coach.followersPlaceholder")}
+ aria-label={t("coach.followerCountAria", { label: p.label })}
  className={`${inputClass} mt-3 !py-2.5`}
  />
  )}
@@ -288,15 +294,15 @@ export default function MonetizationCoach() {
 
  {/* cadence */}
  <p data-min-stars="3" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Videos per week
+ {t("coach.videosPerWeek")}
  </p>
  <input
  data-min-stars="3"
  value={cadence}
  onChange={(e) => setCadence(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
  inputMode="numeric"
- placeholder="3"
- aria-label="Videos per week"
+ placeholder={t("coach.cadencePlaceholder")}
+ aria-label={t("coach.videosPerWeek")}
  className={`${inputClass} max-w-[180px]`}
  />
 
@@ -313,7 +319,7 @@ export default function MonetizationCoach() {
  ) : (
  <TrendingUp className="h-6 w-6" aria-hidden="true" />
  )}
- {loading ? "Crunching the numbers…" : "Build my money plan"}
+ {loading ? t("coach.crunching") : t("coach.buildPlan")}
  </button>
  ) : (
  <Link
@@ -321,12 +327,12 @@ export default function MonetizationCoach() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <TrendingUp className="h-6 w-6" aria-hidden="true" />
- Sign in to build your money plan
+ {t("coach.signInCta")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per plan · powered by Thy Cheat Code
+ {t("coach.costPerPlan", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -340,24 +346,20 @@ export default function MonetizationCoach() {
  {/* ── FRESH MONEY OPPORTUNITIES ──────────────────────────────── */}
  <div className="relative mt-8">
  <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Fresh money opportunities
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.freshOpportunities")}
  </p>
  <div className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
  <p className="mb-2 inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
- New · Oct 20
+ {t("coach.newsBadge")}
  </p>
  <p className="text-base font-black text-white">
- Spotify starts paying video podcasters in 37 more countries
+ {t("coach.newsTitle")}
  </p>
  <p className="mt-2 text-[15px] leading-relaxed text-white/70">
- Share of Premium video revenue + half the ad money Spotify sells
- into your episodes. The bar: 3 episodes ever, 2,000 watch hours and
- 1,000 engaged listeners in the last 30 days — way easier than
- YouTube's Partner Program. Already making long-form video? Repost
- it as a video podcast and get paid twice for the same content.
+ {t("coach.newsBody")}
  </p>
  <p className="mt-3 text-xs text-white/40">
- Eligibility check lives in Spotify for Creators → Monetize.
+ {t("coach.newsFooter")}
  </p>
  </div>
  </div>
@@ -367,7 +369,7 @@ export default function MonetizationCoach() {
  <div id="coach-results" className="relative mt-8">
  {/* eligibility */}
  <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Target className="h-3.5 w-3.5" aria-hidden="true" /> Monetization eligibility
+ <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.eligibilityTitle")}
  </p>
  <div className="grid gap-3">
  {plan.eligibility.map((item, i) => {
@@ -380,11 +382,11 @@ export default function MonetizationCoach() {
  <div className="flex items-center justify-between gap-3">
  <p className="text-base font-black text-white">{item.platform}</p>
  <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>
- {badge.label}
+ {t(badge.labelKey)}
  </span>
  </div>
  <p className="mt-1 text-sm text-white/55">{item.program}</p>
- <p className="mt-1 text-xs text-white/40">Threshold: {item.threshold}</p>
+ <p className="mt-1 text-xs text-white/40">{t("coach.threshold", { value: item.threshold })}</p>
  <div className="mt-3 flex items-center gap-3">
  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
  <div
@@ -398,7 +400,7 @@ export default function MonetizationCoach() {
  </div>
  {item.nextStep && (
  <p className="mt-3 text-sm leading-relaxed text-white/70">
- <span className="font-semibold text-primary/90">Next: </span>
+ <span className="font-semibold text-primary/90">{t("coach.nextLabel")}</span>
  {item.nextStep}
  </p>
  )}
@@ -411,24 +413,24 @@ export default function MonetizationCoach() {
  {plan.earnings && (plan.earnings.rpmNotes || plan.earnings.bestFormat || plan.earnings.bestCadence) && (
  <>
  <p className="mb-4 mt-8 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Wallet className="h-3.5 w-3.5" aria-hidden="true" /> What your niche pays
+ <Wallet className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.earningsTitle")}
  </p>
  <div className="grid gap-3">
  {plan.earnings.bestFormat && (
  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Earns most</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.earnsMost")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestFormat}</p>
  </div>
  )}
  {plan.earnings.rpmNotes && (
  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">RPM ranges (estimates)</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.rpmRanges")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.rpmNotes}</p>
  </div>
  )}
  {plan.earnings.bestCadence && (
  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Cadence</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.cadenceLabel")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestCadence}</p>
  </div>
  )}
@@ -440,7 +442,7 @@ export default function MonetizationCoach() {
  {plan.moneyMoves && plan.moneyMoves.length > 0 && (
  <>
  <p className="mb-4 mt-8 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> Your next 3 money moves · 30 days
+ <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.moneyMovesTitle")}
  </p>
  <div className="grid gap-3">
  {plan.moneyMoves.map((move, i) => (
@@ -460,7 +462,7 @@ export default function MonetizationCoach() {
 
  <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/30">
  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
- {plan.note || "Thresholds and RPMs are estimates as of 2026 — verify current program terms."}
+ {plan.note || t("coach.defaultDisclaimer")}
  </p>
 
  {user && (
@@ -475,7 +477,7 @@ export default function MonetizationCoach() {
  ) : (
  <Sparkles className="h-4 w-4" aria-hidden="true" />
  )}
- Rebuild plan ({CREDIT_COST} Visual Buc)
+ {t("coach.rebuildPlan", { cost: CREDIT_COST })}
  </button>
  </div>
  )}
@@ -484,9 +486,9 @@ export default function MonetizationCoach() {
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Plan in hand? Ask{" "}
- <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble to turn your money moves into this week's content.
+ {t("coach.crossLinkStart")}{" "}
+ <span className="font-semibold text-primary">{t("coach.crossLinkBrand")}</span>{" "}
+ {t("coach.crossLinkEnd")}
  </p>
  </main>
 

@@ -4,6 +4,7 @@ import {
   MessageSquareQuote, ListChecks, Target, ChevronRight, Trophy, AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -20,19 +21,19 @@ const FEEDBACK_COST = 1;
 type InterviewType = "podcast" | "press" | "red-carpet" | "live-stream";
 type QuestionCategory = "warmup" | "craft" | "story" | "tough" | "rapid-fire";
 
-const TYPE_OPTIONS: { value: InterviewType; label: string; blurb: string; icon: LucideIcon }[] = [
-  { value: "podcast", label: "Podcast", blurb: "Long-form, conversational. Go deep on craft and stories.", icon: Mic2 },
-  { value: "press", label: "Press / Media", blurb: "Print and online. Quotable angles and career arc.", icon: Newspaper },
-  { value: "red-carpet", label: "Red Carpet", blurb: "2-minute press lines. Short, high-energy, headline-ready.", icon: Star },
-  { value: "live-stream", label: "Live Stream", blurb: "Fan Q&A chaos. Rapid-fire fun + tricky deflections.", icon: Radio },
+const TYPE_OPTIONS: { value: InterviewType; labelKey: string; blurbKey: string; icon: LucideIcon }[] = [
+  { value: "podcast", labelKey: "interviewPrep.typePodcast", blurbKey: "interviewPrep.typePodcastBlurb", icon: Mic2 },
+  { value: "press", labelKey: "interviewPrep.typePress", blurbKey: "interviewPrep.typePressBlurb", icon: Newspaper },
+  { value: "red-carpet", labelKey: "interviewPrep.typeRedCarpet", blurbKey: "interviewPrep.typeRedCarpetBlurb", icon: Star },
+  { value: "live-stream", labelKey: "interviewPrep.typeLiveStream", blurbKey: "interviewPrep.typeLiveStreamBlurb", icon: Radio },
 ];
 
-const CATEGORY_META: Record<QuestionCategory, { label: string; className: string }> = {
-  warmup: { label: "Warm-up", className: "border-sky-400/30 bg-sky-400/10 text-sky-300" },
-  craft: { label: "Craft", className: "border-violet-400/30 bg-violet-400/10 text-violet-300" },
-  story: { label: "Story", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
-  tough: { label: "Tough", className: "border-red-400/30 bg-red-400/10 text-red-300" },
-  "rapid-fire": { label: "Rapid-fire", className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+const CATEGORY_META: Record<QuestionCategory, { labelKey: string; className: string }> = {
+  warmup: { labelKey: "interviewPrep.catWarmup", className: "border-sky-400/30 bg-sky-400/10 text-sky-300" },
+  craft: { labelKey: "interviewPrep.catCraft", className: "border-violet-400/30 bg-violet-400/10 text-violet-300" },
+  story: { labelKey: "interviewPrep.catStory", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  tough: { labelKey: "interviewPrep.catTough", className: "border-red-400/30 bg-red-400/10 text-red-300" },
+  "rapid-fire": { labelKey: "interviewPrep.catRapidFire", className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
 };
 
 interface InterviewQuestion {
@@ -62,6 +63,7 @@ const inputClass =
 const labelClass = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/50";
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -73,7 +75,7 @@ function CopyButton({ text }: { text: string }) {
       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? t("interviewPrep.copied") : t("interviewPrep.copy")}
     </button>
   );
 }
@@ -91,6 +93,7 @@ function scoreBarColor(score: number): string {
 }
 
 export default function InterviewPrep() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* setup */
@@ -129,7 +132,7 @@ export default function InterviewPrep() {
   async function generateSession() {
     if (loading || !user) return;
     if (!artistName.trim()) {
-      setError("Tell us the artist name first — the questions are written for them.");
+      setError(t("interviewPrep.nameRequired"));
       return;
     }
     setLoading(true);
@@ -155,7 +158,7 @@ export default function InterviewPrep() {
         return;
       }
       if (!res.ok || !data.session) {
-        throw new Error(data.message || data.error || "Prep session generation failed — try again.");
+        throw new Error(data.message || data.error || t("interviewPrep.sessionFailed"));
       }
       setSession(data.session);
       refreshProfile();
@@ -163,7 +166,7 @@ export default function InterviewPrep() {
         document.getElementById("interview-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Prep session generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("interviewPrep.sessionFailed"));
     } finally {
       setLoading(false);
     }
@@ -184,7 +187,7 @@ export default function InterviewPrep() {
     const q = session.questions[practiceIdx];
     if (!q) return;
     if (answer.trim().length < 10) {
-      setFeedbackError("Give it a real shot — at least a sentence or two. That's what the coach needs to work with.");
+      setFeedbackError(t("interviewPrep.answerTooShort"));
       return;
     }
     setFeedbackLoading(true);
@@ -205,12 +208,12 @@ export default function InterviewPrep() {
         return;
       }
       if (!res.ok || !data.feedback) {
-        throw new Error(data.message || data.error || "Feedback failed — try again.");
+        throw new Error(data.message || data.error || t("interviewPrep.feedbackFailed"));
       }
       setFeedback(data.feedback);
       refreshProfile();
     } catch (err) {
-      setFeedbackError(err instanceof Error ? err.message : "Feedback failed — try again.");
+      setFeedbackError(err instanceof Error ? err.message : t("interviewPrep.feedbackFailed"));
     } finally {
       setFeedbackLoading(false);
     }
@@ -230,30 +233,28 @@ export default function InterviewPrep() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Mic2 className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's training room
+            <Mic2 className="h-3 w-3" aria-hidden="true" /> {t("interviewPrep.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            AI Interview <span className="text-primary">Prep</span>
+            {t("interviewPrep.heroTitle")} <span className="text-primary">{t("interviewPrep.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Walk into any interview ready. AI predicts the questions you'll
-            actually get — including the uncomfortable ones — then coaches
-            your answers until they're quotable.
+            {t("interviewPrep.heroDesc")}
           </p>
         </div>
 
         {/* interview type picker */}
         <div data-min-stars="2" className="relative mt-10">
-          <h2 className={labelClass + " text-center"}>1 · Pick your interview</h2>
+          <h2 className={labelClass + " text-center"}>{t("interviewPrep.pickInterview")}</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {TYPE_OPTIONS.map((t) => {
-              const Icon = t.icon;
-              const active = interviewType === t.value;
+            {TYPE_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const active = interviewType === opt.value;
               return (
                 <button
-                  key={t.value}
+                  key={opt.value}
                   type="button"
-                  onClick={() => setInterviewType(t.value)}
+                  onClick={() => setInterviewType(opt.value)}
                   className={`rounded-2xl border p-4 text-left transition ${
                     active
                       ? "border-primary/60 bg-primary/[0.08] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
@@ -261,8 +262,8 @@ export default function InterviewPrep() {
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? "text-primary" : "text-white/50"}`} />
-                  <p className="mt-2 text-sm font-bold text-white">{t.label}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-white/45">{t.blurb}</p>
+                  <p className="mt-2 text-sm font-bold text-white">{t(opt.labelKey)}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-white/45">{t(opt.blurbKey)}</p>
                 </button>
               );
             })}
@@ -272,28 +273,28 @@ export default function InterviewPrep() {
         {/* artist profile */}
         <div className="relative mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-            <Sparkles className="h-4 w-4" /> 2 · The artist profile
+            <Sparkles className="h-4 w-4" /> {t("interviewPrep.artistProfile")}
           </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClass} htmlFor="ip-name">Artist name</label>
-              <input id="ip-name" className={inputClass} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder="King Shark" maxLength={100} />
+              <label className={labelClass} htmlFor="ip-name">{t("interviewPrep.artistName")}</label>
+              <input id="ip-name" className={inputClass} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder={t("interviewPrep.artistNamePh")} maxLength={100} />
             </div>
             <div data-min-stars="3">
-              <label className={labelClass} htmlFor="ip-genre">Genre</label>
-              <input id="ip-genre" className={inputClass} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Hip-Hop" maxLength={100} />
+              <label className={labelClass} htmlFor="ip-genre">{t("interviewPrep.genre")}</label>
+              <input id="ip-genre" className={inputClass} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder={t("interviewPrep.genrePh")} maxLength={100} />
             </div>
             <div data-min-stars="3">
-              <label className={labelClass} htmlFor="ip-project">Latest project</label>
-              <input id="ip-project" className={inputClass} value={latestProject} onChange={(e) => setLatestProject(e.target.value)} placeholder="Deep Water EP — out now" maxLength={300} />
+              <label className={labelClass} htmlFor="ip-project">{t("interviewPrep.latestProject")}</label>
+              <input id="ip-project" className={inputClass} value={latestProject} onChange={(e) => setLatestProject(e.target.value)} placeholder={t("interviewPrep.latestProjectPh")} maxLength={300} />
             </div>
             <div data-min-stars="3">
-              <label className={labelClass} htmlFor="ip-audience">Audience size</label>
-              <input id="ip-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder="250K" maxLength={50} />
+              <label className={labelClass} htmlFor="ip-audience">{t("interviewPrep.audienceSize")}</label>
+              <input id="ip-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder={t("interviewPrep.audienceSizePh")} maxLength={50} />
             </div>
             <div data-min-stars="3" className="md:col-span-2">
-              <label className={labelClass} htmlFor="ip-story">What's happening right now? <span className="text-white/30 normal-case">(the story interviewers will chase)</span></label>
-              <textarea id="ip-story" className={inputClass} rows={2} value={currentStory} onChange={(e) => setCurrentStory(e.target.value)} placeholder="Just announced a 20-city tour, single going viral on TikTok…" maxLength={500} />
+              <label className={labelClass} htmlFor="ip-story">{t("interviewPrep.storyLabel")} <span className="text-white/30 normal-case">{t("interviewPrep.storyLabelNote")}</span></label>
+              <textarea id="ip-story" className={inputClass} rows={2} value={currentStory} onChange={(e) => setCurrentStory(e.target.value)} placeholder={t("interviewPrep.storyPh")} maxLength={500} />
             </div>
           </div>
         </div>
@@ -306,9 +307,9 @@ export default function InterviewPrep() {
             className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {loading ? "Building your session…" : `Generate prep session · ${SESSION_COST} credits`}
+            {loading ? t("interviewPrep.buildingSession") : t("interviewPrep.generateSession", { cost: SESSION_COST })}
           </button>
-          {!user && <p className="mt-3 text-xs text-white/40">Sign in to start training.</p>}
+          {!user && <p className="mt-3 text-xs text-white/40">{t("interviewPrep.signInPrompt")}</p>}
           {error && <p className="mx-auto mt-4 max-w-md text-sm text-red-400">{error}</p>}
           {outOfCredits && (
             <div className="mx-auto mt-4 max-w-md">
@@ -324,18 +325,18 @@ export default function InterviewPrep() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                  <Target className="h-4 w-4" /> Talking points
+                  <Target className="h-4 w-4" /> {t("interviewPrep.talkingPoints")}
                 </h2>
-                <CopyButton text={session.talkingPoints.map((t, i) => `${i + 1}. ${t}`).join("\n")} />
+                <CopyButton text={session.talkingPoints.map((tp, i) => `${i + 1}. ${tp}`).join("\n")} />
               </div>
-              <p className="mt-2 text-xs text-white/40">Land these no matter what you're asked.</p>
+              <p className="mt-2 text-xs text-white/40">{t("interviewPrep.talkingPointsHint")}</p>
               <ul className="mt-4 space-y-2.5">
-                {session.talkingPoints.map((t, i) => (
+                {session.talkingPoints.map((tp, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-relaxed text-white/75">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">
                       {i + 1}
                     </span>
-                    {t}
+                    {tp}
                   </li>
                 ))}
               </ul>
@@ -344,9 +345,9 @@ export default function InterviewPrep() {
             {/* questions */}
             <section>
               <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                <ListChecks className="h-4 w-4" /> Likely questions
+                <ListChecks className="h-4 w-4" /> {t("interviewPrep.likelyQuestions")}
               </h2>
-              <p className="mt-2 text-xs text-white/40">Hit <span className="text-white/70 font-semibold">Practice</span> on any question to rehearse it — AI scores your answer ({FEEDBACK_COST} Visual Buc each).</p>
+              <p className="mt-2 text-xs text-white/40">{t("interviewPrep.practiceHintPrefix")} <span className="text-white/70 font-semibold">{t("interviewPrep.practice")}</span> {t("interviewPrep.practiceHint", { cost: FEEDBACK_COST })}</p>
               <div className="mt-4 space-y-3">
                 {session.questions.map((q, i) => {
                   const meta = CATEGORY_META[q.category];
@@ -354,19 +355,19 @@ export default function InterviewPrep() {
                     <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${meta.className}`}>
-                          {meta.label}
+                          {t(meta.labelKey)}
                         </span>
                         <button
                           onClick={() => startPractice(i)}
                           className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20"
                         >
-                          <MessageSquareQuote className="h-3.5 w-3.5" /> Practice
+                          <MessageSquareQuote className="h-3.5 w-3.5" /> {t("interviewPrep.practice")}
                         </button>
                       </div>
                       <p className="mt-3 text-[15px] font-semibold leading-relaxed text-white">"{q.question}"</p>
                       <p className="mt-2 flex gap-1.5 text-xs leading-relaxed text-white/45">
                         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary/70" />
-                        <span><span className="font-semibold text-white/60">Coach tip: </span>{q.tip}</span>
+                        <span><span className="font-semibold text-white/60">{t("interviewPrep.coachTip")}</span>{q.tip}</span>
                       </p>
                     </div>
                   );
@@ -378,17 +379,17 @@ export default function InterviewPrep() {
             {activeQuestion && (
               <section id="practice-mode" className="rounded-2xl border border-primary/30 bg-primary/[0.04] p-6">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                  <Mic2 className="h-4 w-4" /> Practice mode
+                  <Mic2 className="h-4 w-4" /> {t("interviewPrep.practiceMode")}
                 </h2>
                 <p className="mt-3 text-[15px] font-semibold leading-relaxed text-white">"{activeQuestion.question}"</p>
-                <label className={labelClass + " mt-4"} htmlFor="ip-answer">Your answer — say it like you're on mic</label>
+                <label className={labelClass + " mt-4"} htmlFor="ip-answer">{t("interviewPrep.answerLabel")}</label>
                 <textarea
                   id="ip-answer"
                   className={inputClass}
                   rows={4}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Type your answer the way you'd say it out loud…"
+                  placeholder={t("interviewPrep.answerPh")}
                   maxLength={3000}
                 />
                 <div className="mt-4 flex items-center gap-3">
@@ -398,13 +399,13 @@ export default function InterviewPrep() {
                     className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
-                    {feedbackLoading ? "Scoring…" : `Get coached · ${FEEDBACK_COST} credit`}
+                    {feedbackLoading ? t("interviewPrep.scoring") : t("interviewPrep.getCoached", { cost: FEEDBACK_COST })}
                   </button>
                   <button
                     onClick={() => { setPracticeIdx(null); setFeedback(null); setAnswer(""); setFeedbackError(null); }}
                     className="text-xs font-semibold text-white/50 transition hover:text-white"
                   >
-                    Back to questions
+                    {t("interviewPrep.backToQuestions")}
                   </button>
                 </div>
                 {feedbackError && <p className="mt-3 text-sm text-red-400">{feedbackError}</p>}
@@ -414,8 +415,8 @@ export default function InterviewPrep() {
                     {/* score */}
                     <div className="rounded-xl border border-white/10 bg-black/40 p-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase tracking-wider text-white/50">Coach score</p>
-                        <p className={`text-2xl font-black ${scoreColor(feedback.score)}`}>{feedback.score}<span className="text-sm text-white/40">/100</span></p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-white/50">{t("interviewPrep.coachScore")}</p>
+                        <p className={`text-2xl font-black ${scoreColor(feedback.score)}`}>{feedback.score}<span className="text-sm text-white/40">{t("interviewPrep.of100")}</span></p>
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
                         <div className={`h-full rounded-full ${scoreBarColor(feedback.score)}`} style={{ width: `${feedback.score}%` }} />
@@ -423,7 +424,7 @@ export default function InterviewPrep() {
                     </div>
                     {/* strengths */}
                     <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.05] p-4">
-                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">What landed</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">{t("interviewPrep.whatLanded")}</p>
                       <ul className="mt-2 space-y-1.5">
                         {feedback.strengths.map((s, i) => (
                           <li key={i} className="text-sm leading-relaxed text-white/75">✓ {s}</li>
@@ -433,7 +434,7 @@ export default function InterviewPrep() {
                     {/* improvements */}
                     <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-4">
                       <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
-                        <AlertTriangle className="h-3.5 w-3.5" /> Tighten up
+                        <AlertTriangle className="h-3.5 w-3.5" /> {t("interviewPrep.tightenUp")}
                       </p>
                       <ul className="mt-2 space-y-1.5">
                         {feedback.improvements.map((s, i) => (
@@ -444,7 +445,7 @@ export default function InterviewPrep() {
                     {/* model answer */}
                     <div className="rounded-xl border border-white/10 bg-black/40 p-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase tracking-wider text-white/50">Sharper version — in your voice</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-white/50">{t("interviewPrep.sharperVersion")}</p>
                         <CopyButton text={feedback.modelAnswer} />
                       </div>
                       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/75">"{feedback.modelAnswer}"</p>

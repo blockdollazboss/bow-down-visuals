@@ -13,6 +13,9 @@ export function DailyBonusModal() {
  const [streak, setStreak] = useState(0);
  const [claiming, setClaiming] = useState(false);
  const [claimed, setClaimed] = useState<{ bonus: number; streak: number; milestone: boolean } | null>(null);
+ const [crateAvailable, setCrateAvailable] = useState<boolean | null>(null);
+ const [crateClaiming, setCrateClaiming] = useState(false);
+ const [crateResult, setCrateResult] = useState<{ prize?: number; alreadyClaimed?: boolean } | null>(null);
 
  useEffect(() => {
  if (!user) return;
@@ -28,14 +31,41 @@ export function DailyBonusModal() {
  headers: { Authorization: `Bearer ${token}` },
  });
  const s = await res.json();
+ // No auto-popup: user claims manually via the StreakWidget. We don't push free credits.
  if (s.canClaimDaily) {
  setStreak(s.streak || 0);
- // Small delay so it doesn't flash on top of page load.
- setTimeout(() => setVisible(true), 1500);
  }
+ // Check hourly crate status too
+ try {
+ const cs = await fetch("/api/bonus/hourly-crate-status", {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const c = await cs.json();
+ setCrateAvailable(!!c.available);
+ } catch { /* silent */ }
  } catch { /* silent */ }
  })();
  }, [user]);
+
+ async function handleCrateClaim() {
+ setCrateClaiming(true);
+ try {
+ const token = await getAccessToken();
+ const res = await fetch("/api/bonus/spin-wheel", {
+ method: "POST",
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const r = await res.json();
+ if (r.spun) {
+ setCrateResult({ prize: r.prize });
+ setCrateAvailable(false);
+ } else {
+ setCrateResult({ alreadyClaimed: true });
+ setCrateAvailable(false);
+ }
+ } catch { /* silent */ }
+ setCrateClaiming(false);
+ }
 
  async function handleClaim() {
  setClaiming(true);
@@ -54,6 +84,38 @@ export function DailyBonusModal() {
  } catch { /* silent */ }
  setClaiming(false);
  }
+
+ // Refresh bonus + crate status from the API
+ async function refreshStatus() {
+ try {
+ const token = await getAccessToken();
+ const res = await fetch("/api/bonus/status", {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const s = await res.json();
+ setStreak(s.streak || 0);
+ try {
+ const cs = await fetch("/api/bonus/hourly-crate-status", {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const c = await cs.json();
+ setCrateAvailable(!!c.available);
+ } catch { /* silent */ }
+ } catch { /* silent */ }
+ }
+
+ // Listen for manual open requests (from StreakWidget click)
+ // Always refresh status on open so the modal never shows stale data.
+ useEffect(() => {
+ const open = () => {
+ setClaimed(null);
+ setCrateResult(null);
+ setVisible(true);
+ void refreshStatus();
+ };
+ window.addEventListener("bdv:open-bonus-modal", open);
+ return () => window.removeEventListener("bdv:open-bonus-modal", open);
+ }, []);
 
  if (!visible) return null;
 
@@ -100,9 +162,26 @@ export function DailyBonusModal() {
  <Gift className="h-5 w-5 mr-2" />
  {claiming ? "Claiming…" : "Claim Bonus"}
  </Button>
- <p className="text-xs text-muted-foreground mt-3">
- + tap the gold trophy button (bottom-left) to spin the hourly jackpot wheel
- </p>
+ {/* Hourly Mystery Crate — claim right here */}
+ {crateAvailable !== null && (
+ <div className="mt-4 rounded-xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-3">
+ {crateResult?.prize ? (
+ <p className="text-sm font-bold text-[#c9a84c]">🎁 +{crateResult.prize.toLocaleString("en-US")} Visual Bucs from the Mystery Crate!</p>
+ ) : crateResult?.alreadyClaimed ? (
+ <p className="text-xs text-muted-foreground">This hour's crate was already claimed — try again next hour!</p>
+ ) : crateAvailable ? (
+ <Button
+ onClick={handleCrateClaim}
+ disabled={crateClaiming}
+ className="bg-gradient-to-r from-[#c9a84c] to-[#e8c766] text-black hover:opacity-90 w-full"
+ >
+ {crateClaiming ? "Opening…" : "🎁 Open the Hourly Mystery Crate"}
+ </Button>
+ ) : (
+ <p className="text-xs text-muted-foreground">Hourly crate claimed — next one in under an hour!</p>
+ )}
+ </div>
+ )}
  </>
  )}
  </div>

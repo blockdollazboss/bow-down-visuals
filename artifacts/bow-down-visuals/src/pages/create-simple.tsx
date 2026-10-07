@@ -21,6 +21,7 @@ import {
   type AiEditPlan,
 } from "@/lib/editor-settings";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /**
  * Simple-mode intake: one field (idea/lyrics), an optional audio upload, one
@@ -44,7 +45,8 @@ const DEFAULTS = {
 };
 
 export default function CreateSimple() {
-  usePageTitle("Create", "Quick-create songs, videos, and promo content with AI.");
+  const { t } = useTranslation();
+  usePageTitle(t("create-simple.metaTitle"), t("create-simple.metaDescription"));
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -106,9 +108,9 @@ export default function CreateSimple() {
   }
 
   async function handleCreate() {
-    if (!user) { toast({ title: "Sign in required", variant: "destructive" }); return; }
-    if (!hasEnough) { setError("Describe your song idea, paste lyrics, or upload a song first."); return; }
-    if (audioNeedsTranscript) { setError("Please wait for transcription to finish, or paste your lyrics manually."); return; }
+    if (!user) { toast({ title: t("create-simple.signInRequired"), variant: "destructive" }); return; }
+    if (!hasEnough) { setError(t("create-simple.describe_your_song_idea_paste_ly")); return; }
+    if (audioNeedsTranscript) { setError(t("create-simple.please_wait_for_transcription_to")); return; }
     setError(null);
     setOutOfCredits(false);
     setBusy(true);
@@ -250,7 +252,7 @@ export default function CreateSimple() {
         throw new Error(saveBody.error ?? "Could not save your project.");
       }
 
-      toast({ title: "Your video is ready ✓", description: "AI generated your scenes and applied an automatic edit." });
+      toast({ title: t("create-simple.videoReady"), description: t("create-simple.videoReadyDesc") });
       setLocation(`/video-editor?project=${saveBody.id}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -284,24 +286,16 @@ export default function CreateSimple() {
           onClick={() => setLocation("/dashboard")}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-white/70 transition-colors mb-6"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
-        </button>
+          <ArrowLeft className="h-3.5 w-3.5" />{t("create-simple.back_to_dashboard")}</button>
 
         <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-4">
-          <Sparkles className="h-3 w-3" /> Simple Mode
-        </span>
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-2">
-          What's your song about?
-        </h1>
-        <p className="text-white/40 text-sm mb-8">
-          Upload a song, paste your lyrics, or just describe the idea. AI handles genre, mood, format,
-          scene generation, and the edit — one click and you're in the editor.
-        </p>
+          <Sparkles className="h-3 w-3" />{t("create-simple.simple_mode")}</span>
+        <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-2">{t("create-simple.what_s_your_song_about")}</h1>
+        <p className="text-white/40 text-sm mb-8">{t("create-simple.upload_a_song_paste_your_lyrics")}</p>
 
         <div className="space-y-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">
-              Upload your song <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span>
+            <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">{t("create-simple.upload_your_song")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("create-simple.optional")}</span>
             </label>
             <AudioTranscribe
               onTranscript={setTranscript}
@@ -310,8 +304,7 @@ export default function CreateSimple() {
             />
             {transcribing && (
               <p className="flex items-center gap-1.5 text-xs text-white/40">
-                <Loader2 className="h-3 w-3 animate-spin" /> Transcribing your lyrics — this only takes a moment…
-              </p>
+                <Loader2 className="h-3 w-3 animate-spin" />{t("create-simple.transcribing_your_lyrics_this_on")}</p>
             )}
             {transcribeError && (
               <p className="text-xs text-amber-400">{transcribeError}</p>
@@ -319,13 +312,11 @@ export default function CreateSimple() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">
-              Song idea or lyrics
-            </label>
+            <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">{t("create-simple.song_idea_or_lyrics")}</label>
             <Textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder="e.g. A song about grinding for years before the breakthrough finally hits..."
+              placeholder={t("create-simple.e_g_a_song_about_grinding_for_ye")}
               rows={5}
               className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus:border-primary/50 rounded-xl resize-none"
             />
@@ -344,9 +335,9 @@ export default function CreateSimple() {
             {busy ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> {statusMsg ?? "Creating…"}</>
             ) : transcribing ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Waiting for transcription…</>
+              <><Loader2 className="h-4 w-4 animate-spin" />{t("create-simple.waiting_for_transcription")}</>
             ) : (
-              <><Music className="h-4 w-4" /> Create My Video</>
+              <><Music className="h-4 w-4" />{t("create-simple.create_my_video")}</>
             )}
           </Button>
 
@@ -355,8 +346,7 @@ export default function CreateSimple() {
             onClick={() => setMode("advanced")}
             className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white/35 hover:text-white/65 transition-colors"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" /> Prefer full manual control? Switch to Advanced mode
-          </button>
+            <SlidersHorizontal className="h-3.5 w-3.5" />{t("create-simple.prefer_full_manual_control_switc")}</button>
         </div>
       </div>
     </div>

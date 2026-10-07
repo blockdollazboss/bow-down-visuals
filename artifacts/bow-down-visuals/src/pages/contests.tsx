@@ -5,6 +5,7 @@ import {
   Users, CheckCircle2, Dices, Image as ImageIcon, Download,
   ShieldCheck, Copy,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -70,6 +71,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function Contests() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [view, setView] = useState<View>({ name: "list" });
   const [contests, setContests] = useState<ContestSummary[]>([]);
@@ -303,28 +305,21 @@ export default function Contests() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+          <ArrowLeft className="h-4 w-4" />{t("contests.back")}</Link>
 
         <div className="flex items-center gap-3 mb-2">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <Trophy className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Fan Contests</h1>
-            <p className="text-sm text-white/45">
-              Giveaways with provably-fair winner draws — free to run
-            </p>
+            <h1 className="text-2xl font-black">{t("contests.fan_contests")}</h1>
+            <p className="text-sm text-white/45">{t("contests.giveaways_with_provably_fair_win")}</p>
           </div>
         </div>
 
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
-          <p className="text-xs text-white/55 leading-relaxed">
-            Run giveaways with entry tracking and a <span className="text-white/80 font-semibold">verifiable random draw</span> —
-            the seed, entry list, and algorithm are published in an audit log so anyone can re-run the draw.
-            Only the AI winner-announcement graphic costs a Visual Buc (1). Everything else is free.
-          </p>
+          <p className="text-xs text-white/55 leading-relaxed">{t("contests.run_giveaways_with_entry_trackin")}<span className="text-white/80 font-semibold">{t("contests.verifiable_random_draw")}</span>{t("contests.the_seed_entry_list_and_algorith")}</p>
         </div>
 
         {outOfCredits && (
@@ -340,73 +335,70 @@ export default function Contests() {
 
         {!user ? (
           <div className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
-            <p className="text-white/60">Sign in to run contests for your fans.</p>
-            <Link href="/login" className="mt-4 inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110">
-              Sign in
-            </Link>
+            <p className="text-white/60">{t("contests.sign_in_to_run_contests_for_your")}</p>
+            <Link href="/login" className="mt-4 inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110">{t("contests.sign_in")}</Link>
           </div>
         ) : view.name === "list" ? (
           <>
             <div className="mt-6 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Your contests</h2>
+              <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>
               <button
                 onClick={() => setShowBuilder((s) => !s)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black hover:brightness-110"
               >
-                <Plus className="h-4 w-4" /> New contest
-              </button>
+                <Plus className="h-4 w-4" />{t("contests.new_contest")}</button>
             </div>
 
             {showBuilder && (
               <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="ct-title" className="text-xs font-bold text-white/40 uppercase tracking-wider">Contest title</label>
+                    <label htmlFor="ct-title" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.contest_title")}</label>
                     <input
                       id="ct-title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-                      placeholder="e.g. Gold Chain Giveaway"
+                      placeholder={t("contests.e_g_gold_chain_giveaway")}
                       maxLength={120}
                       className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                     />
                   </div>
                   <div>
-                    <label htmlFor="ct-prize" className="text-xs font-bold text-white/40 uppercase tracking-wider">Prize</label>
+                    <label htmlFor="ct-prize" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.prize")}</label>
                     <input
                       id="ct-prize"
                       value={prize}
                       onChange={(e) => setPrize(e.target.value.slice(0, 200))}
-                      placeholder="e.g. 24k gold chain + shoutout"
+                      placeholder={t("contests.e_g_24k_gold_chain_shoutout")}
                       maxLength={200}
                       className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                     />
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="ct-desc" className="text-xs font-bold text-white/40 uppercase tracking-wider">Description</label>
+                  <label htmlFor="ct-desc" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.description")}</label>
                   <textarea
                     id="ct-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
-                    placeholder="What is this giveaway about?"
+                    placeholder={t("contests.what_is_this_giveaway_about")}
                     rows={2}
                     className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                   />
                 </div>
                 <div>
-                  <label htmlFor="ct-rules" className="text-xs font-bold text-white/40 uppercase tracking-wider">Rules</label>
+                  <label htmlFor="ct-rules" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.rules")}</label>
                   <textarea
                     id="ct-rules"
                     value={rules}
                     onChange={(e) => setRules(e.target.value.slice(0, 4000))}
-                    placeholder="Eligibility, deadlines, how the winner is picked…"
+                    placeholder={t("contests.eligibility_deadlines_how_the_wi")}
                     rows={2}
                     className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                   />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Entry methods</p>
+                  <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("contests.entry_methods")}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {ENTRY_METHOD_CATALOG.map((m) => (
                       <button
@@ -426,7 +418,7 @@ export default function Contests() {
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="ct-start" className="text-xs font-bold text-white/40 uppercase tracking-wider">Starts (optional)</label>
+                    <label htmlFor="ct-start" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.starts_optional")}</label>
                     <input
                       id="ct-start"
                       type="datetime-local"
@@ -436,7 +428,7 @@ export default function Contests() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="ct-end" className="text-xs font-bold text-white/40 uppercase tracking-wider">Ends (optional)</label>
+                    <label htmlFor="ct-end" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.ends_optional")}</label>
                     <input
                       id="ct-end"
                       type="datetime-local"
@@ -462,7 +454,7 @@ export default function Contests() {
             ) : contests.length === 0 ? (
               <div className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-10 text-center">
                 <Trophy className="h-8 w-8 text-primary/50 mx-auto mb-3" />
-                <p className="text-white/60">No contests yet. Launch your first giveaway — it's free.</p>
+                <p className="text-white/60">{t("contests.no_contests_yet_launch_your_firs")}</p>
               </div>
             ) : (
               <div className="mt-4 grid sm:grid-cols-2 gap-4">
@@ -492,8 +484,7 @@ export default function Contests() {
           /* ── Detail view ── */
           <div className="mt-6">
             <button onClick={backToList} className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-4">
-              <ArrowLeft className="h-4 w-4" /> All contests
-            </button>
+              <ArrowLeft className="h-4 w-4" />{t("contests.all_contests")}</button>
             {detailLoading || !detail ? (
               <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : (
@@ -511,7 +502,7 @@ export default function Contests() {
                   </div>
                   {detail.rules && (
                     <div className="mt-4 rounded-xl bg-black/40 border border-white/[0.06] p-4">
-                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-1">Rules</p>
+                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-1">{t("contests.rules")}</p>
                       <p className="text-sm text-white/65 whitespace-pre-wrap">{detail.rules}</p>
                     </div>
                   )}
@@ -519,15 +510,15 @@ export default function Contests() {
                     <div className="mt-4 grid grid-cols-3 gap-3">
                       <div className="rounded-xl border border-white/[0.08] p-3 text-center">
                         <p className="text-xl font-black text-primary">{stats.total}</p>
-                        <p className="text-[11px] text-white/45">Total entries</p>
+                        <p className="text-[11px] text-white/45">{t("contests.total_entries")}</p>
                       </div>
                       <div className="rounded-xl border border-white/[0.08] p-3 text-center">
                         <p className="text-xl font-black text-emerald-400">{stats.verified}</p>
-                        <p className="text-[11px] text-white/45">Verified</p>
+                        <p className="text-[11px] text-white/45">{t("contests.verified")}</p>
                       </div>
                       <div className="rounded-xl border border-white/[0.08] p-3 text-center">
                         <p className="text-xl font-black">{detail.entryMethods.length}</p>
-                        <p className="text-[11px] text-white/45">Entry methods</p>
+                        <p className="text-[11px] text-white/45">{t("contests.entry_methods")}</p>
                       </div>
                     </div>
                   )}
@@ -545,13 +536,13 @@ export default function Contests() {
                 {/* ── Entries ── */}
                 {detail.status !== "ended" && (
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-                    <h3 className="font-bold mb-1">Track entries</h3>
-                    <p className="text-xs text-white/45 mb-4">Log entries as they come in. Verify each one (fraud check) — only verified entries can win.</p>
+                    <h3 className="font-bold mb-1">{t("contests.track_entries")}</h3>
+                    <p className="text-xs text-white/45 mb-4">{t("contests.log_entries_as_they_come_in_veri")}</p>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         value={entryHandle}
                         onChange={(e) => setEntryHandle(e.target.value.slice(0, 80))}
-                        placeholder="@handle or email"
+                        placeholder={t("contests.handle_or_email")}
                         maxLength={80}
                         className="flex-1 rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-2.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                       />
@@ -603,7 +594,7 @@ export default function Contests() {
 
                 {/* ── Winner / audit ── */}
                 <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-6">
-                  <h3 className="font-bold flex items-center gap-2"><Dices className="h-4 w-4 text-primary" /> Winner draw</h3>
+                  <h3 className="font-bold flex items-center gap-2"><Dices className="h-4 w-4 text-primary" />{t("contests.winner_draw")}</h3>
                   {detail.winnerEntryId ? (
                     <div className="mt-3 space-y-4">
                       <div className="flex items-center gap-2 text-emerald-300">
@@ -614,15 +605,15 @@ export default function Contests() {
                       </div>
                       {detail.drawAudit && (
                         <div className="rounded-xl bg-black/40 border border-white/[0.06] p-4 space-y-2">
-                          <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Provably-fair audit log</p>
+                          <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.provably_fair_audit_log")}</p>
                           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-                            <p className="text-white/50">Algorithm: <span className="text-white/85 font-mono">{detail.drawAudit.algorithm ?? "—"}</span></p>
-                            <p className="text-white/50">Entries in draw: <span className="text-white/85 font-bold">{detail.drawAudit.entryCount ?? "—"}</span></p>
-                            <p className="text-white/50">Winner index: <span className="text-white/85 font-bold">{detail.drawAudit.winnerIndex ?? "—"}</span></p>
-                            <p className="text-white/50">Drawn: <span className="text-white/85">{formatDrawnAt(detail.drawAudit.drawnAt)}</span></p>
+                            <p className="text-white/50">{t("contests.algorithm")}<span className="text-white/85 font-mono">{detail.drawAudit.algorithm ?? "—"}</span></p>
+                            <p className="text-white/50">{t("contests.entries_in_draw")}<span className="text-white/85 font-bold">{detail.drawAudit.entryCount ?? "—"}</span></p>
+                            <p className="text-white/50">{t("contests.winner_index")}<span className="text-white/85 font-bold">{detail.drawAudit.winnerIndex ?? "—"}</span></p>
+                            <p className="text-white/50">{t("contests.drawn")}<span className="text-white/85">{formatDrawnAt(detail.drawAudit.drawnAt)}</span></p>
                           </div>
                           <div className="flex items-center gap-2 pt-1">
-                            <p className="text-xs text-white/50">Seed: <span className="font-mono text-white/85">{shortSeed(detail.drawAudit.seed)}</span></p>
+                            <p className="text-xs text-white/50">{t("contests.seed")}<span className="font-mono text-white/85">{shortSeed(detail.drawAudit.seed)}</span></p>
                             <button
                               onClick={copySeed}
                               className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 text-[11px] text-white/60 hover:border-white/30"
@@ -630,19 +621,13 @@ export default function Contests() {
                               <Copy className="h-3 w-3" /> {copied ? "Copied!" : "Copy full seed"}
                             </button>
                           </div>
-                          <p className="text-[11px] text-white/35 leading-relaxed">
-                            Anyone can verify: sort the entry IDs, recompute sha256(contestId | entryIds | drawnAt),
-                            and re-run the draw — the same seed always picks the same winner.
-                          </p>
+                          <p className="text-[11px] text-white/35 leading-relaxed">{t("contests.anyone_can_verify_sort_the_entry")}</p>
                         </div>
                       )}
                     </div>
                   ) : (
                     <div className="mt-3">
-                      <p className="text-sm text-white/55 mb-3">
-                        Draws only from <b className="text-white/80">verified</b> entries. The draw is seeded and logged —
-                        publish the audit so your fans can verify it was fair.
-                      </p>
+                      <p className="text-sm text-white/55 mb-3">{t("contests.draws_only_from")}<b className="text-white/80">{t("contests.verified_2")}</b>{t("contests.entries_the_draw_is_seeded_and_l")}</p>
                       <button
                         onClick={drawWinner}
                         disabled={drawing || (stats?.verified ?? 0) === 0}
@@ -652,7 +637,7 @@ export default function Contests() {
                         Draw winner — free
                       </button>
                       {(stats?.verified ?? 0) === 0 && (
-                        <p className="mt-2 text-xs text-white/40">Verify at least one entry first.</p>
+                        <p className="mt-2 text-xs text-white/40">{t("contests.verify_at_least_one_entry_first")}</p>
                       )}
                     </div>
                   )}
@@ -661,11 +646,11 @@ export default function Contests() {
                 {/* ── Announcement graphic ── */}
                 {detail.winnerEntryId && (
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-                    <h3 className="font-bold flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Winner announcement</h3>
-                    <p className="text-xs text-white/45 mt-1 mb-4">AI-generated gold/black announcement graphic with the winner's handle — 1 Visual Buc.</p>
+                    <h3 className="font-bold flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" />{t("contests.winner_announcement")}</h3>
+                    <p className="text-xs text-white/45 mt-1 mb-4">{t("contests.ai_generated_gold_black_announce")}</p>
                     {announceUrl ? (
                       <div>
-                        <img src={announceUrl} alt="Winner announcement" className="rounded-xl w-full max-w-md border border-white/10" />
+                        <img src={announceUrl} alt={t("contests.winner_announcement")} className="rounded-xl w-full max-w-md border border-white/10" />
                         <a
                           href={announceUrl}
                           download={`contest-winner-${detail.id}.png`}
@@ -673,8 +658,7 @@ export default function Contests() {
                           rel="noopener"
                           className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 hover:border-white/30"
                         >
-                          <Download className="h-4 w-4" /> Download
-                        </a>
+                          <Download className="h-4 w-4" />{t("contests.download")}</a>
                       </div>
                     ) : (
                       <button

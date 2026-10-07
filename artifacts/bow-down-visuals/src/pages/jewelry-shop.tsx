@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Gem, Loader2, ChevronRight, ChevronLeft, CheckCircle2,
   ShieldCheck, CreditCard, Sparkles, Palette,
@@ -7,35 +8,14 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
-  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatJewelryPrice,
+  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatMoney,
 } from "@/lib/jewelry";
 
 /* ─── Custom Jewelry Shop ───────────────────────────────────────────────
-   Made-to-order branded jewelry (dropship). PREMIUM LINE: solid 10K/14K/18K
-   gold with real diamonds — never plated. Prices are TBD from supplier
-   quotes, so the catalog carries priceCents 0 ("Pricing soon").
+   Made-to-order branded jewelry (dropship).
    v1 HONESTY CONTRACT: reservations only — no charge today. Payment is
    collected when production is confirmed with the manufacturer.
    Pairs with the Logo-to-Luxury studio at /jewelry for custom designs. */
-
-const FAQS = [
-  {
-    q: "What are the pieces made of?",
-    a: "Solid 10K, 14K or 18K gold with real, natural diamonds — never plated, never simulated. Every gold piece is hallmarked for its karat.",
-  },
-  {
-    q: "When do I pay?",
-    a: "Reserving is free — nothing is charged today. We confirm your design and final price with our manufacturing partner first, then collect payment before your piece is crafted.",
-  },
-  {
-    q: "How long does it take?",
-    a: "Every piece is made to order. We'll confirm your production timeline with our manufacturing partner when we confirm your design — before any payment is collected.",
-  },
-  {
-    q: "Can I cancel or return my piece?",
-    a: "Because each piece is custom-made to your design, all sales are final once production begins. You can cancel free of charge any time before we confirm production with you.",
-  },
-];
 
 type Step = "piece" | "customize" | "shipping" | "review";
 
@@ -52,6 +32,7 @@ interface JewelryOrder {
 }
 
 export default function JewelryShop() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -72,14 +53,6 @@ export default function JewelryShop() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [formError, setFormError] = useState("");
-  /* One idempotency key per wizard session — a failed-then-retried submit
-     must reuse the same key so the server dedupes instead of double-booking.
-     Regenerated after each successful reservation for the next one. */
-  const genReservationKey = () =>
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const [reservationKey, setReservationKey] = useState<string>(genReservationKey);
 
   const [orders, setOrders] = useState<JewelryOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -123,6 +96,10 @@ export default function JewelryShop() {
     setSubmitting(true);
     setFormError("");
     try {
+      const idempotencyKey =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const res = await confirmedFetch("/api/jewelry/order", {
         method: "POST",
         skipConfirm: true,
@@ -133,16 +110,15 @@ export default function JewelryShop() {
           quantity,
           fullName: fullName.trim(), email: email.trim(), phone: phone.trim(),
           shippingAddress: { street, city, state: state_, zip, country: "USA" },
-          idempotencyKey: reservationKey,
+          idempotencyKey,
         }),
       });
       const json = await res!.json();
-      if (!json.ok) throw new Error(json.error || "Reservation failed");
-      setReservationKey(genReservationKey());
+      if (!json.ok) throw new Error(json.error || t("jewelryShop.reservationFailed"));
       setDone(true);
       void loadOrders();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Reservation failed — try again.");
+      setFormError(e instanceof Error ? e.message : t("jewelryShop.reservationFailedRetry"));
     } finally {
       setSubmitting(false);
     }
@@ -161,24 +137,22 @@ export default function JewelryShop() {
         />
         <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-10 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-400/10 px-4 py-1.5 text-amber-300 text-sm mb-6">
-            <Gem className="w-4 h-4" /> Custom Jewelry
+            <Gem className="w-4 h-4" /> {t("jewelryShop.heroBadge")}
           </div>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-            Wear the brand.<br />
+            {t("jewelryShop.heroTitle1")}<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-600">
-              Literally.
+              {t("jewelryShop.heroTitle2")}
             </span>
           </h1>
           <p className="mt-5 text-zinc-400 text-lg max-w-2xl mx-auto">
-            Made-to-order pendants, chains, rings and bracelets with your logo,
-            initials or emblem — crafted in solid 10K/14K/18K gold with real
-            diamonds. Made by our manufacturing partner, shipped to your door.
+            {t("jewelryShop.heroDesc")}
           </p>
           <Link
             href="/jewelry"
             className="mt-6 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-5 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/20"
           >
-            <Palette className="w-4 h-4" /> Want a fully custom design? Open the Logo-to-Luxury studio
+            <Palette className="w-4 h-4" /> {t("jewelryShop.studioLink")}
           </Link>
         </div>
       </div>
@@ -188,22 +162,21 @@ export default function JewelryShop() {
           {done ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold">Piece reserved!</h2>
+              <h2 className="text-3xl font-bold">{t("jewelryShop.reserved")}</h2>
               <p className="text-zinc-400 mt-3 max-w-lg mx-auto">
-                We'll confirm your design and production with our manufacturing
-                partner, then collect payment — nothing charged today.
+                {t("jewelryShop.reservedDesc")}
               </p>
               <button
                 onClick={() => { setDone(false); setStep("piece"); }}
                 className="mt-6 text-amber-400 hover:text-amber-300 text-sm"
               >
-                Reserve another piece
+                {t("jewelryShop.reserveAnother")}
               </button>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-bold">Design your piece</h2>
+                <h2 className="text-2xl font-bold">{t("jewelryShop.designTitle")}</h2>
                 <div className="flex gap-1 text-xs">
                   {(["piece", "customize", "shipping", "review"] as Step[]).map((s, i) => (
                     <div key={s} className="flex items-center">
@@ -233,7 +206,7 @@ export default function JewelryShop() {
                         </div>
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold">{p.label}</h3>
-                          <span className="text-amber-300 font-bold">{formatJewelryPrice(p.priceCents)}</span>
+                          <span className="text-amber-300 font-bold">{formatMoney(p.priceCents)}</span>
                         </div>
                         <p className="text-sm text-zinc-400 mt-1">{p.blurb}</p>
                       </button>
@@ -245,8 +218,8 @@ export default function JewelryShop() {
               {step === "customize" && (
                 <div className="space-y-6 max-w-xl">
                   <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Finish</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.finish")}</label>
+                    <div className="grid grid-cols-3 gap-3">
                       {JEWELRY_FINISHES.map((f) => (
                         <button
                           key={f.key}
@@ -278,24 +251,24 @@ export default function JewelryShop() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Engraving <span className="text-zinc-600">(optional, max 60 chars)</span></label>
-                    <input className={inputCls} placeholder="e.g. BDV • EST 2026" value={engraving}
+                    <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.engraving")} <span className="text-zinc-600">{t("jewelryShop.engravingNote")}</span></label>
+                    <input className={inputCls} placeholder={t("jewelryShop.engravingPh")} value={engraving}
                       maxLength={60} onChange={(e) => setEngraving(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Design notes <span className="text-zinc-600">(optional)</span></label>
+                    <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.designNotes")} <span className="text-zinc-600">{t("jewelryShop.designNotesNote")}</span></label>
                     <textarea className={inputCls} rows={3}
-                      placeholder="Describe your logo, emblem, or reference — our team turns it into the casting design."
+                      placeholder={t("jewelryShop.designNotesPh")}
                       value={designNotes} onChange={(e) => setDesignNotes(e.target.value)} />
                   </div>
                   <div className="flex items-center gap-4">
-                    <label className="text-sm text-zinc-400">Quantity</label>
+                    <label className="text-sm text-zinc-400">{t("jewelryShop.quantity")}</label>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">−</button>
                       <span className="w-8 text-center font-bold">{quantity}</span>
                       <button onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">+</button>
                     </div>
-                    <span className="ml-auto text-lg">Total: <span className="text-amber-300 font-bold">{formatJewelryPrice(total)}</span></span>
+                    <span className="ml-auto text-lg">{t("jewelryShop.total")} <span className="text-amber-300 font-bold">{formatMoney(total)}</span></span>
                   </div>
                 </div>
               )}
@@ -303,19 +276,19 @@ export default function JewelryShop() {
               {step === "shipping" && (
                 <div className="space-y-4 max-w-xl">
                   <div className="grid grid-cols-2 gap-4">
-                    <input className={inputCls} placeholder="Full name *" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                    <input className={inputCls} placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <input className={inputCls} placeholder={t("jewelryShop.fullNamePh")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    <input className={inputCls} placeholder={t("jewelryShop.phonePh")} value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
-                  <input className={inputCls} placeholder="Email *" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  <input className={inputCls} placeholder="Street address *" value={street} onChange={(e) => setStreet(e.target.value)} />
+                  <input className={inputCls} placeholder={t("jewelryShop.emailPh")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input className={inputCls} placeholder={t("jewelryShop.streetPh")} value={street} onChange={(e) => setStreet(e.target.value)} />
                   <div className="grid grid-cols-3 gap-4">
-                    <input className={inputCls} placeholder="City *" value={city} onChange={(e) => setCity(e.target.value)} />
-                    <input className={inputCls} placeholder="State *" value={state_} onChange={(e) => setState_(e.target.value)} />
-                    <input className={inputCls} placeholder="ZIP *" value={zip} onChange={(e) => setZip(e.target.value)} />
+                    <input className={inputCls} placeholder={t("jewelryShop.cityPh")} value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input className={inputCls} placeholder={t("jewelryShop.statePh")} value={state_} onChange={(e) => setState_(e.target.value)} />
+                    <input className={inputCls} placeholder={t("jewelryShop.zipPh")} value={zip} onChange={(e) => setZip(e.target.value)} />
                   </div>
                   <p className="text-xs text-zinc-500 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    Your details are only used to make and ship your piece.
+                    {t("jewelryShop.detailsNote")}
                   </p>
                 </div>
               )}
@@ -323,21 +296,20 @@ export default function JewelryShop() {
               {step === "review" && (
                 <div className="max-w-xl space-y-4">
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-zinc-400">Piece</span><span className="font-medium">{product.label}</span></div>
-                    <div className="flex justify-between"><span className="text-zinc-400">Finish</span><span className="font-medium">{JEWELRY_FINISHES.find((f) => f.key === finish)?.label}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewPiece")}</span><span className="font-medium">{product.label}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewFinish")}</span><span className="font-medium">{JEWELRY_FINISHES.find((f) => f.key === finish)?.label}</span></div>
                     <div className="flex justify-between"><span className="text-zinc-400">{product.sizeLabel}</span><span className="font-medium">{sizeOption}</span></div>
-                    {engraving.trim() && <div className="flex justify-between"><span className="text-zinc-400">Engraving</span><span className="font-medium">“{engraving.trim()}”</span></div>}
-                    <div className="flex justify-between"><span className="text-zinc-400">Quantity</span><span className="font-medium">{quantity}</span></div>
-                    <div className="flex justify-between"><span className="text-zinc-400">Ship to</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
+                    {engraving.trim() && <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewEngraving")}</span><span className="font-medium">“{engraving.trim()}”</span></div>}
+                    <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewQuantity")}</span><span className="font-medium">{quantity}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewShipTo")}</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
                     <div className="flex justify-between pt-2 border-t border-zinc-800">
-                      <span className="text-zinc-400">Final price</span>
-                      <span className="text-amber-300 font-bold text-lg">Confirmed with you before production</span>
+                      <span className="text-zinc-400">{t("jewelryShop.reviewTotal")}</span>
+                      <span className="text-amber-300 font-bold text-lg">{formatMoney(total)}</span>
                     </div>
                   </div>
                   <p className="text-sm text-zinc-400 flex items-start gap-2">
                     <CreditCard className="w-4 h-4 mt-0.5 text-amber-400 shrink-0" />
-                    Reserving is free — nothing is charged today. We'll confirm your
-                    design with our manufacturing partner, then collect payment before crafting.
+                    {t("jewelryShop.reserveNote")}
                   </p>
                   {formError && <p className="text-red-400 text-sm">{formError}</p>}
                 </div>
@@ -349,7 +321,7 @@ export default function JewelryShop() {
                   disabled={step === "piece"}
                   className="flex items-center gap-1 text-zinc-400 hover:text-white disabled:opacity-30"
                 >
-                  <ChevronLeft className="w-4 h-4" /> Back
+                  <ChevronLeft className="w-4 h-4" /> {t("jewelryShop.back")}
                 </button>
                 {step !== "review" ? (
                   <button
@@ -360,7 +332,7 @@ export default function JewelryShop() {
                     disabled={!canNext()}
                     className="flex items-center gap-1 rounded-xl bg-amber-400 text-black font-semibold px-6 py-3 hover:bg-amber-300 disabled:opacity-40"
                   >
-                    Continue <ChevronRight className="w-4 h-4" />
+                    {t("jewelryShop.continue")} <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
@@ -369,13 +341,13 @@ export default function JewelryShop() {
                     className="flex items-center gap-2 rounded-xl bg-amber-400 text-black font-semibold px-8 py-3 hover:bg-amber-300 disabled:opacity-40"
                   >
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {submitting ? "Reserving…" : "Reserve my piece — free"}
+                    {submitting ? t("jewelryShop.reserving") : t("jewelryShop.reserveFree")}
                   </button>
                 )}
               </div>
               {!user && (
                 <p className="mt-4 text-center text-sm text-zinc-500">
-                  You'll be asked to <Link href="/login" className="text-amber-400 hover:text-amber-300">sign in</Link> to reserve your piece.
+                  {t("jewelryShop.signInPrefix")}<Link href="/login" className="text-amber-400 hover:text-amber-300">{t("jewelryShop.signIn")}</Link>{t("jewelryShop.signInSuffix")}
                 </p>
               )}
             </>
@@ -385,7 +357,7 @@ export default function JewelryShop() {
         {/* my reservations */}
         {user && orders.length > 0 && (
           <div className="mt-10">
-            <h2 className="text-2xl font-bold mb-4">My reservations</h2>
+            <h2 className="text-2xl font-bold mb-4">{t("jewelryShop.myReservations")}</h2>
             {loadingOrders ? (
               <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
             ) : (
@@ -393,7 +365,7 @@ export default function JewelryShop() {
                 {orders.map((o) => (
                   <div key={o.id} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm">
                     <span>{jewelryProductByKey(o.product_key)?.label ?? o.product_key} · {o.size_option} × {o.quantity}</span>
-                    <span className="text-zinc-400">{formatJewelryPrice(o.total_cents)}</span>
+                    <span className="text-zinc-400">{formatMoney(o.total_cents)}</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-300">
                       {o.status.replace("_", " ")}
                     </span>
@@ -403,22 +375,6 @@ export default function JewelryShop() {
             )}
           </div>
         )}
-
-        {/* ── FAQ ── */}
-        <div className="mt-14">
-          <h2 className="text-2xl font-bold mb-5">Questions</h2>
-          <div className="space-y-3">
-            {FAQS.map((f, i) => (
-              <details key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 group">
-                <summary className="font-medium cursor-pointer list-none flex justify-between items-center">
-                  {f.q}
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-open:rotate-90 transition" />
-                </summary>
-                <p className="text-sm text-zinc-400 mt-2 leading-relaxed">{f.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

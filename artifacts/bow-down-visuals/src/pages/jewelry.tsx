@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Upload, Sparkles, Loader2, Download, CheckCircle2, ArrowRight, ArrowLeft,
   Gem, Shirt, MessageCircle, X, FileBox, Calculator, Factory, Nfc,
@@ -15,13 +16,13 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    Every step flows into the next — no dead ends. */
 
 const STEPS = [
-  { key: "logo", label: "Logo", icon: Upload },
-  { key: "design", label: "Design", icon: Sparkles },
-  { key: "preview", label: "Preview", icon: Gem },
-  { key: "files", label: "Files", icon: FileBox },
-  { key: "estimate", label: "Estimate", icon: Calculator },
-  { key: "make", label: "Get it made", icon: Factory },
-  { key: "nfc", label: "NFC setup", icon: Nfc },
+  { key: "logo", labelKey: "jewelry.stepLogo", icon: Upload },
+  { key: "design", labelKey: "jewelry.stepDesign", icon: Sparkles },
+  { key: "preview", labelKey: "jewelry.stepPreview", icon: Gem },
+  { key: "files", labelKey: "jewelry.stepFiles", icon: FileBox },
+  { key: "estimate", labelKey: "jewelry.stepEstimate", icon: Calculator },
+  { key: "make", labelKey: "jewelry.stepMake", icon: Factory },
+  { key: "nfc", labelKey: "jewelry.stepNfc", icon: Nfc },
 ] as const;
 
 interface Catalog {
@@ -62,6 +63,7 @@ interface GuideSection { title: string; body: string }
 const money = (n: number) => "$" + Math.round(n).toLocaleString();
 
 export default function JewelryStudio() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -150,11 +152,11 @@ export default function JewelryStudio() {
       if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || "Preview failed");
+      if (!res.ok) throw new Error(data.error || t("jewelry.previewFailed"));
       setPreviewUrl(data.url);
       void refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Preview failed");
+      setError(e instanceof Error ? e.message : t("jewelry.previewFailed"));
     } finally {
       setPreviewBusy(false);
     }
@@ -177,11 +179,11 @@ export default function JewelryStudio() {
       if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || "STL export failed");
+      if (!res.ok) throw new Error(data.error || t("jewelry.stlFailed"));
       setStlInfo(data);
       void refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "STL export failed");
+      setError(e instanceof Error ? e.message : t("jewelry.stlFailed"));
     } finally {
       setStlBusy(false);
     }
@@ -204,10 +206,10 @@ export default function JewelryStudio() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Estimate failed");
+      if (!res.ok) throw new Error(data.error || t("jewelry.estimateFailed"));
       setEstimate(data.estimate);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Estimate failed");
+      setError(e instanceof Error ? e.message : t("jewelry.estimateFailed"));
     } finally {
       setEstimateBusy(false);
     }
@@ -237,11 +239,11 @@ export default function JewelryStudio() {
       });
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || "Consultant failed");
+      if (!res.ok) throw new Error(data.error || t("jewelry.consultFailed"));
       setConsultMsgs((m) => [...m, { role: "assistant", content: data.reply }]);
       void refreshProfile();
     } catch {
-      setConsultMsgs((m) => [...m, { role: "assistant", content: "My fins slipped — try that again?" }]);
+      setConsultMsgs((m) => [...m, { role: "assistant", content: t("jewelry.consultFallback") }]);
     } finally {
       setConsultBusy(false);
     }
@@ -279,14 +281,13 @@ export default function JewelryStudio() {
       <div className="border-b border-yellow-500/20 bg-gradient-to-b from-yellow-950/40 to-black px-4 py-8 text-center">
         <div className="mx-auto max-w-4xl">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-yellow-300">
-            <Gem className="h-3.5 w-3.5" /> Logo-to-Luxury Studio
+            <Gem className="h-3.5 w-3.5" /> {t("jewelry.headerBadge")}
           </div>
           <h1 className="text-3xl font-black text-transparent sm:text-4xl bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-200 bg-clip-text">
-            Your Logo. Real Jewelry. Real Clothing.
+            {t("jewelry.headerTitle")}
           </h1>
           <p className="mt-2 text-zinc-400">
-            One guided pipeline: upload → AI design → preview → manufacturing files →
-            cost estimate → get it made → NFC. No dead ends.
+            {t("jewelry.headerDesc")}
           </p>
         </div>
       </div>
@@ -312,7 +313,7 @@ export default function JewelryStudio() {
                 }`}
               >
                 {done ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                <span className="hidden sm:inline">{i + 1}. {s.label}</span>
+                <span className="hidden sm:inline">{i + 1}. {t(s.labelKey)}</span>
                 <span className="sm:hidden">{i + 1}</span>
                 {i < STEPS.length - 1 && <ChevronRight className="h-3 w-3 text-zinc-700" />}
               </button>
@@ -335,21 +336,21 @@ export default function JewelryStudio() {
         {/* ── STEP 1: LOGO ── */}
         {step === 0 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className="text-xl font-bold text-yellow-200">Drop your logo</h2>
+            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.dropLogo")}</h2>
             <p className="mt-1 text-sm text-zinc-400">
-              PNG with a transparent background gives the sharpest pendant. JPG works too.
+              {t("jewelry.logoHint")}
             </p>
             <button
               onClick={() => fileRef.current?.click()}
               className="mx-auto mt-6 flex h-56 w-full max-w-md flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-yellow-500/40 bg-yellow-500/5 transition hover:border-yellow-400 hover:bg-yellow-500/10"
             >
               {logoPreview ? (
-                <img src={logoPreview} alt="Uploaded logo" className="max-h-48 max-w-full object-contain" />
+                <img src={logoPreview} alt={t("jewelry.uploadedLogoAlt")} className="max-h-48 max-w-full object-contain" />
               ) : (
                 <>
                   <Upload className="h-10 w-10 text-yellow-500" />
-                  <span className="text-sm text-zinc-300">Click to upload your logo</span>
-                  <span className="text-xs text-zinc-500">PNG · JPG · WebP — up to 10MB</span>
+                  <span className="text-sm text-zinc-300">{t("jewelry.uploadLogo")}</span>
+                  <span className="text-xs text-zinc-500">{t("jewelry.uploadFormats")}</span>
                 </>
               )}
             </button>
@@ -362,21 +363,21 @@ export default function JewelryStudio() {
             />
             {logoPreview && (
               <button onClick={() => fileRef.current?.click()} className="mt-3 text-sm text-yellow-400 hover:underline">
-                Choose a different logo
+                {t("jewelry.chooseDifferent")}
               </button>
             )}
 
-            <h3 className="mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400">What are we making?</h3>
+            <h3 className="mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.whatMaking")}</h3>
             <div className="mx-auto mt-3 grid max-w-md grid-cols-2 gap-3">
               <button onClick={() => setCategory("jewelry")} className={optBtn(category === "jewelry") + " !p-4 text-center"}>
                 <Gem className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
-                <div className="font-bold">Jewelry</div>
-                <div className="text-xs text-zinc-500">Pendants, rings, chains…</div>
+                <div className="font-bold">{t("jewelry.jewelry")}</div>
+                <div className="text-xs text-zinc-500">{t("jewelry.jewelryBlurb")}</div>
               </button>
               <button onClick={() => setCategory("apparel")} className={optBtn(category === "apparel") + " !p-4 text-center"}>
                 <Shirt className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
-                <div className="font-bold">Apparel</div>
-                <div className="text-xs text-zinc-500">Tees, hoodies, caps…</div>
+                <div className="font-bold">{t("jewelry.apparel")}</div>
+                <div className="text-xs text-zinc-500">{t("jewelry.apparelBlurb")}</div>
               </button>
             </div>
           </div>
@@ -386,16 +387,16 @@ export default function JewelryStudio() {
         {step === 1 && catalog && (
           <div className={card}>
             <h2 className="text-xl font-bold text-yellow-200">
-              Design your {category === "jewelry" ? "piece" : "garment"}
+              {t("jewelry.designTitle", { item: t(category === "jewelry" ? "jewelry.designPiece" : "jewelry.designGarment") })}
             </h2>
             <p className="mt-1 text-sm text-zinc-400">
-              Pick every detail — the AI preview and the cost estimate follow your choices exactly.
+              {t("jewelry.designHint")}
             </p>
 
             {category === "jewelry" ? (
               <div className="mt-6 space-y-6">
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Piece</h3>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.piece")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.pieces).map(([k, v]) => (
                       <button key={k} onClick={() => setJOpts({ ...jOpts, piece: k })} className={optBtn(jOpts.piece === k)}>
@@ -405,7 +406,7 @@ export default function JewelryStudio() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Metal</h3>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.metal")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.metals).map(([k, v]) => (
                       <button key={k} onClick={() => setJOpts({ ...jOpts, metal: k })} className={optBtn(jOpts.metal === k)}>
@@ -416,7 +417,7 @@ export default function JewelryStudio() {
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Stones</h3>
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.stones")}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(catalog.stones).map(([k, v]) => (
                         <button key={k} onClick={() => setJOpts({ ...jOpts, stone: k })} className={optBtn(jOpts.stone === k)}>
@@ -426,7 +427,7 @@ export default function JewelryStudio() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Style</h3>
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.style")}</h3>
                     <div className="grid grid-cols-1 gap-2">
                       {Object.entries(catalog.styles).map(([k, v]) => (
                         <button key={k} onClick={() => setJOpts({ ...jOpts, style: k })} className={optBtn(jOpts.style === k)}>
@@ -440,11 +441,10 @@ export default function JewelryStudio() {
                   <label className="flex cursor-pointer items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 font-semibold text-yellow-100">
-                        <Nfc className="h-4 w-4" /> NFC smart chip
+                        <Nfc className="h-4 w-4" /> {t("jewelry.nfcTitle")}
                       </div>
                       <p className="mt-1 text-xs text-zinc-400">
-                        A cavity for an NTAG213/215 tag is carved into the pendant back.
-                        Tap the piece → opens your business card.
+                        {t("jewelry.nfcDesc")}
                       </p>
                     </div>
                     <input
@@ -465,12 +465,12 @@ export default function JewelryStudio() {
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
-                    Design notes <span className="text-zinc-600">(optional)</span>
+                    {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
                   <textarea
                     value={jOpts.notes}
                     onChange={(e) => setJOpts({ ...jOpts, notes: e.target.value })}
-                    placeholder="e.g. extra chunky bail, black enamel background behind the logo…"
+                    placeholder={t("jewelry.jewelryNotesPh")}
                     rows={2}
                     className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-zinc-600"
                   />
@@ -479,7 +479,7 @@ export default function JewelryStudio() {
             ) : (
               <div className="mt-6 space-y-6">
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Garment</h3>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.garment")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.apparel).map(([k, v]) => (
                       <button key={k} onClick={() => setAOpts({ ...aOpts, product: k })} className={optBtn(aOpts.product === k)}>
@@ -490,7 +490,7 @@ export default function JewelryStudio() {
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Decoration</h3>
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.decoration")}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(catalog.decoMethods).map(([k, v]) => (
                         <button key={k} onClick={() => setAOpts({ ...aOpts, deco: k })} className={optBtn(aOpts.deco === k)}>
@@ -500,18 +500,18 @@ export default function JewelryStudio() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">Garment color</h3>
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.garmentColor")}</h3>
                     <input
                       value={aOpts.color}
                       onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })}
-                      placeholder="Black"
+                      placeholder={t("jewelry.garmentColorPh")}
                       className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-zinc-600"
                     />
                   </div>
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
-                    How many units? <span className="text-zinc-600">(for bulk estimate)</span>
+                    {t("jewelry.unitsLabel")} <span className="text-zinc-600">{t("jewelry.unitsNote")}</span>
                   </h3>
                   <input
                     type="number" min={1} max={1000} value={qty}
@@ -521,12 +521,12 @@ export default function JewelryStudio() {
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
-                    Design notes <span className="text-zinc-600">(optional)</span>
+                    {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
                   <textarea
                     value={aOpts.notes}
                     onChange={(e) => setAOpts({ ...aOpts, notes: e.target.value })}
-                    placeholder="e.g. logo big across the chest, small gold text on the sleeve…"
+                    placeholder={t("jewelry.apparelNotesPh")}
                     rows={2}
                     className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-zinc-600"
                   />
@@ -539,39 +539,37 @@ export default function JewelryStudio() {
         {/* ── STEP 3: PREVIEW ── */}
         {step === 2 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className="text-xl font-bold text-yellow-200">AI preview</h2>
+            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.aiPreview")}</h2>
             <p className="mt-1 text-sm text-zinc-400">
-              A luxury product render of your design —{" "}
-              <span className="font-semibold text-yellow-300">{catalog?.previewCreditCost ?? 2} Visual Bucs</span> per render.
+              {t("jewelry.previewDesc", { cost: catalog?.previewCreditCost ?? 2 })}
             </p>
             <div className="mx-auto mt-6 flex h-80 max-w-md items-center justify-center overflow-hidden rounded-2xl border border-yellow-500/25 bg-black/80">
               {previewBusy ? (
                 <div className="flex flex-col items-center gap-3 text-yellow-300">
                   <Loader2 className="h-10 w-10 animate-spin" />
-                  <span className="text-sm">Casting your piece in pixels…</span>
+                  <span className="text-sm">{t("jewelry.casting")}</span>
                 </div>
               ) : previewUrl ? (
-                <img src={previewUrl} alt="AI jewelry preview" className="h-full w-full object-cover" />
+                <img src={previewUrl} alt={t("jewelry.previewAlt")} className="h-full w-full object-cover" />
               ) : (
                 <div className="px-6 text-sm text-zinc-500">
-                  Hit <span className="font-semibold text-yellow-300">Generate preview</span> and watch
-                  your logo turn to {category === "jewelry" ? "gold" : "merch"}.
+                  {t("jewelry.previewCtaHit")} <span className="font-semibold text-yellow-300">{t("jewelry.generatePreview")}</span> {t("jewelry.previewCtaRest", { material: t(category === "jewelry" ? "jewelry.goldWord" : "jewelry.merchWord") })}
                 </div>
               )}
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button onClick={generatePreview} disabled={previewBusy || !logoFile} className={goldBtn}>
                 {previewBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {previewUrl ? "Regenerate" : "Generate preview"} ({catalog?.previewCreditCost ?? 2} VB)
+                {previewUrl ? t("jewelry.regenerate") : t("jewelry.generatePreview")} ({catalog?.previewCreditCost ?? 2} VB)
               </button>
               {previewUrl && (
                 <button onClick={generatePreview} disabled={previewBusy} className={ghostBtn}>
-                  <RefreshCw className="h-4 w-4" /> Try another
+                  <RefreshCw className="h-4 w-4" /> {t("jewelry.tryAnother")}
                 </button>
               )}
             </div>
             <p className="mt-3 text-xs text-zinc-500">
-              The preview is an AI visualization — your manufacturing file is built from your exact logo geometry.
+              {t("jewelry.previewNote")}
             </p>
           </div>
         )}
@@ -579,54 +577,49 @@ export default function JewelryStudio() {
         {/* ── STEP 4: FILES ── */}
         {step === 3 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className="text-center text-xl font-bold text-yellow-200">Manufacturing file</h2>
+            <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.mfgFile")}</h2>
             {category === "apparel" ? (
               <div className="mt-4 text-center">
                 <Info className="mx-auto h-8 w-8 text-yellow-500" />
                 <p className="mt-3 text-sm text-zinc-300">
-                  For apparel there's no STL — your print file is the <span className="font-semibold text-yellow-200">AI preview render</span> from
-                  the previous step (high-res PNG). Send it straight to your decorator, or ask the consultant
-                  for the exact file specs your print shop needs.
+                  {t("jewelry.apparelNoStl")} <span className="font-semibold text-yellow-200">{t("jewelry.apparelRender")}</span> {t("jewelry.apparelNoStlRest")}
                 </p>
                 {previewUrl && (
                   <a href={previewUrl} download="logo-apparel-preview.png" className={`${goldBtn} mt-5`}>
-                    <Download className="h-4 w-4" /> Download print file
+                    <Download className="h-4 w-4" /> {t("jewelry.downloadPrint")}
                   </a>
                 )}
               </div>
             ) : (
               <div className="mt-4 text-center">
                 <p className="text-sm text-zinc-400">
-                  Your logo is converted into a real <span className="font-semibold text-yellow-200">binary STL</span> —
-                  a 35mm medallion with your logo in raised relief, a chain bail
-                  {jOpts.nfc ? ", and an NFC tag cavity in the back" : ""}.{" "}
-                  <span className="font-semibold text-yellow-300">{catalog?.stlCreditCost ?? 4} Visual Bucs</span>.
+                  {t("jewelry.stlDescription", { nfc: jOpts.nfc ? t("jewelry.stlNfcCavity") : "", cost: catalog?.stlCreditCost ?? 4 })}
                 </p>
                 {!stlInfo ? (
                   <button onClick={exportSTL} disabled={stlBusy || !logoFile} className={`${goldBtn} mt-5`}>
                     {stlBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileBox className="h-4 w-4" />}
-                    {stlBusy ? "Building your STL…" : `Export STL (${catalog?.stlCreditCost ?? 4} VB)`}
+                    {stlBusy ? t("jewelry.buildingStl") : t("jewelry.exportStl", { cost: catalog?.stlCreditCost ?? 4 })}
                   </button>
                 ) : (
                   <div className="mt-5 rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-5 text-left">
                     <div className="flex items-center gap-2 font-semibold text-yellow-100">
-                      <CheckCircle2 className="h-5 w-5 text-green-400" /> STL ready
+                      <CheckCircle2 className="h-5 w-5 text-green-400" /> {t("jewelry.stlReady")}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">Facets</div><div className="font-bold">{stlInfo.facetCount.toLocaleString()}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">Size</div><div className="font-bold">{stlInfo.widthMm} × {stlInfo.heightMm} mm</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">Est. weight</div><div className="font-bold">{stlInfo.weightG} g {stlInfo.metal.split(" ")[0]}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">NFC cavity</div><div className="font-bold">{stlInfo.nfcPocket ? "Yes — 25mm" : "No"}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">Metal</div><div className="font-bold">{stlInfo.metal}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">Format</div><div className="font-bold">Binary STL</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.facets")}</div><div className="font-bold">{stlInfo.facetCount.toLocaleString()}</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.size")}</div><div className="font-bold">{stlInfo.widthMm} × {stlInfo.heightMm} mm</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.estWeight")}</div><div className="font-bold">{stlInfo.weightG} g {stlInfo.metal.split(" ")[0]}</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.nfcCavity")}</div><div className="font-bold">{stlInfo.nfcPocket ? t("jewelry.nfcYes") : t("jewelry.nfcNo")}</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.metal")}</div><div className="font-bold">{stlInfo.metal}</div></div>
+                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.format")}</div><div className="font-bold">{t("jewelry.binaryStl")}</div></div>
                     </div>
                     <p className="mt-3 text-xs text-zinc-400">{stlInfo.pieceNote}</p>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <a href={stlInfo.url} download="logo-pendant.stl" className={goldBtn}>
-                        <Download className="h-4 w-4" /> Download .stl
+                        <Download className="h-4 w-4" /> {t("jewelry.downloadStl")}
                       </a>
                       <button onClick={exportSTL} disabled={stlBusy} className={ghostBtn}>
-                        <RefreshCw className="h-4 w-4" /> Rebuild
+                        <RefreshCw className="h-4 w-4" /> {t("jewelry.rebuild")}
                       </button>
                     </div>
                   </div>
@@ -639,25 +632,25 @@ export default function JewelryStudio() {
         {/* ── STEP 5: ESTIMATE ── */}
         {step === 4 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className="text-center text-xl font-bold text-yellow-200">What will it cost?</h2>
+            <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.costTitle")}</h2>
             <p className="mt-1 text-center text-sm text-zinc-400">
-              Instant estimate from your exact options — free, no Visual Bucs.
+              {t("jewelry.costHint")}
             </p>
             {estimateBusy && (
               <div className="mt-6 flex items-center justify-center gap-2 text-yellow-300">
-                <Loader2 className="h-5 w-5 animate-spin" /> Crunching the numbers…
+                <Loader2 className="h-5 w-5 animate-spin" /> {t("jewelry.crunching")}
               </div>
             )}
             {estimate && !estimateBusy && (
               <div className="mt-5">
                 <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-center">
-                  <div className="text-xs uppercase tracking-widest text-zinc-400">Estimated total</div>
+                  <div className="text-xs uppercase tracking-widest text-zinc-400">{t("jewelry.estimatedTotal")}</div>
                   <div className="mt-1 text-3xl font-black text-yellow-300">
                     {money(estimate.totalLowUSD)} – {money(estimate.totalHighUSD)}
                   </div>
                   <div className="mt-1 text-xs text-zinc-500">
-                    {estimate.turnaroundWeeks[0]}–{estimate.turnaroundWeeks[1]} weeks typical turnaround
-                    {category === "apparel" && <> · {qty} units</>}
+                    {t("jewelry.turnaround", { low: estimate.turnaroundWeeks[0], high: estimate.turnaroundWeeks[1] })}
+                    {category === "apparel" && <> · {t("jewelry.units", { qty })}</>}
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
@@ -675,7 +668,7 @@ export default function JewelryStudio() {
                   ⚠️ {estimate.disclaimer}
                 </p>
                 <button onClick={loadEstimate} className={`${ghostBtn} mt-4 w-full justify-center`}>
-                  <RefreshCw className="h-4 w-4" /> Recalculate with current options
+                  <RefreshCw className="h-4 w-4" /> {t("jewelry.recalculate")}
                 </button>
               </div>
             )}
@@ -685,10 +678,9 @@ export default function JewelryStudio() {
         {/* ── STEP 6: GET IT MADE ── */}
         {step === 5 && (
           <div className={card}>
-            <h2 className="text-xl font-bold text-yellow-200">Get it made</h2>
+            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.getItMade")}</h2>
             <p className="mt-1 text-sm text-zinc-400">
-              Your files are ready. Here's exactly how to turn them into the real thing —
-              and what to watch out for.
+              {t("jewelry.getItMadeDesc")}
             </p>
             <div className="mt-5 space-y-3">
               <Link
@@ -696,9 +688,9 @@ export default function JewelryStudio() {
                 className="flex items-center justify-between gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 transition hover:bg-yellow-500/20"
               >
                 <div>
-                  <div className="text-sm font-bold text-yellow-200">Rather have us make it for you?</div>
+                  <div className="text-sm font-bold text-yellow-200">{t("jewelry.ratherUs")}</div>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    Order a ready-made custom piece from our jewelry shop — pendant, chain, ring or bracelet, reserved free.
+                    {t("jewelry.ratherUsDesc")}
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-yellow-300" />
@@ -726,53 +718,50 @@ export default function JewelryStudio() {
             {category === "apparel" ? (
               <div className="text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
-                <h2 className="mt-3 text-xl font-bold text-yellow-200">You're done! 🎉</h2>
+                <h2 className="mt-3 text-xl font-bold text-yellow-200">{t("jewelry.doneTitle")}</h2>
                 <p className="mt-2 text-sm text-zinc-300">
-                  Your design, print file, cost estimate, and decorator guide are all above.
-                  Send the print file to your decorator and your {aOpts.product} line is in motion.
+                  {t("jewelry.doneDesc", { product: aOpts.product })}
                 </p>
                 <button onClick={() => go(0)} className={`${goldBtn} mt-5`}>
-                  <RefreshCw className="h-4 w-4" /> Start a new design
+                  <RefreshCw className="h-4 w-4" /> {t("jewelry.startNew")}
                 </button>
               </div>
             ) : (
               <div>
-                <h2 className="text-center text-xl font-bold text-yellow-200">NFC setup — make it smart</h2>
+                <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.nfcTitle")}</h2>
                 <p className="mt-1 text-center text-sm text-zinc-400">
-                  Your pendant {jOpts.nfc ? "has" : "can have"} a tag cavity. Here's the 10-minute setup.
+                  {t("jewelry.nfcSetupDesc", { verb: t(jOpts.nfc ? "jewelry.nfcHas" : "jewelry.nfcCanHave") })}
                 </p>
                 {!jOpts.nfc && (
                   <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/30 p-3 text-xs text-amber-200/90">
-                    You turned NFC off in the design step — flip it on there and re-export the STL
-                    to add the tag cavity.
+                    {t("jewelry.nfcOffNote")}
                   </p>
                 )}
                 <ol className="mt-5 space-y-3">
                   {[
-                    { t: "Buy the tag", d: "NTAG213 or NTAG215 coin tag, 25mm diameter × ~1mm thick (~$1–3 on Amazon). NTAG215 holds more data — use it if your URL is long." },
-                    { t: "Set your link", d: `Decide where the tap goes — your digital business card or profile. ${jOpts.nfcUrl ? `You chose: ${jOpts.nfcUrl}` : "Add your URL in the design step so it's saved with your project."} Short URLs work best.` },
-                    { t: "Program it (free app)", d: "Install NFC Tools (iOS/Android) → Write → Add a record → URL → type your link → Write → hold phone to the tag. Test it: tap should open your link instantly." },
-                    { t: "Lock it", d: "In NFC Tools, set the tag to read-only after programming so nobody can rewrite your pendant. (Optional but recommended.)" },
-                    { t: "Seat it in the pendant", d: "Your jeweler seats the programmed tag into the back cavity during finishing and seals it with jeweler's epoxy. Mention it when you get quotes — it's ~$15–40 of labor." },
+                    { titleKey: "jewelry.nfcBuyTag", desc: t("jewelry.nfcBuyTagDesc") },
+                    { titleKey: "jewelry.nfcSetLink", desc: t("jewelry.nfcSetLinkDesc", { chosen: jOpts.nfcUrl ? t("jewelry.nfcYouChose", { url: jOpts.nfcUrl }) : t("jewelry.nfcAddUrl") }) },
+                    { titleKey: "jewelry.nfcProgram", desc: t("jewelry.nfcProgramDesc") },
+                    { titleKey: "jewelry.nfcLock", desc: t("jewelry.nfcLockDesc") },
+                    { titleKey: "jewelry.nfcSeat", desc: t("jewelry.nfcSeatDesc") },
                   ].map((s, i) => (
-                    <li key={s.t} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <li key={s.titleKey} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-500/20 text-sm font-bold text-yellow-300">{i + 1}</span>
                       <div>
-                        <div className="text-sm font-semibold text-zinc-100">{s.t}</div>
-                        <p className="mt-1 text-sm text-zinc-400">{s.d}</p>
+                        <div className="text-sm font-semibold text-zinc-100">{t(s.titleKey)}</div>
+                        <p className="mt-1 text-sm text-zinc-400">{s.desc}</p>
                       </div>
                     </li>
                   ))}
                 </ol>
                 <div className="mt-6 rounded-xl border border-green-500/30 bg-green-950/30 p-5 text-center">
                   <CheckCircle2 className="mx-auto h-10 w-10 text-green-400" />
-                  <h3 className="mt-2 font-bold text-green-200">Pipeline complete 🎉</h3>
+                  <h3 className="mt-2 font-bold text-green-200">{t("jewelry.pipelineComplete")}</h3>
                   <p className="mt-1 text-sm text-zinc-300">
-                    Logo → AI design → preview → STL file → cost estimate → manufacturer guide → NFC.
-                    All without leaving this page.
+                    {t("jewelry.pipelineDesc")}
                   </p>
                   <button onClick={() => go(0)} className={`${goldBtn} mt-4`}>
-                    <RefreshCw className="h-4 w-4" /> Start a new design
+                    <RefreshCw className="h-4 w-4" /> {t("jewelry.startNew")}
                   </button>
                 </div>
               </div>
@@ -783,16 +772,16 @@ export default function JewelryStudio() {
         {/* Nav */}
         <div className="mt-8 flex items-center justify-between">
           <button onClick={() => go(step - 1)} disabled={step === 0} className={ghostBtn + " disabled:opacity-30"}>
-            <ArrowLeft className="h-4 w-4" /> Back
+            <ArrowLeft className="h-4 w-4" /> {t("jewelry.back")}
           </button>
           {step < STEPS.length - 1 ? (
             <button onClick={() => go(step + 1)} disabled={!canContinue()} className={goldBtn + " disabled:opacity-30"}>
-              {step === 0 && !logoFile ? "Upload a logo to continue"
-                : step === 2 && !previewUrl ? "Generate a preview to continue"
-                : <>Continue <ArrowRight className="h-4 w-4" /></>}
+              {step === 0 && !logoFile ? t("jewelry.uploadToContinue")
+                : step === 2 && !previewUrl ? t("jewelry.previewToContinue")
+                : <>{t("jewelry.continue")} <ArrowRight className="h-4 w-4" /></>}
             </button>
           ) : (
-            <div className="text-sm text-zinc-500"> The King Shark approves.</div>
+            <div className="text-sm text-zinc-500"> {t("jewelry.kingShark")}</div>
           )}
         </div>
       </div>
@@ -801,7 +790,7 @@ export default function JewelryStudio() {
       <button
         onClick={() => setConsultOpen(true)}
         className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.5)] transition hover:scale-105"
-        title="Ask the jewelry consultant"
+        title={t("jewelry.consultTitleAttr")}
       >
         <MessageCircle className="h-6 w-6" />
       </button>
@@ -809,8 +798,8 @@ export default function JewelryStudio() {
         <div className="fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-yellow-500/30 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
             <div>
-              <div className="text-sm font-bold text-yellow-200"> Jewelry Consultant</div>
-              <div className="text-xs text-zinc-500">{catalog?.consultCreditCost ?? 1} Visual Buc per message · knows your design</div>
+              <div className="text-sm font-bold text-yellow-200"> {t("jewelry.consultName")}</div>
+              <div className="text-xs text-zinc-500">{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
             </div>
             <button onClick={() => setConsultOpen(false)} className="text-zinc-400 hover:text-white">
               <X className="h-5 w-5" />
@@ -819,8 +808,7 @@ export default function JewelryStudio() {
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {consultMsgs.length === 0 && (
               <p className="text-sm text-zinc-500">
-                Ask me anything — which metal for your budget, how NFC tags work,
-                what to ask a jeweler, print vs embroidery…
+                {t("jewelry.consultIntro")}
               </p>
             )}
             {consultMsgs.map((m, i) => (
@@ -828,7 +816,7 @@ export default function JewelryStudio() {
                 {m.content}
               </div>
             ))}
-            {consultBusy && <div className="text-sm text-zinc-500"><Loader2 className="inline h-4 w-4 animate-spin" /> thinking…</div>}
+            {consultBusy && <div className="text-sm text-zinc-500"><Loader2 className="inline h-4 w-4 animate-spin" /> {t("jewelry.thinking")}</div>}
             <div ref={consultEndRef} />
           </div>
           <div className="flex gap-2 border-t border-yellow-500/20 p-3">
@@ -836,11 +824,11 @@ export default function JewelryStudio() {
               value={consultInput}
               onChange={(e) => setConsultInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendConsult()}
-              placeholder="Ask about metals, NFC, jewelers…"
+              placeholder={t("jewelry.consultPlaceholder")}
               className="flex-1 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-zinc-600"
             />
             <button onClick={sendConsult} disabled={consultBusy || !consultInput.trim()} className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-black disabled:opacity-50">
-              Send
+              {t("jewelry.send")}
             </button>
           </div>
         </div>

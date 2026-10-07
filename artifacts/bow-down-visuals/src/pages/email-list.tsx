@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Email List Builder ────────────────────────────────
  Own your audience: hosted landing pages (/join/:handle), embeddable
@@ -71,6 +72,7 @@ const tabBtn = (active: boolean) =>
  }`;
 
 export default function EmailListBuilder() {
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const [tab, setTab] = useState<TabKey>("dashboard");
 
@@ -153,7 +155,7 @@ export default function EmailListBuilder() {
 
  async function createList() {
  if (!newName.trim() || !newHandle.trim()) {
- setError("Give your list a name and a handle.");
+ setError(t("email-list.give_your_list_a_name_and_a_hand"));
  return;
  }
  setCreating(true);
@@ -194,7 +196,7 @@ export default function EmailListBuilder() {
 
  async function generateNewsletter() {
  if (!nlTopic.trim()) {
- setError("Tell the AI what the newsletter is about.");
+ setError(t("email-list.tell_the_ai_what_the_newsletter"));
  return;
  }
  setNlLoading(true);
@@ -245,31 +247,22 @@ export default function EmailListBuilder() {
  {/* hero */}
  <div className="text-center">
  <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
- <Mail className="h-3.5 w-3.5" /> Own your audience
- </p>
- <h1 className="mt-4 font-display text-4xl md:text-5xl font-black">
- Email List <span className="bg-gradient-to-r from-primary to-amber-300 bg-clip-text text-transparent">Builder</span>
+ <Mail className="h-3.5 w-3.5" />{t("email-list.own_your_audience")}</p>
+ <h1 className="mt-4 font-display text-4xl md:text-5xl font-black">{t("email-list.email_list")}<span className="bg-gradient-to-r from-primary to-amber-300 bg-clip-text text-transparent">{t("email-list.builder")}</span>
  </h1>
- <p className="mx-auto mt-3 max-w-2xl text-white/55">
- Algorithms change. Your list doesn't. Capture fans, write newsletters
- with AI, and track growth — free up to 1,000 subscribers.
- </p>
+ <p className="mx-auto mt-3 max-w-2xl text-white/55">{t("email-list.algorithms_change_your_list_does")}</p>
  </div>
 
  {/* tabs */}
  <div className="mt-8 flex flex-wrap justify-center gap-2">
  <button className={tabBtn(tab === "dashboard")} onClick={() => setTab("dashboard")}>
- <TrendingUp className="h-4 w-4" /> Dashboard
- </button>
+ <TrendingUp className="h-4 w-4" />{t("email-list.dashboard")}</button>
  <button className={tabBtn(tab === "lists")} onClick={() => setTab("lists")}>
- <Users className="h-4 w-4" /> My Lists
- </button>
+ <Users className="h-4 w-4" />{t("email-list.my_lists")}</button>
  <button className={tabBtn(tab === "newsletter")} onClick={() => setTab("newsletter")}>
- <PenLine className="h-4 w-4" /> AI Newsletter · 100 Visual Bucs
- </button>
+ <PenLine className="h-4 w-4" />{t("email-list.ai_newsletter_100_visual_bucs")}</button>
  <button className={tabBtn(tab === "forms")} onClick={() => setTab("forms")}>
- <Code2 className="h-4 w-4" /> Signup Forms
- </button>
+ <Code2 className="h-4 w-4" />{t("email-list.signup_forms")}</button>
  </div>
 
  {error && (
@@ -293,16 +286,15 @@ export default function EmailListBuilder() {
  ) : !activeList ? (
  <div className={`${cardClass} text-center`}>
  <Inbox className="mx-auto h-10 w-10 text-white/25" />
- <p className="mt-3 font-semibold">No lists yet</p>
- <p className="mt-1 text-sm text-white/50">Create your first list to start capturing fans.</p>
+ <p className="mt-3 font-semibold">{t("email-list.no_lists_yet")}</p>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.create_your_first_list_to_start")}</p>
  <button className={tabBtn(true) + " mt-4"} onClick={() => setTab("lists")}>
- <Plus className="h-4 w-4" /> Create a list
- </button>
+ <Plus className="h-4 w-4" />{t("email-list.create_a_list")}</button>
  </div>
  ) : (
  <>
  <div className="mb-4 flex flex-wrap items-center gap-3">
- <label className="text-sm text-white/50">List:</label>
+ <label className="text-sm text-white/50">{t("email-list.list")}</label>
  <select
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
@@ -316,36 +308,35 @@ export default function EmailListBuilder() {
 
  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
  <div className={cardClass}>
- <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Users className="h-3.5 w-3.5" /> Active subscribers</p>
+ <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Users className="h-3.5 w-3.5" />{t("email-list.active_subscribers")}</p>
  <p className="mt-2 font-display text-3xl font-black text-primary">{stats?.active ?? 0}</p>
  <p className="mt-1 text-xs text-white/40">of {stats?.freeLimit ?? 1000} free</p>
  </div>
  <div className={cardClass}>
- <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><TrendingUp className="h-3.5 w-3.5" /> Total signups</p>
+ <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><TrendingUp className="h-3.5 w-3.5" />{t("email-list.total_signups")}</p>
  <p className="mt-2 font-display text-3xl font-black">{stats?.total ?? 0}</p>
  <p className="mt-1 text-xs text-white/40">{stats?.unsubscribed ?? 0} unsubscribed</p>
  </div>
  <div className={cardClass}>
- <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Mail className="h-3.5 w-3.5" /> Avg. opens / subscriber</p>
+ <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Mail className="h-3.5 w-3.5" />{t("email-list.avg_opens_subscriber")}</p>
  <p className="mt-2 font-display text-3xl font-black">{stats?.openRate ?? 0}</p>
- <p className="mt-1 text-xs text-white/40">best-effort pixel tracking</p>
+ <p className="mt-1 text-xs text-white/40">{t("email-list.best_effort_pixel_tracking")}</p>
  </div>
  <div className={cardClass}>
- <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Download className="h-3.5 w-3.5" /> Export</p>
+ <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Download className="h-3.5 w-3.5" />{t("email-list.export")}</p>
  <a
  href={`/api/email-list/lists/${activeListId}/export`}
  className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20"
  >
- <Download className="h-4 w-4" /> CSV — free
- </a>
- <p className="mt-1 text-xs text-white/40">Your data, yours to keep</p>
+ <Download className="h-4 w-4" />{t("email-list.csv_free")}</a>
+ <p className="mt-1 text-xs text-white/40">{t("email-list.your_data_yours_to_keep")}</p>
  </div>
  </div>
 
  <div className={`${cardClass} mt-4`}>
- <h3 className="font-semibold">Recent subscribers</h3>
+ <h3 className="font-semibold">{t("email-list.recent_subscribers")}</h3>
  {subscribers.length === 0 ? (
- <p className="mt-2 text-sm text-white/45">Nobody here yet — share your landing page or embed the form to start growing.</p>
+ <p className="mt-2 text-sm text-white/45">{t("email-list.nobody_here_yet_share_your_landi")}</p>
  ) : (
  <div className="mt-3 divide-y divide-white/5">
  {subscribers.slice(0, 10).map((s) => (
@@ -356,7 +347,7 @@ export default function EmailListBuilder() {
  </div>
  <div className="flex items-center gap-3 text-xs text-white/40">
  <span className="rounded-full border border-white/10 px-2 py-0.5">{s.source}</span>
- {s.unsubscribedAt && <span className="text-red-300/70">unsubscribed</span>}
+ {s.unsubscribedAt && <span className="text-red-300/70">{t("email-list.unsubscribed")}</span>}
  <span>{new Date(s.subscribedAt).toLocaleDateString()}</span>
  </div>
  </div>
@@ -374,24 +365,23 @@ export default function EmailListBuilder() {
  <div className="mt-8">
  <div className="flex justify-end">
  <button className={tabBtn(true)} onClick={() => setShowNewList((v) => !v)}>
- <Plus className="h-4 w-4" /> New list
- </button>
+ <Plus className="h-4 w-4" />{t("email-list.new_list")}</button>
  </div>
 
  {showNewList && (
  <div className={`${cardClass} mt-4`}>
- <h3 className="font-semibold">Create a list</h3>
+ <h3 className="font-semibold">{t("email-list.create_a_list")}</h3>
  <div className="mt-3 grid gap-3 md:grid-cols-2">
- <input className={inputClass} placeholder="List name (e.g. Fin Fam)" value={newName} onChange={(e) => setNewName(e.target.value)} />
+ <input className={inputClass} placeholder={t("email-list.list_name_e_g_fin_fam")} value={newName} onChange={(e) => setNewName(e.target.value)} />
  <div>
  <div className="flex items-center">
- <span className="rounded-l-xl border border-r-0 border-white/10 bg-white/5 px-3 py-3 text-sm text-white/40">/join/</span>
- <input className={inputClass + " rounded-l-none"} placeholder="your-handle" value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+ <span className="rounded-l-xl border border-r-0 border-white/10 bg-white/5 px-3 py-3 text-sm text-white/40">{t("email-list.join_2")}</span>
+ <input className={inputClass + " rounded-l-none"} placeholder={t("email-list.your_handle")} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
  </div>
- <p className="mt-1 text-xs text-white/35">Lowercase letters, numbers, hyphens only.</p>
+ <p className="mt-1 text-xs text-white/35">{t("email-list.lowercase_letters_numbers_hyphen")}</p>
  </div>
  </div>
- <textarea className={inputClass + " mt-3"} rows={2} placeholder="What do subscribers get? (optional)" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+ <textarea className={inputClass + " mt-3"} rows={2} placeholder={t("email-list.what_do_subscribers_get_optional")} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
  <button className={tabBtn(true) + " mt-3"} onClick={createList} disabled={creating}>
  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
  Create list — free
@@ -413,7 +403,7 @@ export default function EmailListBuilder() {
  <button
  onClick={() => deleteList(l.id)}
  className="rounded-lg p-2 text-white/30 hover:bg-red-500/10 hover:text-red-300"
- title="Delete list"
+ title={t("email-list.delete_list")}
  >
  <Trash2 className="h-4 w-4" />
  </button>
@@ -422,7 +412,7 @@ export default function EmailListBuilder() {
  ))}
  </div>
  {lists.length === 0 && !showNewList && (
- <p className="mt-6 text-center text-sm text-white/45">No lists yet — hit "New list" to create your first one.</p>
+ <p className="mt-6 text-center text-sm text-white/45">{t("email-list.no_lists_yet_hit_new_list_to_cre")}</p>
  )}
  </div>
  )}
@@ -431,10 +421,10 @@ export default function EmailListBuilder() {
  {tab === "newsletter" && (
  <div className="mt-8 mx-auto max-w-3xl">
  <div className={cardClass}>
- <h3 className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-primary" /> AI newsletter writer</h3>
- <p className="mt-1 text-sm text-white/50">Topic in, full newsletter draft out — subject line, body, and call to action. <span className="text-primary font-semibold">100 Visual Bucs</span> per draft.</p>
+ <h3 className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-primary" />{t("email-list.ai_newsletter_writer")}</h3>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.topic_in_full_newsletter_draft_o")}<span className="text-primary font-semibold">{t("email-list.100_visual_bucs")}</span>{t("email-list.per_draft")}</p>
 
- <textarea className={inputClass + " mt-4"} rows={3} placeholder="What's the newsletter about? (e.g. my new single drops Friday + the story behind it)" value={nlTopic} onChange={(e) => setNlTopic(e.target.value)} />
+ <textarea className={inputClass + " mt-4"} rows={3} placeholder={t("email-list.what_s_the_newsletter_about_e_g")} value={nlTopic} onChange={(e) => setNlTopic(e.target.value)} />
 
  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
  {TONES.map((t) => (
@@ -449,7 +439,7 @@ export default function EmailListBuilder() {
  ))}
  </div>
 
- <input className={inputClass + " mt-3"} placeholder="Call to action (optional — e.g. Pre-save the single)" value={nlCta} onChange={(e) => setNlCta(e.target.value)} />
+ <input className={inputClass + " mt-3"} placeholder={t("email-list.call_to_action_optional_e_g_pre")} value={nlCta} onChange={(e) => setNlCta(e.target.value)} />
 
  <button className={tabBtn(true) + " mt-4"} onClick={generateNewsletter} disabled={nlLoading}>
  {nlLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
@@ -461,23 +451,23 @@ export default function EmailListBuilder() {
  <div className={`${cardClass} mt-4`}>
  <div className="flex items-start justify-between gap-3">
  <div>
- <p className="text-xs uppercase tracking-widest text-white/40">Subject</p>
+ <p className="text-xs uppercase tracking-widest text-white/40">{t("email-list.subject")}</p>
  <p className="mt-1 font-semibold text-primary">{nlDraft.subject}</p>
  </div>
- <button onClick={() => copyText("subject", nlDraft.subject)} className="rounded-lg border border-white/10 p-2 text-white/50 hover:text-white" title="Copy subject">
+ <button onClick={() => copyText("subject", nlDraft.subject)} className="rounded-lg border border-white/10 p-2 text-white/50 hover:text-white" title={t("email-list.copy_subject")}>
  {copied === "subject" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
  </div>
  <div className="mt-4 flex items-start justify-between gap-3">
- <p className="text-xs uppercase tracking-widest text-white/40">Body</p>
- <button onClick={() => copyText("body", nlDraft.body)} className="rounded-lg border border-white/10 p-2 text-white/50 hover:text-white" title="Copy body">
+ <p className="text-xs uppercase tracking-widest text-white/40">{t("email-list.body")}</p>
+ <button onClick={() => copyText("body", nlDraft.body)} className="rounded-lg border border-white/10 p-2 text-white/50 hover:text-white" title={t("email-list.copy_body")}>
  {copied === "body" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
  </div>
  <div className="mt-2 whitespace-pre-wrap rounded-xl bg-black/50 p-4 text-sm leading-relaxed text-white/80">
  {nlDraft.body}
  </div>
- <p className="mt-3 text-xs text-white/35">AI draft — read it, make it yours, then send it your way.</p>
+ <p className="mt-3 text-xs text-white/35">{t("email-list.ai_draft_read_it_make_it_yours_t")}</p>
  </div>
  )}
  </div>
@@ -488,12 +478,12 @@ export default function EmailListBuilder() {
  <div className="mt-8 mx-auto max-w-3xl">
  {!activeList ? (
  <div className={`${cardClass} text-center`}>
- <p className="text-sm text-white/50">Create a list first, then grab your signup form and landing page here.</p>
+ <p className="text-sm text-white/50">{t("email-list.create_a_list_first_then_grab_yo")}</p>
  </div>
  ) : (
  <>
  <div className="mb-4 flex items-center gap-3">
- <label className="text-sm text-white/50">List:</label>
+ <label className="text-sm text-white/50">{t("email-list.list")}</label>
  <select
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
@@ -506,25 +496,25 @@ export default function EmailListBuilder() {
  </div>
 
  <div className={cardClass}>
- <h3 className="flex items-center gap-2 font-semibold"><ExternalLink className="h-4 w-4 text-primary" /> Hosted landing page</h3>
- <p className="mt-1 text-sm text-white/50">Send fans here — no website needed.</p>
+ <h3 className="flex items-center gap-2 font-semibold"><ExternalLink className="h-4 w-4 text-primary" />{t("email-list.hosted_landing_page")}</h3>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.send_fans_here_no_website_needed")}</p>
  <div className="mt-3 flex items-center gap-2">
  <code className="flex-1 truncate rounded-xl bg-black/60 px-4 py-3 text-sm text-primary">bowdownvisuals.com/join/{activeList.handle}</code>
- <button onClick={() => copyText("landing", `https://bowdownvisuals.com/join/${activeList.handle}`)} className="rounded-xl border border-white/10 p-3 text-white/60 hover:text-white" title="Copy link">
+ <button onClick={() => copyText("landing", `https://bowdownvisuals.com/join/${activeList.handle}`)} className="rounded-xl border border-white/10 p-3 text-white/60 hover:text-white" title={t("email-list.copy_link")}>
  {copied === "landing" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
- <a href={`/join/${activeList.handle}`} target="_blank" rel="noreferrer" className="rounded-xl border border-primary/40 bg-primary/10 p-3 text-primary hover:bg-primary/20" title="Open landing page">
+ <a href={`/join/${activeList.handle}`} target="_blank" rel="noreferrer" className="rounded-xl border border-primary/40 bg-primary/10 p-3 text-primary hover:bg-primary/20" title={t("email-list.open_landing_page")}>
  <Send className="h-4 w-4" />
  </a>
  </div>
  </div>
 
  <div className={`${cardClass} mt-4`}>
- <h3 className="flex items-center gap-2 font-semibold"><Code2 className="h-4 w-4 text-primary" /> Embed on your own site</h3>
- <p className="mt-1 text-sm text-white/50">Paste this anywhere — signups land straight in your list. Free.</p>
+ <h3 className="flex items-center gap-2 font-semibold"><Code2 className="h-4 w-4 text-primary" />{t("email-list.embed_on_your_own_site")}</h3>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.paste_this_anywhere_signups_land")}</p>
  <div className="relative mt-3">
  <pre className="overflow-x-auto rounded-xl bg-black/60 p-4 text-xs leading-relaxed text-white/70">{embedSnippet}</pre>
- <button onClick={() => copyText("embed", embedSnippet)} className="absolute right-3 top-3 rounded-lg border border-white/10 bg-black/60 p-2 text-white/60 hover:text-white" title="Copy embed code">
+ <button onClick={() => copyText("embed", embedSnippet)} className="absolute right-3 top-3 rounded-lg border border-white/10 bg-black/60 p-2 text-white/60 hover:text-white" title={t("email-list.copy_embed_code")}>
  {copied === "embed" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
  </div>
@@ -539,20 +529,11 @@ export default function EmailListBuilder() {
  <p className="flex items-start gap-2">
  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" />
  <span>
- <span className="font-semibold text-white/60">How sending works (v1):</span> campaigns
- queue through our simple server-side sender — not a dedicated email service provider.
- That means no guaranteed inbox placement, no dedicated IP reputation, and sends are
- best for lists under a few thousand. As your list grows past the free tier, we'll
- graduate you to a proper ESP integration. Open tracking uses a best-effort pixel and
- undercounts privacy-conscious inboxes.
- </span>
+ <span className="font-semibold text-white/60">{t("email-list.how_sending_works_v1")}</span>{t("email-list.campaigns_queue_through_our_simp")}</span>
  </p>
  </div>
 
- <p className="relative mt-8 text-center text-sm text-white/40">
- List built? Ask <span className="font-semibold text-primary">Thy Cheat Code</span> in the
- chat bubble for newsletter ideas that actually get opened.
- </p>
+ <p className="relative mt-8 text-center text-sm text-white/40">{t("email-list.list_built_ask")}<span className="font-semibold text-primary">{t("email-list.thy_cheat_code")}</span>{t("email-list.in_the_chat_bubble_for_newslette")}</p>
  </main>
 
 

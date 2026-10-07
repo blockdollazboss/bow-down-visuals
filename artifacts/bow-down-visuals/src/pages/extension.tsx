@@ -11,6 +11,7 @@ import {
   MessageCircle, Wrench, Search, Wallet, Download,
   Bell, Check, Puzzle, Zap, MousePointerClick, BellRing,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code browser extension promo page ─── */
 /* Coming soon to the Chrome Web Store. Email notify-me form posts to the
@@ -72,7 +73,8 @@ const GUIDE_FIXES = [
 const inputClass = "h-12 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
 
 export default function Extension() {
-  usePageTitle("Thy Cheat Code Browser Extension — Coming Soon | Bow Down Visuals");
+  const { t } = useTranslation();
+  usePageTitle(t("extension.metaTitle"));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -81,7 +83,7 @@ export default function Extension() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.includes("@")) {
-      setError("Please enter your name and a valid email.");
+      setError(t("extension.please_enter_your_name_and_a_val"));
       setState("error");
       return;
     }
@@ -106,7 +108,7 @@ export default function Extension() {
       }
       setState("done");
     } catch {
-      setError("Couldn't reach the site. Try again in a moment.");
+      setError(t("extension.couldn_t_reach_the_site_try_agai"));
       setState("error");
     }
   }
@@ -126,15 +128,10 @@ export default function Extension() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[120px] pointer-events-none" />
         <LuxReveal className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
           <MarketingBadge variant="kicker">
-            <Puzzle className="h-3.5 w-3.5 mr-1.5" /> Download now · Chrome Web Store soon
-          </MarketingBadge>
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
-            Thy Cheat Code, <span className="text-[#e8c86a]">in your browser.</span>
+            <Puzzle className="h-3.5 w-3.5 mr-1.5" />{t("extension.download_now_chrome_web_store_so")}</MarketingBadge>
+          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">{t("extension.thy_cheat_code")}<span className="text-[#e8c86a]">{t("extension.in_your_browser")}</span>
           </h1>
-          <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto">
-            The entire Bow Down Visuals creator command center — AI chat, every site tool,
-            money hub and one-click saving — living in your Chrome toolbar.
-          </p>
+          <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto">{t("extension.the_entire_bow_down_visuals_crea")}</p>
 
           <div className="max-w-md mx-auto pt-4 space-y-4">
             <a
@@ -143,38 +140,36 @@ export default function Extension() {
               onClick={markExtensionDownloaded}
               className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
             >
-              <Download className="h-5 w-5" />
-              Download for Chrome — v2.0.1
-            </a>
+              <Download className="h-5 w-5" />{t("extension.download_for_chrome_v2_0_1")}</a>
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
-              <p className="font-semibold text-sm mb-2">Load it in 30 seconds:</p>
+              <p className="font-semibold text-sm mb-2">{t("extension.load_it_in_30_seconds")}</p>
               <ol className="text-white/55 text-sm space-y-1.5 list-decimal list-inside">
-                <li>Unzip the downloaded file</li>
-                <li>Open <span className="text-white font-mono text-xs">chrome://extensions</span> in Chrome</li>
-                <li>Turn on <span className="text-white">Developer mode</span> (top right)</li>
-                <li>Click <span className="text-white">Load unpacked</span> → select the unzipped folder</li>
+                <li>{t("extension.unzip_the_downloaded_file")}</li>
+                <li>{t("extension.open")}<span className="text-white font-mono text-xs">{t("extension.chrome_extensions")}</span>{t("extension.in_chrome")}</li>
+                <li>{t("extension.turn_on")}<span className="text-white">{t("extension.developer_mode")}</span>{t("extension.top_right")}</li>
+                <li>{t("extension.click")}<span className="text-white">{t("extension.load_unpacked")}</span>{t("extension.select_the_unzipped_folder")}</li>
               </ol>
-              <p className="text-white/30 text-xs mt-3">Sign in on bowdownvisuals.com first — the extension uses your site session.</p>
+              <p className="text-white/30 text-xs mt-3">{t("extension.sign_in_on_bowdownvisuals_com_fi")}</p>
             </div>
 
             <div className="pt-2">
-              <p className="text-white/40 text-sm mb-3">Rather wait for the one-click install?</p>
+              <p className="text-white/40 text-sm mb-3">{t("extension.rather_wait_for_the_one_click_in")}</p>
             {state === "done" ? (
               <div className="rounded-2xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-6 text-center">
                 <Check className="h-8 w-8 text-[#e8c86a] mx-auto mb-2" />
-                <p className="font-semibold text-lg">You're on the list. </p>
-                <p className="text-white/60 text-sm mt-1">We'll email you the install link the day it launches.</p>
+                <p className="font-semibold text-lg">{t("extension.you_re_on_the_list")}</p>
+                <p className="text-white/60 text-sm mt-1">{t("extension.we_ll_email_you_the_install_link")}</p>
               </div>
             ) : (
               <form onSubmit={submit} className="space-y-3">
-                <Input className={inputClass} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
-                <Input className={inputClass} placeholder="Email for the launch link" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={160} />
+                <Input className={inputClass} placeholder={t("extension.your_name")} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+                <Input className={inputClass} placeholder={t("extension.email_for_the_launch_link")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={160} />
                 <Button type="submit" disabled={state === "sending"} className="w-full h-12 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] text-black font-bold text-base hover:brightness-110 transition">
                   <Bell className="h-4 w-4 mr-2" />
                   {state === "sending" ? "Joining…" : "Notify me at launch"}
                 </Button>
                 {state === "error" && <p className="text-red-400/90 text-sm">{error}</p>}
-                <p className="text-white/30 text-xs">One email when it launches. No spam, ever.</p>
+                <p className="text-white/30 text-xs">{t("extension.one_email_when_it_launches_no_sp")}</p>
               </form>
             )}
             </div>
@@ -186,9 +181,8 @@ export default function Extension() {
       <section className="px-5 py-16 md:py-20 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
           <LuxReveal className="text-center mb-10">
-            <MarketingBadge variant="kicker">Install guide</MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">
-              Up and running <span className="text-[#e8c86a]">in 30 seconds.</span>
+            <MarketingBadge variant="kicker">{t("extension.install_guide")}</MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.up_and_running")}<span className="text-[#e8c86a]">{t("extension.in_30_seconds")}</span>
             </h2>
           </LuxReveal>
           <div className="space-y-3">
@@ -207,7 +201,7 @@ export default function Extension() {
             ))}
           </div>
           <LuxReveal className="mt-8">
-            <h3 className="font-semibold text-lg mb-3 text-center">Something off? Quick fixes</h3>
+            <h3 className="font-semibold text-lg mb-3 text-center">{t("extension.something_off_quick_fixes")}</h3>
             <div className="space-y-3">
               {GUIDE_FIXES.map((f) => (
                 <div key={f.q} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -224,9 +218,8 @@ export default function Extension() {
       <section className="px-5 py-16 md:py-20">
         <div className="max-w-6xl mx-auto">
           <LuxReveal className="text-center mb-10">
-            <MarketingBadge variant="kicker">Inside the popup</MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">
-              Five tabs. <span className="text-[#e8c86a]">Everything you need.</span>
+            <MarketingBadge variant="kicker">{t("extension.inside_the_popup")}</MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.five_tabs")}<span className="text-[#e8c86a]">{t("extension.everything_you_need")}</span>
             </h2>
           </LuxReveal>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -242,8 +235,8 @@ export default function Extension() {
             <LuxReveal delay={0.3}>
               <div className="h-full rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-br from-[#C9A84C]/15 to-transparent p-6 space-y-3">
                 <Zap className="h-7 w-7 text-[#e8c86a]" />
-                <h3 className="font-semibold text-lg">⌨️ Omnibox + shortcut</h3>
-                <p className="text-white/55 text-sm leading-relaxed">Type <span className="text-white font-mono">bdv</span> + Tab in the address bar to ask Thy Cheat Code anything, or hit Ctrl+Shift+B anywhere.</p>
+                <h3 className="font-semibold text-lg">{t("extension.omnibox_shortcut")}</h3>
+                <p className="text-white/55 text-sm leading-relaxed">{t("extension.type")}<span className="text-white font-mono">{t("extension.bdv")}</span>{t("extension.tab_in_the_address_bar_to_ask_th")}</p>
               </div>
             </LuxReveal>
           </div>
@@ -269,8 +262,8 @@ export default function Extension() {
       <section className="px-5 py-16 md:py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto">
           <LuxReveal className="text-center mb-10">
-            <MarketingBadge variant="kicker">Questions</MarketingBadge>
-            <h2 className="text-3xl font-semibold tracking-tight mt-4">Before you ask</h2>
+            <MarketingBadge variant="kicker">{t("extension.questions")}</MarketingBadge>
+            <h2 className="text-3xl font-semibold tracking-tight mt-4">{t("extension.before_you_ask")}</h2>
           </LuxReveal>
           <div className="space-y-3">
             {FAQS.map((f, i) => (
@@ -284,7 +277,7 @@ export default function Extension() {
           </div>
           <div className="text-center mt-10">
             <Link href="/">
-              <span className="text-[#e8c86a] hover:underline text-sm cursor-pointer">← Back to the site</span>
+              <span className="text-[#e8c86a] hover:underline text-sm cursor-pointer">{t("extension.back_to_the_site")}</span>
             </Link>
           </div>
         </div>

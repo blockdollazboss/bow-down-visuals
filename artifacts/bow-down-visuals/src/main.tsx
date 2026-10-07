@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import "./lib/i18n";
+import "./lib/i18n"; // initialize i18next before rendering
 
 document.documentElement.classList.add("dark");
 

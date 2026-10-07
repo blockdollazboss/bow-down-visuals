@@ -14,7 +14,9 @@ import { StudioPipeline } from "@/components/StudioPipeline";
 import { usePageTitle } from "@/hooks/use-page-title";
 import SpotlightBanner from "@/components/SpotlightBanner";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
+import AndroidPromoBanner from "@/components/AndroidPromoBanner";
 import StreakWidget from "@/components/StreakWidget";
+import { useTranslation } from "react-i18next";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -69,6 +71,7 @@ interface CreatorCardProps {
 }
 
 function CreatorCard({ icon: Icon, title, description, cta, href, accent }: CreatorCardProps) {
+  const { t } = useTranslation();
   return (
     <Link href={href}>
       <div className={`
@@ -81,8 +84,7 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
         {accent && (
           <div className="absolute -top-3 left-5">
             <MarketingBadge variant="popular">
-              <Star className="h-2.5 w-2.5" /> Most Popular
-            </MarketingBadge>
+              <Star className="h-2.5 w-2.5" />{t("dashboard.most_popular")}</MarketingBadge>
           </div>
         )}
         <div className={`h-11 w-11 rounded-xl flex items-center justify-center mb-4 shrink-0 transition-colors ${
@@ -106,6 +108,7 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
 /* ─────────────────────── RECENT PROJECT ROW ─────────────────────── */
 
 function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: string) => void }) {
+  const { t } = useTranslation();
   const label = project.title ||
     [project.artist_name, project.song_title].filter(Boolean).join(" — ") ||
     project.project_type;
@@ -133,9 +136,7 @@ function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: 
       <button
         onClick={() => onOpen(project.id)}
         className="shrink-0 text-xs font-bold text-primary/70 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1.5 rounded-lg transition-all"
-      >
-        Open
-      </button>
+      >{t("dashboard.open")}</button>
     </div>
   );
 }
@@ -143,7 +144,8 @@ function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: 
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
-  usePageTitle("Dashboard", "Your creator command center — every AI tool in one place.");
+  const { t } = useTranslation();
+  usePageTitle(t("dashboard.metaTitle"), t("dashboard.metaDescription"));
   const { profile, user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { setMode, isSimple } = useUserMode();
@@ -311,19 +313,18 @@ export default function Dashboard() {
 
         {/* ── 1. WELCOME HEADER ── */}
         <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">Creator Studio</p>
+          <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">{t("dashboard.creator_studio")}</p>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-1">
-            <span className="text-white/90">Welcome back, </span>
+            <span className="text-white/90">{t("dashboard.welcome_back")}</span>
             <span className="gold-text-shine">{name}</span>
           </h1>
-          <p className="text-white/35 text-base font-medium">
-            Create the Song. Create the Video. Promote the Release.
-          </p>
+          <p className="text-white/35 text-base font-medium">{t("dashboard.create_the_song_create_the_video")}</p>
         </div>
 
         {/* ── SPOTLIGHT TAKEOVER PROMO (ad slot for sale) ── */}
         <SpotlightBanner />
         <ExtensionPromoBanner />
+        <AndroidPromoBanner />
         <StreakWidget />
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}
@@ -353,7 +354,7 @@ export default function Dashboard() {
                   <p className="text-[13px] font-black text-white tracking-[0.02em] truncate">
                     {activeArtist.artist_name}
                   </p>
-                  <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">ACTIVE</MarketingBadge>
+                  <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">{t("dashboard.active")}</MarketingBadge>
                 </div>
                 <p className="text-[10.5px] text-white/35 mt-0.5 truncate">
                   {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
@@ -369,7 +370,7 @@ export default function Dashboard() {
                   background: "var(--character-tint, rgba(201,168,76,0.08))",
                   color: "var(--character-primary, #C9A84C)",
                 }}
-              >Change →</button>
+              >{t("dashboard.change")}</button>
             </div>
           );
         })() : (
@@ -378,17 +379,15 @@ export default function Dashboard() {
               <User className="h-5 w-5 text-white/20" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-white/30 tracking-[0.16em] uppercase">Active Artist</p>
+              <p className="text-[10px] font-bold text-white/30 tracking-[0.16em] uppercase">{t("dashboard.active_artist")}</p>
               <p className="text-[12.5px] text-white/35 mt-0.5 flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-white/20 shrink-0" />
-                No artist selected — choose one for consistent AI style
-              </p>
+                <AlertCircle className="h-3.5 w-3.5 text-white/20 shrink-0" />{t("dashboard.no_artist_selected_choose_one_fo")}</p>
             </div>
             <button
               type="button"
               onClick={() => setLocation("/choose-artist")}
               className="h-[30px] rounded-[9px] border border-white/[0.12] bg-white/[0.04] text-white/50 text-[10.5px] font-bold cursor-pointer px-3 shrink-0 whitespace-nowrap hover:bg-white/[0.08] hover:text-white/70 transition-colors"
-            >Choose Artist</button>
+            >{t("dashboard.choose_artist")}</button>
           </div>
         )}
 
@@ -398,28 +397,20 @@ export default function Dashboard() {
             <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.14] via-primary/[0.05] to-transparent p-8 md:p-10 shadow-[0_0_40px_rgba(218,165,32,0.10)]">
               <div className="max-w-xl">
                 <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-4">
-                  <Sparkles className="h-3 w-3" /> Simple Mode
-                </span>
-                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight mb-2">
-                  Upload a song or paste an idea — we'll do the rest
-                </h2>
-                <p className="text-white/45 text-sm md:text-base font-medium mb-6">
-                  One click. AI picks the genre, mood, format, and editing style, generates your scenes,
-                  and drops you straight into a ready-to-export video.
-                </p>
+                  <Sparkles className="h-3 w-3" />{t("dashboard.simple_mode")}</span>
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight mb-2">{t("dashboard.upload_a_song_or_paste_an_idea_w")}</h2>
+                <p className="text-white/45 text-sm md:text-base font-medium mb-6">{t("dashboard.one_click_ai_picks_the_genre_moo")}</p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Link href="/create">
                     <Button size="lg" className="gold-glow font-black gap-2">
-                      <Sparkles className="h-4 w-4" /> Create with AI
-                    </Button>
+                      <Sparkles className="h-4 w-4" />{t("dashboard.create_with_ai")}</Button>
                   </Link>
                   <button
                     type="button"
                     onClick={() => setMode("advanced")}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-white/70 transition-colors"
                   >
-                    <SlidersHorizontal className="h-3.5 w-3.5" /> Switch to Advanced for full manual controls
-                  </button>
+                    <SlidersHorizontal className="h-3.5 w-3.5" />{t("dashboard.switch_to_advanced_for_full_manu")}</button>
                 </div>
               </div>
             </div>
@@ -428,16 +419,15 @@ export default function Dashboard() {
         <section>
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
-              <p className="text-sm text-white/35 mt-1">Follow the 1-2-3 release workflow, or pick any step on its own.</p>
+              <h2 className="text-xl font-black text-white tracking-tight">{t("dashboard.what_do_you_want_to_create")}</h2>
+              <p className="text-sm text-white/35 mt-1">{t("dashboard.follow_the_1_2_3_release_workflo")}</p>
             </div>
             <button
               type="button"
               onClick={() => setMode("simple")}
               className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-primary/70 hover:text-primary transition-colors shrink-0"
             >
-              <Sparkles className="h-3.5 w-3.5" /> Try Simple Mode
-            </button>
+              <Sparkles className="h-3.5 w-3.5" />{t("dashboard.try_simple_mode")}</button>
           </div>
 
           {/* 1 → 2 → 3 pipeline */}
@@ -446,7 +436,7 @@ export default function Dashboard() {
           <div className="mt-4 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lux-stagger">
             <CreatorCard
               icon={Mic2}
-              title="Make Song + Video"
+              title={t("dashboard.make_song_video")}
               description="Create a song idea, lyrics, video scenes, and clips."
               cta="Start Full Workflow"
               href="/song-and-video"
@@ -454,14 +444,14 @@ export default function Dashboard() {
             />
             <CreatorCard
               icon={Video}
-              title="Make Music Video"
+              title={t("dashboard.make_music_video")}
               description="Turn your song or lyrics into video scenes and AI clips."
               cta="Create Music Video"
               href="/make-video"
             />
             <CreatorCard
               icon={Film}
-              title="Promo Clips"
+              title={t("dashboard.promo_clips")}
               description="Make TikTok, Reels, and Shorts ideas for your release."
               cta="Create Promo Clips"
               href="/promo-clip"
@@ -469,7 +459,7 @@ export default function Dashboard() {
             <div data-tour="card-artist-vault" className="h-full">
             <CreatorCard
               icon={Archive}
-              title="Artist Profiles"
+              title={t("dashboard.artist_profiles")}
               description="Save your artist look, style, colors, and brand rules."
               cta="Choose Artist"
               href="/artist-vault"
@@ -477,21 +467,21 @@ export default function Dashboard() {
             </div>
             <CreatorCard
               icon={Headphones}
-              title="Music Mixer"
+              title={t("dashboard.music_mixer")}
               description="Upload vocals, beats, or stems and preview your mix."
               cta="Open Music Mixer"
               href="/video-editor"
             />
             <CreatorCard
               icon={FolderOpen}
-              title="My Projects"
+              title={t("dashboard.my_projects")}
               description="Continue editing saved songs, videos, and campaigns."
               cta="Open Projects"
               href="/my-projects"
             />
             <CreatorCard
               icon={Users}
-              title="Collab Finder"
+              title={t("dashboard.collab_finder")}
               description="Find creators to team up with — AI match scores, free proposals."
               cta="Find Collabs"
               href="/collabs"
@@ -503,15 +493,14 @@ export default function Dashboard() {
         {/* ── 4. RECENT PROJECTS ── */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase">Recent Projects</h2>
+            <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase">{t("dashboard.recent_projects")}</h2>
             <Link href="/my-projects">
-              <span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">
-                View All Projects <ChevronRight className="h-3 w-3" />
+              <span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all_projects")}<ChevronRight className="h-3 w-3" />
               </span>
             </Link>
           </div>
           {projectsLoading ? (
-            <div className="flex flex-col gap-2" aria-label="Loading projects">
+            <div className="flex flex-col gap-2" aria-label={t("dashboard.loading_projects")}>
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                   <div className="h-8 w-8 rounded-lg lux-skeleton shrink-0" />
@@ -525,11 +514,10 @@ export default function Dashboard() {
           ) : recentProjects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-white/[0.05] bg-white/[0.01] text-center gap-3">
               <FolderOpen className="h-8 w-8 text-white/10" />
-              <p className="text-sm text-white/25">No saved projects yet.</p>
+              <p className="text-sm text-white/25">{t("dashboard.no_saved_projects_yet")}</p>
               <Link href="/song-and-video">
                 <Button size="sm" className="gold-glow font-semibold gap-1.5 mt-1">
-                  <Mic2 className="h-3.5 w-3.5" /> Start your first project
-                </Button>
+                  <Mic2 className="h-3.5 w-3.5" />{t("dashboard.start_your_first_project")}</Button>
               </Link>
             </div>
           ) : (
@@ -553,7 +541,7 @@ export default function Dashboard() {
                 <CheckCircle2 className="h-4 w-4 text-primary/70" />
               </div>
               <div>
-                <p className="text-sm font-black text-white">Getting Started</p>
+                <p className="text-sm font-black text-white">{t("dashboard.getting_started")}</p>
                 <p className="text-[11px] text-white/35">
                   {checklistDoneCount} of {checklistSteps.length} steps completed
                 </p>

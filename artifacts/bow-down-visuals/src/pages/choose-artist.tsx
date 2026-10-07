@@ -7,9 +7,11 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 export default function ChooseArtist() {
-  usePageTitle("Choose Artist", "Pick the artist profile you're creating for.");
+  const { t } = useTranslation();
+  usePageTitle(t("chooseArtist.pageTitle"), t("chooseArtist.pageDescription"));
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
@@ -78,19 +80,19 @@ export default function ChooseArtist() {
           {/* ON SET indicator */}
           <div className="inline-flex items-center gap-2 mb-5 rounded-full border border-red-500/40 bg-red-500/10 px-4 py-1.5">
             <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">On set</span>
+            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">{t("chooseArtist.onSet")}</span>
           </div>
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 border border-[#C9A84C]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(201,168,76,0.25)]">
             <Aperture className="h-7 w-7 text-[#C9A84C]" />
           </div>
           <p className="text-[#C9A84C] text-xs font-bold uppercase tracking-[0.3em] mb-3">
-            Bow Down Visuals Studio
+            {t("chooseArtist.eyebrow")}
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Who's In Front of the Camera?
+            {t("chooseArtist.title")}
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.
+            {t("chooseArtist.subtitle")}
           </p>
         </div>
 
@@ -104,8 +106,8 @@ export default function ChooseArtist() {
               <User className="h-6 w-6 text-white/20" />
             </div>
             <div>
-              <p className="text-white/60 font-semibold mb-1">No artist profiles yet</p>
-              <p className="text-sm text-white/35">Set up an artist profile to keep your music and visuals consistent. Takes about 2 minutes — or skip for now and add one later.</p>
+              <p className="text-white/60 font-semibold mb-1">{t("chooseArtist.emptyTitle")}</p>
+              <p className="text-sm text-white/35">{t("chooseArtist.emptyDescription")}</p>
             </div>
           </div>
         ) : (
@@ -114,7 +116,7 @@ export default function ChooseArtist() {
             <div className="flex items-center justify-center gap-2 mb-4">
               <Camera className="h-4 w-4 text-[#C9A84C]" />
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
-                In the spotlight
+                {t("chooseArtist.inSpotlight")}
               </p>
               <Camera className="h-4 w-4 text-[#C9A84C]" />
             </div>
@@ -207,7 +209,7 @@ export default function ChooseArtist() {
                   }}>
                     <Crown className="h-3 w-3" style={{ color: THEME }} />
                     <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em" }}>
-                      #{index + 1} SPOTLIGHT
+                      {t("chooseArtist.spotlightBadge", { n: index + 1 })}
                     </span>
                   </div>
 
@@ -231,7 +233,7 @@ export default function ChooseArtist() {
                       backdropFilter: "blur(8px)",
                     }}>
                       <div style={{ width: 5, height: 5, borderRadius: "50%", background: THEME, boxShadow: `0 0 5px ${THEME}` }} />
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>SELECTED</span>
+                      <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>{t("chooseArtist.selected")}</span>
                     </div>
                   )}
 
@@ -276,7 +278,7 @@ export default function ChooseArtist() {
             {remainingVaults.length > 0 && (
               <>
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  More artists
+                  {t("chooseArtist.moreArtists")}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                   {remainingVaults.map((vault) => {
@@ -336,7 +338,7 @@ export default function ChooseArtist() {
             )}
             {hiddenCount > 0 && (
               <p className="mb-6 text-center text-sm text-white/35">
-                +{hiddenCount} more artist{hiddenCount === 1 ? "" : "s"} — showing your top 10
+                {t("chooseArtist.hiddenCount", { count: hiddenCount })}
               </p>
             )}
           </>
@@ -353,7 +355,7 @@ export default function ChooseArtist() {
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />
-            Start Creating with This Artist
+            {t("chooseArtist.startCreating")}
             <ArrowRight className="h-5 w-5 ml-auto" />
           </Button>
 
@@ -365,7 +367,7 @@ export default function ChooseArtist() {
               data-testid="btn-create-artist"
             >
               <Plus className="h-4 w-4" />
-              Create Artist Profile
+              {t("chooseArtist.createProfile")}
             </Button>
           </Link>
 
@@ -376,7 +378,7 @@ export default function ChooseArtist() {
             className="w-full py-3 text-sm text-white/35 hover:text-white/60 transition-colors"
             data-testid="btn-continue-without"
           >
-            Skip for now — I'll choose an artist later
+            {t("chooseArtist.skipForNow")}
           </button>
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
+import { useTranslation } from "react-i18next";
 import { BeatMakerModule } from "./beat-maker";
 import { ThumbnailMakerModule } from "./thumbnail-maker";
 
@@ -31,6 +32,7 @@ import { ThumbnailMakerModule } from "./thumbnail-maker";
    get a "Done, next" button that stores progress per project type. */
 
 function AssetCard({ asset }: { asset: HubAsset }) {
+  const { t } = useTranslation();
   const { removeAsset } = useHubProject();
   const next = NEXT_STEPS[asset.kind] ?? [];
   return (
@@ -47,7 +49,7 @@ function AssetCard({ asset }: { asset: HubAsset }) {
           type="button"
           onClick={() => removeAsset(asset.id)}
           className="text-white/30 hover:text-red-400 transition-colors shrink-0"
-          aria-label={`Remove ${asset.label}`}
+          aria-label={t("hub.removeAssetAria", { label: asset.label })}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -71,7 +73,7 @@ function AssetCard({ asset }: { asset: HubAsset }) {
           href={asset.url} download target="_blank" rel="noreferrer"
           className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white border border-white/15 rounded-lg px-2.5 py-1.5 transition-colors"
         >
-          <Download className="w-3.5 h-3.5" /> Download
+          <Download className="w-3.5 h-3.5" /> {t("hub.download")}
         </a>
         {next.map((n) => (
           <Link
@@ -88,12 +90,13 @@ function AssetCard({ asset }: { asset: HubAsset }) {
 }
 
 function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 text-center max-w-4xl mx-auto">
       <Layers className="w-10 h-10 text-primary mx-auto mb-4" />
-      <h2 className="text-white font-black text-2xl mb-2">What are we working on?</h2>
+      <h2 className="text-white font-black text-2xl mb-2">{t("hub.typePickerTitle")}</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
-        Pick one — the hub handles the rest, one easy step at a time.
+        {t("hub.typePickerSub")}
       </p>
       <div className="space-y-8 text-left">
         {FAMILIES.map((f) => {
@@ -131,6 +134,7 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
 /* ─── Template picker: CapCut-style preloaded starters ───────────────────── */
 
 function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick: (t: HubTemplate | null) => void; onBack: () => void }) {
+  const { t } = useTranslation();
   const workflow = getWorkflow(type);
   const templates = getTemplates(type);
   return (
@@ -140,11 +144,11 @@ function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick
         onClick={onBack}
         className="flex items-center gap-1 text-white/40 hover:text-white text-sm mb-6 transition-colors"
       >
-        <ChevronLeft className="w-4 h-4" /> All project types
+        <ChevronLeft className="w-4 h-4" /> {t("hub.allProjectTypes")}
       </button>
-      <h2 className="text-white font-black text-2xl mb-2">Start your {workflow.title} from a template?</h2>
+      <h2 className="text-white font-black text-2xl mb-2">{t("hub.startFromTemplate", { title: workflow.title })}</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md">
-        Preloaded with the concept, settings, and step-by-step starters — pick one and you're already moving.
+        {t("hub.templatePickerSub")}
       </p>
       <div className="grid sm:grid-cols-2 gap-3 text-left">
         <button
@@ -154,23 +158,23 @@ function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick
           className="rounded-2xl border border-dashed border-white/15 bg-transparent p-5 hover:border-primary/60 hover:bg-primary/[0.04] transition-all group text-left"
         >
           <FilePlus2 className="w-7 h-7 text-white/40 mb-3 group-hover:text-primary group-hover:scale-110 transition-all" />
-          <p className="text-white font-bold mb-1">Start blank</p>
-          <p className="text-white/40 text-xs leading-relaxed">A clean slate — the guide walks you through everything.</p>
+          <p className="text-white font-bold mb-1">{t("hub.startBlank")}</p>
+          <p className="text-white/40 text-xs leading-relaxed">{t("hub.startBlankBlurb")}</p>
         </button>
-        {templates.map((t) => {
-          const Icon: LucideIcon = t.icon;
+        {templates.map((tpl) => {
+          const Icon: LucideIcon = tpl.icon;
           return (
             <button
-              key={t.key}
+              key={tpl.key}
               type="button"
-              onClick={() => onPick(t)}
+              onClick={() => onPick(tpl)}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-primary/60 hover:bg-primary/[0.06] transition-all group text-left"
             >
               <Icon className="w-7 h-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
-              <p className="text-white font-bold mb-1">{t.name}</p>
-              <p className="text-white/40 text-xs leading-relaxed mb-2">{t.blurb}</p>
+              <p className="text-white font-bold mb-1">{tpl.name}</p>
+              <p className="text-white/40 text-xs leading-relaxed mb-2">{tpl.blurb}</p>
               <p className="text-primary/70 text-[11px] font-semibold flex items-center gap-1">
-                <Zap className="w-3 h-3" /> Preloaded: concept + {t.preload.length} step starters
+                <Zap className="w-3 h-3" /> {t("hub.preloadedStarters", { count: tpl.preload.length })}
               </p>
             </button>
           );
@@ -181,6 +185,7 @@ function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick
 }
 
 function EmbeddedModule({ step }: { step: WorkflowStep }) {
+  const { t } = useTranslation();
   const { addAsset } = useHubProject();
   if (step.embed === "beat-maker") {
     return (
@@ -190,7 +195,7 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
             kind: "beat",
             url: beat.url,
             label: beat.title,
-            detail: `${Math.round(beat.durationMs / 1000)}s · AI generated`,
+            detail: t("hub.beatDetail", { seconds: Math.round(beat.durationMs / 1000) }),
             meta: beat.meta,
           })
         }
@@ -206,6 +211,7 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
 /* ─── Guided view: the cheat-code view ────────────────────────────────────── */
 
 function GuidedView({ onNewProject }: { onNewProject: () => void }) {
+  const { t } = useTranslation();
   const { project, hasKind, stepDones, markStepDone } = useHubProject();
   const workflow = getWorkflow(project.type);
   const steps = workflow.steps;
@@ -249,8 +255,8 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       {project.concept && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-2">
-            Your concept
-            {template && <span className="text-primary/70 normal-case"> · {template.name} template</span>}
+            {t("hub.yourConcept")}
+            {template && <span className="text-primary/70 normal-case">{t("hub.templateNameSuffix", { name: template.name })}</span>}
           </p>
           <p className="text-white/70 text-sm leading-relaxed">{project.concept}</p>
         </div>
@@ -260,9 +266,9 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-white/50 text-xs font-bold uppercase tracking-widest">
-            {allDone ? "Complete" : `Step ${safeIdx + 1} of ${steps.length}`}
+            {allDone ? t("hub.complete") : t("hub.stepOf", { current: safeIdx + 1, total: steps.length })}
           </p>
-          <p className="text-white/50 text-xs">{doneCount}/{steps.length} done</p>
+          <p className="text-white/50 text-xs">{t("hub.doneCount", { done: doneCount, total: steps.length })}</p>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
           <div
@@ -275,24 +281,23 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       {allDone ? (
         <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-8 md:p-10 text-center">
           <Sparkles className="w-10 h-10 text-primary mx-auto mb-4" />
-          <h2 className="text-white font-black text-2xl mb-2">That's the whole chain.</h2>
+          <h2 className="text-white font-black text-2xl mb-2">{t("hub.chainCompleteTitle")}</h2>
           <p className="text-white/50 text-sm max-w-sm mx-auto mb-6">
-            {project.name} went from idea to finished — {project.assets.length} asset
-            {project.assets.length === 1 ? "" : "s"} in the tray, every step feeding the next.
+            {t("hub.chainCompleteSub", { name: project.name, count: project.assets.length })}
           </p>
           <Button
             onClick={onNewProject}
             className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4 mr-2" /> Start something new
+            <Plus className="w-4 h-4 mr-2" /> {t("hub.startSomethingNew")}
           </Button>
         </div>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-3">
-            Step {safeIdx + 1}
+            {t("hub.stepN", { n: safeIdx + 1 })}
             {done
-              ? <span className="text-emerald-400"> · done</span>
+              ? <span className="text-emerald-400"> · {t("hub.doneWord")}</span>
               : <span> · {step.creditNote}</span>}
           </p>
           <div className="flex items-center gap-3 mb-2">
@@ -312,7 +317,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
             <div className="rounded-xl border border-primary/25 bg-primary/[0.06] p-4 mb-6 flex gap-3">
               <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
-                <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">Preloaded starter</p>
+                <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">{t("hub.preloadedStarter")}</p>
                 <p className="text-white/75 text-sm leading-relaxed">{stepHint.hint}</p>
               </div>
             </div>
@@ -326,22 +331,22 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                 </div>
               )}
               <p className="text-emerald-300/90 text-sm font-semibold">
-                {step.label} locked in — nice.
+                {t("hub.stepLockedIn", { label: step.label })}
               </p>
               {next ? (
                 <Button
                   onClick={advance}
                   className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90"
                 >
-                  Next up: {next.label} <ArrowRight className="w-5 h-5 ml-2" />
+                  {t("hub.nextUp", { label: next.label })} <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               ) : (
-                <p className="text-white/60 text-sm">That was the last step — chain complete.</p>
+                <p className="text-white/60 text-sm">{t("hub.lastStepComplete")}</p>
               )}
               {step.assetKind && !step.embed && (
                 <div className="text-center">
                   <Link href={step.href} className="text-white/40 hover:text-white text-xs underline underline-offset-4">
-                    Make another {step.label.toLowerCase()}
+                    {t("hub.makeAnother", { label: step.label.toLowerCase() })}
                   </Link>
                 </div>
               )}
@@ -355,7 +360,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                   onClick={finishStep}
                   className="text-white/40 hover:text-white text-xs underline underline-offset-4"
                 >
-                  Skip for now
+                  {t("hub.skipForNow")}
                 </button>
               </div>
             </div>
@@ -364,12 +369,12 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
               <Link href={step.href} className="block">
                 <Button className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  {step.assetKind ? `Make my ${step.label.toLowerCase()}` : `Open ${step.label}`}
+                  {step.assetKind ? t("hub.makeMy", { label: step.label.toLowerCase() }) : t("hub.openX", { label: step.label })}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
               <p className="text-white/35 text-xs text-center">
-                Anything you make lands back here automatically.
+                {t("hub.anythingLandsBack")}
               </p>
               <div className="text-center">
                 <button
@@ -377,7 +382,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                   onClick={finishStep}
                   className="text-white/40 hover:text-white text-xs underline underline-offset-4"
                 >
-                  {step.skipLabel ?? (step.assetKind ? "Skip for now" : "Done — next")}
+                  {step.skipLabel ?? (step.assetKind ? t("hub.skipForNow") : t("hub.doneNext"))}
                 </button>
               </div>
             </div>
@@ -389,7 +394,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       {project.assets.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">
-            Your stuff so far · {project.assets.length}
+            {t("hub.yourStuffSoFar", { count: project.assets.length })}
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {project.assets.slice(0, 12).map((a) => (
@@ -413,6 +418,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 /* ─── All-steps view: the advanced map ────────────────────────────────────── */
 
 function AllStepsView() {
+  const { t } = useTranslation();
   const { project, setProjectType, hasKind } = useHubProject();
   const workflow = getWorkflow(project.type);
   const [activeStep, setActiveStep] = useState<string | null>(null);
@@ -439,7 +445,7 @@ function AllStepsView() {
           ))}
         </div>
         <span className="text-white/30 text-sm">
-          · {project.assets.length} asset{project.assets.length === 1 ? "" : "s"}
+          {t("hub.trayAssetCount", { count: project.assets.length })}
         </span>
       </div>
 
@@ -463,7 +469,7 @@ function AllStepsView() {
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">
-                  {isNext ? <span className="text-primary">Up next</span> : `Step ${i + 1}`}
+                  {isNext ? <span className="text-primary">{t("hub.upNext")}</span> : t("hub.stepN", { n: i + 1 })}
                 </span>
                 {done && (
                   <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
@@ -503,14 +509,13 @@ function AllStepsView() {
                 <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
                   <step.icon className="w-10 h-10 text-white/20 mx-auto mb-3" />
                   <p className="text-white/50 text-sm max-w-sm mx-auto">
-                    Nothing here yet. Open the {step.label.toLowerCase()} studio — anything you
-                    make lands back in this project automatically.
+                    {t("hub.nothingHereYet", { label: step.label.toLowerCase() })}
                   </p>
                 </div>
               )}
               <Link href={step.href}>
                 <Button className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90">
-                  <Sparkles className="w-4 h-4 mr-2" /> Open {step.label} Studio
+                  <Sparkles className="w-4 h-4 mr-2" /> {t("hub.openStudio", { label: step.label })}
                 </Button>
               </Link>
             </div>
@@ -520,15 +525,15 @@ function AllStepsView() {
         {/* Project tray */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-fit lg:sticky lg:top-6">
           <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
-            <Music4 className="w-4 h-4 text-primary" /> Project assets
+            <Music4 className="w-4 h-4 text-primary" /> {t("hub.projectAssets")}
           </h3>
           <p className="text-white/35 text-xs mb-4">
-            Everything you make — here or in any studio — collects in this project.
+            {t("hub.trayExplainer")}
           </p>
           {project.assets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
               <p className="text-white/40 text-sm">
-                Start step 1 and <span className="text-white/70 font-medium">{project.name}</span> comes alive.
+                {t("hub.emptyTrayBefore")}<span className="text-white/70 font-medium">{project.name}</span>{t("hub.emptyTrayAfter")}
               </p>
             </div>
           ) : (
@@ -543,6 +548,7 @@ function AllStepsView() {
 }
 
 export default function Hub() {
+  const { t } = useTranslation();
   const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
@@ -579,13 +585,13 @@ export default function Hub() {
               type="button"
               onClick={() => setPickingType(true)}
               className="text-white/40 hover:text-white transition-colors"
-              aria-label="Back to project picker"
+              aria-label={t("hub.backToPickerAria")}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           <h1 className="text-3xl font-black text-white">Hub</h1>
-          <MarketingBadge variant="muted">Beta</MarketingBadge>
+          <MarketingBadge variant="muted">{t("hub.beta")}</MarketingBadge>
         </div>
         <div className="flex items-center gap-2">
           {!pickingType && (
@@ -597,7 +603,7 @@ export default function Hub() {
                   view === "guided" ? "bg-primary text-black" : "text-white/50 hover:text-white"
                 }`}
               >
-                Guide me
+                {t("hub.guideMe")}
               </button>
               <button
                 type="button"
@@ -606,7 +612,7 @@ export default function Hub() {
                   view === "all" ? "bg-primary text-black" : "text-white/50 hover:text-white"
                 }`}
               >
-                All steps
+                {t("hub.allSteps")}
               </button>
             </div>
           )}
@@ -615,7 +621,7 @@ export default function Hub() {
             onClick={backToPicker}
             className="rounded-xl border-white/15 text-white/70 hover:text-white hover:border-white/30"
           >
-            <Plus className="w-4 h-4 mr-2" /> New project
+            <Plus className="w-4 h-4 mr-2" /> {t("hub.newProject")}
           </Button>
         </div>
       </div>
@@ -652,7 +658,7 @@ export default function Hub() {
                 type="button"
                 onClick={() => { setNameDraft(project.name); setEditingName(true); }}
                 className="text-white/80 font-semibold hover:text-white transition-colors"
-                title="Rename project"
+                title={t("hub.renameProjectTitle")}
               >
                 {project.name}
               </button>

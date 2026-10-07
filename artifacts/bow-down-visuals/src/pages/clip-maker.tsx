@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's AI Streamer Clip Maker ─────────────────────────────
    Upload a stream VOD → Whisper transcribes it → GPT-6 finds the best
@@ -22,12 +23,6 @@ interface Vibe {
   blurb: string;
   icon: typeof Flame;
 }
-
-const VIBES: Vibe[] = [
-  { key: "funny", label: "Funny", blurb: "Jokes, fails & chaos", icon: Sparkles },
-  { key: "hype", label: "Hype", blurb: "Clutch plays & big wins", icon: Flame },
-  { key: "wholesome", label: "Wholesome", blurb: "Feel-good moments", icon: Clapperboard },
-];
 
 const CLIP_LENGTHS = [15, 30, 60];
 const ANALYZE_COST = 3;
@@ -77,8 +72,15 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function ClipMaker() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+
+  const VIBES: Vibe[] = [
+    { key: "funny", label: t("clipMaker.vibeFunnyLabel"), blurb: t("clipMaker.vibeFunnyBlurb"), icon: Sparkles },
+    { key: "hype", label: t("clipMaker.vibeHypeLabel"), blurb: t("clipMaker.vibeHypeBlurb"), icon: Flame },
+    { key: "wholesome", label: t("clipMaker.vibeWholesomeLabel"), blurb: t("clipMaker.vibeWholesomeBlurb"), icon: Clapperboard },
+  ];
 
   /* source + preferences */
   const [file, setFile] = useState<File | null>(null);
@@ -137,7 +139,7 @@ export default function ClipMaker() {
   async function analyze() {
     if (analyzing || !user) return;
     if (!file && !videoUrl.trim()) {
-      setError("Upload a VOD file or paste a video URL first.");
+      setError(t("clipMaker.errorNoSource"));
       return;
     }
     setAnalyzing(true);
@@ -166,7 +168,7 @@ export default function ClipMaker() {
       const data = (await res.json().catch(() => ({}))) as AnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.highlights) || data.highlights.length === 0) {
-        throw new Error(data.message || data.error || "Highlight analysis failed — try again.");
+        throw new Error(data.message || data.error || t("clipMaker.errorAnalysisFailed"));
       }
       setAnalysis(data);
       setSelected(new Set(data.highlights.map((h) => h.id)));
@@ -175,7 +177,7 @@ export default function ClipMaker() {
         document.getElementById("clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Highlight analysis failed — try again.");
+      setError(err instanceof Error ? err.message : t("clipMaker.errorAnalysisFailed"));
     } finally {
       setAnalyzing(false);
     }
@@ -199,7 +201,7 @@ export default function ClipMaker() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       },
-      () => setError("Couldn't copy to clipboard."),
+      () => setError(t("clipMaker.errorCopyFailed")),
     );
   }
 
@@ -207,7 +209,7 @@ export default function ClipMaker() {
     if (cutting || !user || !analysis?.videoRef) return;
     const picks = (analysis.highlights ?? []).filter((h) => selected.has(h.id));
     if (picks.length === 0) {
-      setError("Select at least one highlight to cut.");
+      setError(t("clipMaker.errorNoSelection"));
       return;
     }
     setCutting(true);
@@ -222,19 +224,19 @@ export default function ClipMaker() {
           clips: picks.map((h) => ({ startSec: h.startSec, endSec: h.endSec, title: h.title })),
         }),
         overrideCost: picks.length * CUT_COST_PER_CLIP,
-        overrideFeature: "Cut Stream Clip",
+        overrideFeature: t("clipMaker.cutFeatureName"),
       });
       if (!res) { setCutting(false); return; } // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as CutJobResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.jobId) {
-        throw new Error(data.message || data.error || "Clip cutting failed to start — try again.");
+        throw new Error(data.message || data.error || t("clipMaker.errorCutStartFailed"));
       }
       setJobId(data.jobId);
       refreshProfile();
       pollJob(data.jobId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Clip cutting failed — try again.");
+      setError(err instanceof Error ? err.message : t("clipMaker.errorCutFailed"));
       setCutting(false);
     }
   }
@@ -246,20 +248,20 @@ export default function ClipMaker() {
         const res = await authedFetch(`/api/streamer-clips/cut/${id}`, { method: "GET", skipConfirm: true });
         if (!res) return; // unreachable with skipConfirm, keeps TS happy
         const data = (await res.json().catch(() => ({}))) as CutJobResponse;
-        if (!res.ok) throw new Error(data.error || "Job lookup failed.");
+        if (!res.ok) throw new Error(data.error || t("clipMaker.errorJobLookup"));
         setJob(data);
         if (data.status === "done" || data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setCutting(false);
           refreshProfile();
           if (data.status === "failed") {
-            setError(data.error || "Clip cutting failed — your Visual Bucs were refunded.");
+            setError(data.error || t("clipMaker.errorCutRefunded"));
           }
         }
       } catch (err) {
         if (pollRef.current) window.clearInterval(pollRef.current);
         setCutting(false);
-        setError(err instanceof Error ? err.message : "Lost track of the cut job — try again.");
+        setError(err instanceof Error ? err.message : t("clipMaker.errorJobLost"));
       }
     };
     await tick();
@@ -277,20 +279,19 @@ export default function ClipMaker() {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Scissors className="h-3.5 w-3.5" />
-            AI Streamer Clip Maker
+            {t("clipMaker.badge")}
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-            Turn streams into <span className="text-primary">viral clips</span>
+            {t("clipMaker.heroTitleStart")} <span className="text-primary">{t("clipMaker.heroTitleHighlight")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-white/55">
-            Upload a VOD — AI watches it, finds the moments worth clipping, and cuts them
-            into vertical 9:16 clips ready for TikTok, Reels, and Shorts.
+            {t("clipMaker.heroSubtitle")}
           </p>
         </div>
 
         {!user && (
           <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
-            Sign in to analyze VODs and cut clips.
+            {t("clipMaker.signInPrompt")}
           </div>
         )}
 
@@ -298,13 +299,13 @@ export default function ClipMaker() {
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">1</span>
-            Drop your VOD
+            {t("clipMaker.step1Title")}
           </h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
               <Upload className="h-6 w-6 text-primary" />
-              <span className="text-sm font-semibold">{file ? file.name : "Choose video file"}</span>
-              <span className="text-xs text-white/40">MP4, MOV, WebM · up to 80 MB</span>
+              <span className="text-sm font-semibold">{file ? file.name : t("clipMaker.chooseFile")}</span>
+              <span className="text-xs text-white/40">{t("clipMaker.fileHint")}</span>
               <input
                 type="file"
                 accept="video/*"
@@ -317,25 +318,25 @@ export default function ClipMaker() {
             </label>
             <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-6">
               <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
-                <Link2 className="h-4 w-4 text-primary" /> Or paste a video URL
+                <Link2 className="h-4 w-4 text-primary" /> {t("clipMaker.orPasteUrl")}
               </span>
               <input
                 className={inputClass}
-                placeholder="https://… (from your project storage)"
+                placeholder={t("clipMaker.urlPlaceholder")}
                 value={videoUrl}
                 onChange={(e) => {
                   setVideoUrl(e.target.value);
                   setFile(null);
                 }}
               />
-              <span className="text-xs text-white/40">URLs must come from your project storage.</span>
+              <span className="text-xs text-white/40">{t("clipMaker.urlHint")}</span>
             </div>
           </div>
 
           {/* Preferences */}
           <div className="mt-6 grid gap-5 sm:grid-cols-3">
             <div data-min-stars="2">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Clip length</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("clipMaker.clipLength")}</div>
               <div className="flex gap-2">
                 {CLIP_LENGTHS.map((len) => (
                   <button
@@ -347,14 +348,14 @@ export default function ClipMaker() {
                         : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
                     }`}
                   >
-                    {len}s
+                    {t("clipMaker.secondsLabel", { n: len })}
                   </button>
                 ))}
               </div>
             </div>
             <div data-min-stars="3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">
-                Max clips · <span className="text-primary">{maxClips}</span>
+                {t("clipMaker.maxClips")} · <span className="text-primary">{maxClips}</span>
               </div>
               <input
                 type="range"
@@ -366,7 +367,7 @@ export default function ClipMaker() {
               />
             </div>
             <div data-min-stars="2">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Vibe</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("clipMaker.vibe")}</div>
               <div className="flex gap-2">
                 {VIBES.map((v) => (
                   <button
@@ -392,10 +393,10 @@ export default function ClipMaker() {
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-black text-black transition hover:brightness-110 disabled:opacity-40"
           >
             {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            {analyzing ? "AI is watching your VOD…" : `Find highlights · ${ANALYZE_COST} credits`}
+            {analyzing ? t("clipMaker.analyzing") : t("clipMaker.findHighlights", { cost: ANALYZE_COST })}
           </button>
           <p className="mt-2 text-center text-xs text-white/40">
-            AI transcribes your VOD and finds the {vibe} moments worth clipping. You only pay when highlights are found.
+            {t("clipMaker.analyzeNote", { vibe })}
           </p>
         </section>
 
@@ -417,27 +418,27 @@ export default function ClipMaker() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">2</span>
-                {highlights.length} highlight{highlights.length === 1 ? "" : "s"} found
+                {t("clipMaker.highlightsFound", { count: highlights.length })}
               </h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelected(new Set(highlights.map((h) => h.id)))}
                   className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
                 >
-                  Select all
+                  {t("clipMaker.selectAll")}
                 </button>
                 <button
                   onClick={() => setSelected(new Set())}
                   className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
                 >
-                  Clear
+                  {t("clipMaker.clear")}
                 </button>
                 <button
                   onClick={copyTimestamps}
                   className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
                 >
                   {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied!" : "Copy timestamps"}
+                  {copied ? t("clipMaker.copied") : t("clipMaker.copyTimestamps")}
                 </button>
               </div>
             </div>
@@ -485,13 +486,13 @@ export default function ClipMaker() {
             >
               {cutting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Scissors className="h-5 w-5" />}
               {cutting
-                ? "Cutting your clips…"
+                ? t("clipMaker.cutting")
                 : selectedCount === 0
-                  ? "Select highlights to cut"
-                  : `Cut ${selectedCount} clip${selectedCount === 1 ? "" : "s"} · ${cutCost} credits`}
+                  ? t("clipMaker.selectToCut")
+                  : t("clipMaker.cutClips", { count: selectedCount, cost: cutCost })}
             </button>
             <p className="mt-2 text-center text-xs text-white/40">
-              Server-side ffmpeg cuts each highlight into a vertical 720×1280 clip. Failed cuts are refunded automatically.
+              {t("clipMaker.cutNote")}
             </p>
           </section>
         )}
@@ -501,7 +502,7 @@ export default function ClipMaker() {
           <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">3</span>
-              Your clips
+              {t("clipMaker.step3Title")}
               {job?.status === "processing" || job?.status === "queued" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
               ) : null}
@@ -509,7 +510,7 @@ export default function ClipMaker() {
             {(!job || job.status === "queued" || job.status === "processing") && (
               <p className="mt-3 flex items-center gap-2 text-sm text-white/55">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                Cutting in the background — you can close this tab, your clips will be waiting.
+                {t("clipMaker.cuttingBackground")}
               </p>
             )}
             {job?.status === "done" && (
@@ -532,7 +533,7 @@ export default function ClipMaker() {
                           download
                           className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 px-3 py-2 text-xs font-bold text-primary transition hover:bg-primary/25"
                         >
-                          <Download className="h-3.5 w-3.5" /> Download clip
+                          <Download className="h-3.5 w-3.5" /> {t("clipMaker.downloadClip")}
                         </a>
                       )}
                     </div>
@@ -542,7 +543,7 @@ export default function ClipMaker() {
             )}
             {job?.status === "failed" && (
               <p className="mt-3 text-sm text-red-300">
-                Cutting failed{job.error ? `: ${job.error}` : ""} — your Visual Bucs were refunded automatically.
+                {t("clipMaker.cuttingFailedNote", { error: job.error ? `: ${job.error}` : "" })}
               </p>
             )}
           </section>
@@ -551,9 +552,9 @@ export default function ClipMaker() {
         {/* How it works */}
         <section className="mt-10 grid gap-4 sm:grid-cols-3">
           {[
-            { icon: Upload, title: "Upload your VOD", text: "Drop a stream recording up to 80 MB. AI transcribes every word." },
-            { icon: Sparkles, title: "AI finds the moments", text: `GPT-6 hunts ${CLIP_LENGTHS.join("/")}s windows of ${vibe} gold — reactions, plays, punchlines.` },
-            { icon: Scissors, title: "Get vertical clips", text: "ffmpeg cuts your picks into 720×1280 clips, ready to post everywhere." },
+            { icon: Upload, title: t("clipMaker.how1Title"), text: t("clipMaker.how1Text") },
+            { icon: Sparkles, title: t("clipMaker.how2Title"), text: t("clipMaker.how2Text", { lengths: CLIP_LENGTHS.join("/"), vibe }) },
+            { icon: Scissors, title: t("clipMaker.how3Title"), text: t("clipMaker.how3Text") },
           ].map((s) => (
             <div key={s.title} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <s.icon className="h-6 w-6 text-primary" />

@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
@@ -23,16 +24,14 @@ type VideoTypeKey = "music-promo" | "behind-the-scenes" | "tutorial" | "announce
 
 interface VideoType {
  key: VideoTypeKey;
- label: string;
  icon: LucideIcon;
- blurb: string;
 }
 
 const VIDEO_TYPES: VideoType[] = [
- { key: "music-promo", label: "Music Promo", icon: Megaphone, blurb: "Promoting a song or music video" },
- { key: "behind-the-scenes", label: "Behind the Scenes", icon: Film, blurb: "Studio life & process content" },
- { key: "tutorial", label: "Tutorial", icon: GraduationCap, blurb: "Teaching one creator skill fast" },
- { key: "announcement", label: "Announcement", icon: Clapperboard, blurb: "Drops, shows & big news" },
+ { key: "music-promo", icon: Megaphone },
+ { key: "behind-the-scenes", icon: Film },
+ { key: "tutorial", icon: GraduationCap },
+ { key: "announcement", icon: Clapperboard },
 ];
 
 const CREDIT_COST = 1;
@@ -88,6 +87,7 @@ const inputClass =
  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function HookStudio() {
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
  const [tab, setTab] = useState<TabKey>("hooks");
@@ -160,7 +160,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as HooksResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
- throw new Error(data.message || data.error || "Hook generation failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errHooksFailed"));
  }
  setHooks(data.hooks);
  refreshProfile();
@@ -168,7 +168,7 @@ export default function HookStudio() {
  document.getElementById("hooks-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Hook generation failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errHooksFailed"));
  } finally {
  setHooksLoading(false);
  }
@@ -177,7 +177,7 @@ export default function HookStudio() {
  async function generateCaptions() {
  if (capLoading || !user) return;
  if (!capTopic.trim()) {
- setError("Tell us what the post is about first.");
+ setError(t("hooks.errNeedTopic"));
  return;
  }
  setCapLoading(true);
@@ -194,7 +194,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as CaptionsResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.captions) || data.captions.length === 0) {
- throw new Error(data.message || data.error || "Caption generation failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errCaptionsFailed"));
  }
  setCapResult(data);
  refreshProfile();
@@ -202,7 +202,7 @@ export default function HookStudio() {
  document.getElementById("captions-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Caption generation failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errCaptionsFailed"));
  } finally {
  setCapLoading(false);
  }
@@ -211,7 +211,7 @@ export default function HookStudio() {
  async function scoreVideo() {
  if (preflightLoading || !user) return;
  if (!title.trim()) {
- setError("Give your video a title first — that's the first thing the pre-flight checks.");
+ setError(t("hooks.errNeedTitle"));
  return;
  }
  setPreflightLoading(true);
@@ -229,7 +229,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as PreflightResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.checks) || data.checks.length === 0) {
- throw new Error(data.message || data.error || "Scoring failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errScoringFailed"));
  }
  setScorecard(data);
  refreshProfile();
@@ -237,7 +237,7 @@ export default function HookStudio() {
  document.getElementById("preflight-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Scoring failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errScoringFailed"));
  } finally {
  setPreflightLoading(false);
  }
@@ -257,26 +257,25 @@ export default function HookStudio() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <Zap className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+ <Zap className="h-3 w-3" aria-hidden="true" /> {t("hooks.kicker")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Hook <span className="text-primary">Studio</span>
+ {t("hooks.heroTitleA")} <span className="text-primary">{t("hooks.heroTitleB")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- Your money is made in the first 3 seconds. Generate scroll-stopping
- openers — then run your post through the pre-flight before you ship it.
+ {t("hooks.heroSub")}
  </p>
  </div>
 
  {/* tabs */}
- <div className="relative mt-10 flex justify-center gap-2" role="tablist" aria-label="Hook Studio tools">
+ <div className="relative mt-10 flex justify-center gap-2" role="tablist" aria-label={t("hooks.tablistAria")}>
  {(
  [
- { key: "hooks", label: "Hook Generator", icon: Zap },
- { key: "captions", label: "Captions & Hashtags", icon: Megaphone },
- { key: "preflight", label: "Virality Pre-flight", icon: Gauge },
- ] as { key: TabKey; label: string; icon: LucideIcon }[]
- ).map(({ key, label, icon: Icon }) => {
+ { key: "hooks", icon: Zap },
+ { key: "captions", icon: Megaphone },
+ { key: "preflight", icon: Gauge },
+ ] as { key: TabKey; icon: LucideIcon }[]
+ ).map(({ key, icon: Icon }) => {
  const selected = tab === key;
  return (
  <button
@@ -291,7 +290,7 @@ export default function HookStudio() {
  }`}
  >
  <Icon className="h-4 w-4" aria-hidden="true" />
- {label}
+ {t(`hooks.tab.${key}.label`)}
  </button>
  );
  })}
@@ -305,14 +304,14 @@ export default function HookStudio() {
  <Zap className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Hook Generator</h2>
- <p className="text-sm text-white/45">Five first-3-second openers, engineered to stop the scroll.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.hooks.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.hookGenSub")}</p>
  </div>
  </div>
 
  {/* video type picker */}
  <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What kind of video?
+ {t("hooks.whatKindLabel")}
  </p>
  <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
  {VIDEO_TYPES.map((v) => {
@@ -329,8 +328,8 @@ export default function HookStudio() {
  }`}
  >
  <Icon className={`mb-2 h-5 w-5 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
- <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{v.label}</p>
- <p className="mt-0.5 text-[11px] leading-snug text-white/35">{v.blurb}</p>
+ <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{t(`hooks.videoType.${v.key}.label`)}</p>
+ <p className="mt-0.5 text-[11px] leading-snug text-white/35">{t(`hooks.videoType.${v.key}.blurb`)}</p>
  </button>
  );
  })}
@@ -338,13 +337,13 @@ export default function HookStudio() {
 
  {/* topic */}
  <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What's it about? <span className="normal-case tracking-normal text-white/25">(optional)</span>
+ {t("hooks.aboutLabel")} <span className="normal-case tracking-normal text-white/25">{t("hooks.optionalTag")}</span>
  </p>
  <input
  value={topic}
  onChange={(e) => setTopic(e.target.value)}
  maxLength={300}
- placeholder={`e.g. my new single "${activeVideoType.label === "Music Promo" ? "Golden Tide" : "..."}"`}
+ placeholder={t("hooks.topicPlaceholder", { example: activeVideoType.key === "music-promo" ? "Golden Tide" : "..." })}
  className={inputClass}
  />
 
@@ -361,7 +360,7 @@ export default function HookStudio() {
  ) : (
  <Sparkles className="h-6 w-6" aria-hidden="true" />
  )}
- {hooksLoading ? "Cooking up hooks…" : "Generate 5 hooks"}
+ {hooksLoading ? t("hooks.cookingHooks") : t("hooks.generateHooks")}
  </button>
  ) : (
  <Link
@@ -369,12 +368,12 @@ export default function HookStudio() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Sparkles className="h-6 w-6" aria-hidden="true" />
- Sign in to generate hooks
+ {t("hooks.signInToGenerate")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per generation · powered by Thy Cheat Code
+ {t("hooks.creditNoteGeneration", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -389,7 +388,7 @@ export default function HookStudio() {
  <div id="hooks-results" className="mt-8">
  <div className="mb-4 flex items-center justify-between">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Your 5 hooks
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("hooks.yourHooks")}
  </p>
  {user && (
  <button
@@ -399,7 +398,7 @@ export default function HookStudio() {
  className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
  >
  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
- Re-roll ({CREDIT_COST} Visual Buc)
+ {t("hooks.reroll", { cost: CREDIT_COST })}
  </button>
  )}
  </div>
@@ -418,7 +417,7 @@ export default function HookStudio() {
  </div>
  <p className="mt-4 text-center text-xs text-white/30">
  <Wrench className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
- Tip: say it in the first second, show it on screen too.
+ {t("hooks.hooksTip")}
  </p>
  </div>
  )}
@@ -433,25 +432,25 @@ export default function HookStudio() {
  <Megaphone className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Captions & Hashtags</h2>
- <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 100 Visual Bucs.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.captions.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.captionsSub")}</p>
  </div>
  </div>
 
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What's the post about?
+ {t("hooks.postAboutLabel")}
  </p>
  <textarea
  value={capTopic}
  onChange={(e) => setCapTopic(e.target.value)}
- placeholder="e.g. My new single 'Midnight Gold' just dropped — luxury rap anthem"
+ placeholder={t("hooks.capTopicPlaceholder")}
  rows={3}
  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
  />
 
  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
  <div>
- <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
+ <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.platformLabel")}</p>
  <div data-min-stars="2" className="grid grid-cols-2 gap-2">
  {(["tiktok", "instagram", "youtube", "twitter"] as const).map((p) => (
  <button
@@ -470,12 +469,12 @@ export default function HookStudio() {
  </div>
  <div data-min-stars="3">
  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Tone / vibe <span className="normal-case font-normal text-white/30">(optional)</span>
+ {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
  </p>
  <input
  value={capTone}
  onChange={(e) => setCapTone(e.target.value)}
- placeholder="e.g. confident, playful, luxury"
+ placeholder={t("hooks.tonePlaceholder")}
  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
  />
  </div>
@@ -487,16 +486,16 @@ export default function HookStudio() {
  className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
  >
  {capLoading ? (
- <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
+ <><Loader2 className="h-5 w-5 animate-spin" /> {t("hooks.writing")}</>
  ) : (
- <><Sparkles className="h-5 w-5" /> Generate — 100 Visual Bucs</>
+ <><Sparkles className="h-5 w-5" /> {t("hooks.generateCaptions")}</>
  )}
  </button>
 
  {capResult && (
  <div id="captions-results" className="mt-8 space-y-6">
  <div>
- <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Captions — pick your favorite</p>
+ <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.captionsPickFav")}</p>
  <div className="space-y-3">
  {capResult.captions?.map((c, i) => (
  <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -505,7 +504,7 @@ export default function HookStudio() {
  onClick={() => navigator.clipboard.writeText(c)}
  className="mt-2 text-xs font-semibold text-primary hover:underline"
  >
- Copy
+ {t("hooks.copy")}
  </button>
  </div>
  ))}
@@ -515,7 +514,7 @@ export default function HookStudio() {
  {capResult.hashtags && (
  <div>
  <div className="mb-3 flex items-center justify-between">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Hashtags</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.hashtagsLabel")}</p>
  <button
  onClick={() => {
  const all = [
@@ -527,7 +526,7 @@ export default function HookStudio() {
  }}
  className="text-xs font-semibold text-primary hover:underline"
  >
- Copy all
+ {t("hooks.copyAll")}
  </button>
  </div>
  {(["niche", "broad", "trending"] as const).map((tier) => {
@@ -536,7 +535,7 @@ export default function HookStudio() {
  return (
  <div key={tier} className="mb-3">
  <p className="mb-1.5 text-xs font-semibold capitalize text-white/50">
- {tier === "niche" ? "🎯 Niche (targeted reach)" : tier === "broad" ? "🌊 Broad (discovery)" : "🔥 Trending energy"}
+ {tier === "niche" ? t("hooks.tierNiche") : tier === "broad" ? t("hooks.tierBroad") : t("hooks.tierTrending")}
  </p>
  <div className="flex flex-wrap gap-1.5">
  {tags.map((t, i) => (
@@ -553,7 +552,7 @@ export default function HookStudio() {
 
  {capResult.cta && (
  <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4">
- <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">Call to action</p>
+ <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.callToAction")}</p>
  <p className="text-white/90">{capResult.cta}</p>
  </div>
  )}
@@ -570,28 +569,28 @@ export default function HookStudio() {
  <Gauge className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Virality Pre-flight</h2>
- <p className="text-sm text-white/45">A readiness score for your post — before you ship it.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.preflight.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.preflightSub")}</p>
  </div>
  </div>
 
  <div className="mt-8 grid gap-4">
  <div>
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-title">
- Title / first line
+ {t("hooks.pfTitleLabel")}
  </label>
  <input
  id="pf-title"
  value={title}
  onChange={(e) => setTitle(e.target.value)}
  maxLength={200}
- placeholder="The exact first line viewers see or hear"
+ placeholder={t("hooks.pfTitlePlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-caption">
- Caption
+ {t("hooks.pfCaptionLabel")}
  </label>
  <textarea
  id="pf-caption"
@@ -599,26 +598,26 @@ export default function HookStudio() {
  onChange={(e) => setCaption(e.target.value)}
  maxLength={1000}
  rows={2}
- placeholder="Your caption (optional)"
+ placeholder={t("hooks.pfCaptionPlaceholder")}
  className={`${inputClass} resize-none`}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-hashtags">
- Hashtags
+ {t("hooks.hashtagsLabel")}
  </label>
  <input
  id="pf-hashtags"
  value={hashtags}
  onChange={(e) => setHashtags(e.target.value)}
  maxLength={500}
- placeholder="#newmusic #independentartist …"
+ placeholder={t("hooks.pfHashtagsPlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-desc">
- What's the video?
+ {t("hooks.pfDescLabel")}
  </label>
  <textarea
  id="pf-desc"
@@ -626,7 +625,7 @@ export default function HookStudio() {
  onChange={(e) => setDescription(e.target.value)}
  maxLength={1000}
  rows={2}
- placeholder="Describe the video in a sentence or two (optional)"
+ placeholder={t("hooks.pfDescPlaceholder")}
  className={`${inputClass} resize-none`}
  />
  </div>
@@ -644,7 +643,7 @@ export default function HookStudio() {
  ) : (
  <Gauge className="h-6 w-6" aria-hidden="true" />
  )}
- {preflightLoading ? "Running pre-flight…" : "Score my video"}
+ {preflightLoading ? t("hooks.runningPreflight") : t("hooks.scoreVideo")}
  </button>
  ) : (
  <Link
@@ -652,12 +651,12 @@ export default function HookStudio() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Gauge className="h-6 w-6" aria-hidden="true" />
- Sign in to run the pre-flight
+ {t("hooks.signInToRunPreflight")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per scorecard · powered by Thy Cheat Code
+ {t("hooks.creditNoteScorecard", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -672,11 +671,11 @@ export default function HookStudio() {
  <div id="preflight-results" className="mt-8">
  <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-center">
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
- Viral readiness score
+ {t("hooks.viralReadiness")}
  </p>
  <p className={`mt-2 font-display text-6xl font-black ${scoreColor(scorecard.score)}`}>
  {scorecard.score}
- <span className="text-2xl text-white/30">/100</span>
+ <span className="text-2xl text-white/30">{t("hooks.scoreOutOf")}</span>
  </p>
  <div className="mx-auto mt-4 h-2.5 max-w-sm overflow-hidden rounded-full bg-white/10">
  <div
@@ -717,7 +716,7 @@ export default function HookStudio() {
  />
  </div>
  <p className="mt-2.5 text-sm leading-relaxed text-white/60">
- <span className="font-semibold text-primary/90">Fix: </span>
+ <span className="font-semibold text-primary/90">{t("hooks.fixPrefix")}</span>
  {check.fix}
  </p>
  </div>
@@ -725,7 +724,7 @@ export default function HookStudio() {
  </div>
 
  <p className="mt-4 text-center text-xs italic text-white/30">
- {scorecard.disclaimer || "A readiness score, not a virality guarantee — no AI can predict what blows up."}
+ {scorecard.disclaimer || t("hooks.disclaimerDefault")}
  </p>
  </div>
  )}
@@ -734,9 +733,9 @@ export default function HookStudio() {
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Hooks in hand? Ask{" "}
+ {t("hooks.crossLinkBefore")}{" "}
  <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble to build the full video plan around them.
+ {t("hooks.crossLinkAfter")}
  </p>
  </main>
 

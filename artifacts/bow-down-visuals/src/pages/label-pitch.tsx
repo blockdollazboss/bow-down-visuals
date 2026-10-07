@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Disc3, Sparkles, Loader2, Copy, Check, Mail, FileText,
   Building2, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
@@ -72,23 +73,13 @@ interface Submission {
   createdAt?: string | null;
 }
 
-const STATUS_META: Record<string, { label: string; icon: typeof Send; cls: string }> = {
-  sent: { label: "Sent", icon: Send, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
-  pending: { label: "Pending", icon: Clock, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
-  signed: { label: "Signed", icon: Trophy, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
-  passed: { label: "Passed", icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
-};
 
-const TYPE_META: Record<string, { label: string; cls: string }> = {
-  major: { label: "Major Label", cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" },
-  imprint: { label: "Imprint", cls: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
-  indie: { label: "Independent", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
-};
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -100,10 +91,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         } catch { /* clipboard unavailable */ }
       }}
       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
-      aria-label={`Copy ${label}`}
+      aria-label={t("labelPitch.copyTemplate", { label })}
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : `Copy ${label}`}
+      {copied ? t("labelPitch.copied") : t("labelPitch.copyTemplate", { label })}
     </button>
   );
 }
@@ -127,8 +118,22 @@ async function authedFetch(
 }
 
 export default function LabelPitch() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>("kit");
+
+  const STATUS_META: Record<string, { label: string; icon: typeof Send; cls: string }> = {
+    sent: { label: t("labelPitch.statusSent"), icon: Send, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+    pending: { label: t("labelPitch.statusPending"), icon: Clock, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+    signed: { label: t("labelPitch.statusSigned"), icon: Trophy, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+    passed: { label: t("labelPitch.statusPassed"), icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+  };
+
+  const TYPE_META: Record<string, { label: string; cls: string }> = {
+    major: { label: t("labelPitch.typeMajor"), cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" },
+    imprint: { label: t("labelPitch.typeImprint"), cls: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
+    indie: { label: t("labelPitch.typeIndependent"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  };
 
   /* ── demo kit state ── */
   const [library, setLibrary] = useState<LibrarySong[]>([]);
@@ -212,8 +217,8 @@ export default function LabelPitch() {
       : songTitle.trim();
     if (!finalTitle) {
       setError(songSource === "auto"
-        ? "Auto couldn't find a song — pick one from your library or enter it manually."
-        : "Give your song a title first — the demo package is built around it.");
+        ? t("labelPitch.errAutoNoSong")
+        : t("labelPitch.errNoTitle"));
       return;
     }
     // Auto mode: AI fills in bio, stats, and label targeting from your profile
@@ -248,7 +253,7 @@ export default function LabelPitch() {
         return;
       }
       if (!res.ok || !(data as { kit?: DemoKit }).kit) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || "Demo kit failed — try again.");
+        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("labelPitch.errKitFailed"));
       }
       setKit((data as { kit: DemoKit }).kit);
       refreshProfile();
@@ -256,7 +261,7 @@ export default function LabelPitch() {
         document.getElementById("demo-kit-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Demo kit failed — try again.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errKitFailed"));
     } finally {
       setGenerating(false);
     }
@@ -264,7 +269,7 @@ export default function LabelPitch() {
 
   async function addSubmission() {
     if (!newSubmission.songTitle.trim() || !newSubmission.labelName.trim()) {
-      setError("Song title and label name are required for a tracker entry.");
+      setError(t("labelPitch.errTrackerRequired"));
       return;
     }
     setError(null);
@@ -278,13 +283,13 @@ export default function LabelPitch() {
           notes: newSubmission.notes.trim(),
         }),
       });
-      if (!res.ok) throw new Error("Couldn't save that submission — try again.");
+      if (!res.ok) throw new Error(t("labelPitch.errSaveSubmission"));
       const pitch = (data as { pitch: Submission }).pitch;
       setSubmissions((prev) => [pitch, ...prev]);
       setNewSubmission({ songTitle: "", artistName: "", labelName: "", notes: "" });
       setShowAddForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save that submission — try again.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errSaveSubmission"));
     }
   }
 
@@ -294,24 +299,24 @@ export default function LabelPitch() {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error("Couldn't update that submission.");
+      if (!res.ok) throw new Error(t("labelPitch.errUpdateSubmission"));
       const updated = (data as { pitch: Submission }).pitch;
       setSubmissions((prev) => prev.map((p) => (p.id === id ? updated : p)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't update that submission.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errUpdateSubmission"));
     }
   }
 
   async function deleteSubmission(id: string) {
-    if (!window.confirm("Delete this submission from your tracker?")) return;
+    if (!window.confirm(t("labelPitch.confirmDeleteSubmission"))) return;
     try {
       const { res } = await authedFetch(getAccessToken, `/api/label-pitch/tracker/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Couldn't delete that submission.");
+      if (!res.ok) throw new Error(t("labelPitch.errDeleteSubmission"));
       setSubmissions((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete that submission.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errDeleteSubmission"));
     }
   }
 
@@ -328,32 +333,29 @@ export default function LabelPitch() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Disc3 className="h-3 w-3" aria-hidden="true" /> Label Pitch
+            <Disc3 className="h-3 w-3" aria-hidden="true" /> {t("labelPitch.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Pitch Your Demo <span className="text-primary">Like a Pro</span>
+            {t("labelPitch.heroTitleStart")}<span className="text-primary">{t("labelPitch.heroTitleHighlight")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            AI analyzes your song, then builds a professional demo submission
-            package — the email, your one-sheet, and the follow-up. Labels
-            rarely sign from cold demos, but the right package opens doors
-            that talent alone can&rsquo;t.
+            {t("labelPitch.heroSubtitle")}
           </p>
         </div>
 
         {/* tabs */}
         <div className="relative mt-8 flex justify-center gap-2">
           {([
-            { key: "kit", label: "Demo Kit", icon: Sparkles },
-            { key: "labels", label: "Labels", icon: Building2 },
-            { key: "tracker", label: `Tracker${submissions.length ? ` (${submissions.length})` : ""}`, icon: ClipboardList },
-          ] as { key: Tab; label: string; icon: typeof Sparkles }[]).map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
+            { key: "kit", label: t("labelPitch.tabDemoKit"), icon: Sparkles },
+            { key: "labels", label: t("labelPitch.tabLabels"), icon: Building2 },
+            { key: "tracker", label: submissions.length ? t("labelPitch.tabTrackerCount", { count: submissions.length }) : t("labelPitch.tabTracker"), icon: ClipboardList },
+          ] as { key: Tab; label: string; icon: typeof Sparkles }[]).map((tb) => {
+            const Icon = tb.icon;
+            const active = tab === tb.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={tb.key}
+                onClick={() => setTab(tb.key)}
                 className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
                   active
                     ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
@@ -361,7 +363,7 @@ export default function LabelPitch() {
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
-                {t.label}
+                {tb.label}
               </button>
             );
           })}
@@ -386,13 +388,13 @@ export default function LabelPitch() {
             <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
               {/* song source */}
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your song
+                {t("labelPitch.yourSong")}
               </p>
               <div className="flex gap-2 flex-wrap">
                 {([
-                  { key: "auto", label: "✨ Auto (AI picks)" },
-                  { key: "manual", label: "Enter manually" },
-                  { key: "library", label: `From my library${library.length ? ` (${library.length})` : ""}` },
+                  { key: "auto", label: t("labelPitch.sourceAuto") },
+                  { key: "manual", label: t("labelPitch.sourceManual") },
+                  { key: "library", label: library.length ? t("labelPitch.sourceLibraryCount", { count: library.length }) : t("labelPitch.sourceLibrary") },
                 ] as const).map((s) => (
                   <button
                     key={s.key}
@@ -411,10 +413,10 @@ export default function LabelPitch() {
               {songSource === "auto" ? (
                 <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
                   <p className="text-sm text-white/70">
-                    <span className="font-semibold text-primary">AI handles everything:</span>{" "}
+                    <span className="font-semibold text-primary">{t("labelPitch.autoInfoTitle")}</span>{" "}
                     {library.length > 0
-                      ? <>picks your latest song (<span className="text-white font-medium">{library[0].title || "Untitled"}</span>), writes your bio from your artist profile, and targets the best-fit labels for your sound.</>
-                      : <>once you add songs to your library, AI will pick your latest. For now, enter your song manually below and AI handles the rest.</>}
+                      ? <>{t("labelPitch.autoPicksStart")}<span className="text-white font-medium">{library[0].title || t("labelPitch.autoUntitled")}</span>{t("labelPitch.autoPicksEnd")}</>
+                      : <>{t("labelPitch.autoNoLibrary")}</>}
                   </p>
                 </div>
               ) : songSource === "library" ? (
@@ -423,10 +425,10 @@ export default function LabelPitch() {
                   onChange={(e) => setLibrarySongId(e.target.value)}
                   className={`${inputClass} mt-4`}
                 >
-                  <option value="">Pick a song…</option>
+                  <option value="">{t("labelPitch.pickSong")}</option>
                   {library.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.title || "Untitled song"}
+                      {s.title || t("labelPitch.untitledSong")}
                     </option>
                   ))}
                 </select>
@@ -435,7 +437,7 @@ export default function LabelPitch() {
                   value={songTitle}
                   onChange={(e) => setSongTitle(e.target.value)}
                   maxLength={200}
-                  placeholder="Song title *"
+                  placeholder={t("labelPitch.songTitlePlaceholder")}
                   className={`${inputClass} mt-4`}
                 />
               )}
@@ -445,41 +447,41 @@ export default function LabelPitch() {
                   value={artistName}
                   onChange={(e) => setArtistName(e.target.value)}
                   maxLength={200}
-                  placeholder="Artist name"
+                  placeholder={t("labelPitch.artistNamePlaceholder")}
                   className={inputClass}
                 />
                 <input
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   maxLength={100}
-                  placeholder="Genre (e.g. Melodic Rap)"
+                  placeholder={t("labelPitch.genrePlaceholder")}
                   className={inputClass}
                   list="label-genres"
                 />
                 <datalist id="label-genres">
                   {GENRES.map((g) => (
-                    <option key={g} value={g} />
+                    <option key={g} value={g}>{t(`labelPitch.genres.${g}`)}</option>
                   ))}
                 </datalist>
                 <input
                   value={mood}
                   onChange={(e) => setMood(e.target.value)}
                   maxLength={200}
-                  placeholder="Mood (e.g. dark, triumphant)"
+                  placeholder={t("labelPitch.moodPlaceholder")}
                   className={inputClass}
                 />
                 <input
                   value={tempo}
                   onChange={(e) => setTempo(e.target.value)}
                   maxLength={50}
-                  placeholder="Tempo (e.g. 140 BPM)"
+                  placeholder={t("labelPitch.tempoPlaceholder")}
                   className={inputClass}
                 />
               </div>
 
               <div className="mt-4">
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Energy — {energy}/100
+                  {t("labelPitch.energyLabel", { energy })}
                 </label>
                 <input
                   type="range"
@@ -496,7 +498,7 @@ export default function LabelPitch() {
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={1000}
                 rows={3}
-                placeholder="Describe the song — what it's about, what makes it special…"
+                placeholder={t("labelPitch.descriptionPlaceholder")}
                 className={`${inputClass} mt-4 resize-y`}
               />
 
@@ -504,7 +506,7 @@ export default function LabelPitch() {
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="mt-4 text-sm font-semibold text-white/50 transition hover:text-white"
               >
-                {showAdvanced ? "− Hide" : "+ Add"} bio, stats &amp; lyrics (better package)
+                {showAdvanced ? t("labelPitch.hideAdvanced") : t("labelPitch.showAdvanced")}{t("labelPitch.advancedSuffix")}
               </button>
 
               {showAdvanced && (
@@ -514,14 +516,14 @@ export default function LabelPitch() {
                     onChange={(e) => setArtistBio(e.target.value)}
                     maxLength={2000}
                     rows={3}
-                    placeholder="Artist bio — where you're from, your story, career highlights…"
+                    placeholder={t("labelPitch.artistBioPlaceholder")}
                     className={`${inputClass} resize-y`}
                   />
                   <input
                     value={socialStats}
                     onChange={(e) => setSocialStats(e.target.value)}
                     maxLength={500}
-                    placeholder="Social/streaming stats (e.g. 50K monthly listeners, 120K TikTok followers)"
+                    placeholder={t("labelPitch.socialStatsPlaceholder")}
                     className={inputClass}
                   />
                   <textarea
@@ -529,7 +531,7 @@ export default function LabelPitch() {
                     onChange={(e) => setLyrics(e.target.value)}
                     maxLength={5000}
                     rows={4}
-                    placeholder="Lyrics (optional — helps the AI nail the themes)"
+                    placeholder={t("labelPitch.lyricsPlaceholder")}
                     className={`${inputClass} resize-y`}
                   />
                 </div>
@@ -537,13 +539,13 @@ export default function LabelPitch() {
 
               <div className="mt-6 border-t border-white/10 pt-6">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Target label <span className="text-white/25 normal-case tracking-normal">(optional — personalizes the email)</span>
+                  {t("labelPitch.targetLabel")}<span className="text-white/25 normal-case tracking-normal">{t("labelPitch.targetLabelHint")}</span>
                 </p>
                 <input
                   value={labelName}
                   onChange={(e) => setLabelName(e.target.value)}
                   maxLength={200}
-                  placeholder="e.g. Def Jam, Atlantic, EMPIRE…"
+                  placeholder={t("labelPitch.labelNamePlaceholder")}
                   className={inputClass}
                   list="label-names"
                 />
@@ -562,17 +564,17 @@ export default function LabelPitch() {
                 {generating ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                    Building your demo package…
+                    {t("labelPitch.buildingPackage")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-5 w-5" aria-hidden="true" />
-                    Generate Demo Package — {CREDIT_COST} credits
+                    {t("labelPitch.generatePackage", { credits: CREDIT_COST })}
                   </>
                 )}
               </button>
               <p className="mt-3 text-center text-xs text-white/35">
-                Includes song analysis, submission email, artist one-sheet &amp; follow-up template.
+                {t("labelPitch.includesNote")}
               </p>
             </div>
 
@@ -583,32 +585,32 @@ export default function LabelPitch() {
                 <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
                   <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
-                    Song Analysis
+                    {t("labelPitch.songAnalysis")}
                   </h3>
                   <p className="mb-4 border-l-2 border-primary/60 pl-4 text-[15px] italic leading-relaxed text-white/80">
                     &ldquo;{kit.analysis.oneLiner}&rdquo;
                   </p>
                   <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                     <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Genre</dt>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisGenre")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.genre}</dd>
                     </div>
                     <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Mood</dt>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisMood")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.mood}</dd>
                     </div>
                     <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Energy</dt>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisEnergy")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.energy}/100 · {kit.analysis.tempoFeel}</dd>
                     </div>
                     <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Sounds like</dt>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisSoundsLike")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.comparableArtists.join(" · ") || "—"}</dd>
                     </div>
                   </dl>
                   {kit.analysis.labelFit.length > 0 && (
                     <div className="mt-4">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/35">Best label fit</p>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.bestLabelFit")}</p>
                       <div className="flex flex-wrap gap-2">
                         {kit.analysis.labelFit.map((f) => (
                           <span key={f} className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -625,12 +627,12 @@ export default function LabelPitch() {
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Submission Email
+                      {t("labelPitch.submissionEmailTitle")}
                     </h3>
-                    <CopyButton text={`Subject: ${kit.submissionEmail.subject}\n\n${kit.submissionEmail.body}`} label="email" />
+                    <CopyButton text={`Subject: ${kit.submissionEmail.subject}\n\n${kit.submissionEmail.body}`} label={t("labelPitch.labelEmail")} />
                   </div>
                   <p className="mb-3 rounded-xl bg-black/40 p-3 text-sm font-semibold text-white/90">
-                    <span className="text-white/40">Subject: </span>{kit.submissionEmail.subject}
+                    <span className="text-white/40">{t("labelPitch.subjectLabel")}</span>{kit.submissionEmail.subject}
                   </p>
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">
                     {kit.submissionEmail.body}
@@ -642,9 +644,9 @@ export default function LabelPitch() {
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Artist One-Sheet
+                      {t("labelPitch.oneSheetTitle")}
                     </h3>
-                    <CopyButton text={kit.oneSheet} label="one-sheet" />
+                    <CopyButton text={kit.oneSheet} label={t("labelPitch.labelOneSheet")} />
                   </div>
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">
                     {kit.oneSheet}
@@ -656,9 +658,9 @@ export default function LabelPitch() {
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Send className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Follow-Up Template
+                      {t("labelPitch.followUpTitle")}
                     </h3>
-                    <CopyButton text={kit.followUp} label="follow-up" />
+                    <CopyButton text={kit.followUp} label={t("labelPitch.labelFollowUp")} />
                   </div>
                   <p className="text-[15px] leading-relaxed text-white/75">{kit.followUp}</p>
                 </div>
@@ -678,10 +680,7 @@ export default function LabelPitch() {
           <div className="relative mt-8">
             <div className="mb-6 rounded-2xl border border-sky-500/25 bg-sky-500/[0.06] p-4 text-sm leading-relaxed text-sky-200/90">
               <Building2 className="mb-2 h-4 w-4" aria-hidden="true" />
-              Starter list — verify each label&rsquo;s current submission policy before
-              sending anything. Major labels almost never accept unsolicited demos;
-              relationships and referrals matter most. We never list private emails —
-              only real submission channels.
+              {t("labelPitch.labelsDisclaimer")}
             </div>
 
             <div className="mb-6 flex flex-wrap gap-2">
@@ -695,7 +694,7 @@ export default function LabelPitch() {
                       : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-primary/40 hover:text-white"
                   }`}
                 >
-                  {g}
+                  {t(`labelPitch.genres.${g}`)}
                 </button>
               ))}
               <button
@@ -706,27 +705,27 @@ export default function LabelPitch() {
                     : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-primary/40 hover:text-white"
                 }`}
               >
-                all genres
+                {t("labelPitch.allGenres")}
               </button>
             </div>
 
             <div className="mb-6 flex flex-wrap gap-2">
               {([
-                { key: "all", label: "All types" },
-                { key: "major", label: "Majors" },
-                { key: "imprint", label: "Imprints" },
-                { key: "indie", label: "Independents" },
-              ] as const).map((t) => (
+                { key: "all", label: t("labelPitch.typeAll") },
+                { key: "major", label: t("labelPitch.typeMajors") },
+                { key: "imprint", label: t("labelPitch.typeImprints") },
+                { key: "indie", label: t("labelPitch.typeIndependents") },
+              ] as const).map((tf) => (
                 <button
-                  key={t.key}
-                  onClick={() => { setTypeFilter(t.key); loadLabels(genreFilter, t.key); }}
+                  key={tf.key}
+                  onClick={() => { setTypeFilter(tf.key); loadLabels(genreFilter, tf.key); }}
                   className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    typeFilter === t.key
+                    typeFilter === tf.key
                       ? "bg-white text-black"
                       : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-white/40 hover:text-white"
                   }`}
                 >
-                  {t.label}
+                  {tf.label}
                 </button>
               ))}
             </div>
@@ -754,7 +753,7 @@ export default function LabelPitch() {
                       ))}
                     </div>
                     <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/40 p-3.5">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">How to submit</p>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.howToSubmit")}</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-white/75">{label.submitVia}</p>
                     </div>
                   </div>
@@ -762,7 +761,7 @@ export default function LabelPitch() {
               })}
               {labels.length === 0 && (
                 <p className="py-10 text-center text-sm text-white/40">
-                  No labels match that filter — try widening it.
+                  {t("labelPitch.noLabelsMatch")}
                 </p>
               )}
             </div>
@@ -778,11 +777,13 @@ export default function LabelPitch() {
           <div className="relative mt-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold">Submission Tracker</h3>
+                <h3 className="text-lg font-bold">{t("labelPitch.trackerTitle")}</h3>
                 <p className="mt-1 text-sm text-white/45">
-                  {submissions.length} submission{submissions.length === 1 ? "" : "s"}
+                  {submissions.length === 1
+                    ? t("labelPitch.trackerOne", { count: submissions.length })
+                    : t("labelPitch.trackerMany", { count: submissions.length })}
                   {signedCount > 0 && (
-                    <span className="text-emerald-300"> · {signedCount} signed</span>
+                    <span className="text-emerald-300">{t("labelPitch.signedSuffix", { count: signedCount })}</span>
                   )}
                 </p>
               </div>
@@ -791,7 +792,7 @@ export default function LabelPitch() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Log submission
+                {t("labelPitch.logSubmission")}
               </button>
             </div>
 
@@ -802,14 +803,14 @@ export default function LabelPitch() {
                     value={newSubmission.songTitle}
                     onChange={(e) => setNewSubmission({ ...newSubmission, songTitle: e.target.value })}
                     maxLength={200}
-                    placeholder="Song title *"
+                    placeholder={t("labelPitch.songTitlePlaceholder")}
                     className={inputClass}
                   />
                   <input
                     value={newSubmission.labelName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, labelName: e.target.value })}
                     maxLength={200}
-                    placeholder="Label name *"
+                    placeholder={t("labelPitch.trackerLabelNamePlaceholder")}
                     className={inputClass}
                     list="tracker-label-names"
                   />
@@ -822,7 +823,7 @@ export default function LabelPitch() {
                     value={newSubmission.artistName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, artistName: e.target.value })}
                     maxLength={200}
-                    placeholder="Artist name"
+                    placeholder={t("labelPitch.artistNamePlaceholder")}
                     className={`${inputClass} sm:col-span-2`}
                   />
                   <textarea
@@ -830,7 +831,7 @@ export default function LabelPitch() {
                     onChange={(e) => setNewSubmission({ ...newSubmission, notes: e.target.value })}
                     maxLength={1000}
                     rows={2}
-                    placeholder="Notes (contact name, how you sent it…)"
+                    placeholder={t("labelPitch.notesPlaceholder")}
                     className={`${inputClass} resize-y sm:col-span-2`}
                   />
                 </div>
@@ -839,13 +840,13 @@ export default function LabelPitch() {
                     onClick={addSubmission}
                     className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                   >
-                    Save
+                    {t("labelPitch.save")}
                   </button>
                   <button
                     onClick={() => setShowAddForm(false)}
                     className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:text-white"
                   >
-                    Cancel
+                    {t("labelPitch.cancel")}
                   </button>
                 </div>
               </div>
@@ -858,9 +859,9 @@ export default function LabelPitch() {
             ) : submissions.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
                 <ClipboardList className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
-                <p className="font-semibold text-white/60">No submissions logged yet</p>
+                <p className="font-semibold text-white/60">{t("labelPitch.noSubmissions")}</p>
                 <p className="mt-1 text-sm text-white/35">
-                  Generate a demo kit, send it out, then log it here to track your pipeline.
+                  {t("labelPitch.noSubmissionsHint")}
                 </p>
               </div>
             ) : (
@@ -882,7 +883,7 @@ export default function LabelPitch() {
                           )}
                           {s.contactedAt && (
                             <p className="mt-1 text-xs text-white/30">
-                              Sent {new Date(s.contactedAt).toLocaleDateString()}
+                              {t("labelPitch.sentOn", { date: new Date(s.contactedAt).toLocaleDateString() })}
                             </p>
                           )}
                         </div>
@@ -894,7 +895,7 @@ export default function LabelPitch() {
                           <button
                             onClick={() => deleteSubmission(s.id)}
                             className="rounded-lg p-2 text-white/30 transition hover:bg-red-500/10 hover:text-red-300"
-                            aria-label="Delete submission"
+                            aria-label={t("labelPitch.deleteSubmissionAria")}
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                           </button>

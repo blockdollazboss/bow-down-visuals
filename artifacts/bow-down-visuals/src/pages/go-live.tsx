@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Go Live — Discord stream dashboard ──────────────────────────────────
@@ -39,7 +40,8 @@ interface Stream {
 }
 
 export default function GoLive() {
-  usePageTitle("Go Live", "Stream dashboard — announce your Discord streams and hype your community.");
+  const { t } = useTranslation();
+  usePageTitle(t("goLive.pageTitle"), t("goLive.pageDescription"));
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [status, setStatus] = useState<DiscordStatus | null>(null);
@@ -90,31 +92,31 @@ export default function GoLive() {
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         kind,
-        title: extra.title || title || "Untitled stream",
+        title: extra.title || title || t("goLive.untitledStream"),
         game: game || undefined,
         mention_everyone: mentionEveryone,
         ...extra,
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to post to Discord.");
+    if (!res.ok) throw new Error(data.error || t("goLive.failedToPostDiscord"));
     return data;
   }
 
   async function handleGoLive() {
     if (!title.trim()) {
-      toast({ title: "Give your stream a title", description: "Your Discord crew needs to know what they're pulling up for.", variant: "destructive" });
+      toast({ title: t("goLive.titleRequiredTitle"), description: t("goLive.titleRequiredDesc"), variant: "destructive" });
       return;
     }
     setAnnouncing(true);
     try {
       await announce("live");
-      toast({ title: "You're live! 🔴", description: "The announcement just dropped in your Discord." });
+      toast({ title: t("goLive.liveToastTitle"), description: t("goLive.liveToastDesc") });
       setTitle("");
       setGame("");
       await load();
     } catch (e) {
-      toast({ title: "Couldn't announce", description: e instanceof Error ? e.message : "Try again.", variant: "destructive" });
+      toast({ title: t("goLive.couldntAnnounceTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
     } finally {
       setAnnouncing(false);
     }
@@ -124,14 +126,14 @@ export default function GoLive() {
     setEnding(true);
     try {
       await announce("ended", {
-        title: liveStream?.title || title || "Stream",
+        title: liveStream?.title || title || t("goLive.streamFallback"),
         ...(vodUrl.trim() ? { vod_url: vodUrl.trim() } : {}),
       });
-      toast({ title: "Stream wrapped 🎬", description: "Your Discord got the sign-off." });
+      toast({ title: t("goLive.streamWrappedTitle"), description: t("goLive.streamWrappedDesc") });
       setVodUrl("");
       await load();
     } catch (e) {
-      toast({ title: "Couldn't post the sign-off", description: e instanceof Error ? e.message : "Try again.", variant: "destructive" });
+      toast({ title: t("goLive.couldntSignoffTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
     } finally {
       setEnding(false);
     }
@@ -139,7 +141,7 @@ export default function GoLive() {
 
   async function handleSchedule() {
     if (!schedTitle.trim()) {
-      toast({ title: "Name the stream", description: "Give your upcoming stream a title.", variant: "destructive" });
+      toast({ title: t("goLive.nameStreamTitle"), description: t("goLive.nameStreamDesc"), variant: "destructive" });
       return;
     }
     setScheduling(true);
@@ -155,12 +157,12 @@ export default function GoLive() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't schedule.");
-      toast({ title: "Scheduled 📅", description: "It's on the board." });
+      if (!res.ok) throw new Error(data.error || t("goLive.couldntScheduleError"));
+      toast({ title: t("goLive.scheduledTitle"), description: t("goLive.scheduledDesc") });
       setSchedTitle(""); setSchedGame(""); setSchedWhen("");
       await load();
     } catch (e) {
-      toast({ title: "Couldn't schedule", description: e instanceof Error ? e.message : "Try again.", variant: "destructive" });
+      toast({ title: t("goLive.couldntScheduleTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
     } finally {
       setScheduling(false);
     }
@@ -176,16 +178,15 @@ export default function GoLive() {
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-4xl mx-auto px-5 md:px-8 py-10 space-y-8">
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          <ArrowLeft className="h-4 w-4" /> {t("goLive.backToDashboard")}
         </Link>
 
         <div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight">
-            <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">Go Live</span>
+            <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">{t("goLive.pageTitle")}</span>
           </h1>
           <p className="text-white/50 text-sm mt-2 max-w-xl">
-            Hype up your Discord before you hit Go Live. Announcements are <span className="text-amber-300 font-semibold">free</span> —
-            pure integration, no Visual Bucs burned.
+            {t("goLive.hypeBefore")}<span className="text-amber-300 font-semibold">{t("goLive.hypeFree")}</span>{t("goLive.hypeAfter")}
           </p>
         </div>
 
@@ -193,10 +194,9 @@ export default function GoLive() {
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-amber-200">No Discord webhook connected</p>
+              <p className="font-bold text-amber-200">{t("goLive.noWebhookTitle")}</p>
               <p className="text-white/50 mt-1">
-                Head to <Link href="/settings" className="text-amber-300 underline underline-offset-2">Settings → Discord</Link> and
-                paste your channel's webhook URL. Takes 30 seconds.
+                {t("goLive.webhookHelpBefore")}<Link href="/settings" className="text-amber-300 underline underline-offset-2">{t("goLive.webhookHelpLink")}</Link>{t("goLive.webhookHelpAfter")}
               </p>
             </div>
           </div>
@@ -207,34 +207,34 @@ export default function GoLive() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Radio className="h-5 w-5 text-amber-300" />
-              Stream announcement
+              {t("goLive.streamAnnouncement")}
             </h2>
             {liveStream && (
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/30 rounded-full px-3 py-1">
-                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> LIVE: {liveStream.title}
+                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> {t("goLive.liveBadge", { title: liveStream.title })}
               </span>
             )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Stream title</span>
+              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t("goLive.streamTitleLabel")}</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Friday Night Beats — making the anthem"
+                placeholder={t("goLive.streamTitlePlaceholder")}
                 className="mt-1.5 w-full rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
                 data-testid="input-stream-title"
               />
             </label>
             <label className="block">
-              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Game / content</span>
+              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t("goLive.gameLabel")}</span>
               <div className="relative mt-1.5">
                 <Gamepad2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <input
                   value={game}
                   onChange={(e) => setGame(e.target.value)}
-                  placeholder="Music production, Just Chatting…"
+                  placeholder={t("goLive.gamePlaceholder")}
                   className="w-full rounded-xl bg-black/60 border border-white/10 pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
                   data-testid="input-stream-game"
                 />
@@ -254,7 +254,7 @@ export default function GoLive() {
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${mentionEveryone ? "left-[18px]" : "left-0.5"}`} />
             </button>
             {mentionEveryone ? <Bell className="h-4 w-4 text-amber-300" /> : <BellOff className="h-4 w-4 text-white/30" />}
-            Ping <span className="font-mono font-bold text-amber-200">@everyone</span> in the announcement
+            {t("goLive.pingBefore")}<span className="font-mono font-bold text-amber-200">@everyone</span>{t("goLive.pingAfter")}
           </label>
 
           <div className="flex flex-wrap gap-3">
@@ -265,13 +265,13 @@ export default function GoLive() {
               data-testid="btn-announce-live"
             >
               {announcing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
-              Announce to Discord
+              {t("goLive.announceButton")}
             </Button>
             <div className="flex gap-2 flex-1 min-w-[240px]">
               <input
                 value={vodUrl}
                 onChange={(e) => setVodUrl(e.target.value)}
-                placeholder="VOD link (optional, for the sign-off)"
+                placeholder={t("goLive.vodPlaceholder")}
                 className="flex-1 rounded-xl bg-black/60 border border-white/10 px-4 py-2 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
                 data-testid="input-vod-url"
               />
@@ -283,12 +283,12 @@ export default function GoLive() {
                 data-testid="btn-end-stream"
               >
                 {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
-                End Stream
+                {t("goLive.endStreamButton")}
               </Button>
             </div>
           </div>
           <p className="text-[11px] text-white/30">
-            This posts the announcement embed — you still hit Go Live inside Discord itself when you're ready.
+            {t("goLive.announceNote")}
           </p>
         </section>
 
@@ -296,20 +296,20 @@ export default function GoLive() {
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-4">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <CalendarPlus className="h-5 w-5 text-amber-300" />
-            Schedule a stream
+            {t("goLive.scheduleStreamTitle")}
           </h2>
           <div className="grid md:grid-cols-3 gap-3">
             <input
               value={schedTitle}
               onChange={(e) => setSchedTitle(e.target.value)}
-              placeholder="Stream title"
+              placeholder={t("goLive.schedTitlePlaceholder")}
               className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
               data-testid="input-sched-title"
             />
             <input
               value={schedGame}
               onChange={(e) => setSchedGame(e.target.value)}
-              placeholder="Game / content (optional)"
+              placeholder={t("goLive.schedGamePlaceholder")}
               className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
               data-testid="input-sched-game"
             />
@@ -323,26 +323,26 @@ export default function GoLive() {
           </div>
           <Button onClick={handleSchedule} disabled={scheduling} variant="outline" className="gap-2 border-amber-400/30 text-amber-200" data-testid="btn-schedule">
             {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
-            Schedule
+            {t("goLive.scheduleButton")}
           </Button>
 
           {upcoming.length > 0 && (
             <div className="space-y-2 pt-2">
-              <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Upcoming</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-wider">{t("goLive.upcoming")}</p>
               {upcoming.map((s) => (
                 <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3">
                   <div className="min-w-0">
                     <p className="font-bold text-sm truncate">{s.title}</p>
                     <p className="text-xs text-white/40 flex items-center gap-1.5 mt-0.5">
                       <Clock className="h-3 w-3" />
-                      {s.scheduled_for ? new Date(s.scheduled_for).toLocaleString() : "No date set"}
+                      {s.scheduled_for ? new Date(s.scheduled_for).toLocaleString() : t("goLive.noDateSet")}
                       {s.game && <span className="text-white/25">· {s.game}</span>}
                     </p>
                   </div>
                   <button
                     onClick={() => handleDeleteStream(s.id)}
                     className="text-white/30 hover:text-red-400 transition-colors p-1.5"
-                    aria-label={`Cancel ${s.title}`}
+                    aria-label={t("goLive.cancelStreamAria", { title: s.title })}
                     data-testid={`btn-cancel-stream-${s.id}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -358,7 +358,7 @@ export default function GoLive() {
           <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-3">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-amber-300" />
-              Recent streams
+              {t("goLive.recentStreams")}
             </h2>
             {recent.map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/40 px-4 py-3">
@@ -371,7 +371,7 @@ export default function GoLive() {
                 </div>
                 {s.vod_url && (
                   <a href={s.vod_url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-300 underline underline-offset-2 shrink-0 ml-3">
-                    Watch VOD
+                    {t("goLive.watchVod")}
                   </a>
                 )}
               </div>

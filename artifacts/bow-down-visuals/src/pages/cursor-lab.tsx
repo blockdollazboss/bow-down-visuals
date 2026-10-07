@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from "@/lib/cursor-settings";
+import { useTranslation } from "react-i18next";
 
 /* ─── Cursor Settings ───
    Permanent page where visitors choose their cursor.
@@ -173,6 +174,7 @@ function CursorPreview({ id }: { id: CursorId }) {
 }
 
 export default function CursorLab() {
+  const { t } = useTranslation();
   const [clicks, setClicks] = useState({ gold: 0, ghost: 0, link: 0 });
   const [active, setActive] = useState<CursorId>("shark-fin");
   const [isTouch, setIsTouch] = useState(false);
@@ -193,15 +195,11 @@ export default function CursorLab() {
   return (
     <div className="min-h-screen text-white p-4 md:p-8" style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}>
       <div className="max-w-6xl mx-auto rounded-2xl border border-white/10 bg-black/70 p-6 md:p-8 shadow-2xl">
-      <h1 className="text-3xl md:text-4xl font-black text-[#e8c86a] mb-2" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9)" }}>Cursor Style</h1>
-      <p className="text-white/85 mb-8 text-base">
-        Pick your cursor. It's saved and follows you across the whole site.
-      </p>
+      <h1 className="text-3xl md:text-4xl font-black text-[#e8c86a] mb-2" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9)" }}>{t("cursor-lab.cursor_style")}</h1>
+      <p className="text-white/85 mb-8 text-base">{t("cursor-lab.pick_your_cursor_it_s_saved_and")}</p>
 
       {isTouch && (
-        <p className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6 text-yellow-200 text-sm">
-          You're on a touch device — custom cursors only work with a mouse. Open this page on desktop to try them.
-        </p>
+        <p className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6 text-yellow-200 text-sm">{t("cursor-lab.you_re_on_a_touch_device_custom")}</p>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
@@ -227,7 +225,7 @@ export default function CursorLab() {
 
       {/* Demo area */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">
-        <h2 className="text-lg font-bold mb-4 text-white/80">Test area — hover and click these</h2>
+        <h2 className="text-lg font-bold mb-4 text-white/80">{t("cursor-lab.test_area_hover_and_click_these")}</h2>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setClicks((c) => ({ ...c, gold: c.gold + 1 }))}
@@ -249,9 +247,7 @@ export default function CursorLab() {
             Link{clicks.link > 0 ? ` (${clicks.link})` : ""}
           </a>
         </div>
-        <p className="text-xs text-white/60 mt-4">
-          Your choice is live across the entire site right now. Change it anytime.
-        </p>
+        <p className="text-xs text-white/60 mt-4">{t("cursor-lab.your_choice_is_live_across_the_e")}</p>
       </div>
       </div>
     </div>

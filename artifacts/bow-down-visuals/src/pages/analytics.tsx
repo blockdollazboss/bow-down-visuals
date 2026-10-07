@@ -6,6 +6,7 @@ import {
   Clock, ChevronRight, Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -74,10 +75,10 @@ interface Suggestion {
   hook: string;
 }
 
-const PLATFORM_META: Record<PlatformKey, { label: string; icon: LucideIcon; connectBlurb: string }> = {
-  instagram: { label: "Instagram", icon: Link2, connectBlurb: "Pull followers, posts, and top Reels." },
-  tiktok: { label: "TikTok", icon: FileVideo, connectBlurb: "Pull followers, videos, and total likes." },
-  facebook: { label: "Facebook", icon: Users, connectBlurb: "Pull Page followers and top posts." },
+const PLATFORM_META: Record<PlatformKey, { label: string; icon: LucideIcon; blurbKey: string }> = {
+  instagram: { label: "Instagram", icon: Link2, blurbKey: "analytics.connectBlurbs.instagram" },
+  tiktok: { label: "TikTok", icon: FileVideo, blurbKey: "analytics.connectBlurbs.tiktok" },
+  facebook: { label: "Facebook", icon: Users, blurbKey: "analytics.connectBlurbs.facebook" },
 };
 
 const ALL_PLATFORMS: PlatformKey[] = ["instagram", "tiktok", "facebook"];
@@ -89,16 +90,16 @@ function fmt(n: number | null): string {
   return n.toLocaleString();
 }
 
-function timeAgo(iso: string | null): string {
+function timeAgo(iso: string | null, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (!iso) return "";
   const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 0) return "just now";
+  if (ms < 0) return t("analytics.justNow");
   const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("analytics.justNow");
+  if (mins < 60) return t("analytics.minutesAgo", { n: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t("analytics.hoursAgo", { n: hrs });
+  return t("analytics.daysAgo", { n: Math.floor(hrs / 24) });
 }
 
 /** Minimal SVG sparkline for follower history. */
@@ -137,6 +138,7 @@ const cardClass =
   "rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm";
 
 export default function Analytics() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
@@ -174,10 +176,10 @@ export default function Analytics() {
     setError(null);
     try {
       const { res, data } = await authedFetch("/api/analytics/overview");
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load your stats.");
+      if (!res.ok) throw new Error(data.message || data.error || t("analytics.errorLoadStats"));
       setOverview(data as OverviewResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load your stats.");
+      setError(err instanceof Error ? err.message : t("analytics.errorLoadStats"));
     } finally {
       setLoading(false);
     }
@@ -225,7 +227,7 @@ export default function Analytics() {
     if (insightsLoading || !user) return;
     const payload = aiPayload();
     if (payload.platforms.length === 0) {
-      setAiError("Connect at least one platform and refresh stats before asking the AI.");
+      setAiError(t("analytics.errorNoPlatforms"));
       return;
     }
     setInsightsLoading(true);
@@ -241,12 +243,12 @@ export default function Analytics() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.insights) throw new Error(data.message || "AI insights failed — try again.");
+      if (!res.ok || !data.insights) throw new Error(data.message || t("analytics.errorInsightsFailed"));
       setInsights(data.insights as Insights);
       refreshProfile();
       setTimeout(() => document.getElementById("ai-insights")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : "AI insights failed — try again.");
+      setAiError(err instanceof Error ? err.message : t("analytics.errorInsightsFailed"));
     } finally {
       setInsightsLoading(false);
     }
@@ -256,7 +258,7 @@ export default function Analytics() {
     if (suggestionsLoading || !user) return;
     const payload = aiPayload();
     if (payload.platforms.length === 0) {
-      setAiError("Connect at least one platform and refresh stats before asking the AI.");
+      setAiError(t("analytics.errorNoPlatforms"));
       return;
     }
     setSuggestionsLoading(true);
@@ -272,12 +274,12 @@ export default function Analytics() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !Array.isArray(data.suggestions)) throw new Error(data.message || "AI suggestions failed — try again.");
+      if (!res.ok || !Array.isArray(data.suggestions)) throw new Error(data.message || t("analytics.errorSuggestionsFailed"));
       setSuggestions(data.suggestions as Suggestion[]);
       refreshProfile();
       setTimeout(() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : "AI suggestions failed — try again.");
+      setAiError(err instanceof Error ? err.message : t("analytics.errorSuggestionsFailed"));
     } finally {
       setSuggestionsLoading(false);
     }
@@ -294,14 +296,13 @@ export default function Analytics() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <BarChart3 className="h-3 w-3" aria-hidden="true" /> Command center
+            <BarChart3 className="h-3 w-3" aria-hidden="true" /> {t("analytics.heroEyebrow")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Analytics, <span className="text-primary">decoded</span>
+            {t("analytics.heroTitleStart")} <span className="text-primary">{t("analytics.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Your live stats from every connected platform — free. Then the AI
-            reads the tea leaves: what's working, what to post next, and when.
+            {t("analytics.heroSubtitle")}
           </p>
           <div className="mt-5 flex items-center justify-center gap-3">
             <button
@@ -310,10 +311,10 @@ export default function Analytics() {
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh stats
+              {t("analytics.refreshStats")}
             </button>
             {overview?.fetchedAt && (
-              <span className="text-xs text-white/35">Updated {timeAgo(overview.fetchedAt)}</span>
+              <span className="text-xs text-white/35">{t("analytics.updated", { time: timeAgo(overview.fetchedAt, t) })}</span>
             )}
           </div>
         </div>
@@ -342,12 +343,12 @@ export default function Analytics() {
                     </span>
                     <h3 className="font-display text-lg font-bold">{meta.label}</h3>
                   </div>
-                  <p className="mt-3 text-sm text-white/50">{meta.connectBlurb}</p>
+                  <p className="mt-3 text-sm text-white/50">{t(meta.blurbKey)}</p>
                   <Link
                     href="/settings"
                     className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                   >
-                    Connect {meta.label} <ChevronRight className="h-4 w-4" />
+                    {t("analytics.connect", { platform: meta.label })} <ChevronRight className="h-4 w-4" />
                   </Link>
                 </div>
               );
@@ -363,13 +364,13 @@ export default function Analytics() {
                     <h3 className="font-display text-lg font-bold">{meta.label}</h3>
                   </div>
                   <p className="mt-3 text-sm text-amber-200/80">
-                    {p.message ?? "Your connection expired."}
+                    {p.message ?? t("analytics.connectionExpired")}
                   </p>
                   <Link
                     href="/settings"
                     className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                   >
-                    Reconnect <ChevronRight className="h-4 w-4" />
+                    {t("analytics.reconnect")} <ChevronRight className="h-4 w-4" />
                   </Link>
                 </div>
               );
@@ -385,10 +386,10 @@ export default function Analytics() {
                     <h3 className="font-display text-lg font-bold">{meta.label}</h3>
                   </div>
                   <p className="mt-3 text-sm text-white/50">
-                    {p.message ?? "Couldn't reach this platform right now."}
+                    {p.message ?? t("analytics.platformUnreachable")}
                   </p>
                   <button onClick={loadOverview} className="mt-4 text-sm font-semibold text-primary hover:underline">
-                    Try again
+                    {t("analytics.tryAgain")}
                   </button>
                 </div>
               );
@@ -414,25 +415,25 @@ export default function Analytics() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-black/40 p-3">
                     <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
-                      <Users className="h-3 w-3" /> Followers
+                      <Users className="h-3 w-3" /> {t("analytics.statFollowers")}
                     </p>
                     <p className="mt-1 font-display text-2xl font-black text-primary">{fmt(s?.followers ?? null)}</p>
                   </div>
                   <div className="rounded-xl bg-black/40 p-3">
                     <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
-                      <FileVideo className="h-3 w-3" /> Posts
+                      <FileVideo className="h-3 w-3" /> {t("analytics.statPosts")}
                     </p>
                     <p className="mt-1 font-display text-2xl font-black">{fmt(s?.mediaCount ?? null)}</p>
                   </div>
                   <div className="rounded-xl bg-black/40 p-3">
                     <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
-                      <Heart className="h-3 w-3" /> Total likes
+                      <Heart className="h-3 w-3" /> {t("analytics.statTotalLikes")}
                     </p>
                     <p className="mt-1 font-display text-2xl font-black">{fmt(s?.totalLikes ?? null)}</p>
                   </div>
                   <div className="rounded-xl bg-black/40 p-3">
                     <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
-                      <TrendingUp className="h-3 w-3" /> Following
+                      <TrendingUp className="h-3 w-3" /> {t("analytics.statFollowing")}
                     </p>
                     <p className="mt-1 font-display text-2xl font-black">{fmt(s?.following ?? null)}</p>
                   </div>
@@ -441,16 +442,16 @@ export default function Analytics() {
                 {p.topContent.length > 0 && (
                   <div className="mt-4">
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-white/40">
-                      Top posts
+                      {t("analytics.topPosts")}
                     </p>
                     <ul className="space-y-2">
-                      {p.topContent.slice(0, 3).map((t) => (
-                        <li key={t.id} className="rounded-lg bg-black/30 px-3 py-2">
-                          <p className="truncate text-[13px] text-white/75">{t.caption || "(no caption)"}</p>
+                      {p.topContent.slice(0, 3).map((item) => (
+                        <li key={item.id} className="rounded-lg bg-black/30 px-3 py-2">
+                          <p className="truncate text-[13px] text-white/75">{item.caption || t("analytics.noCaption")}</p>
                           <p className="mt-0.5 flex items-center gap-3 text-[11px] text-white/40">
-                            <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{fmt(t.likes)}</span>
-                            <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fmt(t.comments)}</span>
-                            {t.postedAt && <span>{timeAgo(t.postedAt)}</span>}
+                            <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{fmt(item.likes)}</span>
+                            <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fmt(item.comments)}</span>
+                            {item.postedAt && <span>{timeAgo(item.postedAt, t)}</span>}
                           </p>
                         </li>
                       ))}
@@ -458,7 +459,7 @@ export default function Analytics() {
                   </div>
                 )}
                 <p className="mt-3 text-[11px] text-white/30">
-                  Live from {meta.label} · {p.fetchedAt ? timeAgo(p.fetchedAt) : "just now"}
+                  {t("analytics.liveFrom", { platform: meta.label, time: p.fetchedAt ? timeAgo(p.fetchedAt, t) : t("analytics.justNow") })}
                 </p>
               </div>
             );
@@ -474,10 +475,10 @@ export default function Analytics() {
               </span>
               <div>
                 <h2 className="font-display text-2xl font-black">
-                  AI Insights <span className="text-primary">Engine</span>
+                  {t("analytics.aiInsightsTitle")} <span className="text-primary">{t("analytics.aiInsightsAccent")}</span>
                 </h2>
                 <p className="text-sm text-white/50">
-                  Stats are free. The brain costs <span className="font-semibold text-primary">100 Visual Bucs</span> per run.
+                  {t("analytics.aiCostPrefix")} <span className="font-semibold text-primary">{t("analytics.creditsPerRun", { credits: 100 })}</span> {t("analytics.aiCostSuffix")}
                 </p>
               </div>
             </div>
@@ -486,7 +487,7 @@ export default function Analytics() {
               <input
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
-                placeholder="Your niche (e.g. Music, Gaming) — optional"
+                placeholder={t("analytics.nichePlaceholder")}
                 data-min-stars="3"
                 maxLength={80}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40 sm:max-w-xs"
@@ -497,7 +498,7 @@ export default function Analytics() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
               >
                 {insightsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                Analyze my stats · 100 Visual Bucs
+                {t("analytics.analyzeStats", { credits: 100 })}
               </button>
               <button
                 onClick={runSuggestions}
@@ -505,7 +506,7 @@ export default function Analytics() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
               >
                 {suggestionsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-                What should I make next? · 100 Visual Bucs
+                {t("analytics.whatToMakeNext", { credits: 100 })}
               </button>
             </div>
 
@@ -525,14 +526,14 @@ export default function Analytics() {
             {insights && (
               <div id="ai-insights" className="mt-6 space-y-4">
                 <div className="rounded-xl border border-primary/25 bg-black/50 p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">The headline</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">{t("analytics.headline")}</p>
                   <p className="mt-2 text-lg font-semibold leading-relaxed">{insights.headline}</p>
                 </div>
                 {insights.movers.length > 0 && (
                   <div className="grid gap-3 md:grid-cols-2">
                     {insights.movers.map((m, i) => (
                       <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
-                        <p className="text-xs font-bold uppercase tracking-widest text-primary">{m.platform ?? "Platform"}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-primary">{m.platform ?? t("analytics.platformFallback")}</p>
                         <p className="mt-1.5 text-sm text-white/85">{m.observation}</p>
                         {m.why && <p className="mt-1 text-[13px] text-white/50">{m.why}</p>}
                       </div>
@@ -543,14 +544,14 @@ export default function Analytics() {
                   <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
                     <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-primary">Best posting window</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.bestWindow")}</p>
                       <p className="mt-1 text-sm text-white/80">{insights.bestWindow}</p>
                     </div>
                   </div>
                 )}
                 {insights.recommendations.length > 0 && (
                   <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-primary">Your next 3 moves</p>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.next3Moves")}</p>
                     <ol className="space-y-2">
                       {insights.recommendations.map((r, i) => (
                         <li key={i} className="flex gap-3 text-sm text-white/80">
@@ -566,7 +567,7 @@ export default function Analytics() {
 
             {suggestions && (
               <div id="ai-suggestions" className="mt-6">
-                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">Make these next</p>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.makeTheseNext")}</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   {suggestions.map((s, i) => (
                     <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
@@ -574,7 +575,7 @@ export default function Analytics() {
                       <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">{s.format}</p>
                       <p className="mt-2 text-[13px] text-white/60">{s.why}</p>
                       <p className="mt-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-medium text-primary">
-                        Hook: “{s.hook}”
+                        {t("analytics.hookLabel", { hook: s.hook })}
                       </p>
                     </div>
                   ))}

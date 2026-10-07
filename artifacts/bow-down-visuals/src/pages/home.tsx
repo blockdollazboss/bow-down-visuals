@@ -54,238 +54,71 @@ import {
   Tv,
   Store,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
 const STEPS = [
-  {
-    number: "01",
-    title: "Lock In Your Artist",
-    body: "Your vault holds your sound, look, and voice — every generation comes out unmistakably you.",
-    icon: Target,
-  },
-  {
-    number: "02",
-    title: "Generate The Impossible",
-    body: "Songs, videos, promo, branding — full AI generations in seconds, for a few Visual Bucs. No team, no waiting.",
-    icon: Zap,
-  },
-  {
-    number: "03",
-    title: "Release Like A Label",
-    body: "Schedule the rollout, pitch sponsors, drop merch. The business end, handled — while you create.",
-    icon: Globe,
-  },
+  { number: "01", icon: Target },
+  { number: "02", icon: Zap },
+  { number: "03", icon: Globe },
 ];
 
-const OUTPUT_TYPES = [
-  "Full songs — audio included",
-  "Cinematic music videos",
-  "Lyric videos",
-  "Promo clips",
-  "Thumbnails",
-  "Cover art",
-  "AI voiceovers",
-  "Lip-synced performances",
-  "4K upscales",
-  "Merch mockups",
-  "Press kits",
-  "Sponsor pitches",
-];
+const OUTPUT_TYPE_COUNT = 12;
 
 const CREATOR_TYPES = [
-  {
-    title: "Independent Artists",
-    body: "Move at your own speed. Generate professional content without a full team.",
-    icon: Mic2,
-  },
-  {
-    title: "Music Producers",
-    body: "Build complete song concepts and pitch lyrics to artists instantly.",
-    icon: Music,
-  },
-  {
-    title: "Video Directors",
-    body: "Get detailed scene treatments and visual direction for any sound.",
-    icon: Video,
-  },
-  {
-    title: "Content Creators",
-    body: "Keep your feed alive with platform-ready captions and promo ideas.",
-    icon: Film,
-  },
-  {
-    title: "Record Labels",
-    body: "Scale output across your entire roster without burning out your team.",
-    icon: Users,
-  },
-  {
-    title: "Managers & A&R",
-    body: "Draft release strategies and pitch decks in minutes, not days.",
-    icon: Star,
-  },
+  { icon: Mic2 },
+  { icon: Music },
+  { icon: Video },
+  { icon: Film },
+  { icon: Users },
+  { icon: Star },
 ];
 
 /* Studio showcase — 4 categories × 3 cards. Every cost and route verified
    against credit-costs.ts and App.tsx. */
 const STUDIO = [
   {
-    category: "Create",
-    tagline: "The music",
     icon: Sparkles,
     tools: [
-      {
-        title: "Make a Song",
-        description: "Full songs — lyrics, melody, and production in minutes.",
-        icon: Music,
-        cost: "4 VB",
-        href: "/make-song",
-        featured: false,
-      },
-      {
-        title: "Make a Music Video",
-        description: "Cinematic AI scenes built for your track.",
-        icon: Clapperboard,
-        cost: "4 VB",
-        href: "/make-video",
-        featured: false,
-      },
-      {
-        title: "Song + Video",
-        description: "The full package — song and video in one flow.",
-        icon: Mic2,
-        cost: "4 VB",
-        href: "/song-and-video",
-        featured: true,
-      },
+      { icon: Music, href: "/make-song", featured: false },
+      { icon: Clapperboard, href: "/make-video", featured: false },
+      { icon: Mic2, href: "/song-and-video", featured: true },
     ],
   },
   {
-    category: "Craft",
-    tagline: "The polish",
     icon: Scissors,
     tools: [
-      {
-        title: "Video Editor",
-        description: "Cut, caption, and grade — with lip sync built in.",
-        icon: Scissors,
-        cost: "Lip sync 3 VB",
-        href: "/video-editor",
-        featured: false,
-      },
-      {
-        title: "AI Voiceover",
-        description: "Studio-quality narration in any voice.",
-        icon: AudioLines,
-        cost: "2 VB/min",
-        href: "/voiceover",
-        featured: false,
-      },
-      {
-        title: "Upscale",
-        description: "Honest 1080p and 4K upscaling. No fake “enhance”.",
-        icon: Rocket,
-        cost: "3 VB",
-        href: "/upscale",
-        featured: false,
-      },
+      { icon: Scissors, href: "/video-editor", featured: false },
+      { icon: AudioLines, href: "/voiceover", featured: false },
+      { icon: Rocket, href: "/upscale", featured: false },
     ],
   },
   {
-    category: "Promote",
-    tagline: "The rollout",
     icon: Megaphone,
     tools: [
-      {
-        title: "Promo Clips",
-        description: "Scroll-stopping clips for TikTok, Reels, and Shorts.",
-        icon: Film,
-        cost: "4 VB",
-        href: "/promo-clip",
-        featured: false,
-      },
-      {
-        title: "Hook Studio",
-        description: "First-3-second hooks plus a virality pre-flight check.",
-        icon: Zap,
-        cost: "1 VB",
-        href: "/hooks",
-        featured: false,
-      },
-      {
-        title: "Scheduler",
-        description: "Auto-post to Instagram, TikTok, and Facebook.",
-        icon: CalendarCheck,
-        cost: "1 VB/post",
-        href: "/scheduler",
-        featured: false,
-      },
+      { icon: Film, href: "/promo-clip", featured: false },
+      { icon: Zap, href: "/hooks", featured: false },
+      { icon: CalendarCheck, href: "/scheduler", featured: false },
     ],
   },
   {
-    category: "Get Paid",
-    tagline: "The business",
     icon: BadgeDollarSign,
     tools: [
-      {
-        title: "Monetization Coach",
-        description: "Your 30-day money plan, platform by platform.",
-        icon: DollarSign,
-        cost: "1 VB",
-        href: "/coach",
-        featured: false,
-      },
-      {
-        title: "Sponsor Match",
-        description: "AI-matched brand deals, plus pitches that close.",
-        icon: Handshake,
-        cost: "1 VB",
-        href: "/sponsors",
-        featured: false,
-      },
-      {
-        title: "Merch Designer",
-        description: "AI merch mockups — dropship-ready.",
-        icon: Shirt,
-        cost: "3 VB",
-        href: "/merch",
-        featured: false,
-      },
+      { icon: DollarSign, href: "/coach", featured: false },
+      { icon: Handshake, href: "/sponsors", featured: false },
+      { icon: Shirt, href: "/merch", featured: false },
     ],
   },
 ];
 
 const CREDIT_PACKS = [
-  {
-    credits: "1,000 Visual Bucs",
-    price: "$9",
-    packKey: "10",
-    featured: false,
-    perks: ["1,000 generation Visual Bucs", "Never expires", "Instant top-up"],
-  },
-  {
-    credits: "5,000 Visual Bucs",
-    price: "$39",
-    packKey: "50",
-    featured: false,
-    perks: ["5,000 generation Visual Bucs", "Never expires", "Instant top-up"],
-  },
-  {
-    credits: "15,000 Visual Bucs",
-    price: "$99",
-    packKey: "150",
-    featured: true,
-    perks: ["15,000 generation Visual Bucs", "Never expires", "Best value"],
-  },
-  {
-    credits: "50,000 Visual Bucs",
-    price: "$249",
-    packKey: "500",
-    featured: false,
-    perks: ["50,000 generation Visual Bucs", "Never expires", "Pro volume"],
-  },
+  { price: "$9", packKey: "10", featured: false, perkCount: 3 },
+  { price: "$39", packKey: "50", featured: false, perkCount: 3 },
+  { price: "$99", packKey: "150", featured: true, perkCount: 3 },
+  { price: "$249", packKey: "500", featured: false, perkCount: 3 },
 ];
 
 const FAQS = [
@@ -340,25 +173,10 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 
 /* ──────────────────── Capability ticker ──────────────────── */
 
-const TICKER_ITEMS = [
-  "Full songs in minutes",
-  "Cinematic music videos",
-  "Lip sync that actually syncs",
-  "AI voiceovers",
-  "Lyric videos",
-  "Promo clips on demand",
-  "Hooks that stop the scroll",
-  "Auto-post to IG · TikTok · FB",
-  "Thumbnails & cover art",
-  "4K upscaling",
-  "Sponsor matching",
-  "Merch mockups",
-  "Press kits in minutes",
-  "Your 30-day money plan",
-];
-
 function CheatCodeTicker() {
-  const row = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  const { t } = useTranslation();
+  const items = Array.from({ length: 14 }, (_, i) => t(`home.ticker.${i}`));
+  const row = [...items, ...items];
   return (
     <div
       className="lux-marquee lux-marquee-mask relative overflow-hidden border-b border-white/[0.06] bg-black/40 py-5"
@@ -388,7 +206,6 @@ function SectionDivider() {
 
 /* ──────────────────── Share row ──────────────────── */
 
-const SHARE_TEXT = "The content creator's cheat code — songs, videos & promo in seconds";
 const SHARE_URL = "https://bowdownvisuals.com/";
 
 function XIcon({ className = "" }: { className?: string }) {
@@ -407,18 +224,20 @@ function FacebookIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function ShareRow({ label = "Spread the code" }: { label?: string }) {
+function ShareRow({ label }: { label?: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
-  const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
+  const shareText = t("home.shareText");
+  const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(SHARE_URL)}`;
   const fbHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
-  const threadsHref = `https://www.threads.com/intent/post?text=${encodeURIComponent(`${SHARE_TEXT} ${SHARE_URL}`)}`;
+  const threadsHref = `https://www.threads.com/intent/post?text=${encodeURIComponent(`${shareText} ${SHARE_URL}`)}`;
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(`${SHARE_TEXT} ${SHARE_URL}`);
+      await navigator.clipboard.writeText(`${shareText} ${SHARE_URL}`);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = `${SHARE_TEXT} ${SHARE_URL}`;
+      ta.value = `${shareText} ${SHARE_URL}`;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
@@ -433,20 +252,20 @@ function ShareRow({ label = "Spread the code" }: { label?: string }) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">{label}</span>
-      <a href={xHref} target="_blank" rel="noopener noreferrer" aria-label="Share on X" className={btn}>
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">{label ?? t("home.shareLabel")}</span>
+      <a href={xHref} target="_blank" rel="noopener noreferrer" aria-label={t("home.shareX")} className={btn}>
         <XIcon className="h-3.5 w-3.5" />
       </a>
-      <a href={fbHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook" className={btn}>
+      <a href={fbHref} target="_blank" rel="noopener noreferrer" aria-label={t("home.shareFacebook")} className={btn}>
         <FacebookIcon className="h-3.5 w-3.5" />
       </a>
-      <a href={threadsHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Threads" className={btn}>
+      <a href={threadsHref} target="_blank" rel="noopener noreferrer" aria-label={t("home.shareThreads")} className={btn}>
         <ThreadsIcon className="h-3.5 w-3.5" />
       </a>
-      <button onClick={copyLink} aria-label="Copy link" className={btn}>
+      <button onClick={copyLink} aria-label={t("home.copyLink")} className={btn}>
         {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
-      {copied && <span className="text-xs font-medium text-primary">Copied</span>}
+      {copied && <span className="text-xs font-medium text-primary">{t("home.copied")}</span>}
     </div>
   );
 }
@@ -459,6 +278,7 @@ const KONAMI = [
 ];
 
 function KonamiEgg() {
+  const { t } = useTranslation();
   const [fired, setFired] = useState(false);
   const pos = useRef(0);
 
@@ -489,7 +309,7 @@ function KonamiEgg() {
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-5 backdrop-blur-sm"
       onClick={() => setFired(false)}
       role="dialog"
-      aria-label="Cheat code accepted"
+      aria-label={t("home.konamiAria")}
     >
       <style>{`
         @keyframes konami-flash { 0% { opacity: 0; transform: scale(0.92); } 18% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
@@ -503,27 +323,26 @@ function KonamiEgg() {
       >
         <img
           src="/cheat-code-avatar.webp"
-          alt="Thy Cheat Code — the Shark King"
+          alt={t("home.konamiAlt")}
           className="mx-auto mb-6 h-32 w-32 rounded-full border-2 border-primary object-cover"
         />
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.3em] text-primary">
-          Cheat code accepted
+          {t("home.konamiAccepted")}
         </p>
         <h3 className="mb-3 font-display text-3xl italic text-white">
-          You were always one of us.
+          {t("home.konamiHeadline")}
         </h3>
         <p className="mb-8 text-sm leading-relaxed text-white/55">
-          Up, up, down, down — the oldest code in the book, and you knew it.
-          Welcome to the unfair advantage.
+          {t("home.konamiBody")}
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link href="/signup">
             <Button variant="luxury" className="w-full sm:w-auto gap-2">
-              <KeyRound className="h-4 w-4" /> Claim your access
+              <KeyRound className="h-4 w-4" /> {t("home.claimAccess")}
             </Button>
           </Link>
           <Button variant="outline" onClick={() => setFired(false)} className="border-primary/30 text-primary hover:bg-primary/10">
-            Keep it quiet
+            {t("home.konamiQuiet")}
           </Button>
         </div>
       </div>
@@ -534,6 +353,7 @@ function KonamiEgg() {
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
 function HeroSection() {
+  const { t } = useTranslation();
   function scrollToDemo() {
     document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
   }
@@ -626,7 +446,7 @@ function HeroSection() {
 
         {/* Positioning — the quiet luxury whisper */}
         <p className="font-display italic text-xl sm:text-2xl text-primary/90 leading-snug">
-          The content creator&rsquo;s cheat code
+          {t("home.positioning")}
         </p>
 
         {/* Top badges — clearance + refer & earn */}
@@ -638,34 +458,32 @@ function HeroSection() {
             style={{ boxShadow: "0 0 18px rgba(212,160,23,0.25)" }}
           >
             <KeyRound className="h-3.5 w-3.5" />
-            Restricted beta — clearance open
+            {t("home.clearanceBadge")}
           </div>
         </Link>
         {/* Refer & Earn badge — gentle attention nudge, links to /referrals */}
         <Link href="/referrals">
           <div className="refer-nudge inline-flex items-center gap-2 bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] rounded-full px-4 py-1.5 text-sm font-bold text-black hover:brightness-110 transition cursor-pointer">
             <Gift className="h-3.5 w-3.5" />
-            Refer &amp; Earn · 25%
+            {t("home.referEarnBadge")}
           </div>
         </Link>
         </div>
 
         {/* Headline */}
         <h1 className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
-          Your competitors will think you{" "}
-          <span className="gold-text-shine">hired a team.</span>
+          {t("home.heroHeadlineA")}{" "}
+          <span className="gold-text-shine">{t("home.heroHeadlineB")}</span>
         </h1>
 
         {/* Slogan */}
         <p className="text-base sm:text-lg font-semibold tracking-widest text-primary/80 uppercase">
-          This feels like cheating. That&rsquo;s the point.
+          {t("home.heroSlogan")}
         </p>
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-          Bow Down Visuals is the AI studio that writes your songs, shoots
-          your videos, cuts your promo, and runs your business — 80+ tools,
-          one Visual Buc system, zero permission needed.
+          {t("home.heroSub")}
         </p>
 
         {/* CTAs */}
@@ -676,7 +494,7 @@ function HeroSection() {
               variant="luxury"
               className="w-full sm:w-auto text-base h-14 px-10 rounded-full gap-2"
             >
-              <KeyRound className="h-4 w-4" /> Claim your access <ArrowRight className="h-4 w-4" />
+              <KeyRound className="h-4 w-4" /> {t("home.claimAccess")} <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
           <Button
@@ -685,31 +503,28 @@ function HeroSection() {
             onClick={scrollToDemo}
             className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/30 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:border-primary/60 hover:text-primary font-semibold gap-2 transition-all duration-300"
           >
-            <Sparkles className="h-4 w-4" /> Watch it work
+            <Sparkles className="h-4 w-4" /> {t("home.watchItWork")}
           </Button>
         </div>
 
         {/* Returning users */}
         <p className="text-sm text-white/40">
-          Already have an account?{" "}
+          {t("home.alreadyHaveAccount")}{" "}
           <Link href="/login" className="font-semibold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors">
-            Sign in
+            {t("home.signIn")}
           </Link>
         </p>
 
         {/* Social proof — true claims only */}
         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-primary/60" /> Pay only for
-            what you create
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> {t("home.proofPayOnly")}
           </span>
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-primary/60" /> No
-            subscription, ever
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> {t("home.proofNoSub")}
           </span>
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-primary/60" /> Results in
-            seconds
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> {t("home.proofResults")}
           </span>
         </div>
 
@@ -744,59 +559,25 @@ function HeroSection() {
    Clearly labeled as a taste, never the real generator. No credits, no API. ───── */
 
 const DEMO_VIBES = [
-  {
-    id: "hiphop",
-    label: "Hip-Hop",
-    lyrics: [
-      "Came from the bottom, now the penthouse views,",
-      "Turned every loss into headline news,",
-      "They counted me out, now they countin' my wins,",
-      "Started with a dream, now the empire begins.",
-    ],
-    treatment: [
-      "OPEN — city rooftop at golden hour, slow push-in on the artist.",
-      "HOOK — drone orbit over the skyline, lights moving in perfect sync.",
-    ],
-    hook: "new era. hip-hop, out now.",
-  },
-  {
-    id: "rnb",
-    label: "R&B",
-    lyrics: [
-      "Velvet nights and your love on repeat,",
-      "Slow dance in the dark to our own heartbeat,",
-      "Every whisper got me fallin' deeper in,",
-      "Don't let the morning light the night we're in.",
-    ],
-    treatment: [
-      "OPEN — dim loft, candlelight, silk in slow motion.",
-      "CHORUS — rain on the window, close-ups, everything glowing amber.",
-    ],
-    hook: "for the lovers. new r&b single, out now.",
-  },
-  {
-    id: "pop",
-    label: "Pop",
-    lyrics: [
-      "Neon hearts and we're dancing on air,",
-      "Hands up high like we don't have a care,",
-      "This night's electric, feel the bassline drop,",
-      "We don't ever wanna make this stop.",
-    ],
-    treatment: [
-      "OPEN — festival main stage, confetti cannons, fifty thousand hands up.",
-      "DROP — hyper-cut choreography, strobe sync, skyline fireworks.",
-    ],
-    hook: "your new obsession. pop anthem, out now.",
-  },
+  { id: "hiphop" },
+  { id: "rnb" },
+  { id: "pop" },
 ];
 
 function CheatCodeDemo() {
+  const { t } = useTranslation();
   const [vibeId, setVibeId] = useState<string | null>(null);
   const [stage, setStage] = useState(0);
   const timers = useRef<number[]>([]);
   const sectionRef = useRef<HTMLElement | null>(null);
   const autoRan = useRef(false);
+  const vibes = DEMO_VIBES.map((v) => ({
+    ...v,
+    label: t(`home.demo.${v.id}.label`),
+    lyrics: [0, 1, 2, 3].map((i) => t(`home.demo.${v.id}.lyrics.${i}`)),
+    treatment: [0, 1].map((i) => t(`home.demo.${v.id}.treatment.${i}`)),
+    hook: t(`home.demo.${v.id}.hook`),
+  }));
 
   useEffect(() => {
     const stash = timers.current;
@@ -832,7 +613,7 @@ function CheatCodeDemo() {
     });
   }
 
-  const vibe = DEMO_VIBES.find((v) => v.id === vibeId) ?? null;
+  const vibe = vibes.find((v) => v.id === vibeId) ?? null;
   const running = vibeId !== null && stage < 4;
 
   return (
@@ -844,21 +625,20 @@ function CheatCodeDemo() {
       `}</style>
       <LuxReveal className="max-w-4xl mx-auto">
         <div className="text-center mb-10 space-y-4">
-          <MarketingBadge variant="kicker">Taste the cheat code</MarketingBadge>
+          <MarketingBadge variant="kicker">{t("home.demoKicker")}</MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Watch it work. Then imagine it working{" "}
-            <span className="gold-text-shine">for you.</span>
+            {t("home.demoTitleA")}{" "}
+            <span className="gold-text-shine">{t("home.demoTitleB")}</span>
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick a vibe. This is a simulated preview — the real studio
-            generates the real thing.
+            {t("home.demoSub")}
           </p>
         </div>
 
         <div className="lux-panel rounded-[2rem] p-6 sm:p-10">
           {/* Vibe picker */}
           <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {DEMO_VIBES.map((v) => (
+            {vibes.map((v) => (
               <button
                 key={v.id}
                 onClick={() => run(v.id)}
@@ -878,8 +658,7 @@ function CheatCodeDemo() {
             {!vibe && (
               <div className="flex h-[280px] items-center justify-center text-center">
                 <p className="text-white/30 text-sm max-w-xs">
-                  Choose a vibe above and watch lyrics, video treatment, and
-                  promo hook materialize — in seconds.
+                  {t("home.demoEmpty")}
                 </p>
               </div>
             )}
@@ -889,11 +668,11 @@ function CheatCodeDemo() {
                 {stage >= 1 && (
                   <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Lyrics</span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">{t("home.demoLyricsLabel")}</span>
                       {stage === 1 && running && (
                         <span className="flex items-center gap-1.5 text-[11px] text-white/40">
                           <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
-                          Writing…
+                          {t("home.demoWriting")}
                         </span>
                       )}
                     </div>
@@ -906,11 +685,11 @@ function CheatCodeDemo() {
                 {stage >= 2 && (
                   <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Video treatment</span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">{t("home.demoTreatmentLabel")}</span>
                       {stage === 2 && running && (
                         <span className="flex items-center gap-1.5 text-[11px] text-white/40">
                           <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
-                          Directing…
+                          {t("home.demoDirecting")}
                         </span>
                       )}
                     </div>
@@ -923,11 +702,11 @@ function CheatCodeDemo() {
                 {stage >= 3 && (
                   <div className="demo-anim rounded-2xl border border-primary/25 bg-primary/[0.06] p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Promo hook</span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">{t("home.demoHookLabel")}</span>
                       {stage === 3 && running && (
                         <span className="flex items-center gap-1.5 text-[11px] text-white/40">
                           <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
-                          Cutting…
+                          {t("home.demoCutting")}
                         </span>
                       )}
                     </div>
@@ -938,11 +717,11 @@ function CheatCodeDemo() {
                 {stage >= 4 && (
                   <div className="demo-anim pt-2 text-center" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <p className="mb-4 text-xs uppercase tracking-[0.2em] text-white/35">
-                      Simulated preview — the real thing is behind the door
+                      {t("home.demoSimulatedNote")}
                     </p>
                     <Link href="/signup">
                       <Button variant="luxury" size="lg" className="rounded-full px-8 gap-2">
-                        <KeyRound className="h-4 w-4" /> Sign in to generate for real
+                        <KeyRound className="h-4 w-4" /> {t("home.demoSignInCta")}
                       </Button>
                     </Link>
                   </div>
@@ -959,26 +738,27 @@ function CheatCodeDemo() {
 /* ───── Proof band — real numbers only, counted from the repo ───── */
 
 const PROOF_STATS = [
-  { value: "81", label: "AI tools under one roof" },
-  { value: "$9", label: "Cheapest Visual Bucs pack" },
-  { value: "4 VB", label: "A full song, start to finish" },
-  { value: "0", label: "Subscriptions. Ever." },
+  { value: "81" },
+  { value: "$9" },
+  { value: "4 VB" },
+  { value: "0" },
 ];
 
 function ProofBand() {
+  const { t } = useTranslation();
   return (
     <section aria-label="By the numbers" className="py-14 px-5 border-y border-white/[0.06] bg-black/40">
       <LuxReveal className="max-w-6xl mx-auto">
         <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-8">
-          The receipts — real numbers from the real studio
+          {t("home.proofKicker")}
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {PROOF_STATS.map((s) => (
-            <div key={s.label}>
+          {PROOF_STATS.map((s, i) => (
+            <div key={s.value}>
               <div className="gold-text-shine text-4xl md:text-5xl font-black tracking-tight">
                 {s.value}
               </div>
-              <div className="mt-2 text-sm text-white/45 font-medium">{s.label}</div>
+              <div className="mt-2 text-sm text-white/45 font-medium">{t(`home.proofStats.${i}.label`)}</div>
             </div>
           ))}
         </div>
@@ -988,18 +768,19 @@ function ProofBand() {
 }
 
 function HowItWorks() {
+  const { t } = useTranslation();
   return (
     <section id="how-it-works" className="scroll-mt-20 py-20 md:py-28 px-5 relative">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
-            How It Works
+            {t("home.howKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Idea to empire in minutes
+            {t("home.howTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            No team. No budget meetings. Just you and the code.
+            {t("home.howSub")}
           </p>
         </div>
 
@@ -1007,7 +788,7 @@ function HowItWorks() {
           {/* Connector line (desktop only) */}
           <div className="hidden md:block absolute top-16 left-1/3 right-1/3 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
 
-          {STEPS.map((step) => (
+          {STEPS.map((step, i) => (
             <div
               key={step.number}
               className="relative flex flex-col items-center text-center p-8 rounded-2xl lux-panel lux-card-lift group"
@@ -1019,10 +800,10 @@ function HowItWorks() {
                 <step.icon className="h-6 w-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold text-white mb-3">
-                {step.title}
+                {t(`home.steps.${i}.title`)}
               </h3>
               <p className="text-white/50 leading-relaxed text-sm">
-                {step.body}
+                {t(`home.steps.${i}.body`)}
               </p>
             </div>
           ))}
@@ -1033,31 +814,31 @@ function HowItWorks() {
 }
 
 function WhatYouCanMake() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
-            What You Can Make
+            {t("home.makeKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Everything your release needs
+            {t("home.makeTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            One studio. Every asset your music career demands — generated,
-            not delegated.
+            {t("home.makeSub")}
           </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {OUTPUT_TYPES.map((type, i) => (
+          {Array.from({ length: OUTPUT_TYPE_COUNT }, (_, i) => (
             <div
               key={i}
               className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
               <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
-                {type}
+                {t(`home.outputTypes.${i}`)}
               </span>
             </div>
           ))}
@@ -1068,36 +849,36 @@ function WhatYouCanMake() {
 }
 
 function BuiltForCreators() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
-            Built For
+            {t("home.builtForKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Built for content creators
+            {t("home.builtForTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Whether you&rsquo;re a YouTuber, streamer, podcaster, musician, or running a full media brand, Bow Down
-            Visuals was made for you.
+            {t("home.builtForSub")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {CREATOR_TYPES.map((creator) => (
+          {CREATOR_TYPES.map((creator, i) => (
             <div
-              key={creator.title}
+              key={i}
               className="group p-7 rounded-2xl lux-panel lux-card-lift"
             >
               <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <creator.icon className="h-5 w-5 text-primary" />
               </div>
               <h3 className="font-semibold text-white text-lg mb-2">
-                {creator.title}
+                {t(`home.creatorTypes.${i}.title`)}
               </h3>
               <p className="text-white/50 text-sm leading-relaxed">
-                {creator.body}
+                {t(`home.creatorTypes.${i}.body`)}
               </p>
             </div>
           ))}
@@ -1106,16 +887,16 @@ function BuiltForCreators() {
         {/* Formats strip — not just music: movies, podcasts, streaming */}
         <div className="mt-12 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-6">
-            Not a musician? Good. It&rsquo;s not just music.
+            {t("home.formatsKicker")}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { icon: Film, title: "Movies & Series", body: "Your next binge-worthy hit starts here.", href: "/movies" },
-              { icon: Podcast, title: "Podcasts", body: "Record, polish, and publish — all in the studio.", href: "/podcast" },
-              { icon: Tv, title: "Streamers", body: "Stream packs and go-live tools for your broadcast.", href: "/go-live" },
+              { icon: Film, key: "movies", href: "/movies" },
+              { icon: Podcast, key: "podcasts", href: "/podcast" },
+              { icon: Tv, key: "streamers", href: "/go-live" },
             ].map((f) => (
               <Link
-                key={f.title}
+                key={f.key}
                 href={f.href}
                 className="group flex items-center gap-4 p-4 rounded-xl hover:bg-white/[0.04] transition-colors"
               >
@@ -1123,8 +904,8 @@ function BuiltForCreators() {
                   <f.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white text-sm">{f.title}</h4>
-                  <p className="text-white/45 text-xs mt-0.5">{f.body}</p>
+                  <h4 className="font-semibold text-white text-sm">{t(`home.formats.${f.key}.title`)}</h4>
+                  <p className="text-white/45 text-xs mt-0.5">{t(`home.formats.${f.key}.body`)}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 ml-auto text-primary/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
@@ -1139,6 +920,7 @@ function BuiltForCreators() {
 /* ───── Signature moment: the manifesto. One full-bleed statement. ───── */
 
 function ManifestoBand() {
+  const { t } = useTranslation();
   return (
     <section aria-label="Manifesto" className="relative overflow-hidden">
       <LuxReveal>
@@ -1156,18 +938,17 @@ function ManifestoBand() {
           <div className="relative z-10 max-w-4xl text-center">
             <div className="mb-6 flex justify-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-primary">
-                <Crown className="h-3.5 w-3.5" /> A message from the king
+                <Crown className="h-3.5 w-3.5" /> {t("home.manifestoKicker")}
               </span>
             </div>
             <h2 className="font-display text-6xl sm:text-7xl md:text-8xl font-black tracking-tight text-white leading-none">
-              BOW <span className="gold-text-shine">DOWN.</span>
+              {t("home.manifestoTitleA")} <span className="gold-text-shine">{t("home.manifestoTitleB")}</span>
             </h2>
             <p className="mx-auto mt-6 max-w-2xl font-display text-xl sm:text-2xl italic text-white/80 leading-relaxed">
-              The industry had its turn. 80+ AI tools. One cheat code.
-              Zero permission needed.
+              {t("home.manifestoBody")}
             </p>
             <p className="mt-8 text-xs text-white/30 font-medium tracking-wide">
-              Rumor: this page has a cheat code.{" "}
+              {t("home.manifestoRumor")}{" "}
               <span className="text-primary/60 font-mono">↑↑↓↓←→←→</span>
             </p>
           </div>
@@ -1180,6 +961,7 @@ function ManifestoBand() {
 /* ───── Studio showcase — the full arsenal, grouped ───── */
 
 function StudioShowcase() {
+  const { t } = useTranslation();
   return (
     <section
       id="tools"
@@ -1188,29 +970,28 @@ function StudioShowcase() {
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
-            The Studio
+            {t("home.studioKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            One login. The whole machine.
+            {t("home.studioTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Create the music, polish the craft, promote the release, get
-            paid — without leaving the building.
+            {t("home.studioSub")}
           </p>
         </div>
 
         <div className="space-y-12">
-          {STUDIO.map((cat) => (
-            <div key={cat.category}>
+          {STUDIO.map((cat, ci) => (
+            <div key={ci}>
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                   <cat.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white leading-tight">
-                    {cat.category}
+                    {t(`home.studio.${ci}.category`)}
                     <span className="ml-3 text-sm font-medium text-white/35">
-                      {cat.tagline}
+                      {t(`home.studio.${ci}.tagline`)}
                     </span>
                   </h3>
                 </div>
@@ -1218,9 +999,9 @@ function StudioShowcase() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {cat.tools.map((tool) => (
+                {cat.tools.map((tool, ti) => (
                   <div
-                    key={tool.title}
+                    key={ti}
                     className={`relative group flex flex-col p-7 rounded-2xl lux-card-lift ${
                       tool.featured
                         ? "royal-border bg-primary/10 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
@@ -1230,7 +1011,7 @@ function StudioShowcase() {
                     {tool.featured && (
                       <div className="absolute -top-3 left-6">
                         <MarketingBadge variant="popular">
-                          <Star className="h-2.5 w-2.5" /> Most Popular
+                          <Star className="h-2.5 w-2.5" /> {t("home.mostPopular")}
                         </MarketingBadge>
                       </div>
                     )}
@@ -1250,14 +1031,14 @@ function StudioShowcase() {
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2 gap-2">
                         <h4 className="font-semibold text-white text-lg leading-tight">
-                          {tool.title}
+                          {t(`home.studio.${ci}.tools.${ti}.title`)}
                         </h4>
                         <MarketingBadge variant="muted" className="shrink-0">
-                          {tool.cost}
+                          {t(`home.studio.${ci}.tools.${ti}.cost`)}
                         </MarketingBadge>
                       </div>
                       <p className="text-white/50 text-sm leading-relaxed">
-                        {tool.description}
+                        {t(`home.studio.${ci}.tools.${ti}.description`)}
                       </p>
                     </div>
 
@@ -1265,7 +1046,7 @@ function StudioShowcase() {
                       href={tool.href}
                       className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
                     >
-                      Open this tool{" "}
+                      {t("home.openThisTool")}{" "}
                       <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
                     </Link>
                   </div>
@@ -1276,10 +1057,9 @@ function StudioShowcase() {
         </div>
 
         <p className="mt-12 text-center text-sm text-white/40">
-          Plus cover art, logos, thumbnails, press kits, lyric videos, and 70+
-          more —{" "}
+          {t("home.studioMoreBefore")}{" "}
           <Link href="/features" className="font-semibold text-primary hover:text-yellow-300 transition-colors">
-            browse the full arsenal <ArrowRight className="inline h-3.5 w-3.5" />
+            {t("home.studioMoreLink")}<ArrowRight className="inline h-3.5 w-3.5" />
           </Link>
         </p>
       </LuxReveal>
@@ -1288,18 +1068,19 @@ function StudioShowcase() {
 }
 
 function PricingSection() {
+  const { t } = useTranslation();
   return (
     <section id="pricing" className="scroll-mt-20 py-20 md:py-28 px-5">
       <LuxReveal className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
           <MarketingBadge variant="kicker">
-            Visual Buc Packs
+            {t("home.pricingKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Pay per creation. That&rsquo;s it.
+            {t("home.pricingTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Buy Visual Bucs once, use them any time. No subscription required.
+            {t("home.pricingSub")}
           </p>
         </div>
 
@@ -1307,14 +1088,13 @@ function PricingSection() {
         <div className="flex items-center justify-center gap-2 mb-10 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
           <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
           <span className="text-sm text-yellow-200/70">
-            Payments are in{" "}
-            <strong className="text-yellow-300">test mode</strong>. No real
-            money is charged.
+            {t("home.testModeBefore")}{" "}
+            <strong className="text-yellow-300">{t("home.testModeStrong")}</strong>{t("home.testModeAfter")}
           </span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          {CREDIT_PACKS.map((pack) => (
+          {CREDIT_PACKS.map((pack, pi) => (
             <div
               key={pack.packKey}
               className={`relative flex flex-col p-6 rounded-2xl lux-card-lift ${
@@ -1323,12 +1103,12 @@ function PricingSection() {
             >
               {pack.featured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <MarketingBadge variant="popular">Best value</MarketingBadge>
+                  <MarketingBadge variant="popular">{t("home.bestValue")}</MarketingBadge>
                 </div>
               )}
               <div className="mb-5">
                 <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">
-                  {pack.credits}
+                  {t(`home.creditPacks.${pi}.credits`)}
                 </p>
                 <div className="text-3xl font-black text-primary mb-1">
                   {pack.price}
@@ -1336,15 +1116,18 @@ function PricingSection() {
               </div>
 
               <ul className="space-y-2 flex-1 mb-6">
-                {pack.perks.map((perk) => (
-                  <li
-                    key={perk}
-                    className="flex items-center gap-2.5 text-sm text-white/60"
-                  >
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/60" />
-                    {perk}
-                  </li>
-                ))}
+                {Array.from({ length: pack.perkCount }, (_, j) => {
+                  const perk = t(`home.creditPacks.${pi}.perks.${j}`);
+                  return (
+                    <li
+                      key={perk}
+                      className="flex items-center gap-2.5 text-sm text-white/60"
+                    >
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/60" />
+                      {perk}
+                    </li>
+                  );
+                })}
               </ul>
 
               <Button
@@ -1352,7 +1135,7 @@ function PricingSection() {
                 className="w-full font-semibold"
                 variant={pack.featured ? "luxury" : "outline"}
               >
-                <Link href="/pricing#credit-packs">Buy Visual Bucs</Link>
+                <Link href="/pricing#credit-packs">{t("home.buyBucs")}</Link>
               </Button>
             </div>
           ))}
@@ -1360,7 +1143,7 @@ function PricingSection() {
 
         <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
           <Lock className="h-3 w-3" />
-          Sign in to purchase Visual Bucs.
+          {t("home.signInToPurchase")}
         </p>
       </LuxReveal>
     </section>
@@ -1369,6 +1152,7 @@ function PricingSection() {
 
 
 function ExtensionPromo() {
+  const { t } = useTranslation();
   const showExtensionPromo = useExtensionPromoVisible();
   if (!showExtensionPromo) return null;
   return (
@@ -1378,14 +1162,13 @@ function ExtensionPromo() {
           <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative z-10 text-center space-y-6">
             <MarketingBadge variant="kicker">
-              Chrome extension — download now
+              {t("home.extKicker")}
             </MarketingBadge>
             <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              Thy Cheat Code, <span className="text-[#e8c86a]">in your browser.</span>
+              {t("home.extTitleA")} <span className="text-[#e8c86a]">{t("home.extTitleB")}</span>
             </h2>
             <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              AI chat, every site tool, daily bonuses, referral links and one-click saving —
-              the full creator command center living in your Chrome toolbar.
+              {t("home.extSub")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <a
@@ -1395,11 +1178,11 @@ function ExtensionPromo() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
               >
                 <Download className="h-5 w-5" />
-                Download the extension
+                {t("home.extDownload")}
               </a>
             </div>
             <p className="text-white/30 text-sm">
-              Free extension. Download it now, or join the list for the one-click store launch.
+              {t("home.extNote")}
             </p>
           </div>
         </div>
@@ -1409,6 +1192,7 @@ function ExtensionPromo() {
 }
 
 function ReferralPromo() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5">
       <LuxReveal className="max-w-5xl mx-auto">
@@ -1416,14 +1200,14 @@ function ReferralPromo() {
           <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative z-10 text-center space-y-6">
             <MarketingBadge variant="kicker">
-              Refer & Earn
+              {t("home.referKicker")}
             </MarketingBadge>
             <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              Bring creators. <span className="text-[#e8c86a]">Get paid in credits.</span>
+              {t("home.referTitleA")} <span className="text-[#e8c86a]">{t("home.referTitleB")}</span>
             </h2>
             <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              Share your link. Your friends get <span className="text-white font-semibold">10 free credits</span> to start creating.
-              You earn <span className="text-white font-semibold">25% of everything they buy</span> for 90 days.
+              {t("home.referBodyA")}<span className="text-white font-semibold">{t("home.referBodyB")}</span>{t("home.referBodyC")}
+              <span className="text-white font-semibold">{t("home.referBodyD")}</span>{t("home.referBodyE")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <a
@@ -1431,17 +1215,17 @@ function ReferralPromo() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
               >
                 <Gift className="h-5 w-5" />
-                Get My Referral Link
+                {t("home.referCta")}
               </a>
               <a
                 href="/signup"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
               >
-                Start Creating
+                {t("home.referStart")}
               </a>
             </div>
             <p className="text-white/30 text-sm">
-              No limits. No gimmicks. Just creators helping creators.
+              {t("home.referNote")}
             </p>
           </div>
         </div>
@@ -1451,6 +1235,7 @@ function ReferralPromo() {
 }
 
 function FAQSection() {
+  const { t } = useTranslation();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
@@ -1461,15 +1246,15 @@ function FAQSection() {
       <LuxReveal className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
-            FAQ
+            {t("home.faqKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Frequently asked questions
+            {t("home.faqTitle")}
           </h2>
         </div>
 
         <div className="space-y-3">
-          {FAQS.map((faq, i) => (
+          {FAQS.map((_, i) => (
             <div
               key={i}
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
@@ -1483,7 +1268,7 @@ function FAQSection() {
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
               >
                 <span className="font-semibold text-white text-base">
-                  {faq.q}
+                  {t(`home.faqs.${i}.q`)}
                 </span>
                 <ChevronDown
                   className={`h-5 w-5 text-primary shrink-0 transition-transform duration-200 ${openIndex === i ? "rotate-180" : ""}`}
@@ -1492,7 +1277,7 @@ function FAQSection() {
               {openIndex === i && (
                 <div className="px-6 pb-5">
                   <p className="text-white/55 leading-relaxed text-sm">
-                    {faq.a}
+                    {t(`home.faqs.${i}.a`)}
                   </p>
                 </div>
               )}
@@ -1505,6 +1290,7 @@ function FAQSection() {
 }
 
 const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1523,13 +1309,13 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
       });
       const data = (await res.json()) as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setError(data.message ?? data.error ?? t("home.waitlistErrorGeneric"));
         setLoading(false);
         return;
       }
       setSubmitted(true);
     } catch {
-      setError("Connection error. Please try again.");
+      setError(t("home.waitlistErrorConnection"));
     } finally {
       setLoading(false);
     }
@@ -1542,14 +1328,13 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
           <MarketingBadge variant="kicker" className="mb-6">
-            Clearance
+            {t("home.waitlistKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-4">
-            Claim your access.
+            {t("home.waitlistTitle")}
           </h2>
           <p className="text-white/50 text-lg max-w-md mx-auto">
-            Join the list — first in line for every new drop from the studio.
-            The cheat code only gets stronger.
+            {t("home.waitlistSub")}
           </p>
         </div>
 
@@ -1559,15 +1344,14 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               <KeyRound className="h-6 w-6 text-primary" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Clearance granted.
+              {t("home.waitlistGranted")}
             </h3>
             <p className="text-white/60 text-sm">
-              You&rsquo;re on the list. We&rsquo;ll hit you first when new heat
-              drops — meanwhile, the studio&rsquo;s open.
+              {t("home.waitlistGrantedBody")}
             </p>
             <Link href="/dashboard">
               <Button variant="luxury" className="mt-5 font-semibold gap-2">
-                Start Creating Now <ArrowRight className="h-4 w-4" />
+                {t("home.waitlistStartNow")} <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
@@ -1591,7 +1375,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               variant="luxury"
               className="h-12 px-7 shrink-0"
             >
-              {loading ? "Joining..." : "Get the code"}
+              {loading ? t("home.waitlistJoining") : t("home.waitlistGetCode")}
             </Button>
           </form>
         )}
@@ -1603,11 +1387,11 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         )}
 
         <p className="text-white/25 text-xs">
-          No spam. No Visual Buc card. Just the unfair advantage.
+          {t("home.waitlistNoSpam")}
         </p>
 
         <div className="flex justify-center pt-2">
-          <ShareRow label="Tell a creator" />
+          <ShareRow label={t("home.shareLabelTellCreator")} />
         </div>
       </div>
       </LuxReveal>
@@ -1619,6 +1403,7 @@ WaitlistSection.displayName = "WaitlistSection";
 /* ───── Official music video teaser — cinematic full-bleed placeholder ───── */
 
 function MusicVideoTeaser() {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /* Play only while the teaser is actually on screen — pause the moment
@@ -1653,7 +1438,7 @@ function MusicVideoTeaser() {
 
   return (
     <section
-      aria-label="Official music video teaser"
+      aria-label={t("home.teaserSectionAria")}
       className="relative bg-black"
     >
       <LuxReveal>
@@ -1666,7 +1451,7 @@ function MusicVideoTeaser() {
             loop
             playsInline
             preload="auto"
-            aria-label="Bow Down Visuals official music video teaser"
+            aria-label={t("home.teaserVideoAria")}
           />
           {/* Cinematic letterbox melt — top and bottom dissolve into the page */}
           <div
@@ -1680,14 +1465,13 @@ function MusicVideoTeaser() {
           {/* Copy */}
           <div className="absolute inset-0 flex flex-col items-center justify-end px-5 pb-14 text-center sm:pb-16">
             <MarketingBadge variant="kicker" className="mb-4">
-              Official Music Video
+              {t("home.teaserKicker")}
             </MarketingBadge>
             <h2 className="font-display italic text-4xl text-white sm:text-5xl md:text-6xl">
-              Coming soon
+              {t("home.teaserTitle")}
             </h2>
             <p className="mt-3 max-w-md text-sm text-white/55 sm:text-base">
-              A first taste of the official visual. The full music video is in
-              production.
+              {t("home.teaserSub")}
             </p>
           </div>
         </div>
@@ -1701,24 +1485,13 @@ function MusicVideoTeaser() {
 /* ───── Creator Vault — the moat: persistent identity across every generation ───── */
 
 const VAULT_PILLARS = [
-  {
-    icon: Mic2,
-    title: "Your Voice, Cloned",
-    body: "Clone your voice once. Every song, voiceover, and ad read comes out in your voice — not a stranger's.",
-  },
-  {
-    icon: Sparkles,
-    title: "Your Face, Locked",
-    body: "Photos, style, and character locked in. Thumbnails, cover art, and videos stay unmistakably you.",
-  },
-  {
-    icon: Fingerprint,
-    title: "Your Brand, Everywhere",
-    body: "Colors, logos, and visual identity ride along on every generation. No re-explaining your look, ever.",
-  },
+  { icon: Mic2 },
+  { icon: Sparkles },
+  { icon: Fingerprint },
 ];
 
 function CreatorVaultSection() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5 relative overflow-hidden">
       <LuxReveal className="max-w-6xl mx-auto">
@@ -1727,37 +1500,35 @@ function CreatorVaultSection() {
           <div className="relative z-10 grid md:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <MarketingBadge variant="kicker">
-                The Creator Vault
+                {t("home.vaultKicker")}
               </MarketingBadge>
               <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight">
-                Your sound. Your face. Your voice.{" "}
-                <span className="gold-text-shine">Locked in.</span>
+                {t("home.vaultTitleA")}{" "}
+                <span className="gold-text-shine">{t("home.vaultTitleB")}</span>
               </h2>
               <p className="text-white/55 text-lg leading-relaxed">
-                Generic AI tools make generic output. Build your Creator Vault
-                once — photos, voice, style, brand assets — and every song,
-                video, and thumbnail comes out unmistakably{" "}
-                <span className="text-white font-semibold">you</span>.
+                {t("home.vaultBodyA")}
+                <span className="text-white font-semibold">{t("home.vaultBodyYou")}</span>{t("home.vaultBodyB")}
               </p>
               <Link
                 href="/artist-vault"
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-7 py-3.5 text-black font-bold hover:brightness-110 transition shadow-[0_0_25px_rgba(201,168,76,0.25)]"
               >
-                Build My Vault <ArrowRight className="h-4 w-4" />
+                {t("home.vaultCta")} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
             <div className="space-y-4">
-              {VAULT_PILLARS.map((p) => (
+              {VAULT_PILLARS.map((p, i) => (
                 <div
-                  key={p.title}
+                  key={i}
                   className="flex gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-primary/30 transition-colors"
                 >
                   <div className="h-11 w-11 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                     <p.icon className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white mb-1">{p.title}</h3>
-                    <p className="text-white/50 text-sm leading-relaxed">{p.body}</p>
+                    <h3 className="font-semibold text-white mb-1">{t(`home.vaultPillars.${i}.title`)}</h3>
+                    <p className="text-white/50 text-sm leading-relaxed">{t(`home.vaultPillars.${i}.body`)}</p>
                   </div>
                 </div>
               ))}
@@ -1772,40 +1543,40 @@ function CreatorVaultSection() {
 /* ───── Branding Shop — AI designs it ───── */
 
 const BRANDING_ITEMS = [
-  { icon: Shirt, title: "Merch & Apparel", body: "AI-designed merch in your Vault identity. (Dropship fulfillment coming soon.)" },
-  { icon: Palette, title: "Logos & Brand Kits", body: "Logos, color systems, and full brand kits generated around your look." },
-  { icon: Clapperboard, title: "Stream Packs", body: "Overlays, alerts, panels, and emotes for Twitch, YouTube, and Kick." },
-  { icon: Video, title: "Intros & Outros", body: "Branded video intros, outros, and transitions that open every upload right." },
+  { icon: Shirt },
+  { icon: Palette },
+  { icon: Clapperboard },
+  { icon: Video },
 ];
 
 function BrandingShopSection() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
-            The Branding Shop
+            {t("home.brandingKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Look like a brand <span className="gold-text-shine">before you are one.</span>
+            {t("home.brandingTitleA")} <span className="gold-text-shine">{t("home.brandingTitleB")}</span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            AI designs it. Logos, merch mockups, stream packs,
-            intros — all in your Vault identity. (Dropship fulfillment coming soon.)
+            {t("home.brandingSub")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          {BRANDING_ITEMS.map((item) => (
+          {BRANDING_ITEMS.map((item, i) => (
             <div
-              key={item.title}
+              key={i}
               className="group p-7 rounded-2xl lux-panel lux-card-lift text-center"
             >
               <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5 group-hover:bg-primary/20 transition-colors">
                 <item.icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-white text-lg mb-2">{item.title}</h3>
-              <p className="text-white/50 text-sm leading-relaxed">{item.body}</p>
+              <h3 className="font-semibold text-white text-lg mb-2">{t(`home.brandingItems.${i}.title`)}</h3>
+              <p className="text-white/50 text-sm leading-relaxed">{t(`home.brandingItems.${i}.body`)}</p>
             </div>
           ))}
         </div>
@@ -1815,7 +1586,7 @@ function BrandingShopSection() {
             href="/branding-shop"
             className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-8 py-4 text-primary font-bold hover:bg-primary/10 transition"
           >
-            Open the Shop <ArrowRight className="h-4 w-4" />
+            {t("home.brandingCta")} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </LuxReveal>
@@ -1826,52 +1597,33 @@ function BrandingShopSection() {
 /* ───── Label Pitch + music-business stack — demo to deal ───── */
 
 const BIZ_PIPELINE = [
-  {
-    icon: Megaphone,
-    title: "Pitch",
-    body: "AI demo kit + 13-label directory. Pitch like you have a team behind you.",
-    href: "/label-pitch",
-  },
-  {
-    icon: Globe,
-    title: "Distribute",
-    body: "Music distribution to Spotify, Apple Music, YouTube & more — coming soon.",
-    href: "/distribute",
-  },
-  {
-    icon: Lock,
-    title: "Protect",
-    body: "Copyright registration guidance so your work stays yours.",
-    href: "/copyright",
-  },
-  {
-    icon: BadgeDollarSign,
-    title: "Collect",
-    body: "Royalty tracking that shows where your money is.",
-    href: "/royalties",
-  },
+  { icon: Megaphone, href: "/label-pitch" },
+  { icon: Globe, href: "/distribute" },
+  { icon: Lock, href: "/copyright" },
+  { icon: BadgeDollarSign, href: "/royalties" },
 ];
 
 function LabelPitchSection() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
-            The Business End
+            {t("home.bizKicker")}
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Make the song. Pitch the label.{" "}
-            <span className="gold-text-shine">Keep the royalties.</span>
+            {t("home.bizTitleA")}{" "}
+            <span className="gold-text-shine">{t("home.bizTitleB")}</span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            The pipeline from demo to deal, built in. No manager required.
+            {t("home.bizSub")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {BIZ_PIPELINE.map((step, i) => (
-            <div key={step.title} className="relative">
+            <div key={step.href} className="relative">
               <Link
                 href={step.href}
                 className="group block h-full p-7 rounded-2xl lux-panel lux-card-lift"
@@ -1884,10 +1636,10 @@ function LabelPitchSection() {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <h3 className="font-semibold text-white text-lg mb-2">{step.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed mb-4">{step.body}</p>
+                <h3 className="font-semibold text-white text-lg mb-2">{t(`home.bizPipeline.${i}.title`)}</h3>
+                <p className="text-white/50 text-sm leading-relaxed mb-4">{t(`home.bizPipeline.${i}.body`)}</p>
                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:text-yellow-300 transition-colors">
-                  Open <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  {t("home.bizOpen")} <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 </span>
               </Link>
             </div>
@@ -1901,21 +1653,21 @@ function LabelPitchSection() {
 /* ───── Jackpot band — monthly win mechanic ───── */
 
 function JackpotBand() {
+  const { t } = useTranslation();
   return (
     <section className="py-10 px-5">
       <LuxReveal className="max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left px-8 py-6 rounded-2xl border border-primary/25 bg-primary/[0.06]">
           <Trophy className="h-8 w-8 text-primary shrink-0" />
           <p className="text-white/70">
-            <span className="text-white font-bold">Every month, one cheat code wins.</span>{" "}
-            The Cheat Code Jackpot — a secret arrow-code drops every month.
-            First to crack it and enter it wins 100 Visual Bucs.
+            <span className="text-white font-bold">{t("home.jackpotBold")}</span>{" "}
+            {t("home.jackpotBody")}
           </p>
           <Link
             href="/signup"
             className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-primary/15 border border-primary/40 px-6 py-3 text-primary font-bold hover:bg-primary/25 transition text-sm"
           >
-            Crack the Code <ArrowRight className="h-4 w-4" />
+            {t("home.jackpotCta")} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </LuxReveal>
@@ -1926,6 +1678,7 @@ function JackpotBand() {
 /* ───── Creator Academy — free learning library ───── */
 
 function AcademySection() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5">
       <LuxReveal className="max-w-5xl mx-auto">
@@ -1938,20 +1691,19 @@ function AcademySection() {
               </div>
             </div>
             <MarketingBadge variant="kicker">
-              Creator Academy
+              {t("home.academyKicker")}
             </MarketingBadge>
             <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              The cheat code <span className="gold-text-shine">comes with a manual.</span>
+              {t("home.academyTitleA")} <span className="gold-text-shine">{t("home.academyTitleB")}</span>
             </h2>
             <p className="text-white/55 text-lg max-w-2xl mx-auto leading-relaxed">
-              A free catalog of masterclasses in video, music, and branding — the same
-              playbook the tools run on, taught straight. AI lessons from 1 Visual Buc each.
+              {t("home.academySub")}
             </p>
             <Link
               href="/academy"
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
             >
-              <BookOpen className="h-4 w-4" /> Explore the Academy
+              <BookOpen className="h-4 w-4" /> {t("home.academyCta")}
             </Link>
           </div>
         </div>
@@ -1963,9 +1715,10 @@ function AcademySection() {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
+  const { t } = useTranslation();
   usePageTitle(
-    "Bow Down Visuals — The Content Creator's Cheat Code",
-    "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create."
+    t("home.pageTitle"),
+    t("home.pageDescription")
   );
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();

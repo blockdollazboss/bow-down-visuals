@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +35,10 @@ const GENRES = [
 ] as const;
 
 const DURATIONS = [
-  { label: "30 sec", value: 30 },
-  { label: "1 min", value: 60 },
-  { label: "2 min", value: 120 },
-  { label: "3 min", value: 180 },
+  { labelKey: "beatMaker.duration30s", value: 30 },
+  { labelKey: "beatMaker.duration1m", value: 60 },
+  { labelKey: "beatMaker.duration2m", value: 120 },
+  { labelKey: "beatMaker.duration3m", value: 180 },
 ] as const;
 
 const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
@@ -59,6 +60,7 @@ interface GeneratedBeat {
 }
 
 function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
+  const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [vibe, setVibe] = useState("");
@@ -98,12 +100,12 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         return;
       }
       if (!res.ok || !data.url) {
-        setError(data.error || "Beat generation failed — try again.");
+        setError(data.error || t("beatMaker.errorGenerateFailed"));
         return;
       }
       const generated: GeneratedBeat = {
         url: data.url,
-        title: title.trim() || `${genre} beat · ${bpm} BPM`,
+        title: title.trim() || t("beatMaker.defaultBeatTitle", { genre, bpm }),
         durationMs: data.durationMs ?? duration * 1000,
         meta: { genre, bpm: String(bpm), key: musicalKey },
       };
@@ -111,7 +113,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
       onGenerated?.(generated);
       if (data.creditsRemaining !== undefined) refreshProfile();
     } catch {
-      setError("Couldn't reach the server — check your connection and try again.");
+      setError(t("beatMaker.errorNetwork"));
     } finally {
       setGenerating(false);
     }
@@ -121,18 +123,18 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
     <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
         <div>
-          <Label className="text-white/70 text-sm mb-2 block">Describe the vibe</Label>
+          <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.vibeLabel")}</Label>
           <Textarea
             value={vibe}
             onChange={(e) => setVibe(e.target.value)}
-            placeholder="Dark piano melody, heavy 808s, rolling hi-hats — late-night driving energy…"
+            placeholder={t("beatMaker.vibePlaceholder")}
             rows={4}
             className={textareaClass}
           />
         </div>
 
         <div>
-          <Label className="text-white/70 text-sm mb-2 block">Genre</Label>
+          <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.genreLabel")}</Label>
           <div className="flex flex-wrap gap-2">
             {GENRES.map((g) => (
               <button
@@ -154,7 +156,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <Label className="text-white/70 text-sm mb-2 flex items-center gap-1.5">
-              <Timer className="w-3.5 h-3.5" /> BPM
+              <Timer className="w-3.5 h-3.5" /> {t("beatMaker.bpmLabel")}
             </Label>
             <Input
               type="number" min={60} max={200} value={bpm}
@@ -164,7 +166,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           </div>
           <div>
             <Label className="text-white/70 text-sm mb-2 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5" /> Key
+              <KeyRound className="w-3.5 h-3.5" /> {t("beatMaker.keyLabel")}
             </Label>
             <select
               value={musicalKey}
@@ -175,21 +177,21 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
             </select>
           </div>
           <div>
-            <Label className="text-white/70 text-sm mb-2 block">Length</Label>
+            <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.lengthLabel")}</Label>
             <select
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
               className={`${inputClass} w-full px-3 appearance-none cursor-pointer [&>option]:bg-zinc-900`}
             >
-              {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+              {DURATIONS.map((d) => <option key={d.value} value={d.value}>{t(d.labelKey)}</option>)}
             </select>
           </div>
           <div>
-            <Label className="text-white/70 text-sm mb-2 block">Title</Label>
+            <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.titleLabel")}</Label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Midnight Run"
+              placeholder={t("beatMaker.titlePlaceholder")}
               className={inputClass}
             />
           </div>
@@ -205,26 +207,26 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           className="w-full h-12 rounded-xl bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-50"
         >
           {generating ? (
-            <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cooking your beat…</>
+            <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t("beatMaker.cookingButton")}</>
           ) : (
-            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · {BEAT_COST.toLocaleString("en-US")} Visual Bucs</>
+            <><Sparkles className="w-5 h-5 mr-2" /> {t("beatMaker.generateButton", { cost: BEAT_COST.toLocaleString("en-US") })}</>
           )}
         </Button>
         <p className="text-xs text-white/40 text-center -mt-2">
-          Instrumental only — no vocals. Full arrangement with intro &amp; outro.
+          {t("beatMaker.instrumentalNote")}
         </p>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
         <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-          <Music4 className="w-4 h-4 text-primary" /> Your beat
+          <Music4 className="w-4 h-4 text-primary" /> {t("beatMaker.yourBeatTitle")}
         </h3>
         {beat ? (
           <div className="space-y-4">
             <div className="rounded-xl bg-black/40 border border-white/10 p-4">
               <p className="text-white font-medium truncate">{beat.title}</p>
               <p className="text-white/40 text-xs mt-0.5">
-                {genre} · {bpm} BPM · {musicalKey} · {Math.round(beat.durationMs / 1000)}s
+                {t("beatMaker.beatMeta", { genre, bpm, key: musicalKey, secs: Math.round(beat.durationMs / 1000) })}
               </p>
               <audio src={beat.url} controls className="w-full mt-3" />
             </div>
@@ -233,26 +235,26 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
                 href={beat.url} download={`${beat.title}.mp3`}
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
               >
-                <Download className="w-4 h-4" /> Download MP3
+                <Download className="w-4 h-4" /> {t("beatMaker.downloadMp3")}
               </a>
               {/* Hub handoffs — the beat flows into the next steps */}
               <Link
                 href="/stems"
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
               >
-                <Scissors className="w-4 h-4" /> Split into stems
+                <Scissors className="w-4 h-4" /> {t("beatMaker.splitStems")}
               </Link>
               <Link
                 href="/beats"
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
               >
-                <Store className="w-4 h-4" /> Sell on Beats Marketplace
+                <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace")}
               </Link>
               <Link
                 href="/make-song"
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
               >
-                <Disc3 className="w-4 h-4" /> Turn it into a full song
+                <Disc3 className="w-4 h-4" /> {t("beatMaker.turnIntoSong")}
               </Link>
             </div>
           </div>
@@ -260,7 +262,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           <div className="h-48 rounded-xl border border-dashed border-white/15 flex flex-col items-center justify-center text-center p-6">
             <Wand2 className="w-8 h-8 text-white/20 mb-3" />
             <p className="text-white/40 text-sm">
-              Your generated beat lands here — then split it, sell it, or build a song on it.
+              {t("beatMaker.emptyState")}
             </p>
           </div>
         )}
@@ -276,14 +278,14 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
    so playing and exporting costs nothing (no provider calls → free). */
 
 const TRACKS = [
-  { id: "kick",  label: "Kick",      color: "bg-amber-400" },
-  { id: "snare", label: "Snare",     color: "bg-rose-400" },
-  { id: "clap",  label: "Clap",      color: "bg-orange-400" },
-  { id: "chat",  label: "Closed Hat",color: "bg-sky-400" },
-  { id: "ohat",  label: "Open Hat",  color: "bg-cyan-300" },
-  { id: "b808",  label: "808",       color: "bg-violet-400" },
-  { id: "perc",  label: "Perc",      color: "bg-emerald-400" },
-  { id: "shk",   label: "Shaker",    color: "bg-lime-300" },
+  { id: "kick",  labelKey: "beatMaker.trackKick",      color: "bg-amber-400" },
+  { id: "snare", labelKey: "beatMaker.trackSnare",     color: "bg-rose-400" },
+  { id: "clap",  labelKey: "beatMaker.trackClap",      color: "bg-orange-400" },
+  { id: "chat",  labelKey: "beatMaker.trackClosedHat", color: "bg-sky-400" },
+  { id: "ohat",  labelKey: "beatMaker.trackOpenHat",   color: "bg-cyan-300" },
+  { id: "b808",  labelKey: "beatMaker.track808",       color: "bg-violet-400" },
+  { id: "perc",  labelKey: "beatMaker.trackPerc",      color: "bg-emerald-400" },
+  { id: "shk",   labelKey: "beatMaker.trackShaker",    color: "bg-lime-300" },
 ] as const;
 
 type TrackId = typeof TRACKS[number]["id"];
@@ -357,9 +359,9 @@ function noiseBurst(
 }
 
 /* Presets — classic starting patterns (true = hit). Rows: kick,snare,clap,chat,ohat,808,perc,shk */
-const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> = {
+const PRESETS: Record<string, { nameKey: string; bpm: number; grid: boolean[][] }> = {
   trap: {
-    name: "Trap", bpm: 140,
+    nameKey: "beatMaker.presetTrap", bpm: 140,
     grid: [
       [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
@@ -372,7 +374,7 @@ const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> 
     ].map((r) => r.map(Boolean)),
   },
   drill: {
-    name: "Drill", bpm: 142,
+    nameKey: "beatMaker.presetDrill", bpm: 142,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
@@ -385,7 +387,7 @@ const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> 
     ].map((r) => r.map(Boolean)),
   },
   boombap: {
-    name: "Boom Bap", bpm: 92,
+    nameKey: "beatMaker.presetBoomBap", bpm: 92,
     grid: [
       [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
@@ -398,7 +400,7 @@ const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> 
     ].map((r) => r.map(Boolean)),
   },
   afrobeats: {
-    name: "Afrobeats", bpm: 102,
+    nameKey: "beatMaker.presetAfrobeats", bpm: 102,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
       [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
@@ -415,6 +417,7 @@ const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> 
 const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(false));
 
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
+  const { t } = useTranslation();
   const [grid, setGrid] = useState<boolean[][]>(() => PRESETS.trap.grid.map((r) => [...r]));
   const [bpm, setBpm] = useState(140);
   const [swing, setSwing] = useState(0);
@@ -535,7 +538,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       // Keep the blob URL alive for this session so the hub project can use it.
       onGenerated?.({
         url,
-        title: `Sequencer beat · ${bpm} BPM`,
+        title: t("beatMaker.sequencerBeatTitle", { bpm }),
         durationMs: Math.round(totalDur * 1000),
         meta: { bpm: String(bpm), source: "sequencer", sessionOnly: "1" },
       });
@@ -552,10 +555,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           onClick={playing ? stop : start}
           className={`h-11 px-6 rounded-xl font-bold ${playing ? "bg-red-500 hover:bg-red-600 text-white" : "bg-primary text-black hover:bg-primary/90"}`}
         >
-          {playing ? <><Square className="w-4 h-4 mr-2" /> Stop</> : <><Play className="w-4 h-4 mr-2" /> Play</>}
+          {playing ? <><Square className="w-4 h-4 mr-2" /> {t("beatMaker.stop")}</> : <><Play className="w-4 h-4 mr-2" /> {t("beatMaker.play")}</>}
         </Button>
         <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-          <Label className="text-white/60 text-xs whitespace-nowrap w-14">BPM {bpm}</Label>
+          <Label className="text-white/60 text-xs whitespace-nowrap w-14">{t("beatMaker.bpmValue", { n: bpm })}</Label>
           <input
             type="range" min={60} max={200} value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
@@ -563,7 +566,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           />
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-          <Label className="text-white/60 text-xs whitespace-nowrap w-16">Swing {Math.round(swing * 100)}%</Label>
+          <Label className="text-white/60 text-xs whitespace-nowrap w-16">{t("beatMaker.swingValue", { n: Math.round(swing * 100) })}</Label>
           <input
             type="range" min={0} max={0.6} step={0.01} value={swing}
             onChange={(e) => setSwing(Number(e.target.value))}
@@ -579,20 +582,20 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             key={key} type="button" onClick={() => loadPreset(key)}
             className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-primary/60 hover:text-white transition-colors"
           >
-            {p.name}
+            {t(p.nameKey)}
           </button>
         ))}
         <button
           type="button" onClick={randomize}
           className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-primary/60 hover:text-white transition-colors flex items-center gap-1.5"
         >
-          <Shuffle className="w-3.5 h-3.5" /> Randomize
+          <Shuffle className="w-3.5 h-3.5" /> {t("beatMaker.randomize")}
         </button>
         <button
           type="button" onClick={() => { stop(); setGrid(emptyGrid()); }}
           className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-red-400/60 hover:text-white transition-colors flex items-center gap-1.5"
         >
-          <Trash2 className="w-3.5 h-3.5" /> Clear
+          <Trash2 className="w-3.5 h-3.5" /> {t("beatMaker.clear")}
         </button>
       </div>
 
@@ -601,7 +604,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         <div className="min-w-[640px] space-y-1.5">
           {TRACKS.map((tr, ti) => (
             <div key={tr.id} className="flex items-center gap-1.5">
-              <div className="w-24 shrink-0 text-xs text-white/60 font-medium truncate">{tr.label}</div>
+              <div className="w-24 shrink-0 text-xs text-white/60 font-medium truncate">{t(tr.labelKey)}</div>
               <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
                 {Array.from({ length: STEPS }, (_, s) => {
                   const on = grid[ti]?.[s];
@@ -618,7 +621,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                             ? "bg-white/[0.07] border-white/10 hover:bg-white/[0.14]"
                             : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.1]"
                       } ${step === s && playing ? "ring-2 ring-white/70" : ""}`}
-                      aria-label={`${tr.label} step ${s + 1} ${on ? "on" : "off"}`}
+                      aria-label={t("beatMaker.stepAria", { label: t(tr.labelKey), n: s + 1, state: on ? t("beatMaker.stepOn") : t("beatMaker.stepOff") })}
                     />
                   );
                 })}
@@ -636,23 +639,23 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           className="h-11 px-5 rounded-xl bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-50"
         >
           {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-          Export WAV · Free
+          {t("beatMaker.exportWavFree")}
         </Button>
         <Link
           href="/stems"
           className="flex items-center gap-2 h-11 px-5 rounded-xl border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
         >
-          <Scissors className="w-4 h-4" /> Split exported beat into stems
+          <Scissors className="w-4 h-4" /> {t("beatMaker.splitExportedStems")}
         </Link>
         <Link
           href="/beats"
           className="flex items-center gap-2 h-11 px-5 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
         >
-          <Store className="w-4 h-4" /> Sell on Beats Marketplace
+          <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace")}
         </Link>
       </div>
       <p className="text-xs text-white/40">
-        The sequencer is pure synthesis in your browser — no Visual Bucs, no uploads. Export the WAV, then split it into stems or list it for sale.
+        {t("beatMaker.sequencerNote")}
       </p>
     </div>
   );
@@ -700,23 +703,23 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
    One tap flips the site into Advanced mode (clamped to the plan's max). */
 
 function SequencerGate({ onEnable }: { onEnable: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl border border-primary/30 bg-white/[0.03] p-8 text-center space-y-4">
       <div className="mx-auto w-12 h-12 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center">
         <Lock className="w-5 h-5 text-primary" />
       </div>
       <div>
-        <h3 className="text-white font-bold text-lg">Step Sequencer lives in Advanced mode</h3>
+        <h3 className="text-white font-bold text-lg">{t("beatMaker.gateTitle")}</h3>
         <p className="text-white/50 text-sm mt-1 max-w-md mx-auto">
-          The AI beat maker above is the fast path. The hands-on drum machine —
-          every hit programmed by you — unlocks at Creator Level 6.
+          {t("beatMaker.gateBody")}
         </p>
       </div>
       <Button
         onClick={onEnable}
         className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
       >
-        <SlidersHorizontal className="w-4 h-4 mr-2" /> Switch to Advanced mode
+        <SlidersHorizontal className="w-4 h-4 mr-2" /> {t("beatMaker.gateButton")}
       </Button>
     </div>
   );
@@ -725,6 +728,7 @@ function SequencerGate({ onEnable }: { onEnable: () => void }) {
 /* ─── Page shell ──────────────────────────────────────────────────────────── */
 
 export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"ai" | "seq">("ai");
   const { stars, setStars } = useUserMode();
   const advanced = stars >= 6;
@@ -747,7 +751,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
             tab === "ai" ? "bg-primary text-black" : "text-white/60 hover:text-white"
           }`}
         >
-          <Sparkles className="w-4 h-4" /> AI Beat
+          <Sparkles className="w-4 h-4" /> {t("beatMaker.aiBeatTab")}
         </button>
         {advanced ? (
           <button
@@ -757,18 +761,18 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
               tab === "seq" ? "bg-primary text-black" : "text-white/60 hover:text-white"
             }`}
           >
-            <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">FREE</span>
+            <SlidersHorizontal className="w-4 h-4" /> {t("beatMaker.stepSequencerTab")}
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">{t("beatMaker.freeBadge")}</span>
           </button>
         ) : (
           <button
             type="button"
             onClick={enableAdvanced}
-            title="The Step Sequencer is an Advanced mode tool"
+            title={t("beatMaker.sequencerTooltip")}
             className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white/60 hover:text-white"
           >
-            <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">ADVANCED</span>
+            <SlidersHorizontal className="w-4 h-4" /> {t("beatMaker.stepSequencerTab")}
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">{t("beatMaker.advancedBadge")}</span>
           </button>
         )}
       </div>
@@ -785,17 +789,16 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
 }
 
 export default function BeatMaker() {
+  const { t } = useTranslation();
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div>
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-black text-white">Beat Maker</h1>
-          <MarketingBadge variant="muted">New</MarketingBadge>
+          <h1 className="text-3xl font-black text-white">{t("beatMaker.title")}</h1>
+          <MarketingBadge variant="muted">{t("beatMaker.newBadge")}</MarketingBadge>
         </div>
         <p className="text-white/50 mt-2 max-w-2xl">
-          Describe the vibe and let AI cook a full instrumental — or flip on
-          Advanced mode to program drums yourself on the step sequencer.
-          Either way, your beat flows straight into stems, songs, and the marketplace.
+          {t("beatMaker.subtitle")}
         </p>
       </div>
 

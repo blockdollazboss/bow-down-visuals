@@ -16,6 +16,7 @@ import {
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Comment Reply Assistant ────────────────────────────
    Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
@@ -29,13 +30,6 @@ interface Tone {
   icon: LucideIcon;
   blurb: string;
 }
-
-const TONES: Tone[] = [
-  { key: "hype", label: "Hype", icon: Flame, blurb: "High-energy, exclamation marks welcome" },
-  { key: "grateful", label: "Grateful", icon: Heart, blurb: "Warm, sincere, humble thank-yous" },
-  { key: "playful", label: "Playful", icon: Laugh, blurb: "Witty comebacks, light mischief" },
-  { key: "professional", label: "Professional", icon: Briefcase, blurb: "Polished, friendly, brand-safe" },
-];
 
 const CREDIT_COST = 1;
 
@@ -51,8 +45,17 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function CommentReplies() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+
+  const TONES: Tone[] = [
+    { key: "hype", label: t("commentReplies.toneHypeLabel"), icon: Flame, blurb: t("commentReplies.toneHypeBlurb") },
+    { key: "grateful", label: t("commentReplies.toneGratefulLabel"), icon: Heart, blurb: t("commentReplies.toneGratefulBlurb") },
+    { key: "playful", label: t("commentReplies.tonePlayfulLabel"), icon: Laugh, blurb: t("commentReplies.tonePlayfulBlurb") },
+    { key: "professional", label: t("commentReplies.toneProfessionalLabel"), icon: Briefcase, blurb: t("commentReplies.toneProfessionalBlurb") },
+  ];
+
   const [commentsText, setCommentsText] = useState("");
   const [tone, setTone] = useState<ToneKey>("hype");
   const [voiceNotes, setVoiceNotes] = useState("");
@@ -83,7 +86,7 @@ export default function CommentReplies() {
     if (loading || !user) return;
     const comments = parseComments();
     if (comments.length === 0) {
-      setError("Paste at least one fan comment first — one per line.");
+      setError(t("commentReplies.errorNoComments"));
       return;
     }
     setLoading(true);
@@ -113,7 +116,7 @@ export default function CommentReplies() {
         return;
       }
       if (!res.ok || !Array.isArray(data.replies) || data.replies.length !== comments.length) {
-        throw new Error(data.message || data.error || "Reply generation failed — try again.");
+        throw new Error(data.message || data.error || t("commentReplies.errorGenerateFailed"));
       }
       setResults({ comments, replies: data.replies });
       setEditedReplies([...data.replies]);
@@ -123,7 +126,7 @@ export default function CommentReplies() {
         document.getElementById("replies-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reply generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("commentReplies.errorGenerateFailed"));
     } finally {
       setLoading(false);
     }
@@ -145,7 +148,7 @@ export default function CommentReplies() {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1600);
     } else {
-      setError("Copy didn't work in this browser — select the text manually.");
+      setError(t("commentReplies.errorCopyFailed"));
     }
   }
 
@@ -155,7 +158,7 @@ export default function CommentReplies() {
       setCopiedAll(true);
       setTimeout(() => setCopiedAll(false), 1600);
     } else {
-      setError("Copy didn't work in this browser — select the text manually.");
+      setError(t("commentReplies.errorCopyFailed"));
     }
   }
 
@@ -190,14 +193,13 @@ export default function CommentReplies() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's engagement tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> {t("commentReplies.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Comment Reply <span className="text-primary">Assistant</span>
+            {t("commentReplies.titleStart")} <span className="text-primary">{t("commentReplies.titleHighlight")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Paste your fan comments — get on-brand replies in your voice,
-            engineered to keep the conversation (and the algorithm) going.
+            {t("commentReplies.subtitle")}
           </p>
         </div>
 
@@ -208,9 +210,9 @@ export default function CommentReplies() {
               <MessageCircleReply className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-bold">Draft replies</h2>
+              <h2 className="text-xl font-bold">{t("commentReplies.draftTitle")}</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} Visual Buc per batch · up to {MAX_COMMENTS} comments · free to edit &amp; copy
+                {t("commentReplies.costLine", { cost: CREDIT_COST, max: MAX_COMMENTS })}
               </p>
             </div>
           </div>
@@ -219,19 +221,19 @@ export default function CommentReplies() {
             htmlFor="comments-input"
             className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40"
           >
-            Fan comments — one per line ({commentCount}/{MAX_COMMENTS})
+            {t("commentReplies.commentsLabel", { count: commentCount, max: MAX_COMMENTS })}
           </label>
           <textarea
             id="comments-input"
             rows={5}
             value={commentsText}
             onChange={(e) => setCommentsText(e.target.value)}
-            placeholder={"This song is on repeat 🔂\nWhen's the next drop??\nYou carried this whole track"}
+            placeholder={t("commentReplies.commentsPlaceholder")}
             className={`${inputClass} min-h-[120px] resize-y`}
           />
 
           <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Reply tone
+            {t("commentReplies.replyTone")}
           </p>
           <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {TONES.map((t) => {
@@ -261,7 +263,7 @@ export default function CommentReplies() {
             data-min-stars="3"
             className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40"
           >
-            Your voice notes <span className="normal-case text-white/25">(optional)</span>
+            {t("commentReplies.voiceNotesLabel")} <span className="normal-case text-white/25">({t("commentReplies.optional")})</span>
           </label>
           <input
             id="voice-notes"
@@ -270,7 +272,7 @@ export default function CommentReplies() {
             value={voiceNotes}
             onChange={(e) => setVoiceNotes(e.target.value)}
             maxLength={300}
-            placeholder="e.g. I say &quot;let's get it&quot; a lot, I call my fans &quot;the wave&quot;"
+            placeholder={t("commentReplies.voiceNotesPlaceholder")}
             className={inputClass}
           />
 
@@ -287,18 +289,20 @@ export default function CommentReplies() {
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> Drafting your replies…
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("commentReplies.drafting")}
               </>
             ) : (
               <>
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Draft {commentCount > 0 ? commentCount : ""} {commentCount === 1 ? "reply" : "replies"} · {CREDIT_COST} Visual Buc
+                {commentCount > 0
+                  ? t("commentReplies.draftReplies", { count: commentCount, cost: CREDIT_COST })
+                  : t("commentReplies.draftRepliesZero", { cost: CREDIT_COST })}
               </>
             )}
           </button>
           {!user && (
             <p className="mt-3 text-center text-sm text-white/40">
-              Sign in to draft replies with AI.
+              {t("commentReplies.signInPrompt")}
             </p>
           )}
         </div>
@@ -313,24 +317,24 @@ export default function CommentReplies() {
         {results && (
           <div id="replies-results" className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold">Your replies</h2>
+              <h2 className="text-xl font-bold">{t("commentReplies.yourReplies")}</h2>
               <button
                 onClick={copyAll}
                 className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
               >
                 {copiedAll ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
-                {copiedAll ? "Copied!" : "Copy all"}
+                {copiedAll ? t("commentReplies.copied") : t("commentReplies.copyAll")}
               </button>
             </div>
             <p className="mt-1 text-sm text-white/45">
-              Edit any reply before copying — tweaks are free.
+              {t("commentReplies.editNote")}
             </p>
 
             <div className="mt-6 space-y-5">
               {results.comments.map((comment, i) => (
                 <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">
-                    Fan comment {i + 1}
+                    {t("commentReplies.fanComment", { n: i + 1 })}
                   </p>
                   <p className="mt-1 text-sm text-white/70">“{comment}”</p>
                   <div className="mt-3 flex items-start gap-2">
@@ -344,12 +348,12 @@ export default function CommentReplies() {
                         })
                       }
                       rows={2}
-                      aria-label={`Reply ${i + 1}`}
+                      aria-label={t("commentReplies.replyAria", { n: i + 1 })}
                       className={`${inputClass} min-h-[56px] flex-1 resize-y border-primary/20 bg-primary/[0.04]`}
                     />
                     <button
                       onClick={() => copyOne(i)}
-                      aria-label={`Copy reply ${i + 1}`}
+                      aria-label={t("commentReplies.copyReplyAria", { n: i + 1 })}
                       className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/60 transition hover:border-primary/50 hover:text-primary"
                     >
                       {copiedIdx === i ? (
@@ -370,13 +374,13 @@ export default function CommentReplies() {
           <div data-min-stars="3" className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-lg font-bold">
-                <History className="h-5 w-5 text-primary" aria-hidden="true" /> Past batches
+                <History className="h-5 w-5 text-primary" aria-hidden="true" /> {t("commentReplies.pastBatches")}
               </h2>
               <button
                 onClick={clearHistory}
                 className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/50 transition hover:border-red-500/50 hover:text-red-300"
               >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Clear
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> {t("commentReplies.clear")}
               </button>
             </div>
             <div className="mt-4 space-y-2">
@@ -388,13 +392,13 @@ export default function CommentReplies() {
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-white/85">
-                      {batch.comments.length} {batch.comments.length === 1 ? "comment" : "comments"} · {TONES.find((t) => t.key === batch.tone)?.label ?? batch.tone}
+                      {t("commentReplies.batchSummary", { count: batch.comments.length, tone: TONES.find((tn) => tn.key === batch.tone)?.label ?? batch.tone })}
                     </span>
                     <span className="block truncate text-xs text-white/35">
-                      {new Date(batch.at).toLocaleString()} — “{batch.comments[0]?.slice(0, 60)}…”
+                      {t("commentReplies.batchSubline", { date: new Date(batch.at).toLocaleString(), preview: batch.comments[0]?.slice(0, 60) ?? "" })}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-bold text-primary">Restore</span>
+                  <span className="shrink-0 text-xs font-bold text-primary">{t("commentReplies.restore")}</span>
                 </button>
               ))}
             </div>

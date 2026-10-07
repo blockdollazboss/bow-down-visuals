@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FogSprites } from "@/components/fog-lab/FogSprites";
 import { FogCanvas } from "@/components/fog-lab/FogCanvas";
 import { FogSettled } from "@/components/SettledFog";
+import { useTranslation } from "react-i18next";
 
 /* ─────────── /fog-lab — hero fog comparison lab ─────────── */
 /* Hidden staging-only preview: the same stage backdrop under both fog
@@ -57,6 +58,7 @@ function StageBackdrop() {
 }
 
 export default function FogLab() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("settled");
 
   const hint: Record<Mode, string> = {
@@ -90,15 +92,9 @@ export default function FogLab() {
       {/* Controls */}
       <div className="absolute left-1/2 top-6 z-10 flex -translate-x-1/2 flex-col items-center gap-3">
         <div className="flex gap-2 rounded-full bg-black/60 p-1 backdrop-blur">
-          <button className={btn(mode === "sprites")} onClick={() => setMode("sprites")}>
-            A · Smoke sprites
-          </button>
-          <button className={btn(mode === "canvas")} onClick={() => setMode("canvas")}>
-            B · Particle canvas
-          </button>
-          <button className={btn(mode === "settled")} onClick={() => setMode("settled")}>
-            C · Settled layer
-          </button>
+          <button className={btn(mode === "sprites")} onClick={() => setMode("sprites")}>{t("fog-lab.a_smoke_sprites")}</button>
+          <button className={btn(mode === "canvas")} onClick={() => setMode("canvas")}>{t("fog-lab.b_particle_canvas")}</button>
+          <button className={btn(mode === "settled")} onClick={() => setMode("settled")}>{t("fog-lab.c_settled_layer")}</button>
         </div>
         <p className="text-center text-sm text-white/60">
           Sweep your mouse through the fog — whip it to stir. {hint[mode]}
@@ -108,9 +104,7 @@ export default function FogLab() {
       <a
         href="/"
         className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 text-xs text-white/40 underline hover:text-white/70"
-      >
-        back to homepage
-      </a>
+      >{t("fog-lab.back_to_homepage")}</a>
     </div>
   );
 }

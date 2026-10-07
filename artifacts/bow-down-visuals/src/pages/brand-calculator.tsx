@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   DollarSign, Loader2, Sparkles, Handshake, FileDown,
   BadgeDollarSign, Package, ShieldCheck, Lightbulb, AlertTriangle,
@@ -24,26 +25,35 @@ type ContentTypeKey =
   | "livestream"
   | "ambassadorship";
 
-const PLATFORM_OPTS: { key: PlatformKey; label: string; blurb: string }[] = [
-  { key: "tiktok", label: "TikTok", blurb: "Short-form video" },
-  { key: "instagram", label: "Instagram", blurb: "Reels & feed" },
-  { key: "youtube", label: "YouTube", blurb: "Long-form & Shorts" },
-  { key: "twitch", label: "Twitch", blurb: "Livestream" },
-  { key: "x", label: "X (Twitter)", blurb: "Posts & video" },
+/* Display strings for these live inside the component (via t()); the keys
+   stay stable because platform/content-type keys are sent to the backend. */
+const PLATFORM_DEFS: { key: PlatformKey; label: string; blurbKey: string }[] = [
+  { key: "tiktok", label: "TikTok", blurbKey: "tiktok" },
+  { key: "instagram", label: "Instagram", blurbKey: "instagram" },
+  { key: "youtube", label: "YouTube", blurbKey: "youtube" },
+  { key: "twitch", label: "Twitch", blurbKey: "twitch" },
+  { key: "x", label: "X (Twitter)", blurbKey: "x" },
 ];
 
-const CONTENT_TYPE_OPTS: { key: ContentTypeKey; label: string; blurb: string }[] = [
-  { key: "sponsored_post", label: "Sponsored post", blurb: "Single branded post" },
-  { key: "video_integration", label: "Video integration", blurb: "60–90s brand segment" },
-  { key: "dedicated_video", label: "Dedicated video", blurb: "Whole video about the brand" },
-  { key: "story_set", label: "Story set", blurb: "3 story frames" },
-  { key: "livestream", label: "Livestream segment", blurb: "Live brand shoutout" },
-  { key: "ambassadorship", label: "Ambassadorship", blurb: "Monthly partnership" },
+const CONTENT_TYPE_DEFS: { key: ContentTypeKey; labelKey: string; blurbKey: string }[] = [
+  { key: "sponsored_post", labelKey: "sponsoredPost", blurbKey: "sponsoredPost" },
+  { key: "video_integration", labelKey: "videoIntegration", blurbKey: "videoIntegration" },
+  { key: "dedicated_video", labelKey: "dedicatedVideo", blurbKey: "dedicatedVideo" },
+  { key: "story_set", labelKey: "storySet", blurbKey: "storySet" },
+  { key: "livestream", labelKey: "livestream", blurbKey: "livestream" },
+  { key: "ambassadorship", labelKey: "ambassadorship", blurbKey: "ambassadorship" },
 ];
 
-const NICHE_PRESETS = [
-  "Music", "Gaming", "Comedy", "Fitness",
-  "Beauty & Fashion", "Tech", "Education", "Lifestyle",
+/* Niche values stay English (sent to the API); only the button labels translate. */
+const NICHE_DEFS: { value: string; labelKey: string }[] = [
+  { value: "Music", labelKey: "music" },
+  { value: "Gaming", labelKey: "gaming" },
+  { value: "Comedy", labelKey: "comedy" },
+  { value: "Fitness", labelKey: "fitness" },
+  { value: "Beauty & Fashion", labelKey: "beautyFashion" },
+  { value: "Tech", labelKey: "tech" },
+  { value: "Education", labelKey: "education" },
+  { value: "Lifestyle", labelKey: "lifestyle" },
 ];
 
 const CREDIT_COST = 2;
@@ -89,7 +99,19 @@ function fmtRange(low: number, high: number): string {
 }
 
 export default function BrandDealCalculator() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+
+  /* Translated display strings for the option grids above. */
+  const PLATFORM_OPTS = PLATFORM_DEFS.map((p) => ({
+    ...p,
+    blurb: t(`brandCalculator.platforms.${p.blurbKey}.blurb`),
+  }));
+  const CONTENT_TYPE_OPTS = CONTENT_TYPE_DEFS.map((c) => ({
+    ...c,
+    label: t(`brandCalculator.contentTypes.${c.labelKey}.label`),
+    blurb: t(`brandCalculator.contentTypes.${c.blurbKey}.blurb`),
+  }));
 
   const [platform, setPlatform] = useState<PlatformKey>("tiktok");
   const [followers, setFollowers] = useState("");
@@ -110,12 +132,12 @@ export default function BrandDealCalculator() {
     if (loading || !user) return;
     const followersNum = parseInt(followers || "0", 10) || 0;
     if (followersNum < 100) {
-      setError("Enter at least 100 followers so the rates have something to run on.");
+      setError(t("brandCalculator.errorFollowers"));
       return;
     }
     const finalNiche = (customNiche.trim() || niche).slice(0, 120);
     if (!finalNiche) {
-      setError("Tell the calculator your niche first — that's what the rate math runs on.");
+      setError(t("brandCalculator.errorNiche"));
       return;
     }
     const avgViewsNum = parseInt(avgViews || "0", 10) || 0;
@@ -148,7 +170,7 @@ export default function BrandDealCalculator() {
         return;
       }
       if (!res.ok || !data.result) {
-        setError(data.error || data.message || "The calculator hiccupped — try again.");
+        setError(data.error || data.message || t("brandCalculator.errorCalcFailed"));
         return;
       }
       setResult(data.result);
@@ -157,7 +179,7 @@ export default function BrandDealCalculator() {
         document.getElementById("rate-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch {
-      setError("Network hiccup — check your connection and try again.");
+      setError(t("brandCalculator.errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -176,27 +198,25 @@ export default function BrandDealCalculator() {
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-5xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
         <Link href="/dashboard" className="mb-8 inline-flex items-center gap-2 text-sm text-white/40 transition hover:text-white">
-          ← Back to Dashboard
+          {t("brandCalculator.backToDashboard")}
         </Link>
 
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
           <Handshake className="h-4 w-4" aria-hidden="true" />
-          {CREDIT_COST} Visual Bucs per calculation
+          {t("brandCalculator.costBadge", { n: CREDIT_COST })}
         </div>
         <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-          Brand Deal <span className="bg-gradient-to-r from-[#f5d67b] to-primary bg-clip-text text-transparent">Calculator</span>
+          {t("brandCalculator.title")} <span className="bg-gradient-to-r from-[#f5d67b] to-primary bg-clip-text text-transparent">{t("brandCalculator.titleAccent")}</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-white/50">
-          Stop guessing what to charge. Get a fair rate range, per-post pricing,
-          package deals, and negotiation tips — built from industry benchmarks
-          for your exact audience.
+          {t("brandCalculator.subtitle")}
         </p>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
         <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           {/* platform */}
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
-            Platform
+            {t("brandCalculator.sectionPlatform")}
           </p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5" data-min-stars="2">
             {PLATFORM_OPTS.map((p) => {
@@ -224,40 +244,40 @@ export default function BrandDealCalculator() {
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div>
               <label htmlFor="followers" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Followers
+                {t("brandCalculator.followersLabel")}
               </label>
               <input
                 id="followers"
                 value={followers}
                 onChange={(e) => setFollowers(digitsOnly(e.target.value))}
                 inputMode="numeric"
-                placeholder="e.g. 50000"
+                placeholder={t("brandCalculator.followersPlaceholder")}
                 className={inputClass}
               />
             </div>
             <div data-min-stars="3">
               <label htmlFor="avgviews" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Avg views per post
+                {t("brandCalculator.avgViewsLabel")}
               </label>
               <input
                 id="avgviews"
                 value={avgViews}
                 onChange={(e) => setAvgViews(digitsOnly(e.target.value))}
                 inputMode="numeric"
-                placeholder="e.g. 25000"
+                placeholder={t("brandCalculator.avgViewsPlaceholder")}
                 className={inputClass}
               />
             </div>
             <div data-min-stars="3">
               <label htmlFor="engagement" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Engagement rate %
+                {t("brandCalculator.engagementLabel")}
               </label>
               <input
                 id="engagement"
                 value={engagementRate}
                 onChange={(e) => setEngagementRate(e.target.value.replace(/[^0-9.]/g, "").slice(0, 5))}
                 inputMode="decimal"
-                placeholder="e.g. 4.2"
+                placeholder={t("brandCalculator.engagementPlaceholder")}
                 className={inputClass}
               />
             </div>
@@ -265,7 +285,7 @@ export default function BrandDealCalculator() {
 
           {/* content type */}
           <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
-            Content type
+            {t("brandCalculator.sectionContentType")}
           </p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3" data-min-stars="2">
             {CONTENT_TYPE_OPTS.map((c) => {
@@ -291,22 +311,22 @@ export default function BrandDealCalculator() {
 
           {/* niche */}
           <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
-            Your niche
+            {t("brandCalculator.sectionNiche")}
           </p>
           <div className="flex flex-wrap gap-2" data-min-stars="2">
-            {NICHE_PRESETS.map((n) => {
-              const selected = !customNiche.trim() && niche === n;
+            {NICHE_DEFS.map((n) => {
+              const selected = !customNiche.trim() && niche === n.value;
               return (
                 <button
-                  key={n}
-                  onClick={() => { setNiche(n); setCustomNiche(""); }}
+                  key={n.value}
+                  onClick={() => { setNiche(n.value); setCustomNiche(""); }}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                     selected
                       ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
                       : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                   }`}
                 >
-                  {n}
+                  {t(`brandCalculator.niches.${n.labelKey}`)}
                 </button>
               );
             })}
@@ -315,7 +335,7 @@ export default function BrandDealCalculator() {
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             maxLength={120}
-            placeholder="Or type your own niche…"
+            placeholder={t("brandCalculator.customNichePlaceholder")}
             className={`${inputClass} mt-3`}
           />
 
@@ -332,7 +352,7 @@ export default function BrandDealCalculator() {
                 ) : (
                   <DollarSign className="h-6 w-6" aria-hidden="true" />
                 )}
-                {loading ? "Pricing your deal…" : "Calculate my rates"}
+                {loading ? t("brandCalculator.calculatingButton") : t("brandCalculator.calculateButton")}
               </button>
             ) : (
               <Link
@@ -340,7 +360,7 @@ export default function BrandDealCalculator() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Sign in to calculate ({CREDIT_COST} Visual Bucs)
+                {t("brandCalculator.signInToCalculate", { n: CREDIT_COST })}
               </Link>
             )}
           </div>
@@ -362,7 +382,7 @@ export default function BrandDealCalculator() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-primary">
-                      Your rate card
+                      {t("brandCalculator.rateCardLabel")}
                     </p>
                     <h2 className="mt-2 text-3xl font-black md:text-4xl">
                       {fmtRange(result.rateRange.low, result.rateRange.high)}
@@ -376,7 +396,7 @@ export default function BrandDealCalculator() {
                     className="no-print inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
                   >
                     <FileDown className="h-4 w-4" aria-hidden="true" />
-                    Print / save rate card
+                    {t("brandCalculator.printRateCard")}
                   </button>
                 </div>
               </div>
@@ -386,24 +406,24 @@ export default function BrandDealCalculator() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <BadgeDollarSign className="h-5 w-5 text-primary" aria-hidden="true" />
-                    <h3 className="font-bold">Per-post pricing</h3>
+                    <h3 className="font-bold">{t("brandCalculator.perPostTitle")}</h3>
                   </div>
                   <p className="text-2xl font-black text-primary">{fmtMoney(result.perPost)}</p>
-                  <p className="mt-1 text-xs text-white/40">Recommended ask for 1× {contentLabel.toLowerCase()}</p>
+                  <p className="mt-1 text-xs text-white/40">{t("brandCalculator.perPostNote", { contentType: contentLabel.toLowerCase() })}</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <div className="mb-2 flex items-center gap-2">
                       <Package className="h-5 w-5 text-primary" aria-hidden="true" />
-                      <h3 className="font-bold">3-post package</h3>
+                      <h3 className="font-bold">{t("brandCalculator.packageTitle")}</h3>
                     </div>
                     <p className="text-2xl font-black text-primary">{fmtMoney(result.package3)}</p>
-                    <p className="mt-1 text-xs text-white/40">Bundle deal — volume discount baked in</p>
+                    <p className="mt-1 text-xs text-white/40">{t("brandCalculator.packageNote")}</p>
                   </div>
                 </div>
 
                 {/* breakdown */}
                 {result.breakdown.length > 0 && (
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                    <h3 className="mb-4 font-bold">Deliverable breakdown</h3>
+                    <h3 className="mb-4 font-bold">{t("brandCalculator.breakdownTitle")}</h3>
                     <div className="space-y-3">
                       {result.breakdown.map((b, i) => (
                         <div key={i} className="flex items-center justify-between gap-3 border-b border-white/5 pb-3 last:border-0 last:pb-0">
@@ -420,7 +440,7 @@ export default function BrandDealCalculator() {
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <div className="mb-4 flex items-center gap-2">
                       <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
-                      <h3 className="font-bold">Usage rights</h3>
+                      <h3 className="font-bold">{t("brandCalculator.usageRightsTitle")}</h3>
                     </div>
                     <div className="space-y-3">
                       {result.usageRights.map((u, i) => (
@@ -437,7 +457,7 @@ export default function BrandDealCalculator() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-primary" aria-hidden="true" />
-                    <h3 className="font-bold">Negotiation tips</h3>
+                    <h3 className="font-bold">{t("brandCalculator.tipsTitle")}</h3>
                   </div>
                   <ul className="space-y-3">
                     {result.negotiationTips.map((t, i) => (
@@ -463,7 +483,7 @@ export default function BrandDealCalculator() {
                 onClick={() => { setResult(null); }}
                 className="text-sm font-semibold text-white/40 underline-offset-4 transition hover:text-white hover:underline"
               >
-                Run a new calculation ({CREDIT_COST} Visual Bucs)
+                {t("brandCalculator.newCalculation", { n: CREDIT_COST })}
               </button>
             </div>
           </div>

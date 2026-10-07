@@ -4,6 +4,7 @@ import {
   Disc3, Loader2, Download, AlertTriangle, ArrowLeft, RefreshCw,
   Sparkles, Type, Palette,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -26,6 +27,7 @@ interface GenerateResponse extends CoverArtResult {
 }
 
 export default function CoverArt() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
@@ -100,15 +102,14 @@ export default function CoverArt() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-4xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+          <ArrowLeft className="h-4 w-4" />{t("cover-art.back")}</Link>
 
         <div className="flex items-center gap-3 mb-2">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <Disc3 className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">AI Cover Art Generator</h1>
+            <h1 className="text-2xl font-black">{t("cover-art.ai_cover_art_generator")}</h1>
             <p className="text-sm text-white/45">
               Release-ready artwork with pro typography direction — {tierInfo.credits} Visual Bucs
             </p>
@@ -130,46 +131,39 @@ export default function CoverArt() {
           {/* ── Controls ── */}
           <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Song title
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.song_title")}</label>
               <input
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
-                placeholder="Midnight Crown"
+                placeholder={t("cover-art.midnight_crown")}
                 maxLength={120}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Artist name
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.artist_name")}</label>
               <input
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
-                placeholder="Thy Cheat Code"
+                placeholder={t("cover-art.thy_cheat_code")}
                 maxLength={120}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Mood / genre <span className="normal-case text-white/25">(optional)</span>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.mood_genre")}<span className="normal-case text-white/25">{t("cover-art.optional")}</span>
               </label>
               <input
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
-                placeholder="dark hip-hop, triumphant, late-night drive"
+                placeholder={t("cover-art.dark_hip_hop_triumphant_late_nig")}
                 maxLength={300}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Style
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.style")}</label>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {COVER_ART_STYLES.map((s) => (
                   <button
@@ -190,9 +184,7 @@ export default function CoverArt() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Format
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.format")}</label>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {COVER_ART_RATIOS.map((r) => (
                   <button
@@ -212,24 +204,22 @@ export default function CoverArt() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Detail level
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.detail_level")}</label>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {COVER_ART_TIERS.map((t) => (
+                {COVER_ART_TIERS.map((tr) => (
                   <button
-                    key={t.key}
-                    onClick={() => setTier(t.key)}
+                    key={tr.key}
+                    onClick={() => setTier(tr.key)}
                     className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                      tier === t.key
+                      tier === tr.key
                         ? "border-primary/70 bg-primary/10"
                         : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                     }`}
                   >
                     <span className="block text-xs font-bold">
-                      {t.label} <span className="text-primary">· {t.credits} VB</span>
+                      {t(`cover-art.tier.${tr.key}.label`, { defaultValue: tr.label })} <span className="text-primary">· {tr.credits} VB</span>
                     </span>
-                    <span className="block text-[10px] text-white/40">{t.blurb}</span>
+                    <span className="block text-[10px] text-white/40">{t(`cover-art.tier.${tr.key}.blurb`, { defaultValue: tr.blurb })}</span>
                   </button>
                 ))}
               </div>
@@ -242,8 +232,7 @@ export default function CoverArt() {
             >
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Art-directing your cover…
-                </>
+                  <Loader2 className="h-4 w-4 animate-spin" />{t("cover-art.art_directing_your_cover")}</>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" /> Generate cover · {tierInfo.credits} Visual Bucs
@@ -251,9 +240,7 @@ export default function CoverArt() {
               )}
             </button>
             {!user && (
-              <p className="text-xs text-white/35 text-center">
-                Sign in to generate — your covers save to your library.
-              </p>
+              <p className="text-xs text-white/35 text-center">{t("cover-art.sign_in_to_generate_your_covers")}</p>
             )}
           </div>
 
@@ -262,16 +249,14 @@ export default function CoverArt() {
             {!result && !generating && (
               <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
                 <Disc3 className="h-10 w-10 text-white/15 mb-3" />
-                <p className="text-sm text-white/40 max-w-[220px]">
-                  Your cover art appears here — enter a song title and artist name to start.
-                </p>
+                <p className="text-sm text-white/40 max-w-[220px]">{t("cover-art.your_cover_art_appears_here_ente")}</p>
               </div>
             )}
             {generating && !result && (
               <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
                 <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-                <p className="text-sm text-white/50">AI is art-directing your cover…</p>
-                <p className="text-xs text-white/30 mt-1">Concept, typography, then the artwork.</p>
+                <p className="text-sm text-white/50">{t("cover-art.ai_is_art_directing_your_cover")}</p>
+                <p className="text-xs text-white/30 mt-1">{t("cover-art.concept_typography_then_the_artw")}</p>
               </div>
             )}
             {result && (
@@ -287,8 +272,7 @@ export default function CoverArt() {
                     rel="noreferrer"
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition"
                   >
-                    <Download className="h-4 w-4" /> Download
-                  </a>
+                    <Download className="h-4 w-4" />{t("cover-art.download")}</a>
                   <button
                     onClick={generate}
                     disabled={generating}
@@ -305,8 +289,7 @@ export default function CoverArt() {
                 {result.typography && (
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/40 p-3">
                     <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary/90 mb-1">
-                      <Type className="h-3 w-3" /> Typography direction
-                    </p>
+                      <Type className="h-3 w-3" />{t("cover-art.typography_direction")}</p>
                     <p className="text-xs text-white/55 leading-relaxed">{result.typography}</p>
                   </div>
                 )}
@@ -331,9 +314,7 @@ export default function CoverArt() {
         {/* ── Recent generations ── */}
         {history.length > 1 && (
           <div className="mt-8">
-            <h2 className="text-sm font-black uppercase tracking-wider text-white/40 mb-3">
-              This session
-            </h2>
+            <h2 className="text-sm font-black uppercase tracking-wider text-white/40 mb-3">{t("cover-art.this_session")}</h2>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
               {history.map((h, i) => (
                 <button
