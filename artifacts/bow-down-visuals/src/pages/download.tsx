@@ -7,9 +7,10 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { markExtensionDownloaded } from "@/lib/extension-promo";
 import { markAndroidDownloaded, isAndroidDevice } from "@/lib/android-promo";
 import { markIOSInstalled, isIOSDevice } from "@/lib/ios-promo";
+import { markChromeInstalled, isChromeMobile } from "@/lib/chrome-promo";
 import {
   Smartphone, Puzzle, Download as DownloadIcon, Check, ShieldCheck,
-  Zap, BellRing, MessageCircle, Share,
+  Zap, BellRing, MessageCircle, Share, Globe,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -38,12 +39,21 @@ const IOS_STEPS = [
   { title: "Sign in", body: "Sign in with your Bow Down Visuals account — your credits, bonuses and projects carry over." },
 ];
 
+const CHROME_STEPS = [
+  { title: "Open in Chrome", body: "Visit bowdownvisuals.com in Chrome on your Android phone." },
+  { title: "Tap the menu", body: "Tap the three-dot menu (⋮) in the top-right corner of Chrome." },
+  { title: "Install app", body: "Tap “Install app” (or “Add to Home Screen”), then tap Install on the confirmation." },
+  { title: "Open from your home screen", body: "The Bow Down Visuals icon appears alongside your apps — tap it to launch the full studio, full-screen, no browser bar." },
+  { title: "Sign in", body: "Sign in with your Bow Down Visuals account — your credits, bonuses and projects carry over." },
+];
+
 const FAQS = [
   { q: "Is the Android app free?", a: "Yes — the app itself is free. AI features inside use your site's Visual Bucs at the same rates as the website." },
   { q: "Is sideloading safe?", a: "The APK is built by us from the same code as the website and signed with our key. You can verify the signature matches future updates." },
   { q: "Do I need an account?", a: "Yes — both the app and the extension sign in with your Bow Down Visuals account, so everything carries over." },
   { q: "Will it be on the Play Store?", a: "Eventually. Sideloading gets it in your hands today without waiting on store review." },
   { q: "What about iPhone?", a: "No App Store download needed — open bowdownvisuals.com in Safari, tap Share → Add to Home Screen, and the full studio installs as a web app on your home screen." },
+  { q: "Can I install it from Chrome?", a: "Yes — open bowdownvisuals.com in Chrome on Android, tap the three-dot menu → Install app, and it installs to your home screen with no download. It stays updated automatically." },
 ];
 
 export default function Download() {
@@ -51,6 +61,7 @@ export default function Download() {
   usePageTitle(t("download.metaTitle"));
   const onAndroid = typeof navigator !== "undefined" && isAndroidDevice();
   const onIOS = typeof navigator !== "undefined" && isIOSDevice();
+  const onChromeMobile = typeof navigator !== "undefined" && isChromeMobile();
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -70,7 +81,7 @@ export default function Download() {
           </div>
         </LuxReveal>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
           <LuxReveal>
             <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
@@ -142,10 +153,38 @@ export default function Download() {
               )}
             </div>
           </LuxReveal>
+
+          {/* Chrome web app card */}
+          <LuxReveal>
+            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
+                <Globe className="h-7 w-7 text-[#e8c86a]" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Chrome Web App</h2>
+              <p className="text-sm text-white/50 mb-6">Install the studio straight from Chrome — no download, no sideloading.</p>
+              <ul className="space-y-2 mb-8 text-sm text-white/70">
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Full studio, full-screen from your home screen</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Always up to date — no manual updates</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Same account, same credits</li>
+              </ul>
+              <Button
+                className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6"
+                onClick={() => {
+                  markChromeInstalled();
+                  document.getElementById("chrome-install-steps")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <Globe className="h-5 w-5 mr-2" />Show me how
+              </Button>
+              {onChromeMobile && (
+                <p className="mt-3 text-center text-xs text-[#e8c86a]">You're on Chrome — this one's for you.</p>
+              )}
+            </div>
+          </LuxReveal>
         </div>
 
         {/* Install guides */}
-        <div id="ios-install-steps" className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div id="ios-install-steps" className="mt-16 grid gap-8 md:grid-cols-2">
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
               <ShieldCheck className="h-5 w-5 text-[#e8c86a]" />{t("download.installing_the_apk")}</h3>
@@ -181,6 +220,21 @@ export default function Download() {
               <Share className="h-5 w-5 text-[#e8c86a]" />Installing on iPhone / iPad</h3>
             <ol className="space-y-4">
               {IOS_STEPS.map((s, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{s.title}</p>
+                    <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div id="chrome-install-steps">
+            <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
+              <Globe className="h-5 w-5 text-[#e8c86a]" />Installing from Chrome</h3>
+            <ol className="space-y-4">
+              {CHROME_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
                   <div>

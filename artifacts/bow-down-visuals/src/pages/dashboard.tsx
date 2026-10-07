@@ -16,6 +16,7 @@ import SpotlightBanner from "@/components/SpotlightBanner";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
 import AndroidPromoBanner from "@/components/AndroidPromoBanner";
 import IOSPromoBanner from "@/components/IOSPromoBanner";
+import ChromePromoBanner from "@/components/ChromePromoBanner";
 import StreakWidget from "@/components/StreakWidget";
 import { useTranslation } from "react-i18next";
 
@@ -327,6 +328,7 @@ export default function Dashboard() {
         <ExtensionPromoBanner />
         <AndroidPromoBanner />
         <IOSPromoBanner />
+        <ChromePromoBanner />
         <StreakWidget />
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}
