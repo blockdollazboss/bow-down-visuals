@@ -1544,7 +1544,7 @@ export default function VideoEditor() {
                           ["lip sync enabled",  settings.lipSync.enabled ? "yes" : "no"],
                           ["lip sync selected", settings.lipSync.selectedSceneId ? `scene ${scenes.findIndex(s => s.id === settings.lipSync.selectedSceneId) + 1}` : "none"],
                           ["lip sync audio",    settings.lipSync.audioSource],
-                          ["lip sync provider", (import.meta.env.VITE_LIP_SYNC_API_KEY as string | undefined) ? "connected OK" : "not connected"],
+                          ["lip sync provider", (import.meta.env.VITE_LIP_SYNC_ENABLED as string | undefined) ? "connected OK" : "not connected"],
                           ["lip sync done",     `${scenes.filter(s => getClipEdit(settings, s.id).lipSyncStatus === "done").length} / ${scenes.length}`],
                           ["lip sync result",   (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncUrl ? "saved OK" : "none"; })()],
                           ["lip sync error",    (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncError?.slice(0, 40) ?? "—"; })()],

@@ -24,6 +24,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "google-auth-library": "^11.1.0",
+    "helmet": "^8.1.0",
     "lucide-react": "catalog:",
     "multer": "^2.4.0",
     "openai": "^7.21.0",
