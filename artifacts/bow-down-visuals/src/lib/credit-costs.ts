@@ -13,6 +13,8 @@
 export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── Songs & audio ──────────────────────────────────────────────
   "/api/generate-song": { cost: 400, feature: "Generate Song" },
+  "/api/song-inspo/generate": { cost: 200, feature: "Inspo Mode Song" },
+  "/api/song-inspo/analyze": { cost: 0, feature: "Inspo Vibe Analysis (free)" },
   "/api/generate-song-video": { cost: 400, feature: "Generate Song + Video" },
   "/api/generate-music-audio": { cost: 400, feature: "Generate Music Audio" },
   "/api/beat/generate": { cost: 300, feature: "Generate Beat" },

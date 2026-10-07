@@ -69,3 +69,4 @@ export * from "./content-plans";
 export * from "./voice-personas";
 export * from "./voice-clones";
 export * from "./review-links";
+export * from "./inspo-vibe-presets";

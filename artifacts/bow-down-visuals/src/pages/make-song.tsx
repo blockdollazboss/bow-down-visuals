@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles } from "lucide-react";
+import InspoTab, { type InspoGeneratedData } from "@/components/InspoTab";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -141,7 +142,7 @@ export default function MakeSong() {
   usePageTitle(t("makeSong.pageTitle"), t("makeSong.pageDescription"));
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
-  const [mode, setMode] = useState<"simple" | "custom">("simple");
+  const [mode, setMode] = useState<"simple" | "custom" | "inspo">("simple");
   const [simplePrompt, setSimplePrompt] = useState("");
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -158,13 +159,19 @@ export default function MakeSong() {
     addAsset, hasKind, latestOfKind, project,
   } = useHubProject();
 
-  /* Deep-link protocol (used by the Audio Extract handoff):
-     /make-song?audioUrl=… pre-fills an extracted audio track as the song. */
+  /* Deep-link protocols:
+     - /make-song?audioUrl=… pre-fills an extracted audio track as the song.
+     - /make-song?mode=inspo opens the Inspo tab (shared vibe links). */
   useEffect(() => {
     try {
-      const audioUrl = new URLSearchParams(window.location.search).get("audioUrl");
+      const params = new URLSearchParams(window.location.search);
+      const audioUrl = params.get("audioUrl");
       if (audioUrl) {
         setUploadedSongUrl(audioUrl);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      if (params.get("mode") === "inspo") {
+        setMode("inspo");
         window.history.replaceState(null, "", window.location.pathname);
       }
     } catch {
@@ -237,34 +244,12 @@ export default function MakeSong() {
       }, token, confirmedFetch);
       if (!result) return;
       const { rawResult, creditsRemaining } = result;
-      setRawResult(rawResult);
-      /* Spine: the finished song package flows into the hub project —
-         name, concept, lyrics, video idea, cover prompt — so Video Studio,
-         Thumbnail Maker, Promo Clips, Hook Studio and Scheduler pick it up
-         with zero re-typing. */
-      try {
-        pushSongPackageToProject({
-          artistName: params.artistName,
-          songTitle: params.songTitle,
-          genre: params.genre,
-          mood: params.mood,
-          rawResult,
-          audioUrl: null,
-          setProjectName,
-          setProjectType,
-          setProjectConcept,
-          addAsset,
-          hasKind,
-          latestOfKind,
-        });
-        toast({ title: t("hubSpine.songSavedTitle"), description: t("hubSpine.songSavedDesc") });
-      } catch {
-        /* hub push is best-effort — the song result itself already rendered */
-      }
-      if (creditsRemaining !== undefined) refreshProfile();
-      setTimeout(() => {
-        document.getElementById("song-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      handleSongSuccess(rawResult, creditsRemaining, {
+        artistName: params.artistName,
+        songTitle: params.songTitle,
+        genre: params.genre,
+        mood: params.mood,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("makeSong.generationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
@@ -272,6 +257,56 @@ export default function MakeSong() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /* Shared success path for all three modes (Simple / Custom / Inspo):
+     the finished song package flows into the hub project — name, concept,
+     lyrics, video idea, cover prompt — so Video Studio, Thumbnail Maker,
+     Promo Clips, Hook Studio and Scheduler pick it up with zero re-typing. */
+  function handleSongSuccess(
+    rawResult: string,
+    creditsRemaining: number | undefined,
+    meta: { artistName: string; songTitle: string; genre: string; mood: string },
+  ) {
+    setRawResult(rawResult);
+    try {
+      pushSongPackageToProject({
+        artistName: meta.artistName,
+        songTitle: meta.songTitle,
+        genre: meta.genre,
+        mood: meta.mood,
+        rawResult,
+        audioUrl: null,
+        setProjectName,
+        setProjectType,
+        setProjectConcept,
+        addAsset,
+        hasKind,
+        latestOfKind,
+      });
+      toast({ title: t("hubSpine.songSavedTitle"), description: t("hubSpine.songSavedDesc") });
+    } catch {
+      /* hub push is best-effort — the song result itself already rendered */
+    }
+    if (creditsRemaining !== undefined) refreshProfile();
+    setTimeout(() => {
+      document.getElementById("song-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
+
+  /* Inspo Mode callback — sync inspo's artist/title/genre/mood into the
+     shared form state so the result block + handoffs read them normally. */
+  function handleInspoGenerated(data: InspoGeneratedData) {
+    if (data.artistName) setValue("artistName", data.artistName, { shouldDirty: true });
+    if (data.songTitle) setValue("songTitle", data.songTitle, { shouldDirty: true });
+    if (data.genre) setValue("genre", data.genre, { shouldDirty: true });
+    if (data.mood) setValue("mood", data.mood, { shouldDirty: true });
+    handleSongSuccess(data.rawResult, data.creditsRemaining, {
+      artistName: data.artistName,
+      songTitle: data.songTitle,
+      genre: data.genre,
+      mood: data.mood,
+    });
   }
 
   /* Spine: an uploaded song also joins the hub project — audio + transcribed
@@ -356,8 +391,8 @@ export default function MakeSong() {
 
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
-          {/* Simple / Custom mode toggle - Suno pattern */}
-          <div className="flex gap-2 mb-6">
+          {/* Simple / Custom / Inspo mode toggle - Suno pattern */}
+          <div className="flex gap-2 mb-6 flex-wrap">
             <button
               type="button"
               onClick={() => setMode("simple")}
@@ -380,9 +415,30 @@ export default function MakeSong() {
             >
               Custom
             </button>
+            <button
+              type="button"
+              onClick={() => setMode("inspo")}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                mode === "inspo"
+                  ? "bg-primary text-black"
+                  : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              Inspo
+            </button>
           </div>
 
-          {mode === "simple" ? (
+          {mode === "inspo" ? (
+            /* Inspo mode — playlist vibe → style DNA → song */
+            <InspoTab
+              getAccessToken={getAccessToken}
+              confirmedFetch={confirmedFetch}
+              refreshProfile={refreshProfile}
+              onGenerated={handleInspoGenerated}
+              onOutOfCredits={() => { setOutOfCredits(true); refreshProfile(); }}
+            />
+          ) : mode === "simple" ? (
             /* Simple mode - one text box, AI does everything */
             <div className="space-y-6">
               <div>
