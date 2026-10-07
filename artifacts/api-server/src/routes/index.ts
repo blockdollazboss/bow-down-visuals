@@ -100,6 +100,7 @@ import voicePersonasRouter from "./generate/voice-personas";
 import scriptToVideoRouter from "./generate/script-to-video";
 import bgMusicRouter from "./generate/bg-music";
 import translateCaptionsRouter from "./generate/translate-captions";
+import voiceoverProRouter from "./generate/voiceover-pro";
 import brandKitRouter from "./generate/brand-kit";
 import thumbnailAbRouter from "./generate/thumbnail-ab";
 import videoTitlesRouter from "./generate/video-titles";
