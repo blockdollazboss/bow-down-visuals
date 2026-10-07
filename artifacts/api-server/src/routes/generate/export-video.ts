@@ -14,7 +14,7 @@ import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
-import { buildProToolsFilterChain, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
+import { buildProToolsFilterChain, buildSpeedCurveFilter, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
@@ -1210,6 +1210,46 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       //    scale-to-target. Skipped entirely when the clip's tools are neutral.
       let ptSrcPath = srcPath;
       const proToolsInput = Array.isArray(clipProTools) ? clipProTools[origIdx] : null;
+
+      // ── 1c-h: Speed curve pre-pass (CapCut-style variable speed).
+      //    Splits the clip into segments, applies per-segment setpts, concats.
+      //    Runs BEFORE the regular pro-tools chain so other filters see the
+      //    time-remapped clip. Skipped when no curve is set.
+      const speedCurve = (proToolsInput as { speedCurve?: { t: number; speed: number }[] | null } | null)?.speedCurve;
+      if (speedCurve && speedCurve.length >= 2) {
+        try {
+          const probeOut = await execFileAsync("ffprobe", [
+            "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", srcPath,
+          ], { timeout: 30_000 });
+          const durationSec = parseFloat(probeOut.stdout.trim());
+          if (Number.isFinite(durationSec) && durationSec > 0) {
+            const curveFilter = buildSpeedCurveFilter(speedCurve, durationSec);
+            if (curveFilter) {
+              const curvePath = path.join(tmpDir, `bdv-curve-${exportId}-${origIdx}.mp4`);
+              tmpFiles.push(curvePath);
+              exportStatus.ffmpegStage = `speed curve clip ${j + 1}/${selectedClipOrigIndices.length}`;
+              ctx.log.info({ scene: origIdx + 1 }, "[export] applying speed curve");
+              await execFileAsync("ffmpeg", [
+                "-threads", "2", "-i", srcPath,
+                "-filter_complex", curveFilter, "-map", "[ptout]",
+                "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+                "-an", "-movflags", "+faststart", "-y", curvePath,
+              ], { timeout: 300_000 });
+              if (existsSync(curvePath) && statSync(curvePath).size >= 1024) {
+                ptSrcPath = curvePath;
+                // Curve handled the speed — don't also apply flat speed.
+                if (proToolsInput) (proToolsInput as { speed?: number }).speed = 1;
+              }
+            }
+          }
+        } catch (e: unknown) {
+          const err = e as { stderr?: string };
+          ctx.log.error({ stderr: err.stderr ?? String(e) }, "[export] speed curve pass failed — continuing with flat speed");
+        }
+      }
+
       const ptChain = proToolsInput ? buildProToolsFilterChain(proToolsInput) : "";
       if (ptChain) {
         const ptPath = path.join(tmpDir, `bdv-protools-${exportId}-${origIdx}.mp4`);
@@ -1220,7 +1260,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           // Same intermediate encoding as pieceEncodeTail() (libx264 ultrafast,
           // 90000 timescale) so downstream concat/xfade timebases match.
           await execFileAsync("ffmpeg", [
-            "-threads", "2", "-i", srcPath,
+            "-threads", "2", "-i", ptSrcPath,
             "-filter_complex", ptChain, "-map", "[ptout]",
             "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
             "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",

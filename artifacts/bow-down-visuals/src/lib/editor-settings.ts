@@ -643,6 +643,8 @@ export interface ProToolsSettings {
   chromaKey: ChromaKeySettings;
   /** Playback speed 0.25..4 (1 = normal). */
   speed: number;
+  /** Optional speed curve (CapCut-style variable speed). Null = flat speed. */
+  speedCurve: SpeedCurvePoint[] | null;
   reverse: boolean;
   rotation: 0 | 90 | 180 | 270;
   flipH: boolean;
@@ -659,6 +661,65 @@ export const SPEED_PRESETS = [
   { label: "2× Hyper", value: 2 },
   { label: "4× Timelapse", value: 4 },
 ] as const;
+
+/** A point on a speed curve: time (0-1 normalized across the clip) → speed multiplier. */
+export interface SpeedCurvePoint {
+  /** Normalized time 0-1 across the clip duration. */
+  t: number;
+  /** Speed multiplier at this point (0.25-4). */
+  speed: number;
+}
+
+/** Preset speed curves (CapCut-style). Points are normalized 0-1. */
+export const SPEED_CURVE_PRESETS: { id: string; label: string; blurb: string; points: SpeedCurvePoint[] }[] = [
+  {
+    id: "flat",
+    label: "Constant",
+    blurb: "Steady speed throughout",
+    points: [{ t: 0, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "ramp-up",
+    label: "Ramp Up",
+    blurb: "Slow start, explosive finish",
+    points: [{ t: 0, speed: 0.5 }, { t: 0.5, speed: 1 }, { t: 1, speed: 2 }],
+  },
+  {
+    id: "ramp-down",
+    label: "Ramp Down",
+    blurb: "Fast start, dreamy landing",
+    points: [{ t: 0, speed: 2 }, { t: 0.5, speed: 1 }, { t: 1, speed: 0.5 }],
+  },
+  {
+    id: "punch",
+    label: "Slow-mo Punch",
+    blurb: "Normal, freeze moment, back to action",
+    points: [{ t: 0, speed: 1 }, { t: 0.35, speed: 1 }, { t: 0.5, speed: 0.25 }, { t: 0.65, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "wave",
+    label: "Wave",
+    blurb: "Breathe in, breathe out",
+    points: [{ t: 0, speed: 1 }, { t: 0.25, speed: 1.5 }, { t: 0.5, speed: 0.75 }, { t: 0.75, speed: 1.5 }, { t: 1, speed: 1 }],
+  },
+];
+
+/** Interpolate speed at normalized time t (0-1) along a curve. */
+export function speedAt(curve: SpeedCurvePoint[], t: number): number {
+  if (curve.length === 0) return 1;
+  const clamped = Math.min(1, Math.max(0, t));
+  const sorted = [...curve].sort((a, b) => a.t - b.t);
+  if (clamped <= sorted[0]!.t) return sorted[0]!.speed;
+  if (clamped >= sorted[sorted.length - 1]!.t) return sorted[sorted.length - 1]!.speed;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (clamped >= a.t && clamped <= b.t) {
+      const f = (clamped - a.t) / (b.t - a.t || 1);
+      return a.speed + (b.speed - a.speed) * f;
+    }
+  }
+  return 1;
+}
 
 /** Crop aspect presets for the Smart Reframe one-tap button. */
 export const CROP_ASPECTS: { label: string; value: CropAspect; ratio: number | null }[] = [
@@ -1328,6 +1389,7 @@ export function defaultProTools(): ProToolsSettings {
     colorGradePreset: null,
     chromaKey: defaultChromaKey(),
     speed: 1,
+    speedCurve: null,
     reverse: false,
     rotation: 0,
     flipH: false,

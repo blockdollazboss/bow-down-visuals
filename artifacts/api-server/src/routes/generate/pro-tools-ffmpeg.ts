@@ -66,6 +66,8 @@ export interface ProToolsFilterInput {
   colorCorrection?: ProToolsColorCorrection | null;
   chromaKey?: ProToolsChromaKey | null;
   speed?: number | null;
+  /** Variable speed curve (CapCut-style). Takes precedence over flat speed. */
+  speedCurve?: SpeedCurvePoint[] | null;
   reverse?: boolean;
   rotation?: 0 | 90 | 180 | 270 | null;
   flipH?: boolean;
@@ -198,4 +200,53 @@ export function buildProToolsFilterChain(input: ProToolsFilterInput): string {
 /** True when the input would produce a non-empty filter chain. */
 export function proToolsFilterActive(input: ProToolsFilterInput): boolean {
   return buildProToolsFilterChain(input).length > 0;
+}
+
+/* ─── Speed curves ──────────────────────────────────────────────────────── */
+
+export interface SpeedCurvePoint {
+  t: number;     // normalized 0-1
+  speed: number; // 0.25-4
+}
+
+/** Linear interpolation of speed at normalized time t. */
+export function speedAt(curve: SpeedCurvePoint[], t: number): number {
+  if (curve.length === 0) return 1;
+  const clamped = Math.min(1, Math.max(0, t));
+  const sorted = [...curve].sort((a, b) => a.t - b.t);
+  if (clamped <= sorted[0]!.t) return sorted[0]!.speed;
+  if (clamped >= sorted[sorted.length - 1]!.t) return sorted[sorted.length - 1]!.speed;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (clamped >= a.t && clamped <= b.t) {
+      const f = (clamped - a.t) / (b.t - a.t || 1);
+      return a.speed + (b.speed - a.speed) * f;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Build a filter_complex that applies a variable speed curve by splitting
+ * into N segments, applying setpts per segment, and concatenating.
+ * Returns the filter string; caller must provide clip duration.
+ */
+export function buildSpeedCurveFilter(curve: SpeedCurvePoint[], durationSec: number, segments = 10): string {
+  if (curve.length === 0 || durationSec <= 0) return "";
+  const segDur = durationSec / segments;
+  const splitLabels = Array.from({ length: segments }, (_, i) => `[s${i}]`).join("");
+  const parts: string[] = [`[0:v]split=${segments}${splitLabels}`];
+
+  const concatInputs: string[] = [];
+  for (let i = 0; i < segments; i++) {
+    const tMid = (i + 0.5) / segments;
+    const speed = Math.min(4, Math.max(0.25, speedAt(curve, tMid)));
+    const start = (i * segDur).toFixed(3);
+    const end = ((i + 1) * segDur).toFixed(3);
+    const outLabel = `[sg${i}]`;
+    parts.push(`[s${i}]trim=start=${start}:end=${end},setpts=${f4(1 / speed)}*PTS${outLabel}`);
+    concatInputs.push(outLabel);
+  }
+  parts.push(`${concatInputs.join("")}concat=n=${segments}:v=1:a=0[ptout]`);
+  return parts.join(";");
 }

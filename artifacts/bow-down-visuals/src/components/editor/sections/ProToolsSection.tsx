@@ -12,6 +12,8 @@ import {
   proToolsActive,
   GRADE_PRESET_CORRECTIONS,
   SPEED_PRESETS,
+  SPEED_CURVE_PRESETS,
+  speedAt,
   CROP_ASPECTS,
   type ClipEdit,
   type EditorSettings,
@@ -441,11 +443,36 @@ export function ProToolsSection({
         <div className="space-y-4">
           <div className="flex flex-wrap gap-1.5">
             {SPEED_PRESETS.map((p) => (
-              <Chip key={p.value} active={pt.speed === p.value}
-                onClick={() => patchProTools({ speed: p.value })}>
+              <Chip key={p.value} active={pt.speed === p.value && !pt.speedCurve}
+                onClick={() => patchProTools({ speed: p.value, speedCurve: null })}>
                 {p.label}
               </Chip>
             ))}
+          </div>
+          {/* Speed curves (CapCut-style variable speed) */}
+          <div>
+            <p className="text-[11px] font-bold text-white/60 mb-1.5">Speed curves</p>
+            <div className="flex flex-wrap gap-1.5">
+              {SPEED_CURVE_PRESETS.filter((c) => c.id !== "flat").map((c) => {
+                const active = pt.speedCurve != null &&
+                  JSON.stringify(pt.speedCurve) === JSON.stringify(c.points);
+                return (
+                  <Chip key={c.id} active={active}
+                    onClick={() => patchProTools({
+                      speedCurve: active ? null : [...c.points],
+                      speed: 1,
+                    })}
+                    title={c.blurb}>
+                    {c.label}
+                  </Chip>
+                );
+              })}
+            </div>
+            {pt.speedCurve && (
+              <p className="text-[11px] text-white/40 mt-1.5">
+                Curve active — speed varies across the clip. Tap again to return to constant speed.
+              </p>
+            )}
           </div>
           <Collapsible title={`Advanced — precise speed & reverse${pt.speed !== 1 || pt.reverse ? " ●" : ""}`}>
             <div className="space-y-3">
