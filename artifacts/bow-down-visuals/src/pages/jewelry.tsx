@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Logo-to-Luxury Studio ───────────────────────────────────────────────
    One-stop guided pipeline: upload logo → AI design → preview →
@@ -66,6 +67,10 @@ export default function JewelryStudio() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { project } = useHubProject();
+  /* Logos made in the logo-maker land in the hub — offer them here so the
+     user never has to download and re-upload their own logo. */
+  const hubLogos = (project.assets ?? []).filter((a) => a.kind === "image" && a.meta?.logo === "true");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<"jewelry" | "apparel">("jewelry");
@@ -365,6 +370,31 @@ export default function JewelryStudio() {
               <button onClick={() => fileRef.current?.click()} className="mt-3 text-sm text-yellow-400 hover:underline">
                 {t("jewelry.chooseDifferent")}
               </button>
+            )}
+            {hubLogos.length > 0 && !logoPreview && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">{t("jewelry.useMyLogo", { defaultValue: "Or use a logo you already made" })}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {hubLogos.slice(0, 6).map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(l.url);
+                          const blob = await res.blob();
+                          const f = new File([blob], "logo.png", { type: blob.type || "image/png" });
+                          onLogoPicked(f);
+                        } catch { /* fetch failed — user can upload manually */ }
+                      }}
+                      className="h-16 w-16 overflow-hidden rounded-xl border border-yellow-500/30 hover:border-yellow-400 transition"
+                      title={l.label}
+                    >
+                      <img src={l.url} alt={l.label} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             <h3 className="mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.whatMaking")}</h3>
@@ -685,6 +715,16 @@ export default function JewelryStudio() {
             <div className="mt-5 space-y-3">
               <Link
                 href="/jewelry-shop"
+                onClick={() => {
+                  /* Carry the design to the shop — nothing is lost in transit. */
+                  try {
+                    localStorage.setItem("bdv_jewelry_handoff", JSON.stringify({
+                      category, jOpts, aOpts,
+                      estimate: estimate ? { total: `$${estimate.totalLowUSD.toLocaleString()}–$${estimate.totalHighUSD.toLocaleString()}`, currency: "USD" } : null,
+                      at: Date.now(),
+                    }));
+                  } catch { /* storage unavailable */ }
+                }}
                 className="flex items-center justify-between gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 transition hover:bg-yellow-500/20"
               >
                 <div>

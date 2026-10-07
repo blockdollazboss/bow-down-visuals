@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
   Handshake, Loader2, Sparkles, Search, Users,
@@ -132,6 +133,22 @@ export default function BrandDealFinder() {
   const [contentStyle, setContentStyle] = useState("");
   const [dealTypes, setDealTypes] = useState<DealTypeKey[]>(["sponsored-post", "affiliate", "ambassadorship"]);
   const [creatorName, setCreatorName] = useState("");
+
+  /* Deep link from the brand calculator — niche and rate card flow through. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const n = q.get("niche");
+    const r = q.get("rate");
+    if (n) setCustomNiche(n);
+    if (r) {
+      try { localStorage.setItem("bdv_rate_card", JSON.stringify({ rate: r, at: Date.now() })); } catch { /* ignore */ }
+    }
+    if (n || r) {
+      const next = (() => { q.delete("niche"); q.delete("rate"); const s = q.toString(); return s ? `?${s}` : ""; })();
+      window.history.replaceState({}, "", `${window.location.pathname}${next}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [deals, setDeals] = useState<BrandDeal[] | null>(null);
   const [disclaimer, setDisclaimer] = useState("");
@@ -301,6 +318,10 @@ export default function BrandDealFinder() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             {t("brandDeals.subtitle")}
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
+            {t("brandDeals.finderExplainer", { defaultValue: "This is the finder — AI hunts down brands that fit you. When a brand posts a deal for creators to apply to, that's the " })}
+            <Link href="/sponsors" className="font-semibold text-primary hover:underline">{t("brandDeals.marketplaceLink", { defaultValue: "Sponsor Marketplace" })}</Link>.
           </p>
         </div>
 

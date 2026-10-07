@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Newspaper, Loader2, Sparkles, Plus, Trash2, Copy, Check, Download,
-  RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil,
+  RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil, Send,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { slugifyHandle } from "@/lib/press-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 import PressReleasePanel, { type PressReleaseKit } from "@/components/PressReleasePanel";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export default function PressKitBuilder() {
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { t } = useTranslation();
+  const { addAsset } = useHubProject();
   const [vaults, setVaults] = useState<Vault[]>([]);
   const [kits, setKits] = useState<PressKit[]>([]);
   const [selectedKit, setSelectedKit] = useState<PressKit | null>(null);
@@ -285,6 +287,10 @@ export default function PressKitBuilder() {
       setKits((ks) => ks.map((k) => (k.id === kit.id ? kit : k)));
       setSelectedKit(kit);
       setBio(kit.bio ?? "");
+      /* The bio flows into the hub project — outreach and NFC cards pick it up. */
+      if (kit.bio) {
+        try { addAsset({ kind: "script", url: `data:text/plain;charset=utf-8,${encodeURIComponent(kit.bio)}`, label: `Bio — ${kit.artist_name || "press kit"}`, detail: "Press kit bio", meta: { text: kit.bio } }); } catch { /* non-fatal */ }
+      }
     } catch {
       setError(t("press-kit.errors.network"));
     } finally {
@@ -441,6 +447,14 @@ export default function PressKitBuilder() {
                     </div>
                   </div>
                   <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">{selectedKit.bio}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/sponsorship-outreach?bio=${encodeURIComponent(selectedKit.bio || "")}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
+                    >
+                      <Send className="h-4 w-4" />{t("press-kit.sendToOutreach", { defaultValue: "Use in outreach" })}
+                    </Link>
+                  </div>
                 </div>
 
                 {selectedKit.achievements.length > 0 && (

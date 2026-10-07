@@ -478,7 +478,14 @@ export default function BrandDealCalculator() {
               </div>
             </div>
 
-            <div className="no-print mt-6 text-center">
+            <div className="no-print mt-6 flex flex-col items-center gap-3">
+              <Link
+                href={`/brand-deals?niche=${encodeURIComponent(customNiche.trim() || niche)}&rate=${encodeURIComponent(fmtRange(result.rateRange.low, result.rateRange.high))}`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-base font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95"
+              >
+                <BadgeDollarSign className="h-5 w-5" aria-hidden="true" />
+                {t("brandCalculator.findBrands", { defaultValue: "Find brands to pitch" })}
+              </Link>
               <button
                 onClick={() => { setResult(null); }}
                 className="text-sm font-semibold text-white/40 underline-offset-4 transition hover:text-white hover:underline"

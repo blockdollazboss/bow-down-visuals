@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useHubProject } from "@/lib/hub-project";
 import { useTranslation } from "react-i18next";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
   EMOTIONS,
   estimateVoiceoverCost,
@@ -59,6 +60,7 @@ const pillClass = (active: boolean) =>
 
 export default function VoiceoverStudio() {
   const { t } = useTranslation();
+  const { activeArtist } = useActiveArtist();
   const { addAsset } = useHubProject();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -121,7 +123,12 @@ export default function VoiceoverStudio() {
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
-        if (list.length > 0 && !voiceId) setVoiceId(list[0]!.voice_id);
+        /* Prefer the vault's cloned voice — the user cloned it for exactly this. */
+        const vaultVoice = activeArtist?.voice_id;
+        if (!voiceId) {
+          if (vaultVoice && list.some((v) => v.voice_id === vaultVoice)) setVoiceId(vaultVoice);
+          else if (list.length > 0) setVoiceId(list[0]!.voice_id);
+        }
       } catch {
         if (!cancelled) setVoices([]);
       } finally {
@@ -202,6 +209,7 @@ export default function VoiceoverStudio() {
           url: data.audioUrl,
           label: t("voiceover.assetLabel", { script: script.trim().slice(0, 40) || t("voiceover.scriptFallback") }),
           detail: t("voiceover.assetDetail", { words: data.wordCount ?? 0, format: data.format ?? "mp3" }),
+          meta: voiceId ? { voiceover: "true", voiceId } : { voiceover: "true" },
         });
       }
     } catch (err) {

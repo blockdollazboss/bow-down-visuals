@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   FileText, Loader2, Sparkles, AlertTriangle, ShieldCheck, ShieldAlert,
-  Scale, Lightbulb, CheckCircle2, XCircle, MinusCircle, Gavel,
+  Scale, Lightbulb, CheckCircle2, XCircle, MinusCircle, Gavel, Copy, Download,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -216,6 +216,51 @@ export default function Contracts() {
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const lines = [
+                    `CONTRACT ANALYSIS — Bow Down Visuals`,
+                    `Risk: ${a.riskScore}/100 (${a.riskLevel})`, "",
+                    "SUMMARY:", a.summary, "",
+                    ...a.redFlags.flatMap((f) => [`RED FLAG [${f.severity}]: ${f.title}`, f.explanation, ...(f.clause ? [`Clause: "${f.clause}"`] : []), ""]),
+                    ...a.keyTerms.map((k) => `TERM — ${k.term}: ${k.value} (${k.assessment})`),
+                    "", "NEGOTIATION TIPS:", ...a.negotiationTips.map((tip) => `• ${tip}`),
+                    "", "MISSING PROTECTIONS:", ...a.missingProtections.map((m) => `• ${m}`),
+                    "", "FAVORABLE TERMS:", ...a.favorableTerms.map((f) => `• ${f}`),
+                  ];
+                  navigator.clipboard.writeText(lines.join("\n")).catch(() => {});
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+              >
+                <Copy className="h-4 w-4" />{t("contracts.copy_analysis", { defaultValue: "Copy analysis" })}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const lines = [
+                    `CONTRACT ANALYSIS — Bow Down Visuals`,
+                    `Risk: ${a.riskScore}/100 (${a.riskLevel})`, "",
+                    "SUMMARY:", a.summary, "",
+                    ...a.redFlags.flatMap((f) => [`RED FLAG [${f.severity}]: ${f.title}`, f.explanation, ...(f.clause ? [`Clause: "${f.clause}"`] : []), ""]),
+                    ...a.keyTerms.map((k) => `TERM — ${k.term}: ${k.value} (${k.assessment})`),
+                    "", "NEGOTIATION TIPS:", ...a.negotiationTips.map((tip) => `• ${tip}`),
+                    "", "MISSING PROTECTIONS:", ...a.missingProtections.map((m) => `• ${m}`),
+                    "", "FAVORABLE TERMS:", ...a.favorableTerms.map((f) => `• ${f}`),
+                  ];
+                  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+                  const el = document.createElement("a");
+                  el.href = URL.createObjectURL(blob);
+                  el.download = "contract-analysis.txt";
+                  el.click();
+                  setTimeout(() => URL.revokeObjectURL(el.href), 4000);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+              >
+                <Download className="h-4 w-4" />{t("contracts.download_analysis", { defaultValue: "Download" })}
+              </button>
+            </div>
             {/* Risk score hero */}
             <div className={`rounded-2xl border p-6 md:p-8 ${riskRing(a.riskLevel)}`}>
               <div className="flex flex-col md:flex-row md:items-center gap-6">

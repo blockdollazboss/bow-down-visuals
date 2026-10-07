@@ -9,6 +9,8 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 /* ─── Logo Maker ──────────────────────────────────────────────────────────
    AI brand logos for creators: channel name + style preset → generated
@@ -55,8 +57,16 @@ export function LogoMakerTool() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
+  const { activeArtist } = useActiveArtist();
   const [brandName, setBrandName] = useState("");
   const [tagline, setTagline] = useState("");
+
+  /* The vault knows the artist's name — prefill so it's never retyped. */
+  useEffect(() => {
+    if (!brandName && activeArtist?.artist_name) setBrandName(activeArtist.artist_name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeArtist?.artist_name]);
   const [style, setStyle] = useState<LogoStyleKey>("luxury-gold");
   const [model, setModel] = useState<LogoModel>("premium");
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -86,6 +96,8 @@ export function LogoMakerTool() {
           if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
           if (data.url) {
             setRecent((r) => [{ url: data.url!, brandName, style, at: Date.now() }, ...r].slice(0, 8));
+            /* The logo flows into the hub project — jewelry, merch, NFC cards pick it up. */
+            try { addAsset({ kind: "image", url: data.url!, label: `Logo — ${brandName}`, detail: style, meta: { logo: "true", brandName } }); } catch { /* non-fatal */ }
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
@@ -133,6 +145,8 @@ export function LogoMakerTool() {
         setOutputUrl(data.url);
         if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
         setRecent((r) => [{ url: data.url!, brandName: brandName.trim(), style, at: Date.now() }, ...r].slice(0, 8));
+        /* The logo flows into the hub project — jewelry, merch, NFC cards pick it up. */
+        try { addAsset({ kind: "image", url: data.url!, label: `Logo — ${brandName.trim()}`, detail: style, meta: { logo: "true", brandName: brandName.trim() } }); } catch { /* non-fatal */ }
       } else if (data.taskId) {
         /* Standard: poll until Runway finishes. */
         setTaskId(data.taskId);

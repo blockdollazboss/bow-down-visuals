@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
  DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
- Play, Camera, Music2,
+ Play, Camera, Music2, Copy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -392,10 +392,23 @@ export default function MonetizationCoach() {
  {/* ── RESULTS ────────────────────────────────────────────────── */}
  {plan && plan.eligibility && plan.eligibility.length > 0 && (
  <div id="coach-results" className="relative mt-8">
- {/* eligibility */}
- <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <div className="mb-4 flex items-center justify-between">
+ <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
  <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.eligibilityTitle")}
  </p>
+ <button
+   onClick={async () => {
+     const lines: string[] = ["MY MONEY PLAN — Bow Down Visuals"];
+     plan.eligibility!.forEach((e) => lines.push(`• ${e.platform} — ${e.program}: ${e.status.toUpperCase()} (${e.threshold}; ${e.progress}% there)`));
+     if (plan.moneyMoves?.length) { lines.push("", "MONEY MOVES:"); plan.moneyMoves.forEach((m) => lines.push(`• ${m}`)); }
+     if (plan.note) lines.push("", plan.note);
+     try { await navigator.clipboard.writeText(lines.join("\n")); setError(null); } catch { /* clipboard blocked */ }
+   }}
+   className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+ >
+   <Copy className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.copyPlan", { defaultValue: "Copy plan" })}
+ </button>
+ </div>
  <div className="grid gap-3">
  {plan.eligibility.map((item, i) => {
  const badge = statusBadge(item.status);

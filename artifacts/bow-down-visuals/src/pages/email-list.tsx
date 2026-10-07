@@ -96,6 +96,18 @@ export default function EmailListBuilder() {
  const [nlDraft, setNlDraft] = useState<{ subject: string; body: string } | null>(null);
  const [nlLoading, setNlLoading] = useState(false);
 
+ /* Drafts are paid — never let a refresh eat one. Persist per list. */
+ const DRAFT_KEY = "bdv_email_nl_draft";
+ useEffect(() => {
+   try {
+     const raw = localStorage.getItem(DRAFT_KEY);
+     if (raw) {
+       const d = JSON.parse(raw) as { subject: string; body: string; at?: number };
+       if (d.subject && d.body) setNlDraft({ subject: d.subject, body: d.body });
+     }
+   } catch { /* ignore */ }
+ }, []);
+
  /* shared */
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
@@ -221,6 +233,7 @@ export default function EmailListBuilder() {
  }
  if (!res.ok) throw new Error(data.error ?? "Couldn't write the newsletter.");
  setNlDraft({ subject: data.subject, body: data.body });
+ try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: data.subject, body: data.body, at: Date.now() })); } catch { /* ignore */ }
  refreshProfile();
  } catch (e) {
  setError(e instanceof Error ? e.message : "Couldn't write the newsletter.");

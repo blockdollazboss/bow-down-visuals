@@ -53,6 +53,28 @@ export default function JewelryShop() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [formError, setFormError] = useState("");
+  /* Design carried over from the jewelry studio — prefill the order notes. */
+  const [carriedDesign, setCarriedDesign] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv_jewelry_handoff");
+      if (!raw) return;
+      const h = JSON.parse(raw) as { category?: string; jOpts?: any; aOpts?: any; estimate?: { total?: string | number; currency?: string } | null };
+      const bits: string[] = [];
+      if (h.category) bits.push(`Category: ${h.category}`);
+      if (h.jOpts) bits.push(`Piece: ${h.jOpts.piece ?? "?"} · Metal: ${h.jOpts.metal ?? "?"} · Stone: ${h.jOpts.stone ?? "?"} · Style: ${h.jOpts.style ?? "?"}`);
+      if (h.aOpts && h.category === "apparel") bits.push(`Apparel: ${h.aOpts.product ?? "?"} · ${h.aOpts.color ?? ""}`);
+      if (h.estimate?.total) bits.push(`Studio estimate: ${h.estimate.total}${h.estimate.currency ? ` ${h.estimate.currency}` : ""}`);
+      if (bits.length > 0) {
+        const note = `Design from the studio — ${bits.join(" · ")}`;
+        setCarriedDesign(note);
+        setDesignNotes((prev) => (prev ? `${prev}\n${note}` : note));
+      }
+      localStorage.removeItem("bdv_jewelry_handoff");
+    } catch { /* bad payload — drop it */ try { localStorage.removeItem("bdv_jewelry_handoff"); } catch { /* ignore */ } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [orders, setOrders] = useState<JewelryOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -256,6 +278,11 @@ export default function JewelryShop() {
                       maxLength={60} onChange={(e) => setEngraving(e.target.value)} />
                   </div>
                   <div>
+                    {carriedDesign && (
+                      <p className="mb-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-sm text-yellow-200">
+                        ✓ {t("jewelryShop.designCarried", { defaultValue: "Your studio design was carried over — review it below." })}
+                      </p>
+                    )}
                     <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.designNotes")} <span className="text-zinc-600">{t("jewelryShop.designNotesNote")}</span></label>
                     <textarea className={inputCls} rows={3}
                       placeholder={t("jewelryShop.designNotesPh")}

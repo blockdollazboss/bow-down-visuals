@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Upload, MapPin, Link2, Trash2, Plus } from "lucide-react";
+import { Link } from "wouter";
+import { Loader2, Upload, MapPin, Link2, Trash2, Plus, Disc3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -213,6 +214,16 @@ export default function LocationsPage() {
                     <Trash2 className="h-4 w-4" />
                   )}
                 </button>
+                <div className="absolute bottom-2 left-2 flex gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                  <Link
+                    href={`/cover-art?scene=${encodeURIComponent(l.image_url)}`}
+                    title={t("locations.useInCoverArt", { defaultValue: "Use in cover art" })}
+                    className="rounded-lg bg-black/70 border border-white/10 p-1.5 text-white/60 hover:text-primary hover:border-primary/40"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Disc3 className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
               <p className="px-3 py-2.5 text-sm font-semibold truncate">{l.label}</p>
             </div>

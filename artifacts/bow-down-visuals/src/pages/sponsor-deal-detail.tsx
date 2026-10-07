@@ -3,7 +3,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Loader2, Briefcase, CalendarClock, BadgeDollarSign,
   PenLine, Sparkles, Copy, CheckCircle2, ShieldCheck, Wallet,
-  Play, PackageCheck, Banknote, Users, XCircle, AlertTriangle,
+  Play, PackageCheck, Banknote, Users, XCircle, AlertTriangle, Mic2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -456,12 +456,21 @@ export default function SponsorDealDetail() {
                     </button>
                   )}
                   {deal.status === "in_progress" && (
-                    <button onClick={() => postAction(`/api/sponsors/deals/${dealId}/complete`, "POST", undefined, "complete")}
-                      disabled={!!busy}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
-                      {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}
-                      {t("sponsorDealDetail.markDelivered")}
-                    </button>
+                    <>
+                      <button onClick={() => postAction(`/api/sponsors/deals/${dealId}/complete`, "POST", undefined, "complete")}
+                        disabled={!!busy}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50">
+                        {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}
+                        {t("sponsorDealDetail.markDelivered")}
+                      </button>
+                      <Link
+                        href="/sponsorship-outreach"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+                      >
+                        <Mic2 className="h-4 w-4" aria-hidden="true" />
+                        {t("sponsorDealDetail.writeSponsorRead", { defaultValue: "Write the sponsor read" })}
+                      </Link>
+                    </>
                   )}
                 </div>
               </div>

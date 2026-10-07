@@ -12,6 +12,8 @@ import {
   type NfcLink, type NfcProfile,
 } from "@/lib/nfc-cards";
 import { useTranslation } from "react-i18next";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── NFC Smart Business Cards ──────────────────────────────────────────
    Product page + order wizard + buyer card management.
@@ -52,6 +54,8 @@ export default function NfcCards() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { activeArtist } = useActiveArtist();
+  const { project } = useHubProject();
 
   /* order wizard state */
   const [step, setStep] = useState<Step>("style");
@@ -71,6 +75,15 @@ export default function NfcCards() {
   const [submitting, setSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState<{ slug: string; url: string; deduped?: boolean } | null>(null);
   const [formError, setFormError] = useState("");
+
+  /* The vault knows the artist — prefill identity fields so they're never retyped. */
+  useEffect(() => {
+    if (!activeArtist) return;
+    if (!displayName && activeArtist.artist_name) setDisplayName(activeArtist.artist_name);
+    if (!fullName && activeArtist.artist_name) setFullName(activeArtist.artist_name);
+    if (!bio && activeArtist.description) setBio(activeArtist.description);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeArtist?.artist_name]);
   /* One idempotency key per wizard session — a failed-then-retried submit
      must reuse the same key so the server dedupes instead of double-booking.
      Regenerated after each successful order for the next one. */

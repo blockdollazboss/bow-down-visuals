@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Disc3, Loader2, Download, AlertTriangle, ArrowLeft, RefreshCw,
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
@@ -29,7 +30,8 @@ interface GenerateResponse extends CoverArtResult {
 export default function CoverArt() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { addAsset } = useHubProject();
+  const { addAsset, project } = useHubProject();
+  const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
   const [mode, setMode] = useState<"simple" | "custom">("simple");
   const [songTitle, setSongTitle] = useState("");
@@ -43,6 +45,26 @@ export default function CoverArt() {
   const [history, setHistory] = useState<CoverArtResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* The vault + hub project know the artist and song — prefill so nothing is retyped. */
+  useEffect(() => {
+    if (!artistName && activeArtist?.artist_name) setArtistName(activeArtist.artist_name);
+    if (!songTitle && project.name && project.name !== "Untitled Project") setSongTitle(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeArtist?.artist_name]);
+
+  /* A saved location can seed the backdrop — comes from the locations library. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const scene = q.get("scene");
+    if (scene) {
+      setMood((m) => (m ? `${m} — set against this saved location backdrop: ${scene}` : `Set against this saved location backdrop: ${scene}`));
+      q.delete("scene");
+      const next = q.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* One-click cover art presets */
   const COVER_PRESETS = [
@@ -329,6 +351,11 @@ export default function CoverArt() {
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition"
                   >
                     <Download className="h-4 w-4" />{t("cover-art.download")}</a>
+                  <Link
+                    href={`/distribute?cover=${encodeURIComponent(result.url)}&title=${encodeURIComponent(songTitle)}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition"
+                  >
+                    <Disc3 className="h-4 w-4" />{t("cover-art.sendToDistribute", { defaultValue: "Distribute" })}</Link>
                   <button
                     onClick={generate}
                     disabled={generating}

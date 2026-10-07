@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import {
   Handshake, Loader2, Sparkles, Mail, MessageCircle, FileText,
   CalendarClock, Copy, Check, Send, Clock, Reply, BadgeCheck,
@@ -8,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
@@ -100,6 +102,7 @@ export default function SponsorshipOutreach() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { activeArtist } = useActiveArtist();
 
   /* creator profile */
   const [creatorName, setCreatorName] = useState("");
@@ -119,6 +122,34 @@ export default function SponsorshipOutreach() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* Deep links: ?bio= from the press kit; the rate card from the calculator
+     rides in localStorage; the vault fills creator identity. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const bio = q.get("bio");
+    if (bio) {
+      setNotableWins((w) => (w ? `${w}\n${bio}` : bio));
+      q.delete("bio");
+      const s = q.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
+    }
+    try {
+      const raw = localStorage.getItem("bdv_rate_card");
+      if (raw) {
+        const rc = JSON.parse(raw) as { rate?: string; at?: number };
+        if (rc.rate && (!rc.at || Date.now() - rc.at < 24 * 3600_000)) {
+          setNotableWins((w) => (w ? w : `Rate card: ${rc.rate}`));
+        }
+      }
+    } catch { /* ignore */ }
+    /* The vault knows the creator — prefill identity once. */
+    if (activeArtist) {
+      if (activeArtist.artist_name) { setCreatorName((c) => c || activeArtist.artist_name); }
+      if (activeArtist.genre) { setNiche((n) => n || (activeArtist.genre as string)); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* tracker (free, local) */
   const [tracked, setTracked] = useState<TrackedOutreach[]>([]);
@@ -229,6 +260,11 @@ export default function SponsorshipOutreach() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             {t("outreach.heroDescription")}
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
+            {t("outreach.pitchExplainer", { defaultValue: "Your pitch kit — emails and DMs that land sponsors. Found a brand in " })}
+            <Link href="/brand-deals" className="font-semibold text-primary hover:underline">{t("outreach.brandDealsLink", { defaultValue: "Brand Deals" })}</Link>
+            {t("outreach.pitchExplainer2", { defaultValue: "? Draft your pitch here next." })}
           </p>
         </div>
 

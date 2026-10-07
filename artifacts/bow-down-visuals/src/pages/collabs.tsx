@@ -330,6 +330,10 @@ export default function CollabFinder() {
           <p className="mx-auto mt-3 max-w-2xl text-white/60">
             {t("collabs.subtitle")}
           </p>
+          <p className="mx-auto mt-3 max-w-2xl text-xs text-white/40">
+            {t("collabs.collabExplainer", { defaultValue: "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See " })}
+            <Link href="/brand-deals" className="font-semibold text-primary hover:underline">{t("collabs.brandDealsLink", { defaultValue: "Brand Deals" })}</Link>.
+          </p>
         </div>
 
         {/* tabs */}

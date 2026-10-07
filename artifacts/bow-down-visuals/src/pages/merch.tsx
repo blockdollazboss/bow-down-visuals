@@ -235,6 +235,9 @@ export default function Merch() {
           <div>
             <h1 className="text-2xl font-black">{t("merch.title")}</h1>
             <p className="text-sm text-white/45">{t("merch.subtitle")}</p>
+            <Link href="/my-shop" className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+              <Store className="h-3.5 w-3.5" />{t("merch.myShopLink", { defaultValue: "Sell this in my shop" })} →
+            </Link>
           </div>
         </div>
 

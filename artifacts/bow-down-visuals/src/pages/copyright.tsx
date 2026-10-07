@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Scale, Sparkles, Loader2, FileText, MessageCircleQuestion, CheckCircle2,
   Copy, Plus, Trash2, ShieldCheck, Clock3, BadgeDollarSign, ArrowRight,
-  ChevronDown, AlertTriangle, ListChecks,
+  ChevronDown, AlertTriangle, ListChecks, Download,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -417,6 +417,19 @@ export default function CopyrightAssistant() {
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition hover:text-primary"
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />{t("copyright.copy_description")}</button>
+                <button
+                  onClick={() => {
+                    const text = [`COPYRIGHT FILING DRAFT — Bow Down Visuals`, "", "DESCRIPTION OF WORK:", draft.description, "", "FILING NOTES:", ...draft.filingNotes.map((n) => `• ${n}`)].join("\n");
+                    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "copyright-filing-draft.txt";
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+                  }}
+                  className="ml-4 mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition hover:text-primary"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />{t("copyright.download_draft", { defaultValue: "Download draft" })}</button>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/50 p-5">
                 <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><ListChecks className="h-5 w-5" aria-hidden="true" />{t("copyright.filing_notes")}</h3>
