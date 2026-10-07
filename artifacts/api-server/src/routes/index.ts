@@ -267,6 +267,7 @@ router.use(voiceEffectsRouter);
 router.use(audioDuckingRouter);
 router.use(videoStylesRouter);
 router.use(silenceRemovalRouter);
+router.use(logoAnimatorRouter);
 router.use(transitionsRouter);
 router.use(smartClipsRouter);
 router.use(voicePersonasRouter);
