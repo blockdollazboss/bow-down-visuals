@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── AI Caption Styler ───────────────────────────────────────────────────
    Upload a video → AI transcribes with word-level timestamps → animated
@@ -51,6 +52,7 @@ export default function CaptionStyler() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   /* Translated display strings for the style/position/size pickers and the
      busy status labels. */
@@ -74,7 +76,26 @@ export default function CaptionStyler() {
     rendering: t("captionStyler.statusRendering"),
   };
   const [file, setFile] = useState<File | null>(null);
-  const [style, setStyle] = useState<StyleKey>("hormozi");
+
+  /* Deep-link protocol: /caption-styler?video=… pre-loads a video (e.g. a clip
+     from clip-maker/repurpose) so there's no download→re-upload round trip. */
+  useEffect(() => {
+    try {
+      const videoParam = new URLSearchParams(window.location.search).get("video");
+      if (!videoParam || file) return;
+      (async () => {
+        try {
+          const res = await fetch(videoParam);
+          const blob = await res.blob();
+          setFile(new File([blob], "video.mp4", { type: blob.type || "video/mp4" }));
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {
+          setError(t("captionStyler.errorNetwork"));
+        }
+      })();
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  const [style, setStyle] = useState<StyleKey>("hormozi");
   const [position, setPosition] = useState<PositionKey>("bottom");
   const [fontSize, setFontSize] = useState<FontSizeKey>("medium");
   const [withEmoji, setWithEmoji] = useState(false);
@@ -104,6 +125,10 @@ export default function CaptionStyler() {
         if (data.status === "done") {
           setStatus("done");
           setOutputUrl(data.outputUrl ?? null);
+          /* The captioned video flows into the hub project. */
+          if (data.outputUrl) {
+            try { addAsset({ kind: "video", url: data.outputUrl, label: "Captioned video", detail: `Caption styler · ${style}` }); } catch { /* non-fatal */ }
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(data.error || t("captionStyler.errorJobFailed"));

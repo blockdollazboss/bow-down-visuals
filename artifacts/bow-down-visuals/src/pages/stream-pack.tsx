@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Layers,
-  MonitorPlay, Bell, LayoutPanelTop, Tv,
+  MonitorPlay, Bell, LayoutPanelTop, Tv, Radio,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -383,6 +383,12 @@ export function StreamPackTool() {
                 <Download className="h-4 w-4" /> {t("streamPack.downloadAll")}
               </button>
             </div>
+            <Link
+              href="/go-live"
+              className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+            >
+              <Radio className="h-4 w-4" /> {t("streamPack.goLive", { defaultValue: "Pack ready — set up your stream in Go Live" })}
+            </Link>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {generatedList.map((a) => {
                 const r = results[a.key]!;

@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 import { WatermarkRemovalTool } from "./watermark-removal";
 import {
   COMPARE_POS_DEFAULT,
@@ -62,6 +63,7 @@ interface UpscaleJobResponse {
 function VideoUpscaleTool() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<TargetKey>("1080p");
@@ -92,6 +94,10 @@ function VideoUpscaleTool() {
         if (data.status === "done") {
           setStatus("done");
           setOutputUrl(data.outputUrl ?? null);
+          /* The upscaled video flows into the hub project for the next step. */
+          if (data.outputUrl) {
+            try { addAsset({ kind: "video", url: data.outputUrl, label: `Upscaled video (${target})`, detail: "Video upscaler" }); } catch { /* non-fatal */ }
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(data.error || t("upscale.videoUpscaleFailedRefunded"));

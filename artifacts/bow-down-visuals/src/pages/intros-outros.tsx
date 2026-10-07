@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -50,6 +51,7 @@ interface RecentSting {
 export function IntrosOutrosTool() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [tagline, setTagline] = useState("");
@@ -80,6 +82,10 @@ export function IntrosOutrosTool() {
         if (data.status === "succeeded") {
           setStatus("done");
           setOutputUrl(data.url ?? null);
+          /* The intro/outro flows into the hub project — it's a timeline input for the editor. */
+          if (data.url) {
+            try { addAsset({ kind: "video", url: data.url, label: `${type} — ${channelName.trim() || "channel"}`, detail: "Intro/outro sting" }); } catch { /* non-fatal */ }
+          }
           if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
           if (data.url) {
             setRecent((r) => [{ url: data.url!, channelName, type, at: Date.now() }, ...r].slice(0, 6));

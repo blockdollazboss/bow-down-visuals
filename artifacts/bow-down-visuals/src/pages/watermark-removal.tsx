@@ -9,6 +9,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Watermark Removal ───────────────────────────────────────────────────
    Removes a static watermark/logo from your own video with ffmpeg's delogo
@@ -50,6 +51,7 @@ interface JobResponse {
 export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [preset, setPreset] = useState<PresetKey>("bottom-right");
@@ -80,6 +82,10 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
         if (data.status === "done") {
           setStatus("done");
           setOutputUrl(data.outputUrl ?? null);
+          /* The cleaned video flows into the hub project for the next step. */
+          if (data.outputUrl) {
+            try { addAsset({ kind: "video", url: data.outputUrl, label: "Watermark-free video", detail: "Watermark removal" }); } catch { /* non-fatal */ }
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: CREDIT_COST * 100 }));

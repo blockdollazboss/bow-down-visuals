@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Clapperboard, Loader2, Sparkles, Upload, Link2, Scissors,
-  Copy, Check, Download, AlertTriangle, Play, Clock, Flame,
+  Copy, Check, Download, AlertTriangle, Play, Clock, Flame, Captions,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's AI Streamer Clip Maker ─────────────────────────────
    Upload a stream VOD → Whisper transcribes it → GPT-6 finds the best
@@ -75,6 +77,7 @@ export default function ClipMaker() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   const VIBES: Vibe[] = [
     { key: "funny", label: t("clipMaker.vibeFunnyLabel"), blurb: t("clipMaker.vibeFunnyBlurb"), icon: Sparkles },
@@ -256,6 +259,15 @@ export default function ClipMaker() {
           refreshProfile();
           if (data.status === "failed") {
             setError(data.error || t("clipMaker.errorCutRefunded"));
+          } else {
+            /* Cut clips flow into the hub project — editor, captions and scheduler pick them up. */
+            for (const c of data.clips ?? []) {
+              if (c.outputUrl) {
+                try {
+                  addAsset({ kind: "clip", url: c.outputUrl, label: c.title || "Clip", detail: `${fmt(c.startSec)}–${fmt(c.endSec)} · ${vibe}` });
+                } catch { /* hub unavailable — non-fatal */ }
+              }
+            }
           }
         }
       } catch (err) {
@@ -528,13 +540,21 @@ export default function ClipMaker() {
                       <div className="truncate text-sm font-bold">{c.title}</div>
                       <div className="font-mono text-xs text-white/40">{fmt(c.startSec)}–{fmt(c.endSec)}</div>
                       {c.outputUrl && (
-                        <a
-                          href={c.outputUrl}
-                          download
-                          className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 px-3 py-2 text-xs font-bold text-primary transition hover:bg-primary/25"
-                        >
-                          <Download className="h-3.5 w-3.5" /> {t("clipMaker.downloadClip")}
-                        </a>
+                        <>
+                          <a
+                            href={c.outputUrl}
+                            download
+                            className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 px-3 py-2 text-xs font-bold text-primary transition hover:bg-primary/25"
+                          >
+                            <Download className="h-3.5 w-3.5" /> {t("clipMaker.downloadClip")}
+                          </a>
+                          <Link
+                            href={`/caption-styler?video=${encodeURIComponent(c.outputUrl)}`}
+                            className="mt-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+                          >
+                            <Captions className="h-3.5 w-3.5" /> {t("clipMaker.addCaptions", { defaultValue: "Add captions" })}
+                          </Link>
+                        </>
                       )}
                     </div>
                   </div>

@@ -17,7 +17,12 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, SkipBack, ZoomIn, ZoomOut, Scissors, Film, Music2,
   AlertTriangle, RotateCcw, PlusSquare, RefreshCw, LayoutList, Waves, ChevronDown, ChevronUp,
+  Snowflake, Loader2, X, Share2, Download,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useShareClip } from "@/hooks/use-share-clip";
+import { useTranslation } from "react-i18next";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -85,6 +90,8 @@ interface TimelineDockProps {
   setSelectedIdx: (i: number | null) => void;
   /** Reports the dock's current rendered height (px) so other floating UI can avoid overlapping it. */
   onHeightChange?: (height: number) => void;
+  /** Replaces a scene's clip URL (e.g. with a freeze-frame render). */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
 }
 
 export function TimelineDock({
@@ -93,7 +100,12 @@ export function TimelineDock({
   onSeek, onTogglePlay, onRestart,
   selectedIdx, setSelectedIdx,
   onHeightChange,
+  onReplaceClipVideo,
 }: TimelineDockProps) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
+  const { shareClip } = useShareClip();
   const [zoom, setZoom] = useState(1);
   const [beatGrid, setBeatGrid] = useState<BeatGrid | null>(null);
   const [beatLoading, setBeatLoading] = useState(false);
@@ -385,6 +397,74 @@ export function TimelineDock({
   const splitDur = playheadIdx !== null ? (durs[playheadIdx] ?? 0) : 0;
   const canSplit = !!splitScene && currentTime > splitStart + 0.3 && currentTime < splitStart + splitDur - 0.3;
 
+  /* ── Freeze frame — one click at the playhead (CapCut-style).
+     Holds the frame for 2s and returns a floating result card with
+     Use in editor / Share / Download. ── */
+  const [freezeBusy, setFreezeBusy] = useState(false);
+  const [freezeResult, setFreezeResult] = useState<string | null>(null);
+  const freezeSceneIdRef = useRef<string | null>(null);
+
+  const canFreeze =
+    !!splitScene?.demoClipUrl && !freezeBusy &&
+    currentTime > splitStart + 0.2 && currentTime < splitStart + splitDur - 0.2;
+
+  async function pollFreezeJob(jobId: string): Promise<void> {
+    for (let i = 0; i < 150; i++) {
+      // up to ~5 minutes of server-side rendering
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await confirmedFetch(`/api/freeze-mask/job/${jobId}`, { skipConfirm: true });
+      if (!res) throw new Error(t("videoEditor.freezePollCancelled"));
+      const body = await res.json().catch(() => ({}));
+      if (body.status === "done" && body.url) {
+        setFreezeResult(body.url as string);
+        return;
+      }
+      if (body.status === "failed") throw new Error(body.error ?? t("videoEditor.freezeRenderFailed"));
+    }
+    throw new Error(t("videoEditor.freezeTimedOut"));
+  }
+
+  async function doFreeze() {
+    if (!canFreeze || !splitScene?.demoClipUrl) return;
+    setFreezeBusy(true);
+    setFreezeResult(null);
+    freezeSceneIdRef.current = splitScene.id;
+    try {
+      const res = await confirmedFetch("/api/freeze-frame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: splitScene.demoClipUrl,
+          timestamp: Math.max(0, currentTime - splitStart),
+          holdDuration: 2,
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        toast({
+          title: t("videoEditor.outOfBucsTitle"),
+          description: t("videoEditor.freezeOutOfBucs"),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (res.status !== 202 || !body.jobId) throw new Error(body.error ?? t("videoEditor.freezeStartFailed"));
+      await pollFreezeJob(body.jobId as string);
+      toast({ title: t("videoEditor.freezeReadyTitle"), description: t("videoEditor.freezeReadyDesc") });
+    } catch (err) {
+      toast({
+        title: t("videoEditor.freezeFailedTitle"),
+        description: err instanceof Error ? err.message : t("videoEditor.tryAgain"),
+        variant: "destructive",
+      });
+    } finally {
+      setFreezeBusy(false);
+    }
+  }
+
+
+
   const doSplit = useCallback(() => {
     if (!splitScene || !canSplit || !setScenes || playheadIdx === null) return;
     const splitAt = snap(currentTime) - splitStart;
@@ -496,6 +576,66 @@ export function TimelineDock({
         <div className="h-1.5 w-12 rounded-full bg-border group-hover:bg-primary/60 group-active:bg-primary transition-colors" />
       </div>
 
+      {/* ── Freeze-frame result card — floats above the dock ── */}
+      {freezeResult && (
+        <div
+          className="absolute bottom-full right-3 md:right-6 mb-3 z-50 w-56 sm:w-64 rounded-2xl border border-[#C9A84C]/40 bg-[#0a0a0a]/95 backdrop-blur p-3 shadow-2xl shadow-black/60"
+          data-testid="timeline-dock-freeze-result"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-black text-[#C9A84C]">{t("videoEditor.freezeReadyTitle")}</p>
+            <button
+              type="button"
+              onClick={() => setFreezeResult(null)}
+              className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label={t("videoEditor.dismiss")}
+              data-testid="timeline-dock-freeze-dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <video src={freezeResult} controls playsInline className="w-full max-h-36 object-contain rounded-lg bg-black" />
+          <div className="flex gap-1.5 mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                const sid = freezeSceneIdRef.current;
+                if (sid && onReplaceClipVideo) {
+                  onReplaceClipVideo(sid, freezeResult);
+                  toast({ title: t("videoEditor.freezeAppliedTitle"), description: t("videoEditor.freezeAppliedDesc") });
+                  setFreezeResult(null);
+                }
+              }}
+              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-black
+                bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black hover:from-[#e0bc58] hover:to-[#a5853a] transition-all"
+              data-testid="timeline-dock-freeze-use-in-editor"
+            >
+              {t("videoEditor.useInEditor")}
+            </button>
+            <button
+              type="button"
+              onClick={() => shareClip(freezeResult, t("videoEditor.freezeShareTitle"))}
+              title={t("videoEditor.shareTitle")}
+              className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold
+                border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              data-testid="timeline-dock-freeze-share"
+            >
+              <Share2 className="h-3 w-3" /> {t("videoEditor.share")}
+            </button>
+            <a
+              href={freezeResult}
+              download="freeze-frame.mp4"
+              title={t("videoEditor.downloadTitle")}
+              className="inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-[11px] font-bold
+                border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              data-testid="timeline-dock-freeze-download"
+            >
+              <Download className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* ── Transport row ── */}
       <div className="flex items-center gap-2 px-3 md:px-6 py-1.5 border-b border-white/10 bg-black">
         <button type="button" onClick={onRestart}
@@ -515,6 +655,16 @@ export function TimelineDock({
           data-testid="timeline-dock-split" title="Split the clip under the playhead (S)"
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground border border-border hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors ml-1">
           <Scissors className="h-3 w-3" /> Split
+        </button>
+
+        <button type="button" onClick={doFreeze} disabled={!canFreeze}
+          data-testid="timeline-dock-freeze" title={t("videoEditor.freezeTitle")}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
+            text-[#C9A84C] border-[#C9A84C]/40 bg-[#C9A84C]/10 hover:bg-[#C9A84C]/20">
+          {freezeBusy
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : <Snowflake className="h-3 w-3" />}
+          {freezeBusy ? t("videoEditor.freezing") : t("videoEditor.freeze")}
         </button>
 
         <button type="button" onClick={() => setSnapEnabled((s) => !s)}

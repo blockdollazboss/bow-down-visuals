@@ -29,6 +29,7 @@ import {
 } from "@/lib/pro-tools-preview";
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
 import { MotionTrackCard } from "./MotionTrackCard";
+import { MaskCard } from "./MaskCard";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Pro Tools tab ───────────────────────────────────────────────────────
@@ -695,7 +696,10 @@ export function ProToolsSection({
         </div>
       </EditorCard>
 
-      {/* ── 6. Motion Track ── */}
+      {/* ── 6. Mask (shape / reveal effects, server-side ffmpeg) ── */}
+      <MaskCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 7. Motion Track ── */}
       <MotionTrackCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
     </div>
   );

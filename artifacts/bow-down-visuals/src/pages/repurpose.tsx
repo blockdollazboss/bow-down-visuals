@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   Recycle, Loader2, Upload, Link2, Copy, Check, Download,
   AlertTriangle, RefreshCw, Clapperboard, Image as ImageIcon,
-  MessageSquareText, Share2, Sparkles, Film,
+  MessageSquareText, Share2, Sparkles, Film, Captions,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -16,6 +17,7 @@ import {
   type PlatformKey,
 } from "@/lib/repurpose";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Content Repurposer ─────────────────────────────────
    One video in, content calendar out: upload a video → AI transcribes it
@@ -117,6 +119,7 @@ function SectionHeader(props: { icon: typeof Film; step?: number; title: string;
 export default function Repurpose() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { addAsset } = useHubProject();
 
   /* source */
   const [file, setFile] = useState<File | null>(null);
@@ -238,6 +241,17 @@ export default function Repurpose() {
         const clipDone = clipData.status === "done" || clipData.status === "failed";
         const thumbDone = !thumbId || !thumbData || thumbData.status === "done" || thumbData.status === "failed";
         if (clipDone && thumbDone) {
+          /* Finished clips + thumbnails flow into the hub project. */
+          for (const c of clipData.clips ?? []) {
+            if (c.outputUrl) {
+              try { addAsset({ kind: "clip", url: c.outputUrl, label: c.title || "Clip", detail: "Repurpose" }); } catch { /* non-fatal */ }
+            }
+          }
+          for (const th of thumbData?.thumbnails ?? []) {
+            if (th.imageUrl) {
+              try { addAsset({ kind: "thumbnail", url: th.imageUrl, label: th.prompt?.slice(0, 60) || "Thumbnail", detail: "Repurpose" }); } catch { /* non-fatal */ }
+            }
+          }
           if (pollRef.current) window.clearInterval(pollRef.current);
           refreshProfile();
           if (clipData.status === "failed") {
@@ -491,13 +505,21 @@ export default function Repurpose() {
                         {formatRepurposeTimestamp(clip.startSec)}–{formatRepurposeTimestamp(clip.endSec)}
                       </div>
                       {clip.outputUrl && (
-                        <a
-                          href={clip.outputUrl}
-                          download
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
-                        >
-                          <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
-                        </a>
+                        <>
+                          <a
+                            href={clip.outputUrl}
+                            download
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
+                          >
+                            <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
+                          </a>
+                          <Link
+                            href={`/caption-styler?video=${encodeURIComponent(clip.outputUrl)}`}
+                            className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+                          >
+                            <Captions className="h-3.5 w-3.5" /> {t("repurpose.addCaptions", { defaultValue: "Add captions" })}
+                          </Link>
+                        </>
                       )}
                     </div>
                   </div>
