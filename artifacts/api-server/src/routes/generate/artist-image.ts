@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
@@ -105,18 +106,29 @@ async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ u
    3. Track task — credits NOT yet charged.
    4. Return { taskId, creditCost, model }.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-artist-image", requireAuth, generationLimiter, async (req, res) => {
-  const { promptText, model, ratio, referenceImageUrl, vaultId } = req.body as {
-    promptText?: string;
-    model?: string;
-    ratio?: string;
-    /** Existing vault photo — passed as a face/identity reference so the
-     *  generated look keeps the artist's identity. */
-    referenceImageUrl?: string | null;
-    vaultId?: string | null;
-  };
+/* ── Request validation ── */
+const artistImageSchema = z.object({
+  promptText: z.string().min(1, "promptText is required").max(5000),
+  model: z.string().max(100).optional(),
+  ratio: z.string().max(20).optional(),
+  /** Existing vault photo — passed as a face/identity reference so the
+   *  generated look keeps the artist's identity. */
+  referenceImageUrl: z.string().max(2048).optional().nullable(),
+  vaultId: z.string().max(100).optional().nullable(),
+});
 
-  if (!promptText?.trim()) {
+router.post("/generate-artist-image", requireAuth, generationLimiter, async (req, res) => {
+  const parsed = artistImageSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid artist image request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { promptText, model, ratio, referenceImageUrl, vaultId } = parsed.data;
+
+  if (!promptText.trim()) {
     res.status(400).json({ error: "promptText is required" });
     return;
   }

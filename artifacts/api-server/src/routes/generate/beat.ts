@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -45,17 +46,28 @@ function buildBeatPrompt(opts: {
   return parts.join(", ");
 }
 
-router.post("/beat/generate", requireAuth, async (req, res) => {
-  const { vibe, genre, bpm, musicalKey, lengthSeconds, beatTitle } = (req.body ?? {}) as {
-    vibe?: string;
-    genre?: string;
-    bpm?: number;
-    musicalKey?: string;
-    lengthSeconds?: number;
-    beatTitle?: string;
-  };
+/* ── Request validation ── */
+const beatGenerateSchema = z.object({
+  vibe: z.string().min(1, "Describe the vibe for your beat.").max(2000),
+  genre: z.string().max(100).optional(),
+  bpm: z.number().finite().min(40).max(220).optional(),
+  musicalKey: z.string().max(20).optional(),
+  lengthSeconds: z.number().finite().min(1).max(600).optional(),
+  beatTitle: z.string().max(200).optional(),
+});
 
-  if (!vibe || !vibe.trim()) {
+router.post("/beat/generate", requireAuth, async (req, res) => {
+  const parsed = beatGenerateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid beat request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { vibe, genre, bpm, musicalKey, lengthSeconds, beatTitle } = parsed.data;
+
+  if (!vibe.trim()) {
     res.status(400).json({ error: "Describe the vibe for your beat.", code: "missing_vibe" });
     return;
   }

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import express from "express";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
@@ -352,10 +353,45 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
    POST /lip-sync/preview
    Trims audio to the scene's exact time range, then submits to Sync Labs.
 ────────────────────────────────────────────────────────────────────────── */
+/* ── Request validation schemas ── */
+const lipSyncPreviewSchema = z.object({
+  clipUrl: z.string().min(1, "clipUrl is required.").max(2048),
+  audioUrl: z.string().min(1, "audioUrl is required.").max(2048),
+  sceneStartSec: z.number().finite().min(0).max(86400),
+  sceneEndSec: z.number().finite().min(0).max(86400),
+  audioSourceType: z.string().max(50).optional(),
+  strength: z.string().max(50).optional(),
+  preserveFaceIdentity: z.boolean().optional(),
+  preserveArtistLook: z.boolean().optional(),
+  projectId: z.string().max(100).optional(),
+  sceneId: z.string().max(100).optional(),
+});
+
+const lipSyncSceneTestSchema = z.object({
+  clipUrl: z.string().min(1, "clipUrl is required.").max(2048),
+  audioUrl: z.string().min(1, "audioUrl is required.").max(2048),
+  sceneStartSec: z.coerce.number().finite().min(0).max(86400).optional().default(0),
+  sceneEndSec: z.coerce.number().finite().min(0).max(86400).optional().default(0),
+  videoOffsetSec: z.coerce.number().finite().min(-3600).max(3600).optional().default(0),
+});
+
+const lipSyncRunAllSchema = z.object({
+  projectId: z.string().min(1, "projectId is required.").max(100),
+});
+
+function invalidBody(res: import("express").Response, issues: { field: string; message: string }[]) {
+  res.status(400).json({ error: "Invalid request body.", details: issues });
+}
+
 router.post("/lip-sync/preview", requireAuth, async (req, res) => {
   /* Validate inputs synchronously, then fire-and-forget background processing.
      The HTTP response completes in < 1 s so the Replit proxy never times out. */
   try {
+    const parsed = lipSyncPreviewSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
     const {
       clipUrl,
       audioUrl,
@@ -367,18 +403,7 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       preserveArtistLook,
       projectId,
       sceneId,
-    } = (req.body ?? {}) as {
-      clipUrl?: string;
-      audioUrl?: string;
-      sceneStartSec?: number;
-      sceneEndSec?: number;
-      audioSourceType?: string;
-      strength?: string;
-      preserveFaceIdentity?: boolean;
-      preserveArtistLook?: boolean;
-      projectId?: string;
-      sceneId?: string;
-    };
+    } = parsed.data;
 
     void audioSourceType;
     void strength;
@@ -934,29 +959,28 @@ router.get("/lip-sync-tests/:testId/download", (req, res) => {
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
   try {
-    const body = (req.body ?? {}) as {
-      clipUrl?: unknown;
-      audioUrl?: unknown;
-      sceneStartSec?: unknown;
-      sceneEndSec?: unknown;
-      videoOffsetSec?: unknown;
-    };
+    const parsed = lipSyncSceneTestSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
+    const { clipUrl, audioUrl } = parsed.data;
 
-    if (!body.clipUrl || typeof body.clipUrl !== "string") {
+    if (!clipUrl) {
       res
         .status(400)
         .json({ error: "clipUrl is required", code: "missing_clip" });
       return;
     }
-    if (!body.audioUrl || typeof body.audioUrl !== "string") {
+    if (!audioUrl) {
       res
         .status(400)
         .json({ error: "audioUrl is required", code: "missing_audio" });
       return;
     }
-    const sceneStartSec = Number(body.sceneStartSec ?? 0);
-    const sceneEndSec = Number(body.sceneEndSec ?? 0);
-    const videoOffsetSec = Number(body.videoOffsetSec ?? 0);
+    const sceneStartSec = parsed.data.sceneStartSec;
+    const sceneEndSec = parsed.data.sceneEndSec;
+    const videoOffsetSec = parsed.data.videoOffsetSec;
 
     if (
       !Number.isFinite(sceneStartSec) ||
@@ -1007,14 +1031,14 @@ router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
         sceneStartSec,
         sceneEndSec,
         videoOffsetSec,
-        clipUrl: body.clipUrl.slice(0, 80),
+        clipUrl: clipUrl.slice(0, 80),
       },
       "[scene-test] job queued",
     );
 
     void processSceneTestJob(jobId, {
-      clipUrl: body.clipUrl,
-      audioUrl: body.audioUrl,
+      clipUrl: clipUrl,
+      audioUrl: audioUrl,
       sceneStartSec,
       sceneEndSec,
       videoOffsetSec,
@@ -1462,8 +1486,13 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
   try {
-    const { projectId } = (req.body ?? {}) as { projectId?: string };
-    if (!projectId || typeof projectId !== "string" || !projectId.trim()) {
+    const parsed = lipSyncRunAllSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
+    const { projectId } = parsed.data;
+    if (!projectId.trim()) {
       res
         .status(400)
         .json({ error: "projectId is required.", code: "missing_project_id" });

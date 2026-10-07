@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -245,12 +246,26 @@ const upload = multer({
  * server-owned background job → poll GET /api/vocal-removal/:jobId →
  * download/stream both stems. Failed jobs are refunded automatically.
  */
+/* ── Request validation ── */
+const vocalRemovalSchema = z.object({
+  karaoke: z.union([z.string().max(10), z.boolean()]).optional(),
+});
+
 router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
   }
-  const karaokeRequested = req.body?.karaoke === "true" || req.body?.karaoke === true;
+  const bodyParsed = vocalRemovalSchema.safeParse(req.body ?? {});
+  if (!bodyParsed.success) {
+    res.status(400).json({
+      error: "Invalid vocal removal request.",
+      details: bodyParsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const karaoke = bodyParsed.data.karaoke;
+  const karaokeRequested = karaoke === "true" || karaoke === true;
 
   const balance = req.userCredits ?? 0;
   if (balance < VOCAL_REMOVAL_CREDIT_COST) {
