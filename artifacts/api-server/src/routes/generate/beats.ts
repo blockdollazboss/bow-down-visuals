@@ -3,6 +3,7 @@ import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { db, beatsTable, beatLicensesTable } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, refundCredits } from "../../lib/credits";
 import {
   beatFiltersSchema,
@@ -88,7 +89,7 @@ router.get("/beats/:id", async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/beats — list a beat (FREE to list).
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/beats", requireAuth, async (req, res) => {
+router.post("/beats", requireAuth, generationLimiter, async (req, res) => {
   const parsed = beatMetadataSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid beat metadata", details: parsed.error.flatten() });
