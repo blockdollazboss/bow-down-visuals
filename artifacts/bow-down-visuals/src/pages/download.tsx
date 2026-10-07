@@ -79,7 +79,7 @@ export default function Download() {
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Daily bonus + hourly crate on the go</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Same account, same credits</li>
               </ul>
-              <a href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.0-android/bow-down-visuals.apk" download onClick={markAndroidDownloaded}>
+              <a href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.1-android/bow-down-visuals.apk" download onClick={markAndroidDownloaded}>
                 <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6">
                   <DownloadIcon className="h-5 w-5 mr-2" /> Download APK
                 </Button>
