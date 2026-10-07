@@ -7,6 +7,7 @@ import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import { saveGeneration } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
@@ -104,7 +105,7 @@ async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ u
    3. Track task — credits NOT yet charged.
    4. Return { taskId, creditCost, model }.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-artist-image", requireAuth, async (req, res) => {
+router.post("/generate-artist-image", requireAuth, generationLimiter, async (req, res) => {
   const { promptText, model, ratio, referenceImageUrl, vaultId } = req.body as {
     promptText?: string;
     model?: string;

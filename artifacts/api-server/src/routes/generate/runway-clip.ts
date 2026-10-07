@@ -7,6 +7,7 @@ import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -149,7 +150,7 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    3. Track task in pendingTasks — credits NOT yet charged.
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-runway-clip", requireAuth, async (req, res) => {
+router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req, res) => {
   const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = req.body as {
     promptText?: string;
     negativePrompt?: string;
