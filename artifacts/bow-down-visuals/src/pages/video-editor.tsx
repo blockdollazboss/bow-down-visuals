@@ -1076,6 +1076,8 @@ export default function VideoEditor() {
                       onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
                       onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
                       onRestart={() => timelinePlayerRef.current?.restart()}
+                      audioUrl={previewAudioUrl}
+                      transcriptText={transcriptText}
                     />
                   )}
 
@@ -1364,6 +1366,11 @@ export default function VideoEditor() {
                       settings={settings}
                       setSettings={setSettings}
                       videoRef={liveVideoRef}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
                     />
                   )}
                 </div>

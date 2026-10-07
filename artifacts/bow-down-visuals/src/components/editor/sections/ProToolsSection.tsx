@@ -107,6 +107,8 @@ export function ProToolsSection({
   setSettings: (s: EditorSettings) => void;
   /** Master player video element — used to capture the current frame for AI analysis. */
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  /** Replaces a scene's clip URL (e.g. with an AI slow-mo render). */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
 }) {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
@@ -115,6 +117,9 @@ export function ProToolsSection({
   const [keying, setKeying] = useState(false);
   const [look, setLook] = useState("");
   const [eyedropperOn, setEyedropperOn] = useState(false);
+  const [slowFactor, setSlowFactor] = useState<2 | 4 | 8>(4);
+  const [slowBusy, setSlowBusy] = useState(false);
+  const [slowResult, setSlowResult] = useState<string | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const clips = useMemo(() => scenes.filter((s) => s.demoClipUrl), [scenes]);
@@ -245,6 +250,43 @@ export function ProToolsSection({
       clips: { ...settings.clips, [activeScene.id]: { ...clip, proTools: defaultProTools() } },
     });
     toast({ title: "Pro Tools reset", description: "All tools back to neutral for this clip." });
+  }
+
+  /* ── AI Slow Motion (server-side optical-flow frame interpolation) ── */
+  async function handleSlowMotion() {
+    if (!activeScene?.demoClipUrl) {
+      toast({ title: "No clip", description: "Add a video clip to this scene first.", variant: "destructive" });
+      return;
+    }
+    setSlowBusy(true);
+    setSlowResult(null);
+    try {
+      const res = await confirmedFetch("/api/slow-motion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: activeScene.demoClipUrl, slowFactor }),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        toast({ title: "Out of Visual Bucs", description: "Top up to use AI Slow Motion.", variant: "destructive" });
+        return;
+      }
+      if (!res.ok || !body.url) throw new Error(body.error ?? "Slow motion render failed");
+      setSlowResult(body.url as string);
+      toast({
+        title: `✨ ${slowFactor}× slow-mo ready`,
+        description: "Optical-flow interpolation rendered server-side — use it in the editor or download it.",
+      });
+    } catch (err) {
+      toast({
+        title: "Slow motion failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSlowBusy(false);
+    }
   }
 
   if (!activeScene) {
@@ -498,6 +540,59 @@ export function ProToolsSection({
               </label>
             </div>
           </Collapsible>
+          {/* Slow Mo — AI optical-flow frame interpolation (300 Visual Bucs) */}
+          <div className="pt-3 border-t border-white/5" data-testid="pro-slow-mo">
+            <p className="text-[11px] font-bold text-white/60 mb-1.5">
+              ✨ Slow Mo — AI optical flow
+              <span className="font-normal text-white/35"> · 300 Visual Bucs</span>
+            </p>
+            <p className="text-[11px] text-white/40 mb-2">
+              True frame interpolation — buttery {slowFactor}× slow-mo, not choppy speed changes.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {([2, 4, 8] as const).map((f) => (
+                <Chip key={f} active={slowFactor === f}
+                  onClick={() => setSlowFactor(f)}
+                  data-testid={`pro-slow-mo-factor-${f}`}>
+                  {f}× slow
+                </Chip>
+              ))}
+            </div>
+            <AiButton onClick={handleSlowMotion} loading={slowBusy} testId="pro-slow-mo-generate"
+              title="Render smooth optical-flow slow motion server-side">
+              Generate {slowFactor}× slow-mo
+            </AiButton>
+            {slowResult && (
+              <div className="mt-3 rounded-xl border border-[#C9A84C]/30 bg-white/[0.02] p-2.5">
+                <video src={slowResult} controls playsInline
+                  className="w-full max-h-44 object-contain rounded-lg bg-black" />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeScene && onReplaceClipVideo) {
+                        onReplaceClipVideo(activeScene.id, slowResult);
+                        toast({ title: "Added to editor", description: "The slow-mo clip replaced the scene's video." });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black
+                      bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black hover:from-[#e0bc58] hover:to-[#a5853a]"
+                    data-testid="pro-slow-mo-use-in-editor"
+                  >
+                    Use in editor
+                  </button>
+                  <a
+                    href={slowResult} download={`slow-mo-${slowFactor}x.mp4`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold
+                      border border-white/15 text-white/70 hover:text-white hover:border-white/30"
+                    data-testid="pro-slow-mo-download"
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </EditorCard>
 
