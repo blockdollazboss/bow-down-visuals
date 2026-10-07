@@ -4,11 +4,14 @@ import {
   Camera, Music2, ThumbsUp, Trash2, Pencil, CheckCircle2, XCircle,
   AlertTriangle, ChevronLeft, ChevronRight, Wand2, ListVideo, Inbox,
   History, GripVertical, RefreshCw, ExternalLink, Megaphone, Copy,
+  Clapperboard, AtSign, Share2, Link2, TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { Button } from "@/components/ui/button";
@@ -38,7 +41,8 @@ import {
    - Drafts: free. Browsing the calendar: free.
    - Scheduling: 1 credit per post, charged up front — no matter how many
      platforms it targets. Cancel anytime before it fires for an automatic refund.
-   - AI best-time suggestions: 1 credit (refunded if the AI fails).
+   - Best-time optimizer: 75 Visual Bucs per optimization, charged up front —
+     benchmark slots always work even without an AI key; auto-refund on failure.
    - TikTok posts land in your TikTok drafts inbox — TikTok's API can't
      publish straight to your feed, so you finish the post in TikTok. */
 
@@ -83,11 +87,102 @@ async function api<T>(path: string, token: string | null, init?: RequestInit): P
   return data;
 }
 
+/* ─── Best-time optimizer + shareable schedules ────────────────────────────
+   The optimizer section lives in <BestTimeOptimizer/> below. A schedule can
+   be shared via /scheduler?shared=<payload>&ref=<CODE>: the payload is a
+   base64url JSON blob { n: niche, s: [{d,t,p,s,r}] } rendered publicly by
+   <SharedScheduleView/> — no login needed to view, which makes it postable
+   anywhere for organic reach. The ref code is the sharer's referral code. */
+
+type BestTimePlatformKey = "tiktok" | "instagram" | "youtube" | "x";
+
 interface BestTimeSlot {
   date: string;
   time: string;
-  platform: SchedulerPlatformKey;
+  platform: string;
+  score: number;
   reason: string;
+  source: "benchmark" | "personalized";
+}
+
+interface BestTimeHeatmap {
+  dates: string[];
+  scores: number[][];
+  personalized: boolean[][];
+  aiTuned: boolean[][];
+}
+
+interface BestTimeResult {
+  slots: BestTimeSlot[];
+  heatmap: Record<string, BestTimeHeatmap>;
+  personalized: boolean;
+  aiNicheTuning: boolean;
+  benchmarkNote: string;
+}
+
+interface SharedSlot {
+  d: string;
+  t: string;
+  p: string;
+  s: number;
+  r: string;
+}
+
+interface SharedSchedule {
+  n: string;
+  s: SharedSlot[];
+}
+
+const BT_PLATFORM_META: { key: BestTimePlatformKey; icon: LucideIcon; label: string }[] = [
+  { key: "tiktok", icon: Music2, label: "TikTok" },
+  { key: "instagram", icon: Camera, label: "Instagram" },
+  { key: "youtube", icon: Clapperboard, label: "YouTube" },
+  { key: "x", icon: AtSign, label: "X" },
+];
+
+function btPlatformLabel(key: string): string {
+  return BT_PLATFORM_META.find((p) => p.key === key)?.label ?? key;
+}
+
+function prettyTime(hhmm: string): string {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function hourLabel(h: number): string {
+  const ap = h < 12 ? "am" : "pm";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}${ap}`;
+}
+
+function prettyDay(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function encodeSharedSchedule(s: SharedSchedule): string {
+  const json = JSON.stringify(s);
+  return btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function decodeSharedSchedule(raw: string): SharedSchedule | null {
+  try {
+    const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(escape(atob(b64)));
+    const p = JSON.parse(json) as Partial<SharedSchedule>;
+    if (p && typeof p.n === "string" && Array.isArray(p.s) && p.s.length > 0) return p as SharedSchedule;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export default function Scheduler() {
@@ -111,14 +206,50 @@ export default function Scheduler() {
   const [editingPost, setEditingPost] = useState<ScheduledPostShape | null>(null);
   const [prefill, setPrefill] = useState<{ date: string; time: string } | null>(null);
   const [captionPrefill, setCaptionPrefill] = useState<string | null>(null);
+  const [mediaPrefill, setMediaPrefill] = useState<string | null>(null);
+  const [platformPrefill, setPlatformPrefill] = useState<SchedulerPlatformKey[] | null>(null);
 
-  /* best-time */
-  const [niche, setNiche] = useState("music");
-  const [btPlatforms, setBtPlatforms] = useState<SchedulerPlatformKey[]>(["instagram", "tiktok"]);
-  const [postsPerWeek, setPostsPerWeek] = useState(3);
-  const [btLoading, setBtLoading] = useState(false);
-  const [slots, setSlots] = useState<BestTimeSlot[]>([]);
-  const [btNote, setBtNote] = useState("");
+  /* Deep-link protocol (used by Multi-Ratio Export handoffs):
+     /scheduler?schedule=1&caption=…&media=…&platform=tiktok
+     Auto-opens the composer with everything prefilled — each ratio lands
+     as its own scheduled post. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("schedule") !== "1") return;
+      const caption = params.get("caption") ?? undefined;
+      const media = params.get("media") ?? undefined;
+      const rawPlatforms = (params.get("platform") ?? "").split(",").map((p) => p.trim().toLowerCase());
+      const valid: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"]
+        .filter((p) => rawPlatforms.includes(p)) as SchedulerPlatformKey[];
+      openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined);
+      // Consume the params so a refresh doesn't reopen the composer.
+      window.history.replaceState(null, "", window.location.pathname);
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* shared schedule (?shared= payload — public view, no login needed) */
+  const [sharedSchedule, setSharedSchedule] = useState<SharedSchedule | null>(null);
+  const [sharedRef, setSharedRef] = useState<string | null>(null);
+  const [sharedDismissed, setSharedDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const ref = q.get("ref");
+      if (ref) setSharedRef(ref);
+      const raw = q.get("shared");
+      if (raw) {
+        const parsed = decodeSharedSchedule(raw);
+        if (parsed) setSharedSchedule(parsed);
+      }
+    } catch {
+      /* a bad payload just means no shared view */
+    }
+  }, []);
 
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
@@ -162,10 +293,12 @@ export default function Scheduler() {
     [monthCursor],
   );
 
-  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string) {
+  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string, mediaUrl?: string, platforms?: SchedulerPlatformKey[]) {
     setEditingPost(post ?? null);
     setPrefill(date ? { date, time: time ?? "18:00" } : null);
     setCaptionPrefill(caption ?? null);
+    setMediaPrefill(mediaUrl ?? null);
+    setPlatformPrefill(platforms ?? null);
     setComposerOpen(true);
   }
 
@@ -210,34 +343,26 @@ export default function Scheduler() {
     }
   }
 
-  async function handleBestTime() {
-    if (btLoading) return;
-    setBtLoading(true);
-    setSlots([]);
-    setBtNote("");
-    try {
-      const token = await getAccessToken();
-      const data = await api<{ slots: BestTimeSlot[]; note: string }>(
-        "/api/scheduler/best-time",
-        token,
-        {
-          method: "POST",
-          body: JSON.stringify({ niche, platforms: btPlatforms, postsPerWeek, timezone }),
-        },
-      );
-      setSlots(data.slots);
-      setBtNote(data.note);
-      refreshProfile();
-    } catch (err) {
-      const code = (err as { code?: string }).code;
-      if (code === "out_of_credits") setOutOfCredits(true);
-      else toast({ title: t("scheduler.toast.bestTimeFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
-    } finally {
-      setBtLoading(false);
-    }
+  function handleUseSlot(date: string, time: string, platform?: string) {
+    /* Map the optimizer platform onto the composer's platform keys where possible
+       (YouTube / X have no composer target yet — the composer keeps its default). */
+    const key = platform === "tiktok" || platform === "instagram" ? platform : undefined;
+    openComposer(undefined, date, time, undefined, undefined, key ? [key] : undefined);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (!user) {
+    if (sharedSchedule) {
+      /* Public shared-schedule view — no login needed, built for posting anywhere. */
+      const signupHref = sharedRef ? `/signup?ref=${encodeURIComponent(sharedRef)}` : "/signup";
+      return (
+        <div className="min-h-screen bg-black text-white">
+          <main className="mx-auto max-w-3xl px-5 pb-24 pt-14 md:pt-20">
+            <SharedScheduleView shared={sharedSchedule} ctaHref={signupHref} ctaLabel={t("scheduler.shared.getYours")} />
+          </main>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-black text-white">
         <main className="mx-auto max-w-3xl px-5 pb-24 pt-24 text-center">
@@ -256,6 +381,22 @@ export default function Scheduler() {
     <div className="min-h-screen bg-black text-white">
 
       <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-14 md:pt-20">
+        {sharedSchedule && !sharedDismissed && (
+          <div className="relative mb-8">
+            <button
+              onClick={() => setSharedDismissed(true)}
+              className="absolute right-4 top-4 z-10 rounded-full border border-white/10 bg-black/60 p-1.5 text-white/50 hover:text-white"
+              aria-label={t("scheduler.shared.dismiss")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <SharedScheduleView
+              shared={sharedSchedule}
+              ctaHref="#best-time-optimizer"
+              ctaLabel={t("scheduler.shared.buildMine")}
+            />
+          </div>
+        )}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">
           <div className="h-[280px] w-[560px] rounded-full bg-yellow-600/10 blur-[110px]" />
         </div>
@@ -355,108 +496,12 @@ export default function Scheduler() {
           </div>
         )}
 
-        {/* ── AI best-time ── */}
-        <section data-min-stars="3" className="relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-2xl font-black">{t("scheduler.bestTime.title")}</h2>
-          </div>
-          <p className="mt-2 max-w-2xl text-sm text-white/55">
-            {t("scheduler.bestTime.desc1")} <span className="text-white/70 font-semibold">{t("scheduler.bestTime.cost")}</span>{t("scheduler.bestTime.desc2")}
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto]">
-            <div>
-              <label className={labelClass}>{t("scheduler.bestTime.niche")}</label>
-              <div className="flex flex-wrap gap-2">
-                {NICHE_PRESETS.map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setNiche(n)}
-                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                      niche === n
-                        ? "bg-primary text-black"
-                        : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
-                    }`}
-                  >
-                    {t(`scheduler.niches.${n}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-end gap-4">
-              <div>
-                <label className={labelClass}>{t("scheduler.bestTime.postsPerWeek")}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={14}
-                  value={postsPerWeek}
-                  onChange={(e) => setPostsPerWeek(Math.max(1, Math.min(14, Number(e.target.value) || 1)))}
-                  className="w-20 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
-                />
-              </div>
-              <Button
-                onClick={handleBestTime}
-                disabled={btLoading || btPlatforms.length === 0}
-                className="bg-primary font-bold text-black hover:bg-primary/90"
-              >
-                {btLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                {t("scheduler.bestTime.suggest")}
-              </Button>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className={labelClass}>{t("scheduler.bestTime.platforms")}</label>
-            <div className="flex flex-wrap gap-2">
-              {PLATFORM_OPTS.map(({ key, icon: Icon }) => {
-                const on = btPlatforms.includes(key);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setBtPlatforms((p) => (on ? p.filter((x) => x !== key) : [...p, key]))}
-                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                      on ? "bg-primary text-black" : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {t(`scheduler.platforms.${key}.label`)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {slots.length > 0 && (
-            <div className="mt-6">
-              <p className="text-[13px] italic text-white/45">{btNote}</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {slots.map((s, i) => (
-                  <div key={i} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">
-                        {new Date(s.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </span>
-                      <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
-                        {s.platform}
-                      </span>
-                    </div>
-                    <p className="mt-1 font-display text-xl font-black text-primary">{s.time}</p>
-                    <p className="mt-1 text-[13px] text-white/55">{s.reason}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 border-primary/40 text-primary hover:bg-primary/10"
-                      onClick={() => {
-                        openComposer(undefined, s.date, s.time);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                    >
-                      {t("scheduler.bestTime.useSlot")}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
+        {/* ── Best time to post optimizer ── */}
+        <BestTimeOptimizer
+          timezone={timezone}
+          onUseSlot={handleUseSlot}
+          onOutOfCredits={() => setOutOfCredits(true)}
+        />
       </main>
 
 
@@ -466,10 +511,12 @@ export default function Scheduler() {
           post={editingPost}
           prefill={prefill}
           captionPrefill={captionPrefill}
+          mediaPrefill={mediaPrefill}
+          platformPrefill={platformPrefill}
           accounts={accounts}
           timezone={timezone}
-          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); }}
-          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); await refresh(); }}
+          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setPlatformPrefill(null); }}
+          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setPlatformPrefill(null); await refresh(); }}
           onOutOfCredits={() => setOutOfCredits(true)}
         />
       )}
@@ -1067,10 +1114,501 @@ function CommunityPostsTab(props: {
 
 /* ─── Composer modal ───────────────────────────────────────────────────── */
 
+/* ─── Best time to post optimizer ─────────────────────────────────────────
+   Benchmark-powered 7-day heatmaps per platform (gold intensity = score),
+   honest benchmark-vs-your-data labeling, a best-next-slot "ride the wave"
+   chip, shareable schedule links carrying the creator's referral code, and
+   click-any-slot → composer prefilled with that datetime.
+
+   Handoff chain: optimizer slot → composer prefilled → scheduled post →
+   (designed next step) posted-post engagement feeds back into
+   /api/best-time `analytics`, auto-personalizing future optimizations. */
+
+function BestTimeOptimizer(props: {
+  timezone: string;
+  onUseSlot: (date: string, time: string, platform?: string) => void;
+  onOutOfCredits: () => void;
+}) {
+  const { t } = useTranslation();
+  const { getAccessToken, refreshProfile } = useAuth();
+  const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
+  const { project: hubProject } = useHubProject();
+  const { timezone, onUseSlot, onOutOfCredits } = props;
+
+  /* Niche prefilled from the hub project concept when available. */
+  const hubConcept = useMemo(() => (hubProject?.concept ?? "").trim().slice(0, 60), [hubProject]);
+  const [niche, setNiche] = useState(() => hubConcept || "music");
+  const nicheTouched = useRef(false);
+  useEffect(() => {
+    if (!nicheTouched.current && hubConcept && niche === "music") setNiche(hubConcept);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hubConcept]);
+
+  const [btPlatforms, setBtPlatforms] = useState<BestTimePlatformKey[]>(["tiktok", "instagram"]);
+  const [postsPerWeek, setPostsPerWeek] = useState(3);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<BestTimeResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const todayStr = useMemo(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  }, []);
+  const nowHour = useMemo(() => new Date().getHours(), []);
+
+  async function handleOptimize() {
+    if (loading || btPlatforms.length === 0) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setShareLink(null);
+    try {
+      const res = await confirmedFetch("/api/best-time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platforms: btPlatforms,
+          niche: niche.trim() || undefined,
+          postsPerWeek,
+          timezone,
+          /* Analytics feedback loop (designed next step): once posted-post
+             engagement is recorded, feed [{platform, postedAt, engagement}]
+             here to auto-personalize. Empty today → honest benchmarks. */
+          analytics: [],
+        }),
+      });
+      if (!res) return; /* user cancelled the credit confirmation */
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        if (res.status === 402 || (data as { code?: string }).code === "out_of_credits" || data.error === "out_of_credits") {
+          onOutOfCredits();
+          return;
+        }
+        throw new Error(typeof data.message === "string" ? data.message : t("scheduler.bestTime.failed"));
+      }
+      setResult(data as unknown as BestTimeResult);
+      refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("scheduler.bestTime.failed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleShare() {
+    if (!result || shareBusy) return;
+    setShareBusy(true);
+    try {
+      /* The sharer's referral code rides along — every posted schedule is organic reach. */
+      let code = "";
+      try {
+        const token = await getAccessToken();
+        const r = await fetch("/api/referrals/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = (await r.json().catch(() => ({}))) as { code?: unknown };
+        if (r.ok && typeof d.code === "string") code = d.code;
+      } catch {
+        /* the link still works without a referral code */
+      }
+      const payload: SharedSchedule = {
+        n: niche.trim() || "creator",
+        s: result.slots.slice(0, 5).map((s) => ({ d: s.date, t: s.time, p: s.platform, s: s.score, r: s.reason })),
+      };
+      const link = `${window.location.origin}/scheduler?shared=${encodeSharedSchedule(payload)}${
+        code ? `&ref=${encodeURIComponent(code)}` : ""
+      }`;
+      setShareLink(link);
+      try {
+        await navigator.clipboard.writeText(link);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2500);
+      } catch {
+        /* clipboard unavailable — the link is shown below for manual copy */
+      }
+      toast({ title: t("scheduler.bestTime.linkReady") });
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  function copyShareLink() {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2500);
+      },
+      () => toast({ title: t("scheduler.bestTime.copyFailed"), variant: "destructive" }),
+    );
+  }
+
+  const best = result?.slots[0] ?? null;
+  const topSlots = result ? result.slots.slice(0, Math.max(1, Math.min(6, postsPerWeek))) : [];
+
+  return (
+    <section
+      id="best-time-optimizer"
+      data-min-stars="3"
+      className="relative mt-14 scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"
+    >
+      <div
+        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-yellow-600/10 blur-[100px]"
+        aria-hidden="true"
+      />
+      <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          <Clock3 className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-black">{t("scheduler.bestTime.title")}</h2>
+          <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+            75 {t("scheduler.bestTime.bucs")}
+          </span>
+          {result?.aiNicheTuning && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white/60">
+              <Sparkles className="h-3 w-3 text-primary" /> {t("scheduler.bestTime.nicheTuned")}
+            </span>
+          )}
+        </div>
+        <p className="mt-2 max-w-2xl text-sm text-white/55">{t("scheduler.bestTime.desc")}</p>
+
+        <div className="mt-6">
+          <label className={labelClass}>{t("scheduler.bestTime.niche")}</label>
+          <div className="flex flex-wrap gap-2">
+            {NICHE_PRESETS.map((n) => (
+              <button
+                key={n}
+                onClick={() => {
+                  nicheTouched.current = true;
+                  setNiche(n);
+                }}
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
+                  niche === n
+                    ? "bg-primary text-black"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                {t(`scheduler.niches.${n}`)}
+              </button>
+            ))}
+          </div>
+          <input
+            value={niche}
+            onChange={(e) => {
+              nicheTouched.current = true;
+              setNiche(e.target.value.slice(0, 60));
+            }}
+            maxLength={60}
+            placeholder={t("scheduler.bestTime.customNichePlaceholder")}
+            className={`${inputClass} mt-3 max-w-xs`}
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className={labelClass}>{t("scheduler.bestTime.platforms")}</label>
+          <div className="flex flex-wrap gap-2">
+            {BT_PLATFORM_META.map(({ key, icon: Icon, label }) => {
+              const on = btPlatforms.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setBtPlatforms((p) => (on ? p.filter((x) => x !== key) : [...p, key]))}
+                  className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
+                    on
+                      ? "bg-primary text-black"
+                      : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-end gap-4">
+          <div>
+            <label className={labelClass}>{t("scheduler.bestTime.postsPerWeek")}</label>
+            <input
+              type="number"
+              min={1}
+              max={14}
+              value={postsPerWeek}
+              onChange={(e) => setPostsPerWeek(Math.max(1, Math.min(14, Number(e.target.value) || 1)))}
+              className="w-20 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
+            />
+          </div>
+          <Button
+            onClick={handleOptimize}
+            disabled={loading || btPlatforms.length === 0}
+            className="bg-primary font-bold text-black hover:bg-primary/90"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+            {loading ? t("scheduler.bestTime.optimizing") : t("scheduler.bestTime.optimize")}
+          </Button>
+          {result && (
+            <Button
+              variant="outline"
+              onClick={handleShare}
+              disabled={shareBusy}
+              className="border-primary/40 text-primary hover:bg-primary/10"
+            >
+              {shareBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+              {t("scheduler.bestTime.share")}
+            </Button>
+          )}
+        </div>
+
+        {error && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+          </div>
+        )}
+
+        {shareLink && (
+          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("scheduler.bestTime.shareLinkLabel")}</p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input readOnly value={shareLink} onFocus={(e) => e.target.select()} className={`${inputClass} font-mono text-[12px]`} />
+              <Button size="sm" onClick={copyShareLink} className="shrink-0 bg-primary font-bold text-black hover:bg-primary/90">
+                <Link2 className="mr-2 h-4 w-4" /> {copied ? t("scheduler.bestTime.copied") : t("scheduler.bestTime.copyLink")}
+              </Button>
+            </div>
+            <p className="mt-2 text-[12px] text-white/45">{t("scheduler.bestTime.shareHint")}</p>
+          </div>
+        )}
+
+        {result && (
+          <>
+            {/* best-next slot — ride the wave */}
+            {best && (
+              <div className="mt-8 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent p-5 md:p-6">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-primary">
+                  {t("scheduler.bestTime.bestNext")}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <span className="font-display text-3xl font-black text-white">
+                    {prettyDay(best.date)} <span className="text-primary">{prettyTime(best.time)}</span>
+                  </span>
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+                    {btPlatformLabel(best.platform)}
+                  </span>
+                  <span className="rounded-full border border-primary/30 px-2.5 py-0.5 text-[11px] font-bold text-white/60">
+                    {t("scheduler.bestTime.score", { num: best.score })}
+                  </span>
+                  {best.source === "personalized" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-300">
+                      <TrendingUp className="h-3 w-3" /> {t("scheduler.bestTime.yourData")}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 max-w-2xl text-sm text-white/60">{best.reason}</p>
+                <Button
+                  className="mt-4 bg-primary font-bold text-black hover:bg-primary/90"
+                  onClick={() => onUseSlot(best.date, best.time, best.platform)}
+                >
+                  <CalendarDays className="mr-2 h-4 w-4" /> {t("scheduler.bestTime.scheduleAtThisTime")}
+                </Button>
+              </div>
+            )}
+
+            {/* honest labeling legend */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-white/50">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-primary/80" aria-hidden="true" />{" "}
+                {t("scheduler.bestTime.legendBenchmark")}
+              </span>
+              {result.personalized && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-sm ring-2 ring-emerald-400" aria-hidden="true" />{" "}
+                  {t("scheduler.bestTime.legendPersonalized")}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 max-w-3xl text-[12px] italic leading-relaxed text-white/35">{result.benchmarkNote}</p>
+
+            {/* top slots */}
+            <h3 className="mt-8 font-display text-lg font-black">{t("scheduler.bestTime.topSlots")}</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {topSlots.map((s, i) => (
+                <div
+                  key={`${s.platform}-${s.date}-${s.time}`}
+                  className="rounded-2xl border border-white/10 bg-black/40 p-4 transition hover:border-primary/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-white">{prettyDay(s.date)}</span>
+                    <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+                      {btPlatformLabel(s.platform)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <p className="font-display text-xl font-black text-primary">{prettyTime(s.time)}</p>
+                    <span className="text-[11px] font-bold text-white/40">{t("scheduler.bestTime.score", { num: s.score })}</span>
+                  </div>
+                  <p className="mt-1 text-[13px] leading-snug text-white/55">{s.reason}</p>
+                  <div className="mt-2">
+                    {s.source === "personalized" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+                        <TrendingUp className="h-3 w-3" /> {t("scheduler.bestTime.yourData")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary/80">
+                        {t("scheduler.bestTime.benchmark")}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={() => onUseSlot(s.date, s.time, s.platform)}
+                  >
+                    {t("scheduler.bestTime.useSlot")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            {/* 7-day heatmaps */}
+            <h3 className="mt-10 font-display text-lg font-black">{t("scheduler.bestTime.heatmapTitle")}</h3>
+            <p className="mt-1 text-[13px] text-white/45">{t("scheduler.bestTime.heatmapHint")}</p>
+            {btPlatforms.map(
+              (p) =>
+                result.heatmap[p] && (
+                  <div key={p} className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      {(() => {
+                        const Icon = BT_PLATFORM_META.find((m) => m.key === p)?.icon ?? Camera;
+                        return <Icon className="h-4 w-4 text-primary" />;
+                      })()}
+                      <span className="text-sm font-bold text-white">{btPlatformLabel(p)}</span>
+                    </div>
+                    <div className="overflow-x-auto pb-1">
+                      <div className="min-w-[680px]">
+                        <div className="grid gap-1" style={{ gridTemplateColumns: "76px repeat(24, minmax(0, 1fr))" }}>
+                          <div />
+                          {Array.from({ length: 24 }, (_, h) => (
+                            <div key={h} className="text-center text-[9px] font-semibold uppercase tracking-wide text-white/30">
+                              {h % 3 === 0 ? hourLabel(h) : ""}
+                            </div>
+                          ))}
+                        </div>
+                        {result.heatmap[p]!.dates.map((date, di) => (
+                          <div
+                            key={date}
+                            className="mt-1 grid items-center gap-1"
+                            style={{ gridTemplateColumns: "76px repeat(24, minmax(0, 1fr))" }}
+                          >
+                            <div className="pr-1 text-right text-[11px] font-bold leading-9 text-white/60">{prettyDay(date)}</div>
+                            {result.heatmap[p]!.scores[di]!.map((score, h) => {
+                              const past = date < todayStr || (date === todayStr && h <= nowHour);
+                              const isPersonal = result.heatmap[p]!.personalized[di]![h] ?? false;
+                              const hh = String(h).padStart(2, "0");
+                              return (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  disabled={past}
+                                  title={`${prettyDay(date)} ${prettyTime(`${hh}:00`)} · ${t("scheduler.bestTime.score", {
+                                    num: score,
+                                  })}${isPersonal ? ` · ${t("scheduler.bestTime.yourData")}` : ""}`}
+                                  onClick={() => onUseSlot(date, `${hh}:00`, p)}
+                                  aria-label={`${prettyDay(date)} ${prettyTime(`${hh}:00`)} — ${t("scheduler.bestTime.score", {
+                                    num: score,
+                                  })}`}
+                                  className={`h-9 rounded-md transition ${
+                                    past ? "cursor-default opacity-20" : "hover:scale-110 hover:ring-2 hover:ring-white/60"
+                                  }`}
+                                  style={{
+                                    backgroundColor: `rgba(212, 175, 55, ${(0.06 + (score / 100) * 0.88).toFixed(2)})`,
+                                    boxShadow: isPersonal ? "inset 0 0 0 2px rgba(52, 211, 153, 0.85)" : undefined,
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ),
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Public shared-schedule view ─────────────────────────────────────────
+   Rendered for /scheduler?shared=<payload>&ref=<CODE> — no login required,
+   so creators can post their schedule anywhere. The ref code in the URL is
+   the sharer's referral code (organic reach with attribution). */
+
+function SharedScheduleView(props: { shared: SharedSchedule; ctaHref: string; ctaLabel: string }) {
+  const { t } = useTranslation();
+  const { shared, ctaHref, ctaLabel } = props;
+  const best = shared.s[0]!;
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#1a1408] via-black to-black p-6 md:p-10">
+      <div
+        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-yellow-600/15 blur-[100px]"
+        aria-hidden="true"
+      />
+      <div className="relative">
+        <p className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+          <CalendarDays className="h-3 w-3" aria-hidden="true" /> {t("scheduler.shared.badge")}
+        </p>
+        <h2 className="mt-4 font-display text-3xl font-black tracking-tight md:text-4xl">
+          {t("scheduler.shared.headline", { niche: shared.n })}
+        </h2>
+        <p className="mt-2 max-w-xl text-sm text-white/55">{t("scheduler.shared.sub")}</p>
+
+        <div className="mt-6 rounded-2xl border border-primary/40 bg-primary/[0.07] p-5">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("scheduler.bestTime.bestNext")}</p>
+          <p className="mt-1 font-display text-2xl font-black text-white">
+            {prettyDay(best.d)} <span className="text-primary">{prettyTime(best.t)}</span>
+            <span className="ml-3 align-middle text-sm font-bold uppercase tracking-wide text-white/50">
+              {btPlatformLabel(best.p)}
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-white/55">{best.r}</p>
+        </div>
+
+        <div className="mt-2 divide-y divide-white/5">
+          {shared.s.slice(1).map((s, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {prettyDay(s.d)} · <span className="text-primary">{prettyTime(s.t)}</span>
+                </p>
+                <p className="text-[12px] text-white/45">{btPlatformLabel(s.p)}</p>
+              </div>
+              <span className="font-display text-lg font-black text-primary/90">{s.s}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-4 text-[12px] italic text-white/35">{t("scheduler.shared.honesty")}</p>
+
+        <Button asChild className="mt-6 bg-primary font-bold text-black hover:bg-primary/90">
+          <a href={ctaHref}>{ctaLabel}</a>
+        </Button>
+        <p className="mt-3 text-[11px] uppercase tracking-widest text-white/30">{t("scheduler.shared.powered")}</p>
+      </div>
+    </div>
+  );
+}
+
 function ComposerModal(props: {
   post: ScheduledPostShape | null;
   prefill: { date: string; time: string } | null;
   captionPrefill: string | null;
+  mediaPrefill: string | null;
+  platformPrefill: SchedulerPlatformKey[] | null;
   accounts: SocialAccountInfo[];
   timezone: string;
   onClose: () => void;
@@ -1083,14 +1621,15 @@ function ComposerModal(props: {
   const { post, prefill } = props;
   const isEdit = !!post;
 
-  const [mediaRef, setMediaRef] = useState(post?.mediaUrl ?? "");
-  const [previewUrl, setPreviewUrl] = useState(
-    post && !post.mediaUrl.startsWith("supabase://") ? post.mediaUrl : "",
-  );
+  const [mediaRef, setMediaRef] = useState(post?.mediaUrl ?? props.mediaPrefill ?? "");
+  const [previewUrl, setPreviewUrl] = useState(() => {
+    const initial = post?.mediaUrl ?? props.mediaPrefill ?? "";
+    return initial && !initial.startsWith("supabase://") ? initial : "";
+  });
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState(post?.caption ?? props.captionPrefill ?? "");
   const [hashtags, setHashtags] = useState(post?.hashtags ?? "");
-  const [platforms, setPlatforms] = useState<SchedulerPlatformKey[]>(post?.platforms ?? ["instagram"]);
+  const [platforms, setPlatforms] = useState<SchedulerPlatformKey[]>(post?.platforms ?? props.platformPrefill ?? ["instagram"]);
   const [accountIds, setAccountIds] = useState<Partial<Record<SchedulerPlatformKey, string>>>(post?.accountIds ?? {});
   const [date, setDate] = useState(() => {
     if (post?.scheduledAt) return toLocalDate(new Date(post.scheduledAt));
