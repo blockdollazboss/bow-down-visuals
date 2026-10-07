@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
+import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 
 interface GeneratedImage {
   url: string;
@@ -95,6 +96,24 @@ export function ThumbnailMakerModule() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [progress, setProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Template deep-link: ?template=<slug> preloads prompt, style, ratio + text.
+     Used by the public template gallery (/templates/thumbnails). */
+  useEffect(() => {
+    try {
+      const slug = new URLSearchParams(window.location.search).get("template");
+      if (!slug) return;
+      const tpl = getThumbnailTemplate(slug);
+      if (!tpl) return;
+      setPrompt(tpl.prompt);
+      setStylePreset(tpl.stylePreset);
+      setAspectRatio(tpl.aspectRatio);
+      setOverlayText(tpl.overlayText);
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleFaceSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

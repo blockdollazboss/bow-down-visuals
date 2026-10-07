@@ -47,6 +47,8 @@ import Pricing from "@/pages/pricing";
 import Waitlist from "@/pages/waitlist";
 import Extension from "@/pages/extension";
 import Download from "@/pages/download";
+import TemplatesHub from "@/pages/templates/index";
+import ThumbnailTemplates from "@/pages/templates/thumbnails";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -383,6 +385,8 @@ function AppShell() {
           <Route path="/waitlist"><Waitlist /></Route>
           <Route path="/extension"><Extension /></Route>
           <Route path="/download"><Download /></Route>
+          <Route path="/templates"><TemplatesHub /></Route>
+          <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>
