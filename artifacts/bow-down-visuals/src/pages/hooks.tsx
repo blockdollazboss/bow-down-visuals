@@ -10,6 +10,8 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
+import { getHookTemplate } from "@/data/hook-templates";
+import { getCaptionPack } from "@/data/caption-templates";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
  Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -100,6 +102,34 @@ export default function HookStudio() {
  if (!topic && project.name) setTopic(project.name);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [project.name]);
+
+ /* Template deep-link: ?template=<slug> preloads the hook generator;
+    ?tab=captions&template=<slug> preloads the caption writer.
+    Used by the public template galleries (/templates/hooks, /templates/captions). */
+ useEffect(() => {
+ try {
+ const params = new URLSearchParams(window.location.search);
+ const tabParam = params.get("tab");
+ if (tabParam === "captions") setTab("captions");
+ const slug = params.get("template");
+ if (!slug) return;
+ if (tabParam === "captions") {
+ const pack = getCaptionPack(slug);
+ if (!pack) return;
+ setCapTopic(pack.topic);
+ setCapPlatform(pack.platform);
+ setCapTone(pack.tone);
+ } else {
+ const tpl = getHookTemplate(slug);
+ if (!tpl) return;
+ setVideoType(tpl.videoType);
+ setTopic(tpl.topic);
+ }
+ } catch {
+ /* non-browser or malformed URL — ignore */
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
  const [hooks, setHooks] = useState<string[]>([]);
  const [hooksLoading, setHooksLoading] = useState(false);
 

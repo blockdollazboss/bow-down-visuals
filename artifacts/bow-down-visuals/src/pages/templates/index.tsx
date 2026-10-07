@@ -28,8 +28,8 @@ const GALLERIES = [
     title: "Hook Templates",
     blurb:
       "Scroll-stopping video hooks for Shorts, TikTok, and Reels — plug into Hook Studio.",
-    count: "Coming soon",
-    live: false,
+    count: "12 templates",
+    live: true,
   },
   {
     slug: "captions",
@@ -38,8 +38,8 @@ const GALLERIES = [
     title: "Caption Packs",
     blurb:
       "Done-for-you caption packs for launches, promos, and everyday posts.",
-    count: "Coming soon",
-    live: false,
+    count: "12 packs",
+    live: true,
   },
 ];
 

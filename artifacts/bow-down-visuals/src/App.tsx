@@ -49,6 +49,8 @@ import Extension from "@/pages/extension";
 import Download from "@/pages/download";
 import TemplatesHub from "@/pages/templates/index";
 import ThumbnailTemplates from "@/pages/templates/thumbnails";
+import HookTemplates from "@/pages/templates/hooks";
+import CaptionPacks from "@/pages/templates/captions";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -387,6 +389,8 @@ function AppShell() {
           <Route path="/download"><Download /></Route>
           <Route path="/templates"><TemplatesHub /></Route>
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
+          <Route path="/templates/hooks"><HookTemplates /></Route>
+          <Route path="/templates/captions"><CaptionPacks /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>
