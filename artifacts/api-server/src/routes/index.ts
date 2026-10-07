@@ -108,6 +108,7 @@ import voiceoverProRouter from "./generate/voiceover-pro";
 import brandKitRouter from "./generate/brand-kit";
 import brollSuggesterRouter from "./generate/broll-suggester";
 import thumbnailAbRouter from "./generate/thumbnail-ab";
+import stabilizeRouter from "./generate/stabilize";
 import videoTitlesRouter from "./generate/video-titles";
 import clipDescriptionsRouter from "./generate/clip-descriptions";
 import thumbnailTextRouter from "./generate/thumbnail-text";
