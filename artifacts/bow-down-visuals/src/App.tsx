@@ -328,12 +328,10 @@ function AuthedLayout({ children }: { children: ReactNode }) {
             )}
           </main>
         </div>
-        {!isHome && (
-          <ExpandSidebarButton
-            collapsed={sidebarCollapsed}
-            onExpand={() => setSidebarCollapsed(false)}
-          />
-        )}
+        <ExpandSidebarButton
+          collapsed={sidebarCollapsed}
+          onExpand={() => setSidebarCollapsed(false)}
+        />
         <LiveBadge />
         {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
