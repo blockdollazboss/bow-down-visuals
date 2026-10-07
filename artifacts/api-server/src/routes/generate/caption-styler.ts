@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
@@ -52,6 +53,14 @@ export const CAPTION_STYLES: Record<CaptionStyleKey, { label: string; blurb: str
 export function isCaptionStyleKey(s: unknown): s is CaptionStyleKey {
   return typeof s === "string" && s in CAPTION_STYLES;
 }
+
+const captionStylerSchema = z.object({
+  style: z.enum(["hormozi", "minimal", "karaoke", "neon", "luxury-gold"]),
+  position: z.enum(["top", "middle", "bottom"]).optional().default("bottom"),
+  fontSize: z.enum(["small", "medium", "large"]).optional().default("medium"),
+  withEmoji: z.union([z.boolean(), z.string()]).optional().default(false)
+    .transform((v) => v === true || v === "true" || v === "1"),
+});
 
 export interface WordTiming {
   word: string;
@@ -412,23 +421,15 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, inputBuffer: Bu
  * Failed jobs are refunded automatically.
  */
 router.post("/caption-styler", requireAuth, upload.single("video"), async (req, res) => {
-  const { style, position, fontSize, withEmoji } = req.body as {
-    style?: string;
-    position?: string;
-    fontSize?: string;
-    withEmoji?: string | boolean;
-  };
-
-  if (!isCaptionStyleKey(style)) {
+  const parsed = captionStylerSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
     res.status(400).json({
-      error: "INVALID_STYLE",
-      message: `style must be one of: ${Object.keys(CAPTION_STYLES).join(", ")}`,
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
     return;
   }
-  const pos: CaptionPosition = position === "top" || position === "middle" ? position : "bottom";
-  const size: CaptionFontSize = fontSize === "small" || fontSize === "large" ? fontSize : "medium";
-  const emoji = withEmoji === true || withEmoji === "true" || withEmoji === "1";
+  const { style, position, fontSize, withEmoji } = parsed.data;
 
   if (!req.file) {
     res.status(400).json({ error: "No video file provided" });
@@ -469,9 +470,9 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
     userId: req.userId!,
     status: "queued",
     style,
-    position: pos,
-    fontSize: size,
-    withEmoji: emoji,
+    position,
+    fontSize,
+    withEmoji,
     sourceName: req.file.originalname,
     outputUrl: null,
     outputRef: null,

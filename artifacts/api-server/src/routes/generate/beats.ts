@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { db, beatsTable, beatLicensesTable } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -15,6 +16,10 @@ import {
 } from "./beats-pricing";
 
 const router = Router();
+
+const beatLicenseSchema = z.object({
+  tier: z.enum(["basic", "premium", "exclusive"]),
+});
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats — browse the marketplace (free).
@@ -334,13 +339,15 @@ router.delete("/beats/:id", requireAuth, async (req, res) => {
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/beats/:id/license", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
-  const { tier } = req.body as { tier?: string };
-
-  if (!isBeatLicenseTier(tier)) {
-    res.status(400).json({ error: `tier must be one of: basic, premium, exclusive` });
+  const parsed = beatLicenseSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
-  const licenseTier = tier as BeatLicenseTier;
+  const licenseTier: BeatLicenseTier = parsed.data.tier;
 
   const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
   const beat = rows[0];

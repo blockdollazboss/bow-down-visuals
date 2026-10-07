@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -38,6 +39,10 @@ const upload = multer({
       cb(new Error("Only audio files are allowed (MP3, WAV, M4A)"));
     }
   },
+});
+
+const audioCleanupSchema = z.object({
+  mode: z.enum(["voice", "music", "denoise"]),
 });
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
@@ -221,14 +226,15 @@ export async function runAudioCleanupJob(
  * result. Failed jobs are refunded automatically.
  */
 router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
-  const mode = (req.body?.mode as string) ?? "";
-  if (!(MODES as string[]).includes(mode)) {
+  const parsed = audioCleanupSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
     res.status(400).json({
-      error: "INVALID_MODE",
-      message: "Mode must be one of: voice, music, denoise.",
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
     return;
   }
+  const { mode } = parsed.data;
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
@@ -246,7 +252,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, AUDIO_CLEANUP_CREDIT_COST, {
-      action: `Audio Cleanup (${MODE_LABELS[mode as AudioCleanupMode]})`,
+      action: `Audio Cleanup (${MODE_LABELS[mode]})`,
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
@@ -267,7 +273,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
     id: randomUUID(),
     userId: req.userId!,
     status: "queued",
-    mode: mode as AudioCleanupMode,
+    mode,
     sourceName: req.file.originalname,
     outputUrl: null,
     outputRef: null,

@@ -1,19 +1,25 @@
 import { Router } from "express";
+import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
 
-router.post("/generate-demo-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt } = req.body as {
-    promptText?: string;
-    negativePrompt?: string;
-  };
+const demoClipSchema = z.object({
+  promptText: z.string().trim().min(1, "promptText is required"),
+  negativePrompt: z.string().trim().max(1000).optional().default(""),
+});
 
-  if (!promptText?.trim()) {
-    res.status(400).json({ error: "promptText is required" });
+router.post("/generate-demo-clip", requireAuth, async (req, res) => {
+  const parsed = demoClipSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
+  const { promptText, negativePrompt } = parsed.data;
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {
@@ -22,9 +28,8 @@ router.post("/generate-demo-clip", requireAuth, async (req, res) => {
   }
 
   const base = promptText.slice(0, 900);
-  const neg = negativePrompt?.trim();
-  const finalPrompt = neg
-    ? `${base} | Avoid: ${neg}`.slice(0, 1000)
+  const finalPrompt = negativePrompt
+    ? `${base} | Avoid: ${negativePrompt}`.slice(0, 1000)
     : base;
 
   const client = new RunwayML({ apiKey });

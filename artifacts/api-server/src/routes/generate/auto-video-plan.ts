@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -9,6 +10,46 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 const router = Router();
 
 const CREDIT_COST = 200;
+
+const vaultInputSchema = z.object({
+  artistType: z.string().nullable().optional(),
+  artistDescription: z.string().nullable().optional(),
+  visualStyle: z.string().nullable().optional(),
+  hair: z.string().nullable().optional(),
+  tattoos: z.string().nullable().optional(),
+  jewelry: z.string().nullable().optional(),
+  clothingStyle: z.string().nullable().optional(),
+  brandColors: z.string().nullable().optional(),
+  doNotChangeRules: z.string().nullable().optional(),
+  consistencyPrompt: z.string().nullable().optional(),
+  referenceImageUrl: z.string().nullable().optional(),
+}).passthrough();
+
+const transcriptLineSchema = z.object({
+  start: z.number().nullable().optional(),
+  end: z.number().nullable().optional(),
+  text: z.string().nullable().optional(),
+});
+
+const songSectionSchema = z.object({
+  name: z.string().nullable().optional(),
+  startSec: z.number().nullable().optional(),
+  endSec: z.number().nullable().optional(),
+});
+
+const autoVideoPlanSchema = z.object({
+  songTitle: z.string().max(200).optional().default(""),
+  artistName: z.string().max(200).optional().default(""),
+  genre: z.string().max(100).optional().default(""),
+  mood: z.string().max(100).optional().default(""),
+  videoStyle: z.string().max(100).optional().default(""),
+  durationSec: z.coerce.number().positive("durationSec is required and must be positive"),
+  transcript: z.array(transcriptLineSchema).optional().default([]),
+  sections: z.array(songSectionSchema).optional().default([]),
+  lyrics: z.string().max(20000).optional().default(""),
+  instructions: z.string().max(5000).optional().default(""),
+  artistVault: vaultInputSchema.nullable().optional(),
+});
 
 /**
  * POST /api/auto-video-plan
@@ -131,25 +172,16 @@ function clamp(n: number, lo: number, hi: number): number {
 }
 
 router.post("/auto-video-plan", requireAuth, async (req, res) => {
-  const body = req.body as {
-    songTitle?: string;
-    artistName?: string;
-    genre?: string;
-    mood?: string;
-    videoStyle?: string;
-    durationSec?: number;
-    transcript?: TranscriptLine[];
-    sections?: SongSectionIn[];
-    lyrics?: string;
-    instructions?: string;
-    artistVault?: VaultInput | null;
-  };
-
-  const durationSec = Number(body.durationSec) || 0;
-  if (durationSec <= 0) {
-    res.status(400).json({ error: "durationSec is required and must be positive" });
+  const parsed = autoVideoPlanSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
+  const body = parsed.data;
+  const durationSec = body.durationSec;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CREDIT_COST) {
