@@ -582,10 +582,70 @@ export interface ClipEdit {
    *  Positive = video starts later (fix mouth moving too early).
    *  Negative = video starts earlier (fix mouth moving too late). */
   lipSyncOffsetSeconds: number;
+  /** Keyframed animation (CapCut-style). Empty = no animation. */
+  keyframes: Keyframe[];
   /** Pro video tools (color correction, chroma key, speed, reverse, rotate/flip,
    *  crop) — the "Pro Tools" tab. Every field maps to an FFmpeg filter for export
    *  via buildProToolsFilterChain() (server: pro-tools-ffmpeg.ts). */
   proTools: ProToolsSettings;
+}
+
+/* ── Keyframes (CapCut-style animation) ──────────────────────────────── */
+
+/** A single keyframe: transform values at a specific time. */
+export interface Keyframe {
+  id: string;
+  /** Seconds, relative to clip start. */
+  time: number;
+  /** X position 0-1 (0 = left, 1 = right). */
+  x: number;
+  /** Y position 0-1 (0 = top, 1 = bottom). */
+  y: number;
+  /** Scale 0.1-3 (1 = normal). */
+  scale: number;
+  /** Rotation in degrees (-180 to 180). */
+  rotation: number;
+  /** Opacity 0-1. */
+  opacity: number;
+}
+
+/** Interpolated transform values at a given time. */
+export interface KeyframeTransform {
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+}
+
+/** Get the interpolated transform at time t (seconds) from keyframes. */
+export function keyframeAt(keyframes: Keyframe[], t: number): KeyframeTransform {
+  const neutral: KeyframeTransform = { x: 0.5, y: 0.5, scale: 1, rotation: 0, opacity: 1 };
+  if (keyframes.length === 0) return neutral;
+  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
+  if (t <= sorted[0]!.time) {
+    const k = sorted[0]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  if (t >= sorted[sorted.length - 1]!.time) {
+    const k = sorted[sorted.length - 1]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (t >= a.time && t <= b.time) {
+      const f = (t - a.time) / (b.time - a.time || 1);
+      const e = f * f * (3 - 2 * f);
+      return {
+        x: a.x + (b.x - a.x) * e,
+        y: a.y + (b.y - a.y) * e,
+        scale: a.scale + (b.scale - a.scale) * e,
+        rotation: a.rotation + (b.rotation - a.rotation) * e,
+        opacity: a.opacity + (b.opacity - a.opacity) * e,
+      };
+    }
+  }
+  return neutral;
 }
 
 /* ── Pro video tools ─────────────────────────────────────────────────── */
@@ -1460,6 +1520,7 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncTimingMismatch: false,
     lipSyncOffsetSeconds: 0,
     manualStartSec: null,
+    keyframes: [],
     proTools: defaultProTools(),
   };
 }
