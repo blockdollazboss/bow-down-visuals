@@ -83,6 +83,7 @@ export function ThumbnailMakerModule() {
   const { getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
+  const [mode, setMode] = useState<"simple" | "custom">("simple");
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
@@ -97,6 +98,16 @@ export function ThumbnailMakerModule() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [progress, setProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* One-click presets for Simple mode */
+  const SIMPLE_PRESETS = [
+    { label: "🔥 Viral YouTube", prompt: "eye-catching YouTube thumbnail with bold text and shocked expression", style: "bold-text-pop", ratio: "16:9" as const },
+    { label: "😱 Shock Face", prompt: "shocked face thumbnail with dramatic lighting", style: "shocked-face", ratio: "16:9" as const },
+    { label: "⚡ Shorts Cover", prompt: "vertical short-form thumbnail with bold text", style: "bold-text-pop", ratio: "9:16" as const },
+    { label: "💎 Luxury", prompt: "luxury gold thumbnail with premium aesthetic", style: "luxury", ratio: "16:9" as const },
+    { label: "🎮 Gaming", prompt: "epic gaming thumbnail with action scene", style: "gaming", ratio: "16:9" as const },
+    { label: "📹 Vlog", prompt: "casual vlog thumbnail with friendly vibe", style: "vlog", ratio: "16:9" as const },
+  ];
 
   /* Template deep-link: ?template=<slug> preloads prompt, style, ratio + text.
      Used by the public template gallery (/templates/thumbnails). */
@@ -215,6 +226,54 @@ export function ThumbnailMakerModule() {
   return (
     <>
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
+          {/* Simple / Custom toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("simple")}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("custom")}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+
+          {mode === "simple" && (
+            <div className="space-y-4">
+              <p className="text-sm text-white/60">
+                Pick a style — we'll handle the rest. One click, done.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {SIMPLE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setPrompt(preset.prompt);
+                      setStylePreset(preset.style);
+                      setAspectRatio(preset.ratio);
+                    }}
+                    className="p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-center"
+                  >
+                    <span className="text-sm font-semibold text-white">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {mode === "custom" && (
+          <div className="space-y-8">
           {/* Prompt */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.promptLabel")}</Label>
@@ -365,6 +424,8 @@ export function ThumbnailMakerModule() {
             </Button>
             <p className="text-white/25 text-xs mt-3">{t("thumbnailMaker.costNote")}</p>
           </div>
+          </div>
+          )}
         </div>
 
         {outOfCredits && <OutOfCredits />}
