@@ -29,6 +29,7 @@ import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { FloatingStarLevel } from "@/components/layout/floating-star-level";
 import { FloatingAdminPanel } from "@/components/layout/floating-admin-panel";
+import { FloatingLanguageSwitcher } from "@/components/layout/floating-language-switcher";
 import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -330,6 +331,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
         <FloatingAdminPanel />
+        <FloatingLanguageSwitcher />
         {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
