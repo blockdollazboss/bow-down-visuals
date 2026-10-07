@@ -1,5 +1,6 @@
 # Builds a signed release APK for sideloading. Triggered on pushes to main
 # touching the frontend or this workflow, or manually via workflow_dispatch.
+# Keystore is assembled from ANDROID_KEYSTORE_1..4 chunk secrets.
 name: Build Android APK
 
 on:
