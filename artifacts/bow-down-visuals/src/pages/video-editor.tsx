@@ -203,6 +203,8 @@ export default function VideoEditor() {
   const [settings, setSettingsState] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  /* LUT Import handoff: graded clip URL pre-loads the multi-ratio export card. */
+  const [lutHandoffUrl, setLutHandoffUrl] = useState<string | null>(null);
   /* ── Template system: "what are you making?" drives format, tool order,
      and which presets each feature shows. Fully customizable after pick. ── */
   const [templateId, setTemplateId] = useState<VideoTemplateId | null>(() => getLastTemplate());
@@ -1528,7 +1530,10 @@ export default function VideoEditor() {
                         )
                       }
                       onGoToCaptions={() => setTab("captions")}
-                      onGoToExport={() => setTab("export")}
+                      onGoToExport={(videoUrl) => {
+                        if (videoUrl) setLutHandoffUrl(videoUrl);
+                        setTab("export");
+                      }}
                     />
                   )}
 
@@ -1584,6 +1589,7 @@ export default function VideoEditor() {
                       projectDurationSec={previewEngineState?.audioDuration ?? 0}
                       isSimple={isSimple}
                       topic={songTitle || undefined}
+                      handoffVideoUrl={lutHandoffUrl}
                     />
                   )}
 

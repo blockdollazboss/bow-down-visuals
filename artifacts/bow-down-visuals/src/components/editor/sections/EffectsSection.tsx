@@ -1,4 +1,5 @@
-import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw } from "lucide-react";
+import { useRef, useState } from "react";
+import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw, Palette } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS, OVERLAY_DEFAULT_INTENSITY,
@@ -10,6 +11,7 @@ import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/con
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
 import { CinematicFxCard } from "@/components/editor/sections/CinematicFxCard";
+import { LutImportSection } from "@/components/editor/sections/LutImportSection";
 
 interface EffectsSectionProps {
   scenes: SceneData[];
@@ -30,8 +32,8 @@ interface EffectsSectionProps {
   onReplaceClipVideo?: (sceneId: string, url: string) => void;
   /** Handoff: jump to the Captions tab. */
   onGoToCaptions?: () => void;
-  /** Handoff: jump to the Export tab (multi-ratio). */
-  onGoToExport?: () => void;
+  /** Handoff: jump to the Export tab (multi-ratio). Optional videoUrl pre-loads the multi-ratio card. */
+  onGoToExport?: (videoUrl?: string) => void;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
@@ -75,6 +77,8 @@ function IntensityRow({
 }
 
 export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades, onReplaceClipVideo, onGoToCaptions, onGoToExport }: EffectsSectionProps) {
+  const [showLutImport, setShowLutImport] = useState(false);
+  const lutRef = useRef<HTMLDivElement>(null);
   /* Template-curated galleries (empty/undefined = show all) */
   const shownEffects = visibleEffects && visibleEffects.length > 0
     ? (EFFECTS as readonly string[]).filter((fx) => visibleEffects.includes(fx))
@@ -191,7 +195,31 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             );
           })}
         </div>
+        {/* Chain: color-grade presets -> import your own LUT */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowLutImport(true);
+            requestAnimationFrame(() => lutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+          }}
+          className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:text-[#d9b95c] transition-colors"
+        >
+          <Palette className="h-3.5 w-3.5" />
+          …or import your own LUT (.cube / .3dl)
+        </button>
       </EditorCard>
+
+      {/* ── LUT Import — docks inside the Color panel, extends color-grade ── */}
+      {showLutImport && (
+        <div ref={lutRef} className="scroll-mt-4">
+          <LutImportSection
+            scenes={scenes}
+            onReplaceClipVideo={onReplaceClipVideo}
+            onGoToCaptions={onGoToCaptions}
+            onGoToExport={onGoToExport}
+          />
+        </div>
+      )}
 
       {/* ── Overlays ── */}
       <EditorCard

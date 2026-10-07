@@ -53,6 +53,8 @@ interface ExportSectionProps {
   isSimple?: boolean;
   /** Project/song title — prefills caption handoffs in the multi-ratio card. */
   topic?: string;
+  /** Graded clip URL handed off from the LUT Import card — pre-loads the multi-ratio card. */
+  handoffVideoUrl?: string | null;
 }
 
 /* ── Export range helpers ──────────────────────────────── */
@@ -216,6 +218,7 @@ function isSourceAvailable(
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
   onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false, topic,
+  handoffVideoUrl = null,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -987,7 +990,7 @@ export function ExportSection({
       />
 
       {/* ── Export for all platforms: one-click multi-ratio export ── */}
-      <MultiRatioExportCard videoUrl={finalVideoUrl} topic={topic} />
+      <MultiRatioExportCard videoUrl={finalVideoUrl ?? handoffVideoUrl} topic={topic} />
 
       {/* ── Extract audio from the finished video ── */}
       <ExtractAudioCard videoUrl={finalVideoUrl} />
