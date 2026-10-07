@@ -28,6 +28,7 @@ import {
   samplePixelHex,
 } from "@/lib/pro-tools-preview";
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
+import { MotionTrackCard } from "./MotionTrackCard";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Pro Tools tab ───────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export function ProToolsSection({
   settings,
   setSettings,
   videoRef,
+  onReplaceClipVideo,
 }: {
   scenes: SceneData[];
   settings: EditorSettings;
@@ -692,6 +694,9 @@ export function ProToolsSection({
           </Collapsible>
         </div>
       </EditorCard>
+
+      {/* ── 6. Motion Track ── */}
+      <MotionTrackCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
     </div>
   );
 }

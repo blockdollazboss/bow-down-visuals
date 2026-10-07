@@ -41,11 +41,17 @@ const autoCaptionsSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "highlightColor must be #RRGGBB.")
     .optional()
     .default("#FFD700"),
+  /** When true, the response also includes the word-timed caption lines
+   *  (for editable transcripts in the Caption Suite). */
+  includeWords: z.boolean().optional().default(false),
 });
 
 router.get("/auto-captions/info", requireAuth, (_req, res) => {
   res.json({
     cost: AUTO_CAPTIONS_COST,
+    /* Lets the Caption Suite show an honest "unavailable" state instead of a
+       dead generate button when no transcription key is configured. */
+    ready: Boolean(process.env["OPENAI_API_KEY"]),
     description:
       "Transcribes video audio with Whisper and burns true word-timed karaoke captions into the video.",
     output: "MP4 with burned-in captions, signed download URL.",
@@ -185,7 +191,7 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
     return;
   }
 
-  const { videoUrl, fontSize, highlightColor } = parsed.data;
+  const { videoUrl, fontSize, highlightColor, includeWords } = parsed.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < AUTO_CAPTIONS_COST) {
@@ -297,6 +303,16 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
       wordCount: words.length,
       lineCount: lines.length,
       creditsRemaining: creditsAfter,
+      ...(includeWords
+        ? {
+            lines: lines.map((l) => ({
+              start: l.start,
+              end: l.end,
+              text: l.words.map((w) => w.word).join(" "),
+              words: l.words,
+            })),
+          }
+        : {}),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auto-captioning failed.";
