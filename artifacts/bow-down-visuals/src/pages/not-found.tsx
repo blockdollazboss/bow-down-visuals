@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Home, FolderOpen } from "lucide-react";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
-  usePageTitle("Page Not Found", "This page doesn't exist — let's get you back to creating.");
+  const { t } = useTranslation();
+  usePageTitle(t("notFound.pageTitle"), t("notFound.pageDescription"));
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   return (
@@ -23,20 +25,19 @@ export default function NotFound() {
           className="h-24 w-auto mx-auto mb-8"
         />
         <p className="text-primary text-sm font-bold tracking-[0.3em] uppercase mb-4">404</p>
-        <h1 className="text-4xl font-black text-white mb-3">Lost in the vault?</h1>
+        <h1 className="text-4xl font-black text-white mb-3">{t("notFound.heading")}</h1>
         <p className="text-white/50 leading-relaxed mb-8">
-          This page drifted off the map. The crown's still here, though —
-          let's get you back to the studio.
+          {t("notFound.description")}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/">
             <Button className="gold-glow font-bold gap-2">
-              <Home className="h-4 w-4" /> Back to Home
+              <Home className="h-4 w-4" /> {t("notFound.backToHome")}
             </Button>
           </Link>
           <Link href="/my-projects">
             <Button variant="outline" className="border-white/10 text-white/70 hover:text-white hover:bg-white/5 font-semibold gap-2">
-              <FolderOpen className="h-4 w-4" /> My Projects
+              <FolderOpen className="h-4 w-4" /> {t("notFound.myProjects")}
             </Button>
           </Link>
         </div>

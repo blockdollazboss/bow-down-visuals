@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
@@ -53,11 +54,11 @@ interface TrackedOutreach {
 
 const TRACK_KEY = "bdv-outreach-tracker";
 
-const STATUS_META: Record<TrackStatus, { label: string; icon: LucideIcon; color: string }> = {
-  sent: { label: "Sent", icon: Send, color: "text-sky-400" },
-  "followed-up": { label: "Followed up", icon: Clock, color: "text-amber-400" },
-  replied: { label: "Replied", icon: Reply, color: "text-violet-400" },
-  booked: { label: "Booked", icon: BadgeCheck, color: "text-emerald-400" },
+const STATUS_META: Record<TrackStatus, { labelKey: string; icon: LucideIcon; color: string }> = {
+  sent: { labelKey: "outreach.statusSent", icon: Send, color: "text-sky-400" },
+  "followed-up": { labelKey: "outreach.statusFollowedUp", icon: Clock, color: "text-amber-400" },
+  replied: { labelKey: "outreach.statusReplied", icon: Reply, color: "text-violet-400" },
+  booked: { labelKey: "outreach.statusBooked", icon: BadgeCheck, color: "text-emerald-400" },
 };
 
 const inputClass =
@@ -77,6 +78,7 @@ function loadTracker(): TrackedOutreach[] {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -88,12 +90,13 @@ function CopyButton({ text }: { text: string }) {
       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? t("outreach.copied") : t("outreach.copy")}
     </button>
   );
 }
 
 export default function SponsorshipOutreach() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -138,7 +141,7 @@ export default function SponsorshipOutreach() {
   async function generateKit() {
     if (loading || !user) return;
     if (!creatorName.trim() || !niche.trim() || !audienceSize.trim() || !brandName.trim() || platforms.length === 0) {
-      setError("Fill in your name, niche, audience size, at least one platform, and the brand name.");
+      setError(t("outreach.fillRequired"));
       return;
     }
     setLoading(true);
@@ -175,7 +178,7 @@ export default function SponsorshipOutreach() {
         return;
       }
       if (!res.ok || !data.kit) {
-        throw new Error(data.message || data.error || "Outreach kit generation failed — try again.");
+        throw new Error(data.message || data.error || t("outreach.kitFailed"));
       }
       setKit(data.kit);
       refreshProfile();
@@ -192,14 +195,14 @@ export default function SponsorshipOutreach() {
         document.getElementById("outreach-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Outreach kit generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("outreach.kitFailed"));
     } finally {
       setLoading(false);
     }
   }
 
   function setStatus(id: string, status: TrackStatus) {
-    saveTracker(tracked.map((t) => (t.id === id ? { ...t, status } : t)));
+    saveTracker(tracked.map((item) => (item.id === id ? { ...item, status } : item)));
   }
 
   function removeTracked(id: string) {
@@ -218,15 +221,13 @@ export default function SponsorshipOutreach() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Handshake className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+            <Handshake className="h-3 w-3" aria-hidden="true" /> {t("outreach.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Sponsorship <span className="text-primary">Outreach</span>
+            {t("outreach.heroTitle")} <span className="text-primary">{t("outreach.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Stop waiting to be discovered. Tell us who you are and who you want
-            to work with — AI writes the pitch email, the DM, and the follow-ups
-            that actually get replies.
+            {t("outreach.heroDescription")}
           </p>
         </div>
 
@@ -235,25 +236,25 @@ export default function SponsorshipOutreach() {
           {/* creator card */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-              <Sparkles className="h-4 w-4" /> Your creator profile
+              <Sparkles className="h-4 w-4" /> {t("outreach.creatorProfile")}
             </h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className={labelClass} htmlFor="outreach-creator">Creator / artist name</label>
-                <input id="outreach-creator" className={inputClass} value={creatorName} onChange={(e) => setCreatorName(e.target.value)} placeholder="King Shark" maxLength={100} />
+                <label className={labelClass} htmlFor="outreach-creator">{t("outreach.creatorNameLabel")}</label>
+                <input id="outreach-creator" className={inputClass} value={creatorName} onChange={(e) => setCreatorName(e.target.value)} placeholder={t("outreach.creatorNamePlaceholder")} maxLength={100} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass} htmlFor="outreach-niche">Niche</label>
-                  <input id="outreach-niche" className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Music" maxLength={100} />
+                  <label className={labelClass} htmlFor="outreach-niche">{t("outreach.nicheLabel")}</label>
+                  <input id="outreach-niche" className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("outreach.nichePlaceholder")} maxLength={100} />
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="outreach-audience">Audience size</label>
-                  <input id="outreach-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder="50K" maxLength={50} />
+                  <label className={labelClass} htmlFor="outreach-audience">{t("outreach.audienceLabel")}</label>
+                  <input id="outreach-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder={t("outreach.audiencePlaceholder")} maxLength={50} />
                 </div>
               </div>
               <div>
-                <span className={labelClass}>Platforms</span>
+                <span className={labelClass}>{t("outreach.platformsLabel")}</span>
                 <div className="flex flex-wrap gap-2">
                   {PLATFORM_OPTIONS.map((p) => (
                     <button
@@ -272,12 +273,12 @@ export default function SponsorshipOutreach() {
                 </div>
               </div>
               <div>
-                <label className={labelClass} htmlFor="outreach-engagement">Engagement (optional)</label>
-                <input id="outreach-engagement" className={inputClass} value={engagement} onChange={(e) => setEngagement(e.target.value)} placeholder="8% avg engagement" maxLength={200} />
+                <label className={labelClass} htmlFor="outreach-engagement">{t("outreach.engagementLabel")}</label>
+                <input id="outreach-engagement" className={inputClass} value={engagement} onChange={(e) => setEngagement(e.target.value)} placeholder={t("outreach.engagementPlaceholder")} maxLength={200} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="outreach-wins">Notable wins (optional)</label>
-                <textarea id="outreach-wins" className={inputClass} rows={2} value={notableWins} onChange={(e) => setNotableWins(e.target.value)} placeholder="1M streams on latest single" maxLength={500} />
+                <label className={labelClass} htmlFor="outreach-wins">{t("outreach.winsLabel")}</label>
+                <textarea id="outreach-wins" className={inputClass} rows={2} value={notableWins} onChange={(e) => setNotableWins(e.target.value)} placeholder={t("outreach.winsPlaceholder")} maxLength={500} />
               </div>
             </div>
           </div>
@@ -285,28 +286,27 @@ export default function SponsorshipOutreach() {
           {/* brand card */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-              <Handshake className="h-4 w-4" /> The brand
+              <Handshake className="h-4 w-4" /> {t("outreach.brandTitle")}
             </h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className={labelClass} htmlFor="outreach-brand">Brand name</label>
-                <input id="outreach-brand" className={inputClass} value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Wave Energy" maxLength={100} />
+                <label className={labelClass} htmlFor="outreach-brand">{t("outreach.brandNameLabel")}</label>
+                <input id="outreach-brand" className={inputClass} value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder={t("outreach.brandNamePlaceholder")} maxLength={100} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="outreach-product">Product (optional)</label>
-                <input id="outreach-product" className={inputClass} value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Wave Energy Drink" maxLength={200} />
+                <label className={labelClass} htmlFor="outreach-product">{t("outreach.productLabel")}</label>
+                <input id="outreach-product" className={inputClass} value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("outreach.productPlaceholder")} maxLength={200} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="outreach-goal">Campaign goal (optional)</label>
-                <input id="outreach-goal" className={inputClass} value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} placeholder="Launch to Gen Z" maxLength={300} />
+                <label className={labelClass} htmlFor="outreach-goal">{t("outreach.goalLabel")}</label>
+                <input id="outreach-goal" className={inputClass} value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} placeholder={t("outreach.goalPlaceholder")} maxLength={300} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="outreach-contact">Contact name (optional)</label>
-                <input id="outreach-contact" className={inputClass} value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Alex Rivera" maxLength={100} />
+                <label className={labelClass} htmlFor="outreach-contact">{t("outreach.contactLabel")}</label>
+                <input id="outreach-contact" className={inputClass} value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={t("outreach.contactPlaceholder")} maxLength={100} />
               </div>
               <p className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs leading-relaxed text-white/45">
-                Tip: check the <span className="text-primary">Sponsor Marketplace</span> for brands
-                actively looking for creators — then pitch them here.
+                {t("outreach.tipPrefix")} <span className="text-primary">{t("outreach.tipMarketplace")}</span> {t("outreach.tipSuffix")}
               </p>
             </div>
           </div>
@@ -320,9 +320,9 @@ export default function SponsorshipOutreach() {
             className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {loading ? "Writing your kit…" : `Generate outreach kit · ${CREDIT_COST} credits`}
+            {loading ? t("outreach.writingKit") : t("outreach.generateKit", { cost: CREDIT_COST })}
           </button>
-          {!user && <p className="mt-3 text-xs text-white/40">Sign in to generate your outreach kit.</p>}
+          {!user && <p className="mt-3 text-xs text-white/40">{t("outreach.signInPrompt")}</p>}
           {error && <p className="mx-auto mt-4 max-w-md text-sm text-red-400">{error}</p>}
           {outOfCredits && (
             <div className="mx-auto mt-4 max-w-md">
@@ -338,11 +338,11 @@ export default function SponsorshipOutreach() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                  <Mail className="h-4 w-4" /> Pitch email
+                  <Mail className="h-4 w-4" /> {t("outreach.pitchEmail")}
                 </h2>
-                <CopyButton text={`Subject: ${kit.pitchEmail.subject}\n\n${kit.pitchEmail.body}`} />
+                <CopyButton text={`${t("outreach.subjectPrefix")}${kit.pitchEmail.subject}\n\n${kit.pitchEmail.body}`} />
               </div>
-              <p className="mt-4 text-sm font-semibold text-white">Subject: {kit.pitchEmail.subject}</p>
+              <p className="mt-4 text-sm font-semibold text-white">{t("outreach.subjectPrefix")}{kit.pitchEmail.subject}</p>
               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/70">{kit.pitchEmail.body}</p>
             </section>
 
@@ -350,7 +350,7 @@ export default function SponsorshipOutreach() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                  <MessageCircle className="h-4 w-4" /> DM version
+                  <MessageCircle className="h-4 w-4" /> {t("outreach.dmVersion")}
                 </h2>
                 <CopyButton text={kit.dmVersion} />
               </div>
@@ -361,7 +361,7 @@ export default function SponsorshipOutreach() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                  <FileText className="h-4 w-4" /> Media kit summary
+                  <FileText className="h-4 w-4" /> {t("outreach.mediaKitSummary")}
                 </h2>
                 <CopyButton text={kit.mediaKitSummary} />
               </div>
@@ -371,16 +371,16 @@ export default function SponsorshipOutreach() {
             {/* follow-ups */}
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                <CalendarClock className="h-4 w-4" /> Follow-up sequence
+                <CalendarClock className="h-4 w-4" /> {t("outreach.followUpSequence")}
               </h2>
               <div className="mt-4 space-y-4">
                 {kit.followUps.map((f, i) => (
                   <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold uppercase tracking-wider text-white/50">
-                        Day {f.day} · {f.subject}
+                        {t("outreach.followUpDay", { day: f.day })} · {f.subject}
                       </p>
-                      <CopyButton text={`Subject: ${f.subject}\n\n${f.body}`} />
+                      <CopyButton text={`${t("outreach.subjectPrefix")}${f.subject}\n\n${f.body}`} />
                     </div>
                     <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/70">{f.body}</p>
                   </div>
@@ -397,50 +397,50 @@ export default function SponsorshipOutreach() {
         {/* tracker */}
         <div className="relative mt-12">
           <h2 className="text-center text-sm font-bold uppercase tracking-widest text-white/60">
-            Outreach tracker <span className="text-primary">· free</span>
+            {t("outreach.trackerTitle")} <span className="text-primary">{t("outreach.trackerFree")}</span>
           </h2>
           {tracked.length === 0 ? (
             <p className="mt-4 text-center text-sm text-white/40">
-              No outreach tracked yet. Generate a kit and it lands here automatically.
+              {t("outreach.trackerEmpty")}
             </p>
           ) : (
             <div className="mt-6 space-y-3">
-              {tracked.map((t) => {
-                const meta = STATUS_META[t.status];
+              {tracked.map((item) => {
+                const meta = STATUS_META[item.status];
                 const Icon = meta.icon;
                 return (
                   <div
-                    key={t.id}
+                    key={item.id}
                     className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-white">{t.brandName}</p>
+                      <p className="truncate text-sm font-bold text-white">{item.brandName}</p>
                       <p className="text-xs text-white/40">
-                        {t.creatorName} · {new Date(t.createdAt).toLocaleDateString()}
+                        {item.creatorName} · {new Date(item.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${meta.color}`}>
-                      <Icon className="h-3.5 w-3.5" /> {meta.label}
+                      <Icon className="h-3.5 w-3.5" /> {t(meta.labelKey)}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {(Object.keys(STATUS_META) as TrackStatus[]).map((s) => (
                         <button
                           key={s}
-                          onClick={() => setStatus(t.id, s)}
+                          onClick={() => setStatus(item.id, s)}
                           className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                            t.status === s
+                            item.status === s
                               ? "bg-primary text-black"
                               : "border border-white/10 text-white/50 hover:border-primary/40 hover:text-white"
                           }`}
                         >
-                          {STATUS_META[s].label}
+                          {t(STATUS_META[s].labelKey)}
                         </button>
                       ))}
                       <button
-                        onClick={() => removeTracked(t.id)}
+                        onClick={() => removeTracked(item.id)}
                         className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white/40 transition hover:text-red-400"
                       >
-                        Remove
+                        {t("outreach.remove")}
                       </button>
                     </div>
                   </div>

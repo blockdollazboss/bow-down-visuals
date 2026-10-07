@@ -5,6 +5,7 @@ import {
   BadgeCheck, Link2Off,
 } from "lucide-react";
 import { downloadVCard, type NfcProfile } from "@/lib/nfc-cards";
+import { useTranslation } from "react-i18next";
 
 /* ─── Public digital business card ──────────────────────────────────────
    The tap/QR destination: bowdownvisuals.com/c/:slug
@@ -12,6 +13,7 @@ import { downloadVCard, type NfcProfile } from "@/lib/nfc-cards";
    sees when they tap the physical card or scan the QR. */
 
 export default function NfcCardProfile() {
+  const { t } = useTranslation();
   const params = useParams<{ slug: string }>();
   const [profile, setProfile] = useState<NfcProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,7 @@ export default function NfcCardProfile() {
     const url = window.location.href;
     try {
       if (navigator.share) {
-        await navigator.share({ title: profile?.display_name ?? "Digital business card", url });
+        await navigator.share({ title: profile?.display_name ?? t("nfcCardProfile.shareTitle"), url });
       } else {
         await navigator.clipboard.writeText(url);
       }
@@ -61,12 +63,12 @@ export default function NfcCardProfile() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 px-6 text-center">
         <Link2Off className="w-10 h-10 text-zinc-600" />
-        <h1 className="text-2xl font-bold text-white">This card isn't active</h1>
+        <h1 className="text-2xl font-bold text-white">{t("nfcCardProfile.notActive")}</h1>
         <p className="text-zinc-400 max-w-sm">
-          The link may be mistyped, or the owner deactivated this digital card.
+          {t("nfcCardProfile.notActiveDetail")}
         </p>
         <a href="/" className="text-amber-400 hover:text-amber-300 font-medium">
-          ← Back to Bow Down Visuals
+          {t("nfcCardProfile.backToSite")}
         </a>
       </div>
     );
@@ -87,7 +89,7 @@ export default function NfcCardProfile() {
         {/* tap badge */}
         <div className="flex items-center justify-center gap-2 mb-6 text-amber-400/90">
           <Nfc className="w-4 h-4" />
-          <span className="text-xs tracking-[0.25em] uppercase">Tap to connect</span>
+          <span className="text-xs tracking-[0.25em] uppercase">{t("nfcCardProfile.tapToConnect")}</span>
           <QrCode className="w-4 h-4" />
         </div>
 
@@ -122,13 +124,13 @@ export default function NfcCardProfile() {
               onClick={() => downloadVCard(profile)}
               className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 text-black font-semibold py-3 hover:bg-amber-300 transition"
             >
-              <UserPlus className="w-4 h-4" /> Save Contact
+              <UserPlus className="w-4 h-4" /> {t("nfcCardProfile.saveContact")}
             </button>
             <button
               onClick={share}
               className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 text-amber-300 font-semibold py-3 hover:bg-amber-400/10 transition"
             >
-              <Share2 className="w-4 h-4" /> {shared ? "Copied!" : "Share"}
+              <Share2 className="w-4 h-4" /> {shared ? t("nfcCardProfile.copied") : t("nfcCardProfile.share")}
             </button>
           </div>
         </div>
@@ -153,11 +155,11 @@ export default function NfcCardProfile() {
 
         {/* footer */}
         <p className="mt-10 text-center text-xs text-zinc-600">
-          Powered by{" "}
+          {t("nfcCardProfile.poweredBy")}{" "}
           <a href="/" className="text-amber-500/80 hover:text-amber-400">
             Bow Down Visuals
           </a>{" "}
-          · NFC Smart Cards
+          · {t("nfcCardProfile.nfcSmartCards")}
         </p>
       </div>
     </div>

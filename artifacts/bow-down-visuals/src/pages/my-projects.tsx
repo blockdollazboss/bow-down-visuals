@@ -17,6 +17,7 @@ import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -25,12 +26,13 @@ function isVideoProject(projectType: string): boolean {
 
 /* Display names for project types — stored values stay stable so old
    projects keep working; only what the user sees changes. */
-const TYPE_DISPLAY_NAMES: Record<string, string> = {
-  "Make Song + Video": "Start from Scratch",
-  "Make a Music Video": "Video for My Song",
+const TYPE_DISPLAY_KEYS: Record<string, string> = {
+  "Make Song + Video": "myProjects.typeStartFromScratch",
+  "Make a Music Video": "myProjects.typeVideoForMySong",
 };
-function displayProjectType(projectType: string): string {
-  return TYPE_DISPLAY_NAMES[projectType] ?? projectType;
+function displayProjectType(projectType: string, t: (key: string) => string): string {
+  const key = TYPE_DISPLAY_KEYS[projectType];
+  return key ? t(key) : projectType;
 }
 
 interface ExportRecord {
@@ -108,6 +110,7 @@ function ResultModal({
   onScenesSaved?: (scenes: SceneData[]) => void;
   onExportComplete?: (record: ExportRecord) => void;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const content = project.output_data?.result ?? "";
   const [copied, setCopied] = useState(false);
@@ -152,11 +155,11 @@ function ResultModal({
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ lyrics }),
       });
-      if (!res.ok) throw new Error("Analysis failed");
+      if (!res.ok) throw new Error(t("myProjects.analysisFailed"));
       const data = (await res.json()) as SongStructure;
       setLocalSongStructure(data);
     } catch {
-      setAnalyzeError("Analysis failed. Please try again.");
+      setAnalyzeError(t("myProjects.analysisFailedRetry"));
     } finally {
       setAnalyzing(false);
     }
@@ -198,7 +201,7 @@ function ResultModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
           <div>
             <p className="text-xs text-primary font-bold uppercase tracking-widest mb-0.5">
-              {displayProjectType(project.project_type)}
+              {displayProjectType(project.project_type, t)}
             </p>
             <h2 className="text-lg font-black text-white">{project.title}</h2>
           </div>
@@ -214,7 +217,7 @@ function ResultModal({
               className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
               data-testid="btn-modal-copy">
               {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied!" : "Copy All"}
+              {copied ? t("myProjects.copied") : t("myProjects.copyAll")}
             </Button>
             <Button size="sm" variant="outline" onClick={handleTxt}
               className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
@@ -245,16 +248,16 @@ function ResultModal({
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
               >
                 {analyzing ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {t("myProjects.analyzing")}</>
                 ) : localSongStructure ? (
-                  <><BarChart2 className="h-4 w-4" /> Re-analyze Sections</>
+                  <><BarChart2 className="h-4 w-4" /> {t("myProjects.reanalyzeSections")}</>
                 ) : (
-                  <><BarChart2 className="h-4 w-4" /> Find Hook &amp; Verses</>
+                  <><BarChart2 className="h-4 w-4" /> {t("myProjects.findHookVerses")}</>
                 )}
               </button>
               {localSongStructure && !analyzing && (
                 <span className="text-xs text-primary/60 flex items-center gap-1.5">
-                  <Check className="h-3 w-3" /> Analysis complete
+                  <Check className="h-3 w-3" /> {t("myProjects.analysisComplete")}
                 </span>
               )}
               {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
@@ -291,7 +294,7 @@ function ResultModal({
               {content}
             </pre>
           ) : (
-            <p className="text-white/30 italic text-sm">No content saved.</p>
+            <p className="text-white/30 italic text-sm">{t("myProjects.noContentSaved")}</p>
           )}
         </div>
       </div>
@@ -309,6 +312,7 @@ function ProjectCard({
   onDelete: (id: string) => void;
   onOpen: (project: Project) => void;
 }) {
+  const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
 
   const content = project.output_data?.result ?? "";
@@ -325,7 +329,7 @@ function ProjectCard({
   const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
 
   function handleDelete() {
-    if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return;
+    if (!confirm(t("myProjects.deleteProjectConfirm", { title: displayTitle }))) return;
     setDeleting(true);
     onDelete(project.id);
   }
@@ -341,12 +345,12 @@ function ProjectCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={iconColor}>{icon}</span>
-              <span className="text-xs font-semibold text-white/40">{displayProjectType(project.project_type)}</span>
+              <span className="text-xs font-semibold text-white/40">{displayProjectType(project.project_type, t)}</span>
               <span className="text-white/15 text-xs">·</span>
               <span className="text-xs text-white/30">{date}</span>
               {project.credits_used > 0 && (
                 <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
-                  {project.credits_used} Visual Buc{project.credits_used !== 1 ? "s" : ""}
+                  {t("myProjects.visualBucsUsed", { count: project.credits_used })}
                 </Badge>
               )}
             </div>
@@ -382,12 +386,12 @@ function ProjectCard({
               onClick={() => onOpen(project)}
               className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-8 px-3 text-xs gap-1.5"
             >
-              <FolderOpen className="h-3.5 w-3.5" /> Open
+              <FolderOpen className="h-3.5 w-3.5" /> {t("myProjects.open")}
             </Button>
             <button
               onClick={handleDelete}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors"
-              title="Delete project"
+              title={t("myProjects.deleteProject")}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -402,7 +406,7 @@ function ProjectCard({
             <div className="flex items-center gap-1.5 mt-2">
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
                 <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                {clipCount} Runway clip{clipCount !== 1 ? "s" : ""} saved
+                {t("myProjects.runwayClipsSaved", { count: clipCount })}
               </span>
             </div>
           );
@@ -441,9 +445,9 @@ interface ClipRow {
   created_at: string;
 }
 
-const WORKFLOW_LABELS: Record<string, string> = {
-  "make-video":    "Video for My Song",
-  "song-and-video": "Start from Scratch",
+const WORKFLOW_LABEL_KEYS: Record<string, string> = {
+  "make-video":    "myProjects.typeVideoForMySong",
+  "song-and-video": "myProjects.typeStartFromScratch",
 };
 const WORKFLOW_PATHS: Record<string, string> = {
   "make-video":    "/make-video",
@@ -452,20 +456,22 @@ const WORKFLOW_PATHS: Record<string, string> = {
 
 /* ─── Draft card ─── */
 function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string) => void }) {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [deleting, setDeleting] = useState(false);
   const date = new Date(draft.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const time = new Date(draft.updated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  const label = WORKFLOW_LABELS[draft.workflow_type] ?? draft.workflow_type;
+  const labelKey = WORKFLOW_LABEL_KEYS[draft.workflow_type];
+  const label = labelKey ? t(labelKey) : draft.workflow_type;
   const path  = WORKFLOW_PATHS[draft.workflow_type] ?? "/dashboard";
-  const title = draft.title ?? draft.draft_data?.formValues?.["artistName"] ?? "Unsaved Draft";
+  const title = draft.title ?? draft.draft_data?.formValues?.["artistName"] ?? t("myProjects.unsavedDraft");
 
   function handleRecover() {
     navigate(path);
   }
 
   function handleDelete() {
-    if (!confirm(`Delete this draft? This cannot be undone.`)) return;
+    if (!confirm(t("myProjects.deleteDraftConfirm"))) return;
     setDeleting(true);
     onDelete(draft.id);
   }
@@ -494,18 +500,18 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
           <h3 className="text-base font-bold text-white truncate">{title}</h3>
           {draft.draft_data?.rawResult && (
             <p className="text-xs text-green-400/60 mt-1 flex items-center gap-1">
-              <Check className="h-3 w-3" /> Generated content included
+              <Check className="h-3 w-3" /> {t("myProjects.generatedContentIncluded")}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button onClick={handleDownload} title="Download Backup JSON" data-min-stars="6"
+          <button onClick={handleDownload} title={t("myProjects.downloadBackupJson")} data-min-stars="6"
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors">
             <Download className="h-4 w-4" />
           </button>
           <Button size="sm" onClick={handleRecover}
             className="h-8 px-3 text-xs gap-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/25">
-            <RefreshCcw className="h-3.5 w-3.5" /> Recover
+            <RefreshCcw className="h-3.5 w-3.5" /> {t("myProjects.recover")}
           </Button>
           <button onClick={handleDelete}
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors">
@@ -519,12 +525,13 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
 
 /* ─── Clip card ─── */
 function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) => void }) {
+  const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const date = new Date(clip.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   function handleDelete() {
-    if (!confirm("Delete this clip? This cannot be undone.")) return;
+    if (!confirm(t("myProjects.deleteClipConfirm"))) return;
     setDeleting(true);
     onDelete(clip.id);
   }
@@ -551,14 +558,14 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
             {clip.video_url && (
               <a href={clip.video_url} target="_blank" rel="noopener noreferrer"
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
-                title="Open video URL">
+                title={t("myProjects.openVideoUrl")}>
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
             {clip.project_id && (
               <Link href={`/video-editor?project=${clip.project_id}`}>
                 <button className="h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] text-white/40 hover:text-primary hover:bg-primary/5 transition-colors font-semibold">
-                  <Play className="h-3 w-3" /> Editor
+                  <Play className="h-3 w-3" /> {t("myProjects.editor")}
                 </button>
               </Link>
             )}
@@ -571,7 +578,7 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
         {clip.prompt && (
           <button onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
             className="text-[11px] text-white/30 hover:text-white/50 transition-colors text-left w-full">
-            {showPrompt ? "Hide prompt ▲" : "Show prompt ▼"}
+            {showPrompt ? t("myProjects.hidePrompt") : t("myProjects.showPrompt")}
           </button>
         )}
         {showPrompt && clip.prompt && (
@@ -602,7 +609,8 @@ interface GenerationHistoryRow {
 
 /* ─── Page ─── */
 export default function MyProjects() {
-  usePageTitle("My Projects", "All your songs, videos, and creative projects in one place.");
+  const { t } = useTranslation();
+  usePageTitle(t("myProjects.pageTitle"), t("myProjects.pageDescription"));
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history">("projects");
 
@@ -639,11 +647,11 @@ export default function MyProjects() {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (!res.ok) throw new Error("Failed to load projects");
+      if (!res.ok) throw new Error(t("myProjects.failedLoadProjects"));
       const data = (await res.json()) as { projects: Project[] };
       setProjects(data.projects);
     } catch (err) {
-      setProjError(err instanceof Error ? err.message : "Failed to load projects");
+      setProjError(err instanceof Error ? err.message : t("myProjects.failedLoadProjects"));
     } finally {
       setProjLoading(false);
     }
@@ -655,11 +663,11 @@ export default function MyProjects() {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/drafts", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (!res.ok) throw new Error("Failed to load drafts");
+      if (!res.ok) throw new Error(t("myProjects.failedLoadDrafts"));
       const data = (await res.json()) as { drafts: DraftRow[] };
       setDrafts(data.drafts);
     } catch (err) {
-      setDraftsError(err instanceof Error ? err.message : "Failed to load drafts");
+      setDraftsError(err instanceof Error ? err.message : t("myProjects.failedLoadDrafts"));
     } finally {
       setDraftsLoading(false);
     }
@@ -671,11 +679,11 @@ export default function MyProjects() {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/generated-clips", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (!res.ok) throw new Error("Failed to load clips");
+      if (!res.ok) throw new Error(t("myProjects.failedLoadClips"));
       const data = (await res.json()) as { clips: ClipRow[] };
       setClips(data.clips);
     } catch (err) {
-      setClipsError(err instanceof Error ? err.message : "Failed to load clips");
+      setClipsError(err instanceof Error ? err.message : t("myProjects.failedLoadClips"));
     } finally {
       setClipsLoading(false);
     }
@@ -687,7 +695,7 @@ export default function MyProjects() {
       await fetch(`/api/projects/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setProjects((prev) => prev.filter((p) => p.id !== id));
       if (openProject?.id === id) setOpenProject(null);
-    } catch { alert("Failed to delete project. Please try again."); }
+    } catch { alert(t("myProjects.failedDeleteProject")); }
   }
 
   async function handleDeleteDraft(id: string) {
@@ -695,7 +703,7 @@ export default function MyProjects() {
       const token = await getAccessToken();
       await fetch(`/api/drafts/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setDrafts((prev) => prev.filter((d) => d.id !== id));
-    } catch { alert("Failed to delete draft. Please try again."); }
+    } catch { alert(t("myProjects.failedDeleteDraft")); }
   }
 
   async function handleDeleteClip(id: string) {
@@ -703,7 +711,7 @@ export default function MyProjects() {
       const token = await getAccessToken();
       await fetch(`/api/generated-clips/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setClips((prev) => prev.filter((c) => c.id !== id));
-    } catch { alert("Failed to delete clip. Please try again."); }
+    } catch { alert(t("myProjects.failedDeleteClip")); }
   }
 
   async function loadHistory() {
@@ -712,21 +720,21 @@ export default function MyProjects() {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/generation-history", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (!res.ok) throw new Error("Failed to load generation history");
+      if (!res.ok) throw new Error(t("myProjects.failedLoadHistory"));
       const data = (await res.json()) as { history: GenerationHistoryRow[] };
       setHistory(data.history);
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : "Failed to load generation history");
+      setHistoryError(err instanceof Error ? err.message : t("myProjects.failedLoadHistory"));
     } finally {
       setHistoryLoading(false);
     }
   }
 
   const TABS = [
-    { id: "projects" as const, label: "Projects",          count: projects.length },
-    { id: "drafts"   as const, label: "Drafts",            count: drafts.length },
-    { id: "clips"    as const, label: "Generated Clips",   count: clips.length },
-    { id: "history"  as const, label: "Generation History", count: history.length },
+    { id: "projects" as const, labelKey: "myProjects.tabProjects",          count: projects.length },
+    { id: "drafts"   as const, labelKey: "myProjects.tabDrafts",            count: drafts.length },
+    { id: "clips"    as const, labelKey: "myProjects.tabClips",             count: clips.length },
+    { id: "history"  as const, labelKey: "myProjects.tabHistory",           count: history.length },
   ];
 
   return (
@@ -757,7 +765,7 @@ export default function MyProjects() {
 
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Dashboard
+          {t("myProjects.backToDashboard")}
         </Link>
 
         <div className="mb-8">
@@ -766,29 +774,29 @@ export default function MyProjects() {
               <FolderOpen className="h-5 w-5 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">My Projects</h1>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">{t("myProjects.heading")}</h1>
           <p className="text-white/50 text-base max-w-2xl">
-            Saved projects, unsaved drafts, and all your generated Runway clips — all in one place.
+            {t("myProjects.subheading")}
           </p>
         </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-1 mb-8 border-b border-white/[0.06] pb-0">
-          {TABS.map((t) => (
+          {TABS.map((tabItem) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
               className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
-                tab === t.id
+                tab === tabItem.id
                   ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
                   : "text-white/40 hover:text-white/70"
               }`}
             >
-              {t.label}
-              {t.count > 0 && (
+              {t(tabItem.labelKey)}
+              {tabItem.count > 0 && (
                 <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  tab === t.id ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30"
-                }`}>{t.count}</span>
+                  tab === tabItem.id ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30"
+                }`}>{tabItem.count}</span>
               )}
             </button>
           ))}
@@ -804,7 +812,7 @@ export default function MyProjects() {
             <div className="py-16 text-center space-y-3">
               <p className="text-red-400 font-semibold">{projError}</p>
               <Button onClick={() => void loadProjects()} variant="outline" size="sm"
-                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
@@ -812,11 +820,11 @@ export default function MyProjects() {
                 <FolderOpen className="h-8 w-8 text-white/20" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white">No saved projects yet</h2>
-                <p className="text-white/45 max-w-xs">Generate content and click Save Project — it will appear here.</p>
+                <h2 className="text-xl font-bold text-white">{t("myProjects.noProjects")}</h2>
+                <p className="text-white/45 max-w-xs">{t("myProjects.noProjectsHint")}</p>
               </div>
               <Link href="/dashboard">
-                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Go to Dashboard</Button>
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> {t("myProjects.goToDashboard")}</Button>
               </Link>
             </div>
           ) : (
@@ -838,7 +846,7 @@ export default function MyProjects() {
             <div className="py-16 text-center space-y-3">
               <p className="text-red-400 font-semibold">{draftsError}</p>
               <Button onClick={() => void loadDrafts()} variant="outline" size="sm"
-                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : drafts.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
@@ -846,19 +854,19 @@ export default function MyProjects() {
                 <FileEdit className="h-8 w-8 text-white/20" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white">No drafts saved</h2>
+                <h2 className="text-xl font-bold text-white">{t("myProjects.noDrafts")}</h2>
                 <p className="text-white/45 max-w-xs">
-                  Drafts are saved automatically as you work. Start a project and your progress will appear here.
+                  {t("myProjects.noDraftsHint")}
                 </p>
               </div>
               <Link href="/dashboard">
-                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Start a Project</Button>
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> {t("myProjects.startProject")}</Button>
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-white/30 mb-4">
-                Drafts are auto-saved as you work. Click Recover to return to that project and pick up where you left off.
+                {t("myProjects.draftsHint")}
               </p>
               {drafts.map((draft) => (
                 <DraftCard key={draft.id} draft={draft} onDelete={handleDeleteDraft} />
@@ -877,7 +885,7 @@ export default function MyProjects() {
             <div className="py-16 text-center space-y-3">
               <p className="text-red-400 font-semibold">{clipsError}</p>
               <Button onClick={() => void loadClips()} variant="outline" size="sm"
-                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : clips.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
@@ -885,19 +893,19 @@ export default function MyProjects() {
                 <Video className="h-8 w-8 text-white/20" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white">No generated clips yet</h2>
+                <h2 className="text-xl font-bold text-white">{t("myProjects.noClips")}</h2>
                 <p className="text-white/45 max-w-xs">
-                  Generate Runway clips in your music video project — they'll be saved here automatically.
+                  {t("myProjects.noClipsHint")}
                 </p>
               </div>
               <Link href="/make-video">
-                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> Video for My Song</Button>
+                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> {t("myProjects.typeVideoForMySong")}</Button>
               </Link>
             </div>
           ) : (
             <div>
               <p className="text-xs text-white/30 mb-5">
-                {clips.length} clip{clips.length !== 1 ? "s" : ""} saved — auto-saved the moment each Runway job completes.
+                {t("myProjects.clipsSaved", { count: clips.length })}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clips.map((clip) => (
@@ -918,7 +926,7 @@ export default function MyProjects() {
             <div className="py-16 text-center space-y-3">
               <p className="text-red-400 font-semibold">{historyError}</p>
               <Button onClick={() => void loadHistory()} variant="outline" size="sm"
-                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
@@ -926,35 +934,35 @@ export default function MyProjects() {
                 <History className="h-8 w-8 text-white/20" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white">No generation history yet</h2>
+                <h2 className="text-xl font-bold text-white">{t("myProjects.noHistory")}</h2>
                 <p className="text-white/45 max-sm:max-w-xs">
-                  No generation history yet. Your AI generations will appear here after you create something.
+                  {t("myProjects.noHistoryHint")}
                 </p>
               </div>
               <Link href="/dashboard">
-                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Start Generating</Button>
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> {t("myProjects.startGenerating")}</Button>
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-white/30 mb-4">
-                {history.length} generation{history.length !== 1 ? "s" : ""} logged — newest first.
+                {t("myProjects.generationsLogged", { count: history.length })}
               </p>
               {history.map((row) => {
                 const isClip = row.generation_type === "runway_video_clip" || row.generation_type === "lip_sync_clip";
                 const isThumbnail = row.generation_type === "thumbnail";
-                const typeLabel =
-                  row.action_label ??
-                  (row.generation_type === "runway_video_clip"    ? "Runway Video Clip"    :
-                   row.generation_type === "lip_sync_clip"        ? "Lip Sync Clip"        :
-                   row.generation_type === "thumbnail"            ? "Thumbnail"            :
-                   row.generation_type === "lyrics"               ? "Lyrics"               :
-                   row.generation_type === "video_plan"           ? "Video Plan"           :
-                   row.generation_type === "scene_prompt"         ? "Scene Prompt"         :
-                   row.generation_type === "captions"             ? "Captions"             :
-                   row.generation_type === "promo_clip"           ? "Promo Clip"           :
-                   row.generation_type === "thumbnail_prompt"     ? "Thumbnail Prompt"     :
-                   row.generation_type ?? "Generation");
+                const typeKey =
+                  row.generation_type === "runway_video_clip"    ? "myProjects.typeRunwayClip"    :
+                  row.generation_type === "lip_sync_clip"        ? "myProjects.typeLipSyncClip"   :
+                  row.generation_type === "thumbnail"            ? "myProjects.typeThumbnail"     :
+                  row.generation_type === "lyrics"               ? "myProjects.typeLyrics"        :
+                  row.generation_type === "video_plan"           ? "myProjects.typeVideoPlan"     :
+                  row.generation_type === "scene_prompt"         ? "myProjects.typeScenePrompt"   :
+                  row.generation_type === "captions"             ? "myProjects.typeCaptions"      :
+                  row.generation_type === "promo_clip"           ? "myProjects.typePromoClip"     :
+                  row.generation_type === "thumbnail_prompt"     ? "myProjects.typeThumbnailPrompt" :
+                  null;
+                const typeLabel = row.action_label ?? (typeKey ? t(typeKey) : (row.generation_type ?? t("myProjects.typeGeneration")));
                 const projectLabel = row.artist_name && row.song_title
                   ? `${row.artist_name} — ${row.song_title}`
                   : row.artist_name ?? row.song_title ?? null;
@@ -963,9 +971,9 @@ export default function MyProjects() {
                   row.save_status === "save_failed" ? "text-red-400 bg-red-400/10 border-red-400/20"       :
                   "text-white/40 bg-white/5 border-white/10";
                 const statusLabel =
-                  row.save_status === "saved"       ? "Saved" :
-                  row.save_status === "save_failed" ? "Save Failed" :
-                  row.save_status === "charged"     ? "Generated" : row.save_status;
+                  row.save_status === "saved"       ? t("myProjects.statusSaved") :
+                  row.save_status === "save_failed" ? t("myProjects.statusSaveFailed") :
+                  row.save_status === "charged"     ? t("myProjects.statusGenerated") : row.save_status;
                 return (
                   <div key={row.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
                     {/* Clip video preview (if video_url exists) */}
@@ -998,10 +1006,10 @@ export default function MyProjects() {
                           <span className="text-xs font-bold text-white/70">{typeLabel}</span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
                           {row.refunded && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Visual Bucs Refunded</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">{t("myProjects.visualBucsRefunded")}</span>
                           )}
                           {row.credits_used != null && row.credits_used > 0 && (
-                            <span className="text-[10px] text-white/30">{row.credits_used} Visual Buc{row.credits_used !== 1 ? "s" : ""}</span>
+                            <span className="text-[10px] text-white/30">{t("myProjects.visualBucsUsed", { count: row.credits_used })}</span>
                           )}
                         </div>
                         {projectLabel && (
@@ -1023,7 +1031,7 @@ export default function MyProjects() {
                           >
                             <Button size="sm" variant="outline"
                               className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-xs gap-1.5 w-full">
-                              <Play className="h-3.5 w-3.5" /> Preview Clip
+                              <Play className="h-3.5 w-3.5" /> {t("myProjects.previewClip")}
                             </Button>
                           </a>
                         )}
@@ -1032,7 +1040,7 @@ export default function MyProjects() {
                         {row.project_id && (
                           <Link href={`/video-editor?project=${row.project_id}`}>
                             <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 w-full">
-                              <FolderOpen className="h-3.5 w-3.5" /> Open Project
+                              <FolderOpen className="h-3.5 w-3.5" /> {t("myProjects.openProject")}
                             </Button>
                           </Link>
                         )}
@@ -1042,7 +1050,7 @@ export default function MyProjects() {
                           <Button size="sm" variant="outline"
                             className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5"
                             onClick={() => { void navigator.clipboard.writeText(row.result_content ?? ""); }}>
-                            <Copy className="h-3.5 w-3.5" /> Copy Content
+                            <Copy className="h-3.5 w-3.5" /> {t("myProjects.copyContent")}
                           </Button>
                         )}
                       </div>
