@@ -3,7 +3,7 @@ import {
   CalendarDays, Clock3, Loader2, Sparkles, Plus, X, Upload, Video,
   Camera, Music2, ThumbsUp, Trash2, Pencil, CheckCircle2, XCircle,
   AlertTriangle, ChevronLeft, ChevronRight, Wand2, ListVideo, Inbox,
-  History, GripVertical, RefreshCw, ExternalLink,
+  History, GripVertical, RefreshCw, ExternalLink, Megaphone, Copy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -42,7 +42,7 @@ import {
    - TikTok posts land in your TikTok drafts inbox — TikTok's API can't
      publish straight to your feed, so you finish the post in TikTok. */
 
-type Tab = "calendar" | "queue" | "drafts" | "posted";
+type Tab = "calendar" | "queue" | "drafts" | "posted" | "community";
 
 interface PlatformOpt {
   key: SchedulerPlatformKey;
@@ -110,6 +110,7 @@ export default function Scheduler() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ScheduledPostShape | null>(null);
   const [prefill, setPrefill] = useState<{ date: string; time: string } | null>(null);
+  const [captionPrefill, setCaptionPrefill] = useState<string | null>(null);
 
   /* best-time */
   const [niche, setNiche] = useState("music");
@@ -161,9 +162,10 @@ export default function Scheduler() {
     [monthCursor],
   );
 
-  function openComposer(post?: ScheduledPostShape, date?: string, time?: string) {
+  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string) {
     setEditingPost(post ?? null);
     setPrefill(date ? { date, time: time ?? "18:00" } : null);
+    setCaptionPrefill(caption ?? null);
     setComposerOpen(true);
   }
 
@@ -293,6 +295,7 @@ export default function Scheduler() {
               { key: "queue", label: t("scheduler.tabs.queue", { num: scheduled.length }), icon: ListVideo },
               { key: "drafts", label: t("scheduler.tabs.drafts", { num: drafts.length }), icon: Inbox },
               { key: "posted", label: t("scheduler.tabs.posted"), icon: History },
+              { key: "community", label: t("scheduler.tabs.community"), icon: Megaphone },
             ] as { key: Tab; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -343,6 +346,12 @@ export default function Scheduler() {
               />
             )}
             {tab === "posted" && <PostedTab posts={history} />}
+            {tab === "community" && (
+              <CommunityPostsTab
+                onSchedulePost={(text) => openComposer(undefined, undefined, undefined, text)}
+                onOutOfCredits={() => setOutOfCredits(true)}
+              />
+            )}
           </div>
         )}
 
@@ -456,10 +465,11 @@ export default function Scheduler() {
         <ComposerModal
           post={editingPost}
           prefill={prefill}
+          captionPrefill={captionPrefill}
           accounts={accounts}
           timezone={timezone}
-          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); }}
-          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); await refresh(); }}
+          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); }}
+          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); await refresh(); }}
           onOutOfCredits={() => setOutOfCredits(true)}
         />
       )}
@@ -781,11 +791,286 @@ function EmptyState({ icon: Icon, title, hint }: { icon: LucideIcon; title: stri
   );
 }
 
+/* ─── Community Posts tab (AI text-first post generator) ─────────────────
+   Lives inside the scheduler — no new page, no new sidebar item.
+   Generated variant → "Schedule this post" opens the existing composer with
+   the text prefilled as the caption. */
+
+interface CommunityPostVariant {
+  text: string;
+  charCount: number;
+  limit: number;
+  over: boolean;
+}
+
+interface CommunityBestTime {
+  day: string;
+  time: string;
+  reason: string;
+}
+
+interface CommunityPlatformMeta {
+  id: string;
+  label: string;
+  charLimit: number;
+}
+
+const COMMUNITY_PLATFORMS_FALLBACK: CommunityPlatformMeta[] = [
+  { id: "youtube-community", label: "YouTube Community", charLimit: 5000 },
+  { id: "x", label: "X", charLimit: 280 },
+  { id: "instagram", label: "Instagram", charLimit: 2200 },
+  { id: "threads", label: "Threads", charLimit: 500 },
+];
+
+const COMMUNITY_TONES_FALLBACK = [
+  "hyped", "funny", "motivational", "chill", "luxury", "bold", "question", "story",
+];
+
+function CommunityPostsTab(props: {
+  onSchedulePost: (text: string) => void;
+  onOutOfCredits: () => void;
+}) {
+  const { t } = useTranslation();
+  const { getAccessToken, refreshProfile } = useAuth();
+  const { toast } = useToast();
+
+  const [topic, setTopic] = useState("");
+  const [platform, setPlatform] = useState("x");
+  const [tone, setTone] = useState("hyped");
+  const [cta, setCta] = useState("");
+  const [niche, setNiche] = useState("");
+  const [platforms, setPlatforms] = useState<CommunityPlatformMeta[]>(COMMUNITY_PLATFORMS_FALLBACK);
+  const [tones, setTones] = useState<string[]>(COMMUNITY_TONES_FALLBACK);
+  const [cost, setCost] = useState(50);
+  const [loading, setLoading] = useState(false);
+  const [variants, setVariants] = useState<CommunityPostVariant[]>([]);
+  const [bestTime, setBestTime] = useState<CommunityBestTime | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const data = await api<{ platforms: CommunityPlatformMeta[]; tones: string[]; cost: number }>(
+          "/api/community-post-platforms",
+          token,
+        );
+        if (Array.isArray(data.platforms) && data.platforms.length > 0) setPlatforms(data.platforms);
+        if (Array.isArray(data.tones) && data.tones.length > 0) {
+          setTones(data.tones);
+          if (!data.tones.includes(tone)) setTone(data.tones[0]!);
+        }
+        if (typeof data.cost === "number") setCost(data.cost);
+      } catch {
+        /* fall back to the hardcoded platform/tone lists */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleGenerate() {
+    if (loading || topic.trim().length < 2) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const data = await api<{ posts: CommunityPostVariant[]; bestTime: CommunityBestTime }>(
+        "/api/generate-community-post",
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            topic: topic.trim(),
+            platform,
+            tone,
+            cta: cta.trim() || undefined,
+            niche: niche.trim() || undefined,
+          }),
+        },
+      );
+      setVariants(data.posts);
+      setBestTime(data.bestTime);
+      refreshProfile();
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === "out_of_credits") props.onOutOfCredits();
+      else setError(err instanceof Error ? err.message : t("scheduler.communityPosts.failed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleCopy(text: string) {
+    navigator.clipboard.writeText(text).then(
+      () => toast({ title: t("scheduler.communityPosts.copied") }),
+      () => toast({ title: t("scheduler.communityPosts.failed"), variant: "destructive" }),
+    );
+  }
+
+  const activeLimit = platforms.find((p) => p.id === platform)?.charLimit ?? 280;
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+      <div className="flex items-center gap-2">
+        <Megaphone className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-2xl font-black">{t("scheduler.communityPosts.title")}</h2>
+        <span className="ml-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+          {t("scheduler.communityPosts.badge")}
+        </span>
+      </div>
+      <p className="mt-2 max-w-2xl text-sm text-white/55">
+        {t("scheduler.communityPosts.desc", { cost })}
+      </p>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <label className={labelClass}>{t("scheduler.communityPosts.topic")}</label>
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            rows={2}
+            maxLength={300}
+            placeholder={t("scheduler.communityPosts.topicPlaceholder")}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>{t("scheduler.communityPosts.platform")}</label>
+          <div className="flex flex-wrap gap-2">
+            {platforms.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPlatform(p.id)}
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
+                  platform === p.id
+                    ? "bg-primary text-black"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                {p.label}
+                <span className="ml-1.5 opacity-60">{p.charLimit}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className={labelClass}>{t("scheduler.communityPosts.tone")}</label>
+          <div className="flex flex-wrap gap-2">
+            {tones.map((tn) => (
+              <button
+                key={tn}
+                onClick={() => setTone(tn)}
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold capitalize transition ${
+                  tone === tn
+                    ? "bg-primary text-black"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                {tn}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className={labelClass}>{t("scheduler.communityPosts.cta")}</label>
+          <input
+            value={cta}
+            onChange={(e) => setCta(e.target.value)}
+            maxLength={160}
+            placeholder={t("scheduler.communityPosts.ctaPlaceholder")}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>{t("scheduler.communityPosts.niche")}</label>
+          <input
+            value={niche}
+            onChange={(e) => setNiche(e.target.value)}
+            maxLength={60}
+            placeholder={t("scheduler.communityPosts.nichePlaceholder")}
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+        </div>
+      )}
+
+      <div className="mt-6">
+        <Button
+          onClick={handleGenerate}
+          disabled={loading || topic.trim().length < 2}
+          className="bg-primary font-bold text-black hover:bg-primary/90"
+        >
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          {loading ? t("scheduler.communityPosts.generating") : t("scheduler.communityPosts.generate")}
+        </Button>
+      </div>
+
+      {variants.length > 0 && (
+        <div className="mt-8">
+          <p className="text-sm text-white/55">{t("scheduler.communityPosts.generated")}</p>
+          {bestTime && (
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
+              <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="text-sm">
+                <p className="font-bold text-white">
+                  {t("scheduler.communityPosts.bestTime")}: {bestTime.day} · {bestTime.time}
+                </p>
+                <p className="mt-1 text-white/55">{bestTime.reason}</p>
+              </div>
+            </div>
+          )}
+          <div className="mt-4 grid gap-4">
+            {variants.map((v, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                    {t("scheduler.communityPosts.variants", { num: i + 1 })}
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                      v.charCount <= (v.limit || activeLimit)
+                        ? "bg-emerald-500/15 text-emerald-300"
+                        : "bg-red-500/15 text-red-300"
+                    }`}
+                  >
+                    {t("scheduler.communityPosts.charCount", { num: v.charCount, limit: v.limit || activeLimit })}
+                  </span>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-white/90">{v.text}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => props.onSchedulePost(v.text)}
+                    className="bg-primary font-bold text-black hover:bg-primary/90"
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {t("scheduler.communityPosts.scheduleThis")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleCopy(v.text)} className="border-white/15 text-white/70 hover:bg-white/5">
+                    <Copy className="mr-2 h-4 w-4" />
+                    {t("scheduler.communityPosts.copy")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Composer modal ───────────────────────────────────────────────────── */
 
 function ComposerModal(props: {
   post: ScheduledPostShape | null;
   prefill: { date: string; time: string } | null;
+  captionPrefill: string | null;
   accounts: SocialAccountInfo[];
   timezone: string;
   onClose: () => void;
@@ -803,7 +1088,7 @@ function ComposerModal(props: {
     post && !post.mediaUrl.startsWith("supabase://") ? post.mediaUrl : "",
   );
   const [uploading, setUploading] = useState(false);
-  const [caption, setCaption] = useState(post?.caption ?? "");
+  const [caption, setCaption] = useState(post?.caption ?? props.captionPrefill ?? "");
   const [hashtags, setHashtags] = useState(post?.hashtags ?? "");
   const [platforms, setPlatforms] = useState<SchedulerPlatformKey[]>(post?.platforms ?? ["instagram"]);
   const [accountIds, setAccountIds] = useState<Partial<Record<SchedulerPlatformKey, string>>>(post?.accountIds ?? {});

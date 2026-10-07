@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import {
   Video, ArrowLeft, Loader2, Trash2, Copy, Check,
   Calendar, Film, AlertCircle, X, Layers, ChevronRight,
-  CheckCircle2, Link2,
+  CheckCircle2, Link2, Target, Gauge,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 
 interface GeneratedClip {
@@ -382,15 +383,417 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
   );
 }
 
+/* ─── SEO Score Modal ────────────────────────────────────────────────────── */
+interface SeoScoreIssue {
+  severity: "high" | "medium" | "low";
+  message: string;
+  fix: string;
+}
+
+interface SeoScoreResult {
+  overallScore: number;
+  dimensions: {
+    titleStrength: number;
+    keywordCoverage: number;
+    descriptionQuality: number;
+    tagRelevance: number;
+    packagingComplete: number;
+  };
+  issues: SeoScoreIssue[];
+  optimizedTitle: string;
+  optimizedDescriptionFirst150: string;
+}
+
+const SEO_DIMENSIONS: Array<{
+  key: keyof SeoScoreResult["dimensions"];
+  label: string;
+}> = [
+  { key: "titleStrength",      label: "Title strength" },
+  { key: "keywordCoverage",    label: "Keyword coverage" },
+  { key: "descriptionQuality", label: "Description quality" },
+  { key: "tagRelevance",       label: "Tag relevance" },
+  { key: "packagingComplete",  label: "Packaging complete" },
+];
+
+function scoreTint(score: number): string {
+  if (score >= 80) return "text-green-400";
+  if (score >= 60) return "text-amber-400";
+  return "text-red-400";
+}
+
+function barTint(score: number): string {
+  if (score >= 80) return "bg-green-400";
+  if (score >= 60) return "bg-amber-400";
+  return "bg-red-400";
+}
+
+function severityStyle(sev: SeoScoreIssue["severity"]): string {
+  if (sev === "high")   return "text-red-400 bg-red-400/10 border-red-400/25";
+  if (sev === "medium") return "text-amber-400 bg-amber-400/10 border-amber-400/25";
+  return "text-white/50 bg-white/[0.04] border-white/10";
+}
+
+function CopyTextBtn({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-white transition-colors px-2 py-1 rounded hover:bg-primary/10 shrink-0"
+    >
+      {copied ? <><Check className="h-3 w-3 text-green-400" /> Copied</> : <><Copy className="h-3 w-3" /> Copy {label}</>}
+    </button>
+  );
+}
+
+const seoInputClass =
+  "w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
+
+function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => void }) {
+  const { toast } = useToast();
+  const { refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+
+  const [title, setTitle] = useState(clip.title ?? "");
+  const [description, setDescription] = useState("");
+  const [tags, setTags] = useState("");
+  const [niche, setNiche] = useState("");
+  const [hasChapters, setHasChapters] = useState(false);
+  const [hasCaptions, setHasCaptions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SeoScoreResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleScore() {
+    if (!title.trim() || !description.trim() || !niche.trim()) {
+      setError("Fill in the title, description, and niche so the score is accurate.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await confirmedFetch("/api/seo-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 15),
+          niche: niche.trim(),
+          hasChapters,
+          hasCaptions,
+        }),
+      });
+      /* null = user cancelled the credit confirmation */
+      if (!res) { setLoading(false); return; }
+      const data = await res.json() as {
+        result?: SeoScoreResult;
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 402 || data.error === "out_of_credits") {
+        refreshProfile();
+        toast({
+          title: "Not enough Visual Bucs",
+          description: "The SEO Score costs 75 Visual Bucs. Top up to run it.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      if (!res.ok || !data.result) {
+        throw new Error(data.message ?? data.error ?? `Server error ${res.status}`);
+      }
+      setResult(data.result);
+      refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SEO score failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const needsTitleFix = result !== null && result.dimensions.titleStrength < 70;
+  const needsDescFix = result !== null && result.dimensions.descriptionQuality < 70;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.10] bg-zinc-950 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] sticky top-0 bg-zinc-950 z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Gauge className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Video SEO Score</p>
+              <p className="text-[11px] text-white/35">75 Visual Bucs — title + description + tags + chapters</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {!result ? (
+            /* ── Input form ── */
+            <>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-black border border-white/[0.06] overflow-hidden shrink-0">
+                  <video src={clip.video_url} className="w-full h-full object-cover" muted />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{clip.title || "Runway Clip"}</p>
+                  <p className="text-[10px] text-white/35">Score this clip's publish packaging</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Title</label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="The title as it will appear on YouTube"
+                  maxLength={150}
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Paste the full description as it will be published"
+                  rows={4}
+                  maxLength={5000}
+                  className={`${seoInputClass} resize-y`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Tags <span className="normal-case font-normal text-white/25">(comma separated)</span></label>
+                <input
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="ai music, creator tips, behind the scenes"
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Niche</label>
+                <input
+                  value={niche}
+                  onChange={(e) => setNiche(e.target.value)}
+                  placeholder="e.g. AI music production, gaming, fitness"
+                  maxLength={100}
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasChapters}
+                    onChange={(e) => setHasChapters(e.target.checked)}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  Has chapters
+                </label>
+                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasCaptions}
+                    onChange={(e) => setHasCaptions(e.target.checked)}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  Has captions
+                </label>
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-3 py-2.5">
+                  <p className="text-[11px] text-red-300">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleScore}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Scoring…</>
+                ) : (
+                  <><Target className="h-4 w-4" /> Score My SEO — 75 Visual Bucs</>
+                )}
+              </button>
+            </>
+          ) : (
+            /* ── Results ── */
+            <>
+              {/* Overall score */}
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4 flex items-center gap-5">
+                <div className="relative h-20 w-20 shrink-0">
+                  <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                    <circle
+                      cx="40" cy="40" r="34" fill="none"
+                      stroke={result.overallScore >= 80 ? "#4ade80" : result.overallScore >= 60 ? "#fbbf24" : "#f87171"}
+                      strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={`${(result.overallScore / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-2xl font-black ${scoreTint(result.overallScore)}`}>{result.overallScore}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Publish readiness</p>
+                  <p className="text-[11px] text-white/40 mt-1 leading-relaxed">
+                    {result.overallScore >= 80
+                      ? "Locked in — publish it. The packaging is search-ready."
+                      : result.overallScore >= 60
+                        ? "Solid bones, but a few fixes below would lift reach."
+                        : "Needs work before publishing — fix the high-severity issues first."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Dimensions */}
+              <div className="space-y-2">
+                {SEO_DIMENSIONS.map((dim) => {
+                  const score = result.dimensions[dim.key];
+                  return (
+                    <div key={dim.key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-white/70">{dim.label}</span>
+                        <span className={`text-xs font-black ${scoreTint(score)}`}>{score}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div className={`h-full rounded-full ${barTint(score)} transition-all`} style={{ width: `${score}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Issues */}
+              {result.issues.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Fix before publishing</p>
+                  {result.issues.map((issue, idx) => (
+                    <div key={idx} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[9px] font-black uppercase tracking-wider rounded-full border px-1.5 py-0.5 ${severityStyle(issue.severity)}`}>
+                          {issue.severity}
+                        </span>
+                        <p className="text-xs font-bold text-white/85">{issue.message}</p>
+                      </div>
+                      <p className="text-[11px] text-white/45 leading-relaxed">
+                        <span className="text-primary font-bold">Fix: </span>{issue.fix}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* AI rewrites */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">AI rewrites — ready to use</p>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Optimized title</p>
+                      <p className="text-sm font-bold text-white leading-snug">{result.optimizedTitle}</p>
+                    </div>
+                    <CopyTextBtn text={result.optimizedTitle} label="title" />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Optimized first 150 chars</p>
+                      <p className="text-xs text-white/80 leading-relaxed">{result.optimizedDescriptionFirst150}</p>
+                    </div>
+                    <CopyTextBtn text={result.optimizedDescriptionFirst150} label="text" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Handoffs — low scores route to the fixer tools */}
+              {(needsTitleFix || needsDescFix) && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Score too low? Fix it here</p>
+                  {needsTitleFix && (
+                    <Link href="/titles" onClick={onClose} className="block">
+                      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                        <div>
+                          <p className="text-xs font-bold text-white">Fix with Title Studio</p>
+                          <p className="text-[10px] text-white/40">AI writes 10 click-ranked titles for your niche</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                      </div>
+                    </Link>
+                  )}
+                  {needsDescFix && (
+                    <Link href="/titles" onClick={onClose} className="block">
+                      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                        <div>
+                          <p className="text-xs font-bold text-white">Rewrite description in Title Studio</p>
+                          <p className="text-[10px] text-white/40">Full description + timestamps + CTA template</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-3 py-2.5">
+                  <p className="text-[11px] text-red-300">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={() => { setResult(null); setError(null); }}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white/50 border border-white/[0.07] bg-white/[0.02] hover:text-white/80 transition-colors"
+              >
+                Score again with new inputs
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Clip Card ────────────────────────────────────────────────────────────── */
 function ClipCard({
   clip,
   onDelete,
   onAttach,
+  onSeoScore,
 }: {
   clip: GeneratedClip;
   onDelete: (id: string) => void;
   onAttach: (clip: GeneratedClip) => void;
+  onSeoScore: (clip: GeneratedClip) => void;
 }) {
   const { t } = useTranslation();
   const [showPrompt, setShowPrompt] = useState(false);
@@ -453,6 +856,15 @@ function ClipCard({
           {t("myClips.attachToScene")}
         </button>
 
+        {/* SEO Score — pre-publish audit of title + description + tags */}
+        <button
+          onClick={() => onSeoScore(clip)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-amber-400 border border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/40 transition-colors"
+        >
+          <Target className="h-3.5 w-3.5" />
+          SEO Score <span className="text-white/30 font-normal">· 75</span>
+        </button>
+
         {/* Publish to showcase (opt-in) */}
         <PublishToShowcase
           mediaType="video"
@@ -503,6 +915,7 @@ export default function MyClips() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attachingClip, setAttachingClip] = useState<GeneratedClip | null>(null);
+  const [seoClip, setSeoClip] = useState<GeneratedClip | null>(null);
 
   const stableGetAccessToken = useCallback(getAccessToken, [getAccessToken]);
 
@@ -552,6 +965,14 @@ export default function MyClips() {
           onClose={() => setAttachingClip(null)}
           getAccessToken={stableGetAccessToken}
           onSuccess={() => { /* toast already shown inside */ }}
+        />
+      )}
+
+      {/* SEO Score Modal */}
+      {seoClip && (
+        <SeoScoreModal
+          clip={seoClip}
+          onClose={() => setSeoClip(null)}
         />
       )}
 
@@ -635,6 +1056,7 @@ export default function MyClips() {
                 clip={clip}
                 onDelete={handleDelete}
                 onAttach={setAttachingClip}
+                onSeoScore={setSeoClip}
               />
             ))}
           </div>
