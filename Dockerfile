@@ -53,7 +53,9 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     BASE_PATH=$BASE_PATH
 
 # typecheck + build every workspace package (frontend + api-server)
-RUN pnpm install --frozen-lockfile && pnpm run build
+# Note: --no-frozen-lockfile allows pnpm to update the lockfile for new deps
+# (used when network issues prevent local lockfile regeneration)
+RUN pnpm install --no-frozen-lockfile && pnpm run build
 
 ENV NODE_ENV=production
 
