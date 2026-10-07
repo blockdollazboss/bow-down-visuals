@@ -103,6 +103,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/sponsor-read": { cost: 100, feature: "Sponsor Read" },
   "/api/shoutouts/ai-message": { cost: 100, feature: "AI Shoutout Message" },
   "/api/press-kit/generate": { cost: 300, feature: "Press Kit Generator" },
+  "/api/press-release": { cost: 100, feature: "Press Release Generator" },
   "/api/gamers/ideas": { cost: 100, feature: "Gamer Content Ideas" },
   "/api/show-finder/pitch": { cost: 100, feature: "Show Pitch Draft" },
   "/api/show-finder": { cost: 200, feature: "Show Finder" },

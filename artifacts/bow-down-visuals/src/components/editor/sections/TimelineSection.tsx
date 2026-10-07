@@ -4,6 +4,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import type { SharedPreviewState } from "@/components/TimelinePreviewPlayer";
 import { EditorCard } from "@/components/editor/controls";
 import { FormatSection } from "@/components/editor/sections/FormatSection";
+import { AutoChaptersCard } from "@/components/editor/sections/AutoChaptersCard";
 
 interface TimelineSectionProps {
   scenes: SceneData[];
@@ -23,6 +24,10 @@ interface TimelineSectionProps {
   onSeek?: (sec: number) => void;
   onTogglePlay?: () => void;
   onRestart?: () => void;
+  /** Resolved project audio URL — feeds the Auto Chapters transcribe flow. */
+  audioUrl?: string | null;
+  /** Project transcript — prefilled into the Auto Chapters paste box. */
+  transcriptText?: string | null;
 }
 
 const TRANSITION_OPTIONS = ["Cut", ...TRANSITIONS.filter(t => t !== "Cut")];
@@ -53,6 +58,8 @@ export function TimelineSection({
   onSeek,
   onTogglePlay,
   onRestart,
+  audioUrl = null,
+  transcriptText = null,
 }: TimelineSectionProps) {
   const approvedScenes = scenes.filter(s => s.approved && s.demoClipUrl);
 
@@ -307,6 +314,17 @@ export function TimelineSection({
           </div>
         )}
       </EditorCard>
+
+      {/* Auto Chapters — generate → edit → copy for YouTube, saved with the project */}
+      <div className="mt-4">
+        <AutoChaptersCard
+          chapters={settings.chapters ?? []}
+          onChaptersChange={(chapters) => setSettings({ ...settings, chapters })}
+          audioUrl={audioUrl}
+          transcriptText={transcriptText}
+          durationSec={totalDuration > 0 ? totalDuration : null}
+        />
+      </div>
     </div>
   );
 }

@@ -7321,6 +7321,69 @@
       "luxury": "Luxury",
       "playful": "Playful",
       "professional": "Professional"
+    },
+    "tabs": {
+      "kit": "Press Kit",
+      "release": "Press Release"
+    },
+    "pressRelease": {
+      "title": "AI Press Release Generator",
+      "description": "Turn your announcement into a professional press release — headline, dateline, lede, body, quote, boilerplate, contact block, and a 280-character social version. Save it into your press kit or download it.",
+      "confirmFeature": "Press Release Generator",
+      "generateRelease_one": "Generate release ({{count}} Visual Buc)",
+      "generateRelease_other": "Generate release ({{count}} Visual Bucs)",
+      "costNote": "100 Visual Bucs per release. Copying, downloading, and saving to your press kit are free.",
+      "resultTitle": "Your press release",
+      "dismiss": "Start over",
+      "aboutLabel": "About",
+      "socialLabel": "Social version",
+      "copySocial": "Copy social post",
+      "copyFull": "Copy full release",
+      "copied": "Copied",
+      "download": "Download .txt",
+      "addToPressKit": "Add to press kit",
+      "noKitHint": "Select or create a press kit on the Press Kit tab to save releases there.",
+      "optional": "optional",
+      "savedTitle": "Saved releases — {{name}}",
+      "confirmDelete": "Delete this saved press release?",
+      "delete": "Delete",
+      "form": {
+        "announcementType": "Announcement type",
+        "artistName": "Artist / brand name",
+        "topic": "What are you announcing?",
+        "keyFacts": "Key facts to include",
+        "addFact": "Add fact",
+        "quote": "Artist quote",
+        "contactName": "Press contact name",
+        "contactEmail": "Press contact email",
+        "contactPhone": "Press contact phone",
+        "datelineCity": "Dateline city"
+      },
+      "placeholders": {
+        "artistName": "e.g. Nova Rayne",
+        "topic": "Your new single 'Midnight Static' drops Friday, Oct 10 with a visualizer premiere on YouTube at 7pm ET...",
+        "fact": "e.g. Tour kicks off Nov 15 at Brooklyn Steel",
+        "quote": "Leave blank and the AI will write one in your voice",
+        "contactName": "e.g. Maya Cole",
+        "contactEmail": "press@example.com",
+        "contactPhone": "555-0100",
+        "datelineCity": "e.g. Atlanta, GA"
+      },
+      "types": {
+        "single": "Single",
+        "album": "Album",
+        "tour": "Tour",
+        "launch": "Product / brand launch",
+        "milestone": "Milestone"
+      },
+      "errors": {
+        "missingArtist": "Add your artist or brand name first.",
+        "topicTooShort": "Describe your announcement in a bit more detail (at least 10 characters).",
+        "missingFacts": "Add at least one key fact for the release to include.",
+        "generationFailed": "Press release generation failed. Please try again.",
+        "network": "Network error. Please try again.",
+        "saveFailed": "Couldn't save the release to your press kit."
+      }
     }
   },
   "press-public": {

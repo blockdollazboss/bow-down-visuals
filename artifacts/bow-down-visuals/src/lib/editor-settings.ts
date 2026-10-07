@@ -1365,6 +1365,29 @@ export function defaultPreProduction(): PreProductionState {
   };
 }
 
+/** A single video chapter marker: title + time window in seconds. */
+export interface VideoChapter {
+  title: string;
+  startSec: number;
+  endSec: number;
+}
+
+/** Sanitize a stored chapter list: valid titles and finite, ascending times. */
+export function sanitizeVideoChapters(value: unknown): VideoChapter[] {
+  if (!Array.isArray(value)) return [];
+  const cleaned: VideoChapter[] = [];
+  for (const c of value) {
+    if (!c || typeof c !== "object") continue;
+    const title = typeof (c as VideoChapter).title === "string" ? (c as VideoChapter).title.trim().slice(0, 80) : "";
+    const startSec = Number((c as VideoChapter).startSec);
+    const endSec = Number((c as VideoChapter).endSec);
+    if (!title || !Number.isFinite(startSec) || !Number.isFinite(endSec) || startSec < 0 || !(endSec > startSec)) continue;
+    cleaned.push({ title, startSec: Math.round(startSec * 10) / 10, endSec: Math.round(endSec * 10) / 10 });
+  }
+  cleaned.sort((a, b) => a.startSec - b.startSec);
+  return cleaned;
+}
+
 export interface EditorSettings {
   mode: "auto" | "manual";
   /**
@@ -1393,6 +1416,8 @@ export interface EditorSettings {
   /** Per-clip edits keyed by scene id. */
   clips: Record<string, ClipEdit>;
   captions: CaptionSettings;
+  /** Video chapter markers (auto-generated or manual). Persist per project. */
+  chapters: VideoChapter[];
   effects: string[];
   /** Legacy overlay type names (chips UI). */
   overlays: string[];
@@ -1590,6 +1615,7 @@ export function defaultEditorSettings(): EditorSettings {
     },
     autoEditPlan: null,
     clips: {},
+    chapters: [],
     captions: {
       enabled: true,
       mode: "none",
@@ -1925,6 +1951,7 @@ export function normalizeEditorSettings(
     autoEdit: { ...base.autoEdit, ...(stored.autoEdit ?? {}) },
     autoEditPlan: stored.autoEditPlan ?? null,
     clips: stored.clips ?? {},
+    chapters: sanitizeVideoChapters(stored.chapters),
     captions: { ...base.captions, ...(stored.captions ?? {}) },
     effects: stored.effects ?? [],
     overlays: stored.overlays ?? [],
