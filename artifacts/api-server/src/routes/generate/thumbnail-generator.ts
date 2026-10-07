@@ -7,6 +7,7 @@ import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
+import { deductCredits } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -160,12 +161,9 @@ router.post(
       return;
     }
 
-    /* Charge up front — refunded below if nothing generates. */
-    const creditsAfter = currentCredits - BATCH_CREDIT_COST;
-    await getSupabaseAdmin()
-      .from("profiles")
-      .update({ credits: creditsAfter })
-      .eq("id", req.userId!);
+    /* Charge up front — refunded below if nothing generates.
+       deductCredits enforces the admin-only lockdown. */
+    const creditsAfter = await deductCredits(req.userId!, BATCH_CREDIT_COST);
 
     const facePhotoBuffer = req.file?.buffer ?? null;
     const images: Array<{ url: string; variation: number }> = [];

@@ -88,7 +88,7 @@ async function hasAdminGrant(userId: string): Promise<boolean> {
  * In normal mode: everyone. In admin-only mode (CREDITS_ADMIN_ONLY=true):
  * only admins and users who've received an admin grant.
  */
-async function canUseCredits(userId: string): Promise<boolean> {
+export async function canUseCredits(userId: string): Promise<boolean> {
   if (!isAdminOnlyMode()) return true;
   if (await isAdminUser(userId)) return true;
   return await hasAdminGrant(userId);
@@ -205,6 +205,13 @@ export async function chargeCredits(
   record: ChargeLedgerRecord,
   opts?: { rollbackOnLedgerFailure?: boolean },
 ): Promise<number> {
+  // Admin-only mode: block users who haven't been explicitly approved.
+  // This check sits BEFORE team-pool handling so team members can't
+  // bypass the lockdown by spending from the shared pool.
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ userId, cost }, "[credits] blocked non-whitelisted spend (admin-only mode)");
+    throw new CreditsDisabledError();
+  }
   // Team pool first: if the user is an active member of a team, the spend
   // comes from the shared pool — not their personal balance — unless the
   // team's policy allows falling back to personal credits.

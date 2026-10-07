@@ -44,9 +44,13 @@ i18n
       ja: { translation: ja },
       ko: { translation: ko },
     },
-    lng: "en", // default to English on first visit; detector only overrides if user explicitly chose
     fallbackLng: "en",
     defaultNS: "translation",
+    // NOTE: no `lng` set here — the LanguageDetector reads the user's
+    // saved choice from localStorage ("bdv-language"). First visit has
+    // nothing stored, so the detector returns nothing and i18next falls
+    // back to `fallbackLng: "en"`. Setting `lng` explicitly would bypass
+    // the detector entirely and reset to English on every page load.
     interpolation: {
       escapeValue: false,
     },
