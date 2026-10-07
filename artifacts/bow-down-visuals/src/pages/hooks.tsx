@@ -93,10 +93,19 @@ export default function HookStudio() {
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
  const [tab, setTab] = useState<TabKey>("hooks");
+ const [mode, setMode] = useState<"simple" | "custom">("simple");
 
  /* hook generator state */
  const [videoType, setVideoType] = useState<VideoTypeKey>("music-promo");
  const [topic, setTopic] = useState("");
+
+ /* One-click hook presets */
+ const HOOK_PRESETS = [
+   { label: "🎵 Song Promo", topic: "my new song", type: "music-promo" as VideoTypeKey },
+   { label: "🎙️ Podcast Clip", topic: "podcast episode", type: "behind-the-scenes" as VideoTypeKey },
+   { label: "📚 Tutorial", topic: "how to", type: "tutorial" as VideoTypeKey },
+   { label: "📢 Announcement", topic: "big news", type: "announcement" as VideoTypeKey },
+ ];
  const { project } = useHubProject();
  useEffect(() => {
  if (!topic && project.name) setTopic(project.name);
@@ -339,6 +348,52 @@ export default function HookStudio() {
  </div>
  </div>
 
+ {/* Simple / Custom toggle */}
+ <div className="flex gap-2 mt-6">
+   <button
+     type="button"
+     onClick={() => setMode("simple")}
+     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+       mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+     }`}
+   >
+     Simple
+   </button>
+   <button
+     type="button"
+     onClick={() => setMode("custom")}
+     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+       mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+     }`}
+   >
+     Custom
+   </button>
+ </div>
+
+ {mode === "simple" && (
+   <div className="mt-6 space-y-4">
+     <p className="text-sm text-white/60">One tap — we'll write 10 hooks for you.</p>
+     <div className="grid grid-cols-2 gap-2.5">
+       {HOOK_PRESETS.map((preset) => (
+         <button
+           key={preset.label}
+           type="button"
+           onClick={() => {
+             setTopic(preset.topic);
+             setVideoType(preset.type);
+           }}
+           className="p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-center"
+         >
+           <span className="text-sm font-semibold">{preset.label}</span>
+         </button>
+       ))}
+     </div>
+   </div>
+ )}
+
+ {mode === "custom" && (
+ <>
+
  {/* video type picker */}
  <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.whatKindLabel")}
@@ -450,6 +505,8 @@ export default function HookStudio() {
  {t("hooks.hooksTip")}
  </p>
  </div>
+ )}
+ </>
  )}
  </div>
  )}
