@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Upload, Loader2, AlertTriangle, CheckCircle2, ArrowLeft,
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
    Upload 2-4 thumbnail variants, AI predicts which one gets the most clicks
@@ -74,6 +75,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 export default function ThumbnailTest() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [title, setTitle] = useState("");
@@ -86,6 +88,28 @@ export default function ThumbnailTest() {
   const [improvedUrls, setImprovedUrls] = useState<Record<number, string>>({});
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Deep-link protocol: /thumbnail-test?test=<imageUrl> loads a thumbnail made
+     in thumbnail-maker directly — no re-upload. */
+  useEffect(() => {
+    try {
+      const testUrl = new URLSearchParams(window.location.search).get("test");
+      if (!testUrl || files.length > 0) return;
+      (async () => {
+        try {
+          const res = await fetch(testUrl);
+          const blob = await res.blob();
+          const f = new File([blob], "thumbnail.png", { type: blob.type || "image/png" });
+          setFiles([f]);
+          setPreviews([URL.createObjectURL(f)]);
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {
+          setError(t("thumbnailTest.improveFailed"));
+        }
+      })();
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function addFiles(list: FileList | File[]) {
     const combined = [...files, ...filterImageFiles(Array.from(list), MAX_FILES)].slice(0, MAX_FILES);
@@ -145,6 +169,10 @@ export default function ThumbnailTest() {
       }
       if (!res.ok) throw new Error(data.message || data.error || t("thumbnailTest.improveFailedLong"));
       setImprovedUrls((prev) => ({ ...prev, [index]: data.imageUrl as string }));
+      /* The improved winner flows into the hub project — scheduler picks it up. */
+      if (data.imageUrl) {
+        try { addAsset({ kind: "thumbnail", url: data.imageUrl as string, label: `Improved thumbnail${title ? ` — ${title}` : ""}`, detail: "A/B test winner" }); } catch { /* non-fatal */ }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("thumbnailTest.improveFailed"));
     } finally {

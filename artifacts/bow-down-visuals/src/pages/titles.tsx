@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   Sparkles, Loader2, Copy, Check, MonitorPlay, Music2, Camera,
-  RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh,
+  RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh, CalendarDays,
 } from "lucide-react";
+import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -18,6 +19,7 @@ import {
 import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Title & Description Studio ─────────────────────────
    One paid AI tool: type your video topic, pick a platform + tone, and GPT-6
@@ -85,6 +87,7 @@ export default function TitleStudio() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<PlatformKey>("youtube");
   const [tone, setTone] = useState<ToneKey>("hype");
@@ -152,6 +155,16 @@ export default function TitleStudio() {
         throw new Error(data.message || data.error || t("titles.generationFailed"));
       }
       setResult(data);
+      /* The title pack flows into the hub project — scheduler and hooks pick it up. */
+      try {
+        addAsset({
+          kind: "other",
+          url: `data:text/plain;charset=utf-8,${encodeURIComponent(data.titles.join("\n"))}`,
+          label: `Title pack — ${topic.trim().slice(0, 50)}`,
+          detail: `${platform} · ${data.titles.length} titles`,
+          meta: { titles: data.titles.join("\n"), description: data.description, tags: (data.tags ?? []).join(" "), topic: topic.trim() },
+        });
+      } catch { /* hub unavailable — non-fatal */ }
       pushHistory({
         topic: topic.trim(),
         platform,
@@ -375,6 +388,13 @@ export default function TitleStudio() {
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   {t("titles.regenerateButton", { cost: CREDIT_COST })}
                 </button>
+                <Link
+                  href="/scheduler"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/15 px-5 py-2.5 text-sm font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+                >
+                  <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                  {t("titles.sendToScheduler", { defaultValue: "Send to scheduler" })}
+                </Link>
               </div>
               <ol className="space-y-3">
                 {result.titles.map((item, i) => (

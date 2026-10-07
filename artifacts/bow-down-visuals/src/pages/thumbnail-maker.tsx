@@ -462,7 +462,7 @@ export function ThumbnailMakerModule() {
           <div id="tg-results" className="mt-10">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className="text-lg font-bold text-white">{t("thumbnailMaker.resultsTitle")}</h2>
-              <Link href="/thumbnail-test">
+              <Link href={selectedImage ? `/thumbnail-test?test=${encodeURIComponent(selectedImage.url)}` : "/thumbnail-test"}>
                 <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
                   <FlaskConical className="h-4 w-4" />{t("thumbnailMaker.abTestButton")}</Button>
               </Link>

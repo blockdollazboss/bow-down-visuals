@@ -472,10 +472,10 @@ export default function ViralityCheck() {
  </ol>
  </div>
 
- {/* send to Hook Studio when hook is weak */}
+ {/* send to Hook Studio when hook is weak — carries the hook as the topic */}
  {hookScore < 70 && (
  <Link
- href="/hooks"
+ href={`/hooks?topic=${encodeURIComponent(hookLine.trim().slice(0, 300))}`}
  className="mt-4 flex items-center justify-between rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/15 to-transparent p-5 transition hover:border-primary/60"
  >
  <div>

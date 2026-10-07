@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useHubProject } from "@/lib/hub-project";
 
 interface LibraryThumbnail {
   id: string;
@@ -31,8 +32,23 @@ export default function Thumbnails() {
   usePageTitle(t("thumbnails.pageTitle"), t("thumbnails.pageDescription"));
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { project } = useHubProject();
   const [thumbnails, setThumbnails] = useState<LibraryThumbnail[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Hub thumbnails (from thumbnail-maker, repurpose, A/B tests) live alongside
+     the saved library — one shelf, not two stores. */
+  const hubThumbnails: LibraryThumbnail[] = (project.assets ?? [])
+    .filter((a) => a.kind === "thumbnail")
+    .map((a) => ({
+      id: `hub-${a.id}`,
+      thumbnail_url: a.url,
+      artist_name: null,
+      song_title: a.label,
+      action_label: a.detail ?? null,
+      credits_used: null,
+      created_at: new Date(a.createdAt).toISOString(),
+    }));
+  const allThumbnails = [...hubThumbnails, ...thumbnails];
   const [error, setError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<LibraryThumbnail | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -125,9 +141,9 @@ export default function Thumbnails() {
           </div>
         )}
 
-        {!loading && !error && thumbnails.length > 0 && (
+        {!loading && !error && allThumbnails.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {thumbnails.map((thumb) => (
+            {allThumbnails.map((thumb) => (
               <div
                 key={thumb.id}
                 className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/30 transition-colors"
@@ -165,7 +181,9 @@ export default function Thumbnails() {
                           <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                       </a>
                     )}
-                    {confirmDeleteId === thumb.id ? (
+                    {thumb.id.startsWith("hub-") ? (
+                      <span className="ml-auto text-[11px] font-bold text-primary/70 px-2 py-1.5">{t("thumbnails.fromProject", { defaultValue: "From this project" })}</span>
+                    ) : confirmDeleteId === thumb.id ? (
                       <span className="flex items-center gap-2 ml-auto">
                         <button
                           onClick={() => handleDelete(thumb.id)}

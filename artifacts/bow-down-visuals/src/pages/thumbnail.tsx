@@ -82,6 +82,12 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 }
 
 export default function Thumbnail() {
+  /* Legacy single-shot generator — the Thumbnail Maker is the supported flow
+     (hub assets, template deep-links, A/B testing). Redirect, preserving the
+     route for old links/bookmarks. */
+  useEffect(() => {
+    window.location.replace("/thumbnail-maker");
+  }, []);
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

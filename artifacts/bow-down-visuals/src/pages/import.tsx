@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import {
   Link2, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Import, ShieldCheck, Music, Clapperboard, RefreshCw,
+  Scissors, Sparkles, FolderOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Media Importer ────────────────────────────────────────────────────
    Paste a link — YouTube, SoundCloud, TikTok, Instagram, X, Vimeo, or a
@@ -57,6 +59,7 @@ function formatBytes(
 export default function MediaImport() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const [url, setUrl] = useState("");
   const [format, setFormat] = useState<ImportFormat>("video");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
@@ -90,6 +93,17 @@ export default function MediaImport() {
           setMediaType(data.mediaType ?? null);
           setOutputUrl(data.outputUrl ?? null);
           setFileSize(data.fileSize ?? null);
+          /* Imported media flows into the hub project — no more dead-end downloads. */
+          if (data.outputUrl) {
+            try {
+              addAsset({
+                kind: data.mediaType === "audio" ? "song" : "video",
+                url: data.outputUrl,
+                label: data.title || "Imported media",
+                detail: "Media importer",
+              });
+            } catch { /* hub unavailable — non-fatal */ }
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(data.error || t("importPage.importFailedRefunded", { cost: CREDIT_COST }));
@@ -308,6 +322,27 @@ export default function MediaImport() {
               >
                 <RefreshCw className="h-4 w-4" /> {t("importPage.newImport")}
               </button>
+            </div>
+            {/* Next steps — the import no longer dead-ends at download */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Link
+                href={mediaType === "audio" ? `/stems?audioUrl=${encodeURIComponent(outputUrl)}` : `/video-editor`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+              >
+                <Scissors className="h-4 w-4" /> {t("importPage.useInStems", { defaultValue: mediaType === "audio" ? "Split stems" : "Open in editor" })}
+              </Link>
+              <Link
+                href={mediaType === "audio" ? `/make-song?audioUrl=${encodeURIComponent(outputUrl)}` : `/caption-styler?video=${encodeURIComponent(outputUrl)}`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/25 hover:text-white"
+              >
+                <Sparkles className="h-4 w-4" /> {t("importPage.useInSong", { defaultValue: mediaType === "audio" ? "Use in a song" : "Add captions" })}
+              </Link>
+              <Link
+                href="/my-clips"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/25 hover:text-white"
+              >
+                <FolderOpen className="h-4 w-4" /> {t("importPage.viewLibrary", { defaultValue: "My clips" })}
+              </Link>
             </div>
           </div>
         )}

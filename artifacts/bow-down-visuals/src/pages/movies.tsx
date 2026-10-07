@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import {
   Clapperboard, Loader2, Sparkles, AlertTriangle, Film, Tv,
   Users, ListVideo, Quote, Target, TrendingUp, Scissors, Clock,
-  Zap, MessageSquareText, CalendarClock,
+  Zap, MessageSquareText, CalendarClock, PenLine,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for creators going long-form:
@@ -90,6 +92,7 @@ export default function Movies() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
   const [tab, setTab] = useState<Tab>("concept");
 
   /* concept state */
@@ -131,6 +134,18 @@ export default function Movies() {
       const data = await res!.json();
       if (data.concept) {
         setConcept(data.concept as Concept);
+        /* The concept flows into the hub project as a script asset — the script
+           writer and video tools pick it up. */
+        const c = data.concept as Concept;
+        try {
+          addAsset({
+            kind: "script",
+            url: `data:text/plain;charset=utf-8,${encodeURIComponent(`${c.title}\n\n${c.logline}\n\n${c.synopsis}`)}`,
+            label: c.title || "Movie concept",
+            detail: c.tagline || c.genre || undefined,
+            meta: { text: `${c.title}\n\n${c.logline}\n\n${c.synopsis}`, logline: c.logline },
+          });
+        } catch { /* hub unavailable — non-fatal */ }
       } else {
         setError(data.message || t("movies.errorGeneration"));
       }
@@ -369,6 +384,12 @@ export default function Movies() {
                 )}
               </div>
 
+              <Link
+                href={`/script-writer?topic=${encodeURIComponent(concept.title)}&hook=${encodeURIComponent(concept.pilotHook || "")}`}
+                className="w-full py-3 rounded-xl font-bold bg-primary text-black hover:brightness-110 transition-all flex items-center justify-center gap-2"
+              >
+                <PenLine className="h-4 w-4" /> {t("movies.writeScript", { defaultValue: "Write the script" })}
+              </Link>
               <button
                 type="button"
                 onClick={() => { setConcept(null); setIdea(""); setGenre(""); }}

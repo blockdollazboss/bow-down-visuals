@@ -493,14 +493,17 @@ export default function ReleaseChecklist() {
         {/* cross-links */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           {t("release.crossLinks.p1")}{" "}
-          <Link href="/playlist-pitch" className="font-semibold text-primary hover:underline">
+          <Link href={`/playlist-pitch?song=${encodeURIComponent(title.trim())}`} className="font-semibold text-primary hover:underline">
             {t("release.crossLinks.playlistPitcher")}
           </Link>
           {" "}{t("release.crossLinks.p2")}{" "}
           <Link href="/scheduler" className="font-semibold text-primary hover:underline">
             {t("release.crossLinks.scheduler")}
           </Link>
-          {t("release.crossLinks.p3")}
+          {t("release.crossLinks.p3")}{" "}
+          <Link href={`/distribute?title=${encodeURIComponent(title.trim())}`} className="font-semibold text-primary hover:underline">
+            {t("release.crossLinks.distribute", { defaultValue: "distribute it" })}
+          </Link>
         </p>
       </main>
 

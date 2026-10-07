@@ -17,6 +17,7 @@ import {
   type TranslateJobState,
 } from "@/lib/video-translator";
 import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's AI Video Translator ───────────────────────────────
    Upload a video → pick target languages → AI transcribes, translates,
@@ -40,6 +41,7 @@ export default function Translate() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   /* step 1: video */
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -154,6 +156,14 @@ export default function Translate() {
         stopPolling();
         setTranslating(false);
         refreshProfile().catch(() => {});
+        /* Translated videos flow into the hub project — scheduler and the editor pick them up. */
+        if (data.status === "done") {
+          for (const o of (data as TranslateJobState).outputs ?? []) {
+            if (o.videoUrl) {
+              try { addAsset({ kind: "video", url: o.videoUrl, label: `Translated video (${o.label || o.language})`, detail: "Video translator" }); } catch { /* non-fatal */ }
+            }
+          }
+        }
       }
     } catch {
       /* transient — keep polling */

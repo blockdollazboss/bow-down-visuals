@@ -3,11 +3,12 @@ import { Link } from "wouter";
 import {
   Trophy, Loader2, AlertTriangle, ArrowLeft, Sparkles, Plus,
   Users, CheckCircle2, Dices, Image as ImageIcon, Download,
-  ShieldCheck, Copy,
+  ShieldCheck, Copy, Share2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import {
   ENTRY_METHOD_CATALOG,
   shortSeed,
@@ -73,6 +74,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function Contests() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const [view, setView] = useState<View>({ name: "list" });
   const [contests, setContests] = useState<ContestSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,6 +287,10 @@ export default function Contests() {
       }
       if (!res.ok) throw new Error(data.error ?? "Could not generate announcement");
       setAnnounceUrl(data.url ?? null);
+      /* The winner graphic flows into the hub project — announce it anywhere. */
+      if (data.url) {
+        try { addAsset({ kind: "image", url: data.url, label: `Contest winner — ${winner?.handle || detail.title}`, detail: "Winner announcement" }); } catch { /* non-fatal */ }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not generate announcement");
     } finally {
@@ -651,14 +657,29 @@ export default function Contests() {
                     {announceUrl ? (
                       <div>
                         <img src={announceUrl} alt={t("contests.winner_announcement")} className="rounded-xl w-full max-w-md border border-white/10" />
-                        <a
-                          href={announceUrl}
-                          download={`contest-winner-${detail.id}.png`}
-                          target="_blank"
-                          rel="noopener"
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 hover:border-white/30"
-                        >
-                          <Download className="h-4 w-4" />{t("contests.download")}</a>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <a
+                            href={announceUrl}
+                            download={`contest-winner-${detail.id}.png`}
+                            target="_blank"
+                            rel="noopener"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 hover:border-white/30"
+                          >
+                            <Download className="h-4 w-4" />{t("contests.download")}</a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const shareText = `Winner announced${winner?.handle ? `: @${winner.handle}` : ""} — via Bow Down Visuals`;
+                              if (navigator.share) {
+                                navigator.share({ title: "Contest winner", text: shareText, url: announceUrl }).catch(() => {});
+                              } else {
+                                navigator.clipboard.writeText(`${shareText} ${announceUrl}`).catch(() => {});
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary/15 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/25"
+                          >
+                            <Share2 className="h-4 w-4" />{t("contests.share", { defaultValue: "Share" })}</button>
+                        </div>
                       </div>
                     ) : (
                       <button

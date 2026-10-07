@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useHubProject } from "@/lib/hub-project";
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
@@ -210,6 +211,7 @@ function NewReleaseWizard(props: {
 }) {
   const { t } = useTranslation();
   const { pricing, authFetch, onDone, onError, onOutOfCredits, refreshProfile } = props;
+  const { project } = useHubProject();
 
   const [step, setStep] = useState(0);
 
@@ -244,6 +246,21 @@ function NewReleaseWizard(props: {
   /* step 5: submit */
   const [creating, setCreating] = useState(false);
   const [done, setDone] = useState<{ release: Release; notice: string | null } | null>(null);
+
+  /* Deep-link + hub prefill: /distribute?title=…&cover=<url> (from release plans
+     and the cover-art studio) so nothing is retyped or re-uploaded. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const titleParam = params.get("title")?.trim().slice(0, 200);
+      const coverParam = params.get("cover")?.trim();
+      if (titleParam && !title) setTitle(titleParam);
+      if (coverParam && !artworkUrl) setArtworkUrl(coverParam);
+      if (!title && project.name && project.name !== "Untitled Project") setTitle(project.name);
+      if (titleParam || coverParam) window.history.replaceState(null, "", window.location.pathname);
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -811,6 +828,7 @@ function ReleaseDetail(props: {
 }) {
   const { t } = useTranslation();
   const { release, pricing, authFetch, onUpdate, onDelete, onError, onNotice, onOutOfCredits, refreshProfile } = props;
+  const { addAsset } = useHubProject();
 
   /* AI metadata */
   const [vibe, setVibe] = useState("");
@@ -1001,6 +1019,8 @@ function ReleaseDetail(props: {
       setPresaveUrl(data.url);
       onUpdate({ ...release, presaveSlug: data.slug ?? release.presaveSlug });
       onNotice("Pre-save link created — free.");
+      /* The pre-save page flows into the hub project — announce it from the scheduler. */
+      try { addAsset({ kind: "other", url: data.url, label: `Pre-save — ${release.title || "release"}`, detail: "Distribution" }); } catch { /* non-fatal */ }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't create the pre-save link.");
     } finally {

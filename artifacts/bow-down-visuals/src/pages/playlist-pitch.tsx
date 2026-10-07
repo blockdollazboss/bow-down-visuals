@@ -128,6 +128,19 @@ export default function PlaylistPitcher() {
   const [songSource, setSongSource] = useState<"library" | "manual">("manual");
   const [librarySongId, setLibrarySongId] = useState("");
   const [songTitle, setSongTitle] = useState("");
+
+  /* Deep-link protocol: /playlist-pitch?song=… pre-fills the song title
+     (e.g. coming from a release plan). */
+  useEffect(() => {
+    try {
+      const song = new URLSearchParams(window.location.search).get("song")?.trim().slice(0, 200);
+      if (song) {
+        setSongTitle(song);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [artistName, setArtistName] = useState("");
   const [genre, setGenre] = useState("");
   const [mood, setMood] = useState("");

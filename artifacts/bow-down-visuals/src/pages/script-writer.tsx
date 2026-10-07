@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import {
   ScrollText, Loader2, Copy, Check, AlertTriangle,
   MonitorPlay, Music2, Smartphone, Sparkles, Clock, Zap,
-  Eye, Clapperboard, Megaphone, FileText, X,
+  Eye, Clapperboard, Megaphone, FileText, X, Mic, CalendarDays,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { TeleprompterPlayer } from "@/components/TeleprompterPlayer";
@@ -75,7 +76,7 @@ const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
   const { t } = useTranslation();
-  const { addAsset } = useHubProject();
+  const { addAsset, latestOfKind, project } = useHubProject();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [platform, setPlatform] = useState<Platform>("youtube");
@@ -109,8 +110,15 @@ export default function ScriptWriter() {
       if (["youtube", "tiktok", "reels"].includes(platformParam)) {
         setPlatform(platformParam as Platform);
       }
+      /* No deep-link topic? Fall back to the hub project - the song/video the
+         user is already working on - so the topic is never retyped. */
+      if (!topicParam) {
+        const hubScript = latestOfKind("script");
+        const fallback = hubScript?.meta?.text?.slice(0, 120) || project.name;
+        if (fallback && fallback !== "Untitled Project") setTopic(fallback);
+      }
     } catch {
-      /* non-browser or malformed URL — ignore */
+      /* non-browser or malformed URL - ignore */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -510,6 +518,23 @@ export default function ScriptWriter() {
                       )}
                       {t("scriptWriter.copyScriptButton")}
                     </button>
+                    <button
+                      onClick={() => {
+                        try {
+                          localStorage.setItem("bdv_sponsor_read_handoff", JSON.stringify({ script: result.teleprompter }));
+                        } catch { /* storage unavailable */ }
+                        window.location.href = "/voiceover";
+                      }}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
+                    >
+                      <Mic className="w-4 h-4" /> {t("scriptWriter.sendToVoiceover", { defaultValue: "Voiceover" })}
+                    </button>
+                    <Link
+                      href="/scheduler"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
+                    >
+                      <CalendarDays className="h-4 w-4" /> {t("scriptWriter.sendToScheduler", { defaultValue: "Scheduler" })}
+                    </Link>
                   </div>
                 </div>
                 {showTeleprompter && (
