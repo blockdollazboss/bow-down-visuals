@@ -429,13 +429,15 @@ export function TimelineDock({
     setFreezeBusy(true);
     setFreezeResult(null);
     freezeSceneIdRef.current = splitScene.id;
+    // Media-file timestamp = clip trim offset + playhead position inside the clip.
+    const trimStart = clipEdits[splitScene.id]?.trimStart ?? 0;
     try {
       const res = await confirmedFetch("/api/freeze-frame", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           videoUrl: splitScene.demoClipUrl,
-          timestamp: Math.max(0, currentTime - splitStart),
+          timestamp: Math.max(0, trimStart + (currentTime - splitStart)),
           holdDuration: 2,
         }),
       });

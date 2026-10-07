@@ -6,6 +6,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntelligenceChain";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -202,7 +203,10 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence">("dashboard");
+  /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
+     into Step 2 (from Hook Studio's "full intelligence check"). */
+  const [intelInitialHook, setIntelInitialHook] = useState("");
   const [compName, setCompName] = useState("");
   const [compUrl, setCompUrl] = useState("");
   const [compNiche, setCompNiche] = useState("");
@@ -211,10 +215,22 @@ export default function AnalyticsHub() {
   const [compLoading, setCompLoading] = useState(false);
   const [compError, setCompError] = useState<string | null>(null);
 
-  /* Load persisted data once (client-side; SSR-free). */
+  /* Load persisted data once (client-side; SSR-free). Also honors
+     deep-links: ?tab=intelligence opens the Content Intelligence chain,
+     ?hook= prefills its Step 2. */
   useEffect(() => {
     setHub(loadState());
     setHydrated(true);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "intelligence") {
+        setHubTab("intelligence");
+        const hook = params.get("hook")?.trim().slice(0, 600);
+        if (hook) setIntelInitialHook(hook);
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
   }, []);
 
   function persist(next: HubState) {
@@ -479,9 +495,9 @@ export default function AnalyticsHub() {
           )}
         </div>
 
-        {/* ── HUB TABS: My Dashboard | Competitor Tracker ─────────── */}
+        {/* ── HUB TABS: My Dashboard | Competitor Tracker | Intelligence ── */}
         <div className="relative mt-8 flex justify-center" role="tablist" aria-label="Analytics Hub">
-          <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+          <div className="inline-flex max-w-full overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
             <button
               role="tab"
               aria-selected={hubTab === "dashboard"}
@@ -507,6 +523,19 @@ export default function AnalyticsHub() {
             >
               <Swords className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabCompetitor")}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "intelligence"}
+              onClick={() => setHubTab("intelligence")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "intelligence"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabIntelligence")}
             </button>
           </div>
         </div>
@@ -1108,7 +1137,7 @@ export default function AnalyticsHub() {
                         <p className="text-sm font-bold text-white">{o.gap}</p>
                         <p className="mt-1 text-sm leading-relaxed text-white/70">{o.howToExploit}</p>
                         <Link
-                          href="/hooks"
+                          href={`/hooks?topic=${encodeURIComponent(o.gap)}`}
                           className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
                         >
                           {t("analyticsHub.competitor.exploit")}
@@ -1187,6 +1216,16 @@ export default function AnalyticsHub() {
             </div>
           )}
         </div>
+        )}
+
+        {/* ── CONTENT INTELLIGENCE CHAIN ───────────────────────────────
+            The guided 5-step flow: Validate Idea → Hook Lab → Niche Check →
+            Competitor Gaps → Content Calendar → plan review. No new page,
+            no new sidebar item — this tab is its only home. */}
+        {hubTab === "intelligence" && (
+          <div className="relative mt-10">
+            <ContentIntelligenceChain initialHook={intelInitialHook || undefined} />
+          </div>
         )}
       </main>
 

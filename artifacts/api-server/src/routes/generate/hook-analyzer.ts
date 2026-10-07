@@ -9,6 +9,9 @@ const router = Router();
 /* ─── AI video hook analyzer ───
    Scores the first 30 seconds of a video's transcript on curiosity gap,
    pattern interrupt, and clarity — then rewrites a stronger hook.
+   Optional `mode: "viral"` engineers the rewrite for the viral loop:
+   the creator looks good (authority + craft on display) and the viewer
+   is left asking "how did you make that?".
    75 Visual Bucs per analysis. */
 
 const HOOK_ANALYZE_COST = Number(process.env["HOOK_ANALYZER_CREDITS"]) || 75;
@@ -20,6 +23,8 @@ const analyzeHookSchema = z.object({
   platform: z.enum(["tiktok", "instagram", "youtube", "x"]).optional().default("tiktok"),
   /** Video niche/topic for context. */
   niche: z.string().trim().min(1).max(100).optional().default(""),
+  /** "standard" scores the hook as-is; "viral" engineers the rewrite for the viral loop. */
+  mode: z.enum(["standard", "viral"]).optional().default("standard"),
 });
 
 interface HookAnalysis {
@@ -71,6 +76,12 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
   }
 
   const currentCredits = req.userCredits ?? 0;
+  if (!process.env.OPENAI_API_KEY) {
+    res.status(503).json({
+      error: "OPENAI_API_KEY is not configured — this AI feature is unavailable.",
+    });
+    return;
+  }
   if (currentCredits < HOOK_ANALYZE_COST) {
     res.status(402).json({
       error: "out_of_credits",
@@ -93,18 +104,34 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
   }
 
   try {
-    const { transcript, platform, niche } = parsed.data;
+    const { transcript, platform, niche, mode } = parsed.data;
+    const viral = mode === "viral";
+
+    const strategistLine = viral
+      ? `You are a viral-loop hook strategist. Your rewrite must do two jobs at once: ` +
+        `make the creator look good (authority, craft, and skill on display — the viewer thinks "this person is THAT good") ` +
+        `AND open a process-curiosity gap that makes the viewer ask "how did you make that?" and keep watching to find out.\n\n`
+      : `You are a viral video hook strategist. `;
+
+    const rewriteLine = viral
+      ? `Then write a rewritten, stronger version of the hook engineered for the viral loop: ` +
+        `lead with the impressive result or transformation (so the creator looks elite), ` +
+        `tease the process without giving it away (so the viewer must watch to learn "how did you make that?"), ` +
+        `spoken-word style, under 15 seconds when read aloud. ` +
+        `Plus 2 punchy alternative hooks built on the same viral-loop mechanics.\n\n`
+      : `Then write a rewritten, stronger version of the hook (spoken-word style, under 15 seconds when read aloud), ` +
+        `plus 2 punchy alternative hooks.\n\n`;
 
     const prompt =
-      `You are a viral video hook strategist. Analyze the opening of this ${platform} video ` +
+      strategistLine +
+      `Analyze the opening of this ${platform} video ` +
       `${niche ? `in the "${niche}" niche ` : ""}based on its first ~30 seconds of transcript.\n\n` +
       `Transcript:\n${transcript}\n\n` +
       `Score the hook on three axes (1-10 each):\n` +
       `- curiosityGap: does it open an unanswered question or knowledge gap the viewer must keep watching to close?\n` +
       `- patternInterrupt: does it break the scroll with something unexpected, bold, or visually/conceptually jarring?\n` +
       `- clarity: does the viewer instantly know what this video is about and why they should care?\n\n` +
-      `Then write a rewritten, stronger version of the hook (spoken-word style, under 15 seconds when read aloud), ` +
-      `plus 2 punchy alternative hooks.\n\n` +
+      rewriteLine +
       `Return ONLY valid JSON in this shape:\n` +
       `{\n` +
       `  "curiosityGap": <1-10>,\n` +

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
  Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
  Clapperboard, Film, GraduationCap, Wrench, CheckCircle2, AlertTriangle,
- MousePointerClick, Copy, Check,
+ MousePointerClick, Copy, Check, PenLine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -930,6 +930,14 @@ export default function HookStudio() {
  <>{t("hooks.addToScript")}</>
  )}
  </button>
+ {scriptAdded[i] && (
+ <a
+ href="/script-writer"
+ className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-primary"
+ >
+ <PenLine className="h-3 w-3" aria-hidden="true" /> {t("hooks.sendToScriptWriter")}
+ </a>
+ )}
  </div>
  </div>
  </div>

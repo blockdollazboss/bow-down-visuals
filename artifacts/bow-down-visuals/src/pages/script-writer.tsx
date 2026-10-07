@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScrollText, Loader2, Copy, Check, AlertTriangle,
   MonitorPlay, Music2, Smartphone, Sparkles, Clock, Zap,
-  Eye, Clapperboard, Megaphone, FileText,
+  Eye, Clapperboard, Megaphone, FileText, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { TeleprompterPlayer } from "@/components/TeleprompterPlayer";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import type { HubAsset } from "@/lib/hub-project";
 import { useTranslation } from "react-i18next";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
@@ -89,6 +91,29 @@ export default function ScriptWriter() {
   const [copied, setCopied] = useState<string | null>(null);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
   const [teleprompterOpen, setTeleprompterOpen] = useState(false);
+  /* Deep-link handoff from the Content Intelligence plan review:
+     ?topic= & ?audience= prefill the form, ?platform= picks the platform,
+     ?hook= shows the winning hook as a suggested opening line. */
+  const [hookHint, setHookHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const topicParam = params.get("topic")?.trim().slice(0, 300);
+      const audienceParam = params.get("audience")?.trim().slice(0, 200);
+      const hookParam = params.get("hook")?.trim().slice(0, 600);
+      const platformParam = (params.get("platform") ?? "").toLowerCase();
+      if (topicParam) setTopic(topicParam);
+      if (audienceParam) setAudience(audienceParam);
+      if (hookParam) setHookHint(hookParam);
+      if (["youtube", "tiktok", "reels"].includes(platformParam)) {
+        setPlatform(platformParam as Platform);
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function copyText(key: string, text: string) {
     try {
@@ -164,8 +189,38 @@ export default function ScriptWriter() {
           {t("scriptWriter.pageDescription")}
         </p>
 
+        {/* Spine: hooks / lyrics saved to the project land here — one tap
+            prefills the topic so the script builds on the project's hook. */}
+        <ProjectFlowBar
+          kinds={["script"]}
+          actionLabel={t("hubSpine.flowBar.useSongInVideo")}
+          onPick={(asset: HubAsset) => {
+            const topicText = asset.meta?.["topic"] ?? asset.meta?.["title"] ?? asset.label;
+            if (topicText && !topic.trim()) setTopic(topicText.slice(0, 300));
+          }}
+        />
+
         {/* ── Controls ── */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
+          {hookHint && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                  {t("scriptWriter.hookHintLabel")}
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-relaxed text-white">“{hookHint}”</p>
+                <p className="mt-1 text-xs text-white/45">{t("scriptWriter.hookHintBlurb")}</p>
+              </div>
+              <button
+                onClick={() => setHookHint(null)}
+                aria-label={t("scriptWriter.dismiss")}
+                className="shrink-0 rounded-lg p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
           <label className="block text-sm font-semibold text-white/70 mb-2">
             {t("scriptWriter.topicLabel")}
           </label>

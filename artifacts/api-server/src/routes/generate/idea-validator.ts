@@ -80,6 +80,12 @@ router.post("/validate-idea", requireAuth, async (req, res) => {
   }
 
   const currentCredits = req.userCredits ?? 0;
+  if (!process.env.OPENAI_API_KEY) {
+    res.status(503).json({
+      error: "OPENAI_API_KEY is not configured — this AI feature is unavailable.",
+    });
+    return;
+  }
   if (currentCredits < IDEA_VALIDATOR_COST) {
     res.status(402).json({
       error: "out_of_credits",
