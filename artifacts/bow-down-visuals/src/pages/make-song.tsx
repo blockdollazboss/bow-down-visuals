@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic, Tag, Users } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic, Tag, Users, Timer } from "lucide-react";
 import InspoTab, { type InspoGeneratedData } from "@/components/InspoTab";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import SongMashup from "@/components/SongMashup";
@@ -19,6 +19,7 @@ import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { CoverSongModal } from "@/components/song/CoverSongModal";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { HarmonyGeneratorModal } from "@/components/song/HarmonyGeneratorModal";
+import { LrcExportModal } from "@/components/song/LrcExportModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
@@ -170,6 +171,8 @@ export default function MakeSong() {
   const [polishOpen, setPolishOpen] = useState(false);
   /* AI Harmony Generator (Suno parity) — modal over the finished song. */
   const [harmonyOpen, setHarmonyOpen] = useState(false);
+  /* Synced Lyrics Export (.lrc) — tap-to-sync (free) or AI align, docked with the other song actions. */
+  const [lrcOpen, setLrcOpen] = useState(false);
   const { toast } = useToast();
   const {
     setProjectName, setProjectType, setProjectConcept,
@@ -852,6 +855,32 @@ export default function MakeSong() {
                         }}
                         initialLyrics={pkg.lyrics}
                       />
+                      {/* Synced Lyrics Export (.lrc) — DistroKid parity: tap-to-sync (free) or AI align. */}
+                      {pkg.lyrics.trim() && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setLrcOpen(true)}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                          >
+                            <Timer className="h-4 w-4" />
+                            {t("lrcExport.buttonLabel")}
+                            <span className="text-[11px] font-semibold text-white/45">
+                              ({t("lrcExport.buttonSub", { credits: 200 })})
+                            </span>
+                          </button>
+                          <LrcExportModal
+                            open={lrcOpen}
+                            onClose={() => setLrcOpen(false)}
+                            source={{
+                              audioUrl,
+                              title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                              artistName: watched.artistName || undefined,
+                              lyrics: pkg.lyrics,
+                            }}
+                          />
+                        </>
+                      )}
                     </>
                   )}
                   {/* Suno-parity rework: remix the arrangement or replace one section. */}

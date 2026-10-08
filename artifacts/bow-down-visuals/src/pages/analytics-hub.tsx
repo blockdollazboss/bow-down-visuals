@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntelligenceChain";
 import RetentionDoctor from "@/components/analytics-hub/RetentionDoctor";
+import MilestoneTracker from "@/components/analytics-hub/MilestoneTracker";
+import ContentIdMonitor from "@/components/analytics-hub/ContentIdMonitor";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -15,7 +17,7 @@ import {
 import {
   Loader2, Sparkles, TrendingUp, Users, Eye, ChevronDown, Upload, Link2,
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
-  ArrowRight, Music2, Swords,
+  ArrowRight, Music2, Swords, ShieldCheck, Trophy,
 } from "lucide-react";
 
 /* ─── Cross-Platform Analytics Hub ──────────────────────────────────────
@@ -204,7 +206,7 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones">("dashboard");
   /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
      into Step 2 (from Hook Studio's "full intelligence check"). */
   const [intelInitialHook, setIntelInitialHook] = useState("");
@@ -218,7 +220,9 @@ export default function AnalyticsHub() {
 
   /* Load persisted data once (client-side; SSR-free). Also honors
      deep-links: ?tab=intelligence opens the Content Intelligence chain,
-     ?hook= prefills its Step 2. */
+     ?hook= prefills its Step 2; ?tab=content-id opens the Content ID tab
+     (from /distribute's "Protect with Content ID" — ?title/?artist/?releaseId
+     prefill the opt-in form inside ContentIdMonitor). */
   useEffect(() => {
     setHub(loadState());
     setHydrated(true);
@@ -228,6 +232,10 @@ export default function AnalyticsHub() {
         setHubTab("intelligence");
         const hook = params.get("hook")?.trim().slice(0, 600);
         if (hook) setIntelInitialHook(hook);
+      } else if (params.get("tab") === "content-id") {
+        setHubTab("contentid");
+      } else if (params.get("tab") === "milestones") {
+        setHubTab("milestones");
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -537,6 +545,32 @@ export default function AnalyticsHub() {
             >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabIntelligence")}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "contentid"}
+              onClick={() => setHubTab("contentid")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "contentid"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Content ID
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "milestones"}
+              onClick={() => setHubTab("milestones")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "milestones"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Trophy className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabMilestones")}
             </button>
           </div>
         </div>
@@ -1235,6 +1269,26 @@ export default function AnalyticsHub() {
               <RetentionDoctor />
             </div>
           </div>
+        )}
+
+        {/* ── CONTENT ID MONITOR ─────────────────────────────────────────
+            YouTube Content ID opt-in management (DistroKid parity). Real
+            claiming requires a CMS partnership we don't have yet — the
+            component states that up front and never fakes a claim.
+            No new page, no new sidebar item — this tab is its only home. */}
+        {hubTab === "contentid" && (
+          <ContentIdMonitor />
+        )}
+
+        {/* ── MILESTONE TRACKER ────────────────────────────────────────────
+            DistroKid RIAA-monitoring parity: user-logged / CSV-imported
+            stream counts per track + platform, award badges along the
+            ladder, progress bars to the next award. HONESTY: no live
+            Spotify sync exists — the component says so and never fakes
+            numbers. No new page, no new sidebar item — this tab is its
+            only home. */}
+        {hubTab === "milestones" && (
+          <MilestoneTracker />
         )}
       </main>
 

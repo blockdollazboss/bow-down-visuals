@@ -19,6 +19,8 @@ import {
   type LyricVideoStyleKey,
   type LyricVideoAspect,
 } from "@/lib/lyric-video";
+import { LrcExportModal } from "@/components/song/LrcExportModal";
+import { fromAlignedLines } from "@/lib/lrc";
 
 /* ─── Thy Cheat Code's AI Lyric Video Maker ───────────────────────────────
    Upload a song (or pick from your library) → paste lyrics → AI aligns
@@ -85,6 +87,8 @@ export default function LyricVideo() {
   /* shared */
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  /* synced-lyrics export — reuses the aligned lines (no new charge) */
+  const [lrcOpen, setLrcOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -424,6 +428,12 @@ export default function LyricVideo() {
                 );
               })}
             </div>
+            <button
+              onClick={() => setLrcOpen(true)}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/10"
+            >
+              <Download className="h-4 w-4" /> {t("lrcExport.downloadTimedLyrics")}
+            </button>
           </section>
         )}
 
@@ -519,6 +529,21 @@ export default function LyricVideo() {
             <Type className="mr-1 inline h-4 w-4" /> {t("lyricVideo.signInPrompt")}
           </p>
         )}
+
+        <LrcExportModal
+          open={lrcOpen}
+          onClose={() => setLrcOpen(false)}
+          source={
+            alignment?.audioRef
+              ? {
+                  audioUrl: alignment.audioRef,
+                  title: songs.find((s) => s.id === selectedSongId)?.title ?? "Untitled Song",
+                  lyrics,
+                  timedLines: fromAlignedLines(lines),
+                }
+              : null
+          }
+        />
       </main>
 
     </div>

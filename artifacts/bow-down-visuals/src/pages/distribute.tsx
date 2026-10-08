@@ -3,12 +3,14 @@ import {
   Disc3, Sparkles, Loader2, Plus, Trash2, Rocket, CheckCircle2,
   AlertTriangle, CalendarDays, Music2, Image as ImageIcon, Link2,
   ListMusic, ChevronRight, BadgeCheck, ArrowLeft, ArrowRight,
-  Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash,
+  Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash, ShieldCheck,
+  ExternalLink, Megaphone, Mail, Gift, Type, BarChart3, Vault, Share2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
 import { useHubProject } from "@/lib/hub-project";
 import {
   DISTRIBUTION_PLATFORMS,
@@ -63,6 +65,17 @@ interface ReleaseTrack {
   title: string;
   isrc?: string;
 }
+
+/* ─── Release Metadata Manager (DistroKid parity) ───────────────────────────
+   Full metadata form: UPC/EAN (with a "generate barcode" helper that mints a
+   valid-format placeholder clearly labeled INTERNAL until a real UPC is
+   assigned via a distribution partner), label name/imprint, ℗ and © lines
+   (auto-suggested from label + year), primary genre + subgenre, explicit
+   flag, original release date + preorder date, territory selection
+   (worldwide vs include/exclude), and per-track ISRCs. FREE — metadata entry
+   costs no Visual Bucs. Actual UPC registration and store delivery need a
+   distribution partnership; custom release dates are honored in our
+   presave/scheduler flows. */
 interface ReleaseMeta {
   titleOptions?: string[];
   description?: string;
@@ -84,7 +97,17 @@ interface Release {
   genre: string | null;
   explicit: boolean;
   isrc: string | null;
+  upc: string | null;
+  upcKind: "internal" | "official";
   label: string | null;
+  labelImprint: string | null;
+  copyrightCLine: string | null;
+  copyrightPLine: string | null;
+  subgenre: string | null;
+  originalReleaseDate: string | null;
+  preorderDate: string | null;
+  territoriesMode: "worldwide" | "include" | "exclude";
+  territories: string[];
   tracks: ReleaseTrack[];
   audioUrl: string | null;
   artworkUrl: string | null;
@@ -196,6 +219,46 @@ function Section({ title, icon, children, action, minStars }: {
 
 const WIZARD_STEPS = ["Music", "Metadata", "Cover art", "Platforms", "Review & pay"] as const;
 
+/* DistroKid-style primary genres for the Release Metadata Manager. */
+const PRIMARY_GENRES = [
+  "Hip-Hop/Rap", "Trap", "Drill", "R&B/Soul", "Pop", "Afrobeats", "Amapiano",
+  "Dancehall/Reggae", "Latin", "K-Pop", "Rock", "Alternative", "Indie",
+  "Electronic/Dance", "House", "Techno", "Drum & Bass", "Phonk", "Jersey Club",
+  "Hyperpop", "Lo-Fi", "Ambient", "Country", "Folk/Acoustic", "Jazz", "Blues",
+  "Classical", "Gospel/Christian", "Metal", "Punk",
+];
+
+/* Curated territory list (ISO 3166-1 alpha-2) for include/exclude selection. */
+const TERRITORIES: { code: string; name: string }[] = [
+  { code: "US", name: "United States" }, { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" }, { code: "IE", name: "Ireland" },
+  { code: "AU", name: "Australia" }, { code: "NZ", name: "New Zealand" },
+  { code: "DE", name: "Germany" }, { code: "FR", name: "France" },
+  { code: "ES", name: "Spain" }, { code: "IT", name: "Italy" },
+  { code: "NL", name: "Netherlands" }, { code: "BE", name: "Belgium" },
+  { code: "CH", name: "Switzerland" }, { code: "AT", name: "Austria" },
+  { code: "SE", name: "Sweden" }, { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" }, { code: "FI", name: "Finland" },
+  { code: "PT", name: "Portugal" }, { code: "GR", name: "Greece" },
+  { code: "PL", name: "Poland" }, { code: "CZ", name: "Czechia" },
+  { code: "HU", name: "Hungary" }, { code: "RO", name: "Romania" },
+  { code: "UA", name: "Ukraine" }, { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" }, { code: "AR", name: "Argentina" },
+  { code: "CO", name: "Colombia" }, { code: "CL", name: "Chile" },
+  { code: "PE", name: "Peru" }, { code: "NG", name: "Nigeria" },
+  { code: "ZA", name: "South Africa" }, { code: "GH", name: "Ghana" },
+  { code: "KE", name: "Kenya" }, { code: "EG", name: "Egypt" },
+  { code: "AE", name: "United Arab Emirates" }, { code: "SA", name: "Saudi Arabia" },
+  { code: "TR", name: "Türkiye" }, { code: "IL", name: "Israel" },
+  { code: "IN", name: "India" }, { code: "PK", name: "Pakistan" },
+  { code: "BD", name: "Bangladesh" }, { code: "ID", name: "Indonesia" },
+  { code: "MY", name: "Malaysia" }, { code: "SG", name: "Singapore" },
+  { code: "PH", name: "Philippines" }, { code: "TH", name: "Thailand" },
+  { code: "VN", name: "Vietnam" }, { code: "JP", name: "Japan" },
+  { code: "KR", name: "South Korea" }, { code: "CN", name: "China" },
+  { code: "TW", name: "Taiwan" }, { code: "HK", name: "Hong Kong" },
+];
+
 const ART_MODELS = [
   { value: "gen4_image", label: "Pro", credits: 2, note: "Best detail for covers" },
   { value: "gpt-image-2.5-sunburst", label: "Sunburst", credits: 1, note: "Sharp + cheap" },
@@ -259,6 +322,32 @@ function NewReleaseWizard(props: {
       if (!title && project.name && project.name !== "Untitled Project") setTitle(project.name);
       if (titleParam || coverParam) window.history.replaceState(null, "", window.location.pathname);
     } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Hub prefill: artist name from the artist vault, cover art from the hub
+     project's latest image asset (title already prefills from project name). */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!artworkUrl) {
+          const img = [...project.assets].reverse().find((a) => a.kind === "image" && !a.url.startsWith("blob:"));
+          if (!cancelled && img?.url) setArtworkUrl(img.url);
+        }
+        if (!artistName) {
+          const res = await authFetch("/api/artist-vaults");
+          const data = (await res.json().catch(() => ({}))) as {
+            vaults?: { artist_name?: string }[];
+          };
+          const first = Array.isArray(data.vaults) ? data.vaults[0] : undefined;
+          if (!cancelled && res.ok && first?.artist_name) setArtistName(first.artist_name);
+        }
+      } catch {
+        /* prefill is best-effort — the fields stay editable */
+      }
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -813,7 +902,673 @@ function NewReleaseWizard(props: {
   );
 }
 
+/* ── Release Metadata Manager ──────────────────────────────────────────────
+   Drafts: full editable form (free — no credit charge on save).
+   Packaged: read-only summary (submitted releases are locked). */
+
+function ReleaseMetadataManager(props: {
+  release: Release;
+  authFetch: (path: string, init?: RequestInit) => Promise<Response>;
+  onUpdate: (release: Release) => void;
+  onError: (msg: string) => void;
+  onNotice: (msg: string) => void;
+  onSendToPresave: () => Promise<void>;
+}) {
+  const { release, authFetch, onUpdate, onError, onNotice, onSendToPresave } = props;
+  const isDraft = release.status === "draft";
+
+  const [upc, setUpc] = useState(release.upc ?? "");
+  const [upcKind, setUpcKind] = useState<"internal" | "official">(release.upcKind ?? "internal");
+  const [officialConfirm, setOfficialConfirm] = useState(false);
+  const [labelImprint, setLabelImprint] = useState(release.labelImprint ?? "");
+  const [cLine, setCLine] = useState(release.copyrightCLine ?? "");
+  const [pLine, setPLine] = useState(release.copyrightPLine ?? "");
+  const [genre, setGenre] = useState(release.genre ?? "");
+  const [subgenre, setSubgenre] = useState(release.subgenre ?? "");
+  const [explicit, setExplicit] = useState<boolean | null>(
+    release.explicit ? true : null,
+  );
+  const [origDate, setOrigDate] = useState(release.originalReleaseDate ?? "");
+  const [preorderDate, setPreorderDate] = useState(release.preorderDate ?? "");
+  const [releaseDate, setReleaseDate] = useState(release.releaseDate ?? "");
+  const [terrMode, setTerrMode] = useState<"worldwide" | "include" | "exclude">(release.territoriesMode ?? "worldwide");
+  const [terrSelected, setTerrSelected] = useState<string[]>(release.territories ?? []);
+  const [terrSearch, setTerrSearch] = useState("");
+  const [tracks, setTracks] = useState<ReleaseTrack[]>(release.tracks ?? []);
+  const [saving, setSaving] = useState(false);
+  const [barcodeWorking, setBarcodeWorking] = useState(false);
+  const [presaveWorking, setPresaveWorking] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const filteredTerritories = TERRITORIES.filter((c) =>
+    c.name.toLowerCase().includes(terrSearch.trim().toLowerCase()) ||
+    c.code.toLowerCase().includes(terrSearch.trim().toLowerCase()),
+  );
+
+  function toggleTerritory(code: string) {
+    setTerrSelected((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+  }
+
+  /* © and ℗ auto-suggest from label/imprint + release year. */
+  function autoSuggestCopyright() {
+    const imprint = labelImprint.trim() || release.label?.trim() || release.artistName;
+    const yearSrc = origDate.trim() || releaseDate.trim() || release.releaseDate || "";
+    const year = /^\d{4}/.test(yearSrc) ? yearSrc.slice(0, 4) : String(new Date().getFullYear());
+    setCLine(`© ${year} ${imprint}`);
+    setPLine(`℗ ${year} ${imprint}`);
+    onNotice("Copyright lines auto-suggested from your label + year — review and edit freely, then save.");
+  }
+
+  async function generateBarcode() {
+    if (barcodeWorking) return;
+    if (!window.confirm(
+      "Mint a valid-format UPC-A placeholder for this release's internal catalog?\n\n" +
+      "It is labeled INTERNAL — not a store-recognized UPC. Your official UPC is assigned when the release is distributed via a partner.",
+    )) return;
+    setBarcodeWorking(true);
+    onError("");
+    try {
+      const res = await authFetch(`/api/distribution/releases/${release.id}/generate-barcode`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        release?: Release; barcode?: string; notice?: string; error?: string; message?: string;
+      };
+      if (!res.ok || !data.release) {
+        throw new Error(data.message || data.error || "Couldn't generate the barcode.");
+      }
+      setUpc(data.barcode ?? "");
+      setUpcKind("internal");
+      onUpdate(data.release);
+      onNotice(data.notice ?? "Internal catalog ID minted — not a store-recognized UPC.");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't generate the barcode.");
+    } finally {
+      setBarcodeWorking(false);
+    }
+  }
+
+  async function saveMetadata() {
+    if (saving) return false;
+    setSaving(true);
+    onError("");
+    try {
+      if ((terrMode === "include" || terrMode === "exclude") && terrSelected.length === 0) {
+        throw new Error(`Pick at least one territory for "${terrMode}" mode — or switch back to Worldwide.`);
+      }
+      if (preorderDate && releaseDate && preorderDate > releaseDate) {
+        throw new Error("The preorder date can't be after the release date.");
+      }
+      const payload: Record<string, unknown> = {
+        upc: upc.trim(),
+        upcKind,
+        labelImprint: labelImprint.trim(),
+        copyrightCLine: cLine.trim(),
+        copyrightPLine: pLine.trim(),
+        genre: genre.trim(),
+        subgenre: subgenre.trim(),
+        originalReleaseDate: origDate.trim(),
+        preorderDate: preorderDate.trim(),
+        releaseDate: releaseDate.trim(),
+        territoriesMode: terrMode,
+        territories: terrSelected,
+        /* Track rows with no title are wizard placeholder rows — drop them so
+           server-side title validation stays clean. */
+        tracks: tracks
+          .filter((t) => t.title.trim().length > 0)
+          .map((t) => ({ title: t.title.trim(), ...(t.isrc?.trim() ? { isrc: t.isrc.trim() } : {}) })),
+      };
+      if (explicit !== null) {
+        payload.explicit = explicit;
+        payload.explicitDeclared = true;
+      }
+      const res = await authFetch(`/api/distribution/releases/${release.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        release?: Release; error?: string; message?: string;
+      };
+      if (!res.ok || !data.release) {
+        throw new Error(data.message || data.error || "Couldn't save the metadata.");
+      }
+      setTracks(data.release.tracks ?? []);
+      onUpdate(data.release);
+      onNotice("Release metadata saved — free.");
+      return true;
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't save the metadata.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* "Send to Presave": save metadata first, then mint/refresh the presave
+     page — the public presave page shows a live countdown to the release
+     date. Custom release dates are honored in our presave/scheduler flows. */
+  async function sendToPresave() {
+    if (presaveWorking) return;
+    setPresaveWorking(true);
+    try {
+      const saved = await saveMetadata();
+      if (!saved) return;
+      await onSendToPresave();
+    } finally {
+      setPresaveWorking(false);
+    }
+  }
+
+  async function copyChecklistLink() {
+    const url = `${window.location.origin}/distribute?release=${release.id}#release-checklist`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      onNotice("Checklist deep-link copied — it opens this release scrolled to its release checklist.");
+    } catch {
+      onError("Couldn't copy — the link is in the address bar format /distribute?release=" + release.id);
+    }
+  }
+
+  /* ── packaged: read-only summary ── */
+  if (!isDraft) {
+    const terrLabel =
+      release.territoriesMode === "worldwide"
+        ? "Worldwide"
+        : `${release.territoriesMode === "include" ? "Include" : "Exclude"}: ${(release.territories ?? []).join(", ") || "—"}`;
+    return (
+      <Section title="Release metadata" icon={<Tag className="h-5 w-5 text-primary" />}>
+        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+          <div className="flex justify-between gap-3"><dt className="text-white/40">UPC/EAN</dt>
+            <dd className="font-semibold">{release.upc ?? "—"}
+              {release.upc && (
+                <span className={`ml-2 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  release.upcKind === "official"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                    : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                }`}>{release.upcKind === "official" ? "Official" : "Internal catalog ID"}</span>
+              )}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Label imprint</dt><dd className="font-semibold">{release.labelImprint ?? release.label ?? "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">© line</dt><dd className="font-semibold">{release.copyrightCLine ?? "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">℗ line</dt><dd className="font-semibold">{release.copyrightPLine ?? "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Genre</dt><dd className="font-semibold">{[release.genre, release.subgenre].filter(Boolean).join(" / ") || "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Content</dt><dd className="font-semibold">{release.explicit ? "Explicit" : "Clean"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Original release</dt><dd className="font-semibold">{release.originalReleaseDate ?? release.releaseDate ?? "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Preorder date</dt><dd className="font-semibold">{release.preorderDate ?? "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-white/40">Territories</dt><dd className="font-semibold">{terrLabel}</dd></div>
+        </dl>
+        {(release.tracks ?? []).length > 0 && (
+          <ol className="mt-4 space-y-1">
+            {(release.tracks ?? []).map((t, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm text-white/70">
+                <span className="w-6 text-xs font-bold text-white/30">{i + 1}.</span>
+                <span className="flex-1 truncate">{t.title}</span>
+                {t.isrc && <span className="text-xs text-white/30">{t.isrc}</span>}
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="mt-4 text-xs text-white/35">Submitted releases are locked — create a new release for any changes.</p>
+      </Section>
+    );
+  }
+
+  /* ── draft: full editable form ── */
+  return (
+    <Section
+      title="Release metadata manager"
+      icon={<Tag className="h-5 w-5 text-primary" />}
+      action={<span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-bold text-white/50">Free</span>}
+    >
+      {/* UPC / EAN */}
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+        <label className={labelClass}>UPC / EAN</label>
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={upc}
+            onChange={(e) => { setUpc(e.target.value); if (upcKind === "official" && !officialConfirm) setOfficialConfirm(true); }}
+            placeholder="12-digit UPC-A or 13-digit EAN"
+            className={`${inputClass} flex-1 min-w-[200px] font-mono`}
+            maxLength={20}
+            inputMode="numeric"
+          />
+          <button onClick={generateBarcode} disabled={barcodeWorking} className={ghostBtn}>
+            {barcodeWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hash className="h-4 w-4" />}
+            Generate barcode · free
+          </button>
+        </div>
+        {upc && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
+              upcKind === "official"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+            }`}>
+              {upcKind === "official" ? <BadgeCheck className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+              {upcKind === "official" ? "Official UPC" : "Internal catalog ID"}
+            </span>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-white/55">
+              <input
+                type="checkbox"
+                checked={upcKind === "official"}
+                onChange={(e) => { setUpcKind(e.target.checked ? "official" : "internal"); setOfficialConfirm(e.target.checked); }}
+                className="h-4 w-4 accent-yellow-500"
+              />
+              This is an official UPC assigned by a distribution partner
+            </label>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-white/40">
+          Generated barcodes are valid-format placeholders, clearly labeled internal — actual UPC registration
+          and store delivery need a distribution partnership.
+        </p>
+      </div>
+
+      {/* Label imprint + copyright lines */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <label className={labelClass}>Label name / imprint</label>
+          <input
+            value={labelImprint}
+            onChange={(e) => setLabelImprint(e.target.value)}
+            placeholder={release.label || "e.g. Bow Down Records"}
+            className={inputClass}
+            maxLength={120}
+          />
+        </div>
+        <div className="flex items-end">
+          <button onClick={autoSuggestCopyright} className={ghostBtn}>
+            <Sparkles className="h-4 w-4" /> Auto-suggest © &amp; ℗ lines
+          </button>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <label className={labelClass}>© copyright line</label>
+          <input value={cLine} onChange={(e) => setCLine(e.target.value)} placeholder="© 2026 Bow Down Records" className={inputClass} maxLength={200} />
+        </div>
+        <div>
+          <label className={labelClass}>℗ phonographic line</label>
+          <input value={pLine} onChange={(e) => setPLine(e.target.value)} placeholder="℗ 2026 Bow Down Records" className={inputClass} maxLength={200} />
+        </div>
+      </div>
+
+      {/* Genre / subgenre / explicit */}
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div>
+          <label className={labelClass}>Primary genre</label>
+          <select value={genre} onChange={(e) => setGenre(e.target.value)} className={`${inputClass} appearance-none`}>
+            <option value="">Select genre…</option>
+            {PRIMARY_GENRES.map((g) => (<option key={g} value={g}>{g}</option>))}
+            {!PRIMARY_GENRES.includes(genre) && genre && <option value={genre}>{genre}</option>}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Subgenre</label>
+          <input value={subgenre} onChange={(e) => setSubgenre(e.target.value)} placeholder="e.g. Dark Trap" className={inputClass} maxLength={80} />
+        </div>
+        <div>
+          <label className={labelClass}>Explicit lyrics</label>
+          <div className="flex gap-2">
+            {[{ v: false, label: "Clean" }, { v: true, label: "Explicit" }].map((o) => (
+              <button
+                key={o.label}
+                onClick={() => setExplicit(o.v)}
+                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-bold transition ${
+                  explicit === o.v
+                    ? o.v ? "border-red-500/60 bg-red-500/15 text-red-300" : "border-emerald-500/60 bg-emerald-500/15 text-emerald-300"
+                    : "border-white/15 text-white/50 hover:border-white/40"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Dates */}
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div>
+          <label className={labelClass}>Release date</label>
+          <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
+          <p className="mt-1 text-[11px] text-white/35">Custom release dates are honored in our presave + scheduler flows.</p>
+        </div>
+        <div>
+          <label className={labelClass}>Original release date <span className="font-normal normal-case text-white/30">(first release, if reissue)</span></label>
+          <input type="date" value={origDate} onChange={(e) => setOrigDate(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Preorder date <span className="font-normal normal-case text-white/30">(on-sale)</span></label>
+          <input type="date" value={preorderDate} onChange={(e) => setPreorderDate(e.target.value)} className={inputClass} />
+        </div>
+      </div>
+
+      {/* Territories */}
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+        <label className={labelClass}>Territories</label>
+        <div className="flex flex-wrap gap-2">
+          {([["worldwide", "Worldwide"], ["include", "Include list"], ["exclude", "Exclude list"]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setTerrMode(v)}
+              className={`rounded-xl border px-4 py-2 text-xs font-bold transition ${
+                terrMode === v ? "border-primary/60 bg-primary/15 text-primary" : "border-white/15 text-white/50 hover:border-white/40"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {terrMode !== "worldwide" && (
+          <div className="mt-4">
+            <input
+              value={terrSearch}
+              onChange={(e) => setTerrSearch(e.target.value)}
+              placeholder="Search territories…"
+              className={`${inputClass} mb-3`}
+              maxLength={60}
+            />
+            <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3">
+              {filteredTerritories.map((c) => {
+                const on = terrSelected.includes(c.code);
+                return (
+                  <button
+                    key={c.code}
+                    onClick={() => toggleTerritory(c.code)}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                      on ? "border-primary/60 bg-primary/10 text-primary" : "border-white/10 text-white/55 hover:border-white/30"
+                    }`}
+                  >
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                      on ? "border-primary bg-primary text-black" : "border-white/25"
+                    }`}>
+                      {on && <Check className="h-3 w-3" />}
+                    </span>
+                    <span className="truncate">{c.name}</span>
+                    <span className="ml-auto shrink-0 text-white/25">{c.code}</span>
+                  </button>
+                );
+              })}
+              {filteredTerritories.length === 0 && (
+                <p className="col-span-full py-4 text-center text-xs text-white/40">No territories match “{terrSearch}”.</p>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-white/40">
+              {terrSelected.length} selected{terrMode === "include" ? " — the release is available ONLY in these territories" : " — the release is available everywhere EXCEPT these"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Per-track ISRCs */}
+      <div className="mt-4">
+        <p className={labelClass}>Per-track ISRCs</p>
+        <div className="space-y-2">
+          {tracks.map((tr, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/40 text-xs font-bold text-white/40">
+                {i + 1}
+              </span>
+              <input
+                value={tr.title}
+                onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                placeholder={`Track ${i + 1} title`}
+                className={inputClass}
+                maxLength={200}
+              />
+              <input
+                value={tr.isrc ?? ""}
+                onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, isrc: e.target.value.toUpperCase() } : x)))}
+                placeholder="ISRC"
+                className={`${inputClass} max-w-[160px] font-mono`}
+                maxLength={20}
+              />
+              {tracks.length > 1 && (
+                <button
+                  onClick={() => setTracks((prev) => prev.filter((_, j) => j !== i))}
+                  className="flex h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/30 text-red-300/80 hover:bg-red-500/10"
+                  aria-label={`Remove track ${i + 1}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setTracks((prev) => [...prev, { title: "" }])}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add track
+        </button>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button onClick={() => void saveMetadata()} disabled={saving} className={goldBtn}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+          Save metadata · free
+        </button>
+        <button onClick={() => void sendToPresave()} disabled={presaveWorking || saving} className={ghostBtn}>
+          {presaveWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          Send to Presave
+        </button>
+        <button onClick={() => void copyChecklistLink()} className={ghostBtn}>
+          {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Link copied" : "Add to Release Checklist"}
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-white/35">
+        “Send to Presave” saves your metadata first, then creates or refreshes the public presave page —
+        it shows fans a live countdown to your release date.
+      </p>
+    </Section>
+  );
+}
+
 /* ── Release detail ──────────────────────────────────────────────────────── */
+
+/* ─── Pre-save campaign manager (HyperFollow parity) ────────────────────────
+   Artist-facing controls for the public /presave/:slug page:
+   - live follower / share stats + recent fan signups
+   - customize headline, per-platform URLs, share-to-unlock bonus URL (free)
+   - handoff: "Announce on release day" → the scheduler (prefilled);
+     "Fan email list" → the email-list dashboard (signups land there). */
+
+const PRESAVE_PLATFORM_KEYS = [
+  "spotify", "apple_music", "youtube_music", "tiktok",
+  "amazon_music", "deezer", "tidal",
+];
+
+interface PresaveStats {
+  followers: number;
+  shares: number;
+  settings: { headline: string | null; platformLinks: Record<string, string>; bonusUrl: string | null };
+  recentFollows: Array<{ email: string; name: string | null; platform: string | null; created_at: string }>;
+}
+
+function PresaveManager(props: {
+  release: Release;
+  presaveUrl: string;
+  copied: boolean;
+  authFetch: (path: string, init?: RequestInit) => Promise<Response>;
+  onError: (msg: string) => void;
+  onNotice: (msg: string) => void;
+  copyPresave: () => void;
+}) {
+  const { release, presaveUrl, copied, authFetch, onError, onNotice, copyPresave } = props;
+
+  const [stats, setStats] = useState<PresaveStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [headline, setHeadline] = useState("");
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [bonusUrl, setBonusUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadStats = useCallback(async () => {
+    if (!presaveUrl) return;
+    setStatsLoading(true);
+    try {
+      const res = await authFetch(`/api/distribution/releases/${release.id}/presave-stats`);
+      const data = (await res.json().catch(() => ({}))) as Partial<PresaveStats> & { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load pre-save stats.");
+      setStats(data as PresaveStats);
+      setHeadline(data.settings?.headline ?? "");
+      setLinks(data.settings?.platformLinks ?? {});
+      setBonusUrl(data.settings?.bonusUrl ?? "");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't load pre-save stats.");
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [release.id, presaveUrl, authFetch, onError]);
+
+  useEffect(() => { void loadStats(); }, [loadStats]);
+
+  async function saveSettings() {
+    if (saving) return;
+    setSaving(true);
+    onError("");
+    try {
+      const res = await authFetch(`/api/distribution/releases/${release.id}/presave-settings`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ headline, platformLinks: links, bonusUrl }),
+      });
+      const data = (await res.json().catch(() => ({}))) as PresaveStats & { error?: string; message?: string };
+      if (!res.ok) throw new Error((data as { message?: string; error?: string }).message || (data as { error?: string }).error || "Couldn't save pre-save settings.");
+      setStats((prev) => (prev ? { ...prev, settings: data.settings } : prev));
+      setEditing(false);
+      onNotice("Pre-save page updated — free.");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't save pre-save settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const announceCaption =
+    `🎵 ${release.title} by ${release.artistName} ` +
+    (release.releaseDate ? `drops ${release.releaseDate}` : "is dropping soon") +
+    ` — pre-save it now: ${presaveUrl ?? ""} Made with Bow Down Visuals`;
+  const schedulerHref = `/scheduler?schedule=1&caption=${encodeURIComponent(announceCaption)}`;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm text-white/55">
+          Share this link — fans get a countdown, email pre-save, and share-to-unlock bonus. On release day it flips to “stream now” automatically.
+        </p>
+            <div className="mt-3 flex gap-2">
+              <input value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+              <button onClick={copyPresave} className={`${ghostBtn} shrink-0`}>
+                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <a href={presaveUrl} target="_blank" rel="noreferrer" className={`${ghostBtn} shrink-0`}>
+                <ExternalLink className="h-4 w-4" /> Preview
+              </a>
+            </div>
+          </div>
+
+          {/* stats */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-bold text-primary">
+              <BarChart3 className="h-4 w-4" />
+              {statsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (stats?.followers ?? 0).toLocaleString()} fans pre-saved
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-1.5 text-sm font-bold text-white/70">
+              <Share2 className="h-4 w-4" /> {statsLoading ? "…" : (stats?.shares ?? 0).toLocaleString()} shares
+            </span>
+            <button onClick={() => void loadStats()} className="text-xs font-bold text-white/40 underline-offset-2 hover:text-primary hover:underline">
+              Refresh
+            </button>
+          </div>
+
+          {/* recent fans */}
+          {stats && stats.recentFollows.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Latest fans</p>
+              <ul className="space-y-1.5">
+                {stats.recentFollows.slice(0, 5).map((f) => (
+                  <li key={f.email} className="flex items-center justify-between gap-2 text-xs text-white/60">
+                    <span className="truncate">{f.name ? `${f.name} <${f.email}>` : f.email}</span>
+                    <span className="shrink-0 text-white/30">
+                      {new Date(f.created_at).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* handoffs */}
+          <div className="flex flex-wrap gap-2">
+            <a href={schedulerHref} className={goldBtn}>
+              <Megaphone className="h-4 w-4" /> Announce on release day · scheduler
+            </a>
+            <a href="/email-list" className={ghostBtn}>
+              <Mail className="h-4 w-4" /> Fan email list
+            </a>
+          </div>
+
+          {/* settings editor */}
+          {!editing ? (
+            <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110">
+              <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content
+            </button>
+          ) : (
+            <div className="space-y-4 rounded-2xl border border-primary/25 bg-black/40 p-5">
+              <div>
+                <label className={labelClass}>Headline</label>
+                <input
+                  value={headline}
+                  onChange={(e) => setHeadline(e.target.value)}
+                  placeholder="e.g. My hardest single yet — be the first to hear it"
+                  maxLength={140}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Platform links (paste your pre-save / follow URLs)</label>
+                <div className="space-y-2">
+                  {PRESAVE_PLATFORM_KEYS.map((key) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-xs font-bold text-white/60">{platformLabel(key)}</span>
+                      <input
+                        value={links[key] ?? ""}
+                        onChange={(e) => setLinks((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder="https://…"
+                        inputMode="url"
+                        className={`${inputClass} py-2 text-xs`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Bonus content URL <span className="font-normal normal-case text-white/30">(unlocked when a fan shares)</span></label>
+                <input
+                  value={bonusUrl}
+                  onChange={(e) => setBonusUrl(e.target.value)}
+                  placeholder="https://… (exclusive snippet, BTS video, download)"
+                  inputMode="url"
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={saveSettings} disabled={saving} className={goldBtn}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Save page · free
+                </button>
+                <button onClick={() => setEditing(false)} className={ghostBtn}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+  );
+}
 
 function ReleaseDetail(props: {
   release: Release;
@@ -825,9 +1580,11 @@ function ReleaseDetail(props: {
   onNotice: (msg: string) => void;
   onOutOfCredits: () => void;
   refreshProfile: () => void;
+  vaulted: boolean;
+  onVaulted: (releaseId: string) => void;
 }) {
   const { t } = useTranslation();
-  const { release, pricing, authFetch, onUpdate, onDelete, onError, onNotice, onOutOfCredits, refreshProfile } = props;
+  const { release, pricing, authFetch, onUpdate, onDelete, onError, onNotice, onOutOfCredits, refreshProfile, vaulted, onVaulted } = props;
   const { addAsset } = useHubProject();
 
   /* AI metadata */
@@ -1137,9 +1894,18 @@ function ReleaseDetail(props: {
         </div>
 
         <div className="mt-4 grid gap-1.5 text-xs text-white/45 sm:grid-cols-2">
-          {release.genre && <p><span className="text-white/30">{t("distribute.genre_2")}</span> {release.genre}</p>}
+          {release.genre && <p><span className="text-white/30">{t("distribute.genre_2")}</span> {release.genre}{release.subgenre ? ` / ${release.subgenre}` : ""}</p>}
           {release.isrc && <p><span className="text-white/30">{t("distribute.isrc_2")}</span> {release.isrc}</p>}
-          {release.label && <p><span className="text-white/30">{t("distribute.label")}</span> {release.label}</p>}
+          {release.upc && (
+            <p><span className="text-white/30">UPC</span> {release.upc}{" "}
+              <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                release.upcKind === "official"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+              }`}>{release.upcKind === "official" ? "Official" : "Internal"}</span>
+            </p>
+          )}
+          {release.label && <p><span className="text-white/30">{t("distribute.label")}</span> {release.labelImprint ?? release.label}</p>}
           {release.creditsCharged > 0 && <p><span className="text-white/30">{t("distribute.submission_fee_paid")}</span> {release.creditsCharged} Visual Bucs</p>}
         </div>
 
@@ -1182,9 +1948,20 @@ function ReleaseDetail(props: {
         )}
       </div>
 
+      {/* ── release metadata manager (DistroKid parity) ── */}
+      <ReleaseMetadataManager
+        release={release}
+        authFetch={authFetch}
+        onUpdate={onUpdate}
+        onError={onError}
+        onNotice={onNotice}
+        onSendToPresave={generatePresave}
+      />
+
       {/* ── checklist ── */}
       {release.checklist?.length > 0 && (
         <Section title={t("distribute.release_checklist")} icon={<ListMusic className="h-5 w-5 text-primary" />}>
+          <div id="release-checklist" className="scroll-mt-24">
           <ul className="space-y-2">
             {release.checklist.map((c) => (
               <li key={c.key} className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-black/40 p-3.5">
@@ -1198,6 +1975,7 @@ function ReleaseDetail(props: {
               </li>
             ))}
           </ul>
+          </div>
         </Section>
       )}
 
@@ -1325,7 +2103,51 @@ function ReleaseDetail(props: {
             </button>
           </div>
         )}
+
+        {/* ── promo cards handoff (Worker 7) ── */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-primary/[0.06] px-4 py-3">
+          <p className="text-sm text-white/60">
+            Turn this release into release-day social cards — announcement, out now, pre-save &amp; milestone styles.
+          </p>
+          <a
+            href={`/promote?promoTitle=${encodeURIComponent(release.title)}&promoArtist=${encodeURIComponent(release.artistName)}${release.artworkUrl ? `&promoArt=${encodeURIComponent(release.artworkUrl)}` : ""}#promo-cards`}
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/50 px-4 py-2 text-sm font-black text-primary transition hover:bg-primary/10"
+          >
+            <Megaphone className="h-4 w-4" />
+            Make promo cards · 100 Visual Bucs
+          </a>
+        </div>
       </Section>
+
+      {/* ── content id protection ── */}
+      <Section
+        title="Content ID protection"
+        icon={<ShieldCheck className="h-5 w-5 text-primary" />}
+        action={<span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-bold text-white/50">{t("distribute.free")}</span>}
+      >
+        <p className="text-sm text-white/55">
+          Opt this release into YouTube Content ID monitoring — track who's using your music across YouTube.
+          Setup is free; actual claims activate when our distribution partner integration goes live.
+        </p>
+        <a
+          href={`/analytics-hub?tab=content-id&releaseId=${release.id}&title=${encodeURIComponent(release.title)}&artist=${encodeURIComponent(release.artistName ?? "")}`}
+          className={`${goldBtn} mt-4`}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Protect with Content ID · free
+        </a>
+      </Section>
+
+      {/* ── Catalog Vault: permanent hosting (Leave a Legacy parity) ── */}
+      <CatalogVaultPanel
+        releaseId={release.id}
+        releaseTitle={release.title}
+        vaulted={vaulted}
+        onVaulted={onVaulted}
+        onOutOfCredits={onOutOfCredits}
+        onError={onError}
+        refreshProfile={refreshProfile}
+      />
 
       {release.status === "draft" ? (
         <>
@@ -1479,6 +2301,8 @@ export default function Distribute() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  /* Catalog Vault: release ids with the permanent-hosting purchase (gold badge). */
+  const [vaultedIds, setVaultedIds] = useState<Set<string>>(new Set());
 
   const selected = releases.find((r) => r.id === selectedId) ?? null;
 
@@ -1516,6 +2340,29 @@ export default function Distribute() {
 
   useEffect(() => { void loadReleases(); }, [loadReleases]);
 
+  /* Deep-link: /distribute?release=<id>#release-checklist (from the Release
+     Metadata Manager's "Add to Release Checklist") selects the release and
+     scrolls to its checklist. */
+  const [deepReleaseId] = useState<string | null>(() => {
+    try { return new URLSearchParams(window.location.search).get("release"); } catch { return null; }
+  });
+  const [deepScrolled, setDeepScrolled] = useState(false);
+  useEffect(() => {
+    if (!deepReleaseId || deepScrolled || releases.length === 0) return;
+    if (releases.some((r) => r.id === deepReleaseId)) {
+      setSelectedId(deepReleaseId);
+      setTab("releases");
+      const hash = window.location.hash;
+      try { window.history.replaceState(null, "", window.location.pathname + hash); } catch { /* ignore */ }
+      if (hash === "#release-checklist") {
+        setTimeout(() => {
+          document.getElementById("release-checklist")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 400);
+      }
+      setDeepScrolled(true);
+    }
+  }, [deepReleaseId, deepScrolled, releases]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1537,6 +2384,24 @@ export default function Distribute() {
     })();
     return () => { cancelled = true; };
   }, [authFetch]);
+
+  /* Catalog Vault status: which of this user's releases are vaulted. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) return;
+      try {
+        const res = await authFetch("/api/catalog-vault/status");
+        const data = (await res.json().catch(() => ({}))) as { vaults?: { releaseId: string }[] };
+        if (!cancelled && res.ok && Array.isArray(data.vaults)) {
+          setVaultedIds(new Set(data.vaults.map((v) => v.releaseId)));
+        }
+      } catch {
+        /* non-fatal — the vault panel still renders per-release */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, authFetch]);
 
   const clearBanners = () => { setError(null); setNotice(null); setOutOfCredits(false); };
 
@@ -1661,6 +2526,9 @@ export default function Distribute() {
                                     {r.status === "packaged" && liveCount > 0 ? ` · ${liveCount} live` : ""}
                                   </span>
                                 </span>
+                                {vaultedIds.has(r.id) && (
+                                  <Vault className="h-4 w-4 shrink-0 text-primary" aria-label={t("catalogVault.vaulted")} />
+                                )}
                                 {r.status === "packaged"
                                   ? <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-400" aria-label={t("distribute.submitted")} />
                                   : <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />}
@@ -1689,6 +2557,8 @@ export default function Distribute() {
                       onNotice={(m) => { setNotice(m); setError(null); }}
                       onOutOfCredits={() => setOutOfCredits(true)}
                       refreshProfile={refreshProfile}
+                      vaulted={vaultedIds.has(selected.id)}
+                      onVaulted={(id) => setVaultedIds((prev) => new Set(prev).add(id))}
                     />
                   )}
                 </div>
