@@ -35,6 +35,15 @@ const ASPECT_RATIOS: Record<string, number> = {
   "4:5": 4 / 5,
 };
 
+/* Output canvas per requested aspect — the old code hardcoded 1080x1920
+   for every ratio. Long side is 1920 for landscape, 1080-wide for the rest. */
+const OUTPUT_SIZE: Record<string, [number, number]> = {
+  "16:9": [1920, 1080],
+  "9:16": [1080, 1920],
+  "1:1": [1080, 1080],
+  "4:5": [1080, 1350],
+};
+
 router.post("/auto-reframe", requireAuth, async (req, res) => {
   const parsed = reframeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -77,6 +86,7 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
     await writeFile(inputPath, Buffer.from(await vidRes.arrayBuffer()));
 
     const targetRatio = ASPECT_RATIOS[parsed.data.aspect]!;
+    const [outW, outH] = OUTPUT_SIZE[parsed.data.aspect]!;
     // Smart crop: keep center, crop to target aspect.
     // For 9:16 from 16:9, crop width; for 16:9 from 9:16, crop height.
     const cropFilter =
@@ -85,7 +95,7 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
 
     await execFileAsync("ffmpeg", [
       "-y", "-i", inputPath,
-      "-vf", `${cropFilter},scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`,
+      "-vf", `${cropFilter},scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH}`,
       "-c:v", "libx264", "-preset", "fast", "-crf", "18",
       "-pix_fmt", "yuv420p",
       "-c:a", "aac",

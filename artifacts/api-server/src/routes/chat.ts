@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import {
   CHAT_SYSTEM_PROMPT,
   CHAT_MAX_OUTPUT_TOKENS,
@@ -53,7 +53,10 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
   const { message } = parsed.data;
   const history = parsed.data.history.slice(-MAX_HISTORY_TURNS);
 
-  /* Optional paid mode: deduct before calling the model. */
+  /* Optional paid mode: charge first, but refund on any model failure below.
+     Charge-then-refund keeps the 402 pre-check simple while guaranteeing
+     the user never pays for a failed generation. */
+  let chatCharged = false;
   if (chatCreditCost > 0) {
     const balance = req.userCredits ?? 0;
     if (balance < chatCreditCost) {
@@ -65,6 +68,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     }
     try {
       await chargeCredits(req.userId!, chatCreditCost, { action: "AI Chat Assistant" });
+      chatCharged = true;
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -100,6 +104,15 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
 
     res.json({ reply, model, creditCost: chatCreditCost });
   } catch (err) {
+    /* Refund: the model call failed after we charged — the user must not
+       pay for a failed generation. */
+    if (chatCharged) {
+      await refundCredits(req.userId!, chatCreditCost, {
+        action: "AI Chat Assistant — Refund (model failed)",
+      }).catch((refundErr) => {
+        logger.error({ refundErr }, "[chat] refund failed after model error");
+      });
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[chat] OpenAI rate limit / quota");
       res.status(503).json({
