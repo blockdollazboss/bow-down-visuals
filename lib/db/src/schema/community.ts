@@ -54,7 +54,12 @@ export const groupMembersTable = pgTable("group_members", {
 
 export type GroupMember = typeof groupMembersTable.$inferSelect;
 
-/* ── Group-scoped posts (see migration 0098 for the Worker 8 posts note) ── */
+/* ── Group-scoped posts ─────────────────────────────────────────────────
+   Worker 8's `posts` table landed (0096) with nullable group_id — but
+   posts.profile_id is NOT NULL, so non-creator group members could never
+   post there. group_posts (authored by user_id) stays the group-feed write
+   target; a future worker can union posts WHERE group_id IS NOT NULL into
+   the same feed query. See migration 0098. ─────────────────────────────── */
 
 export const groupPostsTable = pgTable("group_posts", {
   id:           uuid("id").primaryKey().defaultRandom(),

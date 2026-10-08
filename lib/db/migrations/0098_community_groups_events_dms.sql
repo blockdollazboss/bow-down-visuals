@@ -4,9 +4,12 @@
 -- creator-led communities, streams/drops/premieres, and 1:1 DMs.
 --
 -- Worker 8's posts table was not yet landed when this was written, so group
--- feed scoping lives in the local `group_posts` table (nullable-ready: a
--- future worker can union `posts` with `group_id IS NOT NULL` into the same
--- feed query without touching this table).
+-- feed scoping lives in the local `group_posts` table. UPDATE 2026-10-07:
+-- Worker 8's `posts` table HAS since landed (0096) with a nullable group_id —
+-- but posts.profile_id is NOT NULL, so non-creator group members could never
+-- post there. group_posts (authored by user_id, not profile_id) stays the
+-- group-feed write target; a future worker can union posts WHERE group_id
+-- IS NOT NULL into the same feed query without touching this table.
 --
 -- Link-graph contract (cross-surface wiring):
 --   groups  -> members link to /creator/:slug (Worker 2 profiles)
