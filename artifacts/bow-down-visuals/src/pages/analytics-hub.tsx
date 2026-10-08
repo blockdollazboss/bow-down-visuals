@@ -10,6 +10,8 @@ import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntellig
 import RetentionDoctor from "@/components/analytics-hub/RetentionDoctor";
 import MilestoneTracker from "@/components/analytics-hub/MilestoneTracker";
 import ContentIdMonitor from "@/components/analytics-hub/ContentIdMonitor";
+import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
+import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -19,6 +21,7 @@ import {
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
   ArrowRight, Music2, Swords, ShieldCheck, Trophy, RefreshCw, FileVideo,
   Heart, MessageCircle, Lightbulb, Clock, ChevronRight, Zap,
+  ClipboardCheck, Gauge,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -36,7 +39,10 @@ import type { LucideIcon } from "lucide-react";
    (live Instagram/TikTok/Facebook follower + post counts via
    /api/analytics/overview) and the AI Insights / What-to-make-next layer
    (via /api/analytics/insights and /api/analytics/suggestions) merged from
-   the old /analytics page. NO new page, NO new sidebar item — this file is
+   the old /analytics page. "channelAudit" and "virality" hold the Channel
+   Audit (/api/channel-audit, 3 credits) and Virality Pre-Flight Check
+   (/api/virality-check, 2 credits) panels absorbed from /channel-audit and
+   /virality-check. NO new page, NO new sidebar item — this file is
    the only home for competitor analysis and connected-account analytics. */
 
 type PlatformKey = "tiktok" | "instagram" | "youtube" | "x";
@@ -783,7 +789,7 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected" | "channelAudit" | "virality">("dashboard");
   /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
      into Step 2 (from Hook Studio's "full intelligence check"). */
   const [intelInitialHook, setIntelInitialHook] = useState("");
@@ -815,6 +821,10 @@ export default function AnalyticsHub() {
         setHubTab("milestones");
       } else if (params.get("tab") === "connected") {
         setHubTab("connected");
+      } else if (params.get("tab") === "channel-audit") {
+        setHubTab("channelAudit");
+      } else if (params.get("tab") === "virality") {
+        setHubTab("virality");
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -1163,6 +1173,32 @@ export default function AnalyticsHub() {
             >
               <Link2 className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabConnected", { defaultValue: "Connected Accounts" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "channelAudit"}
+              onClick={() => setHubTab("channelAudit")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "channelAudit"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabChannelAudit", { defaultValue: "Channel Audit" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "virality"}
+              onClick={() => setHubTab("virality")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "virality"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Gauge className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabVirality", { defaultValue: "Virality Check" })}
             </button>
           </div>
         </div>
@@ -1891,6 +1927,24 @@ export default function AnalyticsHub() {
             no new page, no new sidebar item; this tab is its only home. */}
         {hubTab === "connected" && (
           <ConnectedAccountsTab />
+        )}
+
+        {/* ── CHANNEL AUDIT ──────────────────────────────────────────────
+            AI channel audit (POST /api/channel-audit, 3 credits): grades 6
+            dimensions A–F with fixes, an overall grade, and a top-3 priority
+            list. Absorbed from /channel-audit — no new page, no new sidebar
+            item; this tab is its only home. */}
+        {hubTab === "channelAudit" && (
+          <ChannelAuditPanel />
+        )}
+
+        {/* ── VIRALITY PRE-FLIGHT CHECK ──────────────────────────────────
+            Deeper standalone scorecard for a post's viral readiness
+            (POST /api/virality-check, 2 credits). Absorbed from
+            /virality-check — no new page, no new sidebar item; this tab is
+            its only home. */}
+        {hubTab === "virality" && (
+          <ViralityCheckPanel />
         )}
       </main>
 

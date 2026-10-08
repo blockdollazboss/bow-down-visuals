@@ -6,24 +6,31 @@ import {
   CheckCircle2, AlertTriangle, Copy, Check, ChevronDown,
   BadgeDollarSign, Gift, Repeat2, FileText, Megaphone,
   Mail, MessageCircle, CalendarClock, Send, Clock, Reply, BadgeCheck,
+  ArrowRight, Target, Briefcase, LayoutDashboard, PlusCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
 import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
 import SponsorPipeline from "@/components/wave8/SponsorPipeline";
 
-/* ─── Thy Cheat Code's Brand Deal Finder ────────────────────────────────────
-   The money-hunt: AI matches creators with brand partnership opportunities —
+/* ─── Thy Cheat Code's Sponsors Hub (ONE canonical file) ───────────────────
+   Find Deals: AI matches creators with brand partnership opportunities —
    sponsored posts, affiliates, ambassadorships, gifting, usage licensing.
-   This is the FINDER phase (AI surfaces opportunities); the two-sided
-   Sponsor Marketplace lives separately at /sponsors.
    POSTs to /api/brand-deals (2 credits/search) and /api/brand-deals/outreach
    (1 credit/draft) on GPT-6 Sol. Deal types + audience sizes must stay in
-   sync with the backend route's enums. */
+   sync with the backend route's enums.
+   Pitch Kit (absorbed from /sponsorship-outreach): POST /api/outreach →
+   2 credits per kit; includes the Wave 8 SponsorPipeline kanban
+   (Pitched → Negotiating → Closed → Paid) + free outreach tracker.
+   Marketplace (absorbed from /sponsors): browse posted deals
+   (GET /api/sponsors/deals) + AI deal matcher (POST /api/sponsors/match).
+   The wider cluster stays SEPARATE — linked from the Related row, never
+   merged: /sponsors/dashboard, /sponsors/post, /sponsors/:id. */
 
 type DealTypeKey = "sponsored-post" | "affiliate" | "ambassadorship" | "product-gifting" | "usage-licensing";
 
@@ -118,17 +125,18 @@ export default function BrandDealFinder() {
   const { user, profile, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
-  /* ── merged surface: Finder (original brand-deals) · Pitch kit (absorbed
-     from /sponsorship-outreach) · Deal pipeline (Wave 8 SponsorPipeline +
-     free outreach tracker). The /sponsorship-outreach route renders this
-     same component (alias) — it lands on the Pitch kit tab so the press
-     kit's ?bio= handoff keeps working. */
-  type MainTab = "finder" | "pitch" | "pipeline";
+  /* ── Sponsors hub: Find Deals · Pitch Kit (pipeline lives inside it) ·
+     Marketplace. ?tab= deep-links (finder/pitch/marketplace); the
+     /sponsorship-outreach alias redirects here with ?tab=pitch, and ?bio=
+     from the press kit still lands on the Pitch Kit tab. */
+  type MainTab = "finder" | "pitch" | "marketplace";
   const [mainTab, setMainTab] = useState<MainTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search);
       const forced = q.get("tab");
-      if (forced === "pitch" || forced === "pipeline" || forced === "finder") return forced;
+      if (forced === "pitch" || forced === "finder") return forced;
+      if (forced === "pipeline") return "pitch"; // Wave 8 pipeline merged into the Pitch Kit tab
+      if (forced === "marketplace") return "marketplace";
       if (window.location.pathname.startsWith("/sponsorship-outreach")) return "pitch";
       if (q.get("bio")) return "pitch";
     } catch { /* non-browser — default to finder */ }
@@ -343,17 +351,17 @@ export default function BrandDealFinder() {
           </p>
           <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
             {t("brandDeals.finderExplainer", { defaultValue: "This is the finder — AI hunts down brands that fit you. When a brand posts a deal for creators to apply to, that's the " })}
-            <Link href="/sponsors" className="font-semibold text-primary hover:underline">{t("brandDeals.marketplaceLink", { defaultValue: "Sponsor Marketplace" })}</Link>.
+            <button onClick={() => setMainTab("marketplace")} className="font-semibold text-primary hover:underline">{t("brandDeals.marketplaceLink", { defaultValue: "Sponsor Marketplace" })}</button>.
           </p>
         </div>
 
-        {/* ── merged tabs: Finder · Pitch kit · Deal pipeline ── */}
-        <div className="relative mt-8 flex justify-center gap-2">
+        {/* ── Sponsors hub tabs: Find Deals · Pitch Kit · Marketplace ── */}
+        <div className="relative mt-8 flex flex-wrap justify-center gap-2">
           {(
             [
               { key: "finder", label: t("brandDeals.tabs.finder", { defaultValue: "Find deals" }), icon: Search },
               { key: "pitch", label: t("outreach.tabs.pitchKit", { defaultValue: "Pitch kit" }), icon: Mail },
-              { key: "pipeline", label: t("outreach.tabs.pipeline", { defaultValue: "Deal pipeline" }), icon: Handshake },
+              { key: "marketplace", label: t("brandDeals.tabs.marketplace", { defaultValue: "Marketplace" }), icon: Briefcase },
             ] as { key: MainTab; label: string; icon: LucideIcon }[]
           ).map((tb) => {
             const Icon = tb.icon;
@@ -374,6 +382,18 @@ export default function BrandDealFinder() {
             );
           })}
         </div>
+
+        {/* Related — the wider sponsor cluster (separate pages, linked not merged) */}
+        <p className="relative mt-4 text-center text-xs text-white/40">
+          {t("brandDeals.related.label", { defaultValue: "Related:" })}{" "}
+          <Link href="/sponsors/dashboard" className="font-semibold text-primary hover:underline">
+            {t("brandDeals.related.sponsorDashboard", { defaultValue: "Sponsor dashboard" })}
+          </Link>
+          {" · "}
+          <Link href="/sponsors/post" className="font-semibold text-primary hover:underline">
+            {t("brandDeals.related.postDeal", { defaultValue: "Post a deal" })}
+          </Link>
+        </p>
 
         {mainTab === "finder" && (
         <>
@@ -712,10 +732,10 @@ export default function BrandDealFinder() {
           </div>
         )}
 
-        {/* ── DEAL PIPELINE TAB — Wave 8 SponsorPipeline + free tracker ── */}
-        {mainTab === "pipeline" && (
+        {/* ── MARKETPLACE TAB — absorbed from /sponsors ── */}
+        {mainTab === "marketplace" && (
           <div className="relative mt-4">
-            <PipelineTab />
+            <MarketplaceTab />
           </div>
         )}
       </main>
@@ -1126,6 +1146,13 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
           prefillCreator={creatorName || activeArtist?.artist_name || ""}
         />
       </div>
+
+      {/* ── DEAL PIPELINE — Wave 8 SponsorPipeline kanban (Pitched →
+          Negotiating → Closed → Paid) + free outreach tracker, inside the
+          Pitch Kit tab. Paid → /api/money income-ledger handoff intact. */}
+      <div className="mt-12 border-t border-white/10 pt-12">
+        <PipelineTab />
+      </div>
     </div>
   );
 }
@@ -1231,6 +1258,285 @@ function PipelineTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MARKETPLACE TAB — the two-sided Sponsor Marketplace, absorbed from
+   /sponsors as the hub's third tab. Brands post paid sponsorship deals,
+   creators apply with a pitch — Bow Down Visuals takes 15% of every
+   released deal.
+   Money rules: browsing is free (pure UI); the AI deal matcher is 1 credit;
+   posting a deal lives on /sponsors/post (5 credits).
+   Endpoints: GET /api/sponsors/deals, POST /api/sponsors/match. */
+
+interface MarketplaceDeal {
+  id: string;
+  brandName: string;
+  budgetMin: number;
+  budgetMax: number;
+  niche: string;
+  deliverables: string;
+  description: string;
+  deadline: string;
+  status: string;
+  createdAt: string;
+}
+
+interface DealMatch {
+  dealId: string;
+  brandName: string;
+  score: number;
+  why: string;
+}
+
+const MATCHER_COST = 1;
+
+const marketplaceSectionLabel =
+  "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
+
+function MarketplaceTab() {
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+
+  const [deals, setDeals] = useState<MarketplaceDeal[]>([]);
+  const [dealsLoading, setDealsLoading] = useState(true);
+  const [dealsError, setDealsError] = useState<string | null>(null);
+  const [nicheFilter, setNicheFilter] = useState("");
+
+  // AI deal matcher
+  const [matchNiche, setMatchNiche] = useState("");
+  const [matchFollowers, setMatchFollowers] = useState("");
+  const [matchPlatforms, setMatchPlatforms] = useState("");
+  const [matches, setMatches] = useState<DealMatch[]>([]);
+  const [matchNote, setMatchNote] = useState("");
+  const [matchLoading, setMatchLoading] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken();
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
+  async function loadDeals() {
+    if (!user) {
+      setDealsLoading(false);
+      return;
+    }
+    setDealsLoading(true);
+    setDealsError(null);
+    try {
+      const res = await fetch("/api/sponsors/deals", { headers: await authHeaders() });
+      const data = (await res.json().catch(() => ({}))) as { deals?: MarketplaceDeal[]; error?: string };
+      if (!res.ok) throw new Error(data.error || t("sponsors.errorLoadDeals"));
+      setDeals(Array.isArray(data.deals) ? data.deals : []);
+    } catch (err) {
+      setDealsError(err instanceof Error ? err.message : t("sponsors.errorLoadDeals"));
+    } finally {
+      setDealsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDeals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  async function runMatcher() {
+    if (!matchNiche.trim()) {
+      setError(t("sponsors.errorNicheFirst"));
+      return;
+    }
+    setMatchLoading(true);
+    setError(null);
+    try {
+      const res = await confirmedFetch("/api/sponsors/match", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          niche: matchNiche.trim(),
+          followers: Number(matchFollowers.replace(/[^0-9]/g, "")) || 0,
+          platforms: matchPlatforms.split(",").map((p) => p.trim()).filter(Boolean).slice(0, 5),
+        }),
+      });
+      if (!res) return; /* user cancelled the credit confirmation */
+      const data = (await res.json().catch(() => ({}))) as {
+        matches?: DealMatch[]; note?: string; error?: string; creditsRemaining?: number;
+      };
+      if (res.status === 402) {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || t("sponsors.errorMatcher"));
+      setMatches(Array.isArray(data.matches) ? data.matches : []);
+      setMatchNote(data.note || "");
+      refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("sponsors.errorMatcher"));
+    } finally {
+      setMatchLoading(false);
+    }
+  }
+
+  const filtered = nicheFilter.trim()
+    ? deals.filter((d) => d.niche.toLowerCase().includes(nicheFilter.trim().toLowerCase()))
+    : deals;
+
+  return (
+    <div>
+      {/* compact section heading (the hub owns the page hero) */}
+      <div className="text-center">
+        <h2 className="font-display text-2xl font-black tracking-tight md:text-3xl">
+          {t("sponsors.pageTitleA")} <span className="text-primary">{t("sponsors.pageTitleAccent")}</span> {t("sponsors.pageTitleB")}
+        </h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+          {t("sponsors.pageSubtitle")}
+        </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Link href="/sponsors/dashboard"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-white">
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> {t("sponsors.myDashboard")}
+          </Link>
+          <Link href="/sponsors/post"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-4 py-2.5 text-sm font-black text-black shadow-[0_4px_24px_rgba(212,175,55,0.35)] transition hover:scale-[1.03]">
+            <PlusCircle className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postDeal")}
+          </Link>
+        </div>
+      </div>
+
+      {error && (
+        <p className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
+      )}
+
+      {/* filter */}
+      <div className="mt-8 flex max-w-sm items-center gap-2" data-min-stars="2">
+        <input value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} maxLength={60}
+          placeholder={t("sponsors.filterPlaceholder")} className={inputClass} />
+      </div>
+
+      {/* deals grid */}
+      <div className="mt-6">
+        {!user ? (
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+            <p className="text-white/60">{t("sponsors.signInPrompt")}</p>
+            <Link href="/login"
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3 font-bold text-primary transition hover:bg-primary hover:text-black">
+              {t("sponsors.signIn")} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        ) : dealsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-white/40">
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("sponsors.loadingDeals")}
+          </div>
+        ) : dealsError ? (
+          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{dealsError}</p>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+            <Handshake className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
+            <p className="mt-3 font-bold text-white">{deals.length === 0 ? t("sponsors.emptyNoDeals") : t("sponsors.emptyNoMatch")}</p>
+            <p className="mt-1 text-sm text-white/50">
+              {deals.length === 0 ? t("sponsors.emptyNoDealsHint") : t("sponsors.emptyNoMatchHint")}
+            </p>
+            {deals.length === 0 && (
+              <Link href="/sponsors/post"
+                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 font-black text-black transition hover:brightness-110">
+                <Megaphone className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postFirstDeal")}
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {filtered.map((d) => (
+              <Link key={d.id} href={`/sponsors/${d.id}`}
+                className="group rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-primary/40 hover:bg-white/[0.05]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 text-lg font-black text-white">
+                      <Briefcase className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                      {d.brandName}
+                    </p>
+                    <p className="mt-0.5 text-xs uppercase tracking-wider text-white/40">{d.niche}</p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm font-black text-primary">
+                    <BadgeDollarSign className="h-4 w-4" aria-hidden="true" />
+                    {formatBudgetRange(d.budgetMin, d.budgetMax)}
+                  </span>
+                </div>
+                <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-white/70">{d.description}</p>
+                <div className="mt-4 flex items-center justify-between text-[13px] text-white/55">
+                  <p className="inline-flex items-center gap-1.5">
+                    <CalendarClock className="h-3.5 w-3.5 text-primary/70" aria-hidden="true" />
+                    {daysLeftLabel(d.deadline)}
+                  </p>
+                  <span className="inline-flex items-center gap-1 font-bold text-primary opacity-0 transition group-hover:opacity-100">
+                    {t("sponsors.viewDeal")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── AI DEAL MATCHER ──────────────────────────────────────── */}
+      <div className="relative mt-12 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+          <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("sponsors.matcherEyebrow", { cost: MATCHER_COST })}
+        </p>
+        <h2 className="font-display text-2xl font-black">{t("sponsors.matcherTitleA")} <span className="text-primary">{t("sponsors.matcherTitleAccent")}</span></h2>
+        <p className="mt-2 max-w-xl text-sm text-white/55">
+          {t("sponsors.matcherSubtitle")}
+        </p>
+        <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div>
+            <p className={marketplaceSectionLabel}>{t("sponsors.matchNicheLabel")}</p>
+            <input value={matchNiche} onChange={(e) => setMatchNiche(e.target.value)} maxLength={120}
+              placeholder={t("sponsors.matchNichePlaceholder")} className={inputClass} />
+          </div>
+          <div data-min-stars="3">
+            <p className={marketplaceSectionLabel}>{t("sponsors.matchFollowersLabel")}</p>
+            <input value={matchFollowers} onChange={(e) => setMatchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+              inputMode="numeric" placeholder={t("sponsors.matchFollowersPlaceholder")} className={inputClass} />
+          </div>
+          <div data-min-stars="3">
+            <p className={marketplaceSectionLabel}>{t("sponsors.matchPlatformsLabel")}</p>
+            <input value={matchPlatforms} onChange={(e) => setMatchPlatforms(e.target.value)} maxLength={200}
+              placeholder={t("sponsors.matchPlatformsPlaceholder")} className={inputClass} />
+          </div>
+        </div>
+        <button onClick={runMatcher} disabled={matchLoading}
+          className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-7 py-3 text-sm font-black text-black shadow-[0_4px_24px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] disabled:opacity-50">
+          {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
+          {matchLoading ? t("sponsors.matching") : t("sponsors.findMatchesButton", { cost: MATCHER_COST })}
+        </button>
+        {matchNote && <p className="mt-4 text-sm italic text-white/60">{matchNote}</p>}
+        {matches.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {matches.map((m) => (
+              <Link key={m.dealId} href={`/sponsors/${m.dealId}`}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 transition hover:border-primary/40">
+                <div>
+                  <p className="font-bold text-white">{m.brandName}</p>
+                  <p className="text-xs text-white/50">{m.why}</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm font-black text-primary">
+                  {m.score}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
     </div>
   );
 }

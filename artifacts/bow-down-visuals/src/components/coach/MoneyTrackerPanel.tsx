@@ -9,6 +9,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import SplitsOverview, { fetchReleaseOptions } from "./SplitsOverview";
 import SplitCalculator from "../wave8/SplitCalculator";
+import RoyaltyTrackerPanel from "./RoyaltyTrackerPanel";
 
 /* ─── Money Tracker panel (mounted INSIDE the /coach page as a tab) ──────
    "Know your numbers": a free per-user income/expense ledger (CRUD on
@@ -100,10 +101,13 @@ export default function MoneyTrackerPanel() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  /* Ledger vs Splits vs Split Sheets view (deep-linkable: /coach?tab=money&view=splits) */
-  const [view, setView] = useState<"ledger" | "splits" | "splitSheets">(() => {
+  /* Ledger vs Splits vs Split Sheets vs Royalties view
+     (deep-linkable: /coach?tab=money&view=splits, &view=splitSheets, &view=royalties) */
+  const [view, setView] = useState<"ledger" | "splits" | "splitSheets" | "royalties">(() => {
     try {
-      return new URLSearchParams(window.location.search).get("view") === "splits" ? "splits" : "ledger";
+      const v = new URLSearchParams(window.location.search).get("view");
+      if (v === "splits" || v === "splitSheets" || v === "royalties") return v;
+      return "ledger";
     } catch {
       return "ledger";
     }
@@ -349,7 +353,8 @@ export default function MoneyTrackerPanel() {
 
   return (
     <div className="mt-8">
-      {/* ── header: month nav + add ─────────────────────────────────── */}
+      {/* ── header: month nav + add (ledger chrome — hidden on the other views) ── */}
+      {view === "ledger" && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <button
@@ -376,10 +381,11 @@ export default function MoneyTrackerPanel() {
           {showForm ? t("moneyTracker.closeForm") : t("moneyTracker.addEntry")}
         </button>
       </div>
+      )}
 
-      {/* ── Ledger vs Splits vs Split Sheets toggle ───────────────────── */}
-      <div className="mt-4 inline-flex gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
-        {(["ledger", "splits", "splitSheets"] as const).map((v) => (
+      {/* ── Ledger vs Splits vs Split Sheets vs Royalties toggle ──────── */}
+      <div className="mt-4 inline-flex flex-wrap gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+        {(["ledger", "splits", "splitSheets", "royalties"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -389,12 +395,14 @@ export default function MoneyTrackerPanel() {
                 : "text-white/55 hover:text-white"
             }`}
           >
-            {v === "ledger" ? "Ledger" : v === "splits" ? "Splits" : t("wave8.splits.splitSheetsTab")}
+            {v === "ledger" ? "Ledger" : v === "splits" ? "Splits" : v === "royalties" ? t("moneyTracker.viewRoyalties", { defaultValue: "Royalties" }) : t("wave8.splits.splitSheetsTab")}
           </button>
         ))}
       </div>
 
-      {view === "splitSheets" ? (
+      {view === "royalties" ? (
+        <RoyaltyTrackerPanel />
+      ) : view === "splitSheets" ? (
         <SplitCalculator />
       ) : view === "splits" ? (
         <SplitsOverview />
