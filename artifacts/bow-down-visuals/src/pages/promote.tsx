@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
+import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -107,7 +108,15 @@ export default function Promote() {
   const [featureKey, setFeatureKey] = useState(SITE_FEATURES[0]!.key);
   const [contentType, setContentType] = useState<ContentTypeKey>("twitter");
   const [tone, setTone] = useState<ToneKey>("hype");
-  const [focus, setFocus] = useState("");
+  /* Deep-link prefill: /promote?focus=... (from the Milestone Tracker's
+     "Celebrate" button) seeds the promo-copy focus line. */
+  const [focus, setFocus] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("focus")?.slice(0, 500) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [result, setResult] = useState<PromoResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -383,6 +392,12 @@ export default function Promote() {
             Brand kit for the project's socials, prefilled from the hub. */}
         <div className="mt-10">
           <SocialKitPanel />
+        </div>
+
+        {/* Release Promo Cards — DistroKid promo-cards parity, docked in the
+            social-kit flow. Deep-linked from /distribute and /presave/:slug. */}
+        <div className="mt-10">
+          <PromoCardsPanel />
         </div>
           </>
         )}

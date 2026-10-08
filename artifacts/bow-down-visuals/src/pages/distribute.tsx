@@ -4,7 +4,7 @@ import {
   AlertTriangle, CalendarDays, Music2, Image as ImageIcon, Link2,
   ListMusic, ChevronRight, BadgeCheck, ArrowLeft, ArrowRight,
   Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash, ShieldCheck,
-  ExternalLink, Megaphone, Mail, Gift, Type, BarChart3, Vault, Share2,
+  ExternalLink, Megaphone, Mail, Type, BarChart3, Vault, Share2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2082,18 +2082,15 @@ function ReleaseDetail(props: {
         action={<span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-bold text-white/50">{t("distribute.free")}</span>}
       >
         {presaveUrl ? (
-          <div>
-            <p className="text-sm text-white/55">
-              Share this link — it goes live for fans on your release date ({release.releaseDate ?? "not set yet"}).
-            </p>
-            <div className="mt-3 flex gap-2">
-              <input value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
-              <button onClick={copyPresave} className={`${ghostBtn} shrink-0`}>
-                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </div>
+          <PresaveManager
+            release={release}
+            presaveUrl={presaveUrl}
+            copied={copied}
+            authFetch={authFetch}
+            onError={onError}
+            onNotice={onNotice}
+            copyPresave={copyPresave}
+          />
         ) : (
           <div>
             <p className="text-sm text-white/55">{t("distribute.generate_a_public_pre_save_page")}</p>

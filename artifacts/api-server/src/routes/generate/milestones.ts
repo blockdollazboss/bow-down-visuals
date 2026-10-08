@@ -217,7 +217,7 @@ router.post("/milestones/import-csv", publicApiLimiter, requireAuth, async (req,
     });
     return;
   }
-  const { rows, skipped } = parseMilestoneCsv(parsed.csv);
+  const { rows, skipped } = parseMilestoneCsv(parsed.data.csv);
   if (rows.length === 0) {
     res.status(400).json({
       error: "no_valid_rows",
