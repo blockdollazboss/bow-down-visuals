@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ImageIcon, Loader2, AlertTriangle, Sparkles, Info } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import type { EditorSettings } from "@/lib/editor-settings";
@@ -29,8 +30,8 @@ const CREDIT_COST = 200;
 
 interface BgPreset {
   id: "studio" | "stage" | "city-night" | "abstract-gold" | "custom";
-  name: string;
-  description: string;
+  nameKey: string;
+  descKey: string;
   /** CSS gradient swatch standing in for the preset until AI previews exist. */
   swatch: string;
 }
@@ -38,32 +39,32 @@ interface BgPreset {
 const BG_PRESETS: BgPreset[] = [
   {
     id: "studio",
-    name: "Studio",
-    description: "Clean studio backdrop with soft gold rim light.",
+    nameKey: "wave9.bgReplace.presetStudio",
+    descKey: "wave9.bgReplace.presetStudioDesc",
     swatch: "linear-gradient(135deg, #1a1a1a 0%, #3a2f18 60%, #C9A84C33 100%)",
   },
   {
     id: "stage",
-    name: "Stage",
-    description: "Concert stage glow — dark crowd, gold spotlights.",
+    nameKey: "wave9.bgReplace.presetStage",
+    descKey: "wave9.bgReplace.presetStageDesc",
     swatch: "linear-gradient(135deg, #0d0d12 0%, #2a1f3d 50%, #C9A84C55 100%)",
   },
   {
     id: "city-night",
-    name: "City Night",
-    description: "Night skyline bokeh in gold and deep blue.",
+    nameKey: "wave9.bgReplace.presetCityNight",
+    descKey: "wave9.bgReplace.presetCityNightDesc",
     swatch: "linear-gradient(135deg, #05070f 0%, #0f1e3a 55%, #8a6f2e66 100%)",
   },
   {
     id: "abstract-gold",
-    name: "Abstract Gold",
-    description: "Flowing gold abstraction on black — the brand look.",
+    nameKey: "wave9.bgReplace.presetAbstractGold",
+    descKey: "wave9.bgReplace.presetAbstractGoldDesc",
     swatch: "linear-gradient(135deg, #000000 0%, #4a3a12 55%, #e8c96a 130%)",
   },
   {
     id: "custom",
-    name: "Custom",
-    description: "Describe your own background in plain words.",
+    nameKey: "wave9.bgReplace.presetCustom",
+    descKey: "wave9.bgReplace.presetCustomDesc",
     swatch: "linear-gradient(135deg, #141414 0%, #333333 100%)",
   },
 ];
@@ -82,6 +83,8 @@ export function BackgroundReplaceSection({
   setSettings: _setSettings,
   onReplaceClipVideo,
 }: BackgroundReplaceSectionProps) {
+  const { t } = useTranslation();
+  const ns = "wave9.bgReplace";
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
@@ -104,7 +107,7 @@ export function BackgroundReplaceSection({
     setMessage(null);
     setOutOfCredits(false);
     if (presetId === "custom" && !customPrompt.trim()) {
-      setMessage("Describe your custom background first — a few plain words is enough.");
+      setMessage(t(`${ns}.customNeeded`));
       return;
     }
     setPhase("working");
@@ -134,24 +137,24 @@ export function BackgroundReplaceSection({
         setMessage(
           typeof data.message === "string"
             ? data.message
-            : "AI background replacement isn't available yet."
+            : t(`${ns}.unavailable`)
         );
         return;
       }
       if (!res.ok || !data.outputUrl) {
-        throw new Error(typeof data.error === "string" ? data.error : "Background replacement failed.");
+        throw new Error(typeof data.error === "string" ? data.error : t(`${ns}.errorGeneric`));
       }
       setResultUrl(data.outputUrl as string);
       setShowAfter(true);
       setPhase("done");
       onReplaceClipVideo?.(scene!.id, data.outputUrl as string);
       toast({
-        title: "Background replaced",
-        description: `${preset.name} is now behind your clip. Toggle before/after to compare.`,
+        title: t(`${ns}.replacedTitle`),
+        description: t(`${ns}.doneToast`, { preset: t(preset.nameKey) }),
       });
     } catch (err) {
       setPhase("idle");
-      setMessage(err instanceof Error ? err.message : "Background replacement failed.");
+      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
     }
   }
 
@@ -159,8 +162,8 @@ export function BackgroundReplaceSection({
 
   return (
     <EditorCard
-      title="Background Replace"
-      subtitle={`Swap a plain background for an AI scene — ${CREDIT_COST} Visual Bucs`}
+      title={t(`${ns}.title`)}
+      subtitle={t(`${ns}.subtitle`, { cost: CREDIT_COST })}
       icon={<ImageIcon className="h-4 w-4" />}
       data-testid="wave9b-bgreplace"
     >
@@ -169,14 +172,14 @@ export function BackgroundReplaceSection({
 
         {!scene || !mediaUrl ? (
           <p className="text-sm text-white/40">
-            Pick a talking-head clip to replace its background.
+            {t(`${ns}.noClip`)}
           </p>
         ) : (
           <>
             {/* ── Preset gallery ── */}
             <div>
               <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-2">
-                AI background
+                {t(`${ns}.presetLabel`)}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {BG_PRESETS.map((p) => (
@@ -193,8 +196,8 @@ export function BackgroundReplaceSection({
                   >
                     <div className="h-14" style={{ background: p.swatch }} />
                     <div className="px-3 py-2 bg-black/40">
-                      <p className="text-xs font-black text-white">{p.name}</p>
-                      <p className="text-[10px] text-white/35 leading-snug mt-0.5">{p.description}</p>
+                      <p className="text-xs font-black text-white">{t(p.nameKey)}</p>
+                      <p className="text-[10px] text-white/35 leading-snug mt-0.5">{t(p.descKey)}</p>
                     </div>
                   </button>
                 ))}
@@ -206,7 +209,7 @@ export function BackgroundReplaceSection({
                 type="text"
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="e.g. rooftop at sunset with gold haze"
+                placeholder={t(`${ns}.customPlaceholder`)}
                 className="w-full px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#C9A84C]/50"
                 data-testid="wave9b-bgprompt"
               />
@@ -216,7 +219,7 @@ export function BackgroundReplaceSection({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] font-black text-white/40 uppercase tracking-widest">
-                  Preview
+                  {t(`${ns}.previewLabel`)}
                 </p>
                 {resultUrl && (
                   <div className="flex rounded-lg border border-white/10 overflow-hidden text-[11px] font-bold">
@@ -225,14 +228,14 @@ export function BackgroundReplaceSection({
                       onClick={() => setShowAfter(false)}
                       className={`px-3 py-1 transition-colors ${!showAfter ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}
                     >
-                      Before
+                      {t(`${ns}.before`)}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowAfter(true)}
                       className={`px-3 py-1 transition-colors ${showAfter ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}
                     >
-                      After
+                      {t(`${ns}.after`)}
                     </button>
                   </div>
                 )}
@@ -249,7 +252,7 @@ export function BackgroundReplaceSection({
                   />
                 ) : (
                   <div className="h-40 flex items-center justify-center text-white/25 text-sm">
-                    No clip loaded.
+                    {t(`${ns}.noClipLoaded`)}
                   </div>
                 )}
                 {!resultUrl && phase !== "unavailable" && (
@@ -257,7 +260,7 @@ export function BackgroundReplaceSection({
                     <div
                       className="w-full h-1/2 opacity-40"
                       style={{ background: preset.swatch }}
-                      title={`${preset.name} preview tint — real swap renders server-side`}
+                      title={t(`${ns}.swatchTint`, { preset: t(preset.nameKey) })}
                     />
                   </div>
                 )}
@@ -298,18 +301,18 @@ export function BackgroundReplaceSection({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              {phase === "working" ? "Working…" : `Replace background (${CREDIT_COST} VB)`}
+              {phase === "working" ? t(`${ns}.working`) : t(`${ns}.replace`, { cost: CREDIT_COST })}
             </button>
 
             {phase === "unavailable" && (
               <p className="text-[11px] text-white/35 leading-relaxed">
-                Shot on a green screen? Use Chroma Key in Pro Tools — that path works today.
+                {t(`${ns}.unavailableChromaHint`)}
               </p>
             )}
 
             {phase === "done" && resultUrl && (
               <p className="text-[11px] text-white/35 leading-relaxed">
-                The replaced clip is live on your timeline. Toggle Before/After above to compare.
+                {t(`${ns}.doneNote`)}
               </p>
             )}
           </>

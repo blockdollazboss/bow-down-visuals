@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Layers, Loader2, Scissors, Type, User, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import type { EditorSettings, VideoFormat } from "@/lib/editor-settings";
@@ -46,29 +47,29 @@ interface EditOp {
 
 const RECIPES: Array<{
   id: RecipeId;
-  name: string;
-  description: string;
+  nameKey: string;
+  descKey: string;
   icon: React.ReactNode;
   needsAudio: boolean;
 }> = [
   {
     id: "jumpcut-vlog",
-    name: "Jump-Cut Vlog",
-    description: "Finds dead-air pauses in your audio and cuts them, hard cuts everywhere, captions tucked to the bottom.",
+    nameKey: "wave9.templates.jumpcutName",
+    descKey: "wave9.templates.jumpcutDesc",
     icon: <Scissors className="h-4 w-4" />,
     needsAudio: true,
   },
   {
     id: "lyric-video",
-    name: "Lyric Video",
-    description: "Caption-forward layout: karaoke word-by-word centered, vignette + glow, smooth crossfades between clips.",
+    nameKey: "wave9.templates.lyricName",
+    descKey: "wave9.templates.lyricDesc",
     icon: <Type className="h-4 w-4" />,
     needsAudio: false,
   },
   {
     id: "talking-head",
-    name: "Talking Head",
-    description: "Vertical 9:16 with every clip centered on the speaker, lower-third name banner, clean captions.",
+    nameKey: "wave9.templates.talkingHeadName",
+    descKey: "wave9.templates.talkingHeadDesc",
     icon: <User className="h-4 w-4" />,
     needsAudio: false,
   },
@@ -103,6 +104,8 @@ export function TimelineTemplatesSection({
   beatGrid = [],
   projectKey = "default",
 }: TimelineTemplatesSectionProps) {
+  const { t } = useTranslation();
+  const ns = "wave9.templates";
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
@@ -119,7 +122,7 @@ export function TimelineTemplatesSection({
     setOutOfCredits(false);
     const needsAudio = RECIPES.find((r) => r.id === id)?.needsAudio;
     if (needsAudio && !audioUrl) {
-      setError("Jump-Cut Vlog needs the project audio URL to find pauses.");
+      setError(t(`${ns}.errorNoAudio`));
       return;
     }
     setPhase("compiling");
@@ -145,14 +148,14 @@ export function TimelineTemplatesSection({
         return;
       }
       if (!res.ok || !Array.isArray(data.ops)) {
-        throw new Error(typeof data.error === "string" ? data.error : "The recipe failed to compile.");
+        throw new Error(typeof data.error === "string" ? data.error : t(`${ns}.errorGeneric`));
       }
       setRecipeId(id);
       setOps(data.ops as EditOp[]);
       setPhase("preview");
     } catch (err) {
       setPhase("idle");
-      setError(err instanceof Error ? err.message : "The recipe failed to compile.");
+      setError(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
     }
   }
 
@@ -279,21 +282,25 @@ export function TimelineTemplatesSection({
     setAppliedCount(applied);
     setPhase("applied");
     toast({
-      title: "Recipe applied",
-      description: `${applied} of ${ops.length} edits applied${
-        cutTimes.length > 0
-          ? ` — ${cutTimes.length / 2} cut ranges saved to the cut plan (sliced on export when split support ships).`
-          : "."
-      }`,
+      title: t(`${ns}.appliedToastTitle`),
+      description: t(`${ns}.appliedToast`, {
+        applied,
+        total: ops.length,
+        cutNote:
+          cutTimes.length > 0
+            ? t(`${ns}.cutNoteSuffix`, { n: cutTimes.length / 2 })
+            : ".",
+      }),
     });
   }
 
-  const recipeName = RECIPES.find((r) => r.id === recipeId)?.name ?? "";
+  const recipeNameKey = RECIPES.find((r) => r.id === recipeId)?.nameKey;
+  const recipeName = recipeNameKey ? t(recipeNameKey) : "";
 
   return (
     <EditorCard
-      title="Timeline Edit Recipes"
-      subtitle={`One-tap edit plans — preview first, nothing applies blindly · ${CREDIT_COST} Visual Bucs each`}
+      title={t(`${ns}.title`)}
+      subtitle={t(`${ns}.subtitle`, { cost: CREDIT_COST })}
       icon={<Layers className="h-4 w-4" />}
       data-testid="wave9b-templates"
     >
@@ -315,18 +322,18 @@ export function TimelineTemplatesSection({
               type="button"
               onClick={() => compileRecipe(r.id)}
               disabled={phase === "compiling" || (r.needsAudio && !audioUrl)}
-              title={r.needsAudio && !audioUrl ? "Needs project audio first" : r.description}
+              title={r.needsAudio && !audioUrl ? t(`${ns}.needsAudioTitle`) : t(r.descKey)}
               className="text-left rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-[#C9A84C]/40 hover:bg-[#C9A84C]/[0.04] transition-all px-4 py-3.5 disabled:opacity-40 disabled:cursor-not-allowed group"
               data-testid={`wave9b-recipe-${r.id}`}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-[#C9A84C] group-hover:text-[#e8c96a] transition-colors">{r.icon}</span>
-                <span className="text-sm font-black text-white">{r.name}</span>
+                <span className="text-sm font-black text-white">{t(r.nameKey)}</span>
               </div>
-              <p className="text-[11px] text-white/40 leading-relaxed">{r.description}</p>
+              <p className="text-[11px] text-white/40 leading-relaxed">{t(r.descKey)}</p>
               {r.id === "jumpcut-vlog" && beatGrid.length > 0 && (
                 <p className="text-[10px] text-[#e8c96a]/70 mt-1.5 font-bold">
-                  Will snap cuts to your {beatGrid.length} beat markers
+                  {t(`${ns}.beatSnapNote`, { n: beatGrid.length })}
                 </p>
               )}
             </button>
@@ -336,7 +343,7 @@ export function TimelineTemplatesSection({
         {phase === "compiling" && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-8 text-center">
             <Loader2 className="h-7 w-7 text-primary animate-spin mx-auto mb-3" />
-            <p className="font-bold text-white">Compiling the edit plan…</p>
+            <p className="font-bold text-white">{t(`${ns}.compiling`)}</p>
           </div>
         )}
 
@@ -344,7 +351,9 @@ export function TimelineTemplatesSection({
         {phase === "preview" && (
           <div className="space-y-3">
             <p className="text-sm font-bold text-white/80">
-              {recipeName} will make {ops.length} change{ops.length === 1 ? "" : "s"}:
+              {ops.length === 1
+                ? t(`${ns}.previewHeadingOne`, { name: recipeName })
+                : t(`${ns}.previewHeading`, { name: recipeName, n: ops.length })}
             </p>
             <div className="max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/[0.05]">
               {ops.map((op, i) => (
@@ -361,7 +370,7 @@ export function TimelineTemplatesSection({
                   </div>
                   {op.reversible && (
                     <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider shrink-0 pt-1">
-                      Undoable
+                      {t(`${ns}.undoable`)}
                     </span>
                   )}
                 </div>
@@ -377,7 +386,7 @@ export function TimelineTemplatesSection({
                 data-testid="wave9b-recipe-apply"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Apply {ops.length} changes
+                {t(`${ns}.apply`, { n: ops.length })}
               </button>
               <button
                 type="button"
@@ -386,7 +395,7 @@ export function TimelineTemplatesSection({
                   border border-white/10 text-white/50 hover:text-white/80 transition-colors"
                 data-testid="wave9b-recipe-cancel"
               >
-                Cancel
+                {t(`${ns}.cancel`)}
               </button>
             </div>
           </div>
@@ -397,7 +406,7 @@ export function TimelineTemplatesSection({
             <div className="flex items-start gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
               <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
               <p className="text-sm text-green-200/80">
-                {recipeName}: {appliedCount} of {ops.length} edits applied to your timeline.
+                {t(`${ns}.appliedTitle`, { name: recipeName, applied: appliedCount, total: ops.length })}
               </p>
             </div>
             <button
@@ -406,12 +415,12 @@ export function TimelineTemplatesSection({
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Run another recipe
+              {t(`${ns}.runAnother`)}
             </button>
           </div>
         )}
 
-        <PlanNote text="Recipes change your edit plan — captions, effects, overlays, transitions and framing are saved with the project and applied at final render. Cut ranges wait in the cut plan until split-point export ships." />
+        <PlanNote text={t(`${ns}.planNote`)} />
       </div>
     </EditorCard>
   );

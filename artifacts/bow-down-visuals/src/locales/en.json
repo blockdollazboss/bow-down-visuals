@@ -11282,6 +11282,7 @@
       "needsAudioTitle": "Needs project audio first",
       "planNote": "Recipes change your edit plan — captions, effects, overlays, transitions and framing are saved with the project and applied at final render. Cut ranges wait in the cut plan until split-point export ships.",
       "previewHeading": "{name} will make {n} change(s):",
+      "previewHeadingOne": "{name} will make 1 change:",
       "runAnother": "Run another recipe",
       "subtitle": "One-tap edit plans — preview first, nothing applies blindly · {cost} Visual Bucs each",
       "talkingHeadDesc": "Vertical 9:16 with every clip centered on the speaker, lower-third name banner, clean captions.",

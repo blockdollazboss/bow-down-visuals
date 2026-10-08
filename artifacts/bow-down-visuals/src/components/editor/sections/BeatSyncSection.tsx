@@ -201,11 +201,11 @@ export function BeatSyncSection({
     // Mark the plan visible in the review strip; chapters carry the persisted markers.
     setApplied(true);
     toast({
-      title: "Beat cuts applied",
+      title: t(`${ns}.appliedToast`),
       description:
         splitCount > 0
-          ? `${splitCount} cut${splitCount === 1 ? "" : "s"} sliced into clips on the timeline.`
-          : `${keptMarkers.length} cut points saved as chapter markers.`,
+          ? t(splitCount === 1 ? `${ns}.appliedSplitOne` : `${ns}.appliedSplitMany`, { n: splitCount })
+          : t(`${ns}.appliedChapterNote`, { n: keptMarkers.length }),
     });
   }
 
@@ -213,8 +213,8 @@ export function BeatSyncSection({
 
   return (
     <EditorCard
-      title="Beat-Sync Cuts"
-      subtitle={`Cut on the beat — ${CREDIT_COST} Visual Bucs per detection`}
+      title={t(`${ns}.title`)}
+      subtitle={t(`${ns}.subtitle`, { cost: CREDIT_COST })}
       icon={<Activity className="h-4 w-4" />}
       data-testid="wave9b-beatsync"
     >
@@ -231,13 +231,11 @@ export function BeatSyncSection({
         {phase === "idle" && (
           <div className="space-y-3">
             <p className="text-sm text-white/60 leading-relaxed">
-              Finds the beats in your track and drops cut markers on the timeline, so every
-              clip change lands on the downbeat. Markers are editable — keep, nudge, or
-              dismiss each one before cutting.
+              {t(`${ns}.intro`)}
             </p>
             {!audioUrl && (
               <p className="text-xs text-white/40">
-                Add project audio first — beat detection needs a track to listen to.
+                {t(`${ns}.noAudio`)}
               </p>
             )}
             <button
@@ -251,7 +249,7 @@ export function BeatSyncSection({
               data-testid="wave9b-beats-detect"
             >
               <Activity className="h-4 w-4" />
-              Detect beats ({CREDIT_COST} VB)
+              {t(`${ns}.detect`, { cost: CREDIT_COST })}
             </button>
           </div>
         )}
@@ -259,8 +257,8 @@ export function BeatSyncSection({
         {phase === "detecting" && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
-            <p className="font-bold text-white">Listening for beats…</p>
-            <p className="text-sm text-white/40 mt-1">Offline analysis — safe to wait, nothing is rendered yet.</p>
+            <p className="font-bold text-white">{t(`${ns}.detecting`)}</p>
+            <p className="text-sm text-white/40 mt-1">{t(`${ns}.detectingNote`)}</p>
           </div>
         )}
 
@@ -268,7 +266,7 @@ export function BeatSyncSection({
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm font-bold text-white/80">
-                {markers.length} markers
+                {t(`${ns}.markers`, { n: markers.length })}
                 {bpm != null && <span className="text-white/40 font-normal"> · ~{bpm} BPM</span>}
                 {method && <span className="text-white/25 font-normal"> · {method}</span>}
               </p>
@@ -278,21 +276,21 @@ export function BeatSyncSection({
                   onClick={() => setAllKeep(true)}
                   className="text-[11px] font-bold text-white/40 hover:text-white/70 transition-colors"
                 >
-                  Keep all
+                  {t(`${ns}.keepAll`)}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAllKeep(false)}
                   className="text-[11px] font-bold text-white/40 hover:text-white/70 transition-colors"
                 >
-                  Dismiss all
+                  {t(`${ns}.dismissAll`)}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setPhase("idle"); setMarkers([]); setApplied(false); }}
                   className="text-[11px] font-bold text-white/40 hover:text-white/70 transition-colors"
                 >
-                  Start over
+                  {t(`${ns}.startOver`)}
                 </button>
               </div>
             </div>
@@ -301,7 +299,7 @@ export function BeatSyncSection({
             <div
               className="relative h-14 rounded-xl border border-white/[0.08] bg-black/40 overflow-hidden"
               data-testid="wave9b-beat-strip"
-              title={totalDuration ? "Beat markers — click one to seek" : "Beat markers"}
+              title={totalDuration ? t(`${ns}.markerStripHint`) : t(`${ns}.markerStrip`)}
             >
               {totalDuration &&
                 keptMarkers.map((m) => (
@@ -311,12 +309,12 @@ export function BeatSyncSection({
                     onClick={() => onSeek?.(m.time)}
                     className="absolute top-1 bottom-1 w-[3px] -translate-x-1/2 rounded-full bg-[#C9A84C] hover:bg-[#e8c96a] transition-colors"
                     style={{ left: `${Math.min(100, (m.time / totalDuration) * 100)}%` }}
-                    title={`${fmtSecs(m.time)} — seek`}
+                    title={t(`${ns}.markerSeek`, { time: fmtSecs(m.time) })}
                   />
                 ))}
               {totalDuration == null && (
                 <p className="absolute inset-0 flex items-center justify-center text-[11px] text-white/30">
-                  {markers.length} markers found — playhead mapping needs the track duration.
+                  {t(`${ns}.stripNoDuration`, { n: markers.length })}
                 </p>
               )}
             </div>
@@ -332,7 +330,7 @@ export function BeatSyncSection({
                   <button
                     type="button"
                     onClick={() => toggleKeep(m.id)}
-                    title={m.keep ? "Dismiss this marker" : "Keep this marker"}
+                    title={m.keep ? t(`${ns}.dismissMarker`) : t(`${ns}.keepMarker`)}
                     className={`h-4 w-4 rounded-full border shrink-0 transition-colors ${
                       m.keep ? "bg-[#C9A84C] border-[#C9A84C]" : "border-white/25 bg-transparent"
                     }`}
@@ -341,7 +339,7 @@ export function BeatSyncSection({
                     type="button"
                     onClick={() => onSeek?.(m.time)}
                     className="text-[11px] font-mono text-white/60 hover:text-white w-14 text-left shrink-0"
-                    title="Seek to this beat"
+                    title={t(`${ns}.seekToBeat`)}
                   >
                     {fmtSecs(m.time)}
                   </button>
@@ -349,7 +347,7 @@ export function BeatSyncSection({
                     <button
                       type="button"
                       onClick={() => nudgeMarker(m.id, -0.05)}
-                      title="Nudge 0.05s earlier"
+                      title={t(`${ns}.nudgeEarlier`)}
                       className="h-6 w-6 rounded-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 flex items-center justify-center"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
@@ -357,7 +355,7 @@ export function BeatSyncSection({
                     <button
                       type="button"
                       onClick={() => nudgeMarker(m.id, 0.05)}
-                      title="Nudge 0.05s later"
+                      title={t(`${ns}.nudgeLater`)}
                       className="h-6 w-6 rounded-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 flex items-center justify-center"
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
@@ -367,7 +365,7 @@ export function BeatSyncSection({
                   <button
                     type="button"
                     onClick={() => dismissMarker(m.id)}
-                    title="Remove marker"
+                    title={t(`${ns}.removeMarker`)}
                     className="h-6 w-6 rounded-md text-white/30 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -387,20 +385,19 @@ export function BeatSyncSection({
               data-testid="wave9b-beats-apply"
             >
               <Scissors className="h-4 w-4" />
-              Apply cuts ({keptCount})
+              {t(`${ns}.apply`, { n: keptCount })}
             </button>
 
             {applied && (
               <div className="flex items-start gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-green-200/80">
-                  {keptCount} cut points saved as chapter markers. They also feed the Timeline
-                  Edit Recipes — jump-cuts can snap to this beat grid.
+                  {t(`${ns}.appliedTitle`, { n: keptCount })}
                 </p>
               </div>
             )}
 
-            <PlanNote text="Beat cuts are saved as an edit plan — chapter markers now, clip splits on export when the beat-cut export step ships." />
+            <PlanNote text={t(`${ns}.planNote`)} />
           </div>
         )}
       </div>

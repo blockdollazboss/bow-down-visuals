@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   Mic, Loader2, Sparkles, CheckCircle2, XCircle, Undo2,
   Wand2, AlertTriangle, Scissors, Volume2, Trash2, Flag,
@@ -60,24 +61,27 @@ const OP_ICONS: Record<DirectOp["op"], React.ReactNode> = {
   "set-volume": <Volume2 className="h-3.5 w-3.5" />,
 };
 
-function opLabel(op: DirectOp, clipLabel: (id: string) => string): string {
+function opLabel(op: DirectOp, clipLabel: (id: string) => string, t: TFunction): string {
   switch (op.op) {
     case "split":
-      return `Split ${clipLabel(op.sceneId)} at ${formatClock(op.atSec)}`;
+      return t("wave9.directEdit.opLabel.split", { clip: clipLabel(op.sceneId), time: formatClock(op.atSec) });
     case "trim": {
       const bits: string[] = [];
-      if (op.trimStart > 0) bits.push(`${op.trimStart}s off the start`);
-      if (op.trimEnd > 0) bits.push(`${op.trimEnd}s off the end`);
-      return `Trim ${clipLabel(op.sceneId)} — ${bits.join(" and ") || "no change"}`;
+      if (op.trimStart > 0) bits.push(t("wave9.directEdit.opLabel.trimStart", { s: op.trimStart }));
+      if (op.trimEnd > 0) bits.push(t("wave9.directEdit.opLabel.trimEnd", { s: op.trimEnd }));
+      return t("wave9.directEdit.opLabel.trim", {
+        clip: clipLabel(op.sceneId),
+        bits: bits.join(t("wave9.directEdit.opLabel.trimJoin")) || t("wave9.directEdit.opLabel.trimNone"),
+      });
     }
     case "delete-range":
-      return `Delete ${formatClock(op.startSec)} → ${formatClock(op.endSec)}`;
+      return t("wave9.directEdit.opLabel.deleteRange", { from: formatClock(op.startSec), to: formatClock(op.endSec) });
     case "add-marker":
-      return `Marker "${op.title}" at ${formatClock(op.atSec)}`;
+      return t("wave9.directEdit.opLabel.addMarker", { title: op.title, time: formatClock(op.atSec) });
     case "move-clip":
-      return `Move ${clipLabel(op.sceneId)} to position ${op.toIndex + 1}`;
+      return t("wave9.directEdit.opLabel.moveClip", { clip: clipLabel(op.sceneId), n: op.toIndex + 1 });
     case "set-volume":
-      return `Set ${clipLabel(op.sceneId)} volume to ${op.volume}`;
+      return t("wave9.directEdit.opLabel.setVolume", { clip: clipLabel(op.sceneId), volume: op.volume });
   }
 }
 
@@ -124,7 +128,9 @@ export function VoiceDirectedEditsSection({
 
   const clipLabel = (id: string): string => {
     const idx = scenes.findIndex((s) => s.id === id);
-    return idx >= 0 ? `Clip ${idx + 1}` : "Clip";
+    return idx >= 0
+      ? t("wave9.directEdit.clipLabel", { n: idx + 1 })
+      : t("wave9.directEdit.clipFallback");
   };
 
   function toggleMic() {
@@ -253,11 +259,11 @@ export function VoiceDirectedEditsSection({
         switch (op.op) {
           case "split": {
             const idx = sceneIdx(op.sceneId);
-            if (idx < 0) { skipped.push(opLabel(op, clipLabel)); break; }
+            if (idx < 0) { skipped.push(opLabel(op, clipLabel, t)); break; }
             const tm = sceneTiming(idx);
             const at = Math.min(Math.max(op.atSec, tm.startSec + 0.25), tm.endSec - 0.25);
             if (at <= tm.startSec + 0.24 || at >= tm.endSec - 0.24) {
-              skipped.push(opLabel(op, clipLabel)); break;
+              skipped.push(opLabel(op, clipLabel, t)); break;
             }
             const src = nextScenes[idx]!;
             const mkPart = (suffix: "a" | "b", start: number, end: number): SceneData => ({
@@ -276,10 +282,10 @@ export function VoiceDirectedEditsSection({
           }
           case "trim": {
             const idx = sceneIdx(op.sceneId);
-            if (idx < 0) { skipped.push(opLabel(op, clipLabel)); break; }
+            if (idx < 0) { skipped.push(opLabel(op, clipLabel, t)); break; }
             const tm = sceneTiming(idx);
             if (op.trimStart + op.trimEnd >= tm.durationSec - 0.25) {
-              skipped.push(opLabel(op, clipLabel)); break;
+              skipped.push(opLabel(op, clipLabel, t)); break;
             }
             const id = nextScenes[idx]!.id;
             const prev = getClipEdit(nextSettings, id);
@@ -305,7 +311,7 @@ export function VoiceDirectedEditsSection({
               return mid < op.startSec || mid > op.endSec;
             });
             if (nextScenes.length < before) applied++;
-            else skipped.push(opLabel(op, clipLabel));
+            else skipped.push(opLabel(op, clipLabel, t));
             break;
           }
           case "add-marker": {
@@ -320,7 +326,7 @@ export function VoiceDirectedEditsSection({
           }
           case "move-clip": {
             const idx = sceneIdx(op.sceneId);
-            if (idx < 0) { skipped.push(opLabel(op, clipLabel)); break; }
+            if (idx < 0) { skipped.push(opLabel(op, clipLabel, t)); break; }
             const to = Math.min(Math.max(op.toIndex, 0), nextScenes.length - 1);
             const [moved] = nextScenes.splice(idx, 1);
             nextScenes.splice(to, 0, moved!);
@@ -329,7 +335,7 @@ export function VoiceDirectedEditsSection({
           }
           case "set-volume": {
             const idx = sceneIdx(op.sceneId);
-            if (idx < 0) { skipped.push(opLabel(op, clipLabel)); break; }
+            if (idx < 0) { skipped.push(opLabel(op, clipLabel, t)); break; }
             const id = nextScenes[idx]!.id;
             const prev = getClipEdit(nextSettings, id);
             const clips = {
@@ -342,7 +348,7 @@ export function VoiceDirectedEditsSection({
           }
         }
       } catch {
-        skipped.push(opLabel(op, clipLabel));
+        skipped.push(opLabel(op, clipLabel, t));
       }
     }
 
@@ -463,7 +469,7 @@ export function VoiceDirectedEditsSection({
                     </span>
                     <span className="text-primary/80 mt-0.5 shrink-0">{OP_ICONS[op.op]}</span>
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-bold text-white">{opLabel(op, clipLabel)}</span>
+                      <span className="block text-[13px] font-bold text-white">{opLabel(op, clipLabel, t)}</span>
                       <span className="block text-[11px] text-white/45 leading-relaxed">{op.reason}</span>
                     </span>
                   </button>
