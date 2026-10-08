@@ -1,21 +1,21 @@
--- Creator Streaming Platform — Sell Everything storefront (0099).
+-- Creator Streaming Platform - Sell Everything storefront (0099).
 --
 -- One unified store per creator profile: sell downloads, merch, digital goods,
 -- services/bookings, and event tickets from the creator's public page.
 -- Worker 5 owns digital_sales (music downloads); this is the SEPARATE
--- "sell everything" catalog. Worker 9 owns events — store_products.event_id
+-- "sell everything" catalog. Worker 9 owns events - store_products.event_id
 -- references the existing events table; ticket purchases create event_rsvps.
 --
 -- Money rules (standing): SALES = real money via Stripe; Visual Bucs = AI
 -- credits. The two economies are NEVER mixed in UI copy or accounting.
 -- Platform fee (default 10%, STOREFRONT_PLATFORM_FEE_BPS) comes out of the
--- SELLER's cut — the buyer pays the listed price, nothing extra.
--- Creator payouts need Stripe Connect — NOT built here; creator_amount_cents
+-- SELLER's cut - the buyer pays the listed price, nothing extra.
+-- Creator payouts need Stripe Connect - NOT built here; creator_amount_cents
 -- is tracked as a pending-payout balance.
 --
 -- Idempotent: safe to re-run.
 
-/* ── store_products ─────────────────────────────────────────────────── */
+-- -- store_products --
 CREATE TABLE IF NOT EXISTS store_products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id      UUID NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
@@ -24,16 +24,16 @@ CREATE TABLE IF NOT EXISTS store_products (
   description     TEXT NOT NULL DEFAULT '',
   price_cents     INT NOT NULL CHECK (price_cents > 0),
   compare_at_cents INT CHECK (compare_at_cents IS NULL OR compare_at_cents > 0),
-  /* -1 = unlimited / digital. 0 = sold out (blocks checkout). */
+  -- -1 = unlimited / digital. 0 = sold out (blocks checkout).
   inventory       INT NOT NULL DEFAULT -1,
   media_urls      JSONB NOT NULL DEFAULT '[]'::jsonb,
-  /* services: {duration_min, location, booking_calendar_link, notes} */
+  -- services: {duration_min, location, booking_calendar_link, notes}
   service_details JSONB,
-  /* tickets → Worker 9's events. Nullable FK so a missing events table
-     (or a dropped event) never blocks the migration. */
+  -- tickets -> Worker 9's events. Nullable FK so a missing events table
+  -- (or a dropped event) never blocks the migration.
   event_id        UUID,
-  /* Link graph: [{label, url}] — the track, the video, the drop page, etc.
-     the product relates to. Kept alongside media_urls (which are assets). */
+  -- Link graph: [{label, url}] - the track, the video, the drop page, etc.
+  -- the product relates to. Kept alongside media_urls (which are assets).
   related_links   JSONB NOT NULL DEFAULT '[]'::jsonb,
   is_active       BOOLEAN NOT NULL DEFAULT true,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -61,7 +61,7 @@ BEGIN
   END IF;
 END $$;
 
-/* ── store_orders ───────────────────────────────────────────────────── */
+-- -- store_orders --
 CREATE TABLE IF NOT EXISTS store_orders (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_user_id       UUID,
@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS store_orders (
   creator_amount_cents INT NOT NULL DEFAULT 0 CHECK (creator_amount_cents >= 0),
   stripe_session_id   TEXT UNIQUE,
   status              TEXT NOT NULL DEFAULT 'completed',
-  /* services: booking state (pending_confirmation → confirmed); tickets:
-     rsvp_created flag; merch: handed to the merch/print pipeline. */
+  -- services: booking state (pending_confirmation -> confirmed); tickets:
+  -- rsvp_created flag; merch: handed to the merch/print pipeline.
   fulfillment_note    TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -91,13 +91,13 @@ CREATE INDEX IF NOT EXISTS store_orders_product_idx
 CREATE INDEX IF NOT EXISTS store_orders_created_idx
   ON store_orders (created_at DESC);
 
-/* ── discount_codes ─────────────────────────────────────────────────── */
+-- -- discount_codes --
 CREATE TABLE IF NOT EXISTS discount_codes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id  UUID NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
   code        TEXT NOT NULL,
   percent_off INT NOT NULL CHECK (percent_off BETWEEN 1 AND 90),
-  /* -1 = unlimited uses. */
+  -- -1 = unlimited uses.
   max_uses    INT NOT NULL DEFAULT -1,
   used_count  INT NOT NULL DEFAULT 0 CHECK (used_count >= 0),
   expires_at  TIMESTAMPTZ,
@@ -109,10 +109,10 @@ CREATE TABLE IF NOT EXISTS discount_codes (
 CREATE INDEX IF NOT EXISTS discount_codes_profile_idx
   ON discount_codes (profile_id);
 
-/* ── store_delivery_tokens ────────────────────────────────────────────
-   Instant delivery for kind='digital' — reuses Worker 5's signed-link
-   concept (HMAC-signed token, expiry, max uses), separate table so the
-   storefront never touches digital_sales rows. */
+-- -- store_delivery_tokens --
+-- Instant delivery for kind='digital' - reuses Worker 5's signed-link
+-- concept (HMAC-signed token, expiry, max uses), separate table so the
+-- storefront never touches digital_sales rows.
 CREATE TABLE IF NOT EXISTS store_delivery_tokens (
   token      TEXT PRIMARY KEY,
   order_id   UUID NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
