@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
+import { HighlightCutter } from "@/components/wave8/HighlightCutter";
 
 /* ─── Thy Cheat Code's AI Streamer Clip Maker ─────────────────────────────
    Upload a stream VOD → Whisper transcribes it → GPT-6 finds the best
@@ -509,6 +510,11 @@ export default function ClipMaker() {
             </p>
           </section>
         )}
+
+        {/* Wave 8 — Stream Highlight Auto-Editor: scored reel plan from chat / transcript */}
+        <div className="mt-8">
+          <HighlightCutter />
+        </div>
 
         {/* Step 3 — cut results */}
         {(job || jobId) && (
