@@ -12,20 +12,20 @@ import { z } from "zod";
 export const ATTRIBUTION_TEXT = "Made with Bow Down Visuals";
 export const ATTRIBUTION_SITE = "bowdownvisuals.com";
 
+/** Coerce FormData-style "true"/"false" strings so multipart callers (thumbnails) work too. */
+const coerceAttributionFlag = (v: unknown): unknown =>
+  typeof v === "string" ? v.trim().toLowerCase() === "true" : v;
+
 /** zod field for paid exports: opt-in, default off. */
 export const attributionOptIn = () =>
   z
-    .boolean()
-    .optional()
-    .default(false)
+    .preprocess(coerceAttributionFlag, z.boolean().optional().default(false))
     .describe("Opt-in: burn the gold \"Made with Bow Down Visuals\" credit into the export.");
 
 /** zod field for free/bonus exports: default ON, removable only via the watermark-removal upsell. */
 export const attributionDefaultOn = () =>
   z
-    .boolean()
-    .optional()
-    .default(true)
+    .preprocess(coerceAttributionFlag, z.boolean().optional().default(true))
     .describe(
       "Free exports carry the \"Made with Bow Down Visuals\" credit by default; remove it via the watermark-removal upsell.",
     );
@@ -86,4 +86,47 @@ export function attributionDrawtext(
     `fontsize=${size}:fontcolor=${color}:x=(w-text_w)/2:y=${y}:` +
     `borderw=1:bordercolor=0x000000@0.6`
   );
+}
+
+/**
+ * Burn the quiet gold "Made with Bow Down Visuals" credit into a PNG/JPG
+ * still (bottom-right corner, small, semi-transparent — the playbook for
+ * image exports where the creator's own headline/logo owns the center).
+ * Returns the original buffer unchanged when no font is available.
+ */
+export async function burnAttributionIntoImage(
+  image: Uint8Array,
+  width: number,
+): Promise<Buffer> {
+  const fontfile = await resolveAttributionFont();
+  if (!fontfile) return Buffer.from(image) as Buffer;
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const { writeFile, readFile, mkdtemp, rm } = await import("fs/promises");
+  const { tmpdir } = await import("os");
+  const { join } = await import("path");
+  const execFileAsync = promisify(execFile);
+
+  const size = Math.max(12, Math.round(width / 64));
+  const tag =
+    `drawtext=fontfile='${fontfile}':text='${escapeDrawtext(ATTRIBUTION_TEXT)}':` +
+    `fontsize=${size}:fontcolor=0xFFD75E@0.7:x=w-text_w-14:y=h-${size + 12}:` +
+    `borderw=1:bordercolor=0x000000@0.6`;
+
+  const workDir = await mkdtemp(join(tmpdir(), "bdv-attr-"));
+  const inPath = join(workDir, "in.png");
+  const outPath = join(workDir, "out.png");
+  try {
+    await writeFile(inPath, image);
+    await execFileAsync(
+      "ffmpeg",
+      ["-y", "-i", inPath, "-vf", tag, "-frames:v", "1", outPath],
+      { timeout: 60_000 },
+    );
+    const out = await readFile(outPath);
+    // Normalize to Buffer<ArrayBuffer> for downstream upload helpers.
+    return Buffer.from(out.buffer, out.byteOffset, out.byteLength) as Buffer;
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
