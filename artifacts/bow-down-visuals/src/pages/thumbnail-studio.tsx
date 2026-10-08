@@ -1082,12 +1082,12 @@ import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-tes
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
    Upload 2-4 thumbnail variants, AI predicts which one gets the most clicks
-   and explains why. 2 credits per test (vision analysis — it burns GPU, so
-   it charges). Honest framing throughout: this is a PREDICTION based on
+   and explains why. 200 Visual Bucs per test (vision analysis — it burns GPU,
+   so it charges). Honest framing throughout: this is a PREDICTION based on
    thumbnail best practices, not a guarantee of real click-through. */
 
-const CREDIT_COST = 2;
-const IMPROVE_COST = 2;
+const CREDIT_COST = 200;
+const IMPROVE_COST = 200;
 const MAX_FILES = 4;
 const MIN_FILES = 2;
 
