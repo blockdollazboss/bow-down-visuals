@@ -683,7 +683,9 @@
     "introsOutros": "Intros & Outros",
     "streamPack": "Stream Pack",
     "thumbnailABTest": "Thumbnail A/B Test",
-    "podcastStudio": "Podcast Studio"
+    "podcastStudio": "Podcast Studio",
+    "audioStudio": "Audio Studio",
+    "aiAudio": "AI Audio"
   },
   "academy": {
     "pageTitle": "Creator Academy",
@@ -1018,7 +1020,9 @@
       "actionPreflightHint": "Score your version before you ship it.",
       "rerun": "Re-run analysis ({{cost}} Visual Bucs)"
     },
-    "tabConnected": "Connected Accounts"
+    "tabConnected": "Connected Accounts",
+    "tabChannelAudit": "Channel Audit",
+    "tabVirality": "Virality Check"
   },
   "analytics": {
     "connectBlurbs": {
@@ -1943,7 +1947,13 @@
     "finderExplainer": "This is the finder — AI hunts down brands that fit you. When a brand posts a deal for creators to apply to, that's the ",
     "marketplaceLink": "Sponsor Marketplace",
     "tabs": {
-      "finder": "Finder"
+      "finder": "Finder",
+      "marketplace": "Marketplace"
+    },
+    "related": {
+      "label": "Related:",
+      "sponsorDashboard": "Sponsor dashboard",
+      "postDeal": "Post a deal"
     }
   },
   "brandingKit": {
@@ -2695,6 +2705,19 @@
     "videoReady": "Your video is ready ✓",
     "videoReadyDesc": "AI generated your scenes and applied an automatic edit."
   },
+  "create": {
+    "pageTitle": "Create",
+    "pageDescription": "Start anything: a song + video, a song, a video, or the guided Creation Hub.",
+    "title": "Create",
+    "subtitle": "One studio, four ways to start. Pick a lane — every finished piece flows into its natural next step.",
+    "backToDashboard": "Back to Dashboard",
+    "modes": {
+      "songVideo": "Song + Video",
+      "song": "Song",
+      "video": "Video",
+      "hub": "Creation Hub"
+    }
+  },
   "credit-history": {
     "dashboard": "Dashboard",
     "visual_buc_history": "Visual Buc History",
@@ -3327,6 +3350,9 @@
       },
       "titles": {
         "label": "Titles"
+      },
+      "dice": {
+        "label": "Dice"
       }
     },
     "videoType": {
@@ -3451,7 +3477,10 @@
     "errNeedVideoTopic": "Tell us what the video is about first.",
     "errCtasFailed": "Couldn't generate CTAs — try again.",
     "fullIntelligenceCheck": "Full intelligence check",
-    "sendToScriptWriter": "Send to Script Writer"
+    "sendToScriptWriter": "Send to Script Writer",
+    "captions": {
+      "needBurnedIn": "Need burned-in video captions?"
+    }
   },
   "hub": {
     "removeAssetAria": "Remove {{label}}",
@@ -4568,7 +4597,8 @@
     "useThisSound": "Use this sound",
     "videoIdeaLabel": "What's your video about?",
     "videoIdeaPlaceholder": "e.g. Me walking into my new studio for the first time, big reveal moment, luxury vibes",
-    "yourMatches": "Your 3 sound matches"
+    "yourMatches": "Your 3 sound matches",
+    "aiAudioCta": "Need a custom sound? Generate SFX with AI"
   },
   "sponsorDashboard": {
     "acceptedCount": "{{count}} accepted",
@@ -7469,8 +7499,7 @@
       "autoNumber": "Auto-assigned on generation"
     },
     "tabs": {
-      "pitchKit": "Pitch kit",
-      "pipeline": "Deal pipeline"
+      "pitchKit": "Pitch kit"
     },
     "pipelineTitle": "Sponsor Deal Pipeline",
     "pipelineSubtitle": "Track every deal from pitch to paid."
@@ -8857,11 +8886,11 @@
     "title": "Privacy Policy"
   },
   "promo-clip": {
-    "pageTitle": "Promo Clip Maker",
+    "pageTitle": "Clip Maker",
     "pageDescription": "Turn any song into scroll-stopping promo clips for TikTok, Reels, and Shorts.",
     "backToDashboard": "Back to Dashboard",
     "creditBadge": "100 Visual Bucs",
-    "title": "Promo Clips",
+    "title": "Clip Maker",
     "subtitle": "Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.",
     "tags": {
       "promo15": "15-Sec Promo",
@@ -9031,16 +9060,17 @@
       "desc": "Open the Video Editor to build your full promo timeline",
       "open": "Open Video Editor"
     },
-    "errorGenerationFailed": "Generation failed. Please try again."
+    "errorGenerationFailed": "Generation failed. Please try again.",
+    "needTextCaptions": "Need text captions?"
   },
   "promote": {
     "copyLabel": "Copy {{label}}",
     "copy": "Copy",
     "copied": "Copied",
     "hero": {
-      "badge": "Promo Content Generator",
-      "title": "Market every feature",
-      "titleAccent": "like a launch",
+      "badge": "Promo Copy Generator",
+      "title": "Promo Copy",
+      "titleAccent": "",
       "subtitle": "Pick a feature, pick a format and tone — get ready-to-post copy with hashtags and CTAs. {{cost}} Visual Buc per generation.",
       "back": "Back to all features"
     },
@@ -10380,7 +10410,8 @@
     "cat_production": "Production",
     "cat_other_expense": "Other expense",
     "addIncomeFromDeal": "Log as income",
-    "dealPaidNote": "Track this payout in your Money Tracker."
+    "dealPaidNote": "Track this payout in your Money Tracker.",
+    "viewRoyalties": "Royalties"
   },
   "linkInBio": {
     "tab": "Link in Bio",
@@ -11061,5 +11092,124 @@
       "winnerLabel": "Winner",
       "winnerSaved": "Winner saved — it travels with you into video packaging."
     }
+  },
+  "audioStudio": {
+    "back": "Back",
+    "title": "Audio Studio",
+    "subtitle": "Clean up, split, and master your audio — every tool in one place.",
+    "tabs": {
+      "cleanup": "Cleanup",
+      "stems": "Stems",
+      "master": "Mix & Master"
+    },
+    "desc": {
+      "cleanup": "Remove background noise and room hiss from any recording — 3 Visual Bucs.",
+      "stems": "Split any song into vocals, drums, bass, and melody — 4 Visual Bucs.",
+      "master": "Radio-ready masters and full stem mixdowns — 4 to 15 Visual Bucs."
+    }
+  },
+  "aiAudio": {
+    "back": "Back",
+    "title": "AI Audio",
+    "subtitle": "Make beats, build sample packs, and generate sound effects — the AI audio toolkit.",
+    "tabs": {
+      "beats": "Beat Maker",
+      "samples": "Samples",
+      "sfx": "SFX"
+    },
+    "desc": {
+      "beats": "Describe the vibe, get a studio instrumental — or program drums by hand for free.",
+      "samples": "Custom royalty-free sample packs in your genre, BPM, and key.",
+      "sfx": "Describe any sound effect — AI generates it in seconds."
+    },
+    "crossBanner": {
+      "title": "Keep it moving",
+      "beats": "Sell beats on the marketplace",
+      "sounds": "Find trending sounds"
+    }
+  },
+  "thumbnailStudio": {
+    "title": "Thumbnail Studio",
+    "subtitle": "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
+    "tabs": {
+      "generate": "Generate",
+      "abtest": "A/B Test",
+      "library": "Library",
+      "aria": "Thumbnail studio sections"
+    }
+  },
+  "movedPages": {
+    "banner": "{{name}} has a new home — find it in {{location}}.",
+    "dismiss": "Dismiss",
+    "names": {
+      "thumbnail": "Thumbnail Maker",
+      "mastering": "AI Mastering",
+      "commentReplies": "Comment Replies",
+      "clipMaker": "Streamer Clips",
+      "analytics": "Analytics",
+      "titles": "Title Studio",
+      "releaseChecklist": "Release Checklist",
+      "vocalRemoval": "Vocal Removal",
+      "watermarkRemoval": "Watermark Removal",
+      "contentCalendar": "Content Calendar",
+      "playlistPitch": "Playlist Pitch",
+      "merch": "Merch Designer",
+      "musicSales": "Music Sales",
+      "audioCleanup": "Audio Cleanup",
+      "stems": "Stem Splitter",
+      "mixMaster": "Mix & Master",
+      "beatMaker": "Beat Maker",
+      "samples": "Sample Library",
+      "sfx": "Sound Effects",
+      "thumbnailMaker": "Thumbnail Generator",
+      "thumbnails": "Thumbnail Library",
+      "thumbnailTest": "Thumbnail A/B Test",
+      "randomizer": "Content Randomizer",
+      "sponsors": "Sponsor Marketplace",
+      "sponsorshipOutreach": "Sponsorship Outreach",
+      "channelAudit": "Channel Audit",
+      "viralityCheck": "Virality Check",
+      "royalties": "Royalties",
+      "songAndVideo": "Song & Video Wizard",
+      "makeSong": "Make a Song",
+      "makeVideo": "Make a Video"
+    },
+    "locations": {
+      "thumbnailStudioGenerate": "the Thumbnail Studio, under Generate",
+      "audioStudioMaster": "the Audio Studio, under Mix & Master",
+      "communityReplies": "the Community page, under the Replies tab",
+      "repurposeStream": "Repurpose, under the Stream Clips mode",
+      "analyticsHubConnected": "the Analytics Hub, under Connected",
+      "hookStudioTitles": "the Hook Studio, under Titles",
+      "distributePlan": "Distribute, under the Plan tab",
+      "audioStudioStems": "the Audio Studio, under Stems",
+      "upscaleEnhance": "Upscale, under the Enhance tab",
+      "schedulerPlan": "the Scheduler, under the Plan tab",
+      "labelPitchPlaylists": "the Pitch tool, under Playlists",
+      "brandingShopMerch": "the Branding Shop, under Merch",
+      "storeDashboardDigital": "the Store Dashboard, under the Digital view",
+      "audioStudioCleanup": "the Audio Studio, under Cleanup",
+      "aiAudioBeats": "AI Audio, under Beat Maker",
+      "aiAudioSamples": "AI Audio, under Samples",
+      "aiAudioSfx": "AI Audio, under Sound Effects",
+      "thumbnailStudioLibrary": "the Thumbnail Studio, under Library",
+      "thumbnailStudioAbtest": "the Thumbnail Studio, under A-B Test",
+      "hookStudioDice": "the Hook Studio, under the Dice tab",
+      "brandDealsMarketplace": "the Sponsors hub, under Marketplace",
+      "brandDealsPitch": "the Sponsors hub, under Pitch Kit",
+      "analyticsHubChannelAudit": "the Analytics Hub, under Channel Audit",
+      "analyticsHubVirality": "the Analytics Hub, under Virality Check",
+      "coachMoneyRoyalties": "the Money Tracker, under the Royalties view",
+      "createSongVideo": "Create, under Song & Video mode",
+      "createSong": "Create, under Song mode",
+      "createVideo": "Create, under Video mode"
+    }
+  },
+  "whereDidItGo": {
+    "link": "Where did it go?",
+    "title": "Where did it go?",
+    "subtitle": "Pages we've folded together so everything lives in one smooth workflow.",
+    "close": "Close",
+    "movedTo": "now in {{location}}"
   }
 }
