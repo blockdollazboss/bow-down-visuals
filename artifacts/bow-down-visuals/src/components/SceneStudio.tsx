@@ -18,6 +18,8 @@ import { getSupabase } from "@/lib/supabase";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { CharacterDirector } from "@/components/SceneStudio/CharacterDirector";
+import { CameraMovePlanner } from "@/components/SceneStudio/CameraMovePlanner";
 
 /* ─── Section color badges ──────────────────────────────────── */
 const SECTION_COLORS: Record<string, string> = {
@@ -1675,6 +1677,20 @@ export function SceneStudio({
           </div>
         )}
       </div>
+
+      {/* Wave 9 — Directing layer: cast vault characters and plan camera moves.
+          Planning/prompt layers over the existing generation flow; no new models. */}
+      <CharacterDirector
+        scenes={scenes}
+        onScenesChange={onScenesChange}
+        artistVault={artistVault}
+        videoStyle={videoStyle}
+        platform={platform}
+      />
+      <CameraMovePlanner
+        scenes={scenes}
+        onScenesChange={onScenesChange}
+      />
 
       {/* Cards */}
       <div className="space-y-4">

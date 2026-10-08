@@ -72,6 +72,10 @@ import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
+import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDirectedEditsSection";
+import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
+import { TimelineTemplatesSection } from "@/components/editor/sections/TimelineTemplatesSection";
+import { BackgroundReplaceSection } from "@/components/editor/sections/BackgroundReplaceSection";
 import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
 import { CanvasGeneratorSection } from "@/components/editor/sections/CanvasGeneratorSection";
 import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
@@ -390,6 +394,8 @@ export default function VideoEditor() {
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
   /** Selected clip index — shared between the persistent TimelineDock and the Studio tab inspector. */
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  /** Wave 9 — kept beat-marker times from BeatSyncSection, fed into TimelineTemplatesSection's beatGrid. */
+  const [beatGrid, setBeatGrid] = useState<number[]>([]);
 
   const [testEffectActive, setTestEffectActive] = useState(false);
   const testEffectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1316,6 +1322,7 @@ export default function VideoEditor() {
                   </div>
 
                   {tab === "timeline" && (
+                    <>
                     <TimelineSection
                       scenes={scenes}
                       settings={settings}
@@ -1333,6 +1340,33 @@ export default function VideoEditor() {
                       audioUrl={previewAudioUrl}
                       transcriptText={transcriptText}
                     />
+                    {/* Wave 9 — Beat-Sync Cuts: offline beat detection → editable markers.
+                        Kept markers flow into TimelineTemplatesSection's beatGrid. */}
+                    <div className="mt-6">
+                      <BeatSyncSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        audioUrl={previewAudioUrl}
+                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
+                        onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                        projectKey={projectId || "default"}
+                        onMarkersChange={setBeatGrid}
+                      />
+                    </div>
+                    {/* Wave 9 — Timeline Edit Recipes: preview-then-apply edit operations. */}
+                    <div className="mt-6">
+                      <TimelineTemplatesSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        audioUrl={previewAudioUrl}
+                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
+                        beatGrid={beatGrid}
+                        projectKey={projectId || "default"}
+                      />
+                    </div>
+                    </>
                   )}
 
                   {tab === "clips" && (
@@ -1689,6 +1723,7 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "studio" && (
+                    <>
                     <StudioEditorSection
                       scenes={scenes}
                       settings={settings}
@@ -1706,6 +1741,20 @@ export default function VideoEditor() {
                       selectedIdx={selectedIdx}
                       setSelectedIdx={setSelectedIdx}
                     />
+                    {/* Wave 9C — Voice-Directed Edits: natural-language edit
+                        commands planned by the AI, reviewed op-by-op, then
+                        applied to the timeline. Never applies blindly. */}
+                    <div className="mt-6">
+                      <VoiceDirectedEditsSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        setScenes={setScenes}
+                        audioDuration={previewEngineState?.audioDuration ?? null}
+                        projectTitle={songTitle || undefined}
+                      />
+                    </div>
+                    </>
                   )}
 
                   {tab === "pro-tools" && (
@@ -1726,6 +1775,21 @@ export default function VideoEditor() {
                         settings={settings}
                         setSettings={setSettings}
                       />
+                      {/* Wave 9 — Background Replace: AI background swap for talking-head clips
+                          (honest 503 until a segmentation provider is wired; green-screen clips
+                          are pointed at the working Chroma Key tool). */}
+                      <div className="mt-6">
+                        <BackgroundReplaceSection
+                          scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
+                          settings={settings}
+                          setSettings={setSettings}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                        />
+                      </div>
                     </>
                   )}
                 </div>
