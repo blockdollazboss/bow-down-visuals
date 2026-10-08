@@ -355,7 +355,7 @@ export default function ChooseArtist() {
                       textShadow: "0 1px 6px rgba(0,0,0,0.8)",
                     }}>{vault.artist_name}</p>
                     {vault.artist_type && (
-                      <p style={{ fontSize: 9.5, color: isSelected ? T(0.85) : "rgba(255,255,255,0.55)", marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                      <p style={{ fontSize: 9.5, color: T(0.85), marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
                         {vault.artist_type}
                       </p>
                     )}
@@ -461,12 +461,21 @@ export default function ChooseArtist() {
 
         {/* Action buttons */}
         <div className="space-y-3">
-          {/* Use Selected Artist */}
+          {/* Use Selected Artist — button glows in the selected character's theme color */}
           <Button
             onClick={handleUseArtist}
             disabled={!selectedId}
             className="w-full h-14 text-base font-bold gap-3 rounded-2xl disabled:opacity-40"
-            style={{ background: selectedId ? "linear-gradient(135deg, #9B7515, #DAA520)" : undefined }}
+            style={(() => {
+              const sv = vaults.find((v) => v.id === selectedId);
+              if (!sv) return undefined;
+              const st = getCharacterTheme(sv.theme_id).primary;
+              return {
+                background: `linear-gradient(135deg, ${themeAlpha(st, 0.7)}, ${st})`,
+                boxShadow: `0 0 32px ${themeAlpha(st, 0.35)}`,
+                color: "#0a0a0a",
+              };
+            })()}
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />
