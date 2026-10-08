@@ -4,6 +4,52 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Self-hosted 8-bit pixel fonts — no Google Fonts CDN dependency ───────
+   (ad/privacy blockers were eating the webfont request, leaving Courier New
+   fallbacks everywhere). Latin subsets, woff2, in public/fonts. */
+@font-face {
+  font-family: "Press Start 2P";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/press-start-2p-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/silkscreen-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/silkscreen-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "VT323";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/vt323-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "DotGothic16";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dotgothic16-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pixelify Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/pixelify-sans-variable.woff2") format("woff2");
+}
+
 /* ─── Global horizontal-scroll guard — oversized fixed glow divs (600–900px)
        would otherwise cause sideways scroll on mobile. `clip` (not `hidden`)
        keeps position: sticky working. ─── */
