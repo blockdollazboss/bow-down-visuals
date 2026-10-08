@@ -4,7 +4,9 @@ import { ImageIcon, Loader2, AlertTriangle, Sparkles, Download, Upload } from "l
 import type { SceneData } from "@/lib/scene-parser";
 import type { EditorSettings } from "@/lib/editor-settings";
 import { EditorCard } from "@/components/editor/controls";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ── AI Background Replace ───────────────────────────────────────────────
  * For talking-head clips shot WITHOUT a green screen: pick a background
@@ -66,6 +68,9 @@ const PRESET_GRADIENTS: Record<string, [string, string, string]> = {
   "abstract-gold": ["#000000", "#4a3a12", "#e8c96a"],
 };
 
+/** 200 VB — charged on delivery, after the on-device replacement succeeds. */
+const CREDIT_COST = 200;
+
 interface BgPreset {
   id: "studio" | "stage" | "city-night" | "abstract-gold" | "custom";
   nameKey: string;
@@ -74,8 +79,7 @@ interface BgPreset {
   swatch: string;
 }
 
-const BG_PRESETS: BgPreset[] = [
-  {
+const BG_PRESETS: BgPreset[] = [  {
     id: "studio",
     nameKey: "wave9.bgReplace.presetStudio",
     descKey: "wave9.bgReplace.presetStudioDesc",
@@ -124,14 +128,18 @@ export function BackgroundReplaceSection({
   const { t } = useTranslation();
   const ns = "wave9.bgReplace";
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [presetId, setPresetId] = useState<BgPreset["id"]>("studio");
   const [customBg, setCustomBg] = useState<HTMLImageElement | null>(null);
-  const [phase, setPhase] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [phase, setPhase] = useState<"idle" | "working" | "confirming" | "done" | "error">("idle");
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [showAfter, setShowAfter] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  /** Processed blob held while the charge is confirmed/retried — no reprocessing needed. */
+  const pendingBlob = useRef<Blob | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   void _setSettings;
@@ -178,20 +186,62 @@ export function BackgroundReplaceSection({
   }
 
   async function replaceBackground() {
-    if (!mediaUrl || phase === "working") return;
+    if (!mediaUrl || phase === "working" || phase === "confirming") return;
     if (presetId === "custom" && !customBg) {
       setMessage(t(`${ns}.customNeeded`));
       return;
     }
     setMessage(null);
+    setOutOfCredits(false);
     setPhase("working");
     setProgress(0);
     try {
       const blob = await processVideo(mediaUrl, drawBackground, setProgress);
+      pendingBlob.current = blob;
+      // Charge on delivery: the on-device work is done, now collect the 200 VB.
+      await collectCharge();
+    } catch (err) {
+      setPhase("error");
+      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+    }
+  }
+
+  /** Charge 200 VB for the completed replacement. Keeps the processed blob
+   *  on 402 so the user can top up and retry without reprocessing. */
+  async function collectCharge() {
+    const blob = pendingBlob.current;
+    if (!blob) {
+      setPhase("idle");
+      return;
+    }
+    setPhase("confirming");
+    setMessage(null);
+    try {
+      const res = await confirmedFetch("/api/wave9b/bg/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneId: scene?.id ?? "" }),
+      });
+      if (!res) {
+        // User cancelled the credit confirmation — discard, no charge.
+        pendingBlob.current = null;
+        setPhase("idle");
+        setMessage(t(`${ns}.cancelled`));
+        return;
+      }
+      if (res.status === 402) {
+        setOutOfCredits(true);
+        setPhase("error");
+        setMessage(t(`${ns}.topUpToKeep`));
+        return;
+      }
+      if (!res.ok) throw new Error(t(`${ns}.errorGeneric`));
       const url = URL.createObjectURL(blob);
+      pendingBlob.current = null;
       setResultUrl(url);
       setShowAfter(true);
       setPhase("done");
+      setOutOfCredits(false);
       onReplaceClipVideo?.(scene!.id, url);
       toast({
         title: t(`${ns}.replacedTitle`),
@@ -341,11 +391,12 @@ export function BackgroundReplaceSection({
   return (
     <EditorCard
       title={t(`${ns}.title`)}
-      subtitle={t(`${ns}.subtitleFree`)}
+      subtitle={t(`${ns}.subtitle`, { cost: CREDIT_COST })}
       icon={<ImageIcon className="h-4 w-4" />}
       data-testid="wave9b-bgreplace"
     >
       <div className="space-y-4">
+        {outOfCredits && <OutOfCredits />}
         {!scene || !mediaUrl ? (
           <p className="text-sm text-white/40">{t(`${ns}.noClip`)}</p>
         ) : (
@@ -477,20 +528,35 @@ export function BackgroundReplaceSection({
               <button
                 type="button"
                 onClick={replaceBackground}
-                disabled={phase === "working"}
+                disabled={phase === "working" || phase === "confirming"}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm
                   bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black
                   hover:from-[#e0bc58] hover:to-[#a5853a] transition-all shadow-lg shadow-[#C9A84C]/20
                   disabled:opacity-40 disabled:cursor-not-allowed"
                 data-testid="wave9b-bg-replace"
               >
-                {phase === "working" ? (
+                {phase === "working" || phase === "confirming" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {phase === "working" ? t(`${ns}.working`) : t(`${ns}.replaceFree`)}
+                {phase === "working"
+                  ? t(`${ns}.working`)
+                  : phase === "confirming"
+                    ? t(`${ns}.confirming`)
+                    : t(`${ns}.replace`, { cost: CREDIT_COST })}
               </button>
+              {outOfCredits && pendingBlob.current && (
+                <button
+                  type="button"
+                  onClick={collectCharge}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-sm font-black text-[#e8c96a] hover:bg-[#C9A84C]/20 transition-all"
+                  data-testid="wave9b-bg-retry-charge"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {t(`${ns}.retryCharge`, { cost: CREDIT_COST })}
+                </button>
+              )}
               {phase === "done" && resultUrl && (
                 <a
                   href={resultUrl}

@@ -11323,8 +11323,6 @@
       "replacedTitle": "Background replaced",
       "title": "Background Replace",
       "working": "Working…",
-      "subtitleFree": "Swap a plain background for a new scene — free, processed on your device",
-      "replaceFree": "Replace background",
       "customUploadLabel": "Upload background image",
       "customUploaded": "Background image ready — pick Replace below",
       "customLoadError": "Couldn't read that image — try another file.",
@@ -11332,7 +11330,12 @@
       "corsError": "This clip can't be processed on-device (its host blocks cross-origin reads). Try re-uploading the clip, or use Chroma Key in Pro Tools for green-screen footage.",
       "playError": "Couldn't play this clip for processing.",
       "workingProgress": "Replacing background… {pct}% (runs at video speed on your device)",
-      "download": "Download result"
+      "download": "Download result",
+      "subtitle": "Swap a plain background for a new scene — {cost} Visual Bucs, processed free on your device",
+      "confirming": "Confirming…",
+      "cancelled": "Cancelled — no charge.",
+      "topUpToKeep": "Your video is ready — top up to keep it.",
+      "retryCharge": "Retry charge ({cost} VB)"
     },
     "characterDirector": {
       "actionPlaceholder": "What happens in this shot? e.g. Ava steps out of the gold car as the crowd rushes forward…",

@@ -56,6 +56,9 @@ const router = Router();
 
 const BEATS_CREDITS = 150;
 const TEMPLATES_CREDITS = 100;
+/** Background Replace runs 100% on-device (no provider cost) — the 200 VB
+ *  charges for the premium AI feature itself, collected on delivery. */
+const BGREPLACE_CREDITS = 200;
 
 /* ─── Shared helpers ───────────────────────────────────────────────────── */
 
@@ -503,5 +506,33 @@ router.post("/wave9b/templates/apply", publicApiLimiter, requireAuth, async (req
    in BackgroundReplaceSection.tsx): no provider, no per-clip cost, nothing
    uploaded. This server stub was deleted 2026-10-08 — do not re-add a
    charge here without also restoring a server-side implementation. */
+
+/* ─── POST /wave9b/bg/charge — 200 VB — charge-on-delivery ────────────────
+   The heavy work happens on the user's device (free to us). The client
+   calls this AFTER a successful on-device replacement to collect the
+   feature price. 402 when broke — the client keeps the processed blob and
+   lets the user top up and retry the charge without reprocessing. */
+router.post("/wave9b/bg/charge", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = z.object({ sceneId: z.string().trim().max(128).optional().default("") }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid charge request." });
+    return;
+  }
+  try {
+    const remaining = await chargeCredits(req.userId!, BGREPLACE_CREDITS, {
+      action: "Background Replace",
+    });
+    res.json({ ok: true, remaining });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs — top up to keep your replaced background.",
+      });
+      return;
+    }
+    throw err;
+  }
+});
 
 export default router;
