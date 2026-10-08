@@ -6391,7 +6391,9 @@
         "below": "Below",
         "center": "Center"
       }
-    }
+    },
+    "videoLinkLoadedTitle": "Video loaded into the editor",
+    "videoLinkLoadedDesc": "Your clip is on the timeline — trim it, caption it, export it."
   },
   "viralityCheck": {
     "bestPostingTime": "Best Posting Time",

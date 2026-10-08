@@ -72,6 +72,7 @@ import { PreProductionSection } from "@/components/editor/sections/PreProduction
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
+import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
 import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
 import {
   buildProToolsCssFilter,
@@ -292,6 +293,50 @@ export default function VideoEditor() {
       const key = params.get("template");
       if (key) setDeepLinkedTemplateKey(key);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  /* ── Video/clip deep link: /video-editor?video=<url> or ?clip=<url> ──
+     Lets any tool hand a finished video straight into the editor as a new
+     scene clip. Runs once per URL; the param is stripped via replaceState. */
+  const [videoLinkConsumed, setVideoLinkConsumed] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const videoUrl = params.get("video") || params.get("clip");
+    if (!videoUrl || videoLinkConsumed === videoUrl) return;
+    setVideoLinkConsumed(videoUrl);
+    const scene: SceneData = {
+      id: `link-${Date.now().toString(36)}`,
+      sceneNumber: scenesRef.current.length + 1,
+      timestamp: "",
+      section: "",
+      lyricLine: "",
+      location: "",
+      action: "",
+      cameraMovement: "",
+      lighting: "",
+      mood: "",
+      aiVideoPrompt: "",
+      negativePrompt: "",
+      approved: true,
+      demoClipUrl: videoUrl,
+      thumbnailUrl: null,
+      clipId: null,
+      runwayJobId: null,
+      provider: "deep-link",
+      generationStatus: "completed",
+      promptUsed: null,
+      generatedAt: new Date().toISOString(),
+      clipReusedIntentionally: true,
+    };
+    setScenes((prev) => [...prev, scene]);
+    setTab("clips");
+    params.delete("video");
+    params.delete("clip");
+    window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
+    toast({
+      title: t("videoEditor.videoLinkLoadedTitle"),
+      description: t("videoEditor.videoLinkLoadedDesc"),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
@@ -1614,17 +1659,24 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "pro-tools" && (
-                    <ProToolsSection
-                      scenes={resolvedScenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      videoRef={liveVideoRef}
-                      onReplaceClipVideo={(sceneId, url) =>
-                        setScenes((prev) =>
-                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                        )
-                      }
-                    />
+                    <>
+                      <ProToolsSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        videoRef={liveVideoRef}
+                        onReplaceClipVideo={(sceneId, url) =>
+                          setScenes((prev) =>
+                            prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                          )
+                        }
+                      />
+                      <KeyframesSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                      />
+                    </>
                   )}
                 </div>
               </aside>
