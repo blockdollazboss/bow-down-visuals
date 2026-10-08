@@ -528,7 +528,7 @@ router.post("/milestones/log", publicApiLimiter, requireAuth, async (req, res) =
         req.userId!,
         `You hit ${top.displayValue} streams — brag about it 🏆`,
         `"${d.trackTitle}" just crossed ${top.headline} on ${d.platform}.`,
-        `/analytics-hub?brag=${milestone.id}`,
+        `/analytics-hub?tab=milestones&brag=${milestone.id}`,
       );
     }
 
@@ -634,7 +634,7 @@ router.post("/milestones/import-csv", publicApiLimiter, requireAuth, async (req,
           ? `You hit ${top.displayValue} streams — brag about it 🏆`
           : `You crossed ${fresh.length} new milestones — brag about them 🏆`,
         `"${top.context.split(" · ")[0]}" just crossed ${top.headline}.`,
-        "/analytics-hub",
+        "/analytics-hub?tab=milestones",
       );
     }
 
