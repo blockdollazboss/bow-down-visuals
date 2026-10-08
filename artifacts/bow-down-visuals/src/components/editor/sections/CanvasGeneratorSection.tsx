@@ -123,6 +123,8 @@ export function CanvasGeneratorSection({
           overlayText: style === "lyricFlicker" ? overlayText.trim() : undefined,
           songTitle: songTitle.trim() || undefined,
           artistName: artistName.trim() || undefined,
+          /* Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+          attribution,
         }),
       });
       if (!res) {
@@ -245,7 +247,7 @@ export function CanvasGeneratorSection({
             />
             <span className="text-sm text-white/70">
               <BadgeCheck className="mr-1.5 inline h-4 w-4 text-primary" />
-              Add “Made with Bow Down Visuals” when I share this canvas
+              Add “Made with Bow Down Visuals” credit — burned into the video + on share
             </span>
           </label>
           {error && (

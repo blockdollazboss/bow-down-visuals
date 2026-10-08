@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import type { HubAsset } from "@/lib/hub-project";
+import { AttributionToggle } from "@/components/AttributionToggle";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -100,6 +101,8 @@ export function ThumbnailMakerModule() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [progress, setProgress] = useState("");
+  /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
+  const [attribution, setAttribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Spine: pull the project's song/video in — the song title becomes overlay
@@ -186,6 +189,8 @@ export function ThumbnailMakerModule() {
       form.append("aspectRatio", aspectRatio);
       if (overlayText.trim()) form.append("overlayText", overlayText.trim());
       if (facePhoto) form.append("facePhoto", facePhoto);
+      /* Virality: opt-in attribution credit (FormData → "true"/"false" string; server coerces). */
+      form.append("attribution", attribution ? "true" : "false");
 
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -426,6 +431,10 @@ export function ThumbnailMakerModule() {
 
           {/* Generate */}
           <div className="pt-2">
+            {/* Attribution — the virality playbook, opt-in for paid exports */}
+            <div className="mb-3">
+              <AttributionToggle checked={attribution} onChange={setAttribution} disabled={loading} />
+            </div>
             <Button
               type="button"
               size="lg"

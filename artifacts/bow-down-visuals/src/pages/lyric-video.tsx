@@ -21,6 +21,7 @@ import {
 } from "@/lib/lyric-video";
 import { LrcExportModal } from "@/components/song/LrcExportModal";
 import { fromAlignedLines } from "@/lib/lrc";
+import { AttributionToggle } from "@/components/AttributionToggle";
 
 /* ─── Thy Cheat Code's AI Lyric Video Maker ───────────────────────────────
    Upload a song (or pick from your library) → paste lyrics → AI aligns
@@ -79,6 +80,8 @@ export default function LyricVideo() {
   /* step 3: style + render */
   const [style, setStyle] = useState<LyricVideoStyleKey>("gold-luxury");
   const [aspect, setAspect] = useState<LyricVideoAspect>("16:9");
+  /* Virality: opt-in "Made with Bow Down Visuals" tag (paid export → opt-in). */
+  const [attribution, setAttribution] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<RenderJobResponse | null>(null);
@@ -206,6 +209,7 @@ export default function LyricVideo() {
           lines,
           style,
           aspect,
+          attribution,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as RenderJobResponse;
@@ -478,6 +482,11 @@ export default function LyricVideo() {
                   <Icon className="h-4 w-4" /> {label}
                 </button>
               ))}
+            </div>
+
+            {/* Attribution — the virality playbook, opt-in for paid exports */}
+            <div className="mb-4">
+              <AttributionToggle checked={attribution} onChange={setAttribution} disabled={rendering} />
             </div>
 
             <button

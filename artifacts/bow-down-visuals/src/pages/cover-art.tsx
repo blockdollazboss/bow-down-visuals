@@ -17,6 +17,7 @@ import {
   getCoverArtTier,
   type CoverArtResult,
 } from "@/lib/cover-art";
+import { AttributionToggle } from "@/components/AttributionToggle";
 
 /* ─── AI Cover Art Generator ────────────────────────────────────────────────
    Professional album/single/EP cover art. GPT-6 art-directs the concept +
@@ -41,6 +42,8 @@ export default function CoverArt() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState<"standard" | "premium">("standard");
   const [generating, setGenerating] = useState(false);
+  /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
+  const [attribution, setAttribution] = useState(false);
   const [result, setResult] = useState<CoverArtResult | null>(null);
   const [history, setHistory] = useState<CoverArtResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +96,8 @@ export default function CoverArt() {
           style,
           aspectRatio,
           tier,
+          /* Virality: opt-in attribution credit (paid export → opt-in). */
+          attribution,
         }),
       });
       if (!res) return;
@@ -300,6 +305,9 @@ export default function CoverArt() {
                 ))}
               </div>
             </div>
+
+            {/* Attribution — the virality playbook, opt-in for paid exports */}
+            <AttributionToggle checked={attribution} onChange={setAttribution} disabled={generating} />
 
             <button
               onClick={generate}

@@ -8,6 +8,7 @@ import {
 import { useHubProject, type HubAsset, type HubAssetKind } from "@/lib/hub-project";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { AttributionToggle } from "@/components/AttributionToggle";
 
 /* ─── AssetHandoffs ─────────────────────────────────────────────────────────
    "Send to next step" rail for orphaned backend tools — endpoints that exist
@@ -112,6 +113,8 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
   const [errors, setErrors] = useState<Partial<Record<HandoffId, string>>>({});
   const [memeTexts, setMemeTexts] = useState({ top: "", bottom: "" });
   const [copied, setCopied] = useState(false);
+  /* Virality: opt-in "Made with Bow Down Visuals" credit for paid exports (opt-in). */
+  const [attribution, setAttribution] = useState(false);
 
   async function buildBody(id: HandoffId): Promise<Record<string, unknown> | null> {
     switch (id) {
@@ -137,7 +140,7 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
           toast({ title: t("hubSpine.handoffs.audiogramNeedsCoverTitle"), description: t("hubSpine.handoffs.audiogramNeedsCoverDesc"), variant: "destructive" });
           return null;
         }
-        return { audioUrl: asset.url, coverUrl, waveColor: "gold", style: "waveform" };
+        return { audioUrl: asset.url, coverUrl, waveColor: "gold", style: "waveform", attribution };
       }
       case "loop":
         return { videoUrl: asset.url, loops: 3, crossfade: 0.5 };
@@ -162,6 +165,7 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
           bottomText: memeTexts.bottom.trim(),
           uppercase: true,
           textColor: "#FFFFFF",
+          attribution,
         };
       case "social-kit":
         return {
@@ -288,6 +292,12 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
         </button>
       </div>
       <p className="text-xs text-white/40 mb-4">{t("hubSpine.handoffs.subtitle")}</p>
+
+      {/* Virality: opt-in "Made with Bow Down Visuals" credit for the paid
+          visual handoffs (audiogram, meme) — every export is a billboard. */}
+      <div className="mb-4">
+        <AttributionToggle checked={attribution} onChange={setAttribution} disabled={running !== null} compact />
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {handoffs.map((id) => {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { AttributionToggle } from "@/components/AttributionToggle";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 
@@ -47,7 +48,7 @@ const ANNOUNCEMENT_TYPES = ["single", "album", "tour", "launch", "milestone"] as
 const inputCls =
   "w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-[#d4af37]/60 focus:outline-none";
 
-function formatReleaseText(r: GeneratedRelease, artistName: string): string {
+function formatReleaseText(r: GeneratedRelease, artistName: string, attribution = false): string {
   const lines = [
     "FOR IMMEDIATE RELEASE",
     "",
@@ -60,6 +61,8 @@ function formatReleaseText(r: GeneratedRelease, artistName: string): string {
     r.boilerplate ? [`About ${artistName}`, r.boilerplate, ""] : [],
     "###",
     ...r.contactBlock,
+    /* Virality: opt-in credit footer for the .txt export (paid export → opt-in). */
+    ...(attribution ? ["", "—", "Created with Bow Down Visuals — bowdownvisuals.com"] : []),
   ].flat();
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
@@ -94,6 +97,8 @@ export default function PressReleasePanel({
   const [release, setRelease] = useState<GeneratedRelease | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedSocial, setCopiedSocial] = useState(false);
+  /* Virality: opt-in credit footer for the .txt export (paid export → opt-in). */
+  const [attribution, setAttribution] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const savedReleases = kit?.press_releases ?? [];
@@ -274,13 +279,17 @@ export default function PressReleasePanel({
           </div>
 
           <div className="flex flex-wrap gap-2 mt-6">
-            <Button size="sm" variant="outline" onClick={() => copyText(formatReleaseText(release, artistName.trim()), setCopied)}
+            {/* Attribution — the virality playbook, opt-in for paid exports */}
+            <div className="w-full mb-1">
+              <AttributionToggle checked={attribution} onChange={setAttribution} compact />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => copyText(formatReleaseText(release, artistName.trim(), attribution), setCopied)}
                     className="border-white/15">
               {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
               {copied ? p("copied") : p("copyFull")}
             </Button>
             <Button size="sm" variant="outline"
-                    onClick={() => downloadRelease(release.headline, formatReleaseText(release, artistName.trim()))}
+                    onClick={() => downloadRelease(release.headline, formatReleaseText(release, artistName.trim(), attribution))}
                     className="border-white/15">
               <Download className="h-4 w-4 mr-1" /> {p("download")}
             </Button>
