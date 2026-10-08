@@ -5,7 +5,7 @@ import { creatorProfilesTable } from "./creator-platform";
 
 /**
  * Custom domains — Worker 10: creator "own website" flagship.
- * (migration 0091_custom_domains.sql)
+ * (migration 0095_custom_domains.sql)
  *
  * <slug>.bowdownvisuals.com is free by convention (no row needed). A paid-tier
  * OWN domain is a row here: CNAME → the platform target + TXT proof of

@@ -42,6 +42,10 @@ export const moneyEntriesTable = pgTable("money_entries", {
   note: text("note").notNull().default(""),
   source: text("source"),
   entry_date: date("entry_date").notNull(),
+  /* Optional link to a distribution release — lets the Splits view apply
+     the release's agreed royalty splits to this income entry (migration
+     0078). Null = unlinked income. */
+  releaseId: uuid("release_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

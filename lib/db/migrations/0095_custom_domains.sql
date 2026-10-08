@@ -1,4 +1,4 @@
--- Custom domains (0091) — Worker 10: creator "own website" flagship.
+-- Custom domains (0095) — Worker 10: creator "own website" flagship.
 --
 -- Every creator gets <slug>.bowdownvisuals.com free (resolved by convention,
 -- no row needed). A paid-tier custom domain is a row here: the creator points
