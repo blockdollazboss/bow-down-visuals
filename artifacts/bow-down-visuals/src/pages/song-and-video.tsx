@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   Mic2, ArrowLeft, Loader2, ChevronRight, ChevronDown, ChevronUp,
   Music, Video, Film, Check, Copy, Save, FileText, FileDown, Download, RefreshCcw, X,
-  Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight,
+  Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight, SlidersHorizontal,
 } from "lucide-react";
 import { MarketingBadge } from "@/components/MarketingBadge";
 
@@ -27,6 +27,14 @@ import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
+import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import {
+  defaultEditorSettings,
+  defaultAiEditSettings,
+  applyAiTransitionsToClips,
+  AI_EDIT_STYLE_DEFS,
+  type AiEditPlan,
+} from "@/lib/editor-settings";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
@@ -302,6 +310,325 @@ function NavRow({ onBack, onNext, nextLabel, nextIcon, loading = false, backHidd
   );
 }
 
+/* ─── Simple-mode intake (merged from /create) ────────────────────────────
+   One-field-one-button intake: one field (idea/lyrics), an optional audio
+   upload, one button. AI fills in every other decision (genre, mood, video
+   style, format, caption style, Auto AI Edit) using sensible defaults,
+   generates scenes, and lands the user straight in the streamlined editor
+   — the same /api/generate-song-video + AI-edit endpoints the Guided
+   wizard uses. */
+
+const SIMPLE_DEFAULTS = {
+  genre: "Hip Hop",
+  mood: "Energetic",
+  videoStyle: "Street Cinematic",
+  platform: "TikTok / Reels / Shorts - 9:16",
+  cleanOrExplicit: "Clean",
+  voiceStyle: "Confident, melodic",
+  beatStyle: "Modern trap-influenced",
+  songLength: "Standard (3 min)",
+  aiEditStyle: "viral-tiktok" as const,
+};
+
+function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
+  const { t } = useTranslation();
+  const { addAsset } = useHubProject();
+  const [, setLocation] = useLocation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { activeArtist } = useActiveArtist();
+  const { toast } = useToast();
+
+  const [idea, setIdea] = useState("");
+  /** Lyrics obtained from auto-transcribing the uploaded audio. */
+  const [transcript, setTranscript] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+
+  /* The single "song idea or lyrics" box does double duty: when audio
+   * transcription fails (or never ran), whatever the user typed there can
+   * also serve as the lyrics, so the manual-paste fallback promised by the
+   * error copy actually unblocks submission. Prefer the real transcript
+   * when we have one. */
+  const effectiveLyrics = transcript.trim().length >= 10 ? transcript : idea;
+
+  const hasEnough = idea.trim().length > 0 || transcript.trim().length > 0 || !!audioUrl;
+  /* When audio is uploaded, the audio-driven scene flow is mandatory (per
+   * spec — never silently fall back to text-driven generation), so submit
+   * must wait until lyrics (from transcription or manual paste) are ready. */
+  const audioNeedsTranscript = !!audioUrl && effectiveLyrics.trim().length < 10;
+  const canSubmit = hasEnough && !transcribing && !audioNeedsTranscript;
+
+  /** Auto-transcribe immediately on upload so audio-driven projects never
+   *  require a manual "Transcribe" click before the primary action works. */
+  async function handleAudioFile(file: File | null) {
+    setAudioFile(file);
+    setTranscribeError(null);
+    if (!file) return;
+    setTranscribing(true);
+    try {
+      const token = await getAccessToken();
+      const fd = new FormData();
+      fd.append("audio", file);
+      const res = await confirmedFetch("/api/transcribe", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      if (!res.ok) throw new Error("Transcription failed");
+      const data = (await res.json()) as { transcript: string };
+      setTranscript(data.transcript);
+    } catch {
+      setTranscribeError("We couldn't auto-transcribe this audio. Please paste your lyrics in the box below to continue.");
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function handleCreate() {
+    if (!user) { toast({ title: t("create-simple.signInRequired"), variant: "destructive" }); return; }
+    if (!hasEnough) { setError(t("create-simple.describe_your_song_idea_paste_ly")); return; }
+    if (audioNeedsTranscript) { setError(t("create-simple.please_wait_for_transcription_to")); return; }
+    setError(null);
+    setOutOfCredits(false);
+    setBusy(true);
+
+    try {
+      const token = await getAccessToken();
+      let scenes: SceneData[] = [];
+      let rawResult = "";
+      let songStructure: unknown = null;
+      let creditsUsed: string | number | null = null;
+      let genHistoryId: string | null = null;
+
+      const artistName = activeArtist?.artist_name ?? "";
+
+      if (audioUrl) {
+        /* Audio present — always derive scenes straight from the song via
+         * the audio-driven flow, skipping the text-plan step entirely.
+         * canSubmit already guarantees a transcript is ready by this point. */
+        setStatusMsg("Analyzing your song and building scenes…");
+        const flow = await runAudioSceneFlow({
+          lyrics: effectiveLyrics,
+          audioUrl,
+          audioFile,
+          songStructure: null,
+          getAccessToken,
+          fetchImpl: confirmedFetch,
+        });
+        if (!flow) { setBusy(false); return; } // user cancelled the credit confirmation
+        scenes = flow.scenes;
+        songStructure = flow.songStructure;
+        rawResult = effectiveLyrics;
+      } else {
+        /* No audio uploaded — use the full song+video text-driven
+         * generation with AI-picked defaults for every field. */
+        setStatusMsg("Writing your song and video plan…");
+        const combinedTopic = idea.trim() || "A new song";
+        const genResult = await callGenerateApi(
+          "/api/generate-song-video",
+          {
+            artistName,
+            songTitle: "",
+            genre: SIMPLE_DEFAULTS.genre,
+            mood: SIMPLE_DEFAULTS.mood,
+            explicit: SIMPLE_DEFAULTS.cleanOrExplicit,
+            songTopic: combinedTopic,
+            voiceStyle: SIMPLE_DEFAULTS.voiceStyle,
+            beatStyle: SIMPLE_DEFAULTS.beatStyle,
+            songLength: SIMPLE_DEFAULTS.songLength,
+            videoStyle: SIMPLE_DEFAULTS.videoStyle,
+            platform: SIMPLE_DEFAULTS.platform,
+            artistDescription: "",
+            existingLyrics: effectiveLyrics.trim() || undefined,
+          },
+          token,
+          confirmedFetch,
+        );
+        if (!genResult) { setBusy(false); return; } // user cancelled the credit confirmation
+        const { rawResult: res, creditsRemaining, genHistoryId: gid } = genResult;
+        rawResult = res;
+        genHistoryId = gid ?? null;
+        scenes = parseScenes(extractBreakdownContent(res));
+        if (creditsRemaining !== undefined) refreshProfile();
+      }
+
+      if (scenes.length === 0) {
+        throw new Error("Could not generate scenes from that input. Try adding a bit more detail.");
+      }
+
+      /* Auto-apply the Auto AI Edit plan so Simple mode lands the user on an
+       * already-edited timeline, not a blank one. */
+      setStatusMsg("Applying automatic AI edit…");
+      let editorSettings: ReturnType<typeof defaultEditorSettings> = {
+        ...defaultEditorSettings(),
+        aiEdit: { ...defaultAiEditSettings(), enabled: true, style: SIMPLE_DEFAULTS.aiEditStyle, autoApplyTransitions: true },
+      };
+      try {
+        const sceneDescriptions = scenes.map((s, i) =>
+          [s.section, s.lyricLine, s.action, s.mood].filter(Boolean).join(" · ") || `Scene ${i + 1}`,
+        );
+        const planRes = await confirmedFetch("/api/generate/ai-edit-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+          body: JSON.stringify({
+            style: SIMPLE_DEFAULTS.aiEditStyle,
+            styleName: AI_EDIT_STYLE_DEFS.find((d) => d.id === SIMPLE_DEFAULTS.aiEditStyle)?.name ?? SIMPLE_DEFAULTS.aiEditStyle,
+            sceneCount: scenes.length,
+            sceneDescriptions,
+            audioFound: !!audioUrl,
+            captionsFound: false,
+            captionCount: 0,
+            captionStyle: editorSettings.captions.stylePreset,
+            currentEffects: editorSettings.effects,
+            artistName,
+            songTitle: "",
+            lyricsText: effectiveLyrics || "",
+          }),
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (planRes && planRes.ok) {
+          const data = (await planRes.json()) as { plan: AiEditPlan };
+          editorSettings = {
+            ...editorSettings,
+            aiEdit: { ...editorSettings.aiEdit, plan: data.plan, applied: false },
+          };
+          editorSettings = applyAiTransitionsToClips(editorSettings, scenes, data.plan);
+        }
+      } catch {
+        /* Non-fatal — user still gets a working project, just without a
+         * pre-applied transition plan; Auto AI Edit stays enabled so they
+         * can generate/apply it manually in Guided mode. */
+      }
+
+      /* Save the project. */
+      setStatusMsg("Saving your project…");
+      const saveRes = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          projectType: "Make Song + Video",
+          title: [artistName, "Simple Mode Video"].filter(Boolean).join(" — "),
+          artistName: artistName || null,
+          songTitle: null,
+          genre: SIMPLE_DEFAULTS.genre,
+          mood: SIMPLE_DEFAULTS.mood,
+          inputData: { simpleMode: true, idea, lyrics: effectiveLyrics },
+          outputData: {
+            result: rawResult,
+            ...(songStructure ? { songStructure } : {}),
+            scenes,
+            editorSettings,
+          },
+          creditsUsed: creditsUsed ?? 2,
+          genHistoryId,
+        }),
+      });
+      const saveBody = await saveRes.json() as { id?: string; error?: string; refunded?: boolean };
+      if (!saveRes.ok) {
+        if (saveBody.error === "out_of_credits") { setOutOfCredits(true); refreshProfile(); return; }
+        throw new Error(saveBody.error ?? "Could not save your project.");
+      }
+
+      toast({ title: t("create-simple.videoReady"), description: t("create-simple.videoReadyDesc") });
+      /* The song flows into the hub project — downstream tools pick it up. */
+      if (audioUrl) {
+        try {
+          addAsset({ kind: "song", url: audioUrl, label: idea.trim().slice(0, 60) || "Song", detail: "Simple mode creation" });
+        } catch { /* hub unavailable — non-fatal */ }
+      }
+      setLocation(`/video-editor?project=${saveBody.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
+      else setError(msg);
+    } finally {
+      setBusy(false);
+      setStatusMsg(null);
+    }
+  }
+
+  if (outOfCredits) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <OutOfCredits />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-4">
+        <Sparkles className="h-3 w-3" />{t("create-simple.simple_mode")}</span>
+      <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-2">{t("create-simple.what_s_your_song_about")}</h1>
+      <p className="text-white/40 text-sm mb-8">{t("create-simple.upload_a_song_paste_your_lyrics")}</p>
+
+      <div className="space-y-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">{t("create-simple.upload_your_song")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("create-simple.optional")}</span>
+          </label>
+          <AudioTranscribe
+            onTranscript={setTranscript}
+            onFileUrl={setAudioUrl}
+            onFile={handleAudioFile}
+          />
+          {transcribing && (
+            <p className="flex items-center gap-1.5 text-xs text-white/40">
+              <Loader2 className="h-3 w-3 animate-spin" />{t("create-simple.transcribing_your_lyrics_this_on")}</p>
+          )}
+          {transcribeError && (
+            <p className="text-xs text-amber-400">{transcribeError}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">{t("create-simple.song_idea_or_lyrics")}</label>
+          <Textarea
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            placeholder={t("create-simple.e_g_a_song_about_grinding_for_ye")}
+            rows={5}
+            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus:border-primary/50 rounded-xl resize-none"
+          />
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-400 font-medium">{error}</p>
+        )}
+
+        <Button
+          size="lg"
+          className="w-full gold-glow font-black gap-2"
+          disabled={busy || !canSubmit}
+          onClick={handleCreate}
+        >
+          {busy ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> {statusMsg ?? "Creating…"}</>
+          ) : transcribing ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />{t("create-simple.waiting_for_transcription")}</>
+          ) : (
+            <><Music className="h-4 w-4" />{t("create-simple.create_my_video")}</>
+          )}
+        </Button>
+
+        <button
+          type="button"
+          onClick={onSwitchGuided}
+          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white/35 hover:text-white/65 transition-colors"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />{t("create-simple.prefer_full_manual_control_switc")}</button>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function SongAndVideo() {
@@ -326,6 +653,9 @@ export default function SongAndVideo() {
   const [, setLocation] = useLocation();
 
   const [step, setStep] = useState(1);
+  /* Simple (default) vs Guided intake — the /create one-field intake lives
+     here as the default tab so nothing dead-ends. */
+  const [modeTab, setModeTab] = useState<"simple" | "guided">("simple");
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
@@ -906,6 +1236,31 @@ export default function SongAndVideo() {
           </p>
         </div>
 
+        {/* Simple / Guided tabs — the merged /create intake is the default tab */}
+        <div className="flex gap-2 mb-8">
+          {(
+            [
+              { id: "simple" as const, label: t("songAndVideo.simpleTabLabel", { defaultValue: "Simple" }) },
+              { id: "guided" as const, label: t("songAndVideo.guidedTabLabel", { defaultValue: "Guided" }) },
+            ]
+          ).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => { setModeTab(m.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                modeTab === m.id ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {modeTab === "simple" ? (
+          <SimpleModeIntake onSwitchGuided={() => setModeTab("guided")} />
+        ) : (
+          <>
         {/* Stepper */}
         <Stepper step={step} />
 
@@ -1327,6 +1682,8 @@ export default function SongAndVideo() {
             </div>
 
           </div>
+        )}
+          </>
         )}
 
       </div>

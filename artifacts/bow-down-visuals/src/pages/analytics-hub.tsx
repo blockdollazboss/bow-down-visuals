@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,8 +17,10 @@ import {
 import {
   Loader2, Sparkles, TrendingUp, Users, Eye, ChevronDown, Upload, Link2,
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
-  ArrowRight, Music2, Swords, ShieldCheck, Trophy,
+  ArrowRight, Music2, Swords, ShieldCheck, Trophy, RefreshCw, FileVideo,
+  Heart, MessageCircle, Lightbulb, Clock, ChevronRight, Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 /* ─── Cross-Platform Analytics Hub ──────────────────────────────────────
    The social dashboard: TikTok, Instagram, YouTube, X in one place.
@@ -30,8 +32,12 @@ import {
    no fake seeded data, ever.
 
    Tabs: "dashboard" holds the original hub sections; "competitor" holds the
-   Competitor Tracker panel. NO new page, NO new sidebar item — this file is
-   the only home for competitor analysis. */
+   Competitor Tracker panel; "connected" holds the connected-account stats
+   (live Instagram/TikTok/Facebook follower + post counts via
+   /api/analytics/overview) and the AI Insights / What-to-make-next layer
+   (via /api/analytics/insights and /api/analytics/suggestions) merged from
+   the old /analytics page. NO new page, NO new sidebar item — this file is
+   the only home for competitor analysis and connected-account analytics. */
 
 type PlatformKey = "tiktok" | "instagram" | "youtube" | "x";
 
@@ -185,6 +191,577 @@ const FIELD_LABELS: { key: keyof PlatformStats; labelKey: string; hintKey: strin
   { key: "topPostViews", labelKey: "analyticsHub.fields.topPostViews", hintKey: "analyticsHub.fieldHints.topPostViews" },
 ];
 
+/* ─── Connected Accounts tab (merged from the /analytics page) ─────────
+   Live follower/post counts pulled from connected Instagram, TikTok, and
+   Facebook accounts (FREE — pure data integration), with an AI layer on
+   top: AI Insights (1cr) reads momentum in plain English, and AI
+   Suggestions (1cr) tells the creator what to make next based on top
+   posts. Endpoints: /api/analytics/overview, /api/analytics/insights,
+   /api/analytics/suggestions. All identifiers are Conn-prefixed to avoid
+   collisions with the hub's own PlatformKey/PlatformStats/Snapshot/fmt. */
+
+type ConnPlatformKey = "instagram" | "tiktok" | "facebook";
+
+interface ConnTopContentItem {
+  id: string;
+  caption: string;
+  likes: number | null;
+  comments: number | null;
+  postedAt: string | null;
+  url: string | null;
+}
+
+interface ConnPlatformStats {
+  followers: number | null;
+  following: number | null;
+  mediaCount: number | null;
+  totalLikes: number | null;
+}
+
+interface ConnPlatformOverview {
+  platform: ConnPlatformKey;
+  accountId: string;
+  username: string | null;
+  pageName: string | null;
+  status: "ok" | "not_connected" | "expired" | "error";
+  message: string | null;
+  stats: ConnPlatformStats | null;
+  topContent: ConnTopContentItem[];
+  fetchedAt: string | null;
+}
+
+interface ConnSnapshot {
+  platform: string;
+  followers: number | null;
+  recordedAt: string | null;
+}
+
+interface ConnOverviewResponse {
+  platforms: ConnPlatformOverview[];
+  snapshots: ConnSnapshot[];
+  fetchedAt: string;
+  error?: string;
+  message?: string;
+}
+
+interface ConnInsights {
+  headline: string;
+  movers: { platform?: string; observation?: string; why?: string }[];
+  bestWindow: string;
+  recommendations: string[];
+}
+
+interface ConnSuggestion {
+  title: string;
+  format: string;
+  why: string;
+  hook: string;
+}
+
+const CONN_PLATFORM_META: Record<ConnPlatformKey, { label: string; icon: LucideIcon; blurbKey: string }> = {
+  instagram: { label: "Instagram", icon: Link2, blurbKey: "analytics.connectBlurbs.instagram" },
+  tiktok: { label: "TikTok", icon: FileVideo, blurbKey: "analytics.connectBlurbs.tiktok" },
+  facebook: { label: "Facebook", icon: Users, blurbKey: "analytics.connectBlurbs.facebook" },
+};
+
+const CONN_ALL_PLATFORMS: ConnPlatformKey[] = ["instagram", "tiktok", "facebook"];
+
+function connFmt(n: number | null): string {
+  if (n === null || n === undefined) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+function connTimeAgo(iso: string | null, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0) return t("analytics.justNow");
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return t("analytics.justNow");
+  if (mins < 60) return t("analytics.minutesAgo", { n: mins });
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return t("analytics.hoursAgo", { n: hrs });
+  return t("analytics.daysAgo", { n: Math.floor(hrs / 24) });
+}
+
+/** Minimal SVG sparkline for follower history. */
+function ConnSparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const w = 120;
+  const h = 36;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const coords = points.map((p, i) => {
+    const x = (i / (points.length - 1)) * w;
+    const y = h - 4 - ((p - min) / span) * (h - 8);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const up = points[points.length - 1] >= points[0];
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="overflow-visible">
+      <polyline
+        points={coords.join(" ")}
+        fill="none"
+        stroke={up ? "#34d399" : "#f87171"}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {coords.map((c, i) => {
+        const [x, y] = c.split(",");
+        return <circle key={i} cx={x} cy={y} r="2" fill={up ? "#34d399" : "#f87171"} opacity={i === coords.length - 1 ? 1 : 0.35} />;
+      })}
+    </svg>
+  );
+}
+
+const connCardClass =
+  "rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm";
+
+function ConnectedAccountsTab() {
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+
+  const [overview, setOverview] = useState<ConnOverviewResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [insights, setInsights] = useState<ConnInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<ConnSuggestion[] | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [niche, setNiche] = useState("");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  const authedFetch = useCallback(
+    async (path: string, init?: RequestInit) => {
+      const token = await getAccessToken();
+      const res = await fetch(path, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(init?.headers ?? {}),
+        },
+      });
+      const data = (await res.json().catch(() => ({}))) as any;
+      return { res, data };
+    },
+    [getAccessToken],
+  );
+
+  const loadOverview = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { res, data } = await authedFetch("/api/analytics/overview");
+      if (!res.ok) throw new Error(data.message || data.error || t("analytics.errorLoadStats"));
+      setOverview(data as ConnOverviewResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("analytics.errorLoadStats"));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, authedFetch]);
+
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview]);
+
+  const platformMap = useMemo(() => {
+    const map = new Map<ConnPlatformKey, ConnPlatformOverview>();
+    overview?.platforms.forEach((p) => map.set(p.platform, p));
+    return map;
+  }, [overview]);
+
+  const snapshotsByPlatform = useMemo(() => {
+    const map = new Map<ConnPlatformKey, number[]>();
+    overview?.snapshots.forEach((s) => {
+      if (s.followers === null) return;
+      const key = s.platform as ConnPlatformKey;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.unshift(s.followers);
+    });
+    return map;
+  }, [overview]);
+
+  const aiPayload = useCallback(() => {
+    const platforms = (overview?.platforms ?? [])
+      .filter((p) => p.status === "ok")
+      .map((p) => ({
+        platform: p.platform,
+        username: p.username,
+        pageName: p.pageName,
+        stats: p.stats,
+        topContent: p.topContent.slice(0, 5).map((tc) => ({
+          caption: tc.caption,
+          likes: tc.likes,
+          comments: tc.comments,
+        })),
+      }));
+    return { platforms, niche: niche.trim().slice(0, 80) };
+  }, [overview, niche]);
+
+  async function runInsights() {
+    if (insightsLoading || !user) return;
+    const payload = aiPayload();
+    if (payload.platforms.length === 0) {
+      setAiError(t("analytics.errorNoPlatforms"));
+      return;
+    }
+    setInsightsLoading(true);
+    setAiError(null);
+    setOutOfCredits(false);
+    try {
+      const { res, data } = await authedFetch("/api/analytics/insights", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !data.insights) throw new Error(data.message || t("analytics.errorInsightsFailed"));
+      setInsights(data.insights as ConnInsights);
+      refreshProfile();
+      setTimeout(() => document.getElementById("ai-insights")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : t("analytics.errorInsightsFailed"));
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
+
+  async function runSuggestions() {
+    if (suggestionsLoading || !user) return;
+    const payload = aiPayload();
+    if (payload.platforms.length === 0) {
+      setAiError(t("analytics.errorNoPlatforms"));
+      return;
+    }
+    setSuggestionsLoading(true);
+    setAiError(null);
+    setOutOfCredits(false);
+    try {
+      const { res, data } = await authedFetch("/api/analytics/suggestions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !Array.isArray(data.suggestions)) throw new Error(data.message || t("analytics.errorSuggestionsFailed"));
+      setSuggestions(data.suggestions as ConnSuggestion[]);
+      refreshProfile();
+      setTimeout(() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : t("analytics.errorSuggestionsFailed"));
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      {/* header row */}
+      <div className="relative mt-8 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-black">
+            {t("analytics.heroTitleStart")} <span className="text-primary">{t("analytics.heroTitleAccent")}</span>
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-white/55">{t("analytics.heroSubtitle")}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadOverview}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {t("analytics.refreshStats")}
+          </button>
+          {overview?.fetchedAt && (
+            <span className="text-xs text-white/35">{t("analytics.updated", { time: connTimeAgo(overview.fetchedAt, t) })}</span>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="relative mt-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* platform cards */}
+      <section className="relative mt-8 grid gap-4 md:grid-cols-3">
+        {CONN_ALL_PLATFORMS.map((key) => {
+          const meta = CONN_PLATFORM_META[key];
+          const Icon = meta.icon;
+          const p = platformMap.get(key);
+          const spark = snapshotsByPlatform.get(key) ?? [];
+
+          if (!p || p.status === "not_connected") {
+            return (
+              <div key={key} className={connCardClass}>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <h3 className="font-display text-lg font-bold">{meta.label}</h3>
+                </div>
+                <p className="mt-3 text-sm text-white/50">{t(meta.blurbKey)}</p>
+                <Link
+                  href="/settings"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                >
+                  {t("analytics.connect", { platform: meta.label })} <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            );
+          }
+
+          if (p.status === "expired") {
+            return (
+              <div key={key} className={connCardClass}>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <h3 className="font-display text-lg font-bold">{meta.label}</h3>
+                </div>
+                <p className="mt-3 text-sm text-amber-200/80">
+                  {p.message ?? t("analytics.connectionExpired")}
+                </p>
+                <Link
+                  href="/settings"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                >
+                  {t("analytics.reconnect")} <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            );
+          }
+
+          if (p.status === "error") {
+            return (
+              <div key={key} className={connCardClass}>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <h3 className="font-display text-lg font-bold">{meta.label}</h3>
+                </div>
+                <p className="mt-3 text-sm text-white/50">
+                  {p.message ?? t("analytics.platformUnreachable")}
+                </p>
+                <button onClick={loadOverview} className="mt-4 text-sm font-semibold text-primary hover:underline">
+                  {t("analytics.tryAgain")}
+                </button>
+              </div>
+            );
+          }
+
+          const s = p.stats;
+          const label = p.pageName ?? (p.username ? `@${p.username}` : meta.label);
+          return (
+            <div key={key} className={connCardClass}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-display text-lg font-bold leading-tight">{meta.label}</h3>
+                    <p className="max-w-[140px] truncate text-xs text-white/40">{label}</p>
+                  </div>
+                </div>
+                {spark.length >= 2 && <ConnSparkline points={spark} />}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-black/40 p-3">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
+                    <Users className="h-3 w-3" /> {t("analytics.statFollowers")}
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black text-primary">{connFmt(s?.followers ?? null)}</p>
+                </div>
+                <div className="rounded-xl bg-black/40 p-3">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
+                    <FileVideo className="h-3 w-3" /> {t("analytics.statPosts")}
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black">{connFmt(s?.mediaCount ?? null)}</p>
+                </div>
+                <div className="rounded-xl bg-black/40 p-3">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
+                    <Heart className="h-3 w-3" /> {t("analytics.statTotalLikes")}
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black">{connFmt(s?.totalLikes ?? null)}</p>
+                </div>
+                <div className="rounded-xl bg-black/40 p-3">
+                  <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
+                    <TrendingUp className="h-3 w-3" /> {t("analytics.statFollowing")}
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black">{connFmt(s?.following ?? null)}</p>
+                </div>
+              </div>
+
+              {p.topContent.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-white/40">
+                    {t("analytics.topPosts")}
+                  </p>
+                  <ul className="space-y-2">
+                    {p.topContent.slice(0, 3).map((item) => (
+                      <li key={item.id} className="rounded-lg bg-black/30 px-3 py-2">
+                        <p className="truncate text-[13px] text-white/75">{item.caption || t("analytics.noCaption")}</p>
+                        <p className="mt-0.5 flex items-center gap-3 text-[11px] text-white/40">
+                          <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{connFmt(item.likes)}</span>
+                          <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{connFmt(item.comments)}</span>
+                          {item.postedAt && <span>{connTimeAgo(item.postedAt, t)}</span>}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="mt-3 text-[11px] text-white/30">
+                {t("analytics.liveFrom", { platform: meta.label, time: p.fetchedAt ? connTimeAgo(p.fetchedAt, t) : t("analytics.justNow") })}
+              </p>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* AI layer */}
+      <section className="relative mt-12">
+        <div className="rounded-2xl border border-primary/30 bg-gradient-to-b from-primary/[0.08] to-transparent p-6 md:p-8">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="font-display text-2xl font-black">
+                {t("analytics.aiInsightsTitle")} <span className="text-primary">{t("analytics.aiInsightsAccent")}</span>
+              </h2>
+              <p className="text-sm text-white/50">
+                {t("analytics.aiCostPrefix")} <span className="font-semibold text-primary">{t("analytics.creditsPerRun", { credits: 100 })}</span> {t("analytics.aiCostSuffix")}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <input
+              value={niche}
+              onChange={(e) => setNiche(e.target.value)}
+              placeholder={t("analytics.nichePlaceholder")}
+              data-min-stars="3"
+              maxLength={80}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40 sm:max-w-xs"
+            />
+            <button
+              onClick={runInsights}
+              disabled={insightsLoading || loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+            >
+              {insightsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              {t("analytics.analyzeStats", { credits: 100 })}
+            </button>
+            <button
+              onClick={runSuggestions}
+              disabled={suggestionsLoading || loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+            >
+              {suggestionsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+              {t("analytics.whatToMakeNext", { credits: 100 })}
+            </button>
+          </div>
+
+          {aiError && (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{aiError}</span>
+            </div>
+          )}
+
+          {outOfCredits && (
+            <div className="mt-4">
+              <OutOfCredits />
+            </div>
+          )}
+
+          {insights && (
+            <div id="ai-insights" className="mt-6 space-y-4">
+              <div className="rounded-xl border border-primary/25 bg-black/50 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">{t("analytics.headline")}</p>
+                <p className="mt-2 text-lg font-semibold leading-relaxed">{insights.headline}</p>
+              </div>
+              {insights.movers.length > 0 && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {insights.movers.map((m, i) => (
+                    <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-primary">{m.platform ?? t("analytics.platformFallback")}</p>
+                      <p className="mt-1.5 text-sm text-white/85">{m.observation}</p>
+                      {m.why && <p className="mt-1 text-[13px] text-white/50">{m.why}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {insights.bestWindow && (
+                <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.bestWindow")}</p>
+                    <p className="mt-1 text-sm text-white/80">{insights.bestWindow}</p>
+                  </div>
+                </div>
+              )}
+              {insights.recommendations.length > 0 && (
+                <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.next3Moves")}</p>
+                  <ol className="space-y-2">
+                    {insights.recommendations.map((r, i) => (
+                      <li key={i} className="flex gap-3 text-sm text-white/80">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">{i + 1}</span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+
+          {suggestions && (
+            <div id="ai-suggestions" className="mt-6">
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.makeTheseNext")}</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {suggestions.map((s, i) => (
+                  <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                    <p className="font-display text-base font-bold">{s.title}</p>
+                    <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">{s.format}</p>
+                    <p className="mt-2 text-[13px] text-white/60">{s.why}</p>
+                    <p className="mt-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-medium text-primary">
+                      {t("analytics.hookLabel", { hook: s.hook })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AnalyticsHub() {
   const { t } = useTranslation();
   usePageTitle(
@@ -206,7 +783,7 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected">("dashboard");
   /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
      into Step 2 (from Hook Studio's "full intelligence check"). */
   const [intelInitialHook, setIntelInitialHook] = useState("");
@@ -236,6 +813,8 @@ export default function AnalyticsHub() {
         setHubTab("contentid");
       } else if (params.get("tab") === "milestones") {
         setHubTab("milestones");
+      } else if (params.get("tab") === "connected") {
+        setHubTab("connected");
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -571,6 +1150,19 @@ export default function AnalyticsHub() {
             >
               <Trophy className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabMilestones")}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "connected"}
+              onClick={() => setHubTab("connected")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "connected"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Link2 className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabConnected", { defaultValue: "Connected Accounts" })}
             </button>
           </div>
         </div>
@@ -1289,6 +1881,16 @@ export default function AnalyticsHub() {
             only home. */}
         {hubTab === "milestones" && (
           <MilestoneTracker />
+        )}
+
+        {/* ── CONNECTED ACCOUNTS ─────────────────────────────────────────
+            Live connected-account stats (Instagram / TikTok / Facebook via
+            /api/analytics/overview) plus the AI Insights + What-to-make-next
+            layer (1cr each via /api/analytics/insights and
+            /api/analytics/suggestions). Merged from the old /analytics page —
+            no new page, no new sidebar item; this tab is its only home. */}
+        {hubTab === "connected" && (
+          <ConnectedAccountsTab />
         )}
       </main>
 

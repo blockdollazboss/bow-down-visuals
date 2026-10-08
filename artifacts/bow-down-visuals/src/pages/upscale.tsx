@@ -11,7 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
-import { WatermarkRemovalTool } from "./watermark-removal";
+import { Clapperboard } from "lucide-react";
 import {
   COMPARE_POS_DEFAULT,
   COMPARE_KEY_STEP,
@@ -30,12 +30,12 @@ import {
    3 credits for image upscales, 2 credits for watermark removal —
    refunded automatically if the job fails. */
 
-type TabKey = "video" | "image" | "watermark";
+type TabKey = "video" | "image" | "enhance";
 
 const TABS: Array<{ key: TabKey; labelKey: string; shortKey: string; icon: typeof MonitorUp }> = [
   { key: "video", labelKey: "upscale.tabVideo", shortKey: "upscale.tabVideoShort", icon: MonitorUp },
   { key: "image", labelKey: "upscale.tabImage", shortKey: "upscale.tabImageShort", icon: ImageIcon },
-  { key: "watermark", labelKey: "upscale.tabWatermark", shortKey: "upscale.tabWatermarkShort", icon: Eraser },
+  { key: "enhance", labelKey: "upscale.tabEnhance", shortKey: "upscale.tabEnhanceShort", icon: Eraser },
 ];
 
 /* ─── Tab 1: Video Upscaler (existing tool, unchanged behavior) ────────── */
@@ -632,12 +632,364 @@ function ImageUpscaleTool() {
   );
 }
 
+/* ─── Tab 3: Enhance (merged from the Watermark Removal page) ───────────
+   Removes a static watermark/logo from your own video with ffmpeg's delogo
+   filter (blends the region from surrounding pixels). Honest framing:
+   this works well on small, static corner watermarks — it will NOT cleanly
+   remove large, moving, or semi-transparent animated watermarks (those
+   smear instead). 2 credits per removal (POST /api/watermark-removal;
+   registry key "/api/watermark-removal"), refunded automatically if the
+   job fails. Server-owned background job: safe to close the tab while it
+   runs. Finished outputs hand off to the video editor (→ /video-editor). */
+
+const ENHANCE_CREDIT_COST = 2;
+
+type EnhancePresetKey = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
+
+const ENHANCE_PRESETS: Array<{ key: EnhancePresetKey; labelKey: string; blurbKey: string }> = [
+  { key: "bottom-right", labelKey: "watermarkRemoval.presetBottomRight", blurbKey: "watermarkRemoval.presetBottomRightBlurb" },
+  { key: "bottom-left", labelKey: "watermarkRemoval.presetBottomLeft", blurbKey: "watermarkRemoval.presetBottomLeftBlurb" },
+  { key: "top-right", labelKey: "watermarkRemoval.presetTopRight", blurbKey: "watermarkRemoval.presetTopRightBlurb" },
+  { key: "top-left", labelKey: "watermarkRemoval.presetTopLeft", blurbKey: "watermarkRemoval.presetTopLeftBlurb" },
+  { key: "custom", labelKey: "watermarkRemoval.presetCustom", blurbKey: "watermarkRemoval.presetCustomBlurb" },
+];
+
+type EnhanceJobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
+
+interface EnhanceJobResponse {
+  jobId?: string;
+  status?: string;
+  outputUrl?: string | null;
+  error?: string;
+  message?: string;
+  creditsRemaining?: number;
+}
+
+function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { addAsset } = useHubProject();
+  const { confirmedFetch } = useConfirmedApi();
+  const [file, setFile] = useState<File | null>(null);
+  const [preset, setPreset] = useState<EnhancePresetKey>("bottom-right");
+  const [custom, setCustom] = useState({ x: "10", y: "10", w: "20", h: "15" });
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [status, setStatus] = useState<EnhanceJobStatus>("idle");
+  const [outputUrl, setOutputUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const pollRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Poll the server-owned job until it completes. Tab-safe: the job
+     lives on the server, so closing this page loses nothing. */
+  useEffect(() => {
+    if (!jobId || (status !== "queued" && status !== "processing")) return;
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/watermark-removal/${jobId}`);
+        const data: EnhanceJobResponse = await res.json();
+        if (!res.ok) {
+          setStatus("failed");
+          setError(data.error || t("watermarkRemoval.jobNotFound"));
+          return;
+        }
+        if (data.status === "done") {
+          setStatus("done");
+          setOutputUrl(data.outputUrl ?? null);
+          /* The cleaned video flows into the hub project for the next step. */
+          if (data.outputUrl) {
+            try { addAsset({ kind: "video", url: data.outputUrl, label: "Watermark-free video", detail: "Watermark removal" }); } catch { /* non-fatal */ }
+          }
+        } else if (data.status === "failed") {
+          setStatus("failed");
+          setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: ENHANCE_CREDIT_COST * 100 }));
+        } else {
+          setStatus(data.status as EnhanceJobStatus);
+        }
+      } catch {
+        /* keep polling on transient network errors */
+      }
+    }, 3000);
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [jobId, status]);
+
+  function pickFile(f: File | undefined) {
+    if (!f) return;
+    if (!f.type.startsWith("video/")) {
+      setError(t("watermarkRemoval.videoFileError"));
+      return;
+    }
+    if (f.size > 80 * 1024 * 1024) {
+      setError(t("watermarkRemoval.videoSizeError"));
+      return;
+    }
+    setFile(f);
+    setError(null);
+    setOutputUrl(null);
+    setJobId(null);
+    setStatus("idle");
+  }
+
+  function customValid(): boolean {
+    const x = Number(custom.x), y = Number(custom.y);
+    const w = Number(custom.w), h = Number(custom.h);
+    return [x, y, w, h].every(Number.isFinite)
+      && w > 0 && h > 0 && x >= 0 && y >= 0 && x + w <= 100 && y + h <= 100;
+  }
+
+  async function startRemoval() {
+    if (!file || !user) return;
+    if (preset === "custom" && !customValid()) {
+      setError(t("watermarkRemoval.customRegionError"));
+      return;
+    }
+    setStatus("uploading");
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const form = new FormData();
+      form.append("video", file);
+      form.append("preset", preset);
+      if (preset === "custom") {
+        form.append("custom", JSON.stringify({
+          x: Number(custom.x), y: Number(custom.y),
+          w: Number(custom.w), h: Number(custom.h),
+          }));
+      }
+      const res = await confirmedFetch("/api/watermark-removal", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
+      const data: EnhanceJobResponse = await res.json();
+      if (res.status === 402) {
+        setOutOfCredits(true);
+        setStatus("idle");
+        return;
+      }
+      if (!res.ok || !data.jobId) {
+        setStatus("failed");
+        setError(data.message || data.error || t("watermarkRemoval.startFailedError"));
+        return;
+      }
+      setJobId(data.jobId);
+      setStatus("queued");
+      if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
+    } catch {
+      setStatus("failed");
+      setError(t("watermarkRemoval.networkError"));
+    }
+  }
+
+  function reset() {
+    setFile(null);
+    setJobId(null);
+    setStatus("idle");
+    setOutputUrl(null);
+    setError(null);
+    setOutOfCredits(false);
+  }
+
+  const busy = status === "uploading" || status === "queued" || status === "processing";
+
+  return (
+    <>
+      {showBackLink && (
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
+          <ArrowLeft className="h-4 w-4" /> {t("watermarkRemoval.back")}
+        </Link>
+      )}
+
+      <div className="flex items-center gap-3 mb-2">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <Eraser className="h-5 w-5" />
+        </span>
+        <div>
+          <h2 className="text-xl font-black">{t("watermarkRemoval.toolTitle")}</h2>
+          <p className="text-sm text-white/45">{t("watermarkRemoval.toolSub", { cost: ENHANCE_CREDIT_COST })}</p>
+        </div>
+      </div>
+
+      {/* Honest framing — delogo limits stated up front */}
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
+        <p className="text-xs text-white/55 leading-relaxed">
+          {t("watermarkRemoval.honestFraming1")}{" "}
+          <span className="text-white/80 font-semibold">{t("watermarkRemoval.honestFramingStrong1")}</span>
+          {t("watermarkRemoval.honestFramingMid")}{" "}
+          <span className="text-white/80 font-semibold">{t("watermarkRemoval.honestFramingStrong2")}</span>
+          {t("watermarkRemoval.honestFraming2")}
+        </p>
+      </div>
+
+      {outOfCredits && (
+        <div className="mt-4"><OutOfCredits /></div>
+      )}
+
+      {error && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-200/80">{error}</p>
+        </div>
+      )}
+
+      {/* Upload zone */}
+      {status === "idle" || status === "failed" ? (
+        <div className="mt-6 space-y-5">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
+            className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+            }`}
+          >
+            <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
+            {file ? (
+              <div>
+                <p className="font-semibold text-white">{file.name}</p>
+                <p className="text-xs text-white/40 mt-1">{t("watermarkRemoval.fileChosen", { size: (file.size / 1024 / 1024).toFixed(1) })}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold text-white/70">{t("watermarkRemoval.dropPrompt")}</p>
+                <p className="text-xs text-white/35 mt-1">{t("watermarkRemoval.dropHint")}</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+          </div>
+
+          {/* Location picker */}
+          <div data-min-stars="2">
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("watermarkRemoval.locationLabel")}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {ENHANCE_PRESETS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  data-min-stars={p.key === "custom" ? "6" : undefined}
+                  onClick={() => setPreset(p.key)}
+                  className={`rounded-xl border px-4 py-3.5 text-left transition ${
+                    preset === p.key
+                      ? "border-primary/60 bg-primary/[0.08]"
+                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                  }`}
+                >
+                  <p className="font-bold text-white text-sm">{t(p.labelKey)}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{t(p.blurbKey)}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom region inputs */}
+          {preset === "custom" && (
+            <div data-min-stars="6" className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4">
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">
+                {t("watermarkRemoval.customRegionLabel")}
+              </p>
+              <div className="grid grid-cols-4 gap-3">
+                {(["x", "y", "w", "h"] as const).map((k) => (
+                  <label key={k} className="block">
+                    <span className="text-xs text-white/40 uppercase">{k}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={custom[k]}
+                      onChange={(e) => setCustom((c) => ({ ...c, [k]: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-white/[0.1] bg-black/40 px-3 py-2 text-sm text-white focus:border-primary/60 focus:outline-none"
+                    />
+                  </label>
+                ))}
+              </div>
+              {!customValid() && (
+                <p className="mt-2 text-xs text-amber-400/80">
+                  {t("watermarkRemoval.customRegionHint")}
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={startRemoval}
+            disabled={!file || !user || (preset === "custom" && !customValid())}
+            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {t("watermarkRemoval.removeButton", { cost: ENHANCE_CREDIT_COST })}
+          </button>
+          {creditsRemaining != null && (
+            <p className="text-center text-xs text-white/35">{t("watermarkRemoval.creditsRemaining", { count: creditsRemaining })}</p>
+          )}
+        </div>
+      ) : null}
+
+      {/* Progress */}
+      {busy && (
+        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
+          <p className="font-bold text-white">
+            {status === "uploading" ? t("watermarkRemoval.statusUploading") : status === "queued" ? t("watermarkRemoval.statusQueued") : t("watermarkRemoval.statusProcessing")}
+          </p>
+          <p className="text-sm text-white/40 mt-1">
+            {t("watermarkRemoval.progressNote")}
+          </p>
+        </div>
+      )}
+
+      {/* Result */}
+      {status === "done" && outputUrl && (
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
+            <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+            <p className="text-sm font-semibold text-white/80">{t("watermarkRemoval.removalComplete")}</p>
+          </div>
+          <video src={outputUrl} controls className="w-full rounded-2xl border border-white/[0.08] bg-black" />
+          <div className="flex gap-3">
+            <a
+              href={outputUrl}
+              download="watermark-removed.mp4"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 font-bold text-black transition hover:brightness-110"
+            >
+              <Download className="h-4 w-4" /> {t("watermarkRemoval.download")}
+            </a>
+            <button
+              onClick={reset}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+            >
+              <RefreshCw className="h-4 w-4" /> {t("watermarkRemoval.newVideo")}
+            </button>
+          </div>
+          {/* Handoff — the cleaned video continues into the video editor */}
+          <a
+            href={`/video-editor?video=${encodeURIComponent(outputUrl)}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
+          >
+            <Clapperboard className="h-4 w-4" /> {t("watermarkRemoval.sendToVideoEditor", { defaultValue: "Send to Video Editor" })}
+          </a>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ─── Page shell with tabs ────────────────────────────────────────────── */
 
 export default function Upscale() {
   const { t } = useTranslation();
   usePageTitle(t("upscale.pageTitle"), t("upscale.pageDescription"));
-  const [tab, setTab] = useState<TabKey>("video");
+  const [tab, setTab] = useState<TabKey>(() => {
+    try { return new URLSearchParams(window.location.search).get("tab") === "enhance" ? "enhance" : "video"; } catch { return "video"; }
+  });
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -675,8 +1027,8 @@ export default function Upscale() {
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{t(tb.labelKey)}</span>
-                <span className="sm:hidden">{t(tb.shortKey)}</span>
+                <span className="hidden sm:inline">{tb.key === "enhance" ? t(tb.labelKey, { defaultValue: "Enhance" }) : t(tb.labelKey)}</span>
+                <span className="sm:hidden">{tb.key === "enhance" ? t(tb.shortKey, { defaultValue: "Enhance" }) : t(tb.shortKey)}</span>
               </button>
             );
           })}
@@ -685,7 +1037,7 @@ export default function Upscale() {
         <div className="mt-8">
           {tab === "video" && <VideoUpscaleTool />}
           {tab === "image" && <ImageUpscaleTool />}
-          {tab === "watermark" && <WatermarkRemovalTool showBackLink={false} />}
+          {tab === "enhance" && <WatermarkRemovalTool showBackLink={false} />}
         </div>
       </main>
 

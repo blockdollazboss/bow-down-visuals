@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShieldAlert, MessageSquareHeart, BarChart3, Star, Loader2, Sparkles,
-  CheckCircle2, XCircle, AlertTriangle, Copy, Bell, Users,
+  CheckCircle2, XCircle, AlertTriangle, Bell, Users,
+  MessageCircleReply, Flame, Heart, Laugh, Briefcase, History, Trash2, Copy, Check,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import {
+  MAX_COMMENTS,
+  parseCommentLines,
+  buildBatch,
+  loadReplyHistory,
+  saveReplyBatch,
+  clearReplyHistory,
+} from "@/lib/comment-replies";
+import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
 import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's AI Community Manager ───────────────────────────────
@@ -27,11 +40,6 @@ interface FlaggedComment {
   verdict: "ok" | "review" | "remove";
   reasons: string[];
   severity: number;
-}
-
-interface ReplyDraft {
-  index: number;
-  reply: string;
 }
 
 interface SentimentReport {
@@ -76,10 +84,382 @@ function parsePastedComments(raw: string): CommentInput[] {
     .filter((c) => c.text.length > 0);
 }
 
+/* ─── Reply Drafts tab (merged from /comment-replies) ───────────────────────
+   Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
+   drafts an on-brand reply for each comment, engineered to boost
+   engagement. POST /api/comment-replies at 1 credit per batch (registry:
+   "/api/comment-replies" = 100 = 1 Visual Buc). Tone keys must stay in
+   sync with the backend route's TONES enum. Feeds off the shared comment
+   box above the tabs. */
+
+interface RepliesTone {
+  key: ToneKey;
+  label: string;
+  icon: LucideIcon;
+  blurb: string;
+}
+
+const REPLY_CREDIT_COST = 1;
+
+interface RepliesResponse {
+  replies?: string[];
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+const replyInputClass =
+  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
+
+function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string; onRestoreComments: (text: string) => void }) {
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+
+  const TONES: RepliesTone[] = [
+    { key: "hype", label: t("commentReplies.toneHypeLabel"), icon: Flame, blurb: t("commentReplies.toneHypeBlurb") },
+    { key: "grateful", label: t("commentReplies.toneGratefulLabel"), icon: Heart, blurb: t("commentReplies.toneGratefulBlurb") },
+    { key: "playful", label: t("commentReplies.tonePlayfulLabel"), icon: Laugh, blurb: t("commentReplies.tonePlayfulBlurb") },
+    { key: "professional", label: t("commentReplies.toneProfessionalLabel"), icon: Briefcase, blurb: t("commentReplies.toneProfessionalBlurb") },
+  ];
+
+  const [tone, setTone] = useState<ToneKey>("hype");
+  const [voiceNotes, setVoiceNotes] = useState("");
+  const [results, setResults] = useState<{ comments: string[]; replies: string[] } | null>(null);
+  const [editedReplies, setEditedReplies] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [history, setHistory] = useState<ReplyBatch[]>([]);
+
+  useEffect(() => {
+    setHistory(loadReplyHistory());
+  }, []);
+
+  const comments = parseCommentLines(commentsText);
+  const commentCount = comments.length;
+
+  function saveBatch(cs: string[], replies: string[]) {
+    setHistory((prev) => saveReplyBatch(prev, buildBatch(tone, cs, replies)));
+  }
+
+  async function generate() {
+    if (loading || !user) return;
+    if (comments.length === 0) {
+      setError(t("commentReplies.errorNoComments"));
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setOutOfCredits(false);
+    setCopiedIdx(null);
+    setCopiedAll(false);
+    try {
+      const token = await getAccessToken();
+      const res = await confirmedFetch("/api/comment-replies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          comments,
+          tone,
+          voiceNotes: voiceNotes.trim(),
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as RepliesResponse;
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !Array.isArray(data.replies) || data.replies.length !== comments.length) {
+        throw new Error(data.message || data.error || t("commentReplies.errorGenerateFailed"));
+      }
+      setResults({ comments, replies: data.replies });
+      setEditedReplies([...data.replies]);
+      saveBatch(comments, data.replies);
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("replies-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("commentReplies.errorGenerateFailed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyText(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* clipboard API unavailable (permissions / insecure context) */
+      return false;
+    }
+  }
+
+  async function copyOne(idx: number) {
+    const ok = await copyText(editedReplies[idx] ?? "");
+    if (ok) {
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1600);
+    } else {
+      setError(t("commentReplies.errorCopyFailed"));
+    }
+  }
+
+  async function copyAll() {
+    const ok = await copyText(editedReplies.join("\n\n"));
+    if (ok) {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 1600);
+    } else {
+      setError(t("commentReplies.errorCopyFailed"));
+    }
+  }
+
+  function restoreBatch(batch: ReplyBatch) {
+    onRestoreComments(batch.comments.join("\n"));
+    setTone(batch.tone);
+    setResults({ comments: batch.comments, replies: batch.replies });
+    setEditedReplies([...batch.replies]);
+    setCopiedIdx(null);
+    setCopiedAll(false);
+    setError(null);
+    setOutOfCredits(false);
+    setTimeout(() => {
+      document.getElementById("replies-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 100);
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    clearReplyHistory();
+  }
+
+  return (
+    <div>
+      {/* ── composer card ── */}
+      <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+            <MessageCircleReply className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-xl font-bold">{t("commentReplies.draftTitle")}</h2>
+            <p className="text-sm text-white/45">
+              {t("commentReplies.costLine", { cost: REPLY_CREDIT_COST, max: MAX_COMMENTS })}
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-white/40">
+          {t("commentReplies.commentsLabel", { count: commentCount, max: MAX_COMMENTS })} — {t("community.repliesSharedBoxHint", { defaultValue: "uses the comment box above" })}
+        </p>
+
+        <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          {t("commentReplies.replyTone")}
+        </p>
+        <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {TONES.map((tn) => {
+            const Icon = tn.icon;
+            const selected = tn.key === tone;
+            return (
+              <button
+                key={tn.key}
+                type="button"
+                onClick={() => setTone(tn.key)}
+                aria-pressed={selected}
+                className={`rounded-2xl border p-3.5 text-left transition ${
+                  selected
+                    ? "border-primary bg-primary/10 shadow-[0_0_16px_rgba(212,175,55,0.2)]"
+                    : "border-white/10 bg-white/[0.03] hover:border-primary/40"
+                }`}
+              >
+                <Icon className={`mb-2 h-5 w-5 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
+                <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{tn.label}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-white/35">{tn.blurb}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <label
+          htmlFor="voice-notes"
+          data-min-stars="3"
+          className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40"
+        >
+          {t("commentReplies.voiceNotesLabel")} <span className="normal-case text-white/25">({t("commentReplies.optional")})</span>
+        </label>
+        <input
+          id="voice-notes"
+          type="text"
+          data-min-stars="3"
+          value={voiceNotes}
+          onChange={(e) => setVoiceNotes(e.target.value)}
+          maxLength={300}
+          placeholder={t("commentReplies.voiceNotesPlaceholder")}
+          className={replyInputClass}
+        />
+
+        {error && (
+          <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={generate}
+          disabled={loading || !user || commentCount === 0}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-4 text-base font-black text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("commentReplies.drafting")}
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+              {commentCount > 0
+                ? t("commentReplies.draftReplies", { count: commentCount, cost: REPLY_CREDIT_COST })
+                : t("commentReplies.draftRepliesZero", { cost: REPLY_CREDIT_COST })}
+            </>
+          )}
+        </button>
+        {!user && (
+          <p className="mt-3 text-center text-sm text-white/40">
+            {t("commentReplies.signInPrompt")}
+          </p>
+        )}
+      </div>
+
+      {outOfCredits && (
+        <div className="mt-6">
+          <OutOfCredits />
+        </div>
+      )}
+
+      {/* ── results ── */}
+      {results && (
+        <div id="replies-results" className="mt-8 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-xl font-bold">{t("commentReplies.yourReplies")}</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={copyAll}
+                className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
+              >
+                {copiedAll ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+                {copiedAll ? t("commentReplies.copied") : t("commentReplies.copyAll")}
+              </button>
+              {/* Forward handoff — nothing dead-ends: keep the engagement
+                  rolling by planning posts in the Scheduler. */}
+              <Link href="/scheduler">
+                <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-bold text-white/60 transition hover:border-primary/40 hover:text-primary cursor-pointer">
+                  {t("community.replies.scheduleLink", { defaultValue: "Plan posts in Scheduler →" })}
+                </span>
+              </Link>
+            </div>
+          </div>
+          <p className="mt-1 text-sm text-white/45">
+            {t("commentReplies.editNote")}
+          </p>
+
+          <div className="mt-6 space-y-5">
+            {results.comments.map((comment, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">
+                  {t("commentReplies.fanComment", { n: i + 1 })}
+                </p>
+                <p className="mt-1 text-sm text-white/70">“{comment}”</p>
+                <div className="mt-3 flex items-start gap-2">
+                  <textarea
+                    value={editedReplies[i] ?? ""}
+                    onChange={(e) =>
+                      setEditedReplies((prev) => {
+                        const next = [...prev];
+                        next[i] = e.target.value;
+                        return next;
+                      })
+                    }
+                    rows={2}
+                    aria-label={t("commentReplies.replyAria", { n: i + 1 })}
+                    className={`${replyInputClass} min-h-[56px] flex-1 resize-y border-primary/20 bg-primary/[0.04]`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyOne(i)}
+                    aria-label={t("commentReplies.copyReplyAria", { n: i + 1 })}
+                    className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/60 transition hover:border-primary/50 hover:text-primary"
+                  >
+                    {copiedIdx === i ? (
+                      <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── history ── */}
+      {history.length > 0 && (
+        <div data-min-stars="3" className="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <History className="h-5 w-5 text-primary" aria-hidden="true" /> {t("commentReplies.pastBatches")}
+            </h2>
+            <button
+              type="button"
+              onClick={clearHistory}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/50 transition hover:border-red-500/50 hover:text-red-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> {t("commentReplies.clear")}
+            </button>
+          </div>
+          <div className="mt-4 space-y-2">
+            {history.map((batch) => (
+              <button
+                key={batch.id}
+                type="button"
+                onClick={() => restoreBatch(batch)}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-left transition hover:border-primary/40"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-white/85">
+                    {t("commentReplies.batchSummary", { count: batch.comments.length, tone: TONES.find((x) => x.key === batch.tone)?.label ?? batch.tone })}
+                  </span>
+                  <span className="block truncate text-xs text-white/35">
+                    {t("commentReplies.batchSubline", { date: new Date(batch.at).toLocaleString(), preview: batch.comments[0]?.slice(0, 60) ?? "" })}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs font-bold text-primary">{t("commentReplies.restore")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CommunityManager() {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
-  const [tab, setTab] = useState<TabKey>("moderate");
+  const [tab, setTab] = useState<TabKey>(() => {
+    try { return new URLSearchParams(window.location.search).get("tab") === "replies" ? "replies" : "moderate"; } catch { return "moderate"; }
+  });
   const [paste, setPaste] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,9 +468,6 @@ export default function CommunityManager() {
   const [flags, setFlags] = useState<FlaggedComment[]>([]);
   const [reviewed, setReviewed] = useState<string[]>([]); // "approved:<i>" / "removed:<i>"
   const [moderatedCount, setModeratedCount] = useState(0);
-
-  const [drafts, setDrafts] = useState<ReplyDraft[]>([]);
-  const [tone, setTone] = useState("friendly");
 
   const [sentiment, setSentiment] = useState<SentimentReport | null>(null);
   const [superfans, setSuperfans] = useState<Superfan[]>([]);
@@ -144,24 +521,6 @@ export default function CommunityManager() {
     }
   }
 
-  async function runReplies() {
-    const comments = getComments();
-    if (!comments) return;
-    setLoading(true); setError(null); setOutOfCredits(false);
-    try {
-      const data = await callApi("/api/community/reply-draft", {
-        comments: comments.slice(0, 20),
-        tone,
-      });
-      if (!data) return;
-      setDrafts((data.drafts as ReplyDraft[]) ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Reply drafting failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function runSentiment() {
     const comments = getComments();
     if (!comments) return;
@@ -190,10 +549,6 @@ export default function CommunityManager() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function copy(text: string) {
-    navigator.clipboard.writeText(text).catch(() => {});
   }
 
   const verdictBadge = (v: FlaggedComment["verdict"]) =>
@@ -319,45 +674,9 @@ export default function CommunityManager() {
           </div>
         )}
 
-        {/* ── REPLY DRAFTS ── */}
+        {/* ── REPLY DRAFTS (merged from /comment-replies) ── */}
         {tab === "replies" && (
-          <div>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              {(["friendly", "playful", "professional", "hype"] as const).map((tn) => (
-                <button
-                  key={tn}
-                  onClick={() => setTone(tn)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition ${
-                    tone === tn
-                      ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
-                      : "border-zinc-800 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {t(`community.tones.${tn}`)}
-                </button>
-              ))}
-              <button
-                onClick={runReplies}
-                disabled={loading}
-                className="ml-2 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Draft replies · 1 VB
-              </button>
-            </div>
-            <div className="space-y-3">
-              {drafts.map((d) => (
-                <div key={d.index} className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-4">
-                  <p className="text-sm text-zinc-100">“{d.reply}”</p>
-                  <button
-                    onClick={() => copy(d.reply)}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-amber-300/80 hover:text-amber-200"
-                  >
-                    <Copy className="h-3.5 w-3.5" />{t("community.copy_reply")}</button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RepliesTab commentsText={paste} onRestoreComments={setPaste} />
         )}
 
         {/* ── SENTIMENT ── */}

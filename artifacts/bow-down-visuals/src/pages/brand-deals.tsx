@@ -5,11 +5,16 @@ import {
   Handshake, Loader2, Sparkles, Search, Users,
   CheckCircle2, AlertTriangle, Copy, Check, ChevronDown,
   BadgeDollarSign, Gift, Repeat2, FileText, Megaphone,
+  Mail, MessageCircle, CalendarClock, Send, Clock, Reply, BadgeCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
+import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
+import SponsorPipeline from "@/components/wave8/SponsorPipeline";
 
 /* ─── Thy Cheat Code's Brand Deal Finder ────────────────────────────────────
    The money-hunt: AI matches creators with brand partnership opportunities —
@@ -112,6 +117,23 @@ export default function BrandDealFinder() {
   const { t } = useTranslation();
   const { user, profile, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+
+  /* ── merged surface: Finder (original brand-deals) · Pitch kit (absorbed
+     from /sponsorship-outreach) · Deal pipeline (Wave 8 SponsorPipeline +
+     free outreach tracker). The /sponsorship-outreach route renders this
+     same component (alias) — it lands on the Pitch kit tab so the press
+     kit's ?bio= handoff keeps working. */
+  type MainTab = "finder" | "pitch" | "pipeline";
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const forced = q.get("tab");
+      if (forced === "pitch" || forced === "pipeline" || forced === "finder") return forced;
+      if (window.location.pathname.startsWith("/sponsorship-outreach")) return "pitch";
+      if (q.get("bio")) return "pitch";
+    } catch { /* non-browser — default to finder */ }
+    return "finder";
+  });
 
   /* Translated display strings for the option grids above. */
   const DEAL_OPTS: DealTypeOpt[] = DEAL_TYPE_DEFS.map((d) => ({
@@ -325,6 +347,36 @@ export default function BrandDealFinder() {
           </p>
         </div>
 
+        {/* ── merged tabs: Finder · Pitch kit · Deal pipeline ── */}
+        <div className="relative mt-8 flex justify-center gap-2">
+          {(
+            [
+              { key: "finder", label: t("brandDeals.tabs.finder", { defaultValue: "Find deals" }), icon: Search },
+              { key: "pitch", label: t("outreach.tabs.pitchKit", { defaultValue: "Pitch kit" }), icon: Mail },
+              { key: "pipeline", label: t("outreach.tabs.pipeline", { defaultValue: "Deal pipeline" }), icon: Handshake },
+            ] as { key: MainTab; label: string; icon: LucideIcon }[]
+          ).map((tb) => {
+            const Icon = tb.icon;
+            const active = mainTab === tb.key;
+            return (
+              <button
+                key={tb.key}
+                onClick={() => setMainTab(tb.key)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {tb.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {mainTab === "finder" && (
+        <>
         {/* Thy Cheat Code's coaching callout */}
         <div className="relative mt-8 flex gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-4">
           <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
@@ -650,9 +702,535 @@ export default function BrandDealFinder() {
             </div>
           </div>
         )}
+        </>
+        )}
+
+        {/* ── PITCH KIT TAB — absorbed from /sponsorship-outreach ── */}
+        {mainTab === "pitch" && (
+          <div className="relative mt-4">
+            <PitchKitTab onFindDeals={() => setMainTab("finder")} />
+          </div>
+        )}
+
+        {/* ── DEAL PIPELINE TAB — Wave 8 SponsorPipeline + free tracker ── */}
+        {mainTab === "pipeline" && (
+          <div className="relative mt-4">
+            <PipelineTab />
+          </div>
+        )}
       </main>
 
 
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PITCH KIT TAB — the full /sponsorship-outreach page, absorbed as a tab.
+   AI-crafted pitch kit: POST /api/outreach → 2 credits per kit (pitch email
+   + DM version + media kit summary + 3-step follow-up sequence). Generated
+   kits auto-save into the free tracker (localStorage, shared with the Deal
+   Pipeline tab). Handoffs preserved: ?bio= from the press kit, rate card
+   from the brand calculator, creator identity from the vault, and the
+   → /sponsors marketplace tip. */
+
+const PITCH_KIT_COST = 2;
+
+const OUTREACH_PLATFORMS = ["tiktok", "instagram", "youtube", "twitch", "twitter", "facebook"];
+
+interface PitchFollowUp {
+  day: number;
+  subject: string;
+  body: string;
+}
+
+interface PitchOutreachKit {
+  pitchEmail: { subject: string; body: string };
+  dmVersion: string;
+  mediaKitSummary: string;
+  followUps: PitchFollowUp[];
+  disclaimer: string;
+}
+
+interface PitchOutreachResponse {
+  kit?: PitchOutreachKit;
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+type TrackStatus = "sent" | "followed-up" | "replied" | "booked";
+
+interface TrackedOutreach {
+  id: string;
+  brandName: string;
+  creatorName: string;
+  createdAt: string;
+  status: TrackStatus;
+}
+
+const TRACK_KEY = "bdv-outreach-tracker";
+
+const STATUS_META: Record<TrackStatus, { labelKey: string; icon: LucideIcon; color: string }> = {
+  sent: { labelKey: "outreach.statusSent", icon: Send, color: "text-sky-400" },
+  "followed-up": { labelKey: "outreach.statusFollowedUp", icon: Clock, color: "text-amber-400" },
+  replied: { labelKey: "outreach.statusReplied", icon: Reply, color: "text-violet-400" },
+  booked: { labelKey: "outreach.statusBooked", icon: BadgeCheck, color: "text-emerald-400" },
+};
+
+const outreachLabelClass = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/50";
+
+function loadOutreachTracker(): TrackedOutreach[] {
+  try {
+    const raw = localStorage.getItem(TRACK_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function KitCopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        void navigator.clipboard.writeText(text).catch(() => undefined);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? t("outreach.copied") : t("outreach.copy")}
+    </button>
+  );
+}
+
+function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { activeArtist } = useActiveArtist();
+
+  /* creator profile */
+  const [creatorName, setCreatorName] = useState("");
+  const [niche, setNiche] = useState("");
+  const [audienceSize, setAudienceSize] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>(["tiktok", "instagram"]);
+  const [engagement, setEngagement] = useState("");
+  const [notableWins, setNotableWins] = useState("");
+
+  /* brand / target */
+  const [brandName, setBrandName] = useState("");
+  const [product, setProduct] = useState("");
+  const [campaignGoal, setCampaignGoal] = useState("");
+  const [contactName, setContactName] = useState("");
+
+  const [kit, setKit] = useState<PitchOutreachKit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* Deep links: ?bio= from the press kit; the rate card from the calculator
+     rides in localStorage; the vault fills creator identity. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const bio = q.get("bio");
+    if (bio) {
+      setNotableWins((w) => (w ? `${w}\n${bio}` : bio));
+      q.delete("bio");
+      const s = q.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
+    }
+    try {
+      const raw = localStorage.getItem("bdv_rate_card");
+      if (raw) {
+        const rc = JSON.parse(raw) as { rate?: string; at?: number };
+        if (rc.rate && (!rc.at || Date.now() - rc.at < 24 * 3600_000)) {
+          setNotableWins((w) => (w ? w : `Rate card: ${rc.rate}`));
+        }
+      }
+    } catch { /* ignore */ }
+    /* The vault knows the creator — prefill identity once. */
+    if (activeArtist) {
+      if (activeArtist.artist_name) { setCreatorName((c) => c || activeArtist.artist_name); }
+      if (activeArtist.genre) { setNiche((n) => n || (activeArtist.genre as string)); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function togglePlatform(p: string) {
+    setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  }
+
+  async function generateKit() {
+    if (loading || !user) return;
+    if (!creatorName.trim() || !niche.trim() || !audienceSize.trim() || !brandName.trim() || platforms.length === 0) {
+      setError(t("outreach.fillRequired"));
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const token = await getAccessToken();
+      const res = await confirmedFetch("/api/outreach", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        overrideCost: PITCH_KIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideFeature: "Outreach",
+        body: JSON.stringify({
+          creatorName: creatorName.trim(),
+          niche: niche.trim(),
+          audienceSize: audienceSize.trim(),
+          platforms,
+          engagement: engagement.trim(),
+          notableWins: notableWins.trim(),
+          brandName: brandName.trim(),
+          product: product.trim(),
+          campaignGoal: campaignGoal.trim(),
+          contactName: contactName.trim(),
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as PitchOutreachResponse;
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !data.kit) {
+        throw new Error(data.message || data.error || t("outreach.kitFailed"));
+      }
+      setKit(data.kit);
+      refreshProfile();
+      /* auto-add to the free tracker as sent (shared with the Deal Pipeline tab) */
+      const entry: TrackedOutreach = {
+        id: `${Date.now()}`,
+        brandName: brandName.trim(),
+        creatorName: creatorName.trim(),
+        createdAt: new Date().toISOString(),
+        status: "sent",
+      };
+      try {
+        localStorage.setItem(TRACK_KEY, JSON.stringify([entry, ...loadOutreachTracker()]));
+      } catch { /* storage full or unavailable — tracker just won't persist */ }
+      setTimeout(() => {
+        document.getElementById("outreach-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("outreach.kitFailed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      {/* compact section heading */}
+      <div className="text-center">
+        <h2 className="font-display text-2xl font-black tracking-tight md:text-3xl">
+          {t("outreach.heroTitle")} <span className="text-primary">{t("outreach.heroTitleAccent")}</span>
+        </h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+          {t("outreach.heroDescription")}
+        </p>
+        <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
+          {t("outreach.pitchExplainer", { defaultValue: "Your pitch kit — emails and DMs that land sponsors. Found a brand in the finder? Draft your pitch right here." })}{" "}
+          <button onClick={onFindDeals} className="font-semibold text-primary hover:underline">
+            {t("outreach.brandDealsLink", { defaultValue: "← Back to the deal finder" })}
+          </button>
+        </p>
+      </div>
+
+      {/* form */}
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        {/* creator card */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+            <Sparkles className="h-4 w-4" /> {t("outreach.creatorProfile")}
+          </h3>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-creator">{t("outreach.creatorNameLabel")}</label>
+              <input id="pitch-creator" className={inputClass} value={creatorName} onChange={(e) => setCreatorName(e.target.value)} placeholder={t("outreach.creatorNamePlaceholder")} maxLength={100} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={outreachLabelClass} htmlFor="pitch-niche">{t("outreach.nicheLabel")}</label>
+                <input id="pitch-niche" className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("outreach.nichePlaceholder")} maxLength={100} />
+              </div>
+              <div>
+                <label className={outreachLabelClass} htmlFor="pitch-audience">{t("outreach.audienceLabel")}</label>
+                <input id="pitch-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder={t("outreach.audiencePlaceholder")} maxLength={50} />
+              </div>
+            </div>
+            <div>
+              <span className={outreachLabelClass}>{t("outreach.platformsLabel")}</span>
+              <div className="flex flex-wrap gap-2">
+                {OUTREACH_PLATFORMS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => togglePlatform(p)}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+                      platforms.includes(p)
+                        ? "bg-primary text-black"
+                        : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-engagement">{t("outreach.engagementLabel")}</label>
+              <input id="pitch-engagement" className={inputClass} value={engagement} onChange={(e) => setEngagement(e.target.value)} placeholder={t("outreach.engagementPlaceholder")} maxLength={200} />
+            </div>
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-wins">{t("outreach.winsLabel")}</label>
+              <textarea id="pitch-wins" className={inputClass} rows={2} value={notableWins} onChange={(e) => setNotableWins(e.target.value)} placeholder={t("outreach.winsPlaceholder")} maxLength={500} />
+            </div>
+          </div>
+        </div>
+
+        {/* brand card */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+            <Handshake className="h-4 w-4" /> {t("outreach.brandTitle")}
+          </h3>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-brand">{t("outreach.brandNameLabel")}</label>
+              <input id="pitch-brand" className={inputClass} value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder={t("outreach.brandNamePlaceholder")} maxLength={100} />
+            </div>
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-product">{t("outreach.productLabel")}</label>
+              <input id="pitch-product" className={inputClass} value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("outreach.productPlaceholder")} maxLength={200} />
+            </div>
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-goal">{t("outreach.goalLabel")}</label>
+              <input id="pitch-goal" className={inputClass} value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} placeholder={t("outreach.goalPlaceholder")} maxLength={300} />
+            </div>
+            <div>
+              <label className={outreachLabelClass} htmlFor="pitch-contact">{t("outreach.contactLabel")}</label>
+              <input id="pitch-contact" className={inputClass} value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={t("outreach.contactPlaceholder")} maxLength={100} />
+            </div>
+            <p className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs leading-relaxed text-white/45">
+              {t("outreach.tipPrefix")} <span className="text-primary">{t("outreach.tipMarketplace")}</span> {t("outreach.tipSuffix")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="mt-8 text-center">
+        <button
+          onClick={generateKit}
+          disabled={loading || !user}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {loading ? t("outreach.writingKit") : t("outreach.generateKit", { cost: PITCH_KIT_COST })}
+        </button>
+        {!user && <p className="mt-3 text-xs text-white/40">{t("outreach.signInPrompt")}</p>}
+        {error && <p className="mx-auto mt-4 max-w-md text-sm text-red-400">{error}</p>}
+        {outOfCredits && (
+          <div className="mx-auto mt-4 max-w-md">
+            <OutOfCredits />
+          </div>
+        )}
+      </div>
+
+      {/* results */}
+      {kit && (
+        <div id="outreach-results" className="mt-12 space-y-6">
+          {/* pitch email */}
+          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+                <Mail className="h-4 w-4" /> {t("outreach.pitchEmail")}
+              </h3>
+              <KitCopyButton text={`${t("outreach.subjectPrefix")}${kit.pitchEmail.subject}\n\n${kit.pitchEmail.body}`} />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-white">{t("outreach.subjectPrefix")}{kit.pitchEmail.subject}</p>
+            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/70">{kit.pitchEmail.body}</p>
+          </section>
+
+          {/* DM version */}
+          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+                <MessageCircle className="h-4 w-4" /> {t("outreach.dmVersion")}
+              </h3>
+              <KitCopyButton text={kit.dmVersion} />
+            </div>
+            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-white/70">{kit.dmVersion}</p>
+          </section>
+
+          {/* media kit summary */}
+          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+                <FileText className="h-4 w-4" /> {t("outreach.mediaKitSummary")}
+              </h3>
+              <KitCopyButton text={kit.mediaKitSummary} />
+            </div>
+            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-white/70">{kit.mediaKitSummary}</p>
+          </section>
+
+          {/* follow-ups */}
+          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+              <CalendarClock className="h-4 w-4" /> {t("outreach.followUpSequence")}
+            </h3>
+            <div className="mt-4 space-y-4">
+              {kit.followUps.map((f, i) => (
+                <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wider text-white/50">
+                      {t("outreach.followUpDay", { day: f.day })} · {f.subject}
+                    </p>
+                    <KitCopyButton text={`${t("outreach.subjectPrefix")}${f.subject}\n\n${f.body}`} />
+                  </div>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/70">{f.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-xs leading-relaxed text-amber-200/80">
+            {kit.disclaimer}
+          </p>
+        </div>
+      )}
+
+      {/* sponsor read generator — deal landed? write the actual spoken read */}
+      <div className="mt-4">
+        <SponsorReadPanel />
+      </div>
+
+      {/* invoice generator — deal landed? bill the brand. Prefilled from the
+          pitch form above (brand) and the creator profile / active artist. */}
+      <div>
+        <InvoiceGeneratorPanel
+          prefillBrand={brandName}
+          prefillCreator={creatorName || activeArtist?.artist_name || ""}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Deal Pipeline tab ────────────────────────────────────────────────────
+   Wave 8's SponsorPipeline kanban (Pitched → Negotiating → Closed → Paid
+   with AI follow-up drafts) plus the free client-side outreach tracker,
+   ported from /sponsorship-outreach. */
+
+function PipelineTab() {
+  const { t } = useTranslation();
+
+  const [tracked, setTracked] = useState<TrackedOutreach[]>([]);
+  useEffect(() => {
+    setTracked(loadOutreachTracker());
+  }, []);
+
+  function saveTracker(next: TrackedOutreach[]) {
+    setTracked(next);
+    try {
+      localStorage.setItem(TRACK_KEY, JSON.stringify(next));
+    } catch {
+      /* storage full or unavailable — tracker just won't persist */
+    }
+  }
+
+  function setStatus(id: string, status: TrackStatus) {
+    saveTracker(tracked.map((item) => (item.id === id ? { ...item, status } : item)));
+  }
+
+  function removeTracked(id: string) {
+    saveTracker(tracked.filter((item) => item.id !== id));
+  }
+
+  return (
+    <div>
+      <div className="text-center">
+        <h2 className="font-display text-2xl font-black tracking-tight md:text-3xl">
+          {t("outreach.pipelineTitle", { defaultValue: "Sponsor Deal Pipeline" })}
+        </h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+          {t("outreach.pipelineSubtitle", { defaultValue: "Every deal from first pitch to paid — drag them through, let the AI draft your follow-ups, and log the win when it lands." })}
+        </p>
+      </div>
+
+      {/* Wave 8 kanban: Pitched → Negotiating → Closed → Paid, AI follow-up drafts */}
+      <div className="mt-8">
+        <SponsorPipeline />
+      </div>
+
+      {/* free tracker — fed automatically by pitch kits generated above */}
+      <div className="mt-12">
+        <h3 className="text-center text-sm font-bold uppercase tracking-widest text-white/60">
+          {t("outreach.trackerTitle")} <span className="text-primary">{t("outreach.trackerFree")}</span>
+        </h3>
+        {tracked.length === 0 ? (
+          <p className="mt-4 text-center text-sm text-white/40">
+            {t("outreach.trackerEmpty")}
+          </p>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {tracked.map((item) => {
+              const meta = STATUS_META[item.status];
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-white">{item.brandName}</p>
+                    <p className="text-xs text-white/40">
+                      {item.creatorName} · {new Date(item.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${meta.color}`}>
+                    <Icon className="h-3.5 w-3.5" /> {t(meta.labelKey)}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Object.keys(STATUS_META) as TrackStatus[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStatus(item.id, s)}
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                          item.status === s
+                            ? "bg-primary text-black"
+                            : "border border-white/10 text-white/50 hover:border-primary/40 hover:text-white"
+                        }`}
+                      >
+                        {t(STATUS_META[s].labelKey)}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => removeTracked(item.id)}
+                      className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white/40 transition hover:text-red-400"
+                    >
+                      {t("outreach.remove")}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
