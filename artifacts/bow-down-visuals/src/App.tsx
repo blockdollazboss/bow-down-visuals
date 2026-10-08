@@ -497,7 +497,7 @@ function AppShell() {
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
-          <Route path="/content-calendar"><Redirect to="/scheduler?tab=plan" /></Route>
+          <Route path="/content-calendar"><Redirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><ShowFinder /></Route>
           <Route path="/brand-deals"><BrandDealFinder /></Route>
