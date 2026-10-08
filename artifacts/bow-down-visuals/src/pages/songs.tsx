@@ -7,6 +7,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { CoverSongModal, type CoverSource } from "@/components/song/CoverSongModal";
 import { CoverComparePlayer } from "@/components/song/CoverComparePlayer";
+import { RemixChain } from "@/components/songs/RemixChain";
 import AlbumsSection from "./songs/albums-section";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 
@@ -550,6 +551,9 @@ export default function SongsPage() {
                   </div>
                 )}
               </div>
+              {/* Wave 9A — Remix Chain: version bookkeeping + A/B compare + promote to master.
+                  Free organizational layer on top of remix/rework/covers (docked per song card). */}
+              <RemixChain songId={s.id} songTitle={s.title} songAudioUrl={s.audio_url} />
               {/* Mashups using this song — reverse lookup via mashup_sources. */}
               <div className="mt-2">
                 <button

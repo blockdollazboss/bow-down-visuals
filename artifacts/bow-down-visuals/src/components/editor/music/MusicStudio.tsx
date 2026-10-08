@@ -8,6 +8,8 @@ import { SongWorkflow } from "@/components/editor/music/SongWorkflow";
 import { LipSyncStudio } from "@/components/editor/music/LipSyncStudio";
 import { GenerateAudio } from "@/components/editor/music/GenerateAudio";
 import { AdLibGenerator } from "@/components/wave8/AdLibGenerator";
+import { SongStructureBuilder } from "@/components/editor/music/SongStructureBuilder";
+import { LyricsToTimeline } from "@/components/editor/music/LyricsToTimeline";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
 import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
@@ -375,6 +377,19 @@ export function MusicStudio({
         songTitle={songTitle ?? null}
         artistName={artistName ?? null}
         vaultVoice={vaultVoiceDesc}
+      />
+
+      {/* ── Wave 9A — Song Structure Builder (arrangement planning, docked next to lyrics tools) ── */}
+      <SongStructureBuilder
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+      />
+
+      {/* ── Wave 9A — Lyrics-to-Timeline (AI lyric timing estimate, hands off to video editor) ── */}
+      <LyricsToTimeline
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+        durationSec={durationSec}
       />
 
       {/* ── Mode content — organized sections ── */}
