@@ -79,7 +79,8 @@
     "welcome": "Welcome",
     "welcomeBack": "Welcome back",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "retry": "Retry"
   },
   "home": {
     "ctaPrimary": "Start Creating Free",
@@ -1737,6 +1738,37 @@
     "perkSupportBody": "Beta members get priority responses and direct access to the team.",
     "perkVotingTitle": "Feature Voting",
     "perkVotingBody": "Your feedback shapes what we build. Beta members vote on upcoming tools."
+  },
+  "invite": {
+    "alreadyJoined": "Already on the waitlist?",
+    "checkPosition": "Check your position",
+    "claimSpot": "Claim my spot",
+    "copied": "Copied!",
+    "copyLink": "Copy link",
+    "email": "Email",
+    "howItWorks": "How the queue jump works",
+    "invalidCode": "This invite link isn't valid. The waitlist is still open — join below.",
+    "invitePitch": "Every friend who joins through your link moves you up 100 spots. Invite 3, skip the line.",
+    "invitedBanner": "You were invited — join and your inviter jumps 100 spots in the queue.",
+    "invites": "invites",
+    "invitesAway": "{{count}} invites away",
+    "invitesLabel": "Friends joined",
+    "loading": "Loading position…",
+    "milestonesTitle": "Queue-jump milestones",
+    "moreOptions": "More ways to share",
+    "nextMilestone": "{{count}} more invites to unlock {{title}}",
+    "pageKicker": "Waitlist position",
+    "pageSubtitle": "A creator invited you to Bow Down Visuals. Join the waitlist through their link and you both move up — they jump 100 spots, you lock your place in line.",
+    "pageTitle": "Skip the line",
+    "positionLabel": "Queue position",
+    "positionOf": "You're #{{position}} of {{total}} — ahead of {{pct}}% of the line.",
+    "shareText": "I'm #{{position}} on the Bow Down Visuals waitlist — invite 3 friends to skip the line with me:",
+    "shareTitle": "Skip the Bow Down Visuals waitlist with me",
+    "shared": "Shared!",
+    "sms": "Text",
+    "unlocked": "Unlocked",
+    "yourInviteLink": "Your personal invite link",
+    "youreIn": "You're in the line."
   },
   "brandCalculator": {
     "avgViewsLabel": "Avg views per post",
@@ -7542,7 +7574,8 @@
       "statusExpected": "Expected",
       "statusReceived": "Received",
       "statusPartial": "Partial",
-      "statusOverdue": "Overdue"
+      "statusOverdue": "Overdue",
+      "statusLabel": "Status"
     },
     "disclaimer": "Royalty figures come from your own imports — always reconcile against your distributor's official statements before making financial decisions. AI insights are analytical guidance, not financial advice.",
     "error": {
@@ -8384,7 +8417,9 @@
     "loading": "Loading release…",
     "platformsTitle": "Available everywhere on release day",
     "postToX": "Post to X",
-    "shareRelease": "Share this release"
+    "shareRelease": "Share this release",
+    "artistCta": "Are you the artist?",
+    "promoteRelease": "Promote this release →"
   },
   "press-kit": {
     "backToDashboard": "Back to dashboard",

@@ -444,7 +444,7 @@ export default function RoyaltyTracker() {
               {showPayoutForm && (
                 <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:grid-cols-2">
                   <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.status")}</label>
+                  <div><label className={labelClass}>{t("royalties.payouts.statusLabel")}</label>
                     <select value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
                       <option value="expected">{t("royalties.payouts.statusExpected")}</option>
                       <option value="received">{t("royalties.payouts.statusReceived")}</option>
