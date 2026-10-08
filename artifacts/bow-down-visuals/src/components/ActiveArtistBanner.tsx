@@ -63,8 +63,26 @@ export function ActiveArtistBanner({ artist, onContinue }: Props) {
             pointerEvents: "none",
           }} />
 
-          {/* Initials avatar (no image) */}
-          {!hasImage && (
+          {/* Living portrait video — when there's no still photo but a video exists */}
+          {!hasImage && artist.reference_video_url && (
+            <video
+              src={artist.reference_video_url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              ref={(v) => { if (v) v.muted = true; }}
+              onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
+              style={{
+                position: "absolute", inset: 0,
+                width: "100%", height: "100%", objectFit: "cover",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          {/* Initials avatar (no image or video) */}
+          {!hasImage && !artist.reference_video_url && (
             <div style={{
               position: "relative",
               width: 88, height: 88, borderRadius: "50%",

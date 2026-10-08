@@ -264,9 +264,28 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
 
       {loaded ? (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-primary/30 shrink-0">
-            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-          </div>
+          {/* Subject photo — image, then video, then checkmark */}
+          {loaded.reference_image_url ? (
+            <img
+              src={loaded.reference_image_url}
+              alt=""
+              className="h-10 w-10 rounded-full object-cover shrink-0 border border-primary/30"
+            />
+          ) : loaded.reference_video_url ? (
+            <video
+              src={loaded.reference_video_url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              ref={(v) => { if (v) v.muted = true; }}
+              className="h-10 w-10 rounded-full object-cover shrink-0 border border-primary/30 pointer-events-none"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-primary/30 shrink-0">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+            </div>
+          )}
           <div className="min-w-0 flex items-center gap-2.5">
             <p className="text-sm font-bold text-white truncate tracking-wide">{loaded.artist_name}</p>
             <SubjectBadge type={normalizeSubjectType(loaded.artist_type)} />
