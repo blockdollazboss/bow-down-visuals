@@ -3,6 +3,7 @@ import { Link, useSearch } from "wouter";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
+import { TeamSeats } from "@/components/TeamSeats";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -97,6 +98,8 @@ export default function Settings() {
         <ConnectedAccounts />
 
         <DiscordWebhookSettings />
+
+        <TeamSeats />
       </div>
     </div>
   );
