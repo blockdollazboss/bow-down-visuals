@@ -150,6 +150,227 @@ function ChecklistCard({ data }: { data: MoneyChecklist }) {
   );
 }
 
+/* ── Stripe Connect payouts: "Connect your bank / Get paid" ───────────────
+ * The Get Paid finale for the seller dashboard. States:
+ *  - not connected → gold "Connect your bank" CTA (Stripe-hosted onboarding)
+ *  - connected but unfinished → "Finish setup"
+ *  - onboarded → pending total + Cash out button + Manage-in-Stripe link.
+ * TEST MODE: transfers exercise Stripe's test API — no real money moves. */
+interface ConnectStatus {
+  connected: boolean;
+  accountId: string | null;
+  onboarded: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  pendingCents: number;
+  minPayoutCents: number;
+  testMode: boolean;
+}
+
+function ConnectPayoutCard() {
+  const getToken = useToken();
+  const search = useSearch();
+  const [status, setStatus] = useState<ConnectStatus | null>(null);
+  const [noProfile, setNoProfile] = useState(false);
+  const [busy, setBusy] = useState<"connect" | "payout" | "manage" | null>(null);
+  const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
+  const [justReturned, setJustReturned] = useState(false);
+
+  const load = useCallback(async () => {
+    const token = await getToken();
+    const res = await fetch("/api/connect/status", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 404) { setNoProfile(true); return; }
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) throw new Error((data.error as string) || "Couldn't load payout status.");
+    setStatus(data as unknown as ConnectStatus);
+  }, [getToken]);
+
+  useEffect(() => { load().catch((e: Error) => setErr(e.message)); }, [load]);
+
+  /* Returning from Stripe's hosted onboarding (?connect=done): re-check status
+     after a beat so the account.updated webhook has time to land. */
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("connect") === "done") {
+      setJustReturned(true);
+      window.history.replaceState(null, "", "/store/dashboard");
+      const t = setTimeout(() => load().catch(() => {}), 3000);
+      return () => clearTimeout(t);
+    }
+    if (params.get("connect") === "refresh") {
+      window.history.replaceState(null, "", "/store/dashboard");
+    }
+  }, [search, load]);
+
+  const goOnboard = async (path: "/api/connect/onboard" | "/api/connect/refresh") => {
+    setErr(""); setNote(""); setBusy("connect");
+    try {
+      const token = await getToken();
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't start bank setup.");
+      window.location.href = data.url;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't start bank setup.");
+      setBusy(null);
+    }
+  };
+
+  const doPayout = async () => {
+    setErr(""); setNote(""); setBusy("payout");
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/connect/payout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        payout?: { amountCents: number }; error?: string; message?: string; note?: string;
+      };
+      if (!res.ok) throw new Error(data.message || data.error || "Payout failed.");
+      setNote(
+        `Cash out sent: $${((data.payout?.amountCents ?? 0) / 100).toFixed(2)}${data.note ? ` — ${data.note}` : ""}`,
+      );
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Payout failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openManage = async () => {
+    setErr(""); setBusy("manage");
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/connect/login-link", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't open Stripe.");
+      window.open(data.url, "_blank", "noopener");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't open Stripe.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (noProfile) return null;
+  if (!status && !err) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-white/40">
+        <Loader2 className="h-4 w-4 animate-spin" /> <span className="text-xs">Loading payout setup…</span>
+      </div>
+    );
+  }
+
+  const dollars = (c: number) => `$${(c / 100).toFixed(2)}`;
+  const canCashOut = !!status?.payoutsEnabled && (status?.pendingCents ?? 0) >= (status?.minPayoutCents ?? 100);
+
+  return (
+    <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/[0.14] to-transparent p-5 shadow-[0_0_36px_rgba(218,165,32,0.14)]">
+      <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-primary">
+        <Wallet className="h-4 w-4" /> Get paid
+        {status?.testMode && (
+          <span className="rounded-full border border-white/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/50">
+            Test mode
+          </span>
+        )}
+      </p>
+
+      {justReturned && (
+        <p className="mt-2 flex items-center gap-2 text-xs font-bold text-green-300">
+          <CheckCircle2 className="h-4 w-4" /> Welcome back — checking your Stripe setup…
+        </p>
+      )}
+
+      {!status?.connected && (
+        <>
+          <h3 className="mt-2 text-xl font-black text-white">Connect your bank. Get your money.</h3>
+          <p className="mt-1 text-sm leading-relaxed text-white/60">
+            Your sales pile up as a pending balance. Connect a bank through Stripe (2 minutes, secure, Stripe-hosted)
+            and cash out whenever you want. This is the guide to the money — all the way to your account.
+          </p>
+          <button
+            onClick={() => goOnboard("/api/connect/onboard")}
+            disabled={busy === "connect"}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
+          >
+            {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CircleDollarSign className="h-4 w-4" />}
+            Connect your bank →
+          </button>
+        </>
+      )}
+
+      {status?.connected && !status.payoutsEnabled && (
+        <>
+          <h3 className="mt-2 text-xl font-black text-white">Almost there — finish your Stripe setup.</h3>
+          <p className="mt-1 text-sm leading-relaxed text-white/60">
+            Your bank connection started but isn't verified yet. Finish Stripe's quick verification to unlock payouts.
+          </p>
+          <button
+            onClick={() => goOnboard("/api/connect/refresh")}
+            disabled={busy === "connect"}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
+          >
+            {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Finish setup →
+          </button>
+        </>
+      )}
+
+      {status?.connected && status.payoutsEnabled && (
+        <>
+          <h3 className="mt-2 text-xl font-black text-white">
+            Ready to cash out <span className="text-primary">{dollars(status.pendingCents)}</span>
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-white/60">
+            <CheckCircle2 className="mr-1 inline h-4 w-4 text-green-400" />
+            Bank connected and verified. Minimum cash-out is {dollars(status.minPayoutCents)}.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={doPayout}
+              disabled={!canCashOut || busy === "payout"}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-40"
+            >
+              {busy === "payout" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Cash out {dollars(status.pendingCents)}
+            </button>
+            <button
+              onClick={openManage}
+              disabled={busy === "manage"}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white/55 hover:text-white"
+            >
+              {busy === "manage" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+              Manage in Stripe
+            </button>
+          </div>
+        </>
+      )}
+
+      {err && (
+        <p className="mt-3 flex items-start gap-2 text-xs font-bold text-red-300">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {err}
+        </p>
+      )}
+      {note && (
+        <p className="mt-3 flex items-start gap-2 text-xs font-bold text-green-300">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ── Products tab ────────────────────────────────────────────────────── */
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
   const getToken = useToken();
@@ -745,6 +966,8 @@ export default function StoreDashboard() {
       ) : (
         <>
           <EarningsHero data={checklist} />
+
+          <div className="mt-5"><ConnectPayoutCard /></div>
 
           <div className="mb-6 mt-6 flex gap-2 overflow-x-auto border-b border-white/10 pb-px">
             {tabs.map((t) => (
