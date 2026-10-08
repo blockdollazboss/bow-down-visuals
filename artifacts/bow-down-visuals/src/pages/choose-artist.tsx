@@ -343,7 +343,7 @@ export default function ChooseArtist() {
 
                   {/* Bottom name strip — only covers bottom 20% */}
                   <div style={{
-                    position: "absolute", left: 0, right: 0, bottom: 0,
+                    position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2,
                     background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.82) 100%)",
                     padding: "32px 14px 12px",
                   }}>
@@ -470,7 +470,11 @@ export default function ChooseArtist() {
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />
-            {t("chooseArtist.startCreating")}
+            {selectedId
+              ? t("chooseArtist.startCreatingWith", {
+                  name: vaults.find((v) => v.id === selectedId)?.artist_name ?? "",
+                })
+              : t("chooseArtist.startCreating")}
             <ArrowRight className="h-5 w-5 ml-auto" />
           </Button>
 
