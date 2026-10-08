@@ -11,7 +11,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits"
 
      POST /wave9b/beats/detect      150 VB — offline beat/onset detection
      POST /wave9b/templates/apply   100 VB — deterministic edit-recipe op lists
-     POST /wave9b/bg/replace        200 VB — AI background replace (NOT AVAILABLE)
+     (POST /wave9b/bg/replace removed 2026-10-08 — now 100% on-device, free)
 
    Credit discipline (standing): capability check BEFORE charging → charge
    BEFORE the model/heavy call → refund on ANY failure. Never charge without
@@ -56,7 +56,6 @@ const router = Router();
 
 const BEATS_CREDITS = 150;
 const TEMPLATES_CREDITS = 100;
-const BGREPLACE_CREDITS = 200;
 
 /* ─── Shared helpers ───────────────────────────────────────────────────── */
 
@@ -499,78 +498,10 @@ router.post("/wave9b/templates/apply", publicApiLimiter, requireAuth, async (req
   }
 });
 
-/* ─── POST /wave9b/bg/replace — 200 VB — NOT AVAILABLE ───────────────────
-   Honest stub: AI background replacement needs a subject-segmentation
-   provider (rembg/u2net self-hosted model, or a segmentation API such as
-   Runway's). NONE is wired in this codebase. This route therefore:
-
-     • checks capability FIRST and returns 503
-     • NEVER charges (chargeCredits is never reached)
-     • NEVER fakes a result
-
-   Reserved job-record shape (for when a provider is wired):
-     { jobId, status: "queued"|"processing"|"done"|"failed", outputUrl, maskPreviewUrl }
-
-   Frontend should only offer this for clips WITHOUT a green screen;
-   green-screen clips already have the working Chroma Key path in Pro Tools. */
-
-const bgReplaceRequestSchema = z.object({
-  /** Clip URL to replace the background of (talking-head clip). */
-  mediaUrl: urlSchema,
-  /** AI background preset id from the client gallery. */
-  preset: z.enum(["studio", "stage", "city-night", "abstract-gold", "custom"]),
-  /** Optional prompt for the "custom" preset. */
-  customPrompt: z.string().trim().max(300).optional().default(""),
-});
-
-/** Segmentation providers wired in this deployment. Today: none.
- *  When one is connected, return its identifier here and implement the
- *  submit/poll path below the 503 branch. */
-function segmentationProvider(): string | null {
-  const provider = process.env.VIDEO_SEGMENTATION_PROVIDER?.trim();
-  return provider ? provider : null;
-}
-
-router.post("/wave9b/bg/replace", publicApiLimiter, requireAuth, async (req, res) => {
-  const parsed = bgReplaceRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid background-replace request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  /* Capability check FIRST — fail cleanly, charge nothing, fake nothing. */
-  const provider = segmentationProvider();
-  if (!provider) {
-    res.status(503).json({
-      error: "bg_replace_unavailable",
-      message:
-        "AI background replacement isn't available yet — it needs a subject-segmentation " +
-        "provider, and none is connected on this deployment. Your Visual Bucs were not charged. " +
-        "If your clip was shot on a green screen, use Chroma Key in Pro Tools instead.",
-      charged: false,
-    });
-    return;
-  }
-
-  /* ── Provider-wired path (currently unreachable — kept for the future) ──
-     1) charge BGREPLACE_CREDITS via chargeCredits(req.userId!, ...)
-     2) create a job record { jobId, status: "queued" } (in-memory or table)
-     3) submit: upload mediaUrl → provider segment → composite over AI
-        background → persist outputUrl, return { jobId, status: "queued" }
-     4) GET /wave9b/bg/replace/:jobId polls the job
-     5) refundCredits on ANY failure                               */
-  logger.warn(
-    { userId: req.userId, provider },
-    "[wave9b] bg/replace reached with a provider set but no implementation"
-  );
-  res.status(503).json({
-    error: "bg_replace_unavailable",
-    message: "Background replacement is configured but not implemented for this provider yet. Your Visual Bucs were not charged.",
-    charged: false,
-  });
-});
+/* ─── POST /wave9b/bg/replace — REMOVED ───────────────────────────────────
+   Background replacement moved 100% on-device (MediaPipe SelfieSegmentation
+   in BackgroundReplaceSection.tsx): no provider, no per-clip cost, nothing
+   uploaded. This server stub was deleted 2026-10-08 — do not re-add a
+   charge here without also restoring a server-side implementation. */
 
 export default router;

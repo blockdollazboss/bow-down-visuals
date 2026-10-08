@@ -206,7 +206,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/wave9a/lyrics/timing": { cost: 50, feature: "Lyrics-to-Timeline" },
   "/api/wave9b/beats/detect": { cost: 150, feature: "Beat-Sync Cuts" },
   "/api/wave9b/templates/apply": { cost: 100, feature: "Timeline Edit Recipes" },
-  "/api/wave9b/bg/replace": { cost: 200, feature: "Background Replace" },
+  // "/api/wave9b/bg/replace" removed 2026-10-08 — Background Replace is now 100% on-device and free.
   "/api/wave9c/direct/edit": { cost: 150, feature: "Voice-Directed Edits" },
   "/api/wave9d/director/plan": { cost: 150, feature: "Character Director" },
   "/api/wave9d/camera/prompt": { cost: 100, feature: "Camera Move Planner" },
