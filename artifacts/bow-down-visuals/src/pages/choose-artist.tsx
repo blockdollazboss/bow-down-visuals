@@ -328,19 +328,7 @@ export default function ChooseArtist() {
                     <div key={ci} style={{ position: "absolute", width: 22, height: 22, zIndex: 2, pointerEvents: "none", ...corner }} />
                   ))}
 
-                  {/* SELECTED badge */}
-                  {isSelected && (
-                    <div style={{
-                      position: "absolute", top: 10, right: 10, zIndex: 3,
-                      display: "flex", alignItems: "center", gap: 4,
-                      background: "rgba(0,0,0,0.55)", border: `1px solid ${T(0.5)}`,
-                      borderRadius: 7, padding: "3px 8px",
-                      backdropFilter: "blur(8px)",
-                    }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: THEME, boxShadow: `0 0 5px ${THEME}` }} />
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>{t("chooseArtist.selected")}</span>
-                    </div>
-                  )}
+                  {/* No SELECTED text badge — the theme-colored border identifies the selection. */}
 
                   {/* Bottom name strip — only covers bottom 20% */}
                   <div style={{
