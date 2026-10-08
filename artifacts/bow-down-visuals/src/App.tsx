@@ -99,6 +99,10 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
+const ShortsFeed      = lazyWithRetry(() => import("@/pages/shorts"));
+const SoundDetailPage = lazyWithRetry(() => import("@/pages/sound"));
+const ChallengePage   = lazyWithRetry(() => import("@/pages/challenge"));
+const HashtagPage     = lazyWithRetry(() => import("@/pages/hashtag"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const FogLab        = lazyWithRetry(() => import("@/pages/fog-lab"));
 const CursorLab     = lazyWithRetry(() => import("@/pages/cursor-lab"));
@@ -161,6 +165,13 @@ const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
 const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
+/* ── Worker 9: community — groups / events / DMs / explore ── */
+const Groups = lazyWithRetry(() => import("@/pages/groups"));
+const GroupDetail = lazyWithRetry(() => import("@/pages/group-detail"));
+const Events = lazyWithRetry(() => import("@/pages/events"));
+const EventDetailPage = lazyWithRetry(() => import("@/pages/event-detail"));
+const Messages = lazyWithRetry(() => import("@/pages/messages"));
+const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
 const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
@@ -439,6 +450,11 @@ function AppShell() {
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/sounds"><SoundFinder /></Route>
+          {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
+          <Route path="/shorts"><ShortsFeed /></Route>
+          <Route path="/sound/:id"><SoundDetailPage /></Route>
+          <Route path="/challenge/:slug"><ChallengePage /></Route>
+          <Route path="/hashtag/:tag"><HashtagPage /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
           <Route path="/fog-lab"><FogLab /></Route>
@@ -493,6 +509,12 @@ function AppShell() {
           <Route path="/review/:token"><ReviewPage /></Route>
           {/* Public sync one-sheet (tokenized, no login) — shareable supervisor link with ?ref=CODE */}
           <Route path="/sync-one-sheet/:token"><SyncOneSheetPublic /></Route>
+          {/* Worker 9: community — groups / events / explore are public (viral surfaces); DMs need auth */}
+          <Route path="/groups"><Groups /></Route>
+          <Route path="/groups/:slug"><GroupDetail /></Route>
+          <Route path="/events"><Events /></Route>
+          <Route path="/events/:id"><EventDetailPage /></Route>
+          <Route path="/explore"><Explore /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -571,6 +593,7 @@ function AppShell() {
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
                 <Route path="/beat-maker"><ProtectedRoute><BeatMaker /></ProtectedRoute></Route>
                 <Route path="/hub"><ProtectedRoute><Hub /></ProtectedRoute></Route>
+                <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>
