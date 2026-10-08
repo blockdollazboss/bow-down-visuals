@@ -3,7 +3,20 @@
 -- flags, and an invite-attribution table. All DDL is idempotent; the API
 -- route also self-heals with CREATE TABLE / ADD COLUMN IF NOT EXISTS at boot.
 
--- New columns on the existing waitlist table (created in supabase/setup.sql)
+-- New columns on the existing waitlist table (created in supabase/setup.sql).
+-- On databases where setup.sql was never run (e.g. Render Postgres), the
+-- table may not exist yet — create it first so the ALTERs below don't fail.
+CREATE TABLE IF NOT EXISTS waitlist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  email text NOT NULL UNIQUE,
+  artist_type text,
+  want_to_create text,
+  social_handle text,
+  message text,
+  created_at timestamptz DEFAULT now()
+);
+
 ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS invite_code TEXT;
 ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS invited_by_email TEXT;
 ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS invites_count INTEGER NOT NULL DEFAULT 0;
