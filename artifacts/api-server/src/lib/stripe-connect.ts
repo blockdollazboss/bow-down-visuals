@@ -87,6 +87,12 @@ export async function createConnectAccount(profileId: string, email: string | nu
   const account = await stripe.v2.core.accounts.create({
     ...(email ? { contact_email: email } : {}),
     dashboard: "express",
+    /* Required by Stripe for recipient accounts with the stripe_transfers
+     * capability: the platform collects fees and covers losses (matches the
+     * platform-liability choice made during Connect onboarding). */
+    defaults: {
+      responsibilities: { fees_collector: "application", losses_collector: "application" },
+    },
     configuration: {
       recipient: {
         capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
