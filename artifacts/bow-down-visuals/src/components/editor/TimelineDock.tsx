@@ -36,6 +36,7 @@ import { computeSceneTimings, computeManualTimings } from "@/lib/scene-timing";
 import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode } from "@/lib/editor-settings";
 import { defaultClipEdit, TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT } from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
+import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
 
 /** Audio/video sync mode options — migrated from the removed VideoTimeline component. */
@@ -822,7 +823,7 @@ export function TimelineDock({
             style={{ flexGrow: 36, flexShrink: 1, flexBasis: 0, minHeight: 24 }}
             onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range">
             {audioUrl ? (
-              <TinyWaveform progress={totalDur > 0 ? currentTime / totalDur : 0} />
+              <RealWaveform audioUrl={audioUrl} progress={totalDur > 0 ? currentTime / totalDur : 0} />
             ) : (
               <div className="w-full h-full flex items-center justify-center gap-2">
                 <Music2 className="h-3 w-3 text-amber-400/40" />
@@ -1013,6 +1014,17 @@ export function TimelineDock({
                               onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
                               data-testid={`timeline-dock-clip-${i}`}
                             >
+                              {/* Actual video frame — first frame of the attached clip, dimmed behind the label */}
+                              {hasClip && (useLipSync ? ce?.lipSyncUrl : scene.demoClipUrl) && (
+                                <video
+                                  src={(useLipSync ? ce?.lipSyncUrl : scene.demoClipUrl) ?? undefined}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  disablePictureInPicture
+                                  className="absolute inset-0 h-full w-full object-cover opacity-40 pointer-events-none"
+                                />
+                              )}
                               {trimStart > 0 && clipDur > 0 && (
                                 <div className="absolute left-0 top-0 bottom-0 pointer-events-none"
                                   style={{ width: `${Math.min(48, (trimStart / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderRight: "1px dashed rgba(255,255,255,0.25)" }} />
@@ -1087,11 +1099,21 @@ function SortableClip({
   );
 }
 
-/* ── Tiny waveform (visual only) ── */
-function TinyWaveform({ progress = 0 }: { progress?: number }) {
-  const segments = 200;
-  const points = useMemo(() => Array.from({ length: segments }, (_, i) => {
-    const t = i / segments;
+/* ── Real waveform — decoded peak data from the actual song audio.
+ *    Falls back to a decorative shimmer only while decoding or if the
+ *    audio can't be fetched/decoded (CORS, bad file). ── */
+function RealWaveform({ audioUrl, progress = 0 }: { audioUrl: string; progress?: number }) {
+  const [peaks, setPeaks] = useState<AudioPeaks | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPeaks(null);
+    getAudioPeaks(audioUrl, 240).then((p) => { if (!cancelled) setPeaks(p); });
+    return () => { cancelled = true; };
+  }, [audioUrl]);
+
+  // Decorative fallback bars while the real peaks load (or if decode fails).
+  const fallback = useMemo(() => Array.from({ length: 240 }, (_, i) => {
+    const t = i / 240;
     const h =
       0.25 * Math.abs(Math.sin(t * 13.1 + 0.4)) +
       0.35 * Math.abs(Math.sin(t * 27.8 + 2.1)) +
@@ -1099,12 +1121,15 @@ function TinyWaveform({ progress = 0 }: { progress?: number }) {
       0.15 * Math.abs(Math.sin(t * 91.0 + 8.3));
     return Math.max(0.08, Math.min(1, h));
   }), []);
+
+  const bars = peaks ?? fallback;
+  const segments = bars.length;
   return (
     <div className="absolute inset-0 flex items-center gap-px px-0.5">
-      {points.map((h, i) => {
+      {bars.map((h, i) => {
         const played = i / segments < progress;
         return (
-          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.75)" : "rgba(255,255,255,0.20)" }} />
+          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.85)" : "rgba(255,255,255,0.28)" }} />
         );
       })}
     </div>
