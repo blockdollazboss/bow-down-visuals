@@ -124,11 +124,12 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
   async function handleGenerate() {
     setGenerating(true);
     try {
-      const token = await getAccessToken();
       const presetName = MIX_PRESETS.find((p) => p.id === opts.preset)?.name ?? opts.preset;
-      const res = await fetch("/api/mix-plan", {
+      /* Credit confirmation: /api/mix-plan costs 200 VB (registry). confirmedFetch
+         shows the standard spend popup and returns null if the user cancels. */
+      const res = await confirmedFetch("/api/mix-plan", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           preset: opts.preset,
           presetName,
@@ -145,6 +146,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           stems: ms.stems.map((s) => ({ name: s.name, type: s.type })),
         }),
       });
+      if (!res) return; /* user cancelled the credit confirmation */
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: "Mix plan failed" }))) as { error?: string };
         throw new Error(err.error ?? "Mix plan failed");

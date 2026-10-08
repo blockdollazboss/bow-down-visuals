@@ -15,12 +15,12 @@ import { z } from "zod";
    Those surfaces keep their own constants for now; new creator-platform
    sale types use this module, and the others can migrate to it.
 
-   ★ PROPOSALS PENDING USER APPROVAL (flagged, env-overridable):
+   ★ APPROVED BY USER 2026-10-07 (env-overridable):
      - Tier fee rates:  free 10% / pro 7% / elite 5%
      - Subscription prices: pro $12/mo, elite $29/mo
      - Star ceilings:  free 1–3★ / pro 4–5★ / elite 6★
      - AI boost quotas: free 3 / pro 25 / elite 100 per month
-   Nothing here bills a real card until the user signs off.               */
+   Stripe stays in TEST mode until launch — no real card is billed until the user flips it live.               */
 
 export const CREATOR_TIERS = ["free", "pro", "elite"] as const;
 export type CreatorTier = (typeof CREATOR_TIERS)[number];
@@ -40,11 +40,11 @@ function parseBps(raw: string | undefined, fallback: number): number {
  */
 export const PLATFORM_FEE_BPS: number = parseBps(process.env["PLATFORM_FEE_BPS"], 1000);
 
-/** Per-tier fee rates. ★ PROPOSED — pending user approval. */
+/** Per-tier fee rates. ★ APPROVED 2026-10-07. */
 export const TIER_FEE_BPS: Record<CreatorTier, number> = {
   free: parseBps(process.env["PLATFORM_FEE_BPS_FREE"], PLATFORM_FEE_BPS),
-  pro: parseBps(process.env["PLATFORM_FEE_BPS_PRO"], 700), // 7% — PROPOSED
-  elite: parseBps(process.env["PLATFORM_FEE_BPS_ELITE"], 500), // 5% — PROPOSED
+  pro: parseBps(process.env["PLATFORM_FEE_BPS_PRO"], 700), // 7% — approved 2026-10-07
+  elite: parseBps(process.env["PLATFORM_FEE_BPS_ELITE"], 500), // 5% — approved 2026-10-07
 };
 
 export interface FeeSplit {
@@ -99,7 +99,7 @@ export function tierFromLegacyPlan(plan: string | null | undefined): CreatorTier
   return "free";
 }
 
-/** Difficulty-ladder ceiling: highest creator-level star a tier may use. ★ PROPOSED */
+/** Difficulty-ladder ceiling: highest creator-level star a tier may use. ★ APPROVED 2026-10-07 */
 export const TIER_MAX_STARS: Record<CreatorTier, number> = {
   free: 3, // 1–3★ Street Punk → Gangster
   pro: 5, // 4–5★ Shot Caller → Crime Boss
@@ -110,7 +110,7 @@ export function maxStarsForTier(tier: CreatorTier): number {
   return TIER_MAX_STARS[tier];
 }
 
-/** AI promotion boosts included per month. ★ PROPOSED */
+/** AI promotion boosts included per month. ★ APPROVED 2026-10-07 */
 export const TIER_AI_BOOSTS: Record<CreatorTier, number> = {
   free: 3,
   pro: 25,
@@ -118,7 +118,7 @@ export const TIER_AI_BOOSTS: Record<CreatorTier, number> = {
 };
 
 /* ── Tier catalog — the money story ───────────────────────────────────────
-   Prices are PROPOSED (pending user approval), charged in real USD via
+   Prices APPROVED 2026-10-07, charged in real USD via
    Stripe subscriptions (TEST mode only until launch). */
 
 export interface TierFeature {
@@ -131,7 +131,7 @@ export interface TierPlanDef {
   tier: CreatorTier;
   name: string;
   tagline: string;
-  /** Monthly price in whole USD; null = free forever. ★ PROPOSED */
+  /** Monthly price in whole USD; null = free forever. ★ APPROVED 2026-10-07 */
   priceUsdPerMonth: number | null;
   /** Env var holding the Stripe TEST price id; null for free. */
   priceIdEnv: string | null;
@@ -166,7 +166,7 @@ export const TIER_PLANS: TierPlanDef[] = [
     tier: "pro",
     name: "Pro",
     tagline: "Go pro, keep more of your money. The fee drop pays for itself.",
-    priceUsdPerMonth: 12, // ★ PROPOSED — pending user approval
+    priceUsdPerMonth: 12, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_PRO",
     feeBps: TIER_FEE_BPS.pro,
     maxStars: TIER_MAX_STARS.pro,
@@ -186,7 +186,7 @@ export const TIER_PLANS: TierPlanDef[] = [
     tier: "elite",
     name: "Elite",
     tagline: "Front of the line. The lowest fee on the platform.",
-    priceUsdPerMonth: 29, // ★ PROPOSED — pending user approval
+    priceUsdPerMonth: 29, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_ELITE",
     feeBps: TIER_FEE_BPS.elite,
     maxStars: TIER_MAX_STARS.elite,

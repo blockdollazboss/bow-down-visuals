@@ -129,10 +129,22 @@ export function ThumbnailMakerModule() {
   ];
 
   /* Template deep-link: ?template=<slug> preloads prompt, style, ratio + text.
-     Used by the public template gallery (/templates/thumbnails). */
+     Used by the public template gallery (/templates/thumbnails).
+     Video deep-link: ?video=<url> attaches a video as thumbnail reference
+     (used by the caption suite's "Make a thumbnail" handoff) — seeds the
+     prompt and shows a reference badge. */
+  const [videoRef, setVideoRef] = useState<string | null>(null);
   useEffect(() => {
     try {
-      const slug = new URLSearchParams(window.location.search).get("template");
+      const params = new URLSearchParams(window.location.search);
+      const video = params.get("video");
+      if (video) {
+        setVideoRef(video);
+        if (!prompt.trim()) {
+          setPrompt("Eye-catching YouTube thumbnail inspired by the attached video — bold text, high contrast, gold luxury style");
+        }
+      }
+      const slug = params.get("template");
       if (!slug) return;
       const tpl = getThumbnailTemplate(slug);
       if (!tpl) return;
@@ -252,6 +264,23 @@ export function ThumbnailMakerModule() {
         onPick={handleProjectPick}
       />
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
+          {/* Video reference badge (?video= deep-link from caption suite) */}
+          {videoRef && (
+            <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+              <span aria-hidden>🎬</span>
+              <span className="flex-1 truncate">
+                {t("thumbnailMaker.videoReferenceAttached")} — {videoRef}
+              </span>
+              <button
+                type="button"
+                onClick={() => setVideoRef(null)}
+                className="shrink-0 rounded-lg px-2 py-1 text-amber-300/70 hover:text-amber-200 hover:bg-white/10"
+                aria-label={t("thumbnailMaker.removeVideoReference")}
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {/* Simple / Custom toggle */}
           <div className="flex gap-2">
             <button

@@ -5824,6 +5824,8 @@
     "costBadge": "200 Visual Bucs · 4 variations",
     "costNote": "200 Visual Bucs per batch of 4. Credits refunded automatically if generation fails.",
     "downloadButton": "Download",
+    "videoReferenceAttached": "Video attached as reference",
+    "removeVideoReference": "Remove video reference",
     "faceAlt": "Face reference",
     "faceHint": "Your real face is edited into every variation.",
     "faceLabel": "Your face",

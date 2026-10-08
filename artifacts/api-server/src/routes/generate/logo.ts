@@ -15,6 +15,10 @@ import {
 
 const router = Router();
 
+/* Attribution policy (confirmed intentional, 2026-10-07): logos are brand
+   assets — "Made with Bow Down Visuals" is deliberately NOT stamped on
+   generated logos. A creator's logo must be clean for their own branding. */
+
 const logoSchema = z.object({
   brandName: z.string().trim().min(1),
   style: z.enum(["luxury-gold", "gaming", "minimal", "mascot"]),
