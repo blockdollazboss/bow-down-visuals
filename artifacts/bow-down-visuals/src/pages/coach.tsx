@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useSearch } from "wouter";
 import {
  DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
+import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -118,7 +119,15 @@ export default function MonetizationCoach() {
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
- const [activeTab, setActiveTab] = useState<"plan" | "niche">("plan");
+ const [activeTab, setActiveTab] = useState<"plan" | "niche" | "money">("plan");
+ const search = useSearch();
+
+ /* Deep-link: /coach?tab=money (e.g. from a paid brand deal or invoice)
+    lands directly on the Money Tracker tab. */
+ useEffect(() => {
+ const tab = new URLSearchParams(search).get("tab");
+ if (tab === "money" || tab === "niche" || tab === "plan") setActiveTab(tab);
+ }, [search]);
 
  function togglePlatform(key: PlatformKey) {
  setPlatforms((prev) =>
@@ -164,6 +173,9 @@ export default function MonetizationCoach() {
  instagram: parseInt(followers.instagram || "0", 10) || 0,
  },
  cadence: cadenceNum,
+ /* Real tracked money (from the Money Tracker tab) — grounds the
+ plan in the creator's actual numbers instead of pure estimates. */
+ moneySnapshot: readMoneySnapshot(),
  }),
  });
  if (!res) return; // user cancelled the credit confirmation (finally resets state)
@@ -210,26 +222,32 @@ export default function MonetizationCoach() {
  </p>
  </div>
 
- {/* ── TABS: money plan vs niche analyzer ─────────────────────────── */}
+ {/* ── TABS: money plan vs niche analyzer vs money tracker ─────────── */}
  <div className="relative mt-8 flex justify-center">
- <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
- {(["plan", "niche"] as const).map((tab) => (
+ <div className="inline-flex flex-wrap justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+ {([
+ { key: "plan", label: "Money Plan" },
+ { key: "niche", label: "Niche Analyzer" },
+ { key: "money", label: t("coach.tabMoneyTracker") },
+ ] as const).map((tab) => (
  <button
- key={tab}
- onClick={() => setActiveTab(tab)}
+ key={tab.key}
+ onClick={() => setActiveTab(tab.key)}
  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition ${
- activeTab === tab
+ activeTab === tab.key
  ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
  : "text-white/55 hover:text-white"
  }`}
  >
- {tab === "plan" ? "Money Plan" : "Niche Analyzer"}
+ {tab.label}
  </button>
  ))}
  </div>
  </div>
 
- {activeTab === "niche" ? (
+ {activeTab === "money" ? (
+ <MoneyTrackerPanel />
+ ) : activeTab === "niche" ? (
  <NicheAnalyzerPanel />
  ) : (
  <>

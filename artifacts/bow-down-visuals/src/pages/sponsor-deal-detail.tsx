@@ -569,10 +569,21 @@ export default function SponsorDealDetail() {
                   </div>
                 )}
                 {deal.status === "paid" && (
-                  <p className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    {t("sponsorDealDetail.paidOut", { amount: moneyCents(deal.creatorPayoutCents) })}
-                  </p>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      {t("sponsorDealDetail.paidOut", { amount: moneyCents(deal.creatorPayoutCents) })}
+                    </p>
+                    {deal.creatorPayoutCents != null && deal.creatorPayoutCents > 0 && (
+                      <Link
+                        href={`/coach?tab=money&income=${(deal.creatorPayoutCents / 100).toFixed(2)}&note=${encodeURIComponent(`Sponsor deal: ${deal.brandName}`)}`}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+                      >
+                        <Wallet className="h-4 w-4" aria-hidden="true" />
+                        {t("moneyTracker.addIncomeFromDeal")}
+                      </Link>
+                    )}
+                  </div>
                 )}
               </div>
             )}

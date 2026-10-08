@@ -38,6 +38,23 @@ const coachSchema = z.object({
     .optional()
     .default({ youtube: 0, tiktok: 0, instagram: 0 }),
   cadence: z.number().int().min(0).max(100),
+  /* Optional real tracked money from the Money Tracker tab (/coach?tab=money).
+     Free data (no credits) — grounds the plan in the creator's actual P&L
+     instead of pure estimates. */
+  moneySnapshot: z
+    .object({
+      monthIncomeCents: z.number().int().min(0).optional(),
+      monthExpenseCents: z.number().int().min(0).optional(),
+      monthNetCents: z.number().int().optional(),
+      allTimeIncomeCents: z.number().int().min(0).optional(),
+      allTimeExpenseCents: z.number().int().min(0).optional(),
+      allTimeNetCents: z.number().int().optional(),
+      topIncomeCategory: z.string().max(60).optional().nullable(),
+      topExpenseCategory: z.string().max(60).optional().nullable(),
+      monthLabel: z.string().max(40).optional(),
+    })
+    .optional()
+    .nullable(),
 });
 
 /* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
@@ -90,6 +107,32 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
     .map((p) => `- ${PLATFORM_LABEL[p]}: ${followers[p] ?? 0} followers/subscribers`)
     .join("\n");
 
+  /* Real tracked money (if the creator uses the Money Tracker): treat these
+     as facts about their business and reference them in the money moves. */
+  const snap = parsed.data.moneySnapshot;
+  const moneyDollars = (c: number | undefined | null) =>
+    c == null ? null : `$${(c / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  const moneyLines: string[] = [];
+  if (snap) {
+    const label = snap.monthLabel || "this month";
+    if (snap.monthIncomeCents != null && snap.monthExpenseCents != null) {
+      moneyLines.push(
+        `${label}: ${moneyDollars(snap.monthIncomeCents)} income, ${moneyDollars(snap.monthExpenseCents)} expenses, net ${moneyDollars(snap.monthNetCents ?? snap.monthIncomeCents - snap.monthExpenseCents)}.`,
+      );
+    }
+    if (snap.allTimeIncomeCents != null && snap.allTimeExpenseCents != null) {
+      moneyLines.push(
+        `All time: ${moneyDollars(snap.allTimeIncomeCents)} income, ${moneyDollars(snap.allTimeExpenseCents)} expenses, net ${moneyDollars(snap.allTimeNetCents ?? snap.allTimeIncomeCents - snap.allTimeExpenseCents)}.`,
+      );
+    }
+    if (snap.topIncomeCategory) moneyLines.push(`Top income category: ${snap.topIncomeCategory.replace(/_/g, " ")}.`);
+    if (snap.topExpenseCategory) moneyLines.push(`Top expense category: ${snap.topExpenseCategory.replace(/_/g, " ")}.`);
+  }
+  const moneyContext =
+    moneyLines.length > 0
+      ? `The creator's REAL tracked finances (treat as fact, reference them in the money moves when relevant): ${moneyLines.join(" ")}`
+      : "";
+
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
@@ -117,7 +160,8 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
             `"threshold": "...", "progress": <0-100>, "status": "eligible|close|building", ` +
             `"nextStep": "..."}], "earnings": {"rpmNotes": "...", "bestFormat": "...", ` +
             `"bestCadence": "..."}, "moneyMoves": ["...", "...", "..."], ` +
-            `"note": "Thresholds and RPMs are estimates as of 2026 — verify current program terms."}`,
+            `"note": "Thresholds and RPMs are estimates as of 2026 — verify current program terms."}` +
+            (moneyContext ? ` ${moneyContext}` : ""),
         },
         {
           role: "user",
