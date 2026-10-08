@@ -24,6 +24,8 @@ import {
   isTerminalPlatformStatus,
   splitsTotal,
   splitsValid,
+  roleLabel,
+  SPLIT_ROLES,
   type DistributionPlatformKey,
   type DistributionTier,
   type RoyaltySplit,
@@ -114,6 +116,7 @@ interface Release {
   status: "draft" | "packaged";
   aggregator: string | null;
   presaveSlug: string | null;
+  splitShareSlug: string | null;
   royaltySplits: RoyaltySplit[] | null;
   checklist: ChecklistItem[];
   metadata: ReleaseMeta | null;
@@ -1605,6 +1608,28 @@ function ReleaseDetail(props: {
   const [splits, setSplits] = useState<RoyaltySplit[]>(release.royaltySplits ?? []);
   const [splitsSaving, setSplitsSaving] = useState(false);
   useEffect(() => { setSplits(release.royaltySplits ?? []); }, [release.id, release.royaltySplits]);
+  /* split invites + share link */
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [shareSlug, setShareSlug] = useState<string | null>(release.splitShareSlug ?? null);
+  const [shareWorking, setShareWorking] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [refCode, setRefCode] = useState<string | null>(null);
+  useEffect(() => { setShareSlug(release.splitShareSlug ?? null); }, [release.id, release.splitShareSlug]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch("/api/referrals/me");
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as { code?: string };
+        if (!cancelled && data.code) setRefCode(data.code);
+      } catch { /* share links just won't carry ?ref */ }
+    })();
+    return () => { cancelled = true; };
+  }, [authFetch]);
+  const shareUrl = shareSlug
+    ? `${window.location.origin}/splits/${shareSlug}${refCode ? `?ref=${encodeURIComponent(refCode)}` : ""}`
+    : null;
 
   /* pre-save */
   const [presaveUrl, setPresaveUrl] = useState<string | null>(
@@ -1751,17 +1776,84 @@ function ReleaseDetail(props: {
     try {
       const res = await authFetch(`/api/distribution/releases/${release.id}/splits`, {
         method: "PUT",
-        body: JSON.stringify({ splits: splits.map((s) => ({ name: s.name.trim(), role: s.role?.trim() || undefined, share: Number(s.share) })) }),
+        body: JSON.stringify({
+          splits: splits.map((s) => ({
+            name: s.name.trim(),
+            role: (s.role ?? "").trim() || undefined,
+            email: (s.email ?? "").trim() || undefined,
+            share: Number(s.share),
+          })),
+        }),
       });
-      const data = (await res.json().catch(() => ({}))) as { splits?: RoyaltySplit[]; error?: string; message?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        splits?: RoyaltySplit[]; agreementVersion?: number; error?: string; message?: string;
+      };
       if (!res.ok) throw new Error(data.message || data.error || "Couldn't save the splits.");
       onUpdate({ ...release, royaltySplits: data.splits ?? splits });
-      onNotice("Royalty splits saved — free.");
+      onNotice(
+        data.agreementVersion && data.agreementVersion > 1
+          ? `Royalty splits saved — agreement v${data.agreementVersion} applies to future earnings only. Free.`
+          : "Royalty splits saved — free.",
+      );
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't save the splits.");
     } finally {
       setSplitsSaving(false);
     }
+  }
+
+  /* ── split invite (stub until an email provider is configured) ── */
+  async function inviteCollaborator(split: RoyaltySplit) {
+    if (!split.id || invitingId) return;
+    setInvitingId(split.id);
+    onError("");
+    try {
+      const res = await authFetch(`/api/distribution/releases/${release.id}/splits/invite`, {
+        method: "POST",
+        body: JSON.stringify({ splitId: split.id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; recorded?: boolean };
+      if (res.status === 501) {
+        /* Expected until an email provider is configured: invite recorded. */
+        setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
+        onNotice(data.error ?? "Invite recorded — share the agreement link with them instead.");
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || data.error || "Couldn't record the invite.");
+      setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
+      onNotice("Invite sent to the collaborator.");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't record the invite.");
+    } finally {
+      setInvitingId(null);
+    }
+  }
+
+  /* ── split agreement share link ── */
+  async function generateShareLink() {
+    if (shareWorking) return;
+    setShareWorking(true);
+    onError("");
+    try {
+      const res = await authFetch(`/api/distribution/releases/${release.id}/splits/share-link`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string; message?: string };
+      if (!res.ok || !data.slug) throw new Error(data.message || data.error || "Couldn't create the share link.");
+      setShareSlug(data.slug);
+      onUpdate({ ...release, splitShareSlug: data.slug });
+      onNotice("Split agreement link created — free.");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn't create the share link.");
+    } finally {
+      setShareWorking(false);
+    }
+  }
+
+  function copyShareLink() {
+    if (!shareUrl) return;
+    void navigator.clipboard?.writeText(shareUrl).then(
+      () => { setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); },
+      () => onError("Couldn't copy — long-press the link to copy it manually."),
+    );
   }
 
   /* ── pre-save link ── */
@@ -2019,59 +2111,140 @@ function ReleaseDetail(props: {
         minStars={5}
       >
         <p className="mb-4 text-sm text-white/50">{t("distribute.add_collaborators_and_their_shar")}</p>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {splits.map((s, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                value={s.name}
-                onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                placeholder={t("distribute.name")}
-                className={inputClass}
-                maxLength={120}
-              />
-              <input
-                value={s.role ?? ""}
-                onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)))}
-                placeholder={t("distribute.role_producer_feature")}
-                className={`${inputClass} max-w-[170px]`}
-                maxLength={80}
-              />
-              <div className="relative max-w-[110px] shrink-0">
+            <div key={s.id ?? `new-${i}`} className="rounded-2xl border border-white/10 bg-black/30 p-3">
+              <div className="flex flex-wrap gap-2">
                 <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="any"
-                  value={s.share}
-                  onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, share: Number(e.target.value) } : x)))}
-                  placeholder="%"
-                  className={`${inputClass} pr-8`}
+                  value={s.name}
+                  onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  placeholder={t("distribute.name")}
+                  className={`${inputClass} min-w-[140px] flex-1`}
+                  maxLength={120}
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/35">%</span>
+                <input
+                  value={s.email ?? ""}
+                  onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))}
+                  placeholder="Email (for invites)"
+                  type="email"
+                  className={`${inputClass} min-w-[160px] flex-1`}
+                  maxLength={254}
+                />
+                <select
+                  value={(s.role ?? "artist").toLowerCase()}
+                  onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)))}
+                  className={`${inputClass} max-w-[150px] bg-black`}
+                  aria-label={`Role for collaborator ${i + 1}`}
+                >
+                  {SPLIT_ROLES.map((r) => (
+                    <option key={r} value={r}>{roleLabel(r)}</option>
+                  ))}
+                </select>
+                <div className="relative w-[110px] shrink-0">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="any"
+                    value={s.share}
+                    onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, share: Number(e.target.value) } : x)))}
+                    placeholder="%"
+                    className={`${inputClass} pr-8`}
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/35">%</span>
+                </div>
+                <button
+                  onClick={() => setSplits((prev) => prev.filter((_, j) => j !== i))}
+                  className="flex h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/30 text-red-300/80 hover:bg-red-500/10"
+                  aria-label={`Remove collaborator ${i + 1}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setSplits((prev) => prev.filter((_, j) => j !== i))}
-                className="flex h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/30 text-red-300/80 hover:bg-red-500/10"
-                aria-label={`Remove collaborator ${i + 1}`}
-              >
-                <X className="h-4 w-4" />
-              </button>
+              {s.id && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {s.inviteStatus === "accepted" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-300">
+                      <Check className="h-3 w-3" />Invite accepted
+                    </span>
+                  ) : s.inviteStatus === "invited" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-300">
+                      <Mail className="h-3 w-3" />Invite recorded
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => inviteCollaborator(s)}
+                      disabled={invitingId === s.id || !(s.email ?? "").trim()}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      title={!(s.email ?? "").trim() ? "Add an email first" : "Record an invite for this collaborator"}
+                    >
+                      {invitingId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+                      Invite
+                    </button>
+                  )}
+                  <span className="text-[11px] text-white/35">
+                    {s.agreementVersion ? `Agreement v${s.agreementVersion}` : ""}
+                    {s.effectiveFrom ? ` · effective ${s.effectiveFrom.slice(0, 10)}` : ""}
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
         <button
-          onClick={() => setSplits((prev) => [...prev, { name: "", role: "", share: 0 }])}
+          onClick={() => setSplits((prev) => [...prev, { name: "", role: "artist", email: "", share: 0 }])}
           className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
         >
           <Plus className="h-3.5 w-3.5" />{t("distribute.add_collaborator")}</button>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 p-4">
-          <p className={`text-sm font-bold ${valid ? "text-emerald-300" : "text-amber-300"}`}>
-            Total: {Number.isFinite(total) ? total : 0}% {valid ? "— splits are balanced" : "— must equal 100%"}
-          </p>
+          <div>
+            <p className={`text-sm font-bold ${valid ? "text-emerald-300" : "text-amber-300"}`}>
+              Total: {Number.isFinite(total) ? total : 0}% {valid ? "— splits are balanced" : "— must equal 100%"}
+            </p>
+            <p className="mt-1 text-xs text-white/40">
+              Editing splits creates a new agreement version — changes apply to future earnings only.
+            </p>
+          </div>
           <button onClick={saveSplits} disabled={splitsSaving || !valid || splits.length === 0} className={goldBtn}>
             {splitsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save splits · free
           </button>
+        </div>
+        <p className="mt-3 text-xs text-white/40">
+          Split accounting for your logged income — automatic store payouts need a distribution partner.
+        </p>
+
+        {/* ── shareable split agreement ── */}
+        <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-white">
+            <Share2 className="h-4 w-4 text-primary" /> Split agreement link
+          </p>
+          {shareUrl ? (
+            <div>
+              <p className="mt-1 text-xs text-white/50">
+                Share this with your collaborators{refCode ? " — it carries your referral link" : ""}. They see the agreed shares, nothing else.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <input value={shareUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+                <button onClick={copyShareLink} className={`${ghostBtn} shrink-0`}>
+                  {shareCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  {shareCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="mt-1 text-xs text-white/50">
+                Generate a public summary of this release's split agreement to share with collaborators.
+              </p>
+              <button onClick={generateShareLink} disabled={shareWorking || !splits.some((s) => s.id)} className={`${goldBtn} mt-3`}
+                title={splits.some((s) => s.id) ? undefined : "Save your splits first"}
+              >
+                {shareWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                Generate agreement link · free
+              </button>
+            </div>
+          )}
         </div>
       </Section>
 

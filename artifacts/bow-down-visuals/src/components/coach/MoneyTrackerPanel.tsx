@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import SplitsOverview, { fetchReleaseOptions } from "./SplitsOverview";
 
 /* ─── Money Tracker panel (mounted INSIDE the /coach page as a tab) ──────
    "Know your numbers": a free per-user income/expense ledger (CRUD on
@@ -31,6 +32,7 @@ interface MoneyEntry {
   source: string | null;
   entry_date: string; // YYYY-MM-DD
   created_at: string;
+  release_id?: string | null;
 }
 
 const INCOME_CATEGORIES = [
@@ -97,6 +99,18 @@ export default function MoneyTrackerPanel() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /* Ledger vs Splits view (deep-linkable: /coach?tab=money&view=splits) */
+  const [view, setView] = useState<"ledger" | "splits">(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("view") === "splits" ? "splits" : "ledger";
+    } catch {
+      return "ledger";
+    }
+  });
+  const [releaseOptions, setReleaseOptions] = useState<Array<{ id: string; title: string }>>([]);
+  const [fReleaseId, setFReleaseId] = useState("");
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [linkValue, setLinkValue] = useState("");
 
   /* form state */
   const [fType, setFType] = useState<MoneyEntryType>("income");
@@ -155,6 +169,9 @@ export default function MoneyTrackerPanel() {
 
   useEffect(() => {
     loadEntries();
+    if (user) {
+      fetchReleaseOptions(confirmedFetch).then(setReleaseOptions).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -244,6 +261,7 @@ export default function MoneyTrackerPanel() {
           note: fNote.trim(),
           source: fSource.trim() || null,
           date: fDate,
+          releaseId: fType === "income" && fReleaseId ? fReleaseId : null,
         }),
       });
       if (!res) return;
@@ -255,6 +273,7 @@ export default function MoneyTrackerPanel() {
       setFAmount("");
       setFNote("");
       setFSource("");
+      setFReleaseId("");
       setFDate(todayYmd());
     } catch (err) {
       setFormError(err instanceof Error ? err.message : t("moneyTracker.errorSave"));
@@ -288,6 +307,34 @@ export default function MoneyTrackerPanel() {
       next.setMonth(next.getMonth() + delta);
       return next;
     });
+  }
+
+  /* Link an income entry to a release so splits apply to it. */
+  async function linkEntry(entryId: string, releaseId: string | null) {
+    if (linkingId) return;
+    setLinkingId(entryId);
+    try {
+      const res = await confirmedFetch(`/api/money/${entryId}`, {
+        skipConfirm: true,
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ releaseId }),
+      });
+      if (!res) return;
+      const data = (await res.json().catch(() => ({}))) as { entry?: MoneyEntry; error?: string };
+      if (!res.ok || !data.entry) throw new Error(data.error || "Couldn't link the release.");
+      setEntries((prev) => prev.map((e) => (e.id === entryId ? data.entry! : e)));
+      setLinkingId(null);
+      setLinkValue("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't link the release.");
+      setLinkingId(null);
+    }
+  }
+
+  function releaseTitle(id: string | null | undefined): string | null {
+    if (!id) return null;
+    return releaseOptions.find((r) => r.id === id)?.title ?? null;
   }
 
   if (!user) {
@@ -329,7 +376,26 @@ export default function MoneyTrackerPanel() {
         </button>
       </div>
 
-      {loading ? (
+      {/* ── Ledger vs Splits toggle ─────────────────────────────────── */}
+      <div className="mt-4 inline-flex gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+        {(["ledger", "splits"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`rounded-xl px-5 py-2 text-sm font-bold transition ${
+              view === v
+                ? "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black"
+                : "text-white/55 hover:text-white"
+            }`}
+          >
+            {v === "ledger" ? "Ledger" : "Splits"}
+          </button>
+        ))}
+      </div>
+
+      {view === "splits" ? (
+        <SplitsOverview />
+      ) : loading ? (
         <div className="mt-6 flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.03] p-12 text-sm text-white/50">
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
           {t("moneyTracker.loading")}
@@ -457,6 +523,23 @@ export default function MoneyTrackerPanel() {
                   />
                 </div>
               </div>
+              {fType === "income" && releaseOptions.length > 0 && (
+                <div className="mt-4">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                    Release <span className="font-normal normal-case text-white/30">(optional — applies its splits to this income)</span>
+                  </label>
+                  <select
+                    value={fReleaseId}
+                    onChange={(e) => setFReleaseId(e.target.value)}
+                    className={`${inputClass} appearance-none`}
+                  >
+                    <option value="" className="bg-black">No release — unlinked income</option>
+                    {releaseOptions.map((r) => (
+                      <option key={r.id} value={r.id} className="bg-black">{r.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="mt-4">
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("moneyTracker.note")}
@@ -557,6 +640,50 @@ export default function MoneyTrackerPanel() {
                         {" · "}
                         {new Date(`${e.entry_date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </p>
+                      {e.entry_type === "income" && (
+                        <div className="mt-1">
+                          {linkingId === e.id ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <select
+                                value={linkValue}
+                                onChange={(sel) => linkEntry(e.id, sel.target.value || null)}
+                                className="rounded-lg border border-primary/40 bg-black px-2 py-1 text-[11px] text-white outline-none"
+                                autoFocus
+                              >
+                                <option value="">Unlinked — pick a release…</option>
+                                {releaseOptions.map((r) => (
+                                  <option key={r.id} value={r.id}>{r.title}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => { setLinkingId(null); setLinkValue(""); }}
+                                className="text-[11px] font-bold text-white/50 hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                            </span>
+                          ) : releaseTitle(e.release_id) ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/[0.08] px-2 py-0.5 text-[10px] font-bold text-primary">
+                                {releaseTitle(e.release_id)}
+                              </span>
+                              <button
+                                onClick={() => linkEntry(e.id, null)}
+                                className="text-[10px] font-bold text-white/40 hover:text-white"
+                              >
+                                Unlink
+                              </button>
+                            </span>
+                          ) : releaseOptions.length > 0 ? (
+                            <button
+                              onClick={() => { setLinkingId(e.id); setLinkValue(""); }}
+                              className="text-[10px] font-bold text-primary/80 hover:text-primary"
+                            >
+                              Link a release to apply splits
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                     <span className={`shrink-0 font-display text-base font-black ${e.entry_type === "income" ? "text-emerald-300" : "text-red-300"}`}>
                       {e.entry_type === "income" ? "+" : "−"}{fmtMoney(e.amount_cents)}
