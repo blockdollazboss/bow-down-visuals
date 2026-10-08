@@ -52,6 +52,40 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
 
   logger.info({ type: event.type }, "Stripe webhook: event received");
 
+  /* ── Creator tier subscription events (Worker 12) ──────────────────────
+     checkout.session.completed with metadata.kind === "creator_tier" activates
+     the tier; customer.subscription.* keep status/period in sync;
+     invoice.payment_failed flags past_due. All other kinds flow through the
+     existing Visual Bucs logic below untouched. */
+  try {
+    if (event.type === "checkout.session.completed") {
+      const s = event.data.object as Stripe.Checkout.Session;
+      if (s.metadata?.kind === "creator_tier") {
+        const { handleTierCheckoutCompleted } = await import("./creator-tier-sync");
+        await handleTierCheckoutCompleted(s);
+        res.status(200).json({ received: true, kind: "creator_tier" });
+        return;
+      }
+    } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+      const sub = event.data.object as Stripe.Subscription;
+      if (sub.metadata?.kind === "creator_tier") {
+        const { handleTierSubscriptionEvent } = await import("./creator-tier-sync");
+        await handleTierSubscriptionEvent(sub);
+        res.status(200).json({ received: true, kind: "creator_tier" });
+        return;
+      }
+    } else if (event.type === "invoice.payment_failed") {
+      const inv = event.data.object as Stripe.Invoice;
+      const { handleTierInvoiceFailed } = await import("./creator-tier-sync");
+      await handleTierInvoiceFailed(inv);
+      res.status(200).json({ received: true, kind: "creator_tier" });
+      return;
+    }
+  } catch (err) {
+    logger.error({ err, type: event.type }, "Stripe webhook: creator tier sync failed");
+    // Fall through to the standard flow rather than 500ing Stripe's retry.
+  }
+
   if (event.type !== "checkout.session.completed") {
     res.status(200).json({ received: true });
     return;
