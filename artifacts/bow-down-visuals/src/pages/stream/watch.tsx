@@ -8,6 +8,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { JsonLd } from "@/components/seo/json-ld";
 import { useStreamingPlayerOptional } from "@/contexts/StreamingPlayerContext";
 import { MediaActions } from "@/components/player/MediaActions";
+import { EmbedButton } from "@/components/player/EmbedButton";
 import { MediaLinkBar } from "@/components/player/MediaLinkBar";
 import { GetPaidFinale, EarnEmptyState } from "@/components/player/GetPaidFinale";
 import { useAuth } from "@/contexts/AuthContext";
@@ -330,6 +331,10 @@ export default function StreamWatchPage() {
                   showRepost={false}
                   size="lg"
                 />
+              </div>
+
+              <div className="mt-3">
+                <EmbedButton kind="video" id={String(video.id)} artistSlug={artist?.slug} title={video.title} />
               </div>
 
               <div className="mt-4">

@@ -8,6 +8,8 @@ import { fetchPublicProfile, themeVars } from "@/lib/artist-profiles";
 import {
   HeroSection, ProfileActions, ProfileSections, MadeWithBadge,
 } from "@/components/artist/profile-sections";
+import TrophyShelf from "@/components/artist/TrophyShelf";
+import { EmbedButton } from "@/components/player/EmbedButton";
 
 /* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
    rendered on their public profile so visitors see proof of their pull. */
@@ -120,6 +122,7 @@ export default function ArtistPublic() {
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
         {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+        <TrophyShelf slug={slug} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
         <ProfileActions profile={profile} />
         {socials.length > 0 && (
           <div className="flex justify-center gap-2 px-4 pb-6">
@@ -139,6 +142,14 @@ export default function ArtistPublic() {
             ))}
           </div>
         )}
+        <div className="flex justify-center px-4 pb-4">
+          <EmbedButton
+            kind="profile"
+            id={profile.slug}
+            refCode={profile.referral_code ?? undefined}
+            title={profile.display_name}
+          />
+        </div>
         <MadeWithBadge referralCode={profile.referral_code} />
       </div>
     </>

@@ -10,6 +10,7 @@ import { GetPaidFinale, EarnEmptyState } from "@/components/player/GetPaidFinale
 import { useAuth } from "@/contexts/AuthContext";
 import { useMinStars } from "@/lib/creator-level";
 import { Waveform } from "@/components/player/Waveform";
+import { EmbedButton } from "@/components/player/EmbedButton";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
   fetchTrack, fetchMoreFromArtist, formatCount, formatDuration, resolveMedia,
@@ -181,6 +182,10 @@ export default function StreamTrackPage() {
                 downloadPriceCents={track.download_price_cents}
                 size="lg"
               />
+            </div>
+
+            <div className="mt-3">
+              <EmbedButton kind="track" id={String(track.id)} artistSlug={artist?.slug} title={track.title} />
             </div>
 
             <div className="mt-4">
