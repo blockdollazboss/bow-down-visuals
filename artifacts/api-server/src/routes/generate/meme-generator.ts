@@ -14,6 +14,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  ATTRIBUTION_TEXT,
+  attributionOptIn,
+  resolveAttributionFont,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -149,6 +154,8 @@ const memeSchema = z
       .regex(/^#[0-9a-fA-F]{6}$/, { message: "textColor must be a #RRGGBB hex color" })
       .optional()
       .default("#FFFFFF"),
+    /** Virality: opt-in gold "Made with Bow Down Visuals" credit line (paid export → opt-in). */
+    attribution: attributionOptIn(),
   })
   .refine((d) => d.template || d.customImageUrl, {
     message: "Provide either template or customImageUrl.",
@@ -307,6 +314,19 @@ router.post("/meme", requireAuth, async (req, res) => {
 
     if (draws.length === 0) throw new Error("No text to render.");
 
+    /* Virality: optional quiet gold credit line along the bottom edge (opt-in; paid export). */
+    if (parsed.data.attribution) {
+      const attrFont = await resolveAttributionFont();
+      if (attrFont) {
+        const attrSize = Math.max(11, Math.round(imgW / 48));
+        draws.push(
+          `drawtext=fontfile='${attrFont}':text='${escapeDrawtext(ATTRIBUTION_TEXT)}':fontsize=${attrSize}` +
+            `:fontcolor=0xFFD75E@0.85:borderw=1:bordercolor=black` +
+            `:x=(w-text_w)/2:y=h-${attrSize + 10}`
+        );
+      }
+    }
+
     await execFileAsync("ffmpeg", [
       "-y", "-i", inputPath,
       "-vf", draws.join(","),
@@ -324,6 +344,7 @@ router.post("/meme", requireAuth, async (req, res) => {
       url,
       storageRef,
       template: templateKey ?? "custom",
+      attribution: parsed.data.attribution,
       creditsRemaining: creditsAfter,
     });
   } catch (err) {

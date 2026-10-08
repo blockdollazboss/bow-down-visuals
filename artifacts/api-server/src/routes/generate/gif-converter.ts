@@ -12,6 +12,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -31,6 +36,8 @@ const gifSchema = z.object({
   videoUrl: z.string().trim().min(1).max(2048),
   startTime: z.number().min(0).max(36000).default(0),
   duration: z.number().min(0.5).max(MAX_DURATION).default(3),
+  /** Virality: opt-in "Made with Bow Down Visuals" tag (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 
 router.post("/video-to-gif", requireAuth, async (req, res) => {
@@ -43,7 +50,7 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
     return;
   }
 
-  const { videoUrl, startTime, duration } = parsed.data;
+  const { videoUrl, startTime, duration, attribution } = parsed.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < GIF_COST) {
@@ -78,7 +85,13 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
     if (!vidRes.ok) throw new Error("Could not download the video.");
     await writeFile(inputPath, Buffer.from(await vidRes.arrayBuffer()));
 
-    const filters = `fps=${GIF_FPS},scale=${MAX_GIF_WIDTH}:-1:flags=lanczos`;
+    // Virality: the tag must be burned BEFORE palettegen so the palette
+    // includes its colors, and applied identically in the render pass.
+    let filters = `fps=${GIF_FPS},scale=${MAX_GIF_WIDTH}:-1:flags=lanczos`;
+    if (attribution) {
+      const attrFont = await resolveAttributionFont();
+      if (attrFont) filters += `,${attributionDrawtext(attrFont, MAX_GIF_WIDTH)}`;
+    }
 
     // Pass 1: generate palette from the selected segment
     await execFileAsync("ffmpeg", [
@@ -111,6 +124,7 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
       storageRef,
       startTime,
       duration,
+      attribution,
       creditsRemaining: creditsAfter,
     });
   } catch (err) {

@@ -13,6 +13,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -76,6 +81,8 @@ const canvasSchema = z.object({
   overlayText: z.string().trim().max(60).optional(),
   songTitle: z.string().trim().max(120).optional(),
   artistName: z.string().trim().max(120).optional(),
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the base still (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 
 /** Escape user text for ffmpeg drawtext. (Same convention as text-animator.) */
@@ -94,15 +101,20 @@ function autoFontSize(text: string): number {
 
 /* ─── Pass 1: compose the 720x1280 base still ──────────────────────────────
    Blurred full-bleed background from the cover + the cover art fitted
-   (contained) and centered. Handles square covers, 9:16 art, anything. */
-export function buildCanvasBaseFilter(): string {
-  return (
+   (contained) and centered. Handles square covers, 9:16 art, anything.
+   Pass `attributionFontfile` to burn the gold "Made with Bow Down Visuals"
+   tag into the still — it then rides through every loop style (virality). */
+export function buildCanvasBaseFilter(attributionFontfile?: string | null): string {
+  const base =
     `[0:v]scale=${CANVAS_W}:${CANVAS_H}:force_original_aspect_ratio=increase,` +
     `crop=${CANVAS_W}:${CANVAS_H},boxblur=20:1[bg];` +
     `[0:v]scale=w='if(gt(a,${CANVAS_W}/${CANVAS_H}),${CANVAS_W},-2)':` +
     `h='if(gt(a,${CANVAS_W}/${CANVAS_H}),-2,${CANVAS_H})'[art];` +
-    `[bg][art]overlay=(W-w)/2:(H-h)/2,format=yuv420p[canvas]`
-  );
+    `[bg][art]overlay=(W-w)/2:(H-h)/2,format=yuv420p`;
+  const tag = attributionFontfile
+    ? `,${attributionDrawtext(attributionFontfile, CANVAS_W)}`
+    : "";
+  return `${base}${tag}[canvas]`;
 }
 
 /* ─── Pass 2: seamless 8s animation per style ─────────────────────────────
@@ -216,7 +228,7 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
     });
     return;
   }
-  const { coverUrl, audioUrl, style, overlayText, songTitle, artistName } = parsed.data;
+  const { coverUrl, audioUrl, style, overlayText, songTitle, artistName, attribution } = parsed.data;
 
   if (style === "lyricFlicker" && !overlayText) {
     res.status(400).json({ error: "The Lyric Flicker style needs a lyric line (overlayText)." });
@@ -269,10 +281,11 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
       }
     }
 
-    /* Pass 1: compose the 720x1280 base still. */
+    /* Pass 1: compose the 720x1280 base still (with the optional attribution tag). */
+    const attributionFont = attribution ? await resolveAttributionFont() : null;
     await execFileAsync(
       "ffmpeg",
-      ["-y", "-i", coverPath, "-filter_complex", buildCanvasBaseFilter(), "-map", "[canvas]", "-frames:v", "1", basePath],
+      ["-y", "-i", coverPath, "-filter_complex", buildCanvasBaseFilter(attributionFont), "-map", "[canvas]", "-frames:v", "1", basePath],
       { timeout: 120_000 }
     );
 
@@ -362,6 +375,7 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
       url,
       storageRef,
       style,
+      attribution,
       spec: { width: CANVAS_W, height: CANVAS_H, seconds: CANVAS_SECONDS, silent: true },
       creditsRemaining: creditsAfter,
     });

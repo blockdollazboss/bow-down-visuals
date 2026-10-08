@@ -12,6 +12,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -117,6 +122,8 @@ const audiogramSchema = z.object({
     message: `waveColor must be one of: ${Object.keys(WAVE_COLORS).join(", ")}`,
   }).optional().default("gold"),
   style: visualizerStyleSchema.optional().default("waveform"),
+  /** Virality: opt-in "Made with Bow Down Visuals" tag (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 
 router.get("/audiogram-colors", requireAuth, (_req, res) => {
@@ -189,12 +196,18 @@ router.post("/audiogram", requireAuth, async (req, res) => {
 
     // Blurred full-bleed background from the cover + centered cover art
     // + the selected animated visualizer style at the bottom.
-    const filterComplex =
+    // Virality: optional gold "Made with Bow Down Visuals" tag (opt-in;
+    // paid export) burned bottom-center of the 1080x1080 canvas.
+    let filterComplex =
       "[0:v]scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=24:1[bg];" +
       "[0:v]scale=560:560:force_original_aspect_ratio=increase,crop=560:560[art];" +
       `[1:a]${style.build(waveColor)}[vis];` +
       "[bg][art]overlay=(W-w)/2:170[base];" +
       `[base][vis]overlay=${style.x}:${style.y}`;
+    if (parsed.data.attribution) {
+      const attrFont = await resolveAttributionFont();
+      if (attrFont) filterComplex += `,${attributionDrawtext(attrFont, 1080)}`;
+    }
 
     await execFileAsync("ffmpeg", [
       "-y", "-loop", "1", "-framerate", "30", "-i", coverPath,
@@ -218,6 +231,7 @@ router.post("/audiogram", requireAuth, async (req, res) => {
       storageRef,
       waveColor: parsed.data.waveColor,
       style: parsed.data.style,
+      attribution: parsed.data.attribution,
       creditsRemaining: creditsAfter,
     });
   } catch (err) {

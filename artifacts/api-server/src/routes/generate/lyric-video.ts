@@ -46,6 +46,11 @@ import {
 } from "../../lib/objectStorage";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { db, songsTable } from "@workspace/db";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 import { eq, and } from "drizzle-orm";
 
 const router = Router();
@@ -714,6 +719,10 @@ export interface RenderArgsOpts {
   style: LyricStyle;
   aspect: LyricAspect;
   durationSec: number;
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
 }
 
 /**
@@ -738,6 +747,11 @@ export function buildRenderArgs(opts: RenderArgsOpts): string[] {
   // Burn the karaoke subtitles. Quote the path for the ass filter.
   const assFilter = `ass='${opts.assPath.replace(/'/g, "'\\\\''")}'`;
   vfParts.push(assFilter);
+
+  // Virality: optional gold "Made with Bow Down Visuals" tag, bottom-center.
+  if (opts.attribution && opts.attributionFontfile) {
+    vfParts.push(attributionDrawtext(opts.attributionFontfile, w));
+  }
 
   return [
     "-y",
@@ -814,6 +828,8 @@ export interface RenderJobInput {
   lines: AlignedLine[];
   style: LyricStyle;
   aspect: LyricAspect;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 /** Exported for tests. Runs the full render pipeline for one job. */
@@ -857,6 +873,11 @@ export async function runLyricRenderJob(
       buildAssSubtitles(input.lines, input.style, input.aspect),
     );
 
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = input.attribution
+      ? await resolveAttributionFont()
+      : null;
+
     await execFileAsync(
       "ffmpeg",
       buildRenderArgs({
@@ -867,6 +888,8 @@ export async function runLyricRenderJob(
         style: input.style,
         aspect: input.aspect,
         durationSec,
+        attribution: input.attribution,
+        attributionFontfile,
       }),
       { timeout: 900_000 }, // 15 min cap for the encode
     );
@@ -994,6 +1017,8 @@ const renderBodySchema = z.object({
   lines: z.array(renderLineSchema).min(1).max(500),
   style: z.enum(LYRIC_STYLES).default("gold-luxury"),
   aspect: z.enum(LYRIC_ASPECTS).default("16:9"),
+  /** Virality: opt-in "Made with Bow Down Visuals" tag (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 
 /* ── Routes ────────────────────────────────────────────────────────────── */
@@ -1206,7 +1231,7 @@ router.post(
         });
         return;
       }
-      const { audioRef, lines, style, aspect } = parsed.data;
+      const { audioRef, lines, style, aspect, attribution } = parsed.data;
 
       // Sanity: line timings must be ordered and non-absurd.
       for (const line of lines) {
@@ -1300,6 +1325,7 @@ router.post(
         })),
         style,
         aspect,
+        attribution,
       });
 
       res.status(202).json({
@@ -1307,6 +1333,7 @@ router.post(
         status: job.status,
         style,
         aspect,
+        attribution,
         creditsCharged: LYRIC_RENDER_CREDIT_COST,
         creditsRemaining,
       });
