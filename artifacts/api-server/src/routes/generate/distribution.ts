@@ -1,5 +1,5 @@
 import { Router, raw as expressRaw, type Request, type Response } from "express";
-import { randomUUID, createHmac, timingSafeEqual } from "crypto";
+import { randomUUID, createHmac, timingSafeEqual, randomInt } from "crypto";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -126,6 +126,58 @@ export function isValidIsrc(v: string | undefined | null): boolean {
   return /^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(v.toUpperCase().replace(/[-\s]/g, ""));
 }
 
+/* ─── Release Metadata Manager: barcode helpers ────────────────────────────
+   The "generate barcode" helper mints a valid-format UPC-A (12 digits with a
+   correct GS1 check digit) that is explicitly labeled INTERNAL — a real,
+   store-recognized UPC can only come from a distribution partner. The digits
+   are random, never registered with GS1, and must never be presented to a
+   store as an official UPC. */
+
+/** GS1 check digit for the first 11 digits of a UPC-A. */
+export function upcACheckDigit(first11: string): string {
+  const digits = first11.split("").map((d) => Number(d));
+  const oddSum = digits.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0);
+  const evenSum = digits.filter((_, i) => i % 2 === 1).reduce((a, b) => a + b, 0);
+  const total = oddSum * 3 + evenSum;
+  return String((10 - (total % 10)) % 10);
+}
+
+/** GS1 check digit for the first 12 digits of an EAN-13. */
+export function ean13CheckDigit(first12: string): string {
+  const digits = first12.split("").map((d) => Number(d));
+  const evenSum = digits.filter((_, i) => i % 2 === 1).reduce((a, b) => a + b, 0);
+  const oddSum = digits.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0);
+  const total = oddSum + evenSum * 3;
+  return String((10 - (total % 10)) % 10);
+}
+
+/** Mint a valid-format UPC-A placeholder. Prefixed 09 (unassigned GS1 range)
+    so it can never collide with a real registered barcode. */
+export function generateInternalBarcode(): string {
+  let body = "09";
+  for (let i = 0; i < 9; i++) body += String(randomInt(0, 10));
+  return body + upcACheckDigit(body);
+}
+
+/** Validate a manually-entered UPC-A or EAN-13 (digits + correct check digit). */
+export function isValidUpc(v: string | undefined | null): boolean {
+  if (!v) return true; // optional
+  const digits = v.replace(/[-\s]/g, "");
+  if (!/^\d+$/.test(digits)) return false;
+  if (digits.length === 12) return upcACheckDigit(digits.slice(0, 11)) === digits[11];
+  if (digits.length === 13) return ean13CheckDigit(digits.slice(0, 12)) === digits[12];
+  return false;
+}
+
+export const UPC_KINDS = ["internal", "official"] as const;
+export const TERRITORY_MODES = ["worldwide", "include", "exclude"] as const;
+
+const territoryCodes = z
+  .array(z.string().regex(/^[A-Z]{2}$/, "Territory codes must be ISO 3166-1 alpha-2 (e.g. US).").max(2))
+  .max(300)
+  .optional()
+  .default([]);
+
 export const createReleaseSchema = z.object({
   title: z.string().min(1, "Release title is required.").max(200),
   artistName: z.string().min(1, "Artist name is required.").max(120),
@@ -145,8 +197,24 @@ export const createReleaseSchema = z.object({
   /* The creator must actively declare clean vs explicit — never defaulted silently. */
   explicitDeclared: z.boolean().optional().default(false),
   upc: z.string().max(20).optional().default(""),
+  /* 'internal' = placeholder minted by the barcode helper; 'official' = a
+     real UPC assigned via a distribution partner. Honesty: the UI must say
+     so, and generated barcodes are always stored as internal. */
+  upcKind: z.enum(UPC_KINDS).optional().default("internal"),
   label: z.string().max(120).optional().default(""),
+  /* Custom label name / imprint (DistroKid-style). */
+  labelImprint: z.string().max(120).optional().default(""),
   copyrightLine: z.string().max(200).optional().default(""),
+  /* © and ℗ lines, separately editable; UI auto-suggests from label + year. */
+  copyrightCLine: z.string().max(200).optional().default(""),
+  copyrightPLine: z.string().max(200).optional().default(""),
+  /* Subgenre alongside the primary genre. */
+  subgenre: z.string().max(80).optional().default(""),
+  /* Original (first) release date and preorder on-sale date. */
+  originalReleaseDate: z.string().max(20).optional().default(""),
+  preorderDate: z.string().max(20).optional().default(""),
+  territoriesMode: z.enum(TERRITORY_MODES).optional().default("worldwide"),
+  territories: territoryCodes,
   metadata: z.record(z.string(), z.unknown()).optional(),
   strategy: z.record(z.string(), z.unknown()).optional(),
 });
@@ -209,14 +277,27 @@ interface ReleaseRow {
   explicit: boolean | null;
   explicit_declared: boolean | null;
   upc: string | null;
+  upc_kind: string | null;
   label: string | null;
+  label_imprint: string | null;
   copyright_line: string | null;
+  copyright_c_line: string | null;
+  copyright_p_line: string | null;
+  subgenre: string | null;
+  original_release_date: string | null;
+  preorder_date: string | null;
+  territories_mode: string | null;
+  territories: string[] | null;
   song_id: string | null;
   tracks: Array<{ title: string; isrc?: string }> | null;
   aggregator: string | null;
   aggregator_release_id: string | null;
   platform_statuses: Array<{ platform: string; status: string; detail?: string; updatedAt: string }> | null;
   presave_slug: string | null;
+  presave_headline?: string | null;
+  presave_platform_links?: Record<string, string> | null;
+  presave_bonus_url?: string | null;
+  split_share_slug: string | null;
 }
 
 export interface ChecklistItem {
@@ -226,11 +307,19 @@ export interface ChecklistItem {
   hint: string;
 }
 
+/* Canonical collaborator roles for a split agreement (DistroKid parity). */
+export const SPLIT_ROLES = ["artist", "producer", "writer", "featured"] as const;
+export type SplitRole = (typeof SPLIT_ROLES)[number];
+
 export interface RoyaltySplit {
   id?: string;
   name: string;
   role?: string;
+  email?: string | null;
+  inviteStatus?: string;
   share: number;
+  agreementVersion?: number;
+  effectiveFrom?: string;
 }
 
 const RELEASE_COLUMNS = sql`
@@ -238,8 +327,10 @@ const RELEASE_COLUMNS = sql`
   audio_url, artwork_url, metadata, strategy, status,
   credits_charged, created_at, updated_at,
   release_type, isrc, genre, explicit, explicit_declared,
-  upc, label, copyright_line, song_id, tracks,
-  aggregator, aggregator_release_id, platform_statuses, presave_slug
+  upc, upc_kind, label, label_imprint, copyright_line, copyright_c_line, copyright_p_line,
+  subgenre, original_release_date, preorder_date, territories_mode, territories,
+  song_id, tracks,
+  aggregator, aggregator_release_id, platform_statuses, presave_slug, split_share_slug
 `;
 
 function rowToRelease(row: ReleaseRow, splits: RoyaltySplit[] = []) {
@@ -266,14 +357,28 @@ function rowToRelease(row: ReleaseRow, splits: RoyaltySplit[] = []) {
     explicit: row.explicit ?? false,
     explicitDeclared: row.explicit_declared ?? false,
     upc: row.upc,
+    upcKind: (["internal", "official"] as const).includes(row.upc_kind as "internal")
+      ? (row.upc_kind as "internal" | "official")
+      : "internal",
     label: row.label,
+    labelImprint: row.label_imprint,
     copyrightLine: row.copyright_line,
+    copyrightCLine: row.copyright_c_line,
+    copyrightPLine: row.copyright_p_line,
+    subgenre: row.subgenre,
+    originalReleaseDate: row.original_release_date,
+    preorderDate: row.preorder_date,
+    territoriesMode: (["worldwide", "include", "exclude"] as const).includes(row.territories_mode as "worldwide")
+      ? (row.territories_mode as "worldwide" | "include" | "exclude")
+      : "worldwide",
+    territories: row.territories ?? [],
     songId: row.song_id,
     tracks: row.tracks ?? [],
     aggregator: row.aggregator ?? "none",
     aggregatorReleaseId: row.aggregator_release_id,
     platformStatuses: row.platform_statuses ?? [],
     presaveSlug: row.presave_slug,
+    splitShareSlug: row.split_share_slug,
     royaltySplits: splits,
     checklist: buildChecklist(row),
   };
@@ -575,17 +680,33 @@ router.post("/distribution/strategy", publicApiLimiter, requireAuth, async (req,
 });
 
 /* Load royalty splits for a release (newest table — may not exist in old test DDLs). */
+/* Load the ACTIVE royalty splits for a release (the newest agreement
+   version — older versions stay in the ledger as history). */
 async function loadSplits(releaseId: string, userId: string): Promise<RoyaltySplit[]> {
   try {
     const result = await db.execute(sql`
-      SELECT id, payee_name, role, share_pct
+      SELECT id, payee_name, role, payee_email, invite_status, share_pct,
+             agreement_version, effective_from
       FROM distribution_royalty_splits
-      WHERE release_id = ${releaseId} AND user_id = ${userId}
+      WHERE release_id = ${releaseId} AND user_id = ${userId} AND superseded_at IS NULL
       ORDER BY share_pct DESC
     `);
-    return (result.rows as Array<{ id: string; payee_name: string; role: string | null; share_pct: string }>).map(
-      (r) => ({ id: r.id, name: r.payee_name, role: r.role ?? undefined, share: Number(r.share_pct) }),
-    );
+    return (
+      result.rows as Array<{
+        id: string; payee_name: string; role: string | null; payee_email: string | null;
+        invite_status: string | null; share_pct: string; agreement_version: number | null;
+        effective_from: string | null;
+      }>
+    ).map((r) => ({
+      id: r.id,
+      name: r.payee_name,
+      role: r.role ?? undefined,
+      email: r.payee_email ?? null,
+      inviteStatus: r.invite_status ?? "not_invited",
+      share: Number(r.share_pct),
+      agreementVersion: Number(r.agreement_version ?? 1),
+      effectiveFrom: r.effective_from ?? undefined,
+    }));
   } catch {
     /* Table missing (older installs) — splits are optional. */
     return [];
@@ -615,6 +736,10 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       return;
     }
   }
+  if (d.upc && !isValidUpc(d.upc)) {
+    res.status(400).json({ error: "That UPC/EAN looks invalid — 12-digit UPC-A or 13-digit EAN with a valid check digit." });
+    return;
+  }
   try {
     /* Song-library link: verify ownership, prefill audio when not given. */
     let audioUrl = d.audioUrl?.trim() || null;
@@ -636,7 +761,9 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       INSERT INTO distribution_releases
         (id, user_id, title, artist_name, release_type, release_date, platforms,
          audio_url, artwork_url, song_id, tracks, isrc, genre, explicit,
-         explicit_declared, upc, label, copyright_line,
+         explicit_declared, upc, upc_kind, label, label_imprint, copyright_line,
+         copyright_c_line, copyright_p_line, subgenre, original_release_date,
+         preorder_date, territories_mode, territories,
          metadata, strategy, status, credits_charged)
       VALUES (
         ${id}, ${req.userId!}, ${d.title.trim()}, ${d.artistName.trim()}, ${d.releaseType},
@@ -644,7 +771,12 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
         ${audioUrl}, ${d.artworkUrl?.trim() || null}, ${songId},
         ${JSON.stringify(d.tracks ?? [])}::jsonb,
         ${d.isrc || null}, ${d.genre?.trim() || null}, ${d.explicit}, ${d.explicitDeclared},
-        ${d.upc?.trim() || null}, ${d.label?.trim() || null}, ${d.copyrightLine?.trim() || null},
+        ${d.upc?.trim() || null}, ${d.upcKind ?? "internal"},
+        ${d.label?.trim() || null}, ${d.labelImprint?.trim() || null},
+        ${d.copyrightLine?.trim() || null}, ${d.copyrightCLine?.trim() || null},
+        ${d.copyrightPLine?.trim() || null}, ${d.subgenre?.trim() || null},
+        ${d.originalReleaseDate?.trim() || null}, ${d.preorderDate?.trim() || null},
+        ${d.territoriesMode ?? "worldwide"}, ${JSON.stringify(d.territories ?? [])}::jsonb,
         ${d.metadata ? JSON.stringify(d.metadata) : null}::jsonb,
         ${d.strategy ? JSON.stringify(d.strategy) : null}::jsonb,
         'draft', 0
@@ -732,6 +864,10 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Release ISRC looks invalid — 12 characters, e.g. USABC2412345." });
       return;
     }
+    if (d.upc !== undefined && d.upc && !isValidUpc(d.upc)) {
+      res.status(400).json({ error: "That UPC/EAN looks invalid — 12-digit UPC-A or 13-digit EAN with a valid check digit." });
+      return;
+    }
     /* Merge over the existing row, then write every column explicitly —
        keeps one static query shape (pg-mem-safe) instead of dynamic SETs. */
     const merged = {
@@ -749,8 +885,21 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       explicit_declared:
         d.explicitDeclared !== undefined ? d.explicitDeclared : (existing.explicit_declared ?? false),
       upc: d.upc !== undefined ? d.upc.trim() || null : existing.upc,
+      upc_kind: d.upcKind !== undefined ? d.upcKind : (existing.upc_kind ?? "internal"),
       label: d.label !== undefined ? d.label.trim() || null : existing.label,
+      label_imprint: d.labelImprint !== undefined ? d.labelImprint.trim() || null : existing.label_imprint,
       copyright_line: d.copyrightLine !== undefined ? d.copyrightLine.trim() || null : existing.copyright_line,
+      copyright_c_line:
+        d.copyrightCLine !== undefined ? d.copyrightCLine.trim() || null : existing.copyright_c_line,
+      copyright_p_line:
+        d.copyrightPLine !== undefined ? d.copyrightPLine.trim() || null : existing.copyright_p_line,
+      subgenre: d.subgenre !== undefined ? d.subgenre.trim() || null : existing.subgenre,
+      original_release_date:
+        d.originalReleaseDate !== undefined ? d.originalReleaseDate.trim() || null : existing.original_release_date,
+      preorder_date: d.preorderDate !== undefined ? d.preorderDate.trim() || null : existing.preorder_date,
+      territories_mode:
+        d.territoriesMode !== undefined ? d.territoriesMode : (existing.territories_mode ?? "worldwide"),
+      territories: d.territories !== undefined ? d.territories : (existing.territories ?? []),
       metadata: d.metadata !== undefined ? d.metadata : existing.metadata,
       strategy: d.strategy !== undefined ? d.strategy : existing.strategy,
     };
@@ -769,8 +918,17 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
           explicit = ${merged.explicit},
           explicit_declared = ${merged.explicit_declared},
           upc = ${merged.upc},
+          upc_kind = ${merged.upc_kind},
           label = ${merged.label},
+          label_imprint = ${merged.label_imprint},
           copyright_line = ${merged.copyright_line},
+          copyright_c_line = ${merged.copyright_c_line},
+          copyright_p_line = ${merged.copyright_p_line},
+          subgenre = ${merged.subgenre},
+          original_release_date = ${merged.original_release_date},
+          preorder_date = ${merged.preorder_date},
+          territories_mode = ${merged.territories_mode},
+          territories = ${JSON.stringify(merged.territories)}::jsonb,
           metadata = ${merged.metadata ? JSON.stringify(merged.metadata) : null}::jsonb,
           strategy = ${merged.strategy ? JSON.stringify(merged.strategy) : null}::jsonb,
           updated_at = now()
@@ -924,6 +1082,51 @@ function buildAggregatorPayload(row: ReleaseRow): AggregatorReleasePayload {
     platforms: row.platforms ?? [],
   };
 }
+
+/* ─── Generate internal barcode (FREE) ─────────────────────────────────────
+   POST /api/distribution/releases/:id/generate-barcode
+   Mints a valid-format UPC-A placeholder for the release's internal catalog
+   ID. Stored with upc_kind='internal' and the UI must label it
+   "Internal catalog ID — official UPC assigned when distributed via
+   partner." A real, store-recognized UPC only comes from a distribution
+   partner. Refuses to overwrite an official UPC. Drafts only. */
+router.post("/distribution/releases/:id/generate-barcode", requireAuth, async (req, res) => {
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    if (existing.status !== "draft") {
+      res.status(409).json({ error: "This release is already packaged — create a new release to change it." });
+      return;
+    }
+    if (existing.upc && existing.upc_kind === "official") {
+      res.status(409).json({
+        error: "This release already has an official UPC assigned via a partner — it can't be replaced by a placeholder.",
+      });
+      return;
+    }
+    const barcode = generateInternalBarcode();
+    const result = await db.execute(sql`
+      UPDATE distribution_releases
+      SET upc = ${barcode}, upc_kind = 'internal', updated_at = now()
+      WHERE id = ${releaseId(req)}
+      RETURNING ${RELEASE_COLUMNS}
+    `);
+    res.json({
+      release: rowToRelease(result.rows[0] as unknown as ReleaseRow),
+      barcode,
+      kind: "internal",
+      notice:
+        "Internal catalog ID minted — this is a placeholder, not a store-recognized UPC. " +
+        "Your official UPC is assigned when the release is distributed via a partner.",
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] generate-barcode failed");
+    res.status(500).json({ error: "Couldn't generate the barcode — try again." });
+  }
+});
 
 /* ─── Submit for distribution (paid) ───────────────────────────────────────
    POST /api/distribution/releases/:id/submit
@@ -1105,21 +1308,49 @@ router.get("/distribution/releases/:id/platforms", requireAuth, async (req, res)
 });
 
 /* ─── Royalty splits (free) ─────────────────────────────────────────────────
-   PUT /api/distribution/releases/:id/splits { splits: [{ name, role?, share }] }
-   Shares must sum to exactly 100. Informational only — payouts are a future
-   integration; the UI says so. */
+   PUT /api/distribution/releases/:id/splits { splits: [{ name, role?, email?, share }] }
+   Shares must sum to exactly 100. Versioned ledger: saving supersedes the
+   previous agreement version instead of deleting it, so edits apply to
+   FUTURE earnings only (DistroKid behavior) — the version effective on a
+   money entry's date is the one applied to that income.
+   Splits are accounting-only: actual automatic store payouts require a
+   distribution partnership we don't have, and the UI says so. */
+const SPLIT_ROLE_VALUES = ["artist", "producer", "writer", "featured"] as const;
+const splitRoleSchema = z
+  .preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().toLowerCase().pipe(z.enum(SPLIT_ROLE_VALUES)).optional(),
+  )
+  .optional();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const splitsSchema = z.object({
   splits: z
     .array(
       z.object({
-        name: z.string().min(1, "Payee name is required.").max(120),
-        role: z.string().max(80).optional().default(""),
+        name: z.string().trim().min(1, "Payee name is required.").max(120),
+        role: splitRoleSchema,
+        email: z
+          .string()
+          .trim()
+          .max(254)
+          .refine((s) => s === "" || EMAIL_RE.test(s), "That email doesn't look valid.")
+          .optional()
+          .default(""),
         share: z.number().positive("Share must be positive.").max(100),
       }),
     )
     .min(1, "Add at least one payee.")
     .max(20),
 });
+
+async function nextAgreementVersion(releaseId: string, userId: string): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COALESCE(MAX(agreement_version), 0) + 1 AS v
+    FROM distribution_royalty_splits
+    WHERE release_id = ${releaseId} AND user_id = ${userId}
+  `);
+  return Number((result.rows[0] as { v: string | number } | undefined)?.v ?? 1);
+}
 
 router.put("/distribution/releases/:id/splits", requireAuth, async (req, res) => {
   const parsed = splitsSchema.safeParse(req.body ?? {});
@@ -1143,21 +1374,192 @@ router.put("/distribution/releases/:id/splits", requireAuth, async (req, res) =>
       res.status(404).json({ error: "Release not found." });
       return;
     }
+    /* Versioned save: the old agreement becomes history, the new one takes
+       effect now. Past earnings keep their old splits; future earnings use
+       this version. */
+    const version = await nextAgreementVersion(releaseId(req), req.userId!);
     await db.execute(sql`
-      DELETE FROM distribution_royalty_splits
-      WHERE release_id = ${releaseId(req)} AND user_id = ${req.userId!}
+      UPDATE distribution_royalty_splits
+      SET superseded_at = now()
+      WHERE release_id = ${releaseId(req)} AND user_id = ${req.userId!} AND superseded_at IS NULL
     `);
     for (const s of parsed.data.splits) {
       await db.execute(sql`
-        INSERT INTO distribution_royalty_splits (id, release_id, user_id, payee_name, role, share_pct)
-        VALUES (${randomUUID()}, ${releaseId(req)}, ${req.userId!}, ${s.name.trim()}, ${s.role?.trim() || null}, ${s.share})
+        INSERT INTO distribution_royalty_splits
+          (id, release_id, user_id, payee_name, role, payee_email, invite_status,
+           share_pct, agreement_version, effective_from)
+        VALUES (${randomUUID()}, ${releaseId(req)}, ${req.userId!}, ${s.name.trim()},
+          ${s.role ?? null}, ${s.email.trim() || null}, 'not_invited',
+          ${s.share}, ${version}, now())
       `);
     }
     const splits = await loadSplits(releaseId(req), req.userId!);
-    res.json({ splits });
+    res.json({ splits, agreementVersion: version });
   } catch (err) {
     logger.error({ err }, "[distribution] save splits failed");
     res.status(500).json({ error: "Couldn't save royalty splits — try again." });
+  }
+});
+
+/* ─── Split agreement share link ───────────────────────────────────────────
+   POST /api/distribution/releases/:id/splits/share-link — mint (idempotently)
+   a public slug for the split agreement summary. The frontend appends
+   ?ref=CODE to the shared URL so collaborators land on your referral link. */
+router.post("/distribution/releases/:id/splits/share-link", requireAuth, async (req, res) => {
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    if (existing.split_share_slug) {
+      res.json({ slug: existing.split_share_slug, url: `${APP_PUBLIC_URL}/splits/${existing.split_share_slug}` });
+      return;
+    }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = randomInt(0, 0xffffffffff).toString(16).padStart(10, "0");
+      try {
+        await db.execute(sql`
+          UPDATE distribution_releases
+          SET split_share_slug = ${slug}, updated_at = now()
+          WHERE id = ${releaseId(req)} AND user_id = ${req.userId!}
+        `);
+        res.json({ slug, url: `${APP_PUBLIC_URL}/splits/${slug}` });
+        return;
+      } catch (err) {
+        /* Slug collision — astronomically unlikely; retry. */
+        if ((err as { code?: string })?.code !== "23505") throw err;
+      }
+    }
+    res.status(500).json({ error: "Couldn't mint a share link — try again." });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split share-link failed");
+    res.status(500).json({ error: "Couldn't mint a share link — try again." });
+  }
+});
+
+/* GET /api/distribution/splits/:slug — PUBLIC split agreement summary.
+   No auth: this page is meant to be shared with collaborators. Shows only
+   the agreement (names, roles, shares) — never emails, invite tokens, or
+   the creator's account info. */
+router.get("/distribution/splits/:slug", async (req, res) => {
+  const slug = (req.params.slug ?? "").trim();
+  if (!/^[a-f0-9]{10}$/.test(slug)) {
+    res.status(404).json({ error: "Split agreement not found." });
+    return;
+  }
+  try {
+    const releaseResult = await db.execute(sql`
+      SELECT id, title, artist_name
+      FROM distribution_releases
+      WHERE split_share_slug = ${slug}
+      LIMIT 1
+    `);
+    const release = releaseResult.rows[0] as
+      | { id: string; title: string; artist_name: string }
+      | undefined;
+    if (!release) {
+      res.status(404).json({ error: "Split agreement not found." });
+      return;
+    }
+    const splitsResult = await db.execute(sql`
+      SELECT payee_name, role, share_pct, agreement_version, effective_from
+      FROM distribution_royalty_splits
+      WHERE release_id = ${release.id} AND superseded_at IS NULL
+      ORDER BY share_pct DESC
+    `);
+    const splits = (splitsResult.rows as Array<{
+      payee_name: string; role: string | null; share_pct: string;
+      agreement_version: number | null; effective_from: string | null;
+    }>).map((r) => ({
+      name: r.payee_name,
+      role: r.role,
+      share: Number(r.share_pct),
+    }));
+    res.json({
+      title: release.title,
+      artistName: release.artist_name,
+      splits,
+      agreementVersion: splitsResult.rows.length
+        ? Number((splitsResult.rows[0] as { agreement_version: number | null }).agreement_version ?? 1)
+        : 0,
+      effectiveFrom: splitsResult.rows.length
+        ? (splitsResult.rows[0] as { effective_from: string | null }).effective_from
+        : null,
+      disclaimer:
+        "Split accounting for this release's logged income. Automatic payouts " +
+        "directly from stores need a distribution partner — these shares are " +
+        "the agreed accounting for earnings the creator logs.",
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split summary failed");
+    res.status(500).json({ error: "Couldn't load the split agreement — try again." });
+  }
+});
+
+/* ─── Split invites (stub until an email provider is configured) ──────────
+   POST /api/distribution/releases/:id/splits/invite { splitId } —
+   records the invite on the split row. Real emails are NOT sent unless an
+   email provider is configured; when it isn't, this 501s with a clear
+   message the UI shows (share the agreement link instead). */
+const EMAIL_PROVIDER_CONFIGURED = Boolean(
+  process.env["RESEND_API_KEY"] || process.env["SENDGRID_API_KEY"] || process.env["SMTP_HOST"],
+);
+
+router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req, res) => {
+  const parsed = z.object({ splitId: z.string().uuid() }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "splitId is required." });
+    return;
+  }
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const check = await db.execute(sql`
+      SELECT id, payee_name, payee_email
+      FROM distribution_royalty_splits
+      WHERE id = ${parsed.data.splitId}
+        AND release_id = ${releaseId(req)}
+        AND user_id = ${req.userId!}
+        AND superseded_at IS NULL
+      LIMIT 1
+    `);
+    const split = check.rows[0] as
+      | { id: string; payee_name: string; payee_email: string | null }
+      | undefined;
+    if (!split) {
+      res.status(404).json({ error: "Collaborator not found." });
+      return;
+    }
+    if (!split.payee_email) {
+      res.status(400).json({ error: "Add an email for this collaborator before inviting them." });
+      return;
+    }
+    const inviteToken = randomUUID();
+    await db.execute(sql`
+      UPDATE distribution_royalty_splits
+      SET invite_status = 'invited', invite_token = ${inviteToken}
+      WHERE id = ${split.id}
+    `);
+    if (!EMAIL_PROVIDER_CONFIGURED) {
+      /* Stub: invite recorded, no email sent. UI shows the message and falls
+         back to sharing the agreement link. */
+      res.status(501).json({
+        error: "No email provider is configured, so the invite email can't be sent. The invite was recorded — share your split agreement link with them instead.",
+        recorded: true,
+        emailSent: false,
+      });
+      return;
+    }
+    /* An email provider is configured but invite delivery isn't wired yet —
+       recorded honestly rather than pretending to send. */
+    res.json({ recorded: true, emailSent: false, inviteToken });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split invite failed");
+    res.status(500).json({ error: "Couldn't record the invite — try again." });
   }
 });
 
@@ -1207,7 +1609,10 @@ router.get("/distribution/presave/:slug", async (req, res) => {
   try {
     const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
     const result = await db.execute(sql`
-      SELECT ${RELEASE_COLUMNS}
+      SELECT ${RELEASE_COLUMNS},
+             presave_headline, presave_platform_links, presave_bonus_url,
+             (SELECT COUNT(*) FROM presave_follows WHERE release_id = distribution_releases.id) AS follower_count,
+             (SELECT COUNT(*) FROM presave_shares WHERE release_id = distribution_releases.id) AS share_count
       FROM distribution_releases
       WHERE presave_slug = ${slug ?? ""}
       LIMIT 1
@@ -1227,11 +1632,308 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         genre: row.genre,
         platforms: row.platforms ?? [],
         aggregatorLive: getAggregator().live,
+        /* ── HyperFollow upgrades (migration 0082) ── */
+        headline: row.presave_headline ?? null,
+        platformLinks: (row.presave_platform_links ?? {}) as Record<string, string>,
+        bonusUrl: row.presave_bonus_url ?? null,
+        followerCount: Number((row as unknown as Record<string, unknown>)["follower_count"] ?? 0),
+        shareCount: Number((row as unknown as Record<string, unknown>)["share_count"] ?? 0),
       },
     });
   } catch (err) {
     logger.error({ err }, "[distribution] presave lookup failed");
     res.status(500).json({ error: "Couldn't load the pre-save page — try again." });
+  }
+});
+
+/* ─── Pre-save upgrades (HyperFollow parity, migration 0082) ────────────
+   POST /api/distribution/presave/:slug/follow (public) — fan pre-saves /
+   joins the notify list: stored on the release AND subscribed to the
+   artist's email list (auto-provisioned from the artist name when needed).
+   POST /api/distribution/presave/:slug/share (public) — records a share
+   action; returns the bonus content URL when the artist set one (share to
+   unlock).
+   PATCH /api/distribution/releases/:id/presave-settings (auth) — artist
+   sets headline, platform URLs, bonus URL. Free.
+   GET /api/distribution/releases/:id/presave-stats (auth) — follower/share
+   counts + recent follows for the artist dashboard. Free. */
+
+const followBodySchema = z.object({
+  email: z.string().email("Enter a valid email address.").max(254),
+  name: z.string().max(120).optional().default(""),
+  platform: z.string().max(60).optional().default(""),
+});
+
+const shareBodySchema = z.object({
+  channel: z.string().max(40).optional().default(""),
+});
+
+/* Slug → release id + artist (public, minimal fields). */
+async function getPublicReleaseBySlug(
+  slug: string,
+): Promise<{ id: string; userId: string; artistName: string; bonusUrl: string | null } | null> {
+  const result = await db.execute(sql`
+    SELECT id, user_id, artist_name, presave_bonus_url
+    FROM distribution_releases
+    WHERE presave_slug = ${slug}
+    LIMIT 1
+  `);
+  const row = result.rows[0] as
+    | { id: string; user_id: string; artist_name: string; presave_bonus_url: string | null }
+    | undefined;
+  if (!row) return null;
+  return { id: row.id, userId: row.user_id, artistName: row.artist_name, bonusUrl: row.presave_bonus_url };
+}
+
+function slugifyHandle(base: string): string {
+  const clean = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 34);
+  return clean || "fans";
+}
+
+/* Ensure the artist has an email list — reuse their oldest list, or create
+   one named after the artist on first fan signup. */
+async function ensureArtistList(userId: string, artistName: string): Promise<{ id: string; handle: string }> {
+  const existing = await db.execute(sql`
+    SELECT id, handle FROM email_lists
+    WHERE user_id = ${userId}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; handle: string } | undefined;
+  if (row) return { id: row.id, handle: row.handle };
+
+  const base = `${slugifyHandle(artistName)}-fans`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const handle = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const taken = await db.execute(sql`SELECT id FROM email_lists WHERE handle = ${handle} LIMIT 1`);
+    if (taken.rows.length > 0) continue;
+    const created = await db.execute(sql`
+      INSERT INTO email_lists (user_id, name, handle, description)
+      VALUES (${userId}, ${`${artistName} fans`}, ${handle}, ${"Fans from pre-save pages."})
+      RETURNING id, handle
+    `);
+    const createdRow = created.rows[0] as { id: string; handle: string };
+    return { id: createdRow.id, handle: createdRow.handle };
+  }
+  throw new Error("handle_unavailable");
+}
+
+async function subscribeEmailListFan(listId: string, email: string, name: string): Promise<void> {
+  const existing = await db.execute(sql`
+    SELECT id, unsubscribed_at FROM email_subscribers
+    WHERE list_id = ${listId} AND email = ${email}
+    LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; unsubscribed_at: string | null } | undefined;
+  if (!row) {
+    await db.execute(sql`
+      INSERT INTO email_subscribers (list_id, email, name, source, confirmed)
+      VALUES (${listId}, ${email}, ${name || null}, ${"presave"}, ${true})
+    `);
+    return;
+  }
+  await db.execute(sql`
+    UPDATE email_subscribers
+    SET unsubscribed_at = NULL, name = COALESCE(NULLIF(${name}, ''), name), source = ${"presave"}
+    WHERE id = ${row.id}
+  `);
+}
+
+router.post("/distribution/presave/:slug/follow", publicApiLimiter, async (req, res) => {
+  try {
+    const parsed = followBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Enter a valid email address.", code: "invalid_email" });
+      return;
+    }
+    const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+    const release = await getPublicReleaseBySlug(slug ?? "");
+    if (!release) {
+      res.status(404).json({ error: "Pre-save link not found." });
+      return;
+    }
+    const email = parsed.data.email.trim().toLowerCase();
+    const name = parsed.data.name.trim();
+    const platform = parsed.data.platform.trim().toLowerCase();
+
+    /* Idempotent follow: re-following updates the name/platform. */
+    const followed = await db.execute(sql`
+      INSERT INTO presave_follows (release_id, email, name, platform, source)
+      VALUES (${release.id}, ${email}, ${name || null}, ${platform || null}, ${"presave"})
+      ON CONFLICT (release_id, email) DO UPDATE SET
+        name = COALESCE(NULLIF(EXCLUDED.name, ''), presave_follows.name),
+        platform = COALESCE(NULLIF(EXCLUDED.platform, ''), presave_follows.platform)
+      RETURNING (xmax = 0) AS inserted
+    `);
+    const followedRow = followed.rows[0] as { inserted: boolean } | undefined;
+
+    /* Also join the artist's email list — this is the fan-list handoff. */
+    try {
+      const list = await ensureArtistList(release.userId, release.artistName);
+      await subscribeEmailListFan(list.id, email, name);
+    } catch (err) {
+      logger.warn({ err }, "[distribution] presave email-list subscribe failed (non-fatal)");
+    }
+
+    const count = await db.execute(sql`
+      SELECT COUNT(*) AS c FROM presave_follows WHERE release_id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      alreadyFollowing: followedRow ? !followedRow.inserted : false,
+      followerCount: Number((count.rows[0] as { c: string | number }).c ?? 0),
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave follow failed");
+    res.status(500).json({ error: "Couldn't save your pre-save — try again." });
+  }
+});
+
+router.post("/distribution/presave/:slug/share", publicApiLimiter, async (req, res) => {
+  try {
+    const parsed = shareBodySchema.safeParse(req.body ?? {});
+    const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+    const release = await getPublicReleaseBySlug(slug ?? "");
+    if (!release) {
+      res.status(404).json({ error: "Pre-save link not found." });
+      return;
+    }
+    await db.execute(sql`
+      INSERT INTO presave_shares (release_id, channel)
+      VALUES (${release.id}, ${parsed.success ? parsed.data.channel.trim().toLowerCase() || null : null})
+    `);
+    const count = await db.execute(sql`
+      SELECT COUNT(*) AS c FROM presave_shares WHERE release_id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      shareCount: Number((count.rows[0] as { c: string | number }).c ?? 0),
+      /* Share-to-unlock: bonus content revealed after the fan shares. */
+      bonusUrl: release.bonusUrl,
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave share failed");
+    res.status(500).json({ error: "Couldn't record your share — try again." });
+  }
+});
+
+const presaveSettingsSchema = z.object({
+  headline: z.string().max(140).optional(),
+  platformLinks: z.record(z.string(), z.string().max(500)).optional(),
+  bonusUrl: z.string().max(500).optional(),
+});
+
+const PRESAVE_LINK_PLATFORMS = new Set([
+  "spotify", "apple_music", "youtube_music", "tiktok",
+  "amazon_music", "deezer", "tidal",
+]);
+
+function cleanUrl(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (!/^https?:\/\//i.test(v)) return null;
+  return v;
+}
+
+router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (req, res) => {
+  try {
+    const release = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!release) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const parsed = presaveSettingsSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid pre-save settings." });
+      return;
+    }
+    const { headline, platformLinks, bonusUrl } = parsed.data;
+
+    /* Keep only known platform keys with real http(s) URLs. */
+    const links: Record<string, string> = {};
+    if (platformLinks) {
+      for (const [key, value] of Object.entries(platformLinks)) {
+        const clean = cleanUrl(value);
+        if (clean && PRESAVE_LINK_PLATFORMS.has(key)) links[key] = clean;
+      }
+    }
+
+    const current = await db.execute(sql`
+      SELECT presave_headline, presave_platform_links, presave_bonus_url
+      FROM distribution_releases WHERE id = ${release.id}
+    `);
+    const cur = (current.rows[0] ?? {}) as {
+      presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+    };
+    const currentLinks = (cur.presave_platform_links ?? {}) as Record<string, string>;
+    const merged = platformLinks ? links : currentLinks;
+    const nextHeadline = headline !== undefined ? headline.trim() || null : (cur.presave_headline ?? null);
+    const nextBonus = bonusUrl !== undefined ? cleanUrl(bonusUrl) : (cur.presave_bonus_url ?? null);
+
+    await db.execute(sql`
+      UPDATE distribution_releases
+      SET presave_headline = ${nextHeadline},
+          presave_platform_links = ${JSON.stringify(merged)}::jsonb,
+          presave_bonus_url = ${nextBonus},
+          updated_at = now()
+      WHERE id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      settings: { headline: nextHeadline, platformLinks: merged, bonusUrl: nextBonus },
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave settings save failed");
+    res.status(500).json({ error: "Couldn't save pre-save settings — try again." });
+  }
+});
+
+router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, res) => {
+  try {
+    const release = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!release) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const [followCount, shareCount, recent, settingsRow] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) AS c FROM presave_follows WHERE release_id = ${release.id}`),
+      db.execute(sql`SELECT COUNT(*) AS c FROM presave_shares WHERE release_id = ${release.id}`),
+      db.execute(sql`
+        SELECT email, name, platform, created_at
+        FROM presave_follows
+        WHERE release_id = ${release.id}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `),
+      db.execute(sql`
+        SELECT presave_headline, presave_platform_links, presave_bonus_url
+        FROM distribution_releases
+        WHERE id = ${release.id}
+        LIMIT 1
+      `),
+    ]);
+    const s = (settingsRow.rows[0] ?? {}) as {
+      presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+    };
+    res.json({
+      settings: {
+        headline: s.presave_headline ?? null,
+        platformLinks: s.presave_platform_links ?? {},
+        bonusUrl: s.presave_bonus_url ?? null,
+      },
+      followers: Number((followCount.rows[0] as { c: string | number }).c ?? 0),
+      shares: Number((shareCount.rows[0] as { c: string | number }).c ?? 0),
+      recentFollows: recent.rows as Array<{
+        email: string; name: string | null; platform: string | null; created_at: string;
+      }>,
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave stats failed");
+    res.status(500).json({ error: "Couldn't load pre-save stats — try again." });
   }
 });
 
