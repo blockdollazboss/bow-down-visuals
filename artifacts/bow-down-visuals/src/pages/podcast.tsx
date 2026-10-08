@@ -6,6 +6,7 @@ import {
   AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
   Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -612,6 +613,16 @@ export default function PodcastStudio() {
                     <Download className="h-4 w-4" />
                     {t("podcast.result.downloadMp3")}
                   </a>
+
+                  <PublishToProfileButton
+                    type="audio"
+                    category="podcast"
+                    audioUrl={result.audioPlayUrl ?? result.audioUrl}
+                    title={result.title ?? "Podcast episode"}
+                    durationSec={result.durationSeconds ?? undefined}
+                    from="/podcast"
+                    fromLabel="Podcast Studio"
+                  />
 
                   {result.scriptUsed && (
                     <details className="rounded-xl border border-white/10 bg-black/40 p-3">

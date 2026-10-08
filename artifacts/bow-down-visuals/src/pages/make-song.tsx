@@ -17,6 +17,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { CoverSongModal } from "@/components/song/CoverSongModal";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { HarmonyGeneratorModal } from "@/components/song/HarmonyGeneratorModal";
 import { LrcExportModal } from "@/components/song/LrcExportModal";
@@ -817,6 +818,17 @@ export default function MakeSong() {
                           artistName: watched.artistName || undefined,
                         }}
                         initialLyrics={pkg.lyrics}
+                      />
+                      {/* Publish to my profile: creation → publish → live → selling, one click. */}
+                      <PublishToProfileButton
+                        type="audio"
+                        category="music"
+                        audioUrl={audioUrl}
+                        title={watched.songTitle || pkg.bestTitle || "Untitled Song"}
+                        artworkUrl={(() => { const u = latestOfKind("image")?.url; return u && !u.startsWith("blob:") ? u : undefined; })()}
+                        genre={watched.genre || undefined}
+                        from="/make-song"
+                        fromLabel="Song Maker"
                       />
                       {/* AI Vocal Polish: gentle tuning nudge + key/tempo shift, docked with the other song actions. */}
                       <button

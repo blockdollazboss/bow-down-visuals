@@ -4,6 +4,7 @@ import {
   Mic, Loader2, Play, Pause, Download, Clapperboard, Volume2,
   AlertTriangle, Sparkles, FileText, Timer,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -485,6 +486,14 @@ export default function VoiceoverStudio() {
                       <Download className="h-4 w-4" />
                       {t("voiceover.downloadFormat", { format: result.format?.toUpperCase() })}
                     </a>
+                    <PublishToProfileButton
+                      type="audio"
+                      category="other"
+                      audioUrl={result.audioPlayUrl ?? result.audioUrl}
+                      title="Voiceover"
+                      from="/voiceover"
+                      fromLabel="Voiceover"
+                    />
                     <button
                       onClick={sendToEditor}
                       className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"

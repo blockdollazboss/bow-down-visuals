@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareForReview";
 
 interface GeneratedClip {
@@ -932,6 +933,17 @@ function ClipCard({
           mediaUrl={clip.video_url}
           thumbnailUrl={clip.thumbnail_url}
           defaultTitle={clip.title || "My Runway Clip"}
+        />
+
+        {/* Publish to my profile: clip → /publish prefilled → live */}
+        <PublishToProfileButton
+          type="video"
+          category="video"
+          videoUrl={clip.video_url}
+          title={clip.title || "My Runway Clip"}
+          artworkUrl={clip.thumbnail_url ?? undefined}
+          from="/my-clips"
+          fromLabel="My Clips"
         />
 
         {/* Client review link (CapCut parity) — free shareable feedback page */}

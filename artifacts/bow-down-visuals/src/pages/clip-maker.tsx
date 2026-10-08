@@ -3,6 +3,7 @@ import {
   Clapperboard, Loader2, Sparkles, Upload, Link2, Scissors,
   Copy, Check, Download, AlertTriangle, Play, Clock, Flame, Captions,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -554,6 +555,17 @@ export default function ClipMaker() {
                           >
                             <Captions className="h-3.5 w-3.5" /> {t("clipMaker.addCaptions", { defaultValue: "Add captions" })}
                           </Link>
+                          <div className="mt-1.5">
+                            <PublishToProfileButton
+                              compact
+                              type="video"
+                              category="video"
+                              videoUrl={c.outputUrl}
+                              title={c.title}
+                              from="/clip-maker"
+                              fromLabel="Clip Maker"
+                            />
+                          </div>
                         </>
                       )}
                     </div>

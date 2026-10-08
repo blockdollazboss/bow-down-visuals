@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
@@ -991,6 +992,18 @@ export function ExportSection({
 
       {/* ── Export for all platforms: one-click multi-ratio export ── */}
       <MultiRatioExportCard videoUrl={finalVideoUrl ?? handoffVideoUrl} topic={topic} />
+
+      {/* ── Publish to my profile: finished export → /publish prefilled ── */}
+      {finalVideoUrl && (
+        <PublishToProfileButton
+          type="video"
+          category="video"
+          videoUrl={finalVideoUrl}
+          title={topic || "My video"}
+          from="/video-editor"
+          fromLabel="Video Editor"
+        />
+      )}
 
       {/* ── Extract audio from the finished video ── */}
       <ExtractAudioCard videoUrl={finalVideoUrl} />

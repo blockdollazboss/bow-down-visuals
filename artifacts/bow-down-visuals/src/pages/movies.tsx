@@ -5,6 +5,7 @@ import {
   Users, ListVideo, Quote, Target, TrendingUp, Scissors, Clock,
   Zap, MessageSquareText, CalendarClock, PenLine,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -397,6 +398,14 @@ export default function Movies() {
               >
                 {t("movies.developAnother")}
               </button>
+              {/* Filmmakers: finished film → publish to profile (film vertical prefilled) */}
+              <PublishToProfileButton
+                type="video"
+                category="film"
+                title={concept.title}
+                from="/movies"
+                fromLabel="Movies"
+              />
             </div>
           )
         ) : (
