@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
 import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
+import SponsorPipeline from "@/components/wave8/SponsorPipeline";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
@@ -444,6 +445,12 @@ export default function SponsorshipOutreach() {
             prefillBrand={brandName}
             prefillCreator={creatorName || activeArtist?.artist_name || ""}
           />
+        </div>
+
+        {/* sponsor deal pipeline — track every deal from pitch to paid, with
+            AI follow-up drafts and one-tap income logging when a deal pays. */}
+        <div className="relative mt-4">
+          <SponsorPipeline />
         </div>
 
         {/* tracker */}
