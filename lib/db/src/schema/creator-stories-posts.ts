@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, primaryKey, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, primaryKey, check, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -63,9 +63,9 @@ export const postsTable = pgTable("posts", {
   body:        text("body").notNull(),
   mediaUrls:   jsonb("media_urls").$type<Attachment[]>().notNull().default([]),
   kind:        text("kind").notNull().default("post"),
-  replyTo:     uuid("reply_to").references(() => postsTable.id),
-  quoteOf:     uuid("quote_of").references(() => postsTable.id),
-  repostOf:    uuid("repost_of").references(() => postsTable.id),
+  replyTo:     uuid("reply_to").references((): AnyPgColumn => postsTable.id),
+  quoteOf:     uuid("quote_of").references((): AnyPgColumn => postsTable.id),
+  repostOf:    uuid("repost_of").references((): AnyPgColumn => postsTable.id),
   /** Optional community group this post belongs to (Worker 9 may FK this). */
   groupId:     uuid("group_id"),
   /** NULL = published now; future = hidden until then (feed filters by time — no cron). 4+ stars. */

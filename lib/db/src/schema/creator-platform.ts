@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, jsonb, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -97,9 +97,9 @@ export const profileVideosTable = pgTable("profile_videos", {
   /** Shorts mechanics (0091): TikTok-style vertical short flag. */
   isShort:           boolean("is_short").notNull().default(false),
   /** Duet parent (the original short being duetted). NULL = original. */
-  duetWith:          uuid("duet_with").references(() => profileVideosTable.id, { onDelete: "set null" }),
+  duetWith:          uuid("duet_with").references((): AnyPgColumn => profileVideosTable.id, { onDelete: "set null" }),
   /** Stitch parent (the original short being stitched). NULL = original. */
-  stitchWith:        uuid("stitch_with").references(() => profileVideosTable.id, { onDelete: "set null" }),
+  stitchWith:        uuid("stitch_with").references((): AnyPgColumn => profileVideosTable.id, { onDelete: "set null" }),
   /** Sound used by this short: free-text id (slug) + display metadata. */
   soundId:           text("sound_id"),
   soundTitle:        text("sound_title"),
