@@ -439,15 +439,10 @@ export default function SongsPage() {
                     <Link
                       href={`/video-editor?tab=export&canvas=1&canvasAudio=${encodeURIComponent(s.audio_url)}&canvasTitle=${encodeURIComponent(s.title)}`}
                       title="Turn this song's cover art into an 8-second Spotify Canvas loop"
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-primary/40 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition"
                     >
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl border-primary/40 text-primary"
-                      >
-                        <Clapperboard className="h-4 w-4 mr-1" />
-                        Make a Canvas
-                      </Button>
+                      <Clapperboard className="h-4 w-4 mr-1" />
+                      Make a Canvas
                     </Link>
                     <Button
                       size="sm"
