@@ -3,11 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /**
- * Creator Streaming Platform — profiles + media (migrations 0085, 0086).
+ * Creator Streaming Platform — profiles + media (migrations 0085, 0086, 0089).
  *
- * creator_profiles: one public creator page per user.
- * profile_tracks / profile_videos: media owned by a profile.
- * playlists: ordered mixes of tracks/videos owned by a profile.
+ * creator_profiles: one public creator page per user, ALL creator lanes
+ * (music | video | gaming | podcast | film | tv | influencer | education | other).
+ * profile_tracks / profile_videos: GENERIC audio/video content — a
+ * podcaster's episodes live in profile_tracks, a YouTuber's uploads in
+ * profile_videos (table names stay stable for the contract).
+ * playlists: mixes OR episodic series (kind 'playlist' | 'series').
  */
 
 export const creatorProfilesTable = pgTable("creator_profiles", {
@@ -19,6 +22,12 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   avatarUrl:       text("avatar_url"),
   bannerUrl:       text("banner_url"),
   themeId:         text("theme_id").notNull().default("gold-lux"),
+  /** Creator lane: music | video | gaming | podcast | film | tv | influencer | education | other */
+  vertical:        text("vertical").notNull().default("music"),
+  /** Stream schedule for gamers/streamers: array of {day, time, title}. twitch/youtube/kick URLs live in social_links. */
+  streamSchedule:  jsonb("stream_schedule").$type<Array<{ day: string; time: string; title?: string }>>().notNull().default([]),
+  /** Influencer media kit: {audience_size, engagement_rate, rates, niches} — brand-deal one-pager data. */
+  mediaKit:        jsonb("media_kit").$type<Record<string, unknown> | null>(),
   themeConfig:     jsonb("theme_config").$type<Record<string, unknown>>().notNull().default({}),
   sections:        jsonb("sections").$type<Array<Record<string, unknown>>>().notNull().default([]),
   featuredMedia:   jsonb("featured_media").$type<Record<string, unknown> | null>(),
@@ -71,6 +80,9 @@ export const profileVideosTable = pgTable("profile_videos", {
   genre:             text("genre"),
   tags:              text("tags").array().notNull().default([]),
   durationSec:       integer("duration_sec").notNull().default(0),
+  /** Optional episodic numbering for film/TV (series live as playlists with kind='series'). */
+  season:            integer("season"),
+  episode:           integer("episode"),
   /** 0 = stream-only, >0 = paid download (Stripe, see digital_sales). */
   downloadPriceCents: integer("download_price_cents").notNull().default(0),
   viewCount:         integer("view_count").notNull().default(0),
@@ -92,6 +104,8 @@ export const playlistsTable = pgTable("playlists", {
   description:    text("description").notNull().default(""),
   coverUrl:       text("cover_url"),
   isPublic:       boolean("is_public").notNull().default(true),
+  /** 'playlist' = mix, 'series' = episodic film/TV series (ordered items = episode order). */
+  kind:           text("kind").notNull().default("playlist"),
   /** Ordered array of {kind:'track'|'video', id: <uuid>} entries. */
   items:          jsonb("items").$type<Array<{ kind: "track" | "video"; id: string }>>().notNull().default([]),
   followerCount:  integer("follower_count").notNull().default(0),
