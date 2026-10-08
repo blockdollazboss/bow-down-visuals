@@ -937,7 +937,46 @@
     "crossLinkPrefix": "Got the plan? Run your next post through",
     "hookStudio": "Hook Studio",
     "crossLinkSuffix": "before you ship it.",
-    "tabIntelligence": "Intelligence"
+    "tabDashboard": "Dashboard",
+    "tabCompetitor": "Competitor",
+    "tabIntelligence": "Intelligence",
+    "competitor": {
+      "title": "Competitor Tracker",
+      "subtitle": "Dissect anyone's playbook — then out-post them.",
+      "nameLabel": "Competitor name",
+      "namePlaceholder": "e.g. @TheirHandle",
+      "urlLabel": "Profile or channel URL",
+      "urlPlaceholder": "Paste their profile link (optional)",
+      "nicheLabel": "Their niche",
+      "nichePlaceholder": "e.g. fitness reels, gaming streams, fashion hauls",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Anything you already know about them (optional)",
+      "analyze": "Analyze Competitor",
+      "analyzing": "Analyzing competitor…",
+      "signIn": "Sign in to analyze a competitor",
+      "costNote": "{{cost}} Visual Bucs per analysis · powered by Thy Cheat Code",
+      "needNameOrUrl": "Drop in a competitor name or profile URL first.",
+      "needNiche": "Add their niche so the breakdown hits right.",
+      "errorFailed": "Competitor analysis failed — try again.",
+      "resultsTitle": "Competitor breakdown",
+      "strengthsTitle": "Their strengths",
+      "weaknessesTitle": "Their weaknesses",
+      "opportunitiesTitle": "Gaps you can exploit",
+      "takeawaysTitle": "Key takeaways",
+      "nextStepsTitle": "Turn intel into content",
+      "pillarsTitle": "Content pillars",
+      "formatsTitle": "Top-performing formats",
+      "cadenceTitle": "Posting cadence",
+      "postsPerWeek": "≈{{count}} posts/week",
+      "exploit": "Exploit this gap",
+      "actionIdeas": "Generate hook ideas",
+      "actionIdeasHint": "Turn this gap into hooks that stop the scroll.",
+      "actionCaptions": "Write captions",
+      "actionCaptionsHint": "Draft captions that out-do their angle.",
+      "actionPreflight": "Preflight your post",
+      "actionPreflightHint": "Score your version before you ship it.",
+      "rerun": "Re-run analysis ({{cost}} Visual Bucs)"
+    }
   },
   "analytics": {
     "connectBlurbs": {
@@ -1420,7 +1459,8 @@
     "reserveLicenseButton": "Reserve {{tier}} license",
     "beatRowMeta": "{{genre}} · {{plays}} plays",
     "aiSuggestsPrefix": "AI suggests: ",
-    "applyToBeat": "Apply to beat"
+    "applyToBeat": "Apply to beat",
+    "useInSong": "Use this beat in a song"
   },
   "betaAccess": {
     "pageTitle": "Beta Access",
@@ -1588,7 +1628,8 @@
     "tipsTitle": "Negotiation tips",
     "title": "Brand Deal",
     "titleAccent": "Calculator",
-    "usageRightsTitle": "Usage rights"
+    "usageRightsTitle": "Usage rights",
+    "findBrands": "Find brands to pitch"
   },
   "brandDeals": {
     "addPlatformPlaceholder": "+ add platform",
@@ -1670,7 +1711,9 @@
     "tipsTitle": "Make it land",
     "title": "Brand Deal",
     "titleAccent": "Finder",
-    "verifyPrefix": "Verify:"
+    "verifyPrefix": "Verify:",
+    "finderExplainer": "This is the finder — AI hunts down brands that fit you. When a brand posts a deal for creators to apply to, that's the ",
+    "marketplaceLink": "Sponsor Marketplace"
   },
   "brandingKit": {
     "eyebrow": "Brand Identity",
@@ -1939,7 +1982,8 @@
     "vibeHypeBlurb": "Clutch plays & big wins",
     "vibeHypeLabel": "Hype",
     "vibeWholesomeBlurb": "Feel-good moments",
-    "vibeWholesomeLabel": "Wholesome"
+    "vibeWholesomeLabel": "Wholesome",
+    "addCaptions": "Add captions"
   },
   "coach": {
     "buildPlan": "Build my money plan",
@@ -1995,7 +2039,8 @@
     "titleStart": "Monetization",
     "videosPerWeek": "Videos per week",
     "whereDoYouPost": "Where do you post?",
-    "yourNiche": "Your niche"
+    "yourNiche": "Your niche",
+    "copyPlan": "Copy plan"
   },
   "collabs": {
     "accept": "Accept",
@@ -2068,7 +2113,9 @@
     "wantsLabel": "Wants: ",
     "watchOutFor": "Watch out for",
     "whyItWorks": "Why it works",
-    "youBadge": "YOU"
+    "youBadge": "YOU",
+    "brandDealsLink": "Brand Deals",
+    "collabExplainer": "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See "
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",
@@ -2256,7 +2303,8 @@
     "entries_the_draw_is_seeded_and_l": "entries. The draw is seeded and logged —\n                        publish the audit so your fans can verify it was fair.",
     "verify_at_least_one_entry_first": "Verify at least one entry first.",
     "ai_generated_gold_black_announce": "AI-generated gold/black announcement graphic with the winner's handle — 1 Visual Buc.",
-    "download": "Download"
+    "download": "Download",
+    "share": "Share"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "Paste the full contract here — copy it from the PDF or document they sent you. The more complete, the better the analysis.",
@@ -2288,7 +2336,9 @@
       "publishing": "Publishing",
       "distribution": "Distribution",
       "other": "Other"
-    }
+    },
+    "copy_analysis": "Copy analysis",
+    "download_analysis": "Download"
   },
   "copyright": {
     "e_g_midnight_crown": "e.g. Midnight Crown",
@@ -2351,7 +2401,8 @@
         "label": "Album / EP",
         "hint": "Group of works released together"
       }
-    }
+    },
+    "download_draft": "Download draft"
   },
   "cover-art": {
     "midnight_crown": "Midnight Crown",
@@ -2857,7 +2908,8 @@
       "video": "Video",
       "song": "Song",
       "voice": "Voice"
-    }
+    },
+    "download": "Download"
   },
   "goLive": {
     "pageTitle": "Go Live",
@@ -3181,7 +3233,8 @@
     "title": "Media Importer",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "video",
-    "worksWith": "Works with {{platforms}} and direct links to audio/video files (MP3, MP4, WAV, …). Files up to 500 MB."
+    "worksWith": "Works with {{platforms}} and direct links to audio/video files (MP3, MP4, WAV, …). Files up to 500 MB.",
+    "viewLibrary": "My clips"
   },
   "interviewPrep": {
     "answerLabel": "Your answer — say it like you're on mic",
@@ -3396,7 +3449,8 @@
     "uploadLogo": "Click to upload your logo",
     "uploadToContinue": "Upload a logo to continue",
     "uploadedLogoAlt": "Uploaded logo",
-    "whatMaking": "What are we making?"
+    "whatMaking": "What are we making?",
+    "useMyLogo": "Or use a logo you already made"
   },
   "jewelryShop": {
     "back": "Back",
@@ -3441,7 +3495,8 @@
     "streetPh": "Street address *",
     "studioLink": "Want a fully custom design? Open the Logo-to-Luxury studio",
     "total": "Total:",
-    "zipPh": "ZIP *"
+    "zipPh": "ZIP *",
+    "designCarried": "Your studio design was carried over — review it below."
   },
   "labelPitch": {
     "advancedSuffix": " bio, stats & lyrics (better package)",
@@ -3771,7 +3826,8 @@
     "removeLocationTitle": "Remove location",
     "save": "Save",
     "subtitle": "Save places for your music videos — throne rooms, stages, streets, skies. Pick them visually when you build scenes instead of typing descriptions.",
-    "uploadImage": "Upload image"
+    "uploadImage": "Upload image",
+    "useInCoverArt": "Use in cover art"
   },
   "logoMaker": {
     "pageTitle": "Logo Maker",
@@ -4311,7 +4367,8 @@
     "winsLabel": "Your wins (optional)",
     "winsPlaceholder": "e.g. 2M views on my last drop, opened for…",
     "writingPitch": "Writing…",
-    "yourDeal": "Your deal"
+    "yourDeal": "Your deal",
+    "writeSponsorRead": "Write the sponsor read"
   },
   "sponsors": {
     "emptyNoDeals": "No active deals yet",
@@ -4566,7 +4623,8 @@
     "regenerate": "Regenerate ({{cost}} Visual Bucs)",
     "retry": "Retry",
     "themeLabel": "Theme",
-    "yourPack": "Your pack"
+    "yourPack": "Your pack",
+    "goLive": "Pack ready — set up your stream in Go Live"
   },
   "team": {
     "accept": "Accept",
@@ -4705,7 +4763,9 @@
     "teleprompterHint": "Space = play/pause · ↑↓ = speed · +/− = text size · Esc = close · click script = pause",
     "hookHintLabel": "Winning hook from your content plan",
     "hookHintBlurb": "Open with this line — it was engineered for the viral loop.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "sendToScheduler": "Scheduler",
+    "sendToVoiceover": "Voiceover"
   },
   "setlist": {
     "addButton": "Add",
@@ -5547,7 +5607,8 @@
     "removedToast": "Removed from library",
     "removing": "Removing…",
     "untitled": "Untitled thumbnail",
-    "viewFullSize": "View {{title}} full size"
+    "viewFullSize": "View {{title}} full size",
+    "fromProject": "From this project"
   },
   "tipPage": {
     "amountRequired": "Pick or enter an amount first.",
@@ -5604,7 +5665,8 @@
     "titleHighlight": "Tip Jar",
     "titlePrefix": "Your",
     "totalsTitle": "Tip jar totals",
-    "updateButton": "Update tip page"
+    "updateButton": "Update tip page",
+    "shareTipPage": "Share tip page"
   },
   "titles": {
     "allTagsCopyLabel": "all tags",
@@ -5654,7 +5716,8 @@
     "topicLabel": "Video topic",
     "topicPlaceholder": "e.g. \"my new single about grinding at 3am\" or \"behind the scenes of my first studio session\"",
     "topicRequired": "Tell us what the video is about first.",
-    "topicSub": "One topic in, full packaging out."
+    "topicSub": "One topic in, full packaging out.",
+    "sendToScheduler": "Send to scheduler"
   },
   "tour": {
     "addDateFree": "Add tour date · Free",
@@ -6259,6 +6322,75 @@
       "appliedTitle": "Added to editor",
       "appliedDesc": "The masked clip replaced the scene's video.",
       "shareTitle": "My masked clip"
+    },
+    "motionTrack": {
+      "title": "Motion Track",
+      "subtitle": "AI motion tracking — stick text, stickers, or blur onto anything that moves.",
+      "costChip": "Visual Bucs",
+      "noClip": "Load a scene clip to start motion tracking.",
+      "step1": "Step 1 — Pick the subject",
+      "pickHint": "Click anywhere on the frame to place the tracking box, then resize it around your subject.",
+      "boxWidth": "Box width",
+      "boxHeight": "Box height",
+      "useCurrentFrame": "Start at current frame",
+      "startAt": "Start at",
+      "trackFor": "Track for",
+      "step2": "Step 2 — Track it",
+      "trackButton": "Track subject",
+      "tracking": "Tracking…",
+      "starting": "Warming up…",
+      "addAnchor": "Add anchor",
+      "addAnchorHint": "Drop a manual keyframe at the current frame",
+      "confidence": "{{pct}}% confidence",
+      "aiTrackedNote": "AI-tracked across frames — confidence reported honestly.",
+      "anchors": "{{count}} anchors",
+      "usingManual": "Using manual anchors",
+      "useManual": "Use manual anchors",
+      "anchorNote": "Manual anchors = honest keyframed follow, no AI claims.",
+      "noTrack": "Track the subject or add manual anchors first.",
+      "outOfBucs": "Not enough Visual Bucs for motion tracking.",
+      "trackFailed": "Tracking failed — try again.",
+      "trackReady": "Subject tracked.",
+      "step3": "Step 3 — Follow mode",
+      "blurPrivacyNote": "Blur-follow is perfect for faces, plates, and private details.",
+      "textPlaceholder": "Text that follows the subject…",
+      "stickerPlaceholder": "Paste a sticker image URL…",
+      "strength": "Strength",
+      "strength1": "Soft",
+      "strength2": "Medium",
+      "strength3": "Heavy",
+      "attribution": "Add \"Made with Bow Down Visuals\" attribution",
+      "applyButton": "Apply follow effect",
+      "applying": "Applying…",
+      "applyHint": "Track the subject or add anchors to enable this.",
+      "applyFailed": "Couldn't apply the effect — try again.",
+      "applyReady": "Follow effect applied.",
+      "needText": "Add the text that follows the subject.",
+      "needSticker": "Paste a sticker image URL first.",
+      "resultTitle": "Your tracked clip",
+      "useInEditor": "Use in editor",
+      "download": "Download",
+      "shareTitle": "Share it",
+      "shareNoAccounts": "Connect a social account to share straight from here.",
+      "shareCaption": "Tracked with Bow Down Visuals ✨ #BowDownVisuals",
+      "shareFailed": "Share failed — try again.",
+      "shareOk": "Posted to {{platform}}.",
+      "usedInEditor": "Clip swapped into the editor.",
+      "mode": {
+        "blur": "Blur",
+        "text": "Text",
+        "sticker": "Sticker",
+        "pixelate": "Pixelate"
+      },
+      "textStyle": {
+        "clean": "Clean",
+        "glow": "Glow"
+      },
+      "textPos": {
+        "above": "Above",
+        "below": "Below",
+        "center": "Center"
+      }
     }
   },
   "viralityCheck": {
@@ -6805,7 +6937,8 @@
       "playlistPitcher": "Playlist Pitcher",
       "p2": "and schedule your teasers with the",
       "scheduler": "Content Scheduler",
-      "p3": "."
+      "p3": ".",
+      "distribute": "distribute it"
     },
     "error": {
       "noTitle": "Give your release a title first — the plan is built around it.",
@@ -6892,7 +7025,10 @@
     "sponsorReadVoiceoverSent": "Read sent to Voiceover Pro — opening the studio…",
     "sponsorReadAddScript": "Add to script drafts",
     "sponsorReadSaved": "Saved to your script drafts.",
-    "sponsorReadSaveFailed": "Couldn't save the draft — try again."
+    "sponsorReadSaveFailed": "Couldn't save the draft — try again.",
+    "brandDealsLink": "Brand Deals",
+    "pitchExplainer": "Your pitch kit — emails and DMs that land sponsors. Found a brand in ",
+    "pitchExplainer2": "? Draft your pitch here next."
   },
   "repurpose": {
     "badge": "Content Repurposer",
@@ -6954,7 +7090,8 @@
       "lostJobs": "Lost track of the background jobs — refresh to check.",
       "rerollFailed": "Re-roll failed — try again.",
       "thumbRerollFailed": "Thumbnail re-roll failed — try again."
-    }
+    },
+    "addCaptions": "Add captions"
   },
   "royalties": {
     "eyebrow": "Royalty Tracker",
@@ -7139,7 +7276,8 @@
     "cancel": "Cancel",
     "deletePitch": "Delete pitch",
     "markStatus": "Mark {{status}}",
-    "noPitches": "No pitches logged yet. Generate a pitch kit, find a curator, and track every send right here — free forever."
+    "noPitches": "No pitches logged yet. Generate a pitch kit, find a curator, and track every send right here — free forever.",
+    "notesPlaceholder": "Notes for the curator (optional)"
   },
   "refundPolicy": {
     "nav": {
@@ -7590,7 +7728,8 @@
     "errorGenerate": "Could not generate the designs — no Visual Bucs were charged.",
     "errorNetwork": "Network error — please try again. No Visual Bucs were charged.",
     "confirmDelete": "Delete this design? This can't be undone.",
-    "checkoutSoon": "Checkout is coming soon."
+    "checkoutSoon": "Checkout is coming soon.",
+    "myShopLink": "Sell this in my shop"
   },
   "podcast": {
     "episode": {
@@ -7703,7 +7842,9 @@
     },
     "footer": "Released with Thy Cheat Code — the content creator cheat code.",
     "loading": "Loading release…",
-    "platformsTitle": "Available everywhere on release day"
+    "platformsTitle": "Available everywhere on release day",
+    "postToX": "Post to X",
+    "shareRelease": "Share this release"
   },
   "press-kit": {
     "backToDashboard": "Back to dashboard",
@@ -8681,7 +8822,8 @@
     "platformFeeNote": "({{pct}}% platform fee on each)",
     "noSales": "No sales yet — share your storefront link.",
     "productFallback": "Product",
-    "youKeepAmount": "you keep {{amount}}"
+    "youKeepAmount": "you keep {{amount}}",
+    "shareShop": "Share"
   },
   "mixMaster": {
     "back": "Back",
@@ -8776,7 +8918,18 @@
     "referenceTrack": "Reference track",
     "beforeAfter": "Before / After",
     "before": "Before",
-    "after": "After"
+    "after": "After",
+    "dropMixHint": "Drop your finished mix here",
+    "fileTypes": "MP3, WAV, FLAC · up to 100 MB",
+    "dropStemsHint": "Drop your stems here",
+    "listeningTo": "Listening to",
+    "masterReport": "Master report",
+    "referenceHint": "Choose a reference track",
+    "referenceLoudness": "Reference loudness",
+    "dynamicRange": "Dynamic range",
+    "vocalBuried": "Buried",
+    "vocalLevel": "Vocal level",
+    "vocalUpfront": "Upfront"
   },
   "movies": {
     "badge": "Movies & Web Series",
@@ -8830,7 +8983,8 @@
     "errorGeneration": "Generation failed. Try again.",
     "errorGenerationShort": "Generation failed.",
     "errorDetection": "Detection failed. Try again.",
-    "errorDetectionShort": "Detection failed."
+    "errorDetectionShort": "Detection failed.",
+    "writeScript": "Write the script"
   },
   "review": {
     "pageTitle": "Client Review",
@@ -9209,11 +9363,13 @@
       },
       "thumbnailAb": {
         "label": "A/B Thumbnails",
-        "blurb": "3 style variants to test · 300 VB"
+        "blurb": "3 style variants to test · 300 VB",
+        "variantLabel": "Thumbnail variant {{n}}"
       },
       "clipDescription": {
         "label": "Clip Description",
-        "blurb": "YouTube-ready description + chapters · 50 VB"
+        "blurb": "YouTube-ready description + chapters · 50 VB",
+        "resultLabel": "Clip description · {{topic}}"
       },
       "meme": {
         "label": "Meme",
