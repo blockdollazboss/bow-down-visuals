@@ -1,5 +1,4 @@
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
-import { MovedBanner } from "@/components/MovedBanner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -145,12 +144,9 @@ const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const AudioStudio = lazyWithRetry(() => import("@/pages/audio-studio"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
-const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const BrandingKit = lazyWithRetry(() => import("@/pages/branding-kit"));
 const AnalyticsHub = lazyWithRetry(() => import("@/pages/analytics-hub"));
 const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
-const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
-const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
@@ -410,7 +406,6 @@ function AppShell() {
   return (
     <>
       <ScrollToTop />
-      <MovedBanner />
       {typeof window !== "undefined" && <BowDownAIGuide />}
       {typeof window !== "undefined" && <ThyCheatCodeChat />}
       {typeof window !== "undefined" && <GuideMe />}
@@ -480,7 +475,7 @@ function AppShell() {
           <Route path="/terms"><Terms /></Route>
           <Route path="/privacy"><Privacy /></Route>
           <Route path="/refund-policy"><RefundPolicy /></Route>
-          <Route path="/randomizer"><Redirect to="/hooks?tab=dice&moved_from=randomizer" /></Route>
+          <Route path="/randomizer"><Redirect to="/hooks?tab=dice" /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/sounds"><SoundFinder /></Route>
           {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
@@ -496,7 +491,7 @@ function AppShell() {
           <Route path="/track/:id"><StreamTrackPage /></Route>
           <Route path="/watch/:id"><StreamWatchPage /></Route>
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
-          <Route path="/comment-replies"><Redirect to="/community?tab=replies&moved_from=comment-replies" /></Route>
+          <Route path="/comment-replies"><Redirect to="/community?tab=replies" /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
           <Route path="/fog-lab"><FogLab /></Route>
           <Route path="/cursor-lab"><CursorLab /></Route>
@@ -504,8 +499,8 @@ function AppShell() {
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
-          <Route path="/content-calendar"><Redirect to="/scheduler?tab=plan&moved_from=content-calendar" /></Route>
-          <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace&moved_from=sponsors" /></Route>
+          <Route path="/content-calendar"><Redirect to="/scheduler?tab=plan" /></Route>
+          <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><ShowFinder /></Route>
           <Route path="/brand-deals"><BrandDealFinder /></Route>
           <Route path="/distribute"><Distribute /></Route>
@@ -522,17 +517,17 @@ function AppShell() {
           <Route path="/team"><TeamPage /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
-          <Route path="/watermark-removal"><Redirect to="/upscale?tab=enhance&moved_from=watermark-removal" /></Route>
-          <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup&moved_from=audio-cleanup" /></Route>
+          <Route path="/watermark-removal"><Redirect to="/upscale?tab=enhance" /></Route>
+          <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>
-          <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected&moved_from=analytics" /></Route>
+          <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
           <Route path="/import"><MediaImport /></Route>
-          <Route path="/logo-maker"><LogoMaker /></Route>
+          <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
           <Route path="/branding-kit"><BrandingKit /></Route>
-          <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality&moved_from=virality-check" /></Route>
+          <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality" /></Route>
           <Route path="/analytics-hub"><AnalyticsHub /></Route>
-          <Route path="/intros-outros"><IntrosOutros /></Route>
-          <Route path="/stream-pack"><StreamPack /></Route>
+          <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
+          <Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
@@ -541,7 +536,7 @@ function AppShell() {
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
           <Route path="/guides"><Guides /></Route>
-          <Route path="/clip-maker"><Redirect to="/repurpose?mode=stream&moved_from=clip-maker" /></Route>
+          <Route path="/clip-maker"><Redirect to="/repurpose?mode=stream" /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
           <Route path="/nfc-cards"><NfcCards /></Route>
           <Route path="/jewelry-shop"><JewelryShop /></Route>
@@ -581,27 +576,27 @@ function AppShell() {
                 <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
                 <Route path="/create"><Redirect to="/song-and-video" /></Route>
                 <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
-                <Route path="/thumbnail"><Redirect to="/thumbnail-studio?tab=generate&moved_from=thumbnail" /></Route>
-                <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library&moved_from=thumbnails" /></Route>
+                <Route path="/thumbnail"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
+                <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library" /></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
                 <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
                 <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
-                <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate&moved_from=thumbnail-maker" /></Route>
+                <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>
-                <Route path="/merch"><Redirect to="/branding-shop?tab=merch&moved_from=merch" /></Route>
-                <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists&moved_from=playlist-pitch" /></Route>
+                <Route path="/merch"><Redirect to="/branding-shop?tab=merch" /></Route>
+                <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists" /></Route>
                 <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>
-                <Route path="/channel-audit"><Redirect to="/analytics-hub?tab=channel-audit&moved_from=channel-audit" /></Route>
+                <Route path="/channel-audit"><Redirect to="/analytics-hub?tab=channel-audit" /></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
                 <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
                 <Route path="/website-builder"><ProtectedRoute><WebsiteBuilder /></ProtectedRoute></Route>
                 <Route path="/detector"><ProtectedRoute><MediaDetector /></ProtectedRoute></Route>
-                <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch&moved_from=sponsorship-outreach" /></Route>
+                <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch" /></Route>
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
-                <Route path="/release-checklist"><Redirect to="/distribute?tab=plan&moved_from=release-checklist" /></Route>
+                <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
                 <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
@@ -616,10 +611,10 @@ function AppShell() {
                 <Route path="/trends"><ProtectedRoute><Trends /></ProtectedRoute></Route>
                 {/* Discovery feed — new drops from followed creators (auth) */}
                 <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>
-                <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest&moved_from=thumbnail-test" /></Route>
+                <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest" /></Route>
                 <Route path="/audio-studio"><ProtectedRoute><AudioStudio /></ProtectedRoute></Route>
                 <Route path="/ai-audio"><ProtectedRoute><AiAudio /></ProtectedRoute></Route>
-                <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals&moved_from=vocal-removal" /></Route>
+                <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
                 <Route path="/voiceover"><ProtectedRoute><Voiceover /></ProtectedRoute></Route>
                 <Route path="/press-kit"><ProtectedRoute><PressKit /></ProtectedRoute></Route>
                 <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
@@ -628,21 +623,21 @@ function AppShell() {
                 <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
-                <Route path="/titles"><Redirect to="/hooks?tab=titles&moved_from=titles" /></Route>
+                <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
                 <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>
-                <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick&moved_from=mastering" /></Route>
-                <Route path="/mix-master"><Redirect to="/audio-studio?tab=master&moved_from=mix-master" /></Route>
-                <Route path="/stems"><Redirect to="/audio-studio?tab=stems&moved_from=stems" /></Route>
-                <Route path="/sfx"><Redirect to="/ai-audio?tab=sfx&moved_from=sfx" /></Route>
-                <Route path="/samples"><Redirect to="/ai-audio?tab=samples&moved_from=samples" /></Route>
+                <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
+                <Route path="/mix-master"><Redirect to="/audio-studio?tab=master" /></Route>
+                <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
+                <Route path="/sfx"><Redirect to="/ai-audio?tab=sfx" /></Route>
+                <Route path="/samples"><Redirect to="/ai-audio?tab=samples" /></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
-                <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats&moved_from=beat-maker" /></Route>
+                <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats" /></Route>
                 <Route path="/hub"><ProtectedRoute><Hub /></ProtectedRoute></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
-                <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties&moved_from=royalties" /></Route>
+                <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
                 <Route path="/store/buy/:kind/:id"><StoreBuy /></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
@@ -652,7 +647,7 @@ function AppShell() {
                 <Route path="/publish"><ProtectedRoute><Publish /></ProtectedRoute></Route>
                 <Route path="/creator/domains"><ProtectedRoute><CreatorDomainsPage /></ProtectedRoute></Route>
                 <Route path="/store/dashboard"><ProtectedRoute><StoreDashboard /></ProtectedRoute></Route>
-                <Route path="/music-sales"><Redirect to="/store/dashboard?view=digital&moved_from=music-sales" /></Route>
+                <Route path="/music-sales"><Redirect to="/store/dashboard?view=digital" /></Route>
                 <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
 
                 <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>

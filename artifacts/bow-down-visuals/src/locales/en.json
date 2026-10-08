@@ -11021,7 +11021,7 @@
       "signInPrompt": "Sign in to build royalty split sheets.",
       "songTitle": "Song title",
       "songTitlePlaceholder": "e.g. Midnight Hustle",
-      "splitSheetsTab": "Split Sheets",
+      "splitSheetsTab": "Split Agreements",
       "subtitle": "Lock in who owns what percent of each song — then print the sheet and split the money.",
       "title": "Royalty Split Sheets",
       "total": "Total",
@@ -11115,7 +11115,7 @@
     "tabs": {
       "beats": "Beat Maker",
       "samples": "Samples",
-      "sfx": "SFX"
+      "sfx": "Sound Effects"
     },
     "desc": {
       "beats": "Describe the vibe, get a studio instrumental — or program drums by hand for free.",
@@ -11137,79 +11137,5 @@
       "library": "Library",
       "aria": "Thumbnail studio sections"
     }
-  },
-  "movedPages": {
-    "banner": "{{name}} has a new home — find it in {{location}}.",
-    "dismiss": "Dismiss",
-    "names": {
-      "thumbnail": "Thumbnail Maker",
-      "mastering": "AI Mastering",
-      "commentReplies": "Comment Replies",
-      "clipMaker": "Streamer Clips",
-      "analytics": "Analytics",
-      "titles": "Title Studio",
-      "releaseChecklist": "Release Checklist",
-      "vocalRemoval": "Vocal Removal",
-      "watermarkRemoval": "Watermark Removal",
-      "contentCalendar": "Content Calendar",
-      "playlistPitch": "Playlist Pitch",
-      "merch": "Merch Designer",
-      "musicSales": "Music Sales",
-      "audioCleanup": "Audio Cleanup",
-      "stems": "Stem Splitter",
-      "mixMaster": "Mix & Master",
-      "beatMaker": "Beat Maker",
-      "samples": "Sample Library",
-      "sfx": "Sound Effects",
-      "thumbnailMaker": "Thumbnail Generator",
-      "thumbnails": "Thumbnail Library",
-      "thumbnailTest": "Thumbnail A/B Test",
-      "randomizer": "Content Randomizer",
-      "sponsors": "Sponsor Marketplace",
-      "sponsorshipOutreach": "Sponsorship Outreach",
-      "channelAudit": "Channel Audit",
-      "viralityCheck": "Virality Check",
-      "royalties": "Royalties",
-      "songAndVideo": "Song & Video Wizard",
-      "makeSong": "Make a Song",
-      "makeVideo": "Make a Video"
-    },
-    "locations": {
-      "thumbnailStudioGenerate": "the Thumbnail Studio, under Generate",
-      "audioStudioMaster": "the Audio Studio, under Mix & Master",
-      "communityReplies": "the Community page, under the Replies tab",
-      "repurposeStream": "Repurpose, under the Stream Clips mode",
-      "analyticsHubConnected": "the Analytics Hub, under Connected",
-      "hookStudioTitles": "the Hook Studio, under Titles",
-      "distributePlan": "Distribute, under the Plan tab",
-      "audioStudioStems": "the Audio Studio, under Stems",
-      "upscaleEnhance": "Upscale, under the Enhance tab",
-      "schedulerPlan": "the Scheduler, under the Plan tab",
-      "labelPitchPlaylists": "the Pitch tool, under Playlists",
-      "brandingShopMerch": "the Branding Shop, under Merch",
-      "storeDashboardDigital": "the Store Dashboard, under the Digital view",
-      "audioStudioCleanup": "the Audio Studio, under Cleanup",
-      "aiAudioBeats": "AI Audio, under Beat Maker",
-      "aiAudioSamples": "AI Audio, under Samples",
-      "aiAudioSfx": "AI Audio, under Sound Effects",
-      "thumbnailStudioLibrary": "the Thumbnail Studio, under Library",
-      "thumbnailStudioAbtest": "the Thumbnail Studio, under A-B Test",
-      "hookStudioDice": "the Hook Studio, under the Dice tab",
-      "brandDealsMarketplace": "the Sponsors hub, under Marketplace",
-      "brandDealsPitch": "the Sponsors hub, under Pitch Kit",
-      "analyticsHubChannelAudit": "the Analytics Hub, under Channel Audit",
-      "analyticsHubVirality": "the Analytics Hub, under Virality Check",
-      "coachMoneyRoyalties": "the Money Tracker, under the Royalties view",
-      "createSongVideo": "Create, under Song & Video mode",
-      "createSong": "Create, under Song mode",
-      "createVideo": "Create, under Video mode"
-    }
-  },
-  "whereDidItGo": {
-    "link": "Where did it go?",
-    "title": "Where did it go?",
-    "subtitle": "Pages we've folded together so everything lives in one smooth workflow.",
-    "close": "Close",
-    "movedTo": "now in {{location}}"
   }
 }

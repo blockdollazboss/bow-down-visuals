@@ -234,9 +234,8 @@ const SECTION_META: Record<string, { labelKey: string; icon: React.ElementType }
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
-export default function MakeVideo() {
+export function MakeVideoModule() {
   const { t } = useTranslation();
-  usePageTitle(t("makeVideo.pageTitle"), t("makeVideo.pageDescription"));
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
@@ -294,10 +293,15 @@ export default function MakeVideo() {
      title when arriving from the viral sound finder. */
   useEffect(() => {
     try {
-      const sound = new URLSearchParams(window.location.search).get("sound");
+      const params = new URLSearchParams(window.location.search);
+      const sound = params.get("sound");
       if (sound) {
         setValue("songTitle", sound.slice(0, 120));
-        window.history.replaceState(null, "", window.location.pathname);
+        /* Strip only the consumed param — keep panel=/moved_from= intact so the
+           unified Create page + move banner keep working. */
+        const url = new URL(window.location.href);
+        url.searchParams.delete("sound");
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
       }
     } catch { /* non-browser — ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -853,20 +857,7 @@ export default function MakeVideo() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white lux-page">
-
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
-      </div>
-
-      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
-
-        {/* Breadcrumb */}
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          {t("makeVideo.backToDashboard")}
-        </Link>
-
+    <>
         {/* ── Draft Recovery Modal ── */}
         {draftState !== "idle" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -941,22 +932,6 @@ export default function MakeVideo() {
             </div>
           </div>
         )}
-
-        {/* Page header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Video className="h-5 w-5 text-primary" />
-            </div>
-            <MarketingBadge variant="muted">{t("makeVideo.priceBadge")}</MarketingBadge>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            {t("makeVideo.title")}
-          </h1>
-          <p className="text-white/50 text-base md:text-lg max-w-2xl">
-            {t("makeVideo.subtitle")}
-          </p>
-        </div>
 
         {/* ── Stepper ── */}
         <div className="mb-8">
@@ -1636,8 +1611,6 @@ export default function MakeVideo() {
           </div>
         </div>
 
-      </div>
-
       {/* ── Dev debug overlay ── */}
       {import.meta.env.DEV && (
         <div className="fixed bottom-4 left-4 z-40 text-[10px] font-mono text-white/30 bg-black/70 rounded-lg px-3 py-2 space-y-0.5 border border-white/5 pointer-events-none">
@@ -1646,6 +1619,49 @@ export default function MakeVideo() {
           <p>Plan: {rawResult ? `${rawResult.length} chars` : "none"} · Scenes: {scenes.length}</p>
         </div>
       )}
+    </>
+  );
+}
+
+/* ─── Standalone page wrapper ─────────────────────────────────────────────
+   Preserves the original /make-video page chrome for the default export.
+   The unified /create page renders MakeVideoModule directly as a mode panel. */
+export default function MakeVideo() {
+  const { t } = useTranslation();
+  usePageTitle(t("makeVideo.pageTitle"), t("makeVideo.pageDescription"));
+  return (
+    <div className="min-h-screen bg-black text-white lux-page">
+
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
+
+        {/* Breadcrumb */}
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          {t("makeVideo.backToDashboard")}
+        </Link>
+
+        {/* Page header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Video className="h-5 w-5 text-primary" />
+            </div>
+            <MarketingBadge variant="muted">{t("makeVideo.priceBadge")}</MarketingBadge>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+            {t("makeVideo.title")}
+          </h1>
+          <p className="text-white/50 text-base md:text-lg max-w-2xl">
+            {t("makeVideo.subtitle")}
+          </p>
+        </div>
+
+        <MakeVideoModule />
+      </div>
     </div>
   );
 }

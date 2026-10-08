@@ -15,7 +15,7 @@ import {
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
 import { useTranslation } from "react-i18next";
 import { BeatMakerModule } from "./beat-maker";
-import { ThumbnailMakerModule } from "./thumbnail-maker";
+import { ThumbnailMakerModule } from "./thumbnail-studio";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────
    One place for everything. Pick what you're making and the hub walks you
@@ -547,7 +547,7 @@ function AllStepsView() {
   );
 }
 
-export default function Hub() {
+export function HubModule() {
   const { t } = useTranslation();
   const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
@@ -576,8 +576,9 @@ export default function Hub() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Panel header — the page title lives on the unified Create page;
+          keep the functional controls (view toggle, new project). */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           {!pickingType && (
@@ -590,8 +591,6 @@ export default function Hub() {
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
-          <h1 className="text-3xl font-black text-white">Hub</h1>
-          <MarketingBadge variant="muted">{t("hub.beta")}</MarketingBadge>
         </div>
         <div className="flex items-center gap-2">
           {!pickingType && (
@@ -693,6 +692,22 @@ export default function Hub() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/* ─── Standalone page wrapper ─────────────────────────────────────────────
+   Preserves the original /hub page chrome for the default export.
+   The unified /create page renders HubModule directly as a mode panel. */
+export default function Hub() {
+  const { t } = useTranslation();
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-black text-white">Hub</h1>
+        <MarketingBadge variant="muted">{t("hub.beta")}</MarketingBadge>
+      </div>
+      <HubModule />
     </div>
   );
 }

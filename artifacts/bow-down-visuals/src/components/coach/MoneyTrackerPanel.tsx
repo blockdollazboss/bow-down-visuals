@@ -395,7 +395,7 @@ export default function MoneyTrackerPanel() {
                 : "text-white/55 hover:text-white"
             }`}
           >
-            {v === "ledger" ? "Ledger" : v === "splits" ? "Splits" : v === "royalties" ? t("moneyTracker.viewRoyalties", { defaultValue: "Royalties" }) : t("wave8.splits.splitSheetsTab")}
+            {v === "ledger" ? "Income & Expenses" : v === "splits" ? "Split Payouts" : v === "royalties" ? t("moneyTracker.viewRoyalties", { defaultValue: "Royalties" }) : t("wave8.splits.splitSheetsTab")}
           </button>
         ))}
       </div>

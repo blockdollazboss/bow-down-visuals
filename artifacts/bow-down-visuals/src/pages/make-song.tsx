@@ -145,9 +145,8 @@ function StyledSelect({
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
-export default function MakeSong() {
+export function MakeSongModule() {
   const { t } = useTranslation();
-  usePageTitle(t("makeSong.pageTitle"), t("makeSong.pageDescription"));
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [mode, setMode] = useState<"simple" | "custom" | "inspo">("simple");
@@ -188,14 +187,15 @@ export default function MakeSong() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const consumed: string[] = [];
       const audioUrl = params.get("audioUrl");
       if (audioUrl) {
         setUploadedSongUrl(audioUrl);
-        window.history.replaceState(null, "", window.location.pathname);
+        consumed.push("audioUrl");
       }
       if (params.get("mode") === "inspo") {
         setMode("inspo");
-        window.history.replaceState(null, "", window.location.pathname);
+        consumed.push("mode");
       }
       const deepA = params.get("songA");
       const deepB = params.get("songB");
@@ -203,10 +203,17 @@ export default function MakeSong() {
         setMashupTab("mashup");
         if (deepA) setMashupA(deepA);
         if (deepB) setMashupB(deepB);
-        window.history.replaceState(null, "", window.location.pathname);
+        consumed.push("tab", "songA", "songB");
       } else if (params.get("tab") === "hum") {
         setMashupTab("hum");
-        window.history.replaceState(null, "", window.location.pathname);
+        consumed.push("tab");
+      }
+      /* Strip only the consumed one-time params — keep panel=/moved_from= (and
+         anything else) intact so the unified Create page + move banner keep working. */
+      if (consumed.length > 0) {
+        const url = new URL(window.location.href);
+        consumed.forEach((k) => url.searchParams.delete(k));
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -369,36 +376,7 @@ export default function MakeSong() {
   }, [uploadedSongUrl]);
 
   return (
-    <div className="min-h-screen bg-black text-white lux-page">
-
-      {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
-      </div>
-
-      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
-
-        {/* Breadcrumb */}
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          {t("makeSong.backToDashboard")}
-        </Link>
-
-        {/* Page header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Music className="h-5 w-5 text-primary" />
-            </div>
-            <MarketingBadge variant="muted">{t("makeSong.priceBadge")}</MarketingBadge>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            {t("makeSong.title")}
-          </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
-            {t("makeSong.subtitle")}
-          </p>
-        </div>
+    <>
 
         <ProjectFlowBar
           kinds={["beat"]}
@@ -912,6 +890,49 @@ export default function MakeSong() {
           </div>
         )}
 
+    </>
+  );
+}
+
+/* ─── Standalone page wrapper ─────────────────────────────────────────────
+   Preserves the original /make-song page chrome for the default export.
+   The unified /create page renders MakeSongModule directly as a mode panel. */
+export default function MakeSong() {
+  const { t } = useTranslation();
+  usePageTitle(t("makeSong.pageTitle"), t("makeSong.pageDescription"));
+  return (
+    <div className="min-h-screen bg-black text-white lux-page">
+
+      {/* Background glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
+
+        {/* Breadcrumb */}
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          {t("makeSong.backToDashboard")}
+        </Link>
+
+        {/* Page header */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Music className="h-5 w-5 text-primary" />
+            </div>
+            <MarketingBadge variant="muted">{t("makeSong.priceBadge")}</MarketingBadge>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+            {t("makeSong.title")}
+          </h1>
+          <p className="text-white/50 text-lg max-w-2xl">
+            {t("makeSong.subtitle")}
+          </p>
+        </div>
+
+        <MakeSongModule />
       </div>
     </div>
   );

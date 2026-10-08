@@ -18,7 +18,12 @@ type TabKey = "logo" | "intros" | "stream";
 export default function BrandingKit() {
   const { t } = useTranslation();
   usePageTitle(t("brandingKit.pageTitle"), "AI brand identity studio for creators — logos, intros, outros, and stream bundles.");
-  const [tab, setTab] = useState<TabKey>("logo");
+  const [tab, setTab] = useState<TabKey>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      return q === "intros" || q === "stream" ? q : "logo";
+    } catch { return "logo"; }
+  });
 
   const TABS = [
     { key: "logo", label: t("brandingKit.tabs.logo.label"), Icon: Palette },
