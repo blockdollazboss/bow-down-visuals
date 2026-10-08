@@ -4,21 +4,30 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /**
- * Creator Streaming Platform — digital sales + DMCA intake (migration 0088).
+ * Creator Streaming Platform — digital sales + DMCA intake (migrations 0088, 0090).
+ *
+ * The store sells ALL kinds of digital content, not just music — the item_kind
+ * is an OPEN set: track | video | album | pack | digital. The checkout,
+ * fee-split, delivery, and dashboard pipelines are kind-agnostic; each catalog
+ * entity opts in by exposing download_price_cents + a file URL.
  */
+
+/** Every digital content kind the store can sell. Keep in sync with migration 0090. */
+export const DIGITAL_ITEM_KINDS = ["track", "video", "album", "pack", "digital"] as const;
+export type DigitalItemKind = (typeof DIGITAL_ITEM_KINDS)[number];
 
 export const digitalSalesTable = pgTable("digital_sales", {
   id:                 uuid("id").primaryKey().defaultRandom(),
   buyerUserId:        uuid("buyer_user_id").notNull(),
   profileId:          uuid("profile_id").notNull(),
-  itemKind:           text("item_kind").notNull(),
+  itemKind:           text("item_kind").notNull().$type<DigitalItemKind>(),
   itemId:             uuid("item_id").notNull(),
   stripeSessionId:    text("stripe_session_id").unique(),
   amountCents:        integer("amount_cents").notNull(),
   platformFeeCents:   integer("platform_fee_cents").notNull().default(0),
   creatorAmountCents: integer("creator_amount_cents").notNull().default(0),
   createdAt:          timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => [check("digital_sales_item_kind_check", sql`${t.itemKind} IN ('track','album')`)]);
+}, (t) => [check("digital_sales_item_kind_check", sql`${t.itemKind} IN ('track','video','album','pack','digital')`)]);
 
 export const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
 export type InsertDigitalSale = z.infer<typeof insertDigitalSaleSchema>;

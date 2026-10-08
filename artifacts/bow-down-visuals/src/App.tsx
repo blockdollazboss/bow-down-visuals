@@ -11,6 +11,8 @@ import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
+import { StreamingPlayerProvider } from "@/contexts/StreamingPlayerContext";
+import { StreamingPlayerBar } from "@/components/player/StreamingPlayerBar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
@@ -132,6 +134,7 @@ const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
 const BioPublic = lazyWithRetry(() => import("@/pages/bio-public"));
 const ReviewPage = lazyWithRetry(() => import("@/pages/review"));
+const SyncOneSheetPublic = lazyWithRetry(() => import("@/pages/sync-one-sheet-public"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -176,6 +179,10 @@ const Sfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Samples = lazyWithRetry(() => import("@/pages/samples"));
 const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
+const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
+const MyMusic = lazyWithRetry(() => import("@/pages/my-music"));
+const MusicSales = lazyWithRetry(() => import("@/pages/music-sales"));
 const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
@@ -342,7 +349,9 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         <FloatingStarLevel />
         <FloatingAdminPanel />
         <FloatingLanguageSwitcher />
-        {typeof window !== "undefined" && <OnboardingTour />}      </div>
+        {typeof window !== "undefined" && <OnboardingTour />}
+        {typeof window !== "undefined" && <StreamingPlayerBar />}
+      </div>
     </SidebarProvider>
   );
 }
@@ -462,6 +471,8 @@ function AppShell() {
           <Route path="/bio/:slug"><BioPublic /></Route>
           {/* Public client review page (tokenized, no login) — the client's handshake with the product */}
           <Route path="/review/:token"><ReviewPage /></Route>
+          {/* Public sync one-sheet (tokenized, no login) — shareable supervisor link with ?ref=CODE */}
+          <Route path="/sync-one-sheet/:token"><SyncOneSheetPublic /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -542,6 +553,10 @@ function AppShell() {
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/store/buy/:kind/:id"><StoreBuy /></Route>
+                <Route path="/store/success"><StoreSuccess /></Route>
+                <Route path="/my-music"><ProtectedRoute><MyMusic /></ProtectedRoute></Route>
+                <Route path="/music-sales"><ProtectedRoute><MusicSales /></ProtectedRoute></Route>
                 <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
@@ -577,8 +592,10 @@ function App({ ssrPath }: { ssrPath?: string }) {
               <UserModeProvider>
                 <CreditConfirmProvider>
                   <ActiveArtistProvider>
-                    <CharacterThemeApplier />
-                    <AppShell />
+                    <StreamingPlayerProvider>
+                      <CharacterThemeApplier />
+                      <AppShell />
+                    </StreamingPlayerProvider>
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>
               </UserModeProvider>
