@@ -82,6 +82,7 @@ export * from "./team-seats";
 export * from "./milestones";
 export * from "./presave";
 export * from "./creator-platform";
+export * from "./custom-domains";
 export * from "./creator-social";
 export * from "./creator-stories-posts";
 export * from "./creator-shorts";
