@@ -79,7 +79,7 @@ router.post("/money", requireAuth, async (req, res) => {
 
 /* DELETE /api/money/:id — delete one of the user's own entries */
 router.delete("/money/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id = req.params.id as string;
   if (!id) {
     res.status(400).json({ error: "Entry id is required." });
     return;

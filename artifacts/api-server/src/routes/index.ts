@@ -368,7 +368,6 @@ router.use(autoChaptersRouter);
 router.use(chaptersRouter);
 router.use(voiceoverProRouter);
 router.use(producerTagRouter);
-router.use(producerTagRouter);
 router.use(brollSuggesterRouter);
 router.use(brandKitRouter);
 router.use(speedPresetsRouter);
