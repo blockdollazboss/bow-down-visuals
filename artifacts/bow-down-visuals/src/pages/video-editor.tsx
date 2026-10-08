@@ -9,7 +9,7 @@ import {
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
-  SlidersHorizontal, Undo2, Redo2, LayoutTemplate,
+  SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -109,7 +109,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -197,10 +197,13 @@ export default function VideoEditor() {
    *  export are core (level 1) and never gated. */
   const TAB_MIN_STARS: Partial<Record<EditorTab, number>> = {
     branding: 2,
+    "beat-sync": 2,
     "pre-production": 2,
     captions: 3,
     effects: 3,
+    "edit-recipes": 3,
     studio: 4,
+    "voice-edits": 4,
     "lip-sync": 5,
     "pro-tools": 5,
   };
@@ -1347,6 +1350,8 @@ export default function VideoEditor() {
                     { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
                     { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
                     { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
+                    { id: "beat-sync", label: t("videoEditor.railBeatSync"), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-beat-sync" },
+                    { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
                     { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
                     { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
                     { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
@@ -1354,6 +1359,7 @@ export default function VideoEditor() {
                     { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
                     { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
                     { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                   ])
                     .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
@@ -1384,6 +1390,8 @@ export default function VideoEditor() {
                       templates: t("videoEditor.railTemplates"),
                       music: t("videoEditor.railAudio"),
                       timeline: t("videoEditor.railTimeline"),
+                      "beat-sync": t("videoEditor.railBeatSync"),
+                      "edit-recipes": t("videoEditor.railEditRecipes"),
                       captions: t("videoEditor.railText"),
                       effects: t("videoEditor.railEffects"),
                       branding: t("videoEditor.railBrand"),
@@ -1391,6 +1399,7 @@ export default function VideoEditor() {
                       "pre-production": t("videoEditor.railPrePro"),
                       export: t("videoEditor.railExport"),
                       studio: t("videoEditor.railAdvanced"),
+                      "voice-edits": t("videoEditor.railVoiceEdits"),
                       "pro-tools": t("videoEditor.railProTools"),
                     }[tab]}
                   </h2>
@@ -1435,9 +1444,12 @@ export default function VideoEditor() {
                       audioUrl={previewAudioUrl}
                       transcriptText={transcriptText}
                     />
-                    {/* Wave 9 — Beat-Sync Cuts: offline beat detection → editable markers.
-                        Kept markers flow into TimelineTemplatesSection's beatGrid. */}
-                    <div className="mt-6">
+                    {/* Wave 9 sections moved to their own rail tabs (Beat Sync / Edit Recipes) for direct reachability. */}
+                    </>
+                  )}
+
+                  {tab === "beat-sync" && (
+                    <div className="p-4">
                       <BeatSyncSection
                         scenes={scenes}
                         settings={settings}
@@ -1450,8 +1462,10 @@ export default function VideoEditor() {
                         onApplyCuts={applyBeatCuts}
                       />
                     </div>
-                    {/* Wave 9 — Timeline Edit Recipes: preview-then-apply edit operations. */}
-                    <div className="mt-6">
+                  )}
+
+                  {tab === "edit-recipes" && (
+                    <div className="p-4">
                       <TimelineTemplatesSection
                         scenes={scenes}
                         settings={settings}
@@ -1462,7 +1476,6 @@ export default function VideoEditor() {
                         projectKey={projectId || "default"}
                       />
                     </div>
-                    </>
                   )}
 
                   {tab === "clips" && (
@@ -1837,10 +1850,12 @@ export default function VideoEditor() {
                       selectedIdx={selectedIdx}
                       setSelectedIdx={setSelectedIdx}
                     />
-                    {/* Wave 9C — Voice-Directed Edits: natural-language edit
-                        commands planned by the AI, reviewed op-by-op, then
-                        applied to the timeline. Never applies blindly. */}
-                    <div className="mt-6">
+                    {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
+                    </>
+                  )}
+
+                  {tab === "voice-edits" && (
+                    <div className="p-4">
                       <VoiceDirectedEditsSection
                         scenes={scenes}
                         settings={settings}
@@ -1850,7 +1865,6 @@ export default function VideoEditor() {
                         projectTitle={songTitle || undefined}
                       />
                     </div>
-                    </>
                   )}
 
                   {tab === "pro-tools" && (
