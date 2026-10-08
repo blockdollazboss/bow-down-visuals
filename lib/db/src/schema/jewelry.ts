@@ -14,6 +14,8 @@ export const jewelryOrdersTable = pgTable("jewelry_orders", {
   finish:          text("finish").notNull(), // 'gold-10k' | 'gold-14k' | 'gold-18k'
   sizeOption:      text("size_option").notNull(),
   engraving:       text("engraving"),
+  /** Customer avatar/character image URL (for custom pieces referencing their avatar). */
+  avatarUrl:       text("avatar_url"),
   designNotes:     text("design_notes"),
   quantity:        integer("quantity").notNull().default(1),
   fullName:        text("full_name").notNull(),

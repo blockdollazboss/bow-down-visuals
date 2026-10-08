@@ -24,6 +24,29 @@ and no Render Shell needed.
 6. **Keep the Drizzle TS schema in sync.** `lib/db/src/schema/` is what
    drizzle-orm queries against — add the matching table/column there in the
    same commit so types and queries see the new shape.
+7. **Migration numbers must be unique.** Parallel workers once created two
+   pairs of files sharing a number (see renumber note below). Always `git
+   pull` latest staging before choosing the next number, and `ls` the
+   directory to confirm the number is free.
+
+## Renumbered 2026-10-07 (worker 6 sweep)
+
+Two pairs of migrations were created with duplicate numbers and had already
+been applied on staging when the collision was found. Because the runner
+tracks by filename in `data_migrations`, all four were verified fully
+idempotent (`IF NOT EXISTS` on every statement — safe to re-run as no-ops)
+and renamed with `git mv`, content unchanged:
+
+- `0063_press_releases.sql` → `0070_press_releases.sql`
+- `0063_review_links.sql` → `0071_review_links.sql`
+- `0066_hum_recordings.sql` → `0072_hum_recordings.sql`
+- `0066_user_luts.sql` → `0073_user_luts.sql`
+
+On databases where the old filenames already applied, the renamed files run
+again once as harmless no-ops; on fresh databases they apply normally.
+(NB: `0045` and `0046` also have duplicate numbers, but both files in each
+pair are ≤ `BASELINE = 55` so the runner skips them on set-up databases —
+left as-is.)
 
 ## What the runner does
 

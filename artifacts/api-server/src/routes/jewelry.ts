@@ -17,6 +17,8 @@ const orderSchema = z.object({
   finish: z.string().min(1).max(20),
   sizeOption: z.string().min(1).max(40),
   engraving: z.string().max(60).optional().default(""),
+  /** Customer avatar/character image URL (for custom pieces). */
+  avatarUrl: z.string().url().max(500).optional().nullable(),
   designNotes: z.string().max(500).optional().default(""),
   quantity: z.number().int().min(1).max(20),
   fullName: z.string().min(1).max(120),
@@ -77,6 +79,7 @@ router.post("/jewelry/order", requireAuth, async (req: Request, res: Response) =
         finish: finish.key,
         size_option: body.sizeOption,
         engraving: body.engraving || null,
+        avatar_url: body.avatarUrl || null,
         design_notes: body.designNotes || null,
         quantity: body.quantity,
         full_name: body.fullName,
@@ -88,7 +91,7 @@ router.post("/jewelry/order", requireAuth, async (req: Request, res: Response) =
         total_cents: totalCents,
         idempotency_key: body.idempotencyKey,
       })
-      .select("id, status, total_cents, product_key, finish, size_option, quantity, created_at")
+      .select("id, status, total_cents, product_key, finish, size_option, quantity, avatar_url, created_at")
       .single();
     if (error) throw error;
     res.json({ ok: true, order });
@@ -103,7 +106,7 @@ router.get("/jewelry/orders", requireAuth, async (req: Request, res: Response) =
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jewelry_orders")
-    .select("id, product_key, finish, size_option, engraving, quantity, status, total_cents, created_at")
+    .select("id, product_key, finish, size_option, engraving, avatar_url, quantity, status, total_cents, created_at")
     .eq("user_id", req.userId!)
     .order("created_at", { ascending: false });
   if (error) {
@@ -119,7 +122,7 @@ router.get("/jewelry/admin/orders", requireAuth, requireAdmin, async (_req: Requ
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jewelry_orders")
-    .select("id, user_id, product_key, finish, size_option, engraving, design_notes, quantity, full_name, email, phone, shipping_address, status, unit_price_cents, total_cents, created_at")
+    .select("id, user_id, product_key, finish, size_option, engraving, avatar_url, design_notes, quantity, full_name, email, phone, shipping_address, status, unit_price_cents, total_cents, created_at")
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
@@ -134,7 +137,7 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jewelry_orders")
-    .select("id, product_key, finish, size_option, engraving, design_notes, quantity, full_name, email, phone, shipping_address, status, created_at")
+    .select("id, product_key, finish, size_option, engraving, avatar_url, design_notes, quantity, full_name, email, phone, shipping_address, status, created_at")
     .eq("status", "received")
     .order("created_at", { ascending: true })
     .limit(1000);
@@ -146,13 +149,13 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
   const rows = (data ?? []).map((o: Record<string, unknown>) => {
     const addr = (o.shipping_address ?? {}) as Record<string, string>;
     return [
-      o.id, o.product_key, o.finish, o.size_option, o.engraving, o.design_notes,
+      o.id, o.product_key, o.finish, o.size_option, o.engraving, o.avatar_url, o.design_notes,
       o.quantity, o.full_name, o.email, o.phone,
       addr.street, addr.city, addr.state, addr.zip, addr.country,
       o.status, o.created_at,
     ].map(esc).join(",");
   });
-  const header = "order_id,product,finish,size,engraving,design_notes,quantity,full_name,email,phone,street,city,state,zip,country,status,created_at";
+  const header = "order_id,product,finish,size,engraving,avatar_url,design_notes,quantity,full_name,email,phone,street,city,state,zip,country,status,created_at";
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=jewelry-orders.csv");
   res.send([header, ...rows].join("\n"));
