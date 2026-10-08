@@ -1062,7 +1062,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         </a>
                       </Button>
                       <Button type="button" variant="outline" size="sm" asChild>
-                        <a href={`/scheduler?video=${encodeURIComponent(burnResultUrl)}`}>
+                        <a href={`/scheduler?schedule=1&media=${encodeURIComponent(burnResultUrl)}`}>
                           <CalendarClock className="h-3.5 w-3.5 mr-1.5" />{t("captionSuite.handoffScheduler")}
                         </a>
                       </Button>
@@ -1217,7 +1217,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                           </a>
                         </Button>
                         <Button type="button" variant="outline" size="sm" asChild>
-                          <a href={`/scheduler?video=${encodeURIComponent(burnResultUrl)}`}>
+                          <a href={`/scheduler?schedule=1&media=${encodeURIComponent(burnResultUrl)}`}>
                             <CalendarClock className="h-3.5 w-3.5 mr-1.5" />{t("captionSuite.handoffScheduler")}
                           </a>
                         </Button>
