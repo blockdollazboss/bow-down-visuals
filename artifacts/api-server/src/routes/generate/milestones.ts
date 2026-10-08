@@ -1,11 +1,24 @@
 import { Router } from "express";
+import express from "express";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { db, milestonesTable, catalogVaultsTable } from "@workspace/db";
+import { objectStorageClient } from "../../lib/objectStorage";
+import { signGetUrl } from "../upload-watermark";
+import {
+  db,
+  milestonesTable,
+  catalogVaultsTable,
+  royaltyEntriesTable,
+  socialStatSnapshotsTable,
+  distributionReleasesTable,
+  creatorProfilesTable,
+  notificationsTable,
+} from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 const router = Router();
@@ -49,6 +62,279 @@ export function nextStepAfter(streams: number): (typeof AWARD_STEPS)[number] | n
     if (streams < step.at) return step;
   }
   return null;
+}
+
+const TIER_RANK: Record<string, number> = {
+  none: 0, bronze: 1, silver: 2, gold: 3, platinum: 4, diamond: 5,
+};
+
+export function tierRank(tier: string): number {
+  return TIER_RANK[tier] ?? 0;
+}
+
+/* ─── Cross-vertical brag ladder ──────────────────────────────────────────
+   Milestone brag cards ("I just hit 10,000 streams") work per vertical:
+   streams (the existing award ladder), followers, earnings, releases.
+   computeAchievements() derives every crossed threshold from existing
+   tables — no new tables, no migrations. */
+
+export type MilestoneVertical = "streams" | "followers" | "earnings" | "releases";
+
+export interface MilestoneLadderStep {
+  at: number;
+  tier: string;
+  tierLabel: string;
+}
+
+export const FOLLOWERS_LADDER: MilestoneLadderStep[] = [
+  { at: 100, tier: "rising", tierLabel: "Rising" },
+  { at: 1_000, tier: "buzzing", tierLabel: "Buzzing" },
+  { at: 10_000, tier: "established", tierLabel: "Established" },
+  { at: 100_000, tier: "star", tierLabel: "Star" },
+  { at: 1_000_000, tier: "superstar", tierLabel: "Superstar" },
+];
+
+export const EARNINGS_LADDER: MilestoneLadderStep[] = [
+  { at: 100, tier: "first-hundred", tierLabel: "First $100" },
+  { at: 1_000, tier: "one-k", tierLabel: "$1K Club" },
+  { at: 10_000, tier: "ten-k", tierLabel: "$10K Club" },
+  { at: 100_000, tier: "six-figures", tierLabel: "Six Figures" },
+  { at: 1_000_000, tier: "millionaire", tierLabel: "Millionaire" },
+];
+
+export const RELEASES_LADDER: MilestoneLadderStep[] = [
+  { at: 1, tier: "debut", tierLabel: "Debut Release" },
+  { at: 5, tier: "catalog-5", tierLabel: "Catalog ×5" },
+  { at: 10, tier: "catalog-10", tierLabel: "Catalog ×10" },
+  { at: 25, tier: "catalog-25", tierLabel: "Catalog ×25" },
+  { at: 50, tier: "catalog-50", tierLabel: "Catalog ×50" },
+];
+
+export const VERTICAL_LADDERS: Record<MilestoneVertical, MilestoneLadderStep[]> = {
+  streams: [...AWARD_STEPS].map((s) => ({
+    at: s.at,
+    tier: s.tier,
+    tierLabel: s.label.split(" — ")[0] ?? s.tier,
+  })),
+  followers: FOLLOWERS_LADDER,
+  earnings: EARNINGS_LADDER,
+  releases: RELEASES_LADDER,
+};
+
+/** Steps in `ladder` newly crossed going from prevValue (exclusive) to newValue (inclusive). */
+export function crossedSteps(
+  ladder: MilestoneLadderStep[],
+  prevValue: number,
+  newValue: number,
+): MilestoneLadderStep[] {
+  return ladder.filter((s) => prevValue < s.at && newValue >= s.at);
+}
+
+export interface MilestoneAchievement {
+  vertical: MilestoneVertical;
+  threshold: number;
+  tier: string;
+  tierLabel: string;
+  /** The creator's actual current value for this vertical/track. */
+  value: number;
+  /** Big number for the brag card, e.g. "10,000" / "$1,240". */
+  displayValue: string;
+  /** Human line, e.g. "10,000 streams" / "First $100 earned". */
+  headline: string;
+  /** Track · platform for streams; scope note for the rest. */
+  context: string;
+  milestoneId?: string;
+  achievedAt?: string | null;
+}
+
+function fullNum(n: number): string {
+  return Math.floor(n).toLocaleString("en-US");
+}
+
+function money(n: number): string {
+  return `$${fullNum(n)}`;
+}
+
+function streamAchievement(
+  step: MilestoneLadderStep,
+  best: number,
+  trackTitle: string,
+  platform: string,
+  milestoneId: string,
+  achievedAt: string | null,
+): MilestoneAchievement {
+  return {
+    vertical: "streams",
+    threshold: step.at,
+    tier: step.tier,
+    tierLabel: step.tierLabel,
+    value: best,
+    displayValue: fullNum(step.at),
+    headline: `${fullNum(step.at)} streams`,
+    context: `${trackTitle} · ${platform}`,
+    milestoneId,
+    achievedAt,
+  };
+}
+
+function verticalAchievement(
+  vertical: Exclude<MilestoneVertical, "streams">,
+  step: MilestoneLadderStep,
+  value: number,
+  context: string,
+): MilestoneAchievement {
+  const displayValue =
+    vertical === "earnings" ? money(step.at) : fullNum(step.at);
+  const headline =
+    vertical === "earnings"
+      ? `${money(step.at)} earned`
+      : vertical === "followers"
+        ? `${fullNum(step.at)} followers`
+        : step.at === 1
+          ? "First release out"
+          : `${fullNum(step.at)} releases out`;
+  return {
+    vertical,
+    threshold: step.at,
+    tier: step.tier,
+    tierLabel: step.tierLabel,
+    value,
+    displayValue,
+    headline,
+    context,
+    achievedAt: null,
+  };
+}
+
+/** Derive every crossed milestone threshold for a user from existing
+   tables. Streams are per track+platform (the brag unit); followers,
+   earnings, and releases are lifetime totals. */
+export async function computeAchievements(userId: string): Promise<{
+  achievements: MilestoneAchievement[];
+  totals: Record<MilestoneVertical, number>;
+}> {
+  const achievements: MilestoneAchievement[] = [];
+
+  /* — streams: best logged count per track+platform — */
+  const rows = await db
+    .select()
+    .from(milestonesTable)
+    .where(eq(milestonesTable.userId, userId))
+    .orderBy(desc(milestonesTable.streamCount))
+    .limit(2000);
+  const bestByTrack = new Map<string, (typeof rows)[number]>();
+  for (const m of rows) {
+    const key = `${m.trackTitle.toLowerCase()}|${m.platform.toLowerCase()}`;
+    if (!bestByTrack.has(key)) bestByTrack.set(key, m);
+  }
+  let streamsTotal = 0;
+  for (const m of bestByTrack.values()) {
+    streamsTotal = Math.max(streamsTotal, m.streamCount);
+    for (const step of VERTICAL_LADDERS.streams) {
+      if (m.streamCount >= step.at) {
+        achievements.push(
+          streamAchievement(
+            step,
+            m.streamCount,
+            m.trackTitle,
+            m.platform,
+            m.id,
+            m.createdAt ? new Date(m.createdAt).toISOString() : null,
+          ),
+        );
+      }
+    }
+  }
+
+  /* — followers: latest snapshot per connected account, summed; falls back
+       to BDV profile follows when nothing is connected — */
+  let followers = 0;
+  let followersContext = "across your connected accounts";
+  try {
+    const snapRows = await db.execute<{ platform: string; followers: number | null }>(sql`
+      SELECT s.platform AS platform, s.followers AS followers
+      FROM social_stat_snapshots s
+      WHERE s.user_id = ${userId}::uuid
+        AND s.recorded_at = (
+          SELECT MAX(s2.recorded_at) FROM social_stat_snapshots s2
+          WHERE s2.user_id = ${userId}::uuid AND s2.platform = s.platform
+        )`);
+    followers = snapRows.rows.reduce((sum, r) => sum + (r.followers ?? 0), 0);
+  } catch (err) {
+    logger.warn({ err }, "computeAchievements: follower snapshots failed");
+  }
+  if (followers <= 0) {
+    const prof = await db
+      .select({ followerCount: creatorProfilesTable.followerCount })
+      .from(creatorProfilesTable)
+      .where(sql`${creatorProfilesTable.userId} = ${userId}::uuid`)
+      .limit(1);
+    followers = prof[0]?.followerCount ?? 0;
+    followersContext = "on Bow Down Visuals";
+  }
+  for (const step of FOLLOWERS_LADDER) {
+    if (followers >= step.at) {
+      achievements.push(verticalAchievement("followers", step, followers, followersContext));
+    }
+  }
+
+  /* — earnings: lifetime tracked royalties — */
+  let earnings = 0;
+  try {
+    const earnRows = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(gross_amount::numeric), 0)::text AS total
+      FROM royalty_entries WHERE user_id = ${userId}::uuid`);
+    earnings = Number(earnRows.rows[0]?.total ?? 0);
+  } catch (err) {
+    logger.warn({ err }, "computeAchievements: royalty sum failed");
+  }
+  for (const step of EARNINGS_LADDER) {
+    if (earnings >= step.at) {
+      achievements.push(
+        verticalAchievement("earnings", step, earnings, "lifetime royalties tracked"),
+      );
+    }
+  }
+
+  /* — releases: distributed release count — */
+  let releases = 0;
+  try {
+    const relRows = await db.execute<{ n: number }>(sql`
+      SELECT COUNT(*)::int AS n FROM distribution_releases WHERE user_id = ${userId}::uuid`);
+    releases = relRows.rows[0]?.n ?? 0;
+  } catch (err) {
+    logger.warn({ err }, "computeAchievements: release count failed");
+  }
+  for (const step of RELEASES_LADDER) {
+    if (releases >= step.at) {
+      achievements.push(
+        verticalAchievement("releases", step, releases, "distributed with Bow Down Visuals"),
+      );
+    }
+  }
+
+  /* Trophy-shelf order: streams, followers, earnings, releases; biggest first. */
+  const verticalOrder: MilestoneVertical[] = ["streams", "followers", "earnings", "releases"];
+  achievements.sort(
+    (a, b) =>
+      verticalOrder.indexOf(a.vertical) - verticalOrder.indexOf(b.vertical) ||
+      b.threshold - a.threshold,
+  );
+
+  return {
+    achievements,
+    totals: { streams: streamsTotal, followers, earnings, releases },
+  };
+}
+
+/* Fire-and-forget milestone bell notification — a failed insert must never
+   break the milestone log/import response. */
+async function notifyMilestone(userId: string, title: string, body: string, link: string) {
+  try {
+    await db.insert(notificationsTable).values({ userId, kind: "milestone", title, body, link });
+  } catch (err) {
+    logger.error({ err }, "milestones: milestone notification insert failed");
+  }
 }
 
 const logMilestoneSchema = z.object({
@@ -185,6 +471,28 @@ router.post("/milestones/log", publicApiLimiter, requireAuth, async (req, res) =
   }
   const d = parsed.data;
   const tier = awardFor(d.streamCount);
+
+  /* Previous best for this track+platform — only a NEW tier crossing
+     fires the "brag about it" notification. */
+  let prevBest = 0;
+  try {
+    const prevRows = await db
+      .select({ streamCount: milestonesTable.streamCount })
+      .from(milestonesTable)
+      .where(
+        and(
+          eq(milestonesTable.userId, req.userId!),
+          sql`lower(${milestonesTable.trackTitle}) = lower(${d.trackTitle})`,
+          sql`lower(${milestonesTable.platform}) = lower(${d.platform.toLowerCase()})`,
+        ),
+      )
+      .orderBy(desc(milestonesTable.streamCount))
+      .limit(1);
+    prevBest = prevRows[0]?.streamCount ?? 0;
+  } catch (err) {
+    logger.warn({ err }, "milestones/log: prev-best lookup failed");
+  }
+
   try {
     const rows = await db
       .insert(milestonesTable)
@@ -199,7 +507,37 @@ router.post("/milestones/log", publicApiLimiter, requireAuth, async (req, res) =
         note: d.note || null,
       })
       .returning();
-    res.json({ milestone: sanitizeMilestone(rows[0]!), awardTier: tier, nextStep: nextStepAfter(d.streamCount) });
+    const milestone = rows[0]!;
+
+    /* New award tier crossed → bell notification + brag payload. */
+    let newAchievements: MilestoneAchievement[] = [];
+    if (tier !== "none" && tierRank(tier) > tierRank(awardFor(prevBest))) {
+      newAchievements = crossedSteps(VERTICAL_LADDERS.streams, prevBest, d.streamCount).map(
+        (step) =>
+          streamAchievement(
+            step,
+            d.streamCount,
+            d.trackTitle,
+            d.platform.toLowerCase(),
+            milestone.id,
+            milestone.createdAt ? new Date(milestone.createdAt).toISOString() : null,
+          ),
+      );
+      const top = newAchievements[newAchievements.length - 1]!;
+      await notifyMilestone(
+        req.userId!,
+        `You hit ${top.displayValue} streams — brag about it 🏆`,
+        `"${d.trackTitle}" just crossed ${top.headline} on ${d.platform}.`,
+        `/analytics-hub?brag=${milestone.id}`,
+      );
+    }
+
+    res.json({
+      milestone: sanitizeMilestone(milestone),
+      awardTier: tier,
+      nextStep: nextStepAfter(d.streamCount),
+      newAchievements,
+    });
   } catch (err) {
     logger.error({ err }, "milestones/log: insert failed");
     res.status(502).json({ error: "save_failed", message: "Couldn't save the milestone — try again." });
@@ -225,18 +563,82 @@ router.post("/milestones/import-csv", publicApiLimiter, requireAuth, async (req,
     });
     return;
   }
+
+  /* Snapshot previous bests so the import can report newly crossed tiers. */
+  const prevBestByKey = new Map<string, number>();
   try {
-    await db.insert(milestonesTable).values(
-      rows.map((r) => ({
-        userId: req.userId!,
-        trackTitle: r.trackTitle,
-        platform: r.platform.toLowerCase(),
-        streamCount: r.streamCount,
-        awardTier: awardFor(r.streamCount),
-        source: "csv",
-      }))
-    );
-    res.json({ imported: rows.length, skipped });
+    const prevAll = await db
+      .select({
+        trackTitle: milestonesTable.trackTitle,
+        platform: milestonesTable.platform,
+        streamCount: milestonesTable.streamCount,
+      })
+      .from(milestonesTable)
+      .where(eq(milestonesTable.userId, req.userId!))
+      .limit(2000);
+    for (const m of prevAll) {
+      const key = `${m.trackTitle.toLowerCase()}|${m.platform.toLowerCase()}`;
+      prevBestByKey.set(key, Math.max(prevBestByKey.get(key) ?? 0, m.streamCount));
+    }
+  } catch (err) {
+    logger.warn({ err }, "milestones/import-csv: prev-best snapshot failed");
+  }
+
+  try {
+    const inserted = await db
+      .insert(milestonesTable)
+      .values(
+        rows.map((r) => ({
+          userId: req.userId!,
+          trackTitle: r.trackTitle,
+          platform: r.platform.toLowerCase(),
+          streamCount: r.streamCount,
+          awardTier: awardFor(r.streamCount),
+          source: "csv",
+        })),
+      )
+      .returning({ id: milestonesTable.id, createdAt: milestonesTable.createdAt });
+
+    /* Newly crossed tiers → achievements + one summary bell notification. */
+    const fresh: Array<MilestoneAchievement & { rank: number }> = [];
+    rows.forEach((r, i) => {
+      const key = `${r.trackTitle.toLowerCase()}|${r.platform.toLowerCase()}`;
+      const prev = prevBestByKey.get(key) ?? 0;
+      const now = Math.max(prev, r.streamCount);
+      prevBestByKey.set(key, now);
+      if (tierRank(awardFor(now)) > tierRank(awardFor(prev))) {
+        for (const step of crossedSteps(VERTICAL_LADDERS.streams, prev, now)) {
+          fresh.push({
+            ...streamAchievement(
+              step,
+              now,
+              r.trackTitle,
+              r.platform.toLowerCase(),
+              inserted[i]?.id ?? "",
+              inserted[i]?.createdAt ? new Date(inserted[i]!.createdAt).toISOString() : null,
+            ),
+            rank: tierRank(step.tier),
+          });
+        }
+      }
+    });
+    fresh.sort((a, b) => b.rank - a.rank || b.threshold - a.threshold);
+    const newAchievements: MilestoneAchievement[] = fresh
+      .slice(0, 5)
+      .map(({ rank: _rank, ...a }) => a);
+    if (fresh.length > 0) {
+      const top = fresh[0]!;
+      await notifyMilestone(
+        req.userId!,
+        fresh.length === 1
+          ? `You hit ${top.displayValue} streams — brag about it 🏆`
+          : `You crossed ${fresh.length} new milestones — brag about them 🏆`,
+        `"${top.context.split(" · ")[0]}" just crossed ${top.headline}.`,
+        "/analytics-hub",
+      );
+    }
+
+    res.json({ imported: rows.length, skipped, newAchievements });
   } catch (err) {
     logger.error({ err }, "milestones/import-csv: insert failed");
     res.status(502).json({ error: "import_failed", message: "Couldn't import the CSV — try again." });
@@ -310,6 +712,58 @@ router.get("/milestones/:id/card", publicApiLimiter, requireAuth, async (req, re
     })
   );
 });
+
+/* GET /api/milestones/achievements — every crossed brag threshold across
+   verticals (streams, followers, earnings, releases), derived from existing
+   tables. Free. Powers the trophy shelf + the brag modal. */
+router.get("/milestones/achievements", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const { achievements, totals } = await computeAchievements(req.userId!);
+    res.json({ achievements, totals });
+  } catch (err) {
+    logger.error({ err }, "milestones/achievements: compute failed");
+    res.status(502).json({ error: "compute_failed", message: "Couldn't load achievements — try again." });
+  }
+});
+
+const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+/* POST /api/milestones/brag-card — upload a client-rendered brag card PNG
+   (canvas, no paid provider) so it can be attached to a BDV feed post.
+   Raw PNG ≤ 2MB → object storage → signed URL. Free. */
+router.post(
+  "/milestones/brag-card",
+  publicApiLimiter,
+  requireAuth,
+  express.raw({ type: "image/png", limit: "2mb" }),
+  async (req, res) => {
+    try {
+      const buffer = req.body as Buffer;
+      if (
+        !Buffer.isBuffer(buffer) ||
+        buffer.length < 100 ||
+        !buffer.subarray(0, 4).equals(PNG_SIG)
+      ) {
+        res.status(400).json({ error: "bad_image", message: "Send a PNG image (max 2MB)." });
+        return;
+      }
+      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+      if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+      const objectName = `brag-cards/${randomUUID()}.png`;
+      await objectStorageClient
+        .bucket(bucketId)
+        .file(objectName)
+        .save(buffer, { contentType: "image/png", resumable: false });
+      const url = await signGetUrl(bucketId, objectName);
+      logger.info({ objectName, bytes: buffer.length }, "[milestones/brag-card] saved");
+      res.json({ url });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      logger.error({ err: msg }, "[milestones/brag-card] failed");
+      res.status(500).json({ error: "upload_failed", message: "Couldn't upload the card — try again." });
+    }
+  },
+);
 
 /* ── Catalog Vault ──────────────────────────────────────────────────────── */
 

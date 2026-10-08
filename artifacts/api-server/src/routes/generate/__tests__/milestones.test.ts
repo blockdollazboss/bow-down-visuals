@@ -13,6 +13,12 @@ import {
   awardFor,
   nextStepAfter,
   parseMilestoneCsv,
+  VERTICAL_LADDERS,
+  FOLLOWERS_LADDER,
+  EARNINGS_LADDER,
+  RELEASES_LADDER,
+  crossedSteps,
+  tierRank,
 } from "../milestones";
 
 describe("Catalog Vault pricing", () => {
@@ -76,5 +82,58 @@ describe("CSV importer", () => {
     const body = Array.from({ length: 600 }, (_, i) => `Song ${i},spotify,${i + 1}`).join("\n");
     const { rows } = parseMilestoneCsv(`${header}\n${body}`);
     expect(rows).toHaveLength(500);
+  });
+});
+
+describe("brag ladder", () => {
+  it("has 4 verticals with 5 ascending rungs each", () => {
+    expect(Object.keys(VERTICAL_LADDERS).sort()).toEqual([
+      "earnings",
+      "followers",
+      "releases",
+      "streams",
+    ]);
+    for (const ladder of Object.values(VERTICAL_LADDERS)) {
+      expect(ladder).toHaveLength(5);
+      const ats = ladder.map((s) => s.at);
+      expect([...ats].sort((a, b) => a - b)).toEqual(ats);
+    }
+  });
+
+  it("streams ladder mirrors the award ladder", () => {
+    expect(VERTICAL_LADDERS.streams.map((s) => s.at)).toEqual(AWARD_STEPS.map((s) => s.at));
+    expect(VERTICAL_LADDERS.streams.map((s) => s.tier)).toEqual(AWARD_STEPS.map((s) => s.tier));
+  });
+
+  it("detects newly crossed steps (exclusive lower, inclusive upper)", () => {
+    const streams = VERTICAL_LADDERS.streams;
+    expect(crossedSteps(streams, 0, 999)).toEqual([]);
+    expect(crossedSteps(streams, 0, 1_000).map((s) => s.tier)).toEqual(["bronze"]);
+    /* Re-logging the same count crosses nothing — no double brag. */
+    expect(crossedSteps(streams, 10_000, 10_000)).toEqual([]);
+    expect(crossedSteps(streams, 9_999, 10_000).map((s) => s.tier)).toEqual(["silver"]);
+    /* One log can cross several rungs at once. */
+    expect(crossedSteps(streams, 0, 5_000_000).map((s) => s.tier)).toEqual([
+      "bronze",
+      "silver",
+      "gold",
+      "platinum",
+    ]);
+  });
+
+  it("ranks tiers for upgrade detection", () => {
+    expect(tierRank("none")).toBe(0);
+    expect(tierRank("bronze")).toBeLessThan(tierRank("silver"));
+    expect(tierRank("silver")).toBeLessThan(tierRank("gold"));
+    expect(tierRank("gold")).toBeLessThan(tierRank("platinum"));
+    expect(tierRank("platinum")).toBeLessThan(tierRank("diamond"));
+    expect(tierRank("bogus")).toBe(0);
+  });
+
+  it("sets honest, distinct thresholds per vertical", () => {
+    expect(FOLLOWERS_LADDER[0]!.at).toBe(100);
+    expect(EARNINGS_LADDER[0]!.at).toBe(100);
+    expect(RELEASES_LADDER[0]!.at).toBe(1);
+    expect(EARNINGS_LADDER.map((s) => s.tierLabel)).toContain("First $100");
   });
 });

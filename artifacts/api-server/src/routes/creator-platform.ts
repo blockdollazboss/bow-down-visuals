@@ -20,6 +20,7 @@ import {
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
+import { computeAchievements } from "./generate/milestones";
 
 const router = Router();
 
@@ -490,6 +491,42 @@ router.get("/creator-profiles/:slug", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "creator-profiles/:slug error");
     res.status(500).json({ error: "The profile wouldn't load. Give it another shot." });
+  }
+});
+
+/** GET /api/creator-profiles/:slug/achievements — public trophy shelf:
+   every crossed milestone threshold (streams, followers, earnings,
+   releases) for a public profile. 404 when the profile is private. */
+router.get("/creator-profiles/:slug/achievements", async (req, res) => {
+  try {
+    const [profile] = await db
+      .select({
+        userId: creatorProfilesTable.userId,
+        isPublic: creatorProfilesTable.isPublic,
+        displayName: creatorProfilesTable.displayName,
+        avatarUrl: creatorProfilesTable.avatarUrl,
+        slug: creatorProfilesTable.slug,
+      })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, String(req.params["slug"]).toLowerCase()))
+      .limit(1);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+    const { achievements, totals } = await computeAchievements(profile.userId);
+    res.json({
+      achievements,
+      totals,
+      profile: {
+        slug: profile.slug,
+        display_name: profile.displayName,
+        avatar_url: profile.avatarUrl,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/:slug/achievements error");
+    res.status(500).json({ error: "The trophy shelf wouldn't load. Give it another shot." });
   }
 });
 

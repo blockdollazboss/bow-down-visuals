@@ -7,7 +7,7 @@ import { objectStorageClient } from "../lib/objectStorage";
 const SIDECAR = "http://127.0.0.1:1106";
 const router = Router();
 
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
+export async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
     method: "POST",

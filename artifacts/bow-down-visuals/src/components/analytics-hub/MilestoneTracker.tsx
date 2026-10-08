@@ -3,9 +3,14 @@ import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
   Trophy, Loader2, AlertTriangle, CheckCircle2, Upload, Download,
-  Medal, Sparkles, Megaphone, Plus, FileText,
+  Medal, Sparkles, Megaphone, Plus, FileText, Share2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import BragModal from "@/components/milestones/BragModal";
+import {
+  achievementFromMilestoneRow,
+  type MilestoneAchievement,
+} from "@/lib/milestone-thresholds";
 
 /* ─── Milestone Tracker ────────────────────────────────────────────────────
    DistroKid RIAA-monitoring parity. Creators log the stream/download counts
@@ -82,13 +87,19 @@ const goldBtn =
 
 export default function MilestoneTracker() {
   const { t } = useTranslation();
-  const { user, getAccessToken } = useAuth();
+  const { user, profile, getAccessToken } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tracks, setTracks] = useState<TrackProgress[]>([]);
+  const [brag, setBrag] = useState<MilestoneAchievement | null>(null);
+
+  const creatorName =
+    profile?.display_name?.trim() || user?.email?.split("@")[0] || "Creator";
+  const metaAvatar = (user?.user_metadata as { avatar_url?: unknown } | undefined)?.avatar_url;
+  const avatarUrl = typeof metaAvatar === "string" ? metaAvatar : null;
 
   const [trackTitle, setTrackTitle] = useState("");
   const [artistName, setArtistName] = useState("");
@@ -137,6 +148,29 @@ export default function MilestoneTracker() {
 
   useEffect(() => { void load(); }, [load]);
 
+  /* Deep link from the milestone bell notification (?brag=<milestoneId>) —
+     opens the one-click brag modal for that milestone. */
+  useEffect(() => {
+    const bragId = new URLSearchParams(window.location.search).get("brag");
+    if (!bragId || !user) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await authFetch("/api/milestones/achievements").then((r) => r.json()) as {
+          achievements?: MilestoneAchievement[];
+        };
+        const hit = (data.achievements ?? []).find((a) => a.milestoneId === bragId);
+        if (!cancelled && hit) setBrag(hit);
+      } catch {
+        /* achievements failing shouldn't break the tracker */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authFetch]);
+
   async function logMilestone() {
     if (!trackTitle.trim() || !streamCount.trim() || saving) return;
     const count = Math.floor(Number(streamCount.replace(/[, ]/g, "")));
@@ -158,16 +192,21 @@ export default function MilestoneTracker() {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        milestone?: Milestone; awardTier?: string; error?: string; message?: string;
+        milestone?: Milestone; awardTier?: string; newAchievements?: MilestoneAchievement[]; error?: string; message?: string;
       };
       if (!res.ok) throw new Error(data.message ?? data.error ?? t("milestones.logFailed"));
+      const fresh = data.newAchievements ?? [];
       setNotice(
-        data.awardTier && data.awardTier !== "none"
-          ? t("milestones.loggedWithAward", { award: AWARD_STYLES[data.awardTier]?.label ?? data.awardTier })
-          : t("milestones.logged"),
+        fresh.length > 0
+          ? t("milestones.bragPrompt", { label: fresh[fresh.length - 1]!.headline })
+          : data.awardTier && data.awardTier !== "none"
+            ? t("milestones.loggedWithAward", { award: AWARD_STYLES[data.awardTier]?.label ?? data.awardTier })
+            : t("milestones.logged"),
       );
       setTrackTitle(""); setArtistName(""); setStreamCount("");
       await load();
+      /* New threshold crossed → open the one-click brag modal. */
+      if (fresh.length > 0) setBrag(fresh[fresh.length - 1]!);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("milestones.logFailed"));
     } finally {
@@ -186,13 +225,20 @@ export default function MilestoneTracker() {
         body: JSON.stringify({ csv: csvText }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        imported?: number; skipped?: number; error?: string; message?: string;
+        imported?: number; skipped?: number; newAchievements?: MilestoneAchievement[]; error?: string; message?: string;
       };
       if (!res.ok) throw new Error(data.message ?? data.error ?? t("milestones.importFailed"));
-      setNotice(t("milestones.imported", { imported: data.imported ?? 0, skipped: data.skipped ?? 0 }));
+      const fresh = data.newAchievements ?? [];
+      setNotice(
+        fresh.length > 0
+          ? t("milestones.bragPrompt", { label: fresh[fresh.length - 1]!.headline })
+          : t("milestones.imported", { imported: data.imported ?? 0, skipped: data.skipped ?? 0 }),
+      );
       setCsvText("");
       setShowImport(false);
       await load();
+      /* CSV crossed new thresholds → brag the biggest one. */
+      if (fresh.length > 0) setBrag(fresh[fresh.length - 1]!);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("milestones.importFailed"));
     } finally {
@@ -403,6 +449,19 @@ export default function MilestoneTracker() {
                     </div>
                     {m.awardTier !== "none" && <AwardBadge tier={m.awardTier} />}
                     <div className="flex items-center gap-2">
+                      {m.awardTier !== "none" && (
+                        <button
+                          onClick={() => {
+                            const a = achievementFromMilestoneRow(m);
+                            if (a) setBrag(a);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/10"
+                          title={t("milestones.bragButtonWith", { headline: `${formatCount(m.streamCount)} ${t("milestones.streams")}` })}
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                          {t("milestones.bragButton")}
+                        </button>
+                      )}
                       <a
                         href={`/api/milestones/${m.id}/card`}
                         target="_blank"
@@ -427,6 +486,16 @@ export default function MilestoneTracker() {
             )}
           </section>
         </>
+      )}
+
+      {/* one-click brag modal */}
+      {brag && (
+        <BragModal
+          achievement={brag}
+          creatorName={creatorName}
+          avatarUrl={avatarUrl}
+          onClose={() => setBrag(null)}
+        />
       )}
     </div>
   );
