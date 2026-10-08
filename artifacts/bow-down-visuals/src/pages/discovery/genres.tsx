@@ -25,7 +25,7 @@ export default function Genres() {
         const r = await fetch(`/api/discovery/genres${vertical === "all" ? "" : `?vertical=${vertical}`}`);
         if (!r.ok || cancelled) return;
         const d = await r.json();
-        if (!cancelled) setGenres(d.genres ?? []);
+        if (!cancelled) setGenres(Array.isArray(d.genres) ? d.genres : []);
       } catch {
         if (!cancelled) setGenres([]);
       }

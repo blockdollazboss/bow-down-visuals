@@ -151,7 +151,7 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
       WHERE t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
       ORDER BY t.play_count DESC
       LIMIT ${limit}`);
-    return rows as unknown as Array<Record<string, unknown>>;
+    return rows.rows as unknown as Array<Record<string, unknown>>;
   }
   const interval = windowInterval(window, days)!;
   const rows = await db.execute(sql`
@@ -168,7 +168,7 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
     GROUP BY t.id, p.id
     ORDER BY window_plays DESC
     LIMIT ${limit}`);
-  return rows as unknown as Array<Record<string, unknown>>;
+  return rows.rows as unknown as Array<Record<string, unknown>>;
 }
 
 async function topVideos(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number) {
@@ -184,7 +184,7 @@ async function topVideos(window: Window, vertical: string | undefined, genre: st
       WHERE v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
       ORDER BY v.view_count DESC
       LIMIT ${limit}`);
-    return rows as unknown as Array<Record<string, unknown>>;
+    return rows.rows as unknown as Array<Record<string, unknown>>;
   }
   const interval = windowInterval(window, days)!;
   const rows = await db.execute(sql`
@@ -201,7 +201,7 @@ async function topVideos(window: Window, vertical: string | undefined, genre: st
     GROUP BY v.id, p.id
     ORDER BY window_plays DESC
     LIMIT ${limit}`);
-  return rows as unknown as Array<Record<string, unknown>>;
+  return rows.rows as unknown as Array<Record<string, unknown>>;
 }
 
 async function topCreators(window: Window, vertical: string | undefined, limit: number, days?: number) {
@@ -213,7 +213,7 @@ async function topCreators(window: Window, vertical: string | undefined, limit: 
       WHERE p.is_public ${vf ?? sql``}
       ORDER BY (p.total_plays + p.follower_count * 50) DESC
       LIMIT ${limit}`);
-    return rows as unknown as Array<Record<string, unknown>>;
+    return rows.rows as unknown as Array<Record<string, unknown>>;
   }
   const interval = windowInterval(window, days)!;
   const rows = await db.execute(sql`
@@ -246,7 +246,7 @@ async function topCreators(window: Window, vertical: string | undefined, limit: 
       AND (COALESCE(tp.wplays, 0) + COALESCE(vp.wplays, 0) + COALESCE(nf.nfollows, 0)) > 0
     ORDER BY (COALESCE(tp.wplays, 0) + COALESCE(vp.wplays, 0) + COALESCE(nf.nfollows, 0) * 50) DESC
     LIMIT ${limit}`);
-  return rows as unknown as Array<Record<string, unknown>>;
+  return rows.rows as unknown as Array<Record<string, unknown>>;
 }
 
 router.get("/charts", publicApiLimiter, asyncHandler(async (req, res) => {
@@ -397,16 +397,16 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
   const out: Record<string, unknown> = { q: q.q };
 
   if (q.type === "all" || q.type === "creator") {
-    out.creators = await db.execute(sql`
+    out.creators = (await db.execute(sql`
       SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
       FROM creator_profiles p
       WHERE p.is_public ${vf ?? sql``}
         AND (p.display_name ILIKE ${like} OR p.slug ILIKE ${like})
       ORDER BY p.follower_count DESC
-      LIMIT ${per}`);
+      LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "track") {
-    out.tracks = await db.execute(sql`
+    out.tracks = (await db.execute(sql`
       SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url,
              t.play_count, t.like_count, t.duration_sec,
              ${PROFILE_COLS}
@@ -415,10 +415,10 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       WHERE t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
         AND (t.title ILIKE ${like} OR t.genre ILIKE ${like})
       ORDER BY t.play_count DESC
-      LIMIT ${per}`);
+      LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "video") {
-    out.videos = await db.execute(sql`
+    out.videos = (await db.execute(sql`
       SELECT v.id, v.profile_id, v.title, v.genre, v.thumbnail_url,
              v.view_count, v.like_count, v.duration_sec,
              ${PROFILE_COLS}
@@ -427,10 +427,10 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       WHERE v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
         AND v.title ILIKE ${like}
       ORDER BY v.view_count DESC
-      LIMIT ${per}`);
+      LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "playlist") {
-    out.playlists = await db.execute(sql`
+    out.playlists = (await db.execute(sql`
       SELECT pl.id, pl.title, pl.description, pl.cover_url, pl.follower_count,
              ${PROFILE_COLS}
       FROM playlists pl
@@ -438,7 +438,7 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       WHERE pl.is_public AND p.is_public ${vf ?? sql``}
         AND pl.title ILIKE ${like}
       ORDER BY pl.follower_count DESC
-      LIMIT ${per}`);
+      LIMIT ${per}`)).rows;
   }
   res.json(out);
 }));
@@ -457,7 +457,7 @@ router.get("/verticals", publicApiLimiter, asyncHandler(async (_req, res) => {
     FROM creator_profiles p
     WHERE p.is_public
     GROUP BY p.vertical
-  `)) as unknown as Array<{ vertical: string; creators: number; followers: number; plays: number }>;
+  `)).rows as unknown as Array<{ vertical: string; creators: number; followers: number; plays: number }>;
   const byVertical = new Map(rows.map((r) => [r.vertical, r]));
   res.json({
     verticals: VERTICALS.map((v) => ({
@@ -480,16 +480,17 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
   }
   const limit = clampLimit(req.query.limit, 8, 12);
   const vf = sql`AND p.vertical = ${vertical}`;
-  const [creators, tracks, videos, fresh] = await Promise.all([
-    db.execute(sql`SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio FROM creator_profiles p
+  const [creators, tracks, videos, fresh] = (
+    await Promise.all([
+      db.execute(sql`SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio FROM creator_profiles p
       WHERE p.is_public ${vf} ORDER BY (p.total_plays + p.follower_count * 50) DESC LIMIT ${limit}`),
-    db.execute(sql`SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.play_count, t.like_count, t.duration_sec, ${PROFILE_COLS}
+      db.execute(sql`SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.play_count, t.like_count, t.duration_sec, ${PROFILE_COLS}
       FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
       WHERE t.is_published AND p.is_public ${vf} ORDER BY t.play_count DESC LIMIT ${limit}`),
-    db.execute(sql`SELECT v.id, v.profile_id, v.title, v.genre, v.thumbnail_url, v.view_count, v.like_count, v.duration_sec, ${PROFILE_COLS}
+      db.execute(sql`SELECT v.id, v.profile_id, v.title, v.genre, v.thumbnail_url, v.view_count, v.like_count, v.duration_sec, ${PROFILE_COLS}
       FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
       WHERE v.is_published AND p.is_public ${vf} ORDER BY v.view_count DESC LIMIT ${limit}`),
-    db.execute(sql`
+      db.execute(sql`
       (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.artwork_url AS thumb, t.created_at, ${PROFILE_COLS}
        FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
        WHERE t.is_published AND p.is_public ${vf} AND t.created_at >= NOW() - INTERVAL '14 days')
@@ -498,14 +499,17 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
        FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
        WHERE v.is_published AND p.is_public ${vf} AND v.created_at >= NOW() - INTERVAL '14 days')
       ORDER BY created_at DESC LIMIT ${limit}`),
-  ]);
-  const rising = await db.execute(sql`
+    ])
+  ).map((r) => r.rows);
+  const rising = (
+    await db.execute(sql`
     WITH nf AS (SELECT f.profile_id AS pid, COUNT(*)::int AS n
                 FROM follows f WHERE f.created_at >= NOW() - INTERVAL '7 days' GROUP BY f.profile_id)
     SELECT ${PROFILE_COLS}${EARNINGS_COLS}, nf.n::int AS new_followers
     FROM creator_profiles p JOIN nf ON nf.pid = p.id
     WHERE p.is_public ${vf} AND nf.n >= 2
-    ORDER BY nf.n DESC LIMIT ${limit}`);
+    ORDER BY nf.n DESC LIMIT ${limit}`)
+  ).rows;
   res.json({
     vertical,
     label: VERTICAL_LABELS[vertical],
@@ -533,7 +537,7 @@ router.get("/genres", publicApiLimiter, asyncHandler(async (req, res) => {
       JOIN creator_profiles p ON p.id = v.profile_id
       WHERE v.is_published AND p.is_public AND v.genre IS NOT NULL ${vf ?? sql``}
     ) g GROUP BY genre ORDER BY items DESC LIMIT 60`);
-  res.json({ vertical: vertical ?? null, genres: rows });
+  res.json({ vertical: vertical ?? null, genres: rows.rows });
 }));
 
 router.get("/genre/:genre", publicApiLimiter, asyncHandler(async (req, res) => {
@@ -568,7 +572,7 @@ router.get("/new-this-week", publicApiLimiter, asyncHandler(async (req, res) => 
   const vertical = typeof req.query.vertical === "string" ? req.query.vertical.toLowerCase() : undefined;
   const vf = verticalFilter(vertical);
   const limit = clampLimit(req.query.limit, 12, 30);
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
             t.play_count AS plays, t.created_at, ${PROFILE_COLS}
      FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
@@ -578,7 +582,7 @@ router.get("/new-this-week", publicApiLimiter, asyncHandler(async (req, res) => 
             v.view_count AS plays, v.created_at, ${PROFILE_COLS}
      FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
      WHERE v.is_published AND p.is_public ${vf ?? sql``} AND v.created_at >= NOW() - INTERVAL '7 days')
-    ORDER BY created_at DESC LIMIT ${limit}`);
+    ORDER BY created_at DESC LIMIT ${limit}`)).rows;
   res.json({ vertical: vertical ?? null, items: rows });
 }));
 
@@ -634,7 +638,7 @@ router.get("/related/track/:id", publicApiLimiter, asyncHandler(async (req, res)
     WHERE t.is_published AND p.is_public AND t.id != ${me.id}::uuid ${gf}
     ORDER BY t.play_count DESC
     LIMIT ${limit}`);
-  res.json({ id, genre: me.genre, related: rows });
+  res.json({ id, genre: me.genre, related: rows.rows });
 }));
 
 /* ─── Follow status (auth) ────────────────────────────────────────────────
@@ -655,7 +659,7 @@ router.get("/following", requireAuth, asyncHandler(async (req, res) => {
   const rows = (await db.execute(sql`
     SELECT profile_id AS pid FROM follows
     WHERE follower_user_id = ${userId}::uuid
-      AND profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})`)) as unknown as Array<{ pid: string }>;
+      AND profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})`)).rows as unknown as Array<{ pid: string }>;
   const set = new Set(rows.map((r) => r.pid));
   res.json(Object.fromEntries(ids.map((id) => [id, set.has(id)])));
 }));
@@ -689,7 +693,7 @@ router.post("/play", playLimiter, asyncHandler(async (req, res) => {
       UPDATE profile_tracks SET play_count = play_count + 1
       WHERE id = ${mediaId}::uuid AND is_published
       RETURNING profile_id`);
-    const row = (updated as unknown as Array<{ profile_id: string }>)[0];
+    const row = (updated.rows[0] as { profile_id: string } | undefined);
     if (row) {
       await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
     }
@@ -698,7 +702,7 @@ router.post("/play", playLimiter, asyncHandler(async (req, res) => {
       UPDATE profile_videos SET view_count = view_count + 1
       WHERE id = ${mediaId}::uuid AND is_published
       RETURNING profile_id`);
-    const row = (updated as unknown as Array<{ profile_id: string }>)[0];
+    const row = (updated.rows[0] as { profile_id: string } | undefined);
     if (row) {
       await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
     }
@@ -723,7 +727,7 @@ router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
     res.json({ items: [], following: 0 });
     return;
   }
-  const items = await db.execute(sql`
+  const items = (await db.execute(sql`
     (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
             t.play_count AS plays, t.like_count, t.created_at, ${PROFILE_COLS}
      FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
@@ -737,7 +741,7 @@ router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
      WHERE v.is_published AND p.is_public
        AND v.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
        AND v.created_at >= NOW() - INTERVAL '30 days')
-    ORDER BY created_at DESC LIMIT ${limit}`);
+    ORDER BY created_at DESC LIMIT ${limit}`)).rows;
   res.json({ items, following: ids.length });
 }));
 
@@ -766,7 +770,7 @@ router.get("/notifications", requireAuth, asyncHandler(async (req, res) => {
   const unread = await db.execute(sql`
     SELECT COUNT(*)::int AS n FROM notifications
     WHERE user_id = ${userId}::uuid AND is_read = false`);
-  res.json({ items, unread: (unread as unknown as Array<{ n: number }>)[0]?.n ?? 0 });
+  res.json({ items, unread: (unread.rows[0] as { n: number } | undefined)?.n ?? 0 });
 }));
 
 router.post("/notifications/read", requireAuth, asyncHandler(async (req, res) => {
@@ -822,7 +826,7 @@ router.post("/notify", requireAuth, asyncHandler(async (req, res) => {
   const followers = (await db.execute(sql`
     SELECT follower_user_id AS uid FROM follows
     WHERE profile_id = ${profileId}::uuid
-    LIMIT 5000`)) as unknown as Array<{ uid: string }>;
+    LIMIT 5000`)).rows as unknown as Array<{ uid: string }>;
   const targets = followers.map((f) => f.uid).filter((uid) => uid !== req.userId);
   if (!targets.length) {
     res.json({ ok: true, notified: 0 });

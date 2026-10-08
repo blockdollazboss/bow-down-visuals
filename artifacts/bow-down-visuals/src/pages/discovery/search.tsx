@@ -104,7 +104,7 @@ export default function Search() {
       const d = await getJson<{ genres: Array<{ genre: string; items: number }> }>(
         `/api/discovery/genres${vertical === "all" ? "" : `?vertical=${vertical}`}`
       );
-      if (!cancelled) setGenres((d?.genres ?? []).slice(0, 12));
+      if (!cancelled) setGenres((Array.isArray(d?.genres) ? d.genres : []).slice(0, 12));
     })();
     return () => {
       cancelled = true;

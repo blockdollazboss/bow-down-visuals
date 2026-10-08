@@ -42,7 +42,7 @@ export default function Browse() {
         const r = await fetch("/api/discovery/verticals");
         if (!r.ok || cancelled) return;
         const d = await r.json();
-        if (!cancelled) setStats(d.verticals ?? []);
+        if (!cancelled) setStats(Array.isArray(d.verticals) ? d.verticals : []);
       } catch {
         /* grid renders without counts */
       }

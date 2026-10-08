@@ -37,7 +37,7 @@ export default function Feed() {
         });
         if (!r.ok || cancelled) return;
         const d = await r.json();
-        if (!cancelled) setItems(d.items ?? []);
+        if (!cancelled) setItems(Array.isArray(d.items) ? d.items : []);
       } catch {
         if (!cancelled) setItems([]);
       }

@@ -216,7 +216,11 @@ export default function Charts() {
       if (tab === "charts") {
         const d = await getJson<ChartsPayload>(`/api/discovery/charts?window=${window}${v}${dParam}&limit=10`);
         if (!cancelled) {
-          setData(d ?? { tracks: [], videos: [], creators: [] });
+          setData({
+            tracks: Array.isArray(d?.tracks) ? d.tracks : [],
+            videos: Array.isArray(d?.videos) ? d.videos : [],
+            creators: Array.isArray(d?.creators) ? d.creators : [],
+          });
           setLoading(false);
         }
       } else if (tab === "breaking") {
