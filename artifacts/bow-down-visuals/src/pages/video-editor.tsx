@@ -60,6 +60,7 @@ import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
+import { StockLibraryPanel } from "@/components/editor/sections/StockLibraryPanel";
 import TemplatesTabPanel from "@/components/video-editor/TemplatesTabPanel";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
@@ -1455,6 +1456,17 @@ export default function VideoEditor() {
                             setScenes={setScenes}
                             projectId={projectId}
                             getAccessToken={getAccessToken}
+                            onGoToTab={(t) => setTab(t)}
+                          />
+
+                          {/* ── Stock Media Library (CapCut parity): searchable stock video + photos.
+                              Browsing is free; importing into the project costs 50 Visual Bucs. ── */}
+                          <StockLibraryPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            projectId={projectId}
+                            getAccessToken={getAccessToken}
+                            confirmedFetch={confirmedFetch}
                             onGoToTab={(t) => setTab(t)}
                           />
 
