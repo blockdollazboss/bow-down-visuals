@@ -116,6 +116,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/seo-score": { cost: 75, feature: "Video SEO Score" },
   "/api/caption-styler": { cost: 300, feature: "Caption Styler" },
   "/api/auto-captions": { cost: 300, feature: "AI Auto-Captions" },
+  "/api/translate-captions": { cost: 50, feature: "Translate Captions (per language)" },
+  "/api/generate-cta": { cost: 50, feature: "Generate CTA" },
   "/api/karaoke-video": { cost: 300, feature: "Karaoke Video" },
   "/api/audiogram": { cost: 250, feature: "Audiogram Visualizer" },
   "/api/loop-video": { cost: 150, feature: "Loop Video" },
@@ -156,6 +158,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/social/instagram/publish": { cost: 100, feature: "Publish to Instagram" },
   "/api/social/facebook/publish": { cost: 100, feature: "Publish to Facebook" },
   "/api/social/tiktok/publish": { cost: 100, feature: "Publish to TikTok" },
+  "/api/generate-community-post": { cost: 50, feature: "Generate Community Post" },
   "/api/best-time": { cost: 75, feature: "Best Time to Post" },
 };
 

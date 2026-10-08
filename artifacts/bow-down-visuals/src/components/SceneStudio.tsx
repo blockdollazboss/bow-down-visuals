@@ -573,11 +573,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const willChain = hasUsableClip(previousClipUrl);
 
   /* Site-credit cost for the current picker selection. The per-second rates
-     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p,
-     2 for drafts). */
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 3;
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 6;
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 2;
+     must match the server's SEEDANCE per-tier defaults (300 at 720p, 600 at 1080p,
+     200 for drafts). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 300;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 600;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 200;
   const isDraftRequest = clipModel === "seedance2_5" && draftMode;
   const clipCost = clipModel === "seedance2_5"
     ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
