@@ -300,7 +300,7 @@ export default function StreamPlaylistPage() {
             {playlist.description && <p className="mt-2 text-white/55 text-sm leading-relaxed">{playlist.description}</p>}
             <p className="mt-3 text-sm text-white/45">
               by {owner?.slug ? (
-                <Link href={`/creator/${owner.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{ownerName}</Link>
+                <Link href={`/artist/${owner.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{ownerName}</Link>
               ) : (
                 <span className="text-[#e8c86a] font-semibold">{ownerName}</span>
               )}

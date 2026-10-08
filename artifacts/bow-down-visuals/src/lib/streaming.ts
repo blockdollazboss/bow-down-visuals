@@ -43,6 +43,14 @@ export interface StreamVideo {
   season_number?: number | null;
   episode_number?: number | null;
   series_title?: string | null;
+  /** Linked sound (server resolves sound_track_id). */
+  sound?: {
+    id: string;
+    title: string;
+    audio_url: string;
+    artwork_url: string | null;
+    profile_slug: string;
+  } | null;
 }
 
 export interface PlaylistItemRef {
@@ -254,7 +262,8 @@ export function recordPlay(kind: MediaKind, id: string): void {
   } catch { /* noop */ }
 }
 
-/** Toggle like. Returns the server's like_count when available, else null. */
+/** Toggle like. Returns the server's like_count when available, else null.
+    Worker 1 API: POST /api/media/:kind/:id/like, DELETE .../unlike. */
 export async function toggleLike(
   kind: MediaKind,
   id: string,
@@ -262,7 +271,7 @@ export async function toggleLike(
   headers: Record<string, string>,
 ): Promise<{ liked: boolean; count: number | null }> {
   const path = `/api/media/${kind}/${encodeURIComponent(id)}/${liked ? "unlike" : "like"}`;
-  const r = await fetch(path, { method: "POST", headers: { ...headers, "Content-Type": "application/json" } });
+  const r = await fetch(path, { method: liked ? "DELETE" : "POST", headers: { ...headers, "Content-Type": "application/json" } });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error ?? "Like failed");
   return {
@@ -271,15 +280,15 @@ export async function toggleLike(
   };
 }
 
-/** Toggle repost. Same shape as toggleLike. */
+/** Toggle repost (tracks only).
+    Worker 1 API: POST /api/tracks/:id/repost, DELETE /api/tracks/:id/unrepost. */
 export async function toggleRepost(
-  kind: MediaKind,
   id: string,
   reposted: boolean,
   headers: Record<string, string>,
 ): Promise<{ reposted: boolean; count: number | null }> {
-  const path = `/api/media/${kind}/${encodeURIComponent(id)}/${reposted ? "unrepost" : "repost"}`;
-  const r = await fetch(path, { method: "POST", headers: { ...headers, "Content-Type": "application/json" } });
+  const path = `/api/tracks/${encodeURIComponent(id)}/${reposted ? "unrepost" : "repost"}`;
+  const r = await fetch(path, { method: reposted ? "DELETE" : "POST", headers: { ...headers, "Content-Type": "application/json" } });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error ?? "Repost failed");
   return {
@@ -326,4 +335,73 @@ export async function togglePlaylistFollow(
     following: typeof d.following === "boolean" ? d.following : !following,
     count: typeof d.follower_count === "number" ? d.follower_count : null,
   };
+}
+
+/* ─── Viewer playlists (add-to-playlist) ───
+   PROPOSED contract for Worker 1 — not yet on the server (2026-10-07):
+   GET  /api/playlists/mine          -> { playlists: [{id,title,cover_url,item_count}] }
+   POST /api/playlists               -> { playlist }            (body: {title})
+   POST /api/playlists/:id/items     -> { ok: true }            (body: {kind, id})
+   All require auth. Every caller degrades gracefully when 404. */
+
+export interface MyPlaylist {
+  id: string;
+  title: string;
+  cover_url: string | null;
+  item_count?: number;
+}
+
+async function authedJson<T>(path: string, headers: Record<string, string>, init?: RequestInit): Promise<T | null> {
+  try {
+    const r = await fetch(path, {
+      ...init,
+      headers: { ...headers, "Content-Type": "application/json", Accept: "application/json" },
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchMyPlaylists(headers: Record<string, string>): Promise<MyPlaylist[] | null> {
+  const d = await authedJson<any>("/api/playlists/mine", headers);
+  if (!d) return null;
+  const list = Array.isArray(d) ? d : d.playlists ?? [];
+  return Array.isArray(list) ? list : null;
+}
+
+export async function createPlaylist(title: string, headers: Record<string, string>): Promise<MyPlaylist | null> {
+  const d = await authedJson<any>("/api/playlists", headers, {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+  if (!d) return null;
+  return unwrap<MyPlaylist>(d);
+}
+
+export async function addItemToPlaylist(
+  playlistId: string,
+  kind: MediaKind,
+  id: string,
+  headers: Record<string, string>,
+): Promise<boolean> {
+  const d = await authedJson<any>(`/api/playlists/${encodeURIComponent(playlistId)}/items`, headers, {
+    method: "POST",
+    body: JSON.stringify({ kind, id }),
+  });
+  return d !== null;
+}
+
+/** Resolve a creator's storefront slug (best-effort; null when none). */
+export async function resolveStoreSlug(artistSlug: string): Promise<string | null> {
+  try {
+    const r = await fetch(`/api/storefronts/slug/${encodeURIComponent(artistSlug)}`);
+    if (!r.ok) return null;
+    const d = await r.json().catch(() => ({}));
+    const slug = d?.storefront?.slug ?? d?.slug ?? null;
+    return typeof slug === "string" && slug ? slug : null;
+  } catch {
+    return null;
+  }
 }

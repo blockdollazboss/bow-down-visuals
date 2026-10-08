@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Repeat2, Share2, Download, Check, X, Facebook } from "lucide-react";
+import { Heart, Repeat2, Share2, Download, Check, X, Facebook, ListPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AddToPlaylist } from "@/components/player/AddToPlaylist";
 import {
   copyText, formatCount, getMyReferralCode, shareUrl,
   toggleLike, toggleRepost, downloadCheckoutPath,
@@ -37,6 +38,7 @@ export function MediaActions({
   const [likes, setLikes] = useState(likeCount);
   const [reposts, setReposts] = useState(repostCount ?? 0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setLikes(likeCount); }, [likeCount]);
@@ -81,7 +83,7 @@ export function MediaActions({
     setReposted(!prev);
     setReposts((n) => n + (prev ? -1 : 1));
     try {
-      const res = await toggleRepost(kind, id, prev, headers);
+      const res = await toggleRepost(id, prev, headers);
       setReposted(res.reposted);
       if (res.count != null) setReposts(res.count);
     } catch {
@@ -137,6 +139,15 @@ export function MediaActions({
           />
         )}
       </div>
+
+      <button
+        onClick={() => setAddOpen(true)}
+        title={user ? "Save to a playlist" : "Sign in to save to playlists"}
+        className={`${btn} rounded-full border border-white/15 text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] font-semibold flex items-center gap-2 transition-colors`}
+      >
+        <ListPlus className={icon} /> Save
+      </button>
+      <AddToPlaylist kind={kind} id={id} title={title} open={addOpen} onClose={() => setAddOpen(false)} />
 
       {downloadPriceCents != null && downloadPriceCents > 0 && (
         <a

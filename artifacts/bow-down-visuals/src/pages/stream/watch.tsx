@@ -8,6 +8,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { JsonLd } from "@/components/seo/json-ld";
 import { useStreamingPlayerOptional } from "@/contexts/StreamingPlayerContext";
 import { MediaActions } from "@/components/player/MediaActions";
+import { MediaLinkBar } from "@/components/player/MediaLinkBar";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
   fetchVideo, fetchMoreFromArtist, formatCount, formatDuration, formatSeriesLabel,
@@ -309,7 +310,7 @@ export default function StreamWatchPage() {
               <h1 className="text-2xl md:text-3xl font-black leading-tight">{video.title}</h1>
               <p className="mt-2 text-white/60 text-sm">
                 by {artist?.slug ? (
-                  <Link href={`/creator/${artist.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{artistName}</Link>
+                  <Link href={`/artist/${artist.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{artistName}</Link>
                 ) : (
                   <span className="text-[#e8c86a] font-semibold">{artistName}</span>
                 )}
@@ -328,6 +329,17 @@ export default function StreamWatchPage() {
                   likeCount={video.like_count}
                   showRepost={false}
                   size="lg"
+                />
+              </div>
+
+              <div className="mt-4">
+                <MediaLinkBar
+                  kind="video"
+                  id={String(video.id)}
+                  artistSlug={artist?.slug}
+                  artistName={artistName}
+                  soundId={video.sound?.id ?? null}
+                  soundTitle={video.sound?.title ?? null}
                 />
               </div>
 

@@ -5,6 +5,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { JsonLd } from "@/components/seo/json-ld";
 import { useStreamingPlayer, trackToQueueItem } from "@/contexts/StreamingPlayerContext";
 import { MediaActions } from "@/components/player/MediaActions";
+import { MediaLinkBar } from "@/components/player/MediaLinkBar";
 import { Waveform } from "@/components/player/Waveform";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
@@ -144,7 +145,7 @@ export default function StreamTrackPage() {
             <h1 className="text-3xl md:text-4xl font-black leading-tight">{track.title}</h1>
             <p className="mt-2 text-white/60">
               by {artist?.slug ? (
-                <Link href={`/creator/${artist.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{artistName}</Link>
+                <Link href={`/artist/${artist.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{artistName}</Link>
               ) : (
                 <span className="text-[#e8c86a] font-semibold">{artistName}</span>
               )}
@@ -178,6 +179,10 @@ export default function StreamTrackPage() {
                 downloadPriceCents={track.download_price_cents}
                 size="lg"
               />
+            </div>
+
+            <div className="mt-4">
+              <MediaLinkBar kind="track" id={String(track.id)} artistSlug={artist?.slug} artistName={artistName} />
             </div>
 
             <div className="mt-4 flex gap-2">
