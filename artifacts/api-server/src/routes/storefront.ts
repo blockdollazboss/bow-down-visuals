@@ -316,7 +316,7 @@ const ServiceDetailsSchema = z.object({
   notes: z.string().max(2000).optional(),
 }).optional().nullable();
 
-const CreateProductSchema = z.object({
+const BaseProductSchema = z.object({
   kind: ProductKindSchema,
   title: z.string().trim().min(1, "A title is required.").max(160),
   description: z.string().max(5000).default(""),
@@ -329,7 +329,12 @@ const CreateProductSchema = z.object({
   eventId: z.string().regex(UUID_RE).nullable().optional(),
   relatedLinks: z.array(RelatedLinkSchema).max(10).default([]),
   isActive: z.boolean().default(true),
-}).refine((d) => d.kind !== "ticket" || !!d.eventId, {
+});
+
+/* Create-time cross-field rules live on the refined schema. The base stays
+   refinement-free so .partial() (zod v4 forbids .partial() on refined schemas)
+   can derive the PATCH schema — partial updates must not re-require eventId. */
+const CreateProductSchema = BaseProductSchema.refine((d) => d.kind !== "ticket" || !!d.eventId, {
   message: "Ticket products need an event (eventId).",
   path: ["eventId"],
 }).refine((d) => d.kind !== "service" || !!d.serviceDetails, {
@@ -370,7 +375,7 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
   }
 });
 
-const UpdateProductSchema = CreateProductSchema.partial();
+const UpdateProductSchema = BaseProductSchema.partial();
 
 router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
