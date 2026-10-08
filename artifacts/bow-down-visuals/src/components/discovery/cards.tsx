@@ -219,7 +219,7 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
 
 export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) {
   return (
-    <Link href={`/video/${video.id}`}>
+    <Link href={`/watch/${video.id}`}>
       <article className="group cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-colors hover:border-[#e8c86a]/40">
         <div className="relative aspect-video bg-black/40">
           {video.thumbnail_url ? (
