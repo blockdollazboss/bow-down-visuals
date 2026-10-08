@@ -97,9 +97,12 @@ export const profileVideosTable = pgTable("profile_videos", {
   /** Shorts mechanics (0091): TikTok-style vertical short flag. */
   isShort:           boolean("is_short").notNull().default(false),
   /** Duet parent (the original short being duetted). NULL = original. */
-  duetWith:          uuid("duet_with").references((): AnyPgColumn => profileVideosTable.id, { onDelete: "set null" }),
+  /* Self-FK note (Worker 10): the `as unknown` breaks a type-inference cycle
+     that fails declaration emit (`tsc -b`, which the Docker build typecheck
+     needs). Runtime is unchanged — the thunk still returns this table's id. */
+  duetWith:          uuid("duet_with").references((): AnyPgColumn => (profileVideosTable as unknown as { id: AnyPgColumn }).id, { onDelete: "set null" }),
   /** Stitch parent (the original short being stitched). NULL = original. */
-  stitchWith:        uuid("stitch_with").references((): AnyPgColumn => profileVideosTable.id, { onDelete: "set null" }),
+  stitchWith:        uuid("stitch_with").references((): AnyPgColumn => (profileVideosTable as unknown as { id: AnyPgColumn }).id, { onDelete: "set null" }),
   /** Sound used by this short: free-text id (slug) + display metadata. */
   soundId:           text("sound_id"),
   soundTitle:        text("sound_title"),
