@@ -19,6 +19,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { getRecruiterBadgeForUser } from "./referrals";
 
 const router = Router();
 
@@ -451,6 +452,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
 
     const sounds = await soundMapFor(topVideos, profile.slug);
     const extras = await profileExtras(profile);
+    /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
+    const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
 
     res.json({
       profile: {
@@ -473,6 +476,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
         created_at: profile.createdAt,
+        // Virality wave: the creator's referral rank badge (null when none).
+        recruiter_badge: recruiterBadge,
         // Presence flags + monetization checklist — neighbors link off these
         // without extra round-trips; UI renders "N of 5 money moves done".
         ...extras,
