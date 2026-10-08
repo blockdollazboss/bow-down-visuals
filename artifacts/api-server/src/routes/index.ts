@@ -228,6 +228,17 @@ import showFinderRouter from "./generate/show-finder";
 import brandDealsRouter from "./generate/brand-deals";
 import collageRouter from "./generate/collage";
 import karaokeRouter from "./generate/karaoke";
+// ── Wave 8 ─────────────────────────────────────────────────────────
+import wave8ThumbnailAbRouter from "./wave8-thumbnail-ab";
+import wave8CaptionStylerRouter from "./wave8-caption-styler";
+import wave8CalendarRouter from "./wave8-calendar";
+import wave8HookRewriterRouter from "./wave8-hook-rewriter";
+import wave8AdlibRouter from "./wave8-adlib";
+import wave8HighlightsRouter from "./wave8-highlights";
+import wave8MerchDropRouter from "./wave8-merch-drop";
+import wave8MediaKitRouter from "./wave8-media-kit";
+import wave8SplitsRouter from "./wave8-splits";
+import wave8SponsorsRouter from "./wave8-sponsors";
 import textAnimatorRouter from "./generate/text-animator";
 import subtitleStylerRouter from "./generate/subtitle-styler";
 import autoCaptionsRouter from "./generate/auto-captions";
@@ -521,5 +532,16 @@ router.use(creatorTiersRouter);             // /api/creator-tiers/*
 router.use("/ai-page-designer", aiPageDesignerRouter); // /api/ai-page-designer/*
 router.use(publicStatsRouter);                      // /api/public/stats (cached social-proof stats)
 // NOTE: social.ts (stories/posts/reactions) was already mounted above as socialRouter.
+// ── Wave 8 (each mounted exactly once) ─────────────────────────────────
+router.use(wave8ThumbnailAbRouter);   // /api/wave8/thumbnail-ab/*
+router.use(wave8CaptionStylerRouter); // /api/wave8/caption-styler/*
+router.use(wave8CalendarRouter);      // /api/wave8/calendar/*
+router.use(wave8HookRewriterRouter);  // /api/wave8/hook-rewriter/*
+router.use(wave8AdlibRouter);         // /api/wave8/adlib/*
+router.use(wave8HighlightsRouter);    // /api/wave8/highlights/*
+router.use(wave8MerchDropRouter);     // /api/wave8/merch-drop/*
+router.use(wave8MediaKitRouter);      // /api/wave8/media-kit/*
+router.use(wave8SplitsRouter);        // /api/wave8/splits/*
+router.use(wave8SponsorsRouter);       // /api/wave8/sponsors/*
 
 export default router;

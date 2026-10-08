@@ -92,3 +92,4 @@ export * from "./community";
 export * from "./digital-sales";
 export * from "./storefront";
 export * from "./referral-contest";
+export * from "./wave8";

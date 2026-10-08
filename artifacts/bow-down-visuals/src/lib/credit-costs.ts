@@ -186,6 +186,18 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── Stock media (editor Media rail) ────────────────────────────
   "/api/stock/search": { cost: 0, feature: "Stock Media Search (free)" },
   "/api/stock/import": { cost: 50, feature: "Stock Media Import" },
+
+  // ── Wave 8 ─────────────────────────────────────────────────────
+  "/api/wave8/thumbnail-ab/variants": { cost: 75, feature: "Thumbnail A/B Variants" },
+  "/api/wave8/caption-styler/burn": { cost: 100, feature: "Styled Caption Burn-in" },
+  "/api/wave8/calendar/autofill": { cost: 150, feature: "Content Calendar Auto-Fill" },
+  "/api/wave8/hook-rewriter/rewrite": { cost: 50, feature: "Hook Rewriter" },
+  "/api/wave8/adlib/generate": { cost: 150, feature: "AI Ad-Lib Generator" },
+  "/api/wave8/highlights/cut": { cost: 300, feature: "Stream Highlight Auto-Editor" },
+  "/api/wave8/merch-drop/plan": { cost: 100, feature: "Merch Drop Planner" },
+  "/api/wave8/media-kit/generate": { cost: 100, feature: "AI Media Kit Builder" },
+  "/api/wave8/splits/pdf": { cost: 50, feature: "Royalty Split Sheet PDF" },
+  "/api/wave8/sponsors/followup": { cost: 50, feature: "Sponsor Follow-up Draft" },
 };
 
 /**
