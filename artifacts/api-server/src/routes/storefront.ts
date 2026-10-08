@@ -57,7 +57,11 @@ import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
-import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
+/* Worker 12 (PLATFORM TIERS + FEE ECONOMICS) owns the money math — this is
+   the ONE shared fee location. Base fee 10% (env PLATFORM_FEE_BPS); the
+   per-tier rates in that module are PROPOSED and pending user approval, so
+   the storefront uses the canonical base rate only. */
+import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
 
 /* Product kinds — canonical list also lives in lib/db/src/schema/storefront.ts
    (STORE_PRODUCT_KINDS). Defined locally here because lib/db's built dist is
@@ -66,11 +70,9 @@ import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket"] as const;
 
 /* ── Platform economics ────────────────────────────────────────────────
-   ONE shared fee constant for the whole site (imported from
-   generate/storefronts.ts). Worker 12 owns the final economics — if they
-   land a dedicated fee module, swap this ONE import. Env-overridable via
-   STOREFRONT_PLATFORM_FEE_BPS. Default 1000 bps = 10%. */
-export const PLATFORM_FEE_BPS = STOREFRONT_PLATFORM_FEE_BPS;
+   Worker 12's platform-fees.ts is the single source of truth (imported
+   above). Worker 12 owns the final economics. */
+export { PLATFORM_FEE_BPS };
 export const PLATFORM_FEE_PCT = PLATFORM_FEE_BPS / 100;
 
 /* ── Token rules (digital instant delivery — same concept as store.ts) ── */
@@ -110,13 +112,14 @@ function getBaseUrl(req?: import("express").Request): string {
 }
 
 function money(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatUsd(cents);
 }
 
-/** Honest money math: discount first, then fee out of the SELLER's cut. */
+/** Honest money math: discount first, then fee out of the SELLER's cut.
+ *  Delegates to Worker 12's canonical feeSplit (gross − fee = net). */
 function splitTotals(amountCents: number): { feeCents: number; creatorCents: number } {
-  const feeCents = Math.round((amountCents * PLATFORM_FEE_BPS) / 10_000);
-  return { feeCents, creatorCents: amountCents - feeCents };
+  const s = feeSplit(amountCents, PLATFORM_FEE_BPS);
+  return { feeCents: s.fee, creatorCents: s.net };
 }
 
 function mintToken(): string {
