@@ -797,6 +797,10 @@ export default function MyProjects() {
           <p className="text-white/50 text-base max-w-2xl">
             {t("myProjects.subheading")}
           </p>
+          <div className="mt-3 flex flex-wrap gap-4">
+            <Link href="/generations" className="text-xs font-semibold text-primary hover:underline">{t("myProjects.generationsLink", { defaultValue: "Generation history →" })}</Link>
+            <Link href="/import" className="text-xs font-semibold text-primary hover:underline">{t("myProjects.importLink", { defaultValue: "Import media →" })}</Link>
+          </div>
         </div>
 
         {/* Tabs */}

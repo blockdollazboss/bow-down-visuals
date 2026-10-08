@@ -2458,7 +2458,8 @@
     },
     "replies": {
       "scheduleLink": "Plan posts in Scheduler"
-    }
+    },
+    "messagesLink": "Open direct messages →"
   },
   "contact": {
     "your_name": "Your name",
@@ -4905,7 +4906,8 @@
     "searchPlaceholder": "Search shops, creators, vibes…",
     "startBuilding": "Start building",
     "verifiedDomain": "Verified domain: {{domain}}",
-    "visitShop": "Visit shop"
+    "visitShop": "Visit shop",
+    "domainsLink": "Connect a custom domain →"
   },
   "streamPack": {
     "allOn": "all on",
@@ -5385,7 +5387,8 @@
     "windowNext30Days": "Next 30 days",
     "windowNext6Months": "Next 6 months",
     "windowNext90Days": "Next 90 days",
-    "yourStages": "Your stages"
+    "yourStages": "Your stages",
+    "setlistLink": "Build your setlist →"
   },
   "signup": {
     "agreeAnd": "and",
@@ -6145,7 +6148,8 @@
     "uncheckAria": "Uncheck {{label}}",
     "venueLabel": "Venue",
     "venuePlaceholder": "e.g. The Masquerade",
-    "yourDates": "Your dates"
+    "yourDates": "Your dates",
+    "setlistLink": "Build your setlist →"
   },
   "translate": {
     "badge": "AI Video Translator",
@@ -8145,7 +8149,9 @@
     "reanalyzeSections": "Re-analyze Sections",
     "findHookVerses": "Find Hook & Verses",
     "analysisComplete": "Analysis complete",
-    "noContentSaved": "No content saved."
+    "noContentSaved": "No content saved.",
+    "generationsLink": "Generation history →",
+    "importLink": "Import media →"
   },
   "merch": {
     "back": "Back",

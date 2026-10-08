@@ -293,6 +293,7 @@ export default function Tour() {
             {t("tour.heroTitleA")} <span className="text-primary">{t("tour.heroTitleB")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("tour.heroSubtitle")}</p>
+          <Link href="/setlist" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("tour.setlistLink", { defaultValue: "Build your setlist →" })}</Link>
         </div>
 
         {!user && (

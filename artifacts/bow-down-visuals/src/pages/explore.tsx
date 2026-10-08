@@ -66,6 +66,7 @@ export default function Explore() {
           <p className="mx-auto mt-3 max-w-xl text-white/60">
             The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place. Share anything; your referral code rides along.
           </p>
+          <Link href="/feed" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">Open your feed →</Link>
         </div>
 
         <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/explore" linkLabel="More soon">

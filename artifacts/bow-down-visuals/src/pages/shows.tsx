@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import {
   Ticket, MapPin, Loader2, Sparkles, Search, CalendarDays,
   Mic2, Trophy, PartyPopper, Building2, Radio, Podcast,
@@ -265,6 +266,7 @@ export default function ShowFinder() {
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             {t("shows.heroDescription")}
           </p>
+          <Link href="/setlist" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("shows.setlistLink", { defaultValue: "Build your setlist →" })}</Link>
         </div>
 
         {/* Thy Cheat Code's coaching callout */}

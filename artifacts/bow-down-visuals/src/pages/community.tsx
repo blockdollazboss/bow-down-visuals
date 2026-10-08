@@ -565,6 +565,7 @@ export default function CommunityManager() {
           <h1 className="text-4xl font-black tracking-tight md:text-5xl">{t("community.your_audience")}<span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("community.managed")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">{t("community.ai_moderation_queue_smart_reply")}</p>
+          <Link href="/messages" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("community.messagesLink", { defaultValue: "Open direct messages →" })}</Link>
         </div>
 
         {/* Tabs */}

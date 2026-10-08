@@ -60,6 +60,7 @@ export default function Storefronts() {
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
             {t("storefronts.heroSubtitle")}
           </p>
+          <Link href="/creator/domains" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("storefronts.domainsLink", { defaultValue: "Connect a custom domain →" })}</Link>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link href="/storefronts/builder">
               <span className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-6 py-3 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110">
