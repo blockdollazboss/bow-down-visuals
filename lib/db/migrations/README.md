@@ -1,7 +1,7 @@
 # Database migrations — Render Postgres
 
 Every schema change to the Render Postgres database ships as a numbered SQL
-file in this directory: `NNNN_short_description.sql` (next number: **0057**).
+file in this directory: `NNNN_short_description.sql` (next number: **0104**).
 Files are applied **automatically at container boot** by
 `../migrate-boot.mjs` (wired into the Dockerfile `CMD`) — in filename order,
 exactly once, tracked in the `data_migrations` table. There is no manual step

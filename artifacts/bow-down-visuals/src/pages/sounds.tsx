@@ -146,7 +146,7 @@ export default function ViralSoundFinder() {
         const params = new URLSearchParams();
         if (niche !== "all") params.set("niche", niche);
         if (mood !== "all") params.set("mood", mood);
-        const res = await fetch(`/api/sounds/trending?${params.toString()}`);
+        const res = await fetch(`/api/sound-finder/trending?${params.toString()}`);
         const data = (await res.json().catch(() => ({}))) as TrendingResponse;
         if (!res.ok) throw new Error(data.error || t("sounds.errorLoadTrending"));
         if (cancelled) return;

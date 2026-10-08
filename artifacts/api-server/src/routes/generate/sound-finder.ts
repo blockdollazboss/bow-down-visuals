@@ -187,9 +187,12 @@ export function getTrendingSounds(): TrendingSound[] {
   return TRENDING_SOUNDS;
 }
 
-/* GET /api/sounds/trending — free, public. Browsing costs nothing
-   (pure UI — no compute, no AI). Optional ?niche= & ?mood= filters. */
-router.get("/sounds/trending", publicApiLimiter, async (req, res) => {
+/* GET /api/sound-finder/trending — free, public. Browsing costs nothing
+   (pure UI — no compute, no AI). Optional ?niche= & ?mood= filters.
+   NOTE: lives in the /sound-finder namespace — /sounds/trending is the
+   creator-platform real usage chart in shorts.ts (same-path registrations
+   shadow each other in Express; both must own distinct paths). */
+router.get("/sound-finder/trending", publicApiLimiter, async (req, res) => {
   const niche = typeof req.query["niche"] === "string" ? req.query["niche"] : "";
   const mood = typeof req.query["mood"] === "string" ? req.query["mood"] : "";
 

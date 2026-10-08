@@ -29,25 +29,25 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/album-publish": { cost: 300, feature: "Publish Album" },
   "/api/podcast/generate": { cost: 300, feature: "Generate Podcast" },
   "/api/guest-questions": { cost: 75, feature: "Podcast Guest Questions" },
-  "/api/mastering": { cost: 200, feature: "AI Mastering" },
+  "/api/mastering": { cost: 400, feature: "AI Mastering" },
   "/api/mix-master/master": { cost: 800, feature: "AI Master (Mix & Master)" },
   "/api/mix-master/mix": { cost: 1500, feature: "AI Mix — Stems (Mix & Master)" },
-  "/api/stems": { cost: 200, feature: "Stem Separation" },
+  "/api/stems": { cost: 400, feature: "Stem Separation" },
   "/api/vocal-polish": { cost: 200, feature: "AI Vocal Polish" },
-  "/api/vocal-removal": { cost: 200, feature: "Vocal Removal" },
+  "/api/vocal-removal": { cost: 300, feature: "Vocal Removal" },
   "/api/mashup": { cost: 400, feature: "Song Mashup" },
   "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
 
   // ── Video ──────────────────────────────────────────────────────
   "/api/generate-video": { cost: 400, feature: "Generate Video Clip" },
   "/api/generate-runway-clip": { cost: 400, feature: "Generate Video Clip" },
-  "/api/generate-promo-clips": { cost: 400, feature: "Generate Promo Clips" },
+  "/api/generate-promo-clips": { cost: 100, feature: "Generate Promo Clips" },
   "/api/canvas/generate": { cost: 150, feature: "Spotify Canvas Generator" },
   "/api/streamer-clips/analyze": { cost: 300, feature: "Analyze Stream for Clips" },
   "/api/streamer-clips/cut": { cost: 200, feature: "Cut Stream Clip" },
-  "/api/generate-video-plan": { cost: 100, feature: "AI Video Plan" },
+  "/api/generate-video-plan": { cost: 200, feature: "AI Video Plan" },
   "/api/generate/ai-edit-plan": { cost: 100, feature: "AI Edit Plan" },
-  "/api/auto-video-plan": { cost: 100, feature: "Auto Video Plan" },
+  "/api/auto-video-plan": { cost: 200, feature: "Auto Video Plan" },
   "/api/lip-sync": { cost: 300, feature: "Lip Sync" },
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
@@ -86,13 +86,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/transcribe-url": { cost: 100, feature: "Transcribe" },
   "/api/remove-fillers/analyze": { cost: 200, feature: "AI Filler-Word Remover" },
   "/api/auto-chapters": { cost: 150, feature: "Auto Chapters" },
-  "/api/mix-plan": { cost: 100, feature: "AI Mix Plan" },
+  "/api/mix-plan": { cost: 200, feature: "AI Mix Plan" },
 
   // ── Images & design ────────────────────────────────────────────
   "/api/generate-artist-image": { cost: 200, feature: "Generate Artist Image (Pro)" },
   "/api/generate-thumbnail": { cost: 100, feature: "Generate Thumbnail" },
   "/api/thumbnail-generator": { cost: 200, feature: "Generate Thumbnail" },
-  "/api/thumbnail-test": { cost: 100, feature: "Thumbnail A/B Test" },
+  "/api/thumbnail-test": { cost: 200, feature: "Thumbnail A/B Test" },
   "/api/generate-logo": { cost: 100, feature: "Logo Generator" },
   "/api/generate-intro-outro": { cost: 200, feature: "Intro/Outro Generator" },
   "/api/cover-art": { cost: 200, feature: "Cover Art" },
@@ -106,6 +106,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 
   // ── Audio AI ───────────────────────────────────────────────────
   "/api/generate-sfx": { cost: 100, feature: "Generate SFX" },
+  "/api/audio-cleanup": { cost: 300, feature: "Audio Cleanup" },
 
   // ── AI text / copilots (1 credit) ──────────────────────────────
   "/api/chat": { cost: 100, feature: "AI Chat Message" },
@@ -190,13 +191,22 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 /**
  * Get the credit cost for an API endpoint.
  * Returns null if the endpoint doesn't cost credits (or isn't registered).
+ *
+ * Matching: exact endpoint, or the LONGEST registered prefix (endpoint + "/"
+ * or endpoint + "?"). Longest-prefix wins so a specific sub-route entry
+ * (e.g. /api/trend-predictor/forecast) is never shadowed by its parent
+ * (e.g. /api/trend-predictor) regardless of insertion order.
  */
 export function getCreditCost(endpoint: string): { cost: number; feature: string } | null {
-  // Match exact endpoint or prefix
+  let best: { cost: number; feature: string } | null = null;
+  let bestLen = -1;
   for (const [key, value] of Object.entries(CREDIT_COSTS)) {
     if (endpoint === key || endpoint.startsWith(key + "/") || endpoint.startsWith(key + "?")) {
-      return value;
+      if (key.length > bestLen) {
+        best = value;
+        bestLen = key.length;
+      }
     }
   }
-  return null;
+  return best;
 }
