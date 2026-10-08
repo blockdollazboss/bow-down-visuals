@@ -84,6 +84,10 @@ import router, {
   metadataSchema,
   strategySchema,
   createReleaseSchema,
+  isValidUpc,
+  generateInternalBarcode,
+  upcACheckDigit,
+  ean13CheckDigit,
 } from "../generate/distribution";
 import { chargeCredits } from "../../lib/credits";
 import { createTestDb } from "../../lib/__tests__/test-db";
@@ -118,7 +122,40 @@ CREATE TABLE distribution_releases (
   aggregator text NOT NULL DEFAULT 'none',
   aggregator_release_id text,
   platform_statuses jsonb NOT NULL DEFAULT '[]'::jsonb,
-  presave_slug text
+  presave_slug text,
+  split_share_slug text,
+  /* Release Metadata Manager (migration 0079) */
+  upc_kind text NOT NULL DEFAULT 'internal',
+  label_imprint text,
+  copyright_c_line text,
+  copyright_p_line text,
+  subgenre text,
+  original_release_date text,
+  preorder_date text,
+  territories_mode text NOT NULL DEFAULT 'worldwide',
+  territories jsonb NOT NULL DEFAULT '[]'::jsonb,
+  /* Pre-save upgrades (migration 0082, sibling worker) */
+  presave_headline text,
+  presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb,
+  presave_bonus_url text
+);`;
+
+const PRESAVE_TABLES_DDL = `
+CREATE TABLE presave_follows (
+  id uuid PRIMARY KEY,
+  release_id uuid NOT NULL,
+  email text NOT NULL,
+  name text,
+  platform text,
+  source text NOT NULL DEFAULT 'presave',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (release_id, email)
+);
+CREATE TABLE presave_shares (
+  id uuid PRIMARY KEY,
+  release_id uuid NOT NULL,
+  channel text,
+  created_at timestamptz NOT NULL DEFAULT now()
 );`;
 
 const SPLITS_DDL = `
@@ -129,6 +166,12 @@ CREATE TABLE distribution_royalty_splits (
   payee_name text NOT NULL,
   role text,
   share_pct numeric(5,2) NOT NULL,
+  payee_email text,
+  invite_status text NOT NULL DEFAULT 'not_invited',
+  invite_token text,
+  agreement_version integer NOT NULL DEFAULT 1,
+  effective_from timestamptz NOT NULL DEFAULT now(),
+  superseded_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );`;
 
@@ -166,6 +209,7 @@ beforeEach(async () => {
   mem.public.none(RELEASES_DDL);
   mem.public.none(SPLITS_DDL);
   mem.public.none(SONGS_DDL);
+  mem.public.none(PRESAVE_TABLES_DDL);
   testState.db = db;
   testState.userId = USER_A;
   testState.userCredits = 10000;
@@ -603,6 +647,89 @@ describe("tiered release pricing", () => {
 
 /* ─── v2: ISRC validation on create ───────────────────────────────────────── */
 
+/* ─── Release Metadata Manager: barcode helpers ─────────────────────────── */
+
+describe("barcode helpers", () => {
+  it("computes correct GS1 check digits", () => {
+    expect(upcACheckDigit("03600029145")).toBe("2"); // classic UPC-A example
+    expect(ean13CheckDigit("590123412345")).toBe("7"); // classic EAN-13 example
+  });
+
+  it("mints valid-format internal UPC-A placeholders in the 09 range", () => {
+    for (let i = 0; i < 25; i++) {
+      const code = generateInternalBarcode();
+      expect(code).toMatch(/^09\d{10}$/);
+      expect(upcACheckDigit(code.slice(0, 11))).toBe(code[11]);
+    }
+  });
+
+  it("validates UPC-A and EAN-13 check digits, rejects garbage", () => {
+    expect(isValidUpc("036000291452")).toBe(true);
+    expect(isValidUpc("036000291453")).toBe(false); // bad check digit
+    expect(isValidUpc("5901234123457")).toBe(true);
+    expect(isValidUpc("5901234123458")).toBe(false);
+    expect(isValidUpc("123")).toBe(false);
+    expect(isValidUpc("")).toBe(true); // optional
+    expect(isValidUpc(null)).toBe(true);
+  });
+
+  it("generate-barcode endpoint mints an internal barcode (free, draft only)", async () => {
+    const { id } = await seedRelease(USER_A);
+    const { status, json } = await req("POST", `/distribution/releases/${id}/generate-barcode`);
+    expect(status).toBe(200);
+    expect(json.barcode).toMatch(/^09\d{10}$/);
+    expect(json.kind).toBe("internal");
+    expect(json.release.upc).toBe(json.barcode);
+    expect(json.release.upcKind).toBe("internal");
+    expect(String(json.notice)).toMatch(/Internal catalog ID/i);
+  });
+
+  it("generate-barcode refuses to overwrite an official UPC", async () => {
+    const { id } = await seedRelease(USER_A);
+    await req("PATCH", `/distribution/releases/${id}`, {
+      upc: "036000291452",
+      upcKind: "official",
+    });
+    const { status, json } = await req("POST", `/distribution/releases/${id}/generate-barcode`);
+    expect(status).toBe(409);
+    expect(String(json.error)).toMatch(/official UPC/i);
+  });
+
+  it("rejects a malformed UPC on create", async () => {
+    const { status } = await req("POST", "/distribution/releases", {
+      title: "Test Track",
+      artistName: "Test Artist",
+      upc: "12345",
+    });
+    expect(status).toBe(400);
+  });
+
+  it("stores metadata fields (imprint, ©/℗ lines, subgenre, dates, territories)", async () => {
+    const { status, json } = await req("POST", "/distribution/releases", {
+      title: "Metadata Track",
+      artistName: "Test Artist",
+      labelImprint: "Gold Fin Records",
+      copyrightCLine: "© 2026 Gold Fin Records",
+      copyrightPLine: "℗ 2026 Gold Fin Records",
+      subgenre: "Dark Trap",
+      originalReleaseDate: "2026-09-01",
+      preorderDate: "2026-10-01",
+      territoriesMode: "exclude",
+      territories: ["KP", "IR"],
+    });
+    expect(status).toBe(201);
+    expect(json.release.labelImprint).toBe("Gold Fin Records");
+    expect(json.release.copyrightCLine).toBe("© 2026 Gold Fin Records");
+    expect(json.release.copyrightPLine).toBe("℗ 2026 Gold Fin Records");
+    expect(json.release.subgenre).toBe("Dark Trap");
+    expect(json.release.originalReleaseDate).toBe("2026-09-01");
+    expect(json.release.preorderDate).toBe("2026-10-01");
+    expect(json.release.territoriesMode).toBe("exclude");
+    expect(json.release.territories).toEqual(["KP", "IR"]);
+    expect(json.release.upcKind).toBe("internal");
+  });
+});
+
 describe("ISRC validation", () => {
   it("rejects a malformed release ISRC", async () => {
     const { status } = await req("POST", "/distribution/releases", {
@@ -685,6 +812,93 @@ describe("PUT /api/distribution/releases/:id/splits", () => {
       splits: [{ name: "Me", share: 100 }],
     });
     expect(status).toBe(404);
+  });
+
+  it("versions agreements: re-saving supersedes the old version (future earnings only)", async () => {
+    const { id } = await seedRelease(USER_A);
+    const first = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", role: "artist", share: 70 },
+        { name: "Producer", role: "producer", email: "prod@example.com", share: 30 },
+      ],
+    });
+    expect(first.status).toBe(200);
+    expect(first.json.agreementVersion).toBe(1);
+    expect(first.json.splits[1].email).toBe("prod@example.com");
+
+    const second = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", role: "artist", share: 60 },
+        { name: "Producer", role: "producer", share: 40 },
+      ],
+    });
+    expect(second.status).toBe(200);
+    expect(second.json.agreementVersion).toBe(2);
+    /* Detail returns only the active (newest) version. */
+    const detail = await req("GET", `/distribution/releases/${id}`);
+    expect(detail.json.release.royaltySplits).toHaveLength(2);
+    expect(detail.json.release.royaltySplits.find((s: any) => s.name === "Producer").share).toBe(40);
+  });
+
+  it("400s on an invalid email or role", async () => {
+    const { id } = await seedRelease(USER_A);
+    const badEmail = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [{ name: "Me", email: "not-an-email", share: 100 }],
+    });
+    expect(badEmail.status).toBe(400);
+    const badRole = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [{ name: "Me", role: "alien", share: 100 }],
+    });
+    expect(badRole.status).toBe(400);
+  });
+});
+
+/* ─── splits: share link, public summary, invites ────────────────────────── */
+
+describe("splits share links + invites", () => {
+  it("mints an idempotent share slug and serves the agreement publicly", async () => {
+    const { id } = await seedRelease(USER_A);
+    await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [{ name: "Me", role: "artist", share: 100 }],
+    });
+    const minted = await req("POST", `/distribution/releases/${id}/splits/share-link`);
+    expect(minted.status).toBe(200);
+    expect(minted.json.slug).toMatch(/^[a-f0-9]{10}$/);
+    const again = await req("POST", `/distribution/releases/${id}/splits/share-link`);
+    expect(again.json.slug).toBe(minted.json.slug);
+    /* Public endpoint (no auth middleware in this router for the GET). */
+    const pub = await req("GET", `/distribution/splits/${minted.json.slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.title).toBeTruthy();
+    expect(pub.json.splits).toHaveLength(1);
+    expect(pub.json.disclaimer).toMatch(/distribution partner/i);
+    const bogus = await req("GET", `/distribution/splits/deadbeef00`);
+    expect(bogus.status).toBe(404);
+  });
+
+  it("records invites and fails clearly without an email provider", async () => {
+    const { id } = await seedRelease(USER_A);
+    const saved = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", share: 80 },
+        { name: "Writer", role: "writer", email: "writer@example.com", share: 20 },
+      ],
+    });
+    const writer = saved.json.splits.find((s: any) => s.name === "Writer");
+    const invited = await req("POST", `/distribution/releases/${id}/splits/invite`, {
+      splitId: writer.id,
+    });
+    /* No email provider in test env: 501, invite still recorded. */
+    expect(invited.status).toBe(501);
+    expect(invited.json.recorded).toBe(true);
+    expect(invited.json.emailSent).toBe(false);
+    expect(invited.json.error).toMatch(/email provider/i);
+    const me = saved.json.splits.find((s: any) => s.name === "Me");
+    const noEmail = await req("POST", `/distribution/releases/${id}/splits/invite`, {
+      splitId: me.id,
+    });
+    expect(noEmail.status).toBe(400);
+    expect(noEmail.json.error).toMatch(/email/i);
   });
 });
 

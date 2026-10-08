@@ -1610,9 +1610,7 @@ router.get("/distribution/presave/:slug", async (req, res) => {
     const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
     const result = await db.execute(sql`
       SELECT ${RELEASE_COLUMNS},
-             presave_headline, presave_platform_links, presave_bonus_url,
-             (SELECT COUNT(*) FROM presave_follows WHERE release_id = distribution_releases.id) AS follower_count,
-             (SELECT COUNT(*) FROM presave_shares WHERE release_id = distribution_releases.id) AS share_count
+             presave_headline, presave_platform_links, presave_bonus_url
       FROM distribution_releases
       WHERE presave_slug = ${slug ?? ""}
       LIMIT 1
@@ -1621,6 +1619,21 @@ router.get("/distribution/presave/:slug", async (req, res) => {
     if (!row) {
       res.status(404).json({ error: "Pre-save link not found." });
       return;
+    }
+    /* Fan counts in a separate query — pg-mem (unit tests) can't run the
+       correlated-subquery form, and this is trivially correct on Postgres. */
+    let followerCount = 0;
+    let shareCount = 0;
+    try {
+      const counts = await db.execute(sql`
+        SELECT (SELECT COUNT(*) FROM presave_follows WHERE release_id = ${row.id}) AS follower_count,
+               (SELECT COUNT(*) FROM presave_shares WHERE release_id = ${row.id}) AS share_count
+      `);
+      const c = counts.rows[0] as unknown as { follower_count?: unknown; share_count?: unknown } | undefined;
+      followerCount = Number(c?.follower_count ?? 0);
+      shareCount = Number(c?.share_count ?? 0);
+    } catch {
+      /* counts are best-effort — the page still renders */
     }
     res.json({
       presave: {
@@ -1636,8 +1649,8 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         headline: row.presave_headline ?? null,
         platformLinks: (row.presave_platform_links ?? {}) as Record<string, string>,
         bonusUrl: row.presave_bonus_url ?? null,
-        followerCount: Number((row as unknown as Record<string, unknown>)["follower_count"] ?? 0),
-        shareCount: Number((row as unknown as Record<string, unknown>)["share_count"] ?? 0),
+        followerCount,
+        shareCount,
       },
     });
   } catch (err) {
