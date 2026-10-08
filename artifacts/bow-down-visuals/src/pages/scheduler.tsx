@@ -14,6 +14,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import CalendarAutofill from "@/components/wave8/CalendarAutofill";
 import { Button } from "@/components/ui/button";
 import type { SocialAccountInfo } from "@/components/ConnectedAccounts";
 import {
@@ -216,6 +217,17 @@ export default function Scheduler() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      /* Wave 8 Hook Rewriter handoff: a saved hook in localStorage opens the
+         composer prefilled so the creator can schedule it right away. */
+      try {
+        const draft = window.localStorage.getItem("wave8_scheduler_draft");
+        if (draft && draft.trim()) {
+          window.localStorage.removeItem("wave8_scheduler_draft");
+          openComposer(undefined, undefined, undefined, draft.trim());
+        }
+      } catch {
+        /* storage unavailable — ignore */
+      }
       if (params.get("schedule") !== "1") return;
       const caption = params.get("caption") ?? undefined;
       const media = params.get("media") ?? undefined;
@@ -460,7 +472,14 @@ export default function Scheduler() {
         ) : (
           <div className="relative mt-8">
             {tab === "calendar" && (
-              <CalendarTab
+              <>
+                {/* Wave 8 · AI Week Planner — drag-and-drop week grid */}
+                <CalendarAutofill
+                  onOpenComposer={(date, time, caption) =>
+                    openComposer(undefined, date, time, caption)
+                  }
+                />
+                <CalendarTab
                 gridCells={gridCells}
                 monthLabel={monthLabel}
                 monthCursor={monthCursor}
@@ -475,6 +494,7 @@ export default function Scheduler() {
                 onEdit={(p) => openComposer(p)}
                 onCancel={handleCancel}
               />
+              </>
             )}
             {tab === "queue" && (
               <QueueTab posts={scheduled} onEdit={(p) => openComposer(p)} onCancel={handleCancel} />
