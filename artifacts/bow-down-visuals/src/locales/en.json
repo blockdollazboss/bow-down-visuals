@@ -6386,6 +6386,8 @@
     "goToSong": "Go to Song",
     "hidePlayer": "Hide master player",
     "inspector": "Inspector",
+    "showInspector": "Show inspector",
+    "hideInspector": "Hide inspector",
     "liveBadge": "Live",
     "lockedBadge": "🔒 Locked",
     "loopChip": "Loop",

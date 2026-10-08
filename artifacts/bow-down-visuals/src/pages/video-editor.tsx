@@ -10,6 +10,7 @@ import {
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
+  PanelRightClose, PanelRightOpen,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -439,6 +440,8 @@ export default function VideoEditor() {
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
   /** Selected clip index — shared between the persistent TimelineDock and the Studio tab inspector. */
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  /** Inspector panel — collapsed by default so the player gets the space; one tap to bring back. */
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   /** Wave 9 — kept beat-marker times from BeatSyncSection, fed into TimelineTemplatesSection's beatGrid. */
   const [beatGrid, setBeatGrid] = useState<number[]>([]);
 
@@ -2110,10 +2113,16 @@ export default function VideoEditor() {
                 </div>
               </main>
 
-              {/* ── RIGHT: inspector ── */}
+              {/* ── RIGHT: inspector (collapsible — closed by default so the player gets the space) ── */}
+              {inspectorOpen ? (
               <aside className="w-[280px] shrink-0 bg-[#0a0a0a] border-l border-white/10 overflow-y-auto hidden xl:block" aria-label={t("videoEditor.inspector")}>
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">{t("videoEditor.inspector")}</h2>
+                  <h2 className="text-xs font-black text-white uppercase tracking-widest flex-1">{t("videoEditor.inspector")}</h2>
+                  <button type="button" onClick={() => setInspectorOpen(false)}
+                    className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+                    title={t("videoEditor.hideInspector")} aria-label={t("videoEditor.hideInspector")}>
+                    <PanelRightClose className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 <div className="p-4">
                   {selectedIdx != null && scenes[selectedIdx] ? (
@@ -2165,6 +2174,16 @@ export default function VideoEditor() {
                   )}
                 </div>
               </aside>
+              ) : (
+              /* Slim edge toggle when the inspector is closed */
+              <div className="w-[36px] shrink-0 bg-[#0a0a0a] border-l border-white/10 hidden xl:flex flex-col items-center pt-3">
+                <button type="button" onClick={() => setInspectorOpen(true)}
+                  className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  title={t("videoEditor.showInspector")} aria-label={t("videoEditor.showInspector")}>
+                  <PanelRightOpen className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              )}
             </div>
           </>
         )}
@@ -3932,7 +3951,7 @@ function MasterPreviewPlayer({
 
       {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
       {!isFullscreen && !isMinimized && (
-        <div className="px-4 py-2 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-5 gap-y-1">
+        <div className="px-3 py-1.5 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-[10px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
