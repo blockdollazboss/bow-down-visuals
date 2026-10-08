@@ -7,6 +7,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntelligenceChain";
+import RetentionDoctor from "@/components/analytics-hub/RetentionDoctor";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1225,6 +1226,14 @@ export default function AnalyticsHub() {
         {hubTab === "intelligence" && (
           <div className="relative mt-10">
             <ContentIntelligenceChain initialHook={intelInitialHook || undefined} />
+            {/* ── AI RETENTION DOCTOR ────────────────────────────────────
+                The next step after the content plan: paste timestamped
+                drop-off points, get a diagnosis + prescription per drop-off,
+                and hand each fix to the tool that solves it (Hook Studio /
+                Script Writer / video editor) or to the content calendar. */}
+            <div className="mt-8">
+              <RetentionDoctor />
+            </div>
           </div>
         )}
       </main>

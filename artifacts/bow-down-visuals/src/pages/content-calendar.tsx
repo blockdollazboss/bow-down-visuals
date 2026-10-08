@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   CalendarDays, Loader2, Sparkles, ArrowRight, CheckCircle2, Camera,
   Music2, Play, Clapperboard, Images, Radio, MessageSquare, Clock3,
-  RotateCcw,
+  RotateCcw, Stethoscope, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -103,6 +103,82 @@ export default function ContentCalendar() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* Retention Doctor handoff: the doctor saves diagnosed fixes to
+     localStorage ("bdv-retention-fixes") and deep-links here. This picks
+     them up and offers them as an importable fix day. */
+  interface RetentionFix {
+    at: string;
+    dropPct: number;
+    causeLabel: string;
+    prescription: string;
+  }
+  interface RetentionFixBundle {
+    title?: string;
+    niche?: string;
+    fixes?: RetentionFix[];
+  }
+  const [retentionBundle, setRetentionBundle] = useState<RetentionFixBundle | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv-retention-fixes");
+      if (!raw) return;
+      const bundle = JSON.parse(raw) as RetentionFixBundle;
+      if (Array.isArray(bundle.fixes) && bundle.fixes.length > 0) {
+        setRetentionBundle(bundle);
+      } else {
+        localStorage.removeItem("bdv-retention-fixes");
+      }
+    } catch {
+      /* malformed handoff — ignore */
+    }
+  }, []);
+
+  function dismissRetentionBundle() {
+    try {
+      localStorage.removeItem("bdv-retention-fixes");
+    } catch {
+      /* storage blocked — ignore */
+    }
+    setRetentionBundle(null);
+  }
+
+  function importRetentionFixes() {
+    if (!retentionBundle?.fixes?.length) return;
+    const fixes = retentionBundle.fixes.slice(0, 6);
+    const title = retentionBundle.title?.slice(0, 120) || "your video";
+    const fixDay: CalendarDay = {
+      date: todayISO(),
+      dayLabel: WEEKDAYS[new Date().getDay()],
+      post: true,
+      title: t("retentionDoctor.calendarFixDayTitle", { title }),
+      format: "video",
+      platform: platforms[0] ?? "",
+      hook: t("retentionDoctor.calendarFixDayHook", {
+        fixes: fixes.map((f) => `${f.dropPct}% @ ${f.at} — ${f.prescription}`).join(" · "),
+      }).slice(0, 600),
+      bestTime: "",
+    };
+    setDays((prev) => {
+      const list = prev ?? [];
+      const existing = list.findIndex((d) => d.date === fixDay.date);
+      if (existing >= 0) {
+        /* A day already exists today — merge the fixes into it. */
+        return list.map((d, i) =>
+          i === existing
+            ? {
+                ...d,
+                post: true,
+                title: `${d.title} + ${fixDay.title}`.slice(0, 160),
+                hook: `${d.hook ? d.hook + " · " : ""}${fixDay.hook}`.slice(0, 600),
+              }
+            : d
+        );
+      }
+      return [...list, fixDay];
+    });
+    dismissRetentionBundle();
+  }
 
   /* Deep-link handoff: ?niche= pre-fills the niche (used by the
      /coach Niche Analyzer "Build a content calendar" handoff). */
@@ -357,6 +433,42 @@ export default function ContentCalendar() {
             )}
           </div>
         </div>
+
+        {/* ── RETENTION DOCTOR HANDOFF ───────────────────────────────────
+            Importable fix day from the AI Retention Doctor. Purely additive:
+            shows only when the doctor stashed a fix bundle. */}
+        {retentionBundle?.fixes?.length ? (
+          <div className="mx-auto mt-8 flex max-w-3xl items-start gap-4 rounded-2xl border border-primary/30 bg-primary/[0.07] p-5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 text-primary">
+              <Stethoscope className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-white">
+                {t("retentionDoctor.calendarBannerTitle")}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-white/60">
+                {t("retentionDoctor.calendarBannerBlurb", {
+                  title: retentionBundle.title || "—",
+                  count: retentionBundle.fixes.length,
+                })}
+              </p>
+              <button
+                onClick={importRetentionFixes}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-5 py-2.5 text-sm font-black text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] active:scale-95"
+              >
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                {t("retentionDoctor.calendarBannerAdd")}
+              </button>
+            </div>
+            <button
+              onClick={dismissRetentionBundle}
+              aria-label={t("retentionDoctor.calendarBannerDismiss")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/40 transition hover:border-white/30 hover:text-white"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
 
         {/* ── CALENDAR GRID ──────────────────────────────────────────── */}
         {days && days.length > 0 && (

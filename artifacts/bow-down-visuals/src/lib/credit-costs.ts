@@ -22,11 +22,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/song-remix": { cost: 400, feature: "Song Remix (new arrangement)" },
   "/api/song-replace-section": { cost: 300, feature: "Replace Song Section" },
   "/api/beat/generate": { cost: 300, feature: "Generate Beat" },
+  "/api/producer-tag": { cost: 100, feature: "Producer Tag" },
   "/api/music/export": { cost: 400, feature: "Export Audio" },
   "/api/music/preview-render": { cost: 100, feature: "Preview Render" },
   "/api/voiceover/generate": { cost: 200, feature: "AI Voiceover" },
   "/api/album-publish": { cost: 300, feature: "Publish Album" },
   "/api/podcast/generate": { cost: 300, feature: "Generate Podcast" },
+  "/api/guest-questions": { cost: 75, feature: "Podcast Guest Questions" },
   "/api/mastering": { cost: 200, feature: "AI Mastering" },
   "/api/mix-master/master": { cost: 800, feature: "AI Master (Mix & Master)" },
   "/api/mix-master/mix": { cost: 1500, feature: "AI Mix — Stems (Mix & Master)" },
@@ -110,6 +112,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/analyze-niche": { cost: 150, feature: "Niche Analyzer" },
   "/api/validate-idea": { cost: 75, feature: "Idea Validator" },
   "/api/analyze-hook": { cost: 75, feature: "Hook Analyzer" },
+  "/api/retention-doctor": { cost: 150, feature: "AI Retention Doctor" },
   "/api/competitor-analysis": { cost: 200, feature: "Competitor Tracker" },
   "/api/script-writer": { cost: 200, feature: "Script Writer" },
   "/api/title-studio": { cost: 100, feature: "Title Studio" },
@@ -160,6 +163,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/social/tiktok/publish": { cost: 100, feature: "Publish to TikTok" },
   "/api/generate-community-post": { cost: 50, feature: "Generate Community Post" },
   "/api/best-time": { cost: 75, feature: "Best Time to Post" },
+
+  // ── Link-in-Bio ────────────────────────────────────────────────
+  "/api/bio-publish": { cost: 100, feature: "Publish Link-in-Bio Page" },
+
+  // ── Stock media (editor Media rail) ────────────────────────────
+  "/api/stock/search": { cost: 0, feature: "Stock Media Search (free)" },
+  "/api/stock/import": { cost: 50, feature: "Stock Media Import" },
 };
 
 /**
