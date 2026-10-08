@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { useTranslation } from "react-i18next";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
@@ -86,6 +87,7 @@ export default function StemSplitter() {
   const [remixing, setRemixing] = useState(false);
   const [remixUrl, setRemixUrl] = useState<string | null>(null);
   const [remixError, setRemixError] = useState<string | null>(null);
+  const [polishOpen, setPolishOpen] = useState(false);
 
   const pollRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -401,6 +403,28 @@ export default function StemSplitter() {
               <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
               <p className="text-sm font-semibold text-white/80">{t("stems.splitComplete")}</p>
             </div>
+
+            {/* Post-chain step: polish the isolated vocal stem. */}
+            {stems.vocals && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPolishOpen(true)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                >
+                  <AudioWaveform className="h-4 w-4" />
+                  {t("vocalPolish.buttonLabel")} ({t("vocalPolish.buttonCost")})
+                </button>
+                <VocalPolishModal
+                  open={polishOpen}
+                  onClose={() => setPolishOpen(false)}
+                  source={{
+                    audioUrl: stems.vocals,
+                    title: `${sourceName || t("stems.hubAssetDefaultName")} — vocals`,
+                  }}
+                />
+              </>
+            )}
 
             {/* Master transport */}
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">

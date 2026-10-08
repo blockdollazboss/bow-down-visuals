@@ -11,6 +11,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
    Server-side background-noise removal for creator audio: podcasts,
@@ -121,6 +122,7 @@ export default function AudioCleanup() {
   const [playing, setPlaying] = useState(false);
   const [origPeaks, setOrigPeaks] = useState<number[] | null>(null);
   const [cleanPeaks, setCleanPeaks] = useState<number[] | null>(null);
+  const [polishOpen, setPolishOpen] = useState(false);
   const [origUrl, setOrigUrl] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
@@ -277,6 +279,7 @@ export default function AudioCleanup() {
     setAb("cleaned");
     setPlaying(false);
     setNoiseReductionDb(null);
+    setPolishOpen(false);
   }
 
   const busy = status === "uploading" || status === "queued" || status === "processing";
@@ -484,6 +487,24 @@ export default function AudioCleanup() {
                 <RefreshCw className="h-4 w-4" /> {t("audioCleanup.newCleanupButton")}
               </button>
             </div>
+
+            {/* Post-chain step: polish the cleaned vocal (tuning nudge + key/tempo). */}
+            <button
+              type="button"
+              onClick={() => setPolishOpen(true)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-6 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <AudioWaveform className="h-4 w-4" />
+              {t("vocalPolish.buttonLabel")} ({t("vocalPolish.buttonCost")})
+            </button>
+            <VocalPolishModal
+              open={polishOpen}
+              onClose={() => setPolishOpen(false)}
+              source={{
+                audioUrl: outputUrl,
+                title: `${file?.name?.replace(/\.[^.]+$/, "") || "Audio"} — cleaned`,
+              }}
+            />
             {noiseReductionDb != null && (
               <p className="text-center text-[11px] text-white/30">
                 {t("audioCleanup.noiseEstimateNote")}

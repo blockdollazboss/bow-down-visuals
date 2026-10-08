@@ -483,6 +483,28 @@ function MasterPanel() {
   const pollRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* Deep-link protocol: /mix-master?audioUrl=… pre-loads the master slot
+     (e.g. a polished vocal handed off from AI Vocal Polish). */
+  useEffect(() => {
+    const audioUrl = new URLSearchParams(window.location.search).get("audioUrl");
+    if (!audioUrl || file) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(audioUrl);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        if (cancelled) return;
+        const name = decodeURIComponent(audioUrl.split("/").pop()?.split("?")[0] || "audio.mp3");
+        pickFile(new File([blob], name, { type: blob.type || "audio/mpeg" }));
+      } catch {
+        /* leave the slot empty; the user can upload manually */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!jobId || (status !== "queued" && status !== "processing")) return;
     pollRef.current = window.setInterval(async () => {
