@@ -203,6 +203,7 @@ function ConnectPayoutCard() {
     if (params.get("connect") === "refresh") {
       window.history.replaceState(null, "", "/store/dashboard");
     }
+    return undefined;
   }, [search, load]);
 
   const goOnboard = async (path: "/api/connect/onboard" | "/api/connect/refresh") => {
