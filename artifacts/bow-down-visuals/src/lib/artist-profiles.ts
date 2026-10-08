@@ -398,6 +398,8 @@ export interface CreatorProfile {
   follower_count: number;
   total_plays: number;
   referral_code?: string | null;
+  /* Virality wave: the creator's referral rank badge (null when unranked). */
+  recruiter_badge?: { stars: number; title: string; signups: number; ratePct: number } | null;
   custom_domain?: string | null;
   /* Extension fields (Worker 4) — optional, rendered defensively. */
   stream_schedule?: StreamInfo | null;

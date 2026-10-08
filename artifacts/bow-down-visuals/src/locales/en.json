@@ -7748,7 +7748,12 @@
       "firstStar": "Your first referral earns your first star",
       "moreTo": "{{num}} more to",
       "nextReward": "{{pct}}% + {{bonus}} VB bonus",
-      "top": "Top of the mountain. The Don."
+      "top": "Top of the mountain. The Don.",
+      "myRanks": "Your ranks",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "allTime": "All time",
+      "unranked": "Unranked"
     },
     "stats": {
       "joined": "Creators joined",
@@ -7779,7 +7784,59 @@
       "bonus": "+{{bonus}} VB bonus",
       "bonusClaimed": "✓{{bonus}} VB bonus claimed"
     },
-    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy."
+    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy.",
+    "contest": {
+      "title": "Monthly Viral Contest",
+      "pool": "{{total}} Visual Bucs prize pool",
+      "endsIn": "Ends in",
+      "days": "d",
+      "hours": "h",
+      "mins": "m",
+      "secs": "s",
+      "rulesTitle": "How to win",
+      "prizesTitle": "Prizes",
+      "prizeFor": "#{{rank}} — {{prize}} VB",
+      "standingsTitle": "This month's race",
+      "lastWinnersTitle": "Last month's winners",
+      "noWinners": "No contest settled yet — be the first legend.",
+      "qualified": "Qualified",
+      "needMore": "{{n}} more signups to qualify",
+      "you": "YOU",
+      "yourSpots": "Your signups this month: {{n}}",
+      "shareWin": "{{name}} just won the Bow Down Visuals Monthly Viral Contest — {{prize}} Visual Bucs for recruiting {{signups}} creators! Think you can out-recruit them? {{link}}",
+      "share": "Share",
+      "copied": "Copied",
+      "copy": "Copy",
+      "signups": "signups",
+      "revenue": "VB earned"
+    },
+    "leaderboard": {
+      "title": "Recruiter Leaderboard",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "allTime": "All time",
+      "empty": "No recruiters on the board yet — first place is wide open.",
+      "signups": "signups",
+      "revenue": "VB generated",
+      "yourRank": "Your rank: #{{rank}}",
+      "you": "YOU"
+    },
+    "sharekit": {
+      "title": "Share kit",
+      "subtitle": "One-click posts. Copy, blast, recruit.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "templates": {
+        "x": "Post it on X",
+        "threads": "Threads / Instagram",
+        "tiktok": "TikTok caption",
+        "chat": "Discord / WhatsApp"
+      },
+      "postX": "I'm building my creator empire on Bow Down Visuals — the AI studio for creators. Join with my link and get {{reward}} FREE Visual Bucs to start: {{link}}",
+      "postThreads": "POV: you found the cheat code for content creation. Bow Down Visuals = AI thumbnails, hooks, videos, music — everything. Start with {{reward}} FREE Visual Bucs with my link: {{link}}",
+      "postTiktok": "This AI studio makes my thumbnails, hooks AND videos for me. Get {{reward}} free Visual Bucs when you join with my link: {{link}}",
+      "postChat": "Yo — Bow Down Visuals is the AI cheat code for creators. Use my link and we both win: you get {{reward}} free Visual Bucs, I climb the recruiter ranks. {{link}}"
+    }
   },
   "randomizer": {
     "badge": "Thy Cheat Code's dice",

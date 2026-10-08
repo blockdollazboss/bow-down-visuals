@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, Link2Off } from "lucide-react";
+import { Loader2, Link2Off, Crown } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import type { CreatorProfile } from "@/lib/artist-profiles";
@@ -8,6 +8,24 @@ import { fetchPublicProfile, themeVars } from "@/lib/artist-profiles";
 import {
   HeroSection, ProfileActions, ProfileSections, MadeWithBadge,
 } from "@/components/artist/profile-sections";
+
+/* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
+   rendered on their public profile so visitors see proof of their pull. */
+function RecruiterBadge({ badge }: { badge: NonNullable<CreatorProfile["recruiter_badge"]> }) {
+  return (
+    <div className="flex justify-center px-4 pb-4">
+      <a
+        href="/referrals"
+        className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-400/20"
+        title={`${badge.signups} creators recruited · ${badge.ratePct}% referral cut`}
+      >
+        <Crown className="h-3.5 w-3.5" />
+        {badge.title} Recruiter · {"★".repeat(badge.stars)}
+        <span className="text-amber-300/60 font-semibold">{badge.signups} recruited</span>
+      </a>
+    </div>
+  );
+}
 
 /* ─── Public creator profile — /artist/:slug (coordinator wires the route) ──
    Renders the creator's theme_config + sections. Themed head-to-toe via
@@ -101,6 +119,7 @@ export default function ArtistPublic() {
       >
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
+        {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
         <ProfileActions profile={profile} />
         {socials.length > 0 && (
           <div className="flex justify-center gap-2 px-4 pb-6">
