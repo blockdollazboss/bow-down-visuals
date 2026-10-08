@@ -8,10 +8,13 @@ import {
   profileVideosTable,
   challengesTable,
   challengeEntriesTable,
+  challengePrizesTable,
+  challengeWinnersTable,
   notificationsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { effectiveStatus } from "./challenge-engine";
 
 /* ─── Shorts / TikTok mechanics ────────────────────────────────────────────
    Vertical short-video feed, sounds, duets/stitches, challenges, hashtags.
@@ -620,6 +623,10 @@ const createChallengeSchema = z.object({
   description: z.string().max(2000).optional().default(""),
   cover_url: z.string().url().max(2048).optional().nullable(),
   prize_text: z.string().trim().max(300).optional().default(""),
+  /* Challenge engine 2.0: optional schedule — starts in the future = upcoming. */
+  starts_at: z.string().datetime({ offset: true }).optional().nullable(),
+  ends_at: z.string().datetime({ offset: true }).optional().nullable(),
+  judging_ends_at: z.string().datetime({ offset: true }).optional().nullable(),
 });
 
 /** POST /challenges — start one. Every challenge carries the prize/earning angle. */
@@ -641,6 +648,17 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
       return;
     }
     let slug = slugify(parsed.data.title, 44);
+    const startsAt = parsed.data.starts_at ? new Date(parsed.data.starts_at) : null;
+    const endsAt = parsed.data.ends_at ? new Date(parsed.data.ends_at) : null;
+    if (startsAt && endsAt && endsAt <= startsAt) {
+      res.status(400).json({ error: "ends_at must be after starts_at." });
+      return;
+    }
+    const judgingEndsAt = parsed.data.judging_ends_at ? new Date(parsed.data.judging_ends_at) : null;
+    if (endsAt && judgingEndsAt && judgingEndsAt <= endsAt) {
+      res.status(400).json({ error: "judging_ends_at must be after ends_at." });
+      return;
+    }
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = attempt === 0 ? slug : `${slug}-${Math.random().toString(36).slice(2, 6)}`;
       const [inserted] = await db.insert(challengesTable).values({
@@ -651,6 +669,10 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
         coverUrl: parsed.data.cover_url ?? null,
         creatorProfileId: parsed.data.profile_id,
         prizeText: parsed.data.prize_text ?? "",
+        status: startsAt && startsAt.getTime() > Date.now() ? "upcoming" : "live",
+        startsAt,
+        endsAt,
+        judgingEndsAt,
       }).onConflictDoNothing({ target: challengesTable.slug }).returning();
       if (inserted) {
         res.status(201).json({ challenge: inserted });
@@ -664,7 +686,9 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
   }
 });
 
-/** GET /challenges/trending — what the streets are running right now. */
+/** GET /challenges/trending — what the streets are running right now.
+    Engine 2.0: carries the effective lifecycle state + prize pool so every
+    surface can show the money upfront. */
 router.get("/challenges/trending", feedLimiter, async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(String(req.query["limit"] ?? "20"), 10) || 20, 1), 50);
@@ -674,17 +698,26 @@ router.get("/challenges/trending", feedLimiter, async (req, res) => {
       coverUrl: challengesTable.coverUrl, prizeText: challengesTable.prizeText,
       entryCount: challengesTable.entryCount, totalViews: challengesTable.totalViews,
       createdAt: challengesTable.createdAt, creatorProfileId: challengesTable.creatorProfileId,
+      status: challengesTable.status, startsAt: challengesTable.startsAt,
+      endsAt: challengesTable.endsAt, prizePoolCredits: challengesTable.prizePoolCredits,
     }).from(challengesTable)
       .orderBy(desc(challengesTable.entryCount), desc(challengesTable.totalViews))
       .limit(limit);
-    res.json({ challenges: rows });
+    res.json({
+      challenges: rows.map((r) => ({
+        ...r,
+        effective_status: effectiveStatus(r),
+      })),
+    });
   } catch (err) {
     req.log.error({ err }, "challenges trending error");
     res.status(500).json({ error: "Couldn't load challenges." });
   }
 });
 
-/** GET /challenges/:slug — hero + entries. The money angle leads. */
+/** GET /challenges/:slug — hero + entries. The money angle leads.
+    Engine 2.0: lifecycle state (upcoming/live/judging/winners), the prize
+    pool (shown upfront), vote counts + the viewer's votes on each entry. */
 router.get("/challenges/:slug", feedLimiter, async (req, res) => {
   try {
     const slug = String(req.params["slug"]);
@@ -693,27 +726,47 @@ router.get("/challenges/:slug", feedLimiter, async (req, res) => {
       res.status(404).json({ error: "No challenge by that name. Start it yourself — the crown's empty." });
       return;
     }
+    const viewerId: string | null = await optionalViewerId(req);
     const entries = await db.execute(sql`
       SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count,
-             pv.created_at, ce.created_at AS entered_at,
+             pv.created_at, ce.created_at AS entered_at, ce.vote_count,
+             CASE WHEN cv.user_id IS NOT NULL THEN true ELSE false END AS viewer_voted,
              cp.id AS profile_id, cp.slug AS creator_slug, cp.display_name AS creator_name,
              cp.avatar_url AS creator_avatar
       FROM challenge_entries ce
       JOIN profile_videos pv ON pv.id = ce.video_id
       JOIN creator_profiles cp ON cp.id = pv.profile_id
+      LEFT JOIN challenge_votes cv ON cv.video_id = pv.id AND cv.user_id = ${viewerId}
       WHERE ce.challenge_id = ${ch.id} AND pv.is_published = true
       ORDER BY pv.view_count DESC
       LIMIT 48
     `);
+    const prizes = await db
+      .select()
+      .from(challengePrizesTable)
+      .where(eq(challengePrizesTable.challengeId, ch.id))
+      .orderBy(challengePrizesTable.place);
+    const [{ n: winnerCount }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(challengeWinnersTable)
+      .where(eq(challengeWinnersTable.challengeId, ch.id));
     res.json({
       challenge: {
         id: ch.id, slug: ch.slug, title: ch.title, description: ch.description,
         hashtag: ch.hashtag, cover_url: ch.coverUrl, prize_text: ch.prizeText,
         entry_count: ch.entryCount, total_views: ch.totalViews, created_at: ch.createdAt,
+        status: effectiveStatus(ch),
+        starts_at: ch.startsAt, ends_at: ch.endsAt, judging_ends_at: ch.judgingEndsAt,
+        prize_pool_credits: ch.prizePoolCredits,
+        prizes: prizes.map((p) => ({
+          place: p.place, prize_credits: p.prizeCredits, description: p.description,
+        })),
+        winners_announced: (winnerCount ?? 0) > 0,
       },
       entries: (entries.rows as Record<string, unknown>[]).map((r) => ({
         id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
         view_count: Number(r["view_count"] ?? 0), like_count: Number(r["like_count"] ?? 0),
+        vote_count: Number(r["vote_count"] ?? 0), viewer_voted: !!r["viewer_voted"],
         entered_at: r["entered_at"], created_at: r["created_at"],
         creator: { id: r["profile_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
       })),
