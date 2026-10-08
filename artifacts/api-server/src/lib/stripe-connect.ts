@@ -87,6 +87,10 @@ export async function createConnectAccount(profileId: string, email: string | nu
   const account = await stripe.v2.core.accounts.create({
     ...(email ? { contact_email: email } : {}),
     dashboard: "express",
+    /* v2 requires identity.country before configuration.recipient can be
+     * set. US default (platform is US-based); onboarding collects/updates
+     * the creator's actual identity details. */
+    identity: { country: "US", entity_type: "individual" },
     /* Required by Stripe for recipient accounts with the stripe_transfers
      * capability: the platform collects fees and covers losses (matches the
      * platform-liability choice made during Connect onboarding). */
