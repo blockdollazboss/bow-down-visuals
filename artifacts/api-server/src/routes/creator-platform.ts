@@ -422,6 +422,54 @@ const playLimiter = rateLimit({
 
 /* ── Profiles ──────────────────────────────────────────────────────────────── */
 
+/** Public snake_case shape for a creator profile (what frontends expect). */
+function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
+  return {
+    id: p.id,
+    slug: p.slug,
+    display_name: p.displayName,
+    vertical: p.vertical,
+    stream_schedule: p.streamSchedule,
+    media_kit: p.mediaKit,
+    bio: p.bio,
+    avatar_url: p.avatarUrl,
+    banner_url: p.bannerUrl,
+    theme_id: p.themeId,
+    theme_config: p.themeConfig,
+    sections: p.sections,
+    featured_media: p.featuredMedia,
+    social_links: p.socialLinks,
+    top_creators: p.topCreators,
+    tip_jar_enabled: p.tipJarEnabled,
+    ai_design: p.aiDesign,
+    is_public: p.isPublic,
+    follower_count: p.followerCount,
+    total_plays: p.totalPlays,
+    created_at: p.createdAt,
+  };
+}
+
+/** GET /api/creator-profiles — the caller's own creator profile (auth).
+   Returns the profile object, or {} when none exists yet (the Publish page
+   treats that as "show the one-click creation UI"). */
+router.get("/creator-profiles", requireAuth, async (req, res) => {
+  try {
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!))
+      .limit(1);
+    if (!profile) {
+      res.json({});
+      return;
+    }
+    res.json(toPublicProfile(profile));
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles GET (me) error");
+    res.status(500).json({ error: "Couldn't load your creator profile." });
+  }
+});
+
 /** Public profile page payload. 404 when the profile is private. */
 router.get("/creator-profiles/:slug", async (req, res) => {
   try {
@@ -586,11 +634,11 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     if (existing) {
       const [updated] = await db.update(creatorProfilesTable).set(values)
         .where(eq(creatorProfilesTable.id, existing.id)).returning();
-      res.json({ profile: { ...updated, ...(await profileExtras(updated)) }, created: false });
+      res.json({ profile: { ...toPublicProfile(updated), ...(await profileExtras(updated)) }, created: false });
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
-    res.status(201).json({ profile: { ...created, ...(await profileExtras(created)) }, created: true });
+    res.status(201).json({ profile: { ...toPublicProfile(created), ...(await profileExtras(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
     res.status(500).json({ error: "The save fumbled. Run it back." });

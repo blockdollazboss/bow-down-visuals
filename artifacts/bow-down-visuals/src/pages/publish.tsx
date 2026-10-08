@@ -395,11 +395,12 @@ export default function Publish() {
         headers: { ...(await authHeaders()), "Content-Type": "application/json" },
         body: JSON.stringify({ slug, display_name: newSlug.replace(/-/g, " ") }),
       });
-      const j = await res.json() as { id?: string; slug?: string; display_name?: string; error?: string; message?: string };
-      if (!res.ok || !j.id) throw new Error(j.message ?? j.error ?? `Couldn't create profile (${res.status})`);
-      setProfile({ id: j.id, slug: j.slug ?? slug, display_name: j.display_name });
+      const j = await res.json() as { profile?: { id?: string; slug?: string; display_name?: string }; error?: string; message?: string };
+      const p = j.profile;
+      if (!res.ok || !p?.id) throw new Error(j.message ?? j.error ?? `Couldn't create profile (${res.status})`);
+      setProfile({ id: p.id, slug: p.slug ?? slug, display_name: p.display_name });
       setShowCreateProfile(false);
-      toast({ title: "Profile created", description: `You're live at /artist/${j.slug ?? slug}` });
+      toast({ title: "Profile created", description: `You're live at /artist/${p.slug ?? slug}` });
     } catch (e) {
       toast({ title: "Couldn't create profile", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
