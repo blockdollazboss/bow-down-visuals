@@ -59,6 +59,15 @@ import ShowcaseItemPage from "@/pages/showcase/item";
 import PublicAlbumPage from "@/pages/albums/public";
 import PlanPublic from "@/pages/plan-public";
 
+/* Discovery (Worker 6): charts, search, browse, verticals, genres, feed. */
+const Charts = lazyWithRetry(() => import("@/pages/discovery/charts"));
+const DiscoverySearch = lazyWithRetry(() => import("@/pages/discovery/search"));
+const Browse = lazyWithRetry(() => import("@/pages/discovery/browse"));
+const VerticalPage = lazyWithRetry(() => import("@/pages/discovery/vertical"));
+const Genres = lazyWithRetry(() => import("@/pages/discovery/genres"));
+const GenrePage = lazyWithRetry(() => import("@/pages/discovery/genre"));
+const Feed = lazyWithRetry(() => import("@/pages/discovery/feed"));
+
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
 const MakeSong      = lazyWithRetry(() => import("@/pages/make-song"));
@@ -408,6 +417,13 @@ function AppShell() {
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
           <Route path="/templates/hooks"><HookTemplates /></Route>
           <Route path="/templates/captions"><CaptionPacks /></Route>
+          {/* Discovery — public, no login: charts, search, browse, vertical + genre hubs */}
+          <Route path="/charts"><Charts /></Route>
+          <Route path="/search"><DiscoverySearch /></Route>
+          <Route path="/browse"><Browse /></Route>
+          <Route path="/vertical/:vertical"><VerticalPage /></Route>
+          <Route path="/genres"><Genres /></Route>
+          <Route path="/genre/:genre"><GenrePage /></Route>
           <Route path="/showcase"><Showcase /></Route>
           <Route path="/showcase/:slug"><ShowcaseItemPage /></Route>
           <Route path="/albums/:slug"><PublicAlbumPage /></Route>
@@ -527,6 +543,8 @@ function AppShell() {
                 <Route path="/script-writer"><ProtectedRoute><ScriptWriter /></ProtectedRoute></Route>
                 <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
                 <Route path="/trends"><ProtectedRoute><Trends /></ProtectedRoute></Route>
+                {/* Discovery feed — new drops from followed creators (auth) */}
+                <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>
                 <Route path="/thumbnail-test"><ProtectedRoute><ThumbnailTest /></ProtectedRoute></Route>
                 <Route path="/vocal-removal"><ProtectedRoute><VocalRemoval /></ProtectedRoute></Route>
                 <Route path="/voiceover"><ProtectedRoute><Voiceover /></ProtectedRoute></Route>
