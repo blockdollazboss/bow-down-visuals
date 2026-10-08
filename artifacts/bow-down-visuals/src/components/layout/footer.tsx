@@ -18,6 +18,28 @@ const LEGAL = [
   { label: "Refund Policy",    href: "/refund-policy" },
 ];
 
+/* SEO hubs (Worker 9) — index pages link onward to every tool/vertical/genre
+   page, so the footer carries the hubs plus the top money pages. */
+const AI_TOOLS_LINKS = [
+  { label: "All AI Tools", href: "/tools" },
+  { label: "AI Thumbnail Maker", href: "/tools/ai-thumbnail-maker" },
+  { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
+  { label: "AI Music Video Maker", href: "/tools/ai-music-video-maker" },
+  { label: "AI Caption Generator", href: "/tools/ai-caption-generator" },
+  { label: "AI Clip Maker", href: "/tools/ai-clip-maker" },
+  { label: "AI Song Maker", href: "/tools/ai-song-maker" },
+];
+
+const CREATOR_HUB_LINKS = [
+  { label: "For Creators", href: "/for" },
+  { label: "For YouTubers", href: "/for/youtubers" },
+  { label: "For Podcasters", href: "/for/podcasters" },
+  { label: "For Streamers", href: "/for/streamers" },
+  { label: "For Musicians", href: "/for/musicians" },
+  { label: "For TikTokers", href: "/for/tiktokers" },
+  { label: "Browse Genres", href: "/genres" },
+];
+
 /* Social channels — accounts are being created; links go live with real URLs then.
  * To make clickable: replace the <span> with <a href="URL"> in the bottom
  * social row below (marked with data-social-link). */
@@ -43,10 +65,10 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-10 mb-10">
 
           {/* Navigate */}
-          <nav className="flex flex-col gap-2.5 md:col-start-2" aria-label="Footer">
+          <nav className="flex flex-col gap-2.5" aria-label="Footer">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
             {NAVIGATE.map((l) => (
               <Link
@@ -59,8 +81,36 @@ export function SiteFooter() {
             ))}
           </nav>
 
+          {/* AI Tools */}
+          <nav className="flex flex-col gap-2.5" aria-label="AI tools">
+            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">AI Tools</p>
+            {AI_TOOLS_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* For Creators */}
+          <nav className="flex flex-col gap-2.5" aria-label="For creators">
+            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">For Creators</p>
+            {CREATOR_HUB_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
           {/* Legal */}
-          <nav className="flex flex-col gap-2.5 md:col-start-3" aria-label="Legal">
+          <nav className="flex flex-col gap-2.5" aria-label="Legal">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Legal</p>
             {LEGAL.map((l) => (
               <Link
@@ -74,7 +124,7 @@ export function SiteFooter() {
           </nav>
 
           {/* Brand — right side */}
-          <div className="md:col-start-4">
+          <div className="sm:col-span-2 md:col-span-2">
             <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.webp`}

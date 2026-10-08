@@ -7,6 +7,15 @@ import { SiteFooter } from "@/components/layout/footer";
 import Home from "@/pages/home";
 import Pricing from "@/pages/pricing";
 import Waitlist from "@/pages/waitlist";
+/* SEO programmatic pages (Worker 9): tool pages, vertical hubs, genre hubs.
+   These are pure static markup (no auth, no i18n, no data fetching), so they
+   render fully in this minimal tree — crawlers get real HTML + JSON-LD. */
+import ToolsIndex from "@/pages/seo/tools-index";
+import ForIndex from "@/pages/seo/for-index";
+import { ToolPageBySlug } from "@/pages/seo/tool-page";
+import { VerticalHubBySlug } from "@/pages/seo/vertical-hub";
+import { GenreHubBySlug } from "@/pages/seo/genre-hub";
+import { TOOL_PAGES, VERTICAL_HUBS, GENRE_HUBS } from "@/data/seo-pages";
 
 /**
  * Build-time prerender entry for the public marketing routes.
@@ -26,6 +35,41 @@ const MARKETING_PAGES: Record<string, ComponentType> = {
   "/": Home,
   "/pricing": Pricing,
   "/waitlist": Waitlist,
+  "/tools": ToolsIndex,
+  "/for": ForIndex,
+  ...Object.fromEntries(
+    TOOL_PAGES.map((t) => [
+      t.path,
+      (() => {
+        const slug = t.slug;
+        return function ToolRoute() {
+          return <ToolPageBySlug slug={slug} />;
+        };
+      })(),
+    ]),
+  ),
+  ...Object.fromEntries(
+    VERTICAL_HUBS.map((v) => [
+      v.path,
+      (() => {
+        const slug = v.slug;
+        return function VerticalRoute() {
+          return <VerticalHubBySlug slug={slug} />;
+        };
+      })(),
+    ]),
+  ),
+  ...Object.fromEntries(
+    GENRE_HUBS.map((g) => [
+      g.path,
+      (() => {
+        const slug = g.slug;
+        return function GenreRoute() {
+          return <GenreHubBySlug slug={slug} />;
+        };
+      })(),
+    ]),
+  ),
 };
 
 export function renderMarketingPage(path: string): string {
