@@ -1,4 +1,5 @@
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
+import { CreateRedirect } from "@/components/create-redirect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -83,9 +84,7 @@ const Saved = lazyWithRetry(() => import("@/pages/saved"));
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
-const MakeSong      = lazyWithRetry(() => import("@/pages/make-song"));
-const MakeVideo     = lazyWithRetry(() => import("@/pages/make-video"));
-const SongAndVideo  = lazyWithRetry(() => import("@/pages/song-and-video"));
+const Create        = lazyWithRetry(() => import("@/pages/create"));
 const VideoStudio   = lazyWithRetry(() => import("@/pages/video-studio"));
 const PromoClip     = lazyWithRetry(() => import("@/pages/promo-clip"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
@@ -206,7 +205,6 @@ const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
-const Hub = lazyWithRetry(() => import("@/pages/hub"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
@@ -570,11 +568,11 @@ function AppShell() {
                 <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
                 <Route path="/generations"><ProtectedRoute><Generations /></ProtectedRoute></Route>
                 <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
-                <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
-                <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
+                <Route path="/make-song"><CreateRedirect to="/create?panel=song" /></Route>
+                <Route path="/make-video"><CreateRedirect to="/create?panel=video" /></Route>
                 <Route path="/video-studio"><ProtectedRoute><VideoStudio /></ProtectedRoute></Route>
-                <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
-                <Route path="/create"><Redirect to="/song-and-video" /></Route>
+                <Route path="/song-and-video"><CreateRedirect to="/create?panel=song-video" /></Route>
+                <Route path="/create"><ProtectedRoute><Create /></ProtectedRoute></Route>
                 <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
                 <Route path="/thumbnail"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library" /></Route>
@@ -633,7 +631,7 @@ function AppShell() {
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
                 <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats" /></Route>
-                <Route path="/hub"><ProtectedRoute><Hub /></ProtectedRoute></Route>
+                <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
