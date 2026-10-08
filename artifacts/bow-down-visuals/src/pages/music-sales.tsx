@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, TrendingUp, Wallet, BadgeDollarSign, PiggyBank,
-  CheckCircle2, PlusCircle, AlertTriangle, Sparkles,
+  CheckCircle2, PlusCircle, AlertTriangle, Sparkles, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
@@ -18,12 +18,14 @@ import { KIND_LABELS } from "./store-buy";
 interface Sale {
   id: string;
   itemKind: string;
+  itemId: string;
   itemTitle: string;
   gross: string;
   platformFee: string;
   creatorAmount: string;
   soldAt: string;
   loggedToTracker: boolean;
+  buyUrl: string;
 }
 
 interface SalesData {
@@ -38,6 +40,7 @@ interface SalesData {
   sales: Sale[];
   platformFeePct: number;
   payoutNote: string;
+  profileUrl: string;
 }
 
 export default function MusicSales() {
@@ -104,6 +107,11 @@ export default function MusicSales() {
             <p className="mt-1 text-sm text-amber-100/60">
               Create it, publish it, sell it, get paid — all in one place. It should feel illegal. 👑
             </p>
+            {data?.profileUrl && (
+              <Link href={data.profileUrl} className="mt-2 inline-flex items-center gap-1.5 text-sm text-amber-300 hover:underline">
+                <ExternalLink className="h-4 w-4" /> View your public profile
+              </Link>
+            )}
           </div>
         </div>
 
@@ -201,7 +209,9 @@ export default function MusicSales() {
                         <div className="text-xs uppercase tracking-widest text-amber-400/70">
                           {KIND_LABELS[s.itemKind] ?? s.itemKind}
                         </div>
-                        <div className="truncate font-bold text-amber-100">{s.itemTitle}</div>
+                        <Link href={s.buyUrl} className="truncate font-bold text-amber-100 hover:text-amber-300 hover:underline">
+                          {s.itemTitle}
+                        </Link>
                         <div className="text-xs text-amber-100/50">
                           {new Date(s.soldAt).toLocaleString()} · {s.gross} sale · {s.platformFee} fee ·{" "}
                           <span className="font-semibold text-amber-200">you keep {s.creatorAmount}</span>

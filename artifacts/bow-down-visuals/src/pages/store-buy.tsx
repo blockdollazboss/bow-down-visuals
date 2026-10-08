@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
-import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock } from "lucide-react";
+import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { shareDrop } from "@/lib/share-drop";
 
 /* ─── /store/buy/:kind/:id — the drop page ─────────────────────────────────
    Sell ANY digital content: a track, a video course, a series pass, a sample
@@ -46,6 +47,20 @@ export default function StoreBuy() {
   const [error, setError] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
   const [notWired, setNotWired] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  async function onShare() {
+    if (!data) return;
+    const outcome = await shareDrop({
+      title: data.item.title,
+      text: `“${data.item.title}” by ${data.item.artistName} — cop it on Bow Down Visuals 👑`,
+      url: `/store/buy/${data.item.kind}/${data.item.id}`,
+    });
+    if (outcome === "copied") {
+      setShared(true);
+      setTimeout(() => setShared(false), 2500);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -97,9 +112,19 @@ export default function StoreBuy() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-amber-200/60 hover:text-amber-200">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-amber-200/60 hover:text-amber-200">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Link>
+          {data && (
+            <button
+              onClick={onShare}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-sm text-amber-200 hover:bg-amber-500/10"
+            >
+              <Share2 className="h-4 w-4" /> {shared ? "Link copied!" : "Share"}
+            </button>
+          )}
+        </div>
 
         {error ? (
           <div className="mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-10 text-center">

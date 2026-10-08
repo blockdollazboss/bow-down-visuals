@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Download, Music2, ReceiptText, RefreshCw } from "lucide-react";
+import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
+import { shareDrop } from "@/lib/share-drop";
 
 /* ─── /my-music — the buyer's library ─────────────────────────────────────
    Every digital drop you've bought: re-download with a fresh secure link,
-   view receipts. Real-money purchases (Stripe) — separate from Visual Bucs. */
+   view receipts. Real-money purchases (Stripe) — separate from Visual Bucs.
+
+   Link graph: every row links back to the drop page and the creator's
+   profile — no orphaned receipts. */
 
 interface Purchase {
   id: string;
@@ -19,6 +23,8 @@ interface Purchase {
   amount: string;
   purchasedAt: string;
   receiptId: string;
+  buyUrl: string;
+  artistUrl: string | null;
 }
 
 export default function MyMusic() {
@@ -27,6 +33,17 @@ export default function MyMusic() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [minting, setMinting] = useState<string | null>(null);
+  const [sharedId, setSharedId] = useState<string | null>(null);
+
+  async function onShare(p: Purchase) {
+    const outcome = await shareDrop({
+      title: p.title,
+      text: `I copped “${p.title}” by ${p.artistName} on Bow Down Visuals 👑`,
+      url: p.buyUrl,
+    });
+    setSharedId(outcome === "copied" ? p.id : null);
+    if (outcome === "copied") setTimeout(() => setSharedId((cur) => (cur === p.id ? null : cur)), 2500);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,12 +141,32 @@ export default function MyMusic() {
                   <div className="text-xs uppercase tracking-widest text-amber-400/70">
                     {KIND_LABELS[p.itemKind] ?? p.itemKind}
                   </div>
-                  <div className="truncate font-bold text-amber-100">{p.title}</div>
+                  <Link href={p.buyUrl} className="truncate font-bold text-amber-100 hover:text-amber-300 hover:underline">
+                    {p.title}
+                  </Link>
                   <div className="text-sm text-amber-100/50">
-                    {p.artistName} · {p.amount} · {new Date(p.purchasedAt).toLocaleDateString()}
+                    {p.artistUrl ? (
+                      <Link href={p.artistUrl} className="text-amber-200/80 hover:underline">
+                        {p.artistName}
+                      </Link>
+                    ) : (
+                      p.artistName
+                    )}{" "}
+                    · {p.amount} · {new Date(p.purchasedAt).toLocaleDateString()}
                   </div>
-                  <div className="mt-1 flex items-center gap-1 text-xs text-amber-100/40">
-                    <ReceiptText className="h-3.5 w-3.5" /> Receipt {p.receiptId.slice(0, 18)}…
+                  <div className="mt-1 flex items-center gap-3 text-xs text-amber-100/40">
+                    <span className="inline-flex items-center gap-1">
+                      <ReceiptText className="h-3.5 w-3.5" /> Receipt {p.receiptId.slice(0, 18)}…
+                    </span>
+                    <Link href={p.buyUrl} className="inline-flex items-center gap-1 hover:text-amber-300">
+                      <ExternalLink className="h-3.5 w-3.5" /> Drop page
+                    </Link>
+                    <button
+                      onClick={() => onShare(p)}
+                      className="inline-flex items-center gap-1 hover:text-amber-300"
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> {sharedId === p.id ? "Link copied!" : "Share"}
+                    </button>
                   </div>
                 </div>
                 <button

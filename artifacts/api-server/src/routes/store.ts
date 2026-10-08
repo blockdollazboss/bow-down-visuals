@@ -350,8 +350,10 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
-  /* Re-resolve the item for the file URL (price ground truth = Stripe). */
   let fileUrl: string;
+  let itemTitle = "Your content";
+  let artistName = "";
+  let artistSlug = "";
   try {
     const item = await resolveSellableItem(kind, itemId);
     if ("notForSale" in item || "notWired" in item) {
@@ -359,6 +361,9 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       return;
     }
     fileUrl = item.fileUrl;
+    itemTitle = item.title;
+    artistName = item.artistName;
+    artistSlug = item.artistSlug;
   } catch (err) {
     logger.error({ err, sessionId }, "[store] verify: item re-resolve failed");
     res.status(500).json({ error: "Could not locate the purchased file." });
@@ -409,6 +414,16 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
         amount: money(amountCents),
         platformFeeCents: feeCents,
         creatorAmountCents: creatorCents,
+      },
+      /* Link graph: no dead ends after payment — the highest-trust moment. */
+      item: {
+        kind,
+        id: itemId,
+        title: itemTitle,
+        artistName,
+        artistSlug,
+        buyUrl: `/store/buy/${kind}/${itemId}`,
+        artistUrl: artistSlug ? `/c/${artistSlug}` : null,
       },
       download: {
         token: link.token,
@@ -469,7 +484,7 @@ ${ok && fileUrl ? `<meta http-equiv="refresh" content="1;url=${safe(fileUrl)}"/>
       ? `“${safe(title ?? "Your content")}”${artist ? ` by ${safe(artist)}` : ""} — your download starts automatically. No waiting rooms, no hoops. That's the cheat code.`
       : safe(message ?? "This link expired or hit its download limit.")}</p>
     ${ok && fileUrl ? `<a class="btn" href="${safe(fileUrl)}" download>Download now</a>` : ""}
-    ${ok ? `<div class="meta">${usesLeft ?? 0} download${(usesLeft ?? 0) === 1 ? "" : "s"} left · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? Re-download anytime from <b>My Music</b> on Bow Down Visuals.</div>` : ""}
+    ${ok ? `<div class="meta">${usesLeft ?? 0} download${(usesLeft ?? 0) === 1 ? "" : "s"} left · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? Re-download anytime from <a href="/my-music" style="color:#e8c547;">My Music</a> on Bow Down Visuals.</div>` : ""}
     <div class="brand">Bow Down Visuals</div>
   </div>
 </body>
@@ -562,18 +577,24 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
       purchases: result.rows.map((r) => {
         const row = r as Record<string, unknown>;
         const cents = Number(row["amount_cents"]);
+        const kind = String(row["item_kind"]);
+        const itemId = String(row["item_id"]);
+        const slug = String(row["artist_slug"] ?? "");
         return {
           id: String(row["id"]),
-          itemKind: String(row["item_kind"]),
-          itemId: String(row["item_id"]),
+          itemKind: kind,
+          itemId,
           title: String(row["item_title"] ?? "Content"),
           artistName: String(row["artist_name"] ?? "Creator"),
-          artistSlug: String(row["artist_slug"] ?? ""),
+          artistSlug: slug,
           artworkUrl: (row["artwork_url"] as string | null) ?? null,
           amountCents: cents,
           amount: money(cents),
           purchasedAt: String(row["created_at"]),
           receiptId: String(row["stripe_session_id"] ?? row["id"]),
+          /* Link graph: library → drop page, creator profile. */
+          buyUrl: `/store/buy/${kind}/${itemId}`,
+          artistUrl: slug ? `/c/${slug}` : null,
         };
       }),
     });
@@ -627,13 +648,15 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
 });
 
 /* ── Helpers: creator ownership ────────────────────────────────────────── */
-async function callerProfileId(userId: string): Promise<string | null> {
+async function callerProfile(userId: string): Promise<{ id: string; slug: string } | null> {
   const r = await db.execute(sql`
-    SELECT id FROM creator_profiles WHERE user_id = ${userId} LIMIT 1
+    SELECT id, slug FROM creator_profiles WHERE user_id = ${userId} LIMIT 1
   `);
   const row = r.rows[0] as Record<string, unknown> | undefined;
-  return row ? String(row["id"]) : null;
+  return row ? { id: String(row["id"]), slug: String(row["slug"]) } : null;
 }
+/* Back-compat alias used below. */
+const callerProfileId = (userId: string) => callerProfile(userId).then((p) => (p ? p.id : null));
 
 function todayYmd(): string {
   const d = new Date();
@@ -645,11 +668,12 @@ function todayYmd(): string {
 /* ── GET /api/store/sales — creator sales dashboard ────────────────────── */
 router.get("/store/sales", requireAuth, async (req, res) => {
   try {
-    const profileId = await callerProfileId(req.userId!);
-    if (!profileId) {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
       res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
       return;
     }
+    const profileId = profile.id;
     const sales = await db.execute(sql`
       SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
              ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
@@ -688,9 +712,12 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       const gross = Number(row["amount_cents"]);
       const fee = Number(row["platform_fee_cents"]);
       const net = Number(row["creator_amount_cents"]);
+      const kind = String(row["item_kind"]);
+      const itemId = String(row["item_id"]);
       return {
         id: String(row["id"]),
-        itemKind: String(row["item_kind"]),
+        itemKind: kind,
+        itemId,
         itemTitle: String(row["item_title"] ?? "Content"),
         grossCents: gross,
         gross: money(gross),
@@ -700,6 +727,8 @@ router.get("/store/sales", requireAuth, async (req, res) => {
         creatorAmount: money(net),
         soldAt: String(row["created_at"]),
         loggedToTracker: loggedIds.has(String(row["id"])),
+        /* Link graph: every sale links back to the drop page. */
+        buyUrl: `/store/buy/${kind}/${itemId}`,
       };
     });
     const totals = rows.reduce(
@@ -730,6 +759,8 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       }),
       sales: rows,
       platformFeePct: PLATFORM_FEE_PCT,
+      /* Link graph: dashboard → creator's public profile. */
+      profileUrl: `/c/${profile.slug}`,
       payoutNote:
         "Your cut is tracked as a pending payout balance. Real payouts need Stripe Connect — that's the next build before anyone gets paid out.",
     });

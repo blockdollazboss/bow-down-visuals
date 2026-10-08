@@ -1,16 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Download, PartyPopper, ReceiptText, Music2 } from "lucide-react";
+import { Loader2, Download, PartyPopper, ReceiptText, Music2, Share2, User, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { shareDrop } from "@/lib/share-drop";
 
 /* ─── /store/success — the "you just got paid" moment (buyer edition) ─────
    Verifies the Stripe session server-side, records the sale idempotently,
-   and hands the buyer their instant download link. */
+   and hands the buyer their instant download link.
+
+   Link graph (no dead ends after payment — the highest-trust moment):
+   download · buyer library · creator's profile · the drop page · share. */
 
 interface VerifyResult {
   success: boolean;
   duplicate?: boolean;
   sale: { id: string; itemKind: string; amount: string };
+  item: {
+    kind: string;
+    id: string;
+    title: string;
+    artistName: string;
+    artistSlug: string;
+    buyUrl: string;
+    artistUrl: string | null;
+  };
   download: { token: string; url: string; expiresAt: string; maxUses: number };
 }
 
@@ -19,6 +32,18 @@ export default function StoreSuccess() {
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  async function onShare() {
+    if (!result) return;
+    setShareMsg(null);
+    const outcome = await shareDrop({
+      title: result.item.title,
+      text: `I just copped “${result.item.title}” by ${result.item.artistName} on Bow Down Visuals 👑`,
+      url: result.item.buyUrl,
+    });
+    setShareMsg(outcome === "shared" ? "Shared. 👑" : outcome === "copied" ? "Link copied — spread the word." : null);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -100,13 +125,38 @@ export default function StoreSuccess() {
                 Link works {result.download.maxUses} times · expires{" "}
                 {new Date(result.download.expiresAt).toLocaleString()} · re-download anytime from My Music
               </p>
-              <div className="mt-6 flex justify-center gap-4 text-sm">
-                <Link href="/my-music" className="inline-flex items-center gap-1.5 text-amber-300 hover:underline">
+              {/* Link graph: library · creator profile · drop page · share */}
+              <div className="mt-6 grid grid-cols-2 gap-2 text-sm">
+                <Link
+                  href="/my-music"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 px-3 py-2.5 text-amber-200 hover:bg-amber-500/10"
+                >
                   <Music2 className="h-4 w-4" /> My Music
                 </Link>
-                <span className="inline-flex items-center gap-1.5 text-amber-100/40">
-                  <ReceiptText className="h-4 w-4" /> Receipt emailed by Stripe
-                </span>
+                {result.item.artistUrl && (
+                  <Link
+                    href={result.item.artistUrl}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 px-3 py-2.5 text-amber-200 hover:bg-amber-500/10"
+                  >
+                    <User className="h-4 w-4" /> More from {result.item.artistName}
+                  </Link>
+                )}
+                <Link
+                  href={result.item.buyUrl}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 px-3 py-2.5 text-amber-200 hover:bg-amber-500/10"
+                >
+                  <ExternalLink className="h-4 w-4" /> The drop page
+                </Link>
+                <button
+                  onClick={onShare}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 px-3 py-2.5 text-amber-200 hover:bg-amber-500/10"
+                >
+                  <Share2 className="h-4 w-4" /> Share this drop
+                </button>
+              </div>
+              {shareMsg && <p className="mt-2 text-xs text-amber-300">{shareMsg}</p>}
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-amber-100/40">
+                <ReceiptText className="h-4 w-4" /> Receipt emailed by Stripe · Bow Down Visuals
               </div>
             </>
           )}
