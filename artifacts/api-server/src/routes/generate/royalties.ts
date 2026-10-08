@@ -25,6 +25,7 @@ export {
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 
@@ -460,6 +461,26 @@ router.get("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res)
   }
 });
 
+/* ── Payout-received email notice — best-effort, fail-open. ─────────────── */
+async function sendPayoutNotice(
+  toEmail: string | undefined,
+  payout: { distributor: string; amount: string; currency: string; periodEnd: string },
+): Promise<void> {
+  if (!toEmail || !isEmailConfigured()) return;
+  const html = emailShell(
+    "Payout received 💰",
+    `<p style="margin:0 0 12px;">Money in. Your royalty payout just landed:</p>
+<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;">
+<div style="color:#d4af37;font-weight:700;font-size:20px;">${escapeHtml(payout.amount)} ${escapeHtml(payout.currency)}</div>
+<div style="color:#aaa;font-size:13px;margin-top:4px;">from ${escapeHtml(payout.distributor)}</div>
+<div style="color:#888;font-size:12px;">Period ending ${escapeHtml(payout.periodEnd)}</div>
+</div>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Track every dollar in your Money Tracker — the cheat code keeps the receipts.</p>
+<a href="${baseUrlForEmail()}/money" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Open Money Tracker</a>`
+  );
+  await sendEmail({ to: toEmail, subject: `Payout received — ${payout.amount} ${payout.currency} from ${payout.distributor}`, html });
+}
+
 /* POST /api/royalties/payouts → create or update a payout. Free. */
 router.post("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = payoutSchema.safeParse(req.body ?? {});
@@ -496,6 +517,15 @@ router.post("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res
         res.status(404).json({ error: "Payout not found." });
         return;
       }
+      /* ── Payout-received notice — best-effort, fail-open. ─────────────── */
+      if (d.status === "received") {
+        void sendPayoutNotice(req.userEmail, {
+          distributor: d.distributor,
+          amount: d.received_amount ?? d.expected_amount,
+          currency: d.currency,
+          periodEnd: d.period_end,
+        });
+      }
       res.json({ payout: updated[0] });
       return;
     }
@@ -513,6 +543,15 @@ router.post("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res
         notes: d.notes || null,
       })
       .returning();
+    /* ── Payout-received notice — best-effort, fail-open. ───────────────── */
+    if (d.status === "received") {
+      void sendPayoutNotice(req.userEmail, {
+        distributor: d.distributor,
+        amount: d.received_amount ?? d.expected_amount,
+        currency: d.currency,
+        periodEnd: d.period_end,
+      });
+    }
     res.json({ payout: inserted[0] });
   } catch (err) {
     logger.error({ err }, "[royalties] payout save failed");

@@ -113,3 +113,25 @@ This email was sent by Bow Down Visuals.<br>
 export function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+/** Escape user-controlled strings before interpolating into email HTML. */
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Public site URL for email links. Prefers explicit env, then the request
+ * host is handled by callers; falls back to the production domain.
+ */
+export function baseUrlForEmail(): string {
+  return (
+    process.env["PUBLIC_BASE_URL"] ??
+    process.env["SITE_URL"] ??
+    "https://bowdownvisuals.com"
+  );
+}

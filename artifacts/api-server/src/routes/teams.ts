@@ -6,6 +6,7 @@ import { deductCredits, OutOfCreditsError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../lib/email";
 
 const router = Router();
 
@@ -222,7 +223,32 @@ router.post("/teams/:id/invite", requireAuth, async (req, res) => {
       .insert(teamMembersTable)
       .values({ teamId, userId: inviteeId, email, role, status: "invited" })
       .returning();
-    res.json({ member });
+
+    /* ── Invite notification email — best-effort, fail-open. The invite is
+       recorded regardless; the invitee can also find it under their teams. */
+    let emailSent = false;
+    if (isEmailConfigured()) {
+      const [teamRow] = await db
+        .select({ name: teamsTable.name })
+        .from(teamsTable)
+        .where(eq(teamsTable.id, teamId))
+        .limit(1);
+      const teamName = teamRow?.name ?? "a team";
+      const html = emailShell(
+        `You're invited to "${escapeHtml(teamName)}" 👑`,
+        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:#d4af37;">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Sign in with <strong>${escapeHtml(email)}</strong> to accept — your pending invite is waiting under Teams.</p>
+<a href="${baseUrlForEmail()}/teams" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">View my invite</a>`
+      );
+      const result = await sendEmail({
+        to: email,
+        subject: `Team invite — "${teamName}" on Bow Down Visuals`,
+        html,
+      });
+      emailSent = result.sent;
+    }
+
+    res.json({ member, emailSent });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: invite failed");
     res.status(500).json({ error: "Failed to send invite." });

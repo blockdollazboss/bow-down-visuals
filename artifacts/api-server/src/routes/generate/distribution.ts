@@ -9,6 +9,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
 import {
   getAggregator,
   type AggregatorReleasePayload,
@@ -1497,14 +1498,11 @@ router.get("/distribution/splits/:slug", async (req, res) => {
   }
 });
 
-/* ─── Split invites (stub until an email provider is configured) ──────────
+/* ─── Split invites ─────────────────────────────────────────────────────────
    POST /api/distribution/releases/:id/splits/invite { splitId } —
-   records the invite on the split row. Real emails are NOT sent unless an
-   email provider is configured; when it isn't, this 501s with a clear
-   message the UI shows (share the agreement link instead). */
-const EMAIL_PROVIDER_CONFIGURED = Boolean(
-  process.env["RESEND_API_KEY"] || process.env["SENDGRID_API_KEY"] || process.env["SMTP_HOST"],
-);
+   records the invite on the split row and emails the collaborator when an
+   email provider is configured. Without one, the invite is still recorded
+   and the UI falls back to sharing the agreement link. */
 
 router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req, res) => {
   const parsed = z.object({ splitId: z.string().uuid() }).safeParse(req.body ?? {});
@@ -1544,19 +1542,36 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
       SET invite_status = 'invited', invite_token = ${inviteToken}
       WHERE id = ${split.id}
     `);
-    if (!EMAIL_PROVIDER_CONFIGURED) {
-      /* Stub: invite recorded, no email sent. UI shows the message and falls
-         back to sharing the agreement link. */
-      res.status(501).json({
-        error: "No email provider is configured, so the invite email can't be sent. The invite was recorded — share your split agreement link with them instead.",
+
+    /* ── Invite email — best-effort, fail-open. The invite is recorded
+       regardless; without a provider the UI shares the agreement link. ── */
+    let emailSent = false;
+    if (isEmailConfigured() && split.payee_email) {
+      const releaseTitle = (existing as { title?: string } | null)?.title ?? "a release";
+      const html = emailShell(
+        "You've got a revenue split 💰",
+        `<p style="margin:0 0 12px;"><strong style="color:#d4af37;">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
+<a href="${baseUrlForEmail()}/distribution?splitInvite=${escapeHtml(inviteToken)}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Review my split</a>`
+      );
+      const result = await sendEmail({
+        to: split.payee_email,
+        subject: `Revenue split invite — "${releaseTitle}"`,
+        html,
+      });
+      emailSent = result.sent;
+    }
+
+    if (!emailSent) {
+      res.json({
         recorded: true,
         emailSent: false,
+        inviteToken,
+        note: "No email provider is configured — share your split agreement link instead.",
       });
       return;
     }
-    /* An email provider is configured but invite delivery isn't wired yet —
-       recorded honestly rather than pretending to send. */
-    res.json({ recorded: true, emailSent: false, inviteToken });
+    res.json({ recorded: true, emailSent: true, inviteToken });
   } catch (err) {
     logger.error({ err }, "[distribution] split invite failed");
     res.status(500).json({ error: "Couldn't record the invite — try again." });

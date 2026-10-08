@@ -3,6 +3,7 @@ import { db, creatorProfilesTable, creatorSubscriptionsTable } from "@workspace/
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
+import { sendEmail, emailShell, escapeHtml, baseUrlForEmail } from "./email";
 
 /* ── Creator tier subscription sync — Worker 12 ────────────────────────────
    Called from the central Stripe webhook (lib/stripe-webhook.ts). Handles:
@@ -126,6 +127,33 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
     currentPeriodEnd,
   });
   logger.info({ sessionId: session.id, profileId, tier }, "creator tier activated via webhook");
+
+  /* ── Subscription confirmation email — best-effort, fail-open. The tier is
+     already active; an email failure must never roll that back. ────────── */
+  try {
+    const buyerEmail =
+      session.customer_details?.email ??
+      (await db.execute(sql`SELECT email FROM profiles WHERE id = ${session.metadata?.["user_id"]} LIMIT 1`))
+        .rows[0]?.["email"];
+    if (typeof buyerEmail === "string" && buyerEmail.length > 0) {
+      const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
+      const html = emailShell(
+        `You're ${tierName} 👑`,
+        `<p style="margin:0 0 12px;">Your <strong style="color:#d4af37;">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
+<ul style="color:#ccc;font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
+<li>Lower platform fees on everything you sell</li>
+<li>Higher AI generation limits across the studio</li>
+<li>Priority placement in discovery and charts</li>
+</ul>
+${currentPeriodEnd ? `<p style="color:#888;font-size:13px;">Renews ${currentPeriodEnd.toLocaleDateString()} — cancel anytime from your dashboard.</p>` : ""}
+<a href="${baseUrlForEmail()}/dashboard" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Open my dashboard</a>`
+      );
+      // Fire-and-forget: webhook must return 200 to Stripe promptly.
+      void sendEmail({ to: buyerEmail, subject: `Welcome to ${tierName} — your subscription is active`, html });
+    }
+  } catch (emailErr) {
+    logger.warn({ emailErr, sessionId: session.id }, "tier confirmation email failed (non-fatal)");
+  }
 }
 
 /** customer.subscription.updated / .deleted — keep tier + status in sync. */

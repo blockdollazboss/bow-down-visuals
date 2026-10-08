@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, teamSeatsTable, permissionsForRole, TEAM_SEAT_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
 
 const router = Router();
 
@@ -11,10 +12,10 @@ const router = Router();
    DistroKid-style roles for collaborators & managers on an account.
 
    The account holder is the implicit `owner` and manages seats. Invites are
-   link-based — this codebase has no transactional email provider, so the
-   invite link is returned to the owner to copy/share manually (never faked
-   as sent). A seat activates when the invited email's signed-in account
-   accepts the link (matched on Supabase auth email).
+   link-based with an optional email (sent via Resend when RESEND_API_KEY is
+   configured; the link is always returned too so the owner can share it
+   manually as a fallback). A seat activates when the invited email's
+   signed-in account accepts the link (matched on Supabase auth email).
 
    GET    /api/team-seats           — my owned seats + seats I'm a member of
    POST   /api/team-seats/invite    — invite by email (owner only)
@@ -91,7 +92,8 @@ router.get("/team-seats", requireAuth, async (req, res) => {
 });
 
 /* POST /api/team-seats/invite — invite by email (owner only).
-   Returns an invite link for manual sharing; no email provider is configured. */
+   Sends an invite email when an email provider is configured; the invite
+   link is always returned for manual sharing as a fallback. */
 router.post("/team-seats/invite", requireAuth, async (req, res) => {
   const parsed = InviteSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -128,13 +130,34 @@ router.post("/team-seats/invite", requireAuth, async (req, res) => {
       })
       .returning();
     const origin = `${req.protocol}://${req.get("host")}`;
+    const inviteLink = `${origin}/settings?teamInvite=${token}`;
+
+    /* ── Invite email — best-effort, fail-open. The link is still returned
+       so the owner can share it manually if email isn't configured. ───── */
+    let emailSent = false;
+    if (isEmailConfigured()) {
+      const inviterName = displayName || req.userEmail || "Your collaborator";
+      const html = emailShell(
+        "You've been invited to a team 👑",
+        `<p style="margin:0 0 12px;"><strong style="color:#d4af37;">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Accept the invite to start collaborating — sign in with <strong>${escapeHtml(normalized)}</strong>.</p>
+<a href="${escapeHtml(inviteLink)}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Accept invite</a>`
+      );
+      const result = await sendEmail({
+        to: normalized,
+        subject: `${inviterName} invited you to their Bow Down Visuals team`,
+        html,
+      });
+      emailSent = result.sent;
+    }
+
     res.status(201).json({
       seat: seatDto(seat, true),
-      inviteLink: `${origin}/settings?teamInvite=${token}`,
-      // HONESTY: no transactional email provider is configured in this app,
-      // so no email is sent. The owner copies the link and shares it manually.
-      emailSent: false,
-      emailNote: "No email provider is configured — share the invite link manually.",
+      inviteLink,
+      emailSent,
+      emailNote: emailSent
+        ? "Invite email sent."
+        : "No email provider is configured — share the invite link manually.",
     });
   } catch (err) {
     req.log.error({ err }, "[team-seats] invite failed");

@@ -21,6 +21,15 @@ import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { computeAchievements } from "./generate/milestones";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
+
+/** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
+function adminEmails(): string[] {
+  return (process.env["ADMIN_EMAILS"] ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+}
 
 const router = Router();
 
@@ -1007,8 +1016,8 @@ router.post("/notifications/:id/read", requireAuth, async (req, res) => {
 /* ── DMCA takedown reports (public) ──────────────────────────────────────────
    No reporting flow existed on the site (copyright.tsx is informational
    only), so this is the intake endpoint. Reports land in dmca_reports
-   (status 'new') for manual operator review; details are also logged
-   (email notification hook left as a log stub — no paid services). */
+   (status 'new') for manual operator review; the operator is also emailed
+   when an email provider is configured (fail-open). */
 
 router.post("/dmca/report", async (req, res) => {
   try {
@@ -1031,12 +1040,30 @@ router.post("/dmca/report", async (req, res) => {
       description: d.description,
       agreeUnderPenalty: d.agree_under_penalty,
     }).returning({ id: dmcaReportsTable.id });
-    // Email-notification stub: no paid mail provider; surface in logs for the
-    // operator (a webhook/SES hook can read dmca_reports WHERE status='new').
+    // Operator alert: log always; email when a provider is configured
+    // (fail-open — a mail failure must never block the report).
     req.log.warn(
       { reportId: report.id, reporter: d.reporter_email, urls: d.infringing_urls.length },
       "DMCA takedown report received — manual review required",
     );
+    if (isEmailConfigured()) {
+      const admins = adminEmails();
+      if (admins.length > 0) {
+        const html = emailShell(
+          "🚨 DMCA takedown report — review required",
+          `<p style="margin:0 0 12px;">A new takedown report needs operator review:</p>
+<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;font-size:14px;">
+<div><strong>Reporter:</strong> ${escapeHtml(d.reporter_name)}${d.reporter_org ? ` (${escapeHtml(d.reporter_org)})` : ""}</div>
+<div><strong>Email:</strong> ${escapeHtml(d.reporter_email)}</div>
+<div><strong>Infringing URLs:</strong> ${d.infringing_urls.length}</div>
+<div><strong>Report ID:</strong> ${escapeHtml(report.id)}</div>
+</div>
+<p style="margin:0;color:#888;font-size:13px;">Review it in the admin panel under DMCA reports (status: new).</p>`
+        );
+        // Fire-and-forget: the report is already recorded.
+        void sendEmail({ to: admins, subject: `DMCA report ${report.id} — review required`, html });
+      }
+    }
     res.status(201).json({ ok: true, id: report.id });
   } catch (err) {
     req.log.error({ err }, "dmca/report error");

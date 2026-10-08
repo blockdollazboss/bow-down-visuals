@@ -46,6 +46,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
+import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 
 const router = Router();
 
@@ -427,6 +428,33 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       }
     } catch (notifyErr) {
       logger.error({ notifyErr, saleId }, "[store] sale notification failed (non-fatal)");
+    }
+
+    /* ── Purchase receipt email — best-effort, fail-open. Only on the first
+       (non-duplicate) verify so a double-verify never double-sends. ───── */
+    if (!duplicate) {
+      const buyerEmail =
+        req.userEmail ?? session.customer_details?.email ?? undefined;
+      if (buyerEmail) {
+        const receiptHtml = emailShell(
+          "Purchase confirmed 👑",
+          `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
+<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;">
+<div style="color:#d4af37;font-weight:700;font-size:16px;">${escapeHtml(itemTitle)}</div>
+${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistName)}</div>` : ""}
+<div style="color:#eee;font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
+<div style="color:#888;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>
+</div>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Your download link is on the confirmation page (48h, 5 downloads max).</p>
+<a href="${baseUrlForEmail()}/store/purchases" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">View my purchases</a>`
+        );
+        // Fire-and-forget: never block the purchase response on email.
+        void sendEmail({
+          to: buyerEmail,
+          subject: `Your receipt — ${itemTitle}`,
+          html: receiptHtml,
+        });
+      }
     }
 
     res.json({
