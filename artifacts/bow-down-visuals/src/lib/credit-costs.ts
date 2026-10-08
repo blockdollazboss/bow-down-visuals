@@ -166,6 +166,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/shops/ai/product-description": { cost: 100, feature: "AI Product Description" },
   "/api/shops/ai/product-image": { cost: 100, feature: "AI Product Image" },
 
+  // ── Creator profiles: AI Page Designer ─────────────────────────
+  "/api/ai-page-designer/theme": { cost: 400, feature: "AI Page Designer — Full Page Design" },
+  "/api/ai-page-designer/bio": { cost: 100, feature: "AI Page Designer — Bio Writer" },
+  "/api/ai-page-designer/banner": { cost: 200, feature: "AI Page Designer — Banner Art" },
+  "/api/ai-page-designer/upload": { cost: 0, feature: "Profile Image Upload (free)" },
+
   // ── Social publishing ──────────────────────────────────────────
   "/api/social/instagram/publish": { cost: 100, feature: "Publish to Instagram" },
   "/api/social/facebook/publish": { cost: 100, feature: "Publish to Facebook" },
