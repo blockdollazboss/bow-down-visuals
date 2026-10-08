@@ -2513,7 +2513,7 @@ interface ReleasePlanResponse {
 /* Tool hint → on-site destination. Only known tools get links; anything
    else renders as plain text so a model hallucination never 404s. */
 const PLAN_TOOL_LINKS: Record<string, string> = {
-  "playlist-pitcher": "/playlist-pitch",
+  "playlist-pitcher": "/label-pitch?mode=playlists",
   "content-scheduler": "/scheduler",
   "press-kit": "/press-kit",
   "cover-art": "/cover-art",
@@ -2921,7 +2921,7 @@ function ReleasePlanTab() {
       {/* cross-links — keeps the playlist-pitch / scheduler / distribute handoffs */}
       <p className="relative mt-8 text-center text-sm text-white/40">
         {t("release.crossLinks.p1")}{" "}
-        <a href={`/playlist-pitch?song=${encodeURIComponent(title.trim())}`} className="font-semibold text-primary hover:underline">
+        <a href={`/label-pitch?mode=playlists&song=${encodeURIComponent(title.trim())}`} className="font-semibold text-primary hover:underline">
           {t("release.crossLinks.playlistPitcher")}
         </a>
         {" "}{t("release.crossLinks.p2")}{" "}

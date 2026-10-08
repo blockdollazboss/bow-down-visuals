@@ -38,7 +38,7 @@ export function AttributionToggle({ checked, onChange, disabled, compact }: Attr
         <span className={`block ${compact ? "text-[10px]" : "text-[11px]"} text-white/45 mt-0.5`}>
           A small gold credit rides with your export — free promotion for your
           work, and it tells viewers how you made it.{" "}
-          <Link href="/watermark-removal" className="text-primary hover:underline font-semibold">
+          <Link href="/upscale?tab=enhance" className="text-primary hover:underline font-semibold">
             Remove credits →
           </Link>
         </span>

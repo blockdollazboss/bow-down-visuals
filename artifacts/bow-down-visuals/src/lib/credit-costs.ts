@@ -113,6 +113,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/hook-studio": { cost: 100, feature: "Hook Studio" },
   "/api/virality-check": { cost: 200, feature: "Virality Pre-Flight Check" },
   "/api/analytics-hub/insights": { cost: 200, feature: "AI Growth Plan" },
+  "/api/analytics/insights": { cost: 100, feature: "Analytics AI Insights" },
+  "/api/analytics/suggestions": { cost: 100, feature: "Analytics Content Suggestions" },
   "/api/monetization-coach": { cost: 100, feature: "Monetization Coach" },
   "/api/analyze-niche": { cost: 150, feature: "Niche Analyzer" },
   "/api/validate-idea": { cost: 75, feature: "Idea Validator" },

@@ -112,7 +112,7 @@ export default function Thumbnails() {
             <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">{t("thumbnails.libraryTitle")}</h1>
             <p className="text-white/50 text-lg max-w-2xl">{t("thumbnails.librarySubtitle")}</p>
           </div>
-          <Link href="/thumbnail">
+          <Link href="/thumbnail-maker">
             <Button className="gold-glow font-bold rounded-xl gap-2">
               <Sparkles className="h-4 w-4" />{t("thumbnails.makeThumbnail")}</Button>
           </Link>
@@ -135,7 +135,7 @@ export default function Thumbnails() {
             <ImageIcon className="h-10 w-10 text-white/20 mx-auto mb-4" />
             <p className="text-white/60 font-medium mb-2">{t("thumbnails.emptyTitle")}</p>
             <p className="text-white/30 text-sm mb-6">{t("thumbnails.emptyBody")}</p>
-            <Link href="/thumbnail">
+            <Link href="/thumbnail-maker">
               <Button className="gold-glow font-bold rounded-xl">{t("thumbnails.openMaker")}</Button>
             </Link>
           </div>

@@ -1607,7 +1607,7 @@ function QualityPanel({
             {!isSubscriber && (
               <p className="text-[10px] text-white/40 mt-1.5">
                 Want it gone?{" "}
-                <a href="/watermark-removal" className="text-primary font-bold hover:underline">
+                <a href="/upscale?tab=enhance" className="text-primary font-bold hover:underline">
                   Remove the watermark →
                 </a>
               </p>

@@ -116,7 +116,7 @@ export function GetPaidFinale({
                 Manage this drop <ArrowRight className="h-4 w-4" />
               </span>
             </Link>
-            <Link href="/music-sales">
+            <Link href="/store/dashboard?view=digital">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] transition-colors">
                 View sales
               </span>

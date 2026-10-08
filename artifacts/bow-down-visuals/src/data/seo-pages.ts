@@ -423,7 +423,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     templateSlugs: ["podcast-highlight", "talking-head-polish", "hype-trailer"],
     templateGalleryHref: "/templates/videos",
     templateGalleryLabel: "Video templates",
-    toolHref: "/clip-maker",
+    toolHref: "/repurpose?mode=stream",
     toolCtaLabel: "Open the Clip Maker",
     applicationCategory: "MultimediaApplication",
     faqs: [

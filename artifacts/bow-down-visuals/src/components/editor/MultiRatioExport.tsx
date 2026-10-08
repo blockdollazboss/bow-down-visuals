@@ -424,7 +424,7 @@ export function MultiRatioExportCard({
             </span>
             <span className="block text-[11px] text-white/45 mt-0.5">
               {t("videoEditor.multiRatio.attributionDesc")}{" "}
-              <Link href="/watermark-removal" className="text-primary hover:underline font-semibold">
+              <Link href="/upscale?tab=enhance" className="text-primary hover:underline font-semibold">
                 {t("videoEditor.multiRatio.attributionUpsell")}
               </Link>
             </span>

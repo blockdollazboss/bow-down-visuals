@@ -1017,7 +1017,8 @@
       "actionPreflight": "Preflight your post",
       "actionPreflightHint": "Score your version before you ship it.",
       "rerun": "Re-run analysis ({{cost}} Visual Bucs)"
-    }
+    },
+    "tabConnected": "Connected Accounts"
   },
   "analytics": {
     "connectBlurbs": {
@@ -1940,7 +1941,10 @@
     "titleAccent": "Finder",
     "verifyPrefix": "Verify:",
     "finderExplainer": "This is the finder — AI hunts down brands that fit you. When a brand posts a deal for creators to apply to, that's the ",
-    "marketplaceLink": "Sponsor Marketplace"
+    "marketplaceLink": "Sponsor Marketplace",
+    "tabs": {
+      "finder": "Finder"
+    }
   },
   "brandingKit": {
     "eyebrow": "Brand Identity",
@@ -2451,6 +2455,9 @@
         "label": "Superfan alert",
         "desc": "A top supporter showed up — say thanks"
       }
+    },
+    "replies": {
+      "scheduleLink": "Plan posts in Scheduler"
     }
   },
   "contact": {
@@ -3316,6 +3323,9 @@
       },
       "cta": {
         "label": "CTA Generator"
+      },
+      "titles": {
+        "label": "Titles"
       }
     },
     "videoType": {
@@ -4788,7 +4798,10 @@
     "stemVocalsBlurb": "Lead & backing voices",
     "stopSoloing": "Stop soloing {{label}}",
     "unmute": "Unmute {{label}}",
-    "wav": "WAV"
+    "wav": "WAV",
+    "modeLabel": "Mode",
+    "modeFull": "Full split",
+    "modeVocalsOnly": "Vocals only"
   },
   "storefrontBuilder": {
     "addAnother": "Add another",
@@ -5583,7 +5596,9 @@
     "whatYouGetVocalDirection": "Vocal Direction",
     "discardDraftButton": "Discard Draft",
     "projectSaved": "Project Saved",
-    "recoveryFailedTitle": "Recovery Failed"
+    "recoveryFailedTitle": "Recovery Failed",
+    "simpleTabLabel": "Simple",
+    "guidedTabLabel": "Guided"
   },
   "songs": {
     "cancelButton": "Cancel",
@@ -5877,7 +5892,8 @@
     "variationAlt": "Thumbnail variation {{n}}",
     "variationBadge": "Variation {{n}}",
     "variationDetail": "{{count}} variation{{suffix}} · {{aspectRatio}}",
-    "sendToVideoStudio": "Send to Video Studio"
+    "sendToVideoStudio": "Send to Video Studio",
+    "artworkModeLabel": "Artwork Pack"
   },
   "thumbnailTest": {
     "analyzing": "Analyzing…",
@@ -6287,7 +6303,9 @@
     "videoUpscaleComplete": "Upscale complete — {{target}}",
     "videoUpscaleFailedRefunded": "Upscale failed — your 300 Visual Bucs were refunded.",
     "videoUpscalerSub": "Bump your clips to 1080p or 4K — {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "Video Upscaler"
+    "videoUpscalerTitle": "Video Upscaler",
+    "tabEnhance": "Enhance",
+    "tabEnhanceShort": "Enhance"
   },
   "videoEditor": {
     "activeSceneNoClip": "Active scene has no clip — audio still playing",
@@ -7151,7 +7169,8 @@
     "toolSub": "Clean logos off your own videos — {{cost}} Visual Bucs",
     "toolTitle": "Watermark Removal",
     "videoFileError": "Please choose a video file.",
-    "videoSizeError": "This video exceeds the 80 MB upload limit."
+    "videoSizeError": "This video exceeds the 80 MB upload limit.",
+    "sendToVideoEditor": "Send to Video Editor"
   },
   "websiteBuilder": {
     "applyEditButton": "Apply edit — {{cost}} credits",
@@ -7444,7 +7463,13 @@
       "logToTracker": "Log to Money Tracker",
       "signInPrompt": "Sign in to generate invoices.",
       "autoNumber": "Auto-assigned on generation"
-    }
+    },
+    "tabs": {
+      "pitchKit": "Pitch kit",
+      "pipeline": "Deal pipeline"
+    },
+    "pipelineTitle": "Sponsor Deal Pipeline",
+    "pipelineSubtitle": "Track every deal from pitch to paid."
   },
   "repurpose": {
     "badge": "Content Repurposer",
@@ -7507,7 +7532,10 @@
       "rerollFailed": "Re-roll failed — try again.",
       "thumbRerollFailed": "Thumbnail re-roll failed — try again."
     },
-    "addCaptions": "Add captions"
+    "addCaptions": "Add captions",
+    "modeLabel": "Mode",
+    "modePack": "Content Pack",
+    "modeStreamVod": "Stream VOD"
   },
   "royalties": {
     "eyebrow": "Royalty Tracker",
@@ -7694,7 +7722,8 @@
     "deletePitch": "Delete pitch",
     "markStatus": "Mark {{status}}",
     "noPitches": "No pitches logged yet. Generate a pitch kit, find a curator, and track every send right here — free forever.",
-    "notesPlaceholder": "Notes for the curator (optional)"
+    "notesPlaceholder": "Notes for the curator (optional)",
+    "tabPlaylists": "Playlists"
   },
   "refundPolicy": {
     "nav": {
@@ -8124,7 +8153,8 @@
     "subtitle": "AI-designed merch for your brand — 300 Visual Bucs per design batch",
     "tabs": {
       "design": "Design Studio",
-      "store": "My Store"
+      "store": "My Store",
+      "merch": "Merch"
     },
     "products": {
       "t-shirt": {
@@ -9089,7 +9119,8 @@
       "queue": "Queue ({{num}})",
       "drafts": "Drafts ({{num}})",
       "posted": "Posted",
-      "community": "Community Posts"
+      "community": "Community Posts",
+      "plan": "Plan"
     },
     "platforms": {
       "instagram": {
@@ -9306,6 +9337,10 @@
       "buildMine": "Build my schedule",
       "powered": "Made with Bow Down Visuals",
       "dismiss": "Dismiss"
+    },
+    "plan": {
+      "sendHint": "Pick a day to prefill the scheduler composer.",
+      "scheduleDay": "Schedule this day"
     }
   },
   "myShop": {
@@ -9512,7 +9547,9 @@
     "dynamicRange": "Dynamic range",
     "vocalBuried": "Buried",
     "vocalLevel": "Vocal level",
-    "vocalUpfront": "Upfront"
+    "vocalUpfront": "Upfront",
+    "tabQuick": "Express Master",
+    "tabQuickDesc": "Upload one finished stereo mix — pick a preset, get a radio-ready master for 4 Visual Bucs. Fast, no knobs."
   },
   "movies": {
     "badge": "Movies & Web Series",

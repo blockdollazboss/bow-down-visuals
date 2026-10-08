@@ -828,7 +828,7 @@ export default function TemplatesTabPanel({
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate("/clip-maker")}
+                onClick={() => navigate("/repurpose?mode=stream")}
                 className="border-white/15 text-white/80 hover:border-[#e8c86a]/50"
                 data-testid="btn-handoff-clips"
               >
