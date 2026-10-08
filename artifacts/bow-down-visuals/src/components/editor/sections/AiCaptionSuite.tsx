@@ -902,7 +902,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   <Field label={t("captionSuite.positionLabel")}>
                     <Segmented
                       value={position}
-                      onChange={setPosition}
+                      onChange={(v: string) => setPosition(v as "bottom" | "middle" | "top")}
                       options={[
                         { value: "top", label: t("captionSuite.posTop") },
                         { value: "middle", label: t("captionSuite.posMiddle") },
@@ -913,7 +913,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   <Field label={t("captionSuite.sizeLabel")}>
                     <Segmented
                       value={fontSize}
-                      onChange={setFontSize}
+                      onChange={(v: string) => setFontSize(v as "large" | "medium" | "small")}
                       options={[
                         { value: "small", label: t("captionSuite.sizeSmall") },
                         { value: "medium", label: t("captionSuite.sizeMedium") },
