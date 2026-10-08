@@ -105,6 +105,57 @@ export function ThumbnailMakerModule() {
   const [attribution, setAttribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* Wave 8: AI Thumbnail A/B Tester — two AI alternates of the generated look. */
+  const [abVariants, setAbVariants] = useState<Array<{ url: string; label: string; prompt: string }>>([]);
+  const [abLoading, setAbLoading] = useState(false);
+  const [abError, setAbError] = useState<string | null>(null);
+  const [winnerUrl, setWinnerUrl] = useState<string | null>(null);
+
+  async function onTestVariants() {
+    const source = selectedImage?.url ?? images[0]?.url;
+    if (!source) return;
+    setAbLoading(true);
+    setAbError(null);
+    setWinnerUrl(null);
+    try {
+      const res = await confirmedFetch("/api/wave8/thumbnail-ab/variants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceImageUrl: source,
+          title: (overlayText || prompt).slice(0, 200),
+          niche: stylePreset,
+        }),
+      });
+      if (!res) {
+        setAbError(t("wave8.thumbnailAb.errorCancelled"));
+        return;
+      }
+      if (res.status === 402) {
+        setAbError(t("wave8.thumbnailAb.errorOutOfCredits"));
+        return;
+      }
+      if (!res.ok) throw new Error("variant generation failed");
+      const data = (await res.json()) as { variants?: Array<{ url: string; label: string; prompt: string }> };
+      setAbVariants(data.variants ?? []);
+      refreshProfile();
+    } catch {
+      setAbError(t("wave8.thumbnailAb.errorFailed"));
+    } finally {
+      setAbLoading(false);
+    }
+  }
+
+  function pickWinner(url: string) {
+    setWinnerUrl(url);
+    /* Handoff into the video packaging flow — read back by Video Studio. */
+    try {
+      localStorage.setItem("wave8_thumbnail_winner", url);
+    } catch {
+      /* storage unavailable — winner still rendered on screen */
+    }
+  }
+
   /* Spine: pull the project's song/video in — the song title becomes overlay
      text, the video's prompt seeds the art direction. No re-typing. */
   function handleProjectPick(asset: HubAsset) {
@@ -584,6 +635,104 @@ export function ThumbnailMakerModule() {
                 />
               </div>
             )}
+
+            {/* Wave 8: AI Thumbnail A/B Tester — docked right after results.
+                Generates two alternates of the source thumbnail; the picked
+                winner travels into the video packaging flow. */}
+            <div id="wave8-thumbnail-ab" className="mt-10 rounded-2xl border border-primary/25 bg-black/60 p-5 md:p-6">
+              <h3 className="text-lg font-bold text-white">{t("wave8.thumbnailAb.title")}</h3>
+              <p className="text-sm text-white/50 mt-1">{t("wave8.thumbnailAb.subtitle")}</p>
+
+              {abError && (
+                <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+                  <p className="text-red-400 text-sm font-medium">{abError}</p>
+                </div>
+              )}
+
+              {abVariants.length === 0 ? (
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    disabled={abLoading}
+                    onClick={onTestVariants}
+                    className="gold-glow font-bold px-10 rounded-xl gap-2"
+                  >
+                    {abLoading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" /> {t("wave8.thumbnailAb.buttonBusy")}
+                      </>
+                    ) : (
+                      <>
+                        <FlaskConical className="h-5 w-5" /> {t("wave8.thumbnailAb.button")}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-white/40 mt-4">{t("wave8.thumbnailAb.compareNote")}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div className="rounded-2xl overflow-hidden border-2 border-white/[0.08] bg-white/[0.02]">
+                      <img
+                        src={selectedImage?.url ?? images[0]?.url}
+                        alt={t("wave8.thumbnailAb.originalLabel")}
+                        className={`w-full object-cover ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16] max-h-[320px] mx-auto"}`}
+                        loading="lazy"
+                      />
+                      <p className="text-xs font-bold text-white/60 px-3 py-2.5">{t("wave8.thumbnailAb.originalLabel")}</p>
+                    </div>
+                    {abVariants.map((v, i) => (
+                      <div
+                        key={`${v.label}-${i}`}
+                        className={`rounded-2xl overflow-hidden border-2 transition-all bg-white/[0.02] ${
+                          winnerUrl === v.url
+                            ? "border-primary shadow-[0_0_32px_rgba(212,175,55,0.25)]"
+                            : "border-white/[0.08]"
+                        }`}
+                      >
+                        <img
+                          src={v.url}
+                          alt={v.label}
+                          className={`w-full object-cover ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16] max-h-[320px] mx-auto"}`}
+                          loading="lazy"
+                        />
+                        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                          <p className="text-xs font-bold text-white/60">{v.label}</p>
+                          {winnerUrl === v.url ? (
+                            <span className="text-xs font-bold text-primary flex items-center gap-1">
+                              <Check className="h-3.5 w-3.5" /> {t("wave8.thumbnailAb.winnerLabel")}
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => pickWinner(v.url)}
+                              className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] text-xs"
+                            >
+                              {t("wave8.thumbnailAb.pickWinner")}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {winnerUrl && (
+                    <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm text-white/60">
+                        <span className="text-primary font-bold">{t("wave8.thumbnailAb.winnerLabel")}</span> — {t("wave8.thumbnailAb.winnerSaved")}
+                      </p>
+                      <Link href="/video-studio">
+                        <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
+                          <Clapperboard className="h-4 w-4" /> {t("wave8.thumbnailAb.useInVideoPackaging")}
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       {/* Lightbox */}
