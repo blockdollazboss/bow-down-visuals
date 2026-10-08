@@ -79,13 +79,19 @@ export async function getUserEmail(userId: string): Promise<string | null> {
   }
 }
 
-/* Create the Express connected account for a creator profile and store it. */
-export async function createConnectAccount(profileId: string, email: string | null): Promise<Stripe.Account> {
+/* Create the Express connected account for a creator profile and store it.
+ * Uses the Accounts v2 API — Stripe deprecated v1 account creation for new
+ * Connect integrations (Oct 2026: v1 returns "use POST /v2/core/accounts"). */
+export async function createConnectAccount(profileId: string, email: string | null): Promise<Stripe.V2.Core.Account> {
   const stripe = getConnectStripe();
-  const account = await stripe.accounts.create({
-    type: "express",
-    ...(email ? { email } : {}),
-    capabilities: { transfers: { requested: true } },
+  const account = await stripe.v2.core.accounts.create({
+    ...(email ? { contact_email: email } : {}),
+    dashboard: "express",
+    configuration: {
+      recipient: {
+        capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
+      },
+    },
     metadata: { profile_id: profileId, platform: "bow-down-visuals" },
   });
   await db.execute(sql`
@@ -93,38 +99,52 @@ export async function createConnectAccount(profileId: string, email: string | nu
     SET stripe_connect_account_id = ${account.id}, updated_at = NOW()
     WHERE id = ${profileId}
   `);
-  logger.info({ profileId, accountId: account.id }, "[connect] Express account created");
+  logger.info({ profileId, accountId: account.id }, "[connect] Express account created (v2)");
   return account;
 }
 
-/* Onboarding (or re-onboarding) link for the connected account. */
-export async function createOnboardingLink(accountId: string, req?: Request): Promise<Stripe.AccountLink> {
+/* Onboarding (or re-onboarding) link for the connected account. v2 account
+ * links take a use_case instead of the v1 account_onboarding type flag. */
+export async function createOnboardingLink(accountId: string, req?: Request): Promise<Stripe.V2.Core.AccountLink> {
   const stripe = getConnectStripe();
   const base = getBaseUrl(req);
-  return stripe.accountLinks.create({
+  return stripe.v2.core.accountLinks.create({
     account: accountId,
-    refresh_url: `${base}/store/dashboard?connect=refresh`,
-    return_url: `${base}/store/dashboard?connect=done`,
-    type: "account_onboarding",
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        configurations: ["recipient"],
+        refresh_url: `${base}/store/dashboard?connect=refresh`,
+        return_url: `${base}/store/dashboard?connect=done`,
+      },
+    },
   });
 }
 
-/* Live capability state straight from Stripe. */
+/* Live capability state straight from Stripe (v2). For a recipient account
+ * the money-in/out signal is the stripe_transfers capability status. */
 export async function getConnectStatus(accountId: string): Promise<ConnectFields> {
   const stripe = getConnectStripe();
-  const acct = await stripe.accounts.retrieve(accountId);
+  const acct = await stripe.v2.core.accounts.retrieve(accountId);
+  const transfers = acct.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers as
+    | { status?: string }
+    | undefined;
+  const active = transfers?.status === "active";
+  const entries = acct.requirements?.entries ?? [];
   return {
     accountId: acct.id,
-    onboarded: acct.details_submitted === true,
-    chargesEnabled: acct.charges_enabled === true,
-    payoutsEnabled: acct.payouts_enabled === true,
+    onboarded: active || entries.length === 0,
+    chargesEnabled: active,
+    payoutsEnabled: active,
   };
 }
 
-/* Dashboard login link so creators can manage their Express account. */
-export async function createLoginLink(accountId: string): Promise<Stripe.LoginLink> {
-  const stripe = getConnectStripe();
-  return stripe.accounts.createLoginLink(accountId);
+/* Dashboard login link: the v2 API has no login-link endpoint, so creators
+ * manage their account in the Stripe Express dashboard directly. */
+export async function createLoginLink(_accountId: string): Promise<never> {
+  throw new Error(
+    "Express dashboard login links aren't available on Stripe Accounts v2 — sign in at the Stripe Express dashboard directly.",
+  );
 }
 
 /* Transfer creator earnings to their connected account. TEST MODE only moves
@@ -150,17 +170,29 @@ export async function createPayoutTransfer(
 }
 
 /* account.updated webhook → keep the profile flags in sync. */
-export async function syncConnectAccountStatus(acct: Stripe.Account): Promise<void> {
+export async function syncConnectAccountStatus(acct: {
+  id: string;
+  configuration?: {
+    recipient?: {
+      capabilities?: { stripe_balance?: { stripe_transfers?: { status?: string } } };
+    };
+  };
+  requirements?: { entries?: unknown[] };
+}): Promise<void> {
   const profileId = await getProfileIdByConnectAccount(acct.id);
   if (!profileId) {
     logger.warn({ accountId: acct.id }, "[connect] account.updated for unknown account — skipping");
     return;
   }
+  const transfers = acct.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers;
+  const active = transfers?.status === "active";
+  const entries = acct.requirements?.entries ?? [];
+  const onboarded = active || entries.length === 0;
   await db.execute(sql`
     UPDATE creator_profiles
-    SET stripe_connect_onboarded = ${acct.details_submitted === true},
-        stripe_connect_charges_enabled = ${acct.charges_enabled === true},
-        stripe_connect_payouts_enabled = ${acct.payouts_enabled === true},
+    SET stripe_connect_onboarded = ${onboarded},
+        stripe_connect_charges_enabled = ${active},
+        stripe_connect_payouts_enabled = ${active},
         updated_at = NOW()
     WHERE id = ${profileId}
   `);
@@ -168,10 +200,10 @@ export async function syncConnectAccountStatus(acct: Stripe.Account): Promise<vo
     {
       profileId,
       accountId: acct.id,
-      onboarded: acct.details_submitted,
-      chargesEnabled: acct.charges_enabled,
-      payoutsEnabled: acct.payouts_enabled,
+      onboarded,
+      chargesEnabled: active,
+      payoutsEnabled: active,
     },
-    "[connect] account status synced from webhook",
+    "[connect] account status synced from webhook (v2)",
   );
 }

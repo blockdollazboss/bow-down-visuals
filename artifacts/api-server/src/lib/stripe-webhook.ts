@@ -80,10 +80,19 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       await handleTierInvoiceFailed(inv);
       res.status(200).json({ received: true, kind: "creator_tier" });
       return;
-    } else if (event.type === "account.updated") {
+    } else if (event.type === "account.updated" || (event.type as string) === "v2.core.account.updated") {
       /* Stripe Connect: keep the creator profile's onboarding flags in sync
-         with the Express account's capability state. */
-      const acct = event.data.object as Stripe.Account;
+         with the Express account's capability state. v2 accounts emit
+         v2.core.account.updated; the sync helper reads the v2 shape. */
+      const acct = event.data.object as {
+        id: string;
+        configuration?: {
+          recipient?: {
+            capabilities?: { stripe_balance?: { stripe_transfers?: { status?: string } } };
+          };
+        };
+        requirements?: { entries?: unknown[] };
+      };
       const { syncConnectAccountStatus } = await import("./stripe-connect");
       await syncConnectAccountStatus(acct);
       res.status(200).json({ received: true, kind: "connect_account" });

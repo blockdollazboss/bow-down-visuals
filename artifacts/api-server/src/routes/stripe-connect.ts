@@ -11,7 +11,6 @@ import {
   createConnectAccount,
   createOnboardingLink,
   getConnectStatus,
-  createLoginLink,
   createPayoutTransfer,
   getUserEmail,
 } from "../lib/stripe-connect";
@@ -144,7 +143,9 @@ router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) =>
   }
 });
 
-/* ── POST /api/connect/login-link — manage the Express account in Stripe */
+/* ── POST /api/connect/login-link — manage the Express account in Stripe.
+ * NOTE: Accounts v2 has no login-link API. Creators sign in at the Stripe
+ * Express dashboard directly; this endpoint explains that gracefully. */
 router.post("/connect/login-link", requireAuth, publicApiLimiter, async (req, res) => {
   if (!stripeOr503(res)) return;
   try {
@@ -158,8 +159,10 @@ router.post("/connect/login-link", requireAuth, publicApiLimiter, async (req, re
       res.status(400).json({ error: "NO_ACCOUNT", message: "Start onboarding first." });
       return;
     }
-    const link = await createLoginLink(fields.accountId);
-    res.json({ url: link.url });
+    res.status(501).json({
+      error: "NO_LOGIN_LINK",
+      message: "Stripe's v2 API doesn't issue dashboard login links — manage your account in the Stripe Express dashboard directly.",
+    });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[connect] login link failed");
     res.status(500).json({ error: "Could not open your Stripe dashboard. Try again." });
