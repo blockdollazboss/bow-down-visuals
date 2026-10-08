@@ -28,7 +28,7 @@ const router = Router();
 export const CATALOG_VAULT_CREDIT_COST = Number(process.env["CATALOG_VAULT_CREDITS"]) || 200;
 
 /* Award ladder for logged stream counts. */
-const AWARD_STEPS = [
+export const AWARD_STEPS = [
   { tier: "bronze", at: 1_000, label: "Bronze — 1K streams" },
   { tier: "silver", at: 10_000, label: "Silver — 10K streams" },
   { tier: "gold", at: 100_000, label: "Gold — 100K streams" },
@@ -36,7 +36,7 @@ const AWARD_STEPS = [
   { tier: "diamond", at: 10_000_000, label: "Diamond — 10M streams" },
 ] as const;
 
-function awardFor(streams: number): (typeof AWARD_STEPS)[number]["tier"] | "none" {
+export function awardFor(streams: number): (typeof AWARD_STEPS)[number]["tier"] | "none" {
   let tier: (typeof AWARD_STEPS)[number]["tier"] | "none" = "none";
   for (const step of AWARD_STEPS) {
     if (streams >= step.at) tier = step.tier;
@@ -44,7 +44,7 @@ function awardFor(streams: number): (typeof AWARD_STEPS)[number]["tier"] | "none
   return tier;
 }
 
-function nextStepAfter(streams: number): (typeof AWARD_STEPS)[number] | null {
+export function nextStepAfter(streams: number): (typeof AWARD_STEPS)[number] | null {
   for (const step of AWARD_STEPS) {
     if (streams < step.at) return step;
   }
@@ -68,7 +68,7 @@ const csvImportSchema = z.object({
 
 /* Parse a simple CSV: header row then data. Accepts headers
    track_title|track|title, platform, streams|stream_count (case-insensitive). */
-function parseMilestoneCsv(csv: string): { rows: Array<{ trackTitle: string; platform: string; streamCount: number }>; skipped: number } {
+export function parseMilestoneCsv(csv: string): { rows: Array<{ trackTitle: string; platform: string; streamCount: number }>; skipped: number } {
   const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows: Array<{ trackTitle: string; platform: string; streamCount: number }> = [];
   let skipped = 0;
