@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import SplitsOverview, { fetchReleaseOptions } from "./SplitsOverview";
+import SplitCalculator from "../wave8/SplitCalculator";
 
 /* ─── Money Tracker panel (mounted INSIDE the /coach page as a tab) ──────
    "Know your numbers": a free per-user income/expense ledger (CRUD on
@@ -99,8 +100,8 @@ export default function MoneyTrackerPanel() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  /* Ledger vs Splits view (deep-linkable: /coach?tab=money&view=splits) */
-  const [view, setView] = useState<"ledger" | "splits">(() => {
+  /* Ledger vs Splits vs Split Sheets view (deep-linkable: /coach?tab=money&view=splits) */
+  const [view, setView] = useState<"ledger" | "splits" | "splitSheets">(() => {
     try {
       return new URLSearchParams(window.location.search).get("view") === "splits" ? "splits" : "ledger";
     } catch {
@@ -376,9 +377,9 @@ export default function MoneyTrackerPanel() {
         </button>
       </div>
 
-      {/* ── Ledger vs Splits toggle ─────────────────────────────────── */}
+      {/* ── Ledger vs Splits vs Split Sheets toggle ───────────────────── */}
       <div className="mt-4 inline-flex gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
-        {(["ledger", "splits"] as const).map((v) => (
+        {(["ledger", "splits", "splitSheets"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -388,12 +389,14 @@ export default function MoneyTrackerPanel() {
                 : "text-white/55 hover:text-white"
             }`}
           >
-            {v === "ledger" ? "Ledger" : "Splits"}
+            {v === "ledger" ? "Ledger" : v === "splits" ? "Splits" : t("wave8.splits.splitSheetsTab")}
           </button>
         ))}
       </div>
 
-      {view === "splits" ? (
+      {view === "splitSheets" ? (
+        <SplitCalculator />
+      ) : view === "splits" ? (
         <SplitsOverview />
       ) : loading ? (
         <div className="mt-6 flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.03] p-12 text-sm text-white/50">
