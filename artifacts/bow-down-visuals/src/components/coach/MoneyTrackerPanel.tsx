@@ -32,7 +32,7 @@ interface MoneyEntry {
   source: string | null;
   entry_date: string; // YYYY-MM-DD
   created_at: string;
-  release_id?: string | null;
+  releaseId?: string | null;
 }
 
 const INCOME_CATEGORIES = [
@@ -662,10 +662,10 @@ export default function MoneyTrackerPanel() {
                                 Cancel
                               </button>
                             </span>
-                          ) : releaseTitle(e.release_id) ? (
+                          ) : releaseTitle(e.releaseId) ? (
                             <span className="inline-flex items-center gap-1.5">
                               <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/[0.08] px-2 py-0.5 text-[10px] font-bold text-primary">
-                                {releaseTitle(e.release_id)}
+                                {releaseTitle(e.releaseId)}
                               </span>
                               <button
                                 onClick={() => linkEntry(e.id, null)}

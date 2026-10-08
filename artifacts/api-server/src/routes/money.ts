@@ -87,7 +87,7 @@ router.post("/money", requireAuth, async (req, res) => {
         note: d.note ?? "",
         source: d.source ?? null,
         entry_date: d.date ?? todayYmd(),
-        release_id: releaseId,
+        releaseId: releaseId,
       })
       .returning();
     res.status(201).json({ entry });
@@ -154,7 +154,7 @@ router.patch("/money/:id", requireAuth, async (req, res) => {
     }
     const updated = await db
       .update(moneyEntriesTable)
-      .set({ release_id: releaseId, updated_at: new Date() })
+      .set({ releaseId: releaseId, updated_at: new Date() })
       .where(and(eq(moneyEntriesTable.id, id), eq(moneyEntriesTable.user_id, req.userId!)))
       .returning();
     if (updated.length === 0) {
@@ -227,7 +227,7 @@ router.get("/splits/overview", requireAuth, async (req, res) => {
       WHERE user_id = ${req.userId!}
       ORDER BY release_id, agreement_version, share_pct DESC
     `);
-    const splitRows = (splitsResult.rows as SplitVersionRow[]).filter((s) =>
+    const splitRows = (splitsResult.rows as unknown as SplitVersionRow[]).filter((s) =>
       releaseIds.includes(s.release_id),
     );
     const splitsByRelease = new Map<string, SplitVersionRow[]>();
@@ -245,7 +245,7 @@ router.get("/splits/overview", requireAuth, async (req, res) => {
         AND release_id IS NOT NULL
       ORDER BY entry_date DESC
     `);
-    const incomeRows = (incomeResult.rows as LinkedIncomeRow[]).filter((e) =>
+    const incomeRows = (incomeResult.rows as unknown as LinkedIncomeRow[]).filter((e) =>
       releaseIds.includes(e.release_id),
     );
 
