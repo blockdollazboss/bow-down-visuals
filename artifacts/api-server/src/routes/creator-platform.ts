@@ -16,7 +16,7 @@ import {
   notificationsTable,
   dmcaReportsTable,
 } from "@workspace/db";
-import { eq, and, desc, sql, count } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 
 const router = Router();
@@ -33,6 +33,23 @@ const router = Router();
    (influencers: {audience_size, engagement_rate, rates, niches});
    playlists.kind 'playlist'|'series' + profile_videos.season/episode for
    film/TV episodic series (ordered playlist items = episode order).
+   profile_videos.sound_track_id (nullable FK -> profile_tracks, SET NULL):
+   video <-> sound linkage.
+   LINK GRAPH (every payload carries two-way link fields — no extra fetches):
+   - profile payloads: id, slug, vertical + presence flags has_downloads
+     (store), has_social_links, has_stream_schedule, has_media_kit,
+     tip_jar_enabled (tips). Link: /creator/:slug everywhere.
+   - track/video payloads: id, profile_id, profile_slug, buyable,
+     download_price_cents; videos also carry sound {id,title,audio_url,
+     artwork_url,profile_slug} | null.
+   - playlists: id, owner_profile_id, owner_profile_slug, kind,
+     items (raw {kind,id}) + resolved_items [{kind,id,title,artwork_url,
+     profile_slug,buyable}] in read order.
+   - comments (wall + media): id, author_user_id, author_profile_slug.
+   - like/unlike/repost/unrepost: fresh like_count / repost_count.
+   - play: fresh plays count (play_count / view_count).
+   - follow/unfollow: fresh follower_count.
+   - notifications: link field points at the in-site destination.
    Tables (lib/db/migrations 0085–0088, drizzle lib/db/src/schema/):
      creator_profiles(user_id UNIQUE, slug UNIQUE, display_name, bio,
        avatar_url, banner_url, theme_id DEFAULT 'gold-lux', theme_config JSONB,
@@ -201,6 +218,158 @@ async function notify(profileOwnerUserId: string | null | undefined, n: {
   }
 }
 
+/* ── Link-graph helpers ───────────────────────────────────────────────────────
+   Rule: every payload carries what its neighbors need for two-way linking.
+   - media payloads: profile_slug + buyable/download_price_cents + sound (videos)
+   - comments: author_profile_slug
+   - playlists: owner_profile_slug + resolved_items (kind/id/title/artwork/profile_slug)
+   - profiles: presence flags (has_downloads = store, has_social_links, tip_jar_enabled, has_stream_schedule)
+*/
+
+async function authorSlugMap(userIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return map;
+  const rows = await db.select({ userId: creatorProfilesTable.userId, slug: creatorProfilesTable.slug })
+    .from(creatorProfilesTable)
+    .where(inArray(creatorProfilesTable.userId, unique));
+  for (const r of rows) map.set(r.userId, r.slug);
+  return map;
+}
+
+function withAuthorSlugs<T extends { authorUserId: string }>(
+  comments: T[], slugs: Map<string, string>,
+): Array<T & { author_profile_slug: string | null }> {
+  return comments.map((c) => ({
+    ...c,
+    author_profile_slug: slugs.get(c.authorUserId) ?? null,
+  }));
+}
+
+type TrackRow = typeof profileTracksTable.$inferSelect;
+type VideoRow = typeof profileVideosTable.$inferSelect;
+
+function enrichTrack(row: TrackRow, profileSlug: string) {
+  return {
+    ...row,
+    profile_slug: profileSlug,
+    buyable: (row.downloadPriceCents ?? 0) > 0,
+    download_price_cents: row.downloadPriceCents ?? 0,
+  };
+}
+
+function enrichVideo(
+  row: VideoRow,
+  profileSlug: string,
+  sounds: Map<string, { id: string; title: string; audio_url: string; artwork_url: string | null; profile_slug: string }>,
+) {
+  return {
+    ...row,
+    profile_slug: profileSlug,
+    buyable: (row.downloadPriceCents ?? 0) > 0,
+    download_price_cents: row.downloadPriceCents ?? 0,
+    sound: row.soundTrackId ? (sounds.get(row.soundTrackId) ?? null) : null,
+  };
+}
+
+/** Presence flags so neighbors can link off a profile payload without extra round-trips. */
+async function profileFlags(profile: typeof creatorProfilesTable.$inferSelect) {
+  const [t, v] = await Promise.all([
+    db.select({ c: count() }).from(profileTracksTable).where(and(
+      eq(profileTracksTable.profileId, profile.id),
+      eq(profileTracksTable.isPublished, true),
+      sql`${profileTracksTable.downloadPriceCents} > 0`,
+    )),
+    db.select({ c: count() }).from(profileVideosTable).where(and(
+      eq(profileVideosTable.profileId, profile.id),
+      eq(profileVideosTable.isPublished, true),
+      sql`${profileVideosTable.downloadPriceCents} > 0`,
+    )),
+  ]);
+  const socialLinks = (profile.socialLinks ?? {}) as Record<string, string>;
+  return {
+    has_downloads: (t[0]?.c ?? 0) + (v[0]?.c ?? 0) > 0,
+    has_social_links: Object.keys(socialLinks).length > 0,
+    has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
+    has_media_kit: profile.mediaKit !== null,
+  };
+}
+
+/** Batch-resolve sound linkage for videos: sound_track_id -> {id,title,audio_url,artwork_url,profile_slug}. */
+async function soundMapFor(
+  videos: VideoRow[], profileSlug: string,
+): Promise<Map<string, { id: string; title: string; audio_url: string; artwork_url: string | null; profile_slug: string }>> {
+  const map = new Map<string, { id: string; title: string; audio_url: string; artwork_url: string | null; profile_slug: string }>();
+  const ids = [...new Set(videos.map((v) => v.soundTrackId).filter((x): x is string => !!x))];
+  if (ids.length === 0) return map;
+  const rows = await db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, ids));
+  for (const t of rows) {
+    map.set(t.id, {
+      id: t.id,
+      title: t.title,
+      audio_url: t.audioUrl,
+      artwork_url: t.artworkUrl,
+      profile_slug: profileSlug,
+    });
+  }
+  return map;
+}
+
+type PlaylistRow = typeof playlistsTable.$inferSelect;
+
+interface ResolvedPlaylistItem {
+  kind: "track" | "video";
+  id: string;
+  title: string;
+  artwork_url: string | null;
+  profile_slug: string;
+  buyable: boolean;
+}
+
+/** Resolve playlist items (stored as {kind,id}) into linkable detail objects. */
+async function resolvePlaylistItems(
+  playlists: PlaylistRow[], profileSlug: string,
+): Promise<Array<PlaylistRow & { owner_profile_slug: string; resolved_items: ResolvedPlaylistItem[] }>> {
+  const trackIds = new Set<string>();
+  const videoIds = new Set<string>();
+  for (const p of playlists) {
+    for (const item of p.items ?? []) {
+      if (item?.kind === "track" && item.id) trackIds.add(item.id);
+      if (item?.kind === "video" && item.id) videoIds.add(item.id);
+    }
+  }
+  const [tracks, videos] = await Promise.all([
+    trackIds.size
+      ? db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, [...trackIds]))
+      : Promise.resolve([] as TrackRow[]),
+    videoIds.size
+      ? db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, [...videoIds]))
+      : Promise.resolve([] as VideoRow[]),
+  ]);
+  const byId = new Map<string, ResolvedPlaylistItem>();
+  for (const t of tracks) {
+    byId.set(t.id, {
+      kind: "track", id: t.id, title: t.title,
+      artwork_url: t.artworkUrl, profile_slug: profileSlug,
+      buyable: (t.downloadPriceCents ?? 0) > 0,
+    });
+  }
+  for (const v of videos) {
+    byId.set(v.id, {
+      kind: "video", id: v.id, title: v.title,
+      artwork_url: v.thumbnailUrl, profile_slug: profileSlug,
+      buyable: (v.downloadPriceCents ?? 0) > 0,
+    });
+  }
+  return playlists.map((p) => ({
+    ...p,
+    owner_profile_slug: profileSlug,
+    resolved_items: (p.items ?? [])
+      .map((item) => (item?.id ? byId.get(item.id) ?? null : null))
+      .filter((x): x is ResolvedPlaylistItem => x !== null),
+  }));
+}
+
 /** Rate limiter: 1 counted play per IP per media item per 60s window. */
 const playLimiter = rateLimit({
   windowMs: 60_000,
@@ -226,7 +395,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
       return;
     }
 
-    const [topTracks, topVideos, profilePlaylists, counts] = await Promise.all([
+    const [topTracks, topVideos, profilePlaylists, counts, hasDownloads] = await Promise.all([
       db.select().from(profileTracksTable)
         .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
         .orderBy(desc(profileTracksTable.playCount)).limit(5),
@@ -249,7 +418,23 @@ router.get("/creator-profiles/:slug", async (req, res) => {
             playlists: playlistRows[0]?.playlistCount ?? 0,
           };
         }),
+      // Store presence: any published item with a download price.
+      Promise.all([
+        db.select({ c: count() }).from(profileTracksTable).where(and(
+          eq(profileTracksTable.profileId, profile.id),
+          eq(profileTracksTable.isPublished, true),
+          sql`${profileTracksTable.downloadPriceCents} > 0`,
+        )),
+        db.select({ c: count() }).from(profileVideosTable).where(and(
+          eq(profileVideosTable.profileId, profile.id),
+          eq(profileVideosTable.isPublished, true),
+          sql`${profileVideosTable.downloadPriceCents} > 0`,
+        )),
+      ]).then(([t, v]) => (t[0]?.c ?? 0) + (v[0]?.c ?? 0) > 0),
     ]);
+
+    const sounds = await soundMapFor(topVideos, profile.slug);
+    const socialLinks = (profile.socialLinks ?? {}) as Record<string, string>;
 
     res.json({
       profile: {
@@ -272,11 +457,16 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
         created_at: profile.createdAt,
+        // Presence flags — neighbors link off these without extra round-trips.
+        has_downloads: hasDownloads,
+        has_social_links: Object.keys(socialLinks).length > 0,
+        has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
+        has_media_kit: profile.mediaKit !== null,
       },
       counts,
-      top_tracks: topTracks,
-      top_videos: topVideos,
-      playlists: profilePlaylists,
+      top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug)),
+      top_videos: topVideos.map((v) => enrichVideo(v, profile.slug, sounds)),
+      playlists: await resolvePlaylistItems(profilePlaylists, profile.slug),
     });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/:slug error");
@@ -331,11 +521,11 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     if (existing) {
       const [updated] = await db.update(creatorProfilesTable).set(values)
         .where(eq(creatorProfilesTable.id, existing.id)).returning();
-      res.json({ profile: updated, created: false });
+      res.json({ profile: { ...updated, ...(await profileFlags(updated)) }, created: false });
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
-    res.status(201).json({ profile: created, created: true });
+    res.status(201).json({ profile: { ...created, ...(await profileFlags(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
     res.status(500).json({ error: "The save fumbled. Run it back." });
@@ -380,7 +570,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();
-    res.json({ profile: updated });
+    res.json({ profile: { ...updated, ...(await profileFlags(updated)) } });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
@@ -477,7 +667,8 @@ router.get("/creator-profiles/:id/comments", async (req, res) => {
     const comments = await db.select().from(profileCommentsTable)
       .where(eq(profileCommentsTable.profileId, profile.id))
       .orderBy(desc(profileCommentsTable.createdAt)).limit(limit).offset(offset);
-    res.json({ comments });
+    const slugs = await authorSlugMap(comments.map((c) => c.authorUserId));
+    res.json({ comments: withAuthorSlugs(comments, slugs) });
   } catch (err) {
     req.log.error({ err }, "wall comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -501,13 +692,14 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
       authorUserId: req.userId!,
       body: parsed.data.body,
     }).returning();
+    const slugs = await authorSlugMap([comment.authorUserId]);
     await notify(profile.userId, {
       kind: "comment",
       title: "Fresh ink on your wall 🦈",
       body: parsed.data.body.slice(0, 120),
       link: `/creator/${profile.slug}`,
     });
-    res.status(201).json({ comment });
+    res.status(201).json({ comment: withAuthorSlugs([comment], slugs)[0] });
   } catch (err) {
     req.log.error({ err }, "wall comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });
@@ -533,7 +725,8 @@ router.get("/media/:kind/:id/comments", async (req, res) => {
     const comments = await db.select().from(mediaCommentsTable)
       .where(and(eq(mediaCommentsTable.kind, kind), eq(mediaCommentsTable.mediaId, media.id)))
       .orderBy(desc(mediaCommentsTable.createdAt)).limit(limit).offset(offset);
-    res.json({ comments });
+    const slugs = await authorSlugMap(comments.map((c) => c.authorUserId));
+    res.json({ comments: withAuthorSlugs(comments, slugs) });
   } catch (err) {
     req.log.error({ err }, "media comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -565,6 +758,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
     }).returning();
     await bumpCounter(kind, media.id, "comment");
     const profile = await getProfileById(media.profileId);
+    const commentSlugs = await authorSlugMap([comment.authorUserId]);
     if (profile && profile.userId !== req.userId) {
       await notify(profile.userId, {
         kind: "comment",
@@ -573,7 +767,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
         link: `/creator/${profile.slug}`,
       });
     }
-    res.status(201).json({ comment });
+    res.status(201).json({ comment: withAuthorSlugs([comment], commentSlugs)[0] });
   } catch (err) {
     req.log.error({ err }, "media comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });
@@ -606,7 +800,8 @@ router.post("/media/:kind/:id/like", requireAuth, async (req, res) => {
         link: `/creator/${profile.slug}`,
       });
     }
-    res.json({ liked: true });
+    const fresh = await getMedia(kind, media.id);
+    res.json({ liked: true, like_count: fresh?.likeCount ?? media.likeCount + 1 });
   } catch (err) {
     req.log.error({ err }, "like error");
     res.status(500).json({ error: "The like didn't land. Try again." });
@@ -630,7 +825,8 @@ router.delete("/media/:kind/:id/unlike", requireAuth, async (req, res) => {
     if (deleted.length > 0) {
       await bumpCounter(kind, String(req.params["id"]), "like", -1);
     }
-    res.json({ liked: false });
+    const fresh = await getMedia(kind, String(req.params["id"]));
+    res.json({ liked: false, like_count: fresh?.likeCount ?? 0 });
   } catch (err) {
     req.log.error({ err }, "unlike error");
     res.status(500).json({ error: "The unlike didn't stick. Try again." });
@@ -657,7 +853,9 @@ router.post("/tracks/:id/repost", requireAuth, async (req, res) => {
         link: `/creator/${profile.slug}`,
       });
     }
-    res.json({ reposted: true });
+    const [fresh] = await db.select().from(profileTracksTable)
+      .where(eq(profileTracksTable.id, track.id)).limit(1);
+    res.json({ reposted: true, repost_count: fresh?.repostCount ?? track.repostCount + 1 });
   } catch (err) {
     req.log.error({ err }, "repost error");
     res.status(500).json({ error: "The repost didn't land. Try again." });
@@ -675,7 +873,9 @@ router.delete("/tracks/:id/unrepost", requireAuth, async (req, res) => {
     if (deleted.length > 0) {
       await bumpCounter("track", String(req.params["id"]), "repost", -1);
     }
-    res.json({ reposted: false });
+    const [fresh] = await db.select().from(profileTracksTable)
+      .where(eq(profileTracksTable.id, String(req.params["id"]))).limit(1);
+    res.json({ reposted: false, repost_count: fresh?.repostCount ?? 0 });
   } catch (err) {
     req.log.error({ err }, "unrepost error");
     res.status(500).json({ error: "The unrepost didn't stick. Try again." });
@@ -705,7 +905,11 @@ router.post("/media/:kind/:id/play", playLimiter, async (req, res) => {
     await db.update(creatorProfilesTable)
       .set({ totalPlays: sql`${creatorProfilesTable.totalPlays} + 1`, updatedAt: new Date() })
       .where(eq(creatorProfilesTable.id, media.profileId));
-    res.json({ ok: true });
+    const fresh = await getMedia(kind, media.id);
+    res.json({
+      ok: true,
+      plays: kind === "track" ? (fresh as TrackRow | null)?.playCount : (fresh as VideoRow | null)?.viewCount,
+    });
   } catch (err) {
     req.log.error({ err }, "play error");
     res.status(500).json({ error: "The play didn't count. Hit it again." });
