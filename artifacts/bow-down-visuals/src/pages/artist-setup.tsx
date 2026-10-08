@@ -14,10 +14,13 @@ import {
   presetById, themeVars, isValidHex, profileUrl,
 } from "@/lib/artist-profiles";
 import AiPageDesigner from "@/components/artist/ai-page-designer";
+import LightningSetup from "@/components/artist/lightning-setup";
+import ConfettiBurst from "@/components/artist/confetti-burst";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
 import { HeroSection, ProfileSections } from "@/components/artist/profile-sections";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Profile editor — /artist-setup (coordinator wires the route) ─────────
    Tabs: AI Designer (DEFAULT), Basics, Theme, Sections, Content, Publish.
@@ -105,12 +108,30 @@ function ImageField({
 /* ─── The reveal moment ─── */
 function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose: () => void }) {
   const url = profileUrl(profile);
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* noop */ }
+  const [copied, setCopied] = useState<"link" | "embed" | null>(null);
+  /* Embed snippet — iframe of the public page, attribution riding along.
+     (Worker 2's richer embeds can swap this snippet later.) */
+  const embedSnippet =
+    `<!-- Your page, powered by Bow Down Visuals — share the cheat code -->\n<iframe src="${url}" width="100%" height="640" style="border:0;border-radius:16px" loading="lazy" title="${profile.display_name} — Bow Down Visuals"></iframe>`;
+  const copy = async (text: string, which: "link" | "embed") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
+    } catch { /* noop */ }
+  };
+  const nativeShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${profile.display_name} — Bow Down Visuals`, url });
+      } else {
+        await copy(url, "link");
+      }
+    } catch { /* user cancelled */ }
   };
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur">
+      <ConfettiBurst />
       <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-white/50 hover:text-white">
         <X className="h-6 w-6" />
       </button>
@@ -125,10 +146,33 @@ function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose:
         </p>
         <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 p-2 pl-4">
           <span className="flex-1 truncate text-left text-sm text-white/70">{url}</span>
-          <button onClick={() => void copy()} className="flex items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black">
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied" : "Copy"}
+          <button onClick={() => void copy(url, "link")} className="flex items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black">
+            {copied === "link" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied === "link" ? "Copied" : "Copy"}
           </button>
+        </div>
+        {/* Instant share actions */}
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => void nativeShare()}
+            className="flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-2 text-xs font-bold text-black transition hover:scale-105"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share
+          </button>
+          <button
+            onClick={() => void copy(embedSnippet, "embed")}
+            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:text-white"
+            title="Copy an embed snippet for your site or blog"
+          >
+            {copied === "embed" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied === "embed" ? "Embed copied" : "Embed code"}
+          </button>
+          <Link
+            href="/home"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:text-white"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Post your first update
+          </Link>
         </div>
         <div className="mt-4 flex justify-center gap-2">
           <Link href={`/artist/${profile.slug}`} className="flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105">
@@ -146,12 +190,16 @@ function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose:
 export default function ArtistSetup() {
   usePageTitle("Artist Setup — Bow Down Visuals", "Build your creator profile: AI page designer, themes, sections, and publishing.");
   const { toast } = useToast();
+  const { profile: authProfile, user } = useAuth();
   const [tab, setTab] = useState<TabId>("designer");
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [exists, setExists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [reveal, setReveal] = useState(false);
+  /* Lightning mode: first-run express wizard (60 seconds to a live page).
+     Shown when the user has no profile yet; the full editor is one tap away. */
+  const [lightning, setLightning] = useState(true);
   const wasPublic = useRef(false);
 
   useEffect(() => {
@@ -161,7 +209,24 @@ export default function ArtistSetup() {
         const p = await fetchMyProfile();
         if (cancelled) return;
         if (p) { setProfile(p); setExists(true); wasPublic.current = p.is_public; }
-        else setProfile(emptyProfile());
+        else {
+          /* Ruthless prefill for the manual path too: auth name/avatar,
+             then the artist vault's name/photo when one exists. */
+          const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
+          let preName = authProfile?.display_name || meta.full_name || meta.name || "";
+          let preAvatar: string | null = meta.avatar_url || meta.picture || null;
+          try {
+            const res = await fetch("/api/artist-vaults");
+            const data = await res.json();
+            const vaults = data.vaults ?? data ?? [];
+            const v = Array.isArray(vaults) ? vaults[0] : null;
+            if (v) {
+              if (!preName && v.artist_name) preName = v.artist_name;
+              if (!preAvatar && v.reference_image_url) preAvatar = v.reference_image_url;
+            }
+          } catch { /* prefill is best-effort */ }
+          if (!cancelled) setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar }));
+        }
       } catch {
         if (!cancelled) setProfile(emptyProfile());
       } finally {
@@ -218,6 +283,25 @@ export default function ArtistSetup() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
       </div>
+    );
+  }
+
+  /* First run: lightning wizard — live shareable profile in 60 seconds.
+     The full editor stays one tap away (no forced funnel). */
+  if (!exists && lightning) {
+    return (
+      <LightningSetup
+        onCreated={(p) => {
+          setProfile(p);
+          setExists(true);
+          wasPublic.current = true;
+        }}
+        onOpenEditor={(t) => {
+          setTab(t);
+          setLightning(false);
+        }}
+        onManual={() => setLightning(false)}
+      />
     );
   }
 

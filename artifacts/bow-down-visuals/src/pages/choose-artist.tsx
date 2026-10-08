@@ -4,6 +4,7 @@ import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkle
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { fetchMyProfile } from "@/lib/artist-profiles";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -48,9 +49,16 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
-  function handleContinueWithout() {
+  async function handleContinueWithout() {
     setActiveArtist(null);
-    setLocation("/dashboard");
+    /* Lightning onboarding: users with no public profile go straight to the
+       60-second setup instead of landing on the dashboard with no next step. */
+    try {
+      const p = await fetchMyProfile();
+      setLocation(p ? "/dashboard" : "/artist-setup");
+    } catch {
+      setLocation("/dashboard");
+    }
   }
 
   /* Top 3 featured (active artist first, then most recent), max 10 total. */
@@ -109,6 +117,16 @@ export default function ChooseArtist() {
               <p className="text-white/60 font-semibold mb-1">{t("chooseArtist.emptyTitle")}</p>
               <p className="text-sm text-white/35">{t("chooseArtist.emptyDescription")}</p>
             </div>
+            <Link href="/artist-setup">
+              <Button
+                className="h-12 px-8 font-bold gap-2 rounded-2xl"
+                style={{ background: "linear-gradient(135deg, #9B7515, #DAA520)" }}
+                data-testid="btn-claim-page"
+              >
+                <Sparkles className="h-4 w-4" />
+                Claim my public page — live in 60 seconds
+              </Button>
+            </Link>
           </div>
         ) : (
           <>
