@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
-  Film, ArrowLeft, Loader2, ChevronRight, ChevronDown, ChevronUp,
+  Film, ArrowLeft, Loader2, ChevronRight, ChevronDown, ChevronUp, ArrowRight,
   FolderOpen, Music, Video, Mic2, Image as ImageIcon, Wand2,
   Megaphone, Check, Search,
 } from "lucide-react";
@@ -1099,6 +1099,15 @@ export default function PromoClip() {
 
             {/* Wave 8: AI Caption Styler — styled, timed captions for the clip.
                 Prefills from the song hook when present. */}
+            {/* Cross-link: Hook Studio writes text captions — the styler below
+                burns them INTO the video. */}
+            <Link
+              href="/hooks?tab=captions"
+              className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 transition hover:border-primary/40 hover:text-white"
+            >
+              <span>{t("promo-clip.needTextCaptions", { defaultValue: "Need text captions?" })}</span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+            </Link>
             <CaptionStyler initialTranscript={watched.songHook || watched.songTitle || ""} />
 
           </div>
