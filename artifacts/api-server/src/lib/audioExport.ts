@@ -536,6 +536,14 @@ export async function runMixExport(opts: {
     const out = join(work, `mix.${format}`);
     const codecArgs =
       format === "mp3" ? ["-c:a", "libmp3lame", "-q:a", "2"] : ["-c:a", "pcm_s16le"];
+    /* Virality: passive attribution metadata on every mix export — invisible
+       ID3 tags (publisher + site) that ride with the file anywhere it's
+       posted. Honest, no brand clash, no audible change. */
+    const attributionArgs = [
+      "-metadata", "publisher=Bow Down Visuals",
+      "-metadata", "website=https://bowdownvisuals.com",
+      "-metadata", "comment=Created with Bow Down Visuals — bowdownvisuals.com",
+    ];
     const args = [
       "-y",
       ...inputs.flatMap((f) => ["-i", f]),
@@ -545,6 +553,7 @@ export async function runMixExport(opts: {
       "[out]",
       ...(previewSeconds && previewSeconds > 0 ? ["-t", previewSeconds.toFixed(2)] : []),
       ...codecArgs,
+      ...attributionArgs,
       out,
     ];
 

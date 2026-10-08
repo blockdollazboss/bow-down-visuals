@@ -12,6 +12,12 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+  burnAttributionIntoImage,
+} from "../../lib/attribution";
 
 const router = Router();
 
@@ -121,6 +127,8 @@ const thumbnailGeneratorSchema = z.object({
   stylePreset: z.string().max(100).optional(),
   aspectRatio: z.enum(["16:9", "9:16"]).optional(),
   overlayText: z.string().max(200).optional(),
+  /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 
 router.post(
@@ -136,7 +144,7 @@ router.post(
       });
       return;
     }
-    const { prompt, stylePreset, aspectRatio, overlayText } = parsed.data;
+    const { prompt, stylePreset, aspectRatio, overlayText, attribution } = parsed.data;
 
     if (prompt.trim().length < 3) {
       res.status(400).json({ error: "A text prompt (3+ characters) is required." });
@@ -208,9 +216,15 @@ router.post(
         }
 
         const objectName = `thumbnail-generator/${randomUUID()}.png`;
+        let imageBuffer: Buffer = Buffer.from(b64, "base64");
+        /* Virality: opt-in quiet corner credit burned post-generation (paid export → opt-in). */
+        if (attribution) {
+          const outW = ratio === "9:16" ? 1024 : 1536;
+          imageBuffer = await burnAttributionIntoImage(imageBuffer, outW);
+        }
         const storageRef = await uploadMediaToSupabaseStorage(
           objectName,
-          Buffer.from(b64, "base64"),
+          imageBuffer,
           "image/png",
         );
         const url = await refreshSupabaseStorageUrl(storageRef);
@@ -249,6 +263,7 @@ router.post(
 
     res.json({
       images,
+      attribution,
       creditsUsed: BATCH_CREDIT_COST,
       creditsRemaining: creditsAfter,
       aspectRatio: ratio,
