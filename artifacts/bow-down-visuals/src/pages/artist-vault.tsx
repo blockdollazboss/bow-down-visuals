@@ -1414,8 +1414,25 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
         position: "relative",
         cursor: vault.reference_image_url ? "zoom-in" : "default",
       }}>
-        {/* Initials avatar (no photo) */}
-        {!vault.reference_image_url && (
+        {/* Living portrait video — when there's no still photo but a video exists */}
+        {!vault.reference_image_url && vault.reference_video_url && (
+          <video
+            src={vault.reference_video_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            ref={(v) => { if (v) v.muted = true; }}
+            onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%", objectFit: "cover",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+        {/* Initials avatar (no photo or video) */}
+        {!vault.reference_image_url && !vault.reference_video_url && (
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -1448,7 +1465,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
 
         {/* Name strip at very bottom of photo */}
         <div style={{
-          position: "absolute", left: 0, right: 0, bottom: 0,
+          position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2,
           background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
           padding: "36px 14px 12px",
         }}>
