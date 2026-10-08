@@ -33,6 +33,7 @@
  *   GET    /storefront/discounts/validate          public: code → percent_off (no increment)
  *   GET    /storefront/orders/sales               auth: seller orders + honest money math
  *   GET    /storefront/orders/purchases            auth: buyer order history
+ *   POST   /storefront/orders/:id/delivery-token  auth: buyer re-mints a digital delivery link
  *   POST   /storefront/orders/:id/log-to-tracker  auth: push a sale into the Money Tracker (idempotent)
  *   POST   /storefront/orders/:id/service-confirm auth: confirm/decline a service booking
  *   GET    /storefront/deliver/:token             public: token-gated instant delivery (digital)
@@ -800,7 +801,9 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         productUrl: p ? `/artist/${p.artist_slug}#product-${p.id}` : null,
         creatorUrl: p ? `/artist/${p.artist_slug}` : null,
         eventUrl: eventId ? `/shows#event-${eventId}` : null,
-        orderHistoryUrl: "/storefront/purchases",
+        /* Buyer order history is API-only for now:
+           GET /api/storefront/orders/purchases (a "My purchases" page can mount it later). */
+        purchasesEndpoint: "/api/storefront/orders/purchases",
       },
       note: "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
     });
@@ -840,7 +843,7 @@ ${ok && fileUrl ? `<meta http-equiv="refresh" content="1;url=${safe(fileUrl)}"/>
     ? `“${safe(title ?? "Your content")}” — your download starts automatically. That's the cheat code.`
     : safe(message ?? "This link expired or hit its download limit.")}</p>
   ${ok && fileUrl ? `<a class="btn" href="${safe(fileUrl)}" download>Download now</a>` : ""}
-  ${ok ? `<div class="meta">${usesLeft ?? 0} downloads left · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? Re-download anytime from your <b>order history</b> on Bow Down Visuals.</div>` : ""}
+  ${ok ? `<div class="meta">${usesLeft ?? 0} downloads left · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? A fresh link can be minted for your order.</div>` : ""}
   <div class="brand">Bow Down Visuals</div>
 </div></body></html>`;
 }
@@ -865,7 +868,7 @@ router.get("/storefront/deliver/:token", publicApiLimiter, async (req, res) => {
     if (!row) {
       res.status(410).send(deliveryPageHtml({
         ok: false,
-        message: "This link expired (48 hours) or hit its 5-download limit. Your purchase is safe — mint a fresh link from your order history.",
+        message: "This link expired (48 hours) or hit its 5-download limit. Your purchase is safe — the buyer can mint a fresh link for their order (POST /api/storefront/orders/:id/delivery-token).",
       }));
       return;
     }
@@ -1267,6 +1270,48 @@ router.post("/storefront/orders/:id/service-confirm", requireAuth, publicApiLimi
   } catch (err) {
     logger.error({ err, id }, "[storefront] service confirm failed");
     res.status(500).json({ error: "Could not update this booking." });
+  }
+});
+
+/* ═══════════ BUYER: mint a fresh delivery token for an order ═════════ */
+router.post("/storefront/orders/:id/delivery-token", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid order id." });
+    return;
+  }
+  try {
+    const r = await db.execute(sql`
+      SELECT so.id, so.product_id, so.product_kind
+      FROM store_orders so
+      WHERE so.id = ${id} AND so.buyer_user_id = ${req.userId!}
+      LIMIT 1
+    `);
+    const orow = r.rows[0] as Record<string, unknown> | undefined;
+    if (!orow) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    const kind = String(orow["product_kind"]);
+    if (kind !== "digital" && kind !== "download") {
+      res.status(400).json({ error: "Only digital products have download links." });
+      return;
+    }
+    const p = await fetchProduct(String(orow["product_id"]), false);
+    const fileUrl = (p?.media_urls ?? [])[0];
+    if (!fileUrl) {
+      res.status(400).json({ error: "This file is no longer available." });
+      return;
+    }
+    const link = await mintDeliveryToken(id, fileUrl);
+    res.json({
+      url: `/api/storefront/deliver/${link.token}`,
+      expiresAt: link.expiresAt.toISOString(),
+      maxUses: DELIVERY_MAX_USES,
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] delivery token mint failed");
+    res.status(500).json({ error: "Could not create a download link." });
   }
 });
 
