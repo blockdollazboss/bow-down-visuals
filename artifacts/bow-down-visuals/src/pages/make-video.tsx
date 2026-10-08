@@ -20,6 +20,8 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SceneStudio } from "@/components/SceneStudio";
 import { StoryboardReview } from "@/components/StoryboardReview";
+import { CharacterDirector } from "@/components/SceneStudio/CharacterDirector";
+import { CameraMovePlanner } from "@/components/SceneStudio/CameraMovePlanner";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
 import { SongSegmentPicker, type SongSegment } from "@/components/SongSegmentPicker";
@@ -1372,28 +1374,45 @@ export function MakeVideoModule() {
               </div>
 
               {scenes.length > 0 ? (
-                !storyboardApproved ? (
-                  <StoryboardReview
-                    scenes={scenes}
-                    onApprove={(approvedScenes) => {
-                      setScenes(approvedScenes);
-                      setStoryboardApproved(true);
-                      handleScenesChange(approvedScenes);
-                    }}
-                  />
-                ) : (
-                  <SceneStudio
-                    scenes={scenes}
-                    onScenesChange={handleScenesChange}
-                    artistVault={loadedVault}
-                    videoStyle={videoStyleVal}
-                    platform={platformVal}
-                    manageable
-                    onSave={saveScenes}
-                    saving={savingScenes}
-                    projectId={savedProjectId}
-                  />
-                )
+                <>
+                  {/* Wave 9 directing layer — cast characters & plan camera moves.
+                      Available as soon as scenes exist; not gated on storyboard approval. */}
+                  <div className="space-y-6">
+                    <CharacterDirector
+                      scenes={scenes}
+                      onScenesChange={handleScenesChange}
+                      artistVault={loadedVault}
+                      videoStyle={videoStyleVal}
+                      platform={platformVal}
+                    />
+                    <CameraMovePlanner
+                      scenes={scenes}
+                      onScenesChange={handleScenesChange}
+                    />
+                  </div>
+                  {!storyboardApproved ? (
+                    <StoryboardReview
+                      scenes={scenes}
+                      onApprove={(approvedScenes) => {
+                        setScenes(approvedScenes);
+                        setStoryboardApproved(true);
+                        handleScenesChange(approvedScenes);
+                      }}
+                    />
+                  ) : (
+                    <SceneStudio
+                      scenes={scenes}
+                      onScenesChange={handleScenesChange}
+                      artistVault={loadedVault}
+                      videoStyle={videoStyleVal}
+                      platform={platformVal}
+                      manageable
+                      onSave={saveScenes}
+                      saving={savingScenes}
+                      projectId={savedProjectId}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="lux-card-static px-6 py-10 text-center">
                   <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
