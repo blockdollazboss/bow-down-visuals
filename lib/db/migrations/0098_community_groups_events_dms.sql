@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS group_members (
 
 CREATE INDEX IF NOT EXISTS group_members_user_idx ON group_members (user_id);
 
-/* ── Group-scoped posts (group feed lives here until Worker 8's `posts`
-      table lands; then union on posts.group_id) ───────────────────────── */
+/* ── Group-scoped posts ─────────────────────────────────────────────────
+      group feed write target (see header: why not posts.group_id) ─────── */
 CREATE TABLE IF NOT EXISTS group_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,

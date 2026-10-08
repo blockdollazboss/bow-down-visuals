@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
 import {
   groupsTable,
@@ -593,7 +593,7 @@ router.post("/events/:id/unrsvp", requireAuth, async (req, res) => {
 const dmSendLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,
-  keyGenerator: (req) => (req as unknown as { userId?: string }).userId ?? req.ip ?? "anon",
+  keyGenerator: (req) => (req as unknown as { userId?: string }).userId ?? ipKeyGenerator(req.ip ?? "127.0.0.1"),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Slow down, shark — you're sending too fast. Try again in a few." },
@@ -602,7 +602,7 @@ const dmSendLimiter = rateLimit({
 const broadcastLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => (req as unknown as { userId?: string }).userId ?? req.ip ?? "anon",
+  keyGenerator: (req) => (req as unknown as { userId?: string }).userId ?? ipKeyGenerator(req.ip ?? "127.0.0.1"),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Broadcast limit reached for this hour — pace the drops." },
