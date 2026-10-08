@@ -4,7 +4,7 @@ import {
   Music2, Clapperboard, Gamepad2, Mic2, Film, Tv, Sparkles, GraduationCap,
   MoreHorizontal, AudioLines, Video, UploadCloud, X, Loader2, Rocket,
   BadgeCheck, Pencil, Trash2, ExternalLink, ImagePlus, Wand2, DollarSign,
-  ChevronRight, AlertTriangle, CheckCircle2, User, Share2,
+  ChevronRight, AlertTriangle, CheckCircle2, User, Share2, Trophy,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -101,6 +101,13 @@ export default function Publish() {
   const [fromTool, setFromTool] = useState<{ path: string; label: string } | null>(null);
   const [publishedItem, setPublishedItem] = useState<{ slug: string; itemId: string; kind: ContentType; title: string } | null>(null);
   const [shareState, setShareState] = useState<"idle" | "shared" | "copied">("idle");
+  /* Challenge engine 2.0: ?challenge=slug auto-enters a fresh video publish. */
+  const [challengeSlug, setChallengeSlug] = useState<string | null>(null);
+  const [challengeTitle, setChallengeTitle] = useState<string>("");
+  const [liveChallenges, setLiveChallenges] = useState<Array<{ slug: string; title: string; prize_pool_credits: number }>>([]);
+  const [enterSlug, setEnterSlug] = useState<string>("");
+  const [entering, setEntering] = useState(false);
+  const [enteredState, setEnteredState] = useState<"idle" | "done" | "failed">("idle");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const artInputRef = useRef<HTMLInputElement>(null);
@@ -151,6 +158,15 @@ export default function Publish() {
       const pFrom = params.get("from");
       if (pFrom && pFrom.startsWith("/") && !pFrom.startsWith("//")) {
         setFromTool({ path: pFrom, label: params.get("fromLabel") || "creation tool" });
+      }
+      const pChallenge = params.get("challenge");
+      if (pChallenge) {
+        setChallengeSlug(pChallenge);
+        setEnterSlug(pChallenge);
+        fetch(`/api/challenges/${encodeURIComponent(pChallenge)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => { if (j?.challenge?.title) setChallengeTitle(j.challenge.title); })
+          .catch(() => { /* challenge name is decorative */ });
       }
       if ([...params.keys()].length) {
         window.history.replaceState(null, "", window.location.pathname);
@@ -458,6 +474,37 @@ export default function Publish() {
         const itemId = String(j.track?.id ?? j.video?.id ?? "");
         setPublishedItem({ slug: profile.slug, itemId, kind: contentType, title: title.trim() });
         setShareState("idle");
+        setEnteredState("idle");
+        /* Challenge engine 2.0: auto-enter a fresh video into ?challenge=slug. */
+        const enterTarget = !isEdit && contentType === "video" ? challengeSlug : null;
+        if (enterTarget && itemId) {
+          setEntering(true);
+          (async () => {
+            try {
+              const headers = await authHeaders();
+              const er = await fetch(`/api/challenges/${encodeURIComponent(enterTarget)}/enter`, {
+                method: "POST",
+                headers: { ...headers, "Content-Type": "application/json" },
+                body: JSON.stringify({ video_id: itemId }),
+              });
+              const ej = await er.json().catch(() => ({}));
+              if (!er.ok) throw new Error(ej.error ?? `enter failed (${er.status})`);
+              setEnteredState("done");
+              toast({
+                title: "Entered the challenge 🏆",
+                description: `"${title.trim()}" is in${challengeTitle ? ` "${challengeTitle}"` : ""} — rally votes and take the crown.`,
+              });
+            } catch (e) {
+              setEnteredState("failed");
+              toast({
+                title: "Published, but the challenge entry missed",
+                description: e instanceof Error ? e.message : "Enter it manually from the challenge page.",
+              });
+            } finally {
+              setEntering(false);
+            }
+          })();
+        }
         toast({
           title: "You're live! 🚀",
           description: (
@@ -565,6 +612,50 @@ export default function Publish() {
     if (!publishedItem || !publishedItem.itemId) return null;
     const anchor = `#${publishedItem.kind === "audio" ? "track" : "video"}-${publishedItem.itemId}`;
     return `/artist/${publishedItem.slug}${anchor}`;
+  }
+
+  /* ── Challenge engine 2.0: enter the just-published video into a challenge.
+     Loads live challenges lazily — only when the success panel shows a video. */
+  useEffect(() => {
+    if (!publishedItem || publishedItem.kind !== "video") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/challenges/live-now?limit=8");
+        if (!res.ok) return;
+        const j = await res.json();
+        if (!cancelled) setLiveChallenges(j.challenges ?? []);
+      } catch { /* challenge entry is optional */ }
+    })();
+    return () => { cancelled = true; };
+  }, [publishedItem]);
+
+  async function enterPublishedVideo(targetSlug: string) {
+    if (!publishedItem || !targetSlug || entering) return;
+    setEntering(true);
+    try {
+      const headers = await authHeaders();
+      const er = await fetch(`/api/challenges/${encodeURIComponent(targetSlug)}/enter`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ video_id: publishedItem.itemId }),
+      });
+      const ej = await er.json().catch(() => ({}));
+      if (!er.ok) throw new Error(ej.error ?? `enter failed (${er.status})`);
+      setEnteredState("done");
+      setChallengeSlug(targetSlug);
+      const picked = liveChallenges.find((c) => c.slug === targetSlug);
+      if (picked) setChallengeTitle(picked.title);
+      toast({
+        title: "Entered the challenge 🏆",
+        description: ej.already_entered ? "Already in — rally votes and take the crown." : "Rally votes and take the crown.",
+      });
+    } catch (e) {
+      setEnteredState("failed");
+      toast({ title: "Entry didn't land", description: e instanceof Error ? e.message : "Try again." });
+    } finally {
+      setEntering(false);
+    }
   }
 
   /* ─── Render ─── */
@@ -1035,6 +1126,52 @@ export default function Publish() {
                 {shareState === "copied" ? "Link copied!" : shareState === "shared" ? "Shared!" : "Share it"}
               </button>
             </div>
+            {/* Challenge engine 2.0: enter this video into a live challenge */}
+            {publishedItem.kind === "video" && (
+              <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.05] p-3">
+                {enteredState === "done" ? (
+                  <p className="flex items-center gap-2 text-xs font-bold text-amber-200">
+                    <Trophy className="h-4 w-4 text-amber-300" />
+                    Entered{challengeTitle ? ` "${challengeTitle}"` : " the challenge"} — rally votes and take the crown.
+                    <button
+                      onClick={() => challengeSlug && navigate(`/challenge/${challengeSlug}`)}
+                      className="underline hover:text-amber-100"
+                    >View challenge →</button>
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <p className="flex items-center gap-2 text-xs font-bold text-amber-200">
+                      <Trophy className="h-4 w-4 shrink-0 text-amber-300" />
+                      Enter a challenge — winners get paid in Visual Bucs
+                    </p>
+                    <div className="flex flex-1 gap-2">
+                      <select
+                        value={enterSlug}
+                        onChange={(e) => { setEnterSlug(e.target.value); setEnteredState("idle"); }}
+                        className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/60 px-2 py-2 text-xs text-white"
+                      >
+                        <option value="">Pick a live challenge…</option>
+                        {liveChallenges.map((c) => (
+                          <option key={c.slug} value={c.slug}>
+                            {c.title}{c.prize_pool_credits > 0 ? ` — ${c.prize_pool_credits.toLocaleString("en-US")} VB pool` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => enterPublishedVideo(enterSlug)}
+                        disabled={!enterSlug || entering}
+                        className="shrink-0 rounded-lg bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2 text-xs font-black text-black hover:brightness-110 disabled:opacity-40"
+                      >
+                        {entering ? "Entering…" : "Enter"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {enteredState === "failed" && (
+                  <p className="mt-1 text-[11px] text-red-300">Entry didn't land — pick the challenge and try again.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

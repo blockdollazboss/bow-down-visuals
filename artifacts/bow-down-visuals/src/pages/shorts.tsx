@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { formatBucs } from "@/lib/visual-bucs";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
    /shorts — vertical full-screen snap feed. Every element is tappable to
@@ -714,7 +715,7 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
 function ShortsMenu() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"challenges" | "sounds">("challenges");
-  const [challenges, setChallenges] = useState<{ slug: string; title: string; hashtag: string; entry_count: number; prize_text: string }[]>([]);
+  const [challenges, setChallenges] = useState<{ slug: string; title: string; hashtag: string; entry_count: number; prize_text: string; prize_pool_credits?: number; effective_status?: string }[]>([]);
   const [sounds, setSounds] = useState<{ id: string; title: string | null; use_count: number; is_earning: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -759,14 +760,29 @@ function ShortsMenu() {
             <div className="flex-1 space-y-2 overflow-y-auto">
               {loading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />}
               {!loading && tab === "challenges" && (
-                challenges.length ? challenges.map((c) => (
-                  <Link key={c.slug} href={`/challenge/${c.slug}`}
-                    className="block rounded-xl border border-white/10 bg-white/5 p-3 hover:border-primary/40">
-                    <p className="font-bold text-white">{c.title}</p>
-                    <p className="text-xs text-primary">#{c.hashtag} · {fmt(c.entry_count)} entries</p>
-                    {c.prize_text && <p className="mt-1 text-xs text-white/60">🏆 {c.prize_text}</p>}
-                  </Link>
-                )) : <p className="py-8 text-center text-sm text-white/40">No challenges yet — start the first one and own the wave.</p>
+                challenges.length ? challenges.map((c) => {
+                  const enterable = c.effective_status === "live" || c.effective_status === "upcoming";
+                  return (
+                    <div key={c.slug}
+                      className="rounded-xl border border-white/10 bg-white/5 p-3 hover:border-primary/40">
+                      <Link href={`/challenge/${c.slug}`}>
+                        <p className="font-bold text-white">{c.title}</p>
+                        <p className="text-xs text-primary">#{c.hashtag} · {fmt(c.entry_count)} entries</p>
+                        {(c.prize_pool_credits ?? 0) > 0 ? (
+                          <p className="mt-1 text-xs font-bold text-primary">🏆 {formatBucs(c.prize_pool_credits!)} prize pool</p>
+                        ) : c.prize_text ? (
+                          <p className="mt-1 text-xs text-white/60">🏆 {c.prize_text}</p>
+                        ) : null}
+                      </Link>
+                      {enterable && (
+                        <Link href={`/publish?challenge=${encodeURIComponent(c.slug)}`}
+                          className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-[11px] font-black text-black hover:brightness-110">
+                          <Plus className="h-3.5 w-3.5" /> Enter this challenge
+                        </Link>
+                      )}
+                    </div>
+                  );
+                }) : <p className="py-8 text-center text-sm text-white/40">No challenges yet — start the first one and own the wave.</p>
               )}
               {!loading && tab === "sounds" && (
                 sounds.length ? sounds.map((s) => (

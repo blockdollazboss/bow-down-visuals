@@ -115,6 +115,7 @@ const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const ShortsFeed      = lazyWithRetry(() => import("@/pages/shorts"));
 const SoundDetailPage = lazyWithRetry(() => import("@/pages/sound"));
 const ChallengePage   = lazyWithRetry(() => import("@/pages/challenge"));
+const WinnersPage     = lazyWithRetry(() => import("@/pages/winners"));
 const HashtagPage     = lazyWithRetry(() => import("@/pages/hashtag"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 // ── Creator Streaming Platform pages ──
@@ -510,6 +511,9 @@ function AppShell() {
           {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
           <Route path="/shorts"><ShortsFeed /></Route>
           <Route path="/sound/:id"><SoundDetailPage /></Route>
+          {/* Winners' circle — before /challenge/:slug so the Switch matches the longer path first */}
+          <Route path="/challenge/:slug/winners"><WinnersPage /></Route>
+          <Route path="/winners"><WinnersPage /></Route>
           <Route path="/challenge/:slug"><ChallengePage /></Route>
           <Route path="/hashtag/:tag"><HashtagPage /></Route>
           {/* Creator Streaming Platform — public surfaces */}
