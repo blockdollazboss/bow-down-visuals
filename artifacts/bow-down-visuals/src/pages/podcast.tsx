@@ -4,12 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   Podcast as PodcastIcon, Loader2, Play, Pause, Download, Rss,
   AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
-  Users, User, Music, Video, PenLine, Lightbulb,
+  Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import GuestQuestions from "@/components/GuestQuestions";
 import {
   estimatePodcastCost,
   estimateTopicModeCost,
@@ -166,6 +167,8 @@ export default function PodcastStudio() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [rssCopied, setRssCopied] = useState(false);
+  const [tab, setTab] = useState<"studio" | "questions">("studio");
+  const [prefillGuest, setPrefillGuest] = useState("");
 
   /* Deep-link protocol (used by the Audio Extract handoff):
      /podcast?mode=video&videoUrl=… (audio URLs work too — the backend
@@ -178,6 +181,14 @@ export default function PodcastStudio() {
       if (modeParam === "video" && urlParam) {
         setMode("video");
         setVideoUrl(urlParam);
+      }
+      /* Guest Questions deep-link: /podcast?tab=questions&guestName=… */
+      if (params.get("tab") === "questions") {
+        setTab("questions");
+        const guestParam = params.get("guestName")?.trim().slice(0, 100);
+        if (guestParam) setPrefillGuest(guestParam);
+      }
+      if (modeParam === "video" || params.get("tab") === "questions") {
         window.history.replaceState(null, "", window.location.pathname);
       }
     } catch {
@@ -330,6 +341,22 @@ export default function PodcastStudio() {
           </p>
         </div>
 
+        {/* flow tabs: studio + guest questions */}
+        <div className="mb-6 flex justify-center gap-2">
+          <button onClick={() => setTab("studio")} className={pillClass(tab === "studio")}>
+            <span className="inline-flex items-center gap-1.5">
+              <PodcastIcon className="h-3.5 w-3.5" />
+              {t("podcast.guestQuestions.studioTab")}
+            </span>
+          </button>
+          <button onClick={() => setTab("questions")} className={pillClass(tab === "questions")}>
+            <span className="inline-flex items-center gap-1.5">
+              <MessagesSquare className="h-3.5 w-3.5" />
+              {t("podcast.guestQuestions.tab")}
+            </span>
+          </button>
+        </div>
+
         {outOfCredits && (
           <div className="mb-6">
             <OutOfCredits />
@@ -343,6 +370,9 @@ export default function PodcastStudio() {
           </div>
         )}
 
+        {tab === "questions" ? (
+          <GuestQuestions guestName={prefillGuest} />
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* ── left: builder ── */}
           <div className="space-y-6">
@@ -645,6 +675,7 @@ export default function PodcastStudio() {
             </div>
           </aside>
         </div>
+        )}
       </main>
 
 
