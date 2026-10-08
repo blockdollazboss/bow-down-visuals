@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import {
   ListMusic, Sparkles, Loader2, Copy, Check, Mail, MessageCircle,
   Users, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
-  AlertTriangle, ChevronDown, Music2,
+  AlertTriangle, ChevronDown, Music2, Clapperboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
+import SyncTab from "@/components/sync-pitch/SyncTab";
 
 /* ─── Playlist Pitcher ────────────────────────────────────────────────────
    AI helps musicians pitch songs to Spotify/editorial playlists:
@@ -18,7 +19,7 @@ import { useTranslation } from "react-i18next";
 
 const CREDIT_COST = 2;
 
-type Tab = "kit" | "curators" | "tracker";
+type Tab = "kit" | "curators" | "tracker" | "sync";
 
 const GENRES = [
   "hip-hop", "r&b", "pop", "edm", "rock", "indie", "country", "latin", "afrobeats",
@@ -130,12 +131,18 @@ export default function PlaylistPitcher() {
   const [songTitle, setSongTitle] = useState("");
 
   /* Deep-link protocol: /playlist-pitch?song=… pre-fills the song title
-     (e.g. coming from a release plan). */
+     (e.g. coming from a release plan); ?tab=sync opens the Sync Pitch Kit
+     (e.g. "Pitch for sync" from song results). */
+  const [syncInitialSong, setSyncInitialSong] = useState("");
   useEffect(() => {
     try {
-      const song = new URLSearchParams(window.location.search).get("song")?.trim().slice(0, 200);
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab")?.trim();
+      if (tabParam === "sync") setTab("sync");
+      const song = params.get("song")?.trim().slice(0, 200);
       if (song) {
-        setSongTitle(song);
+        if (tabParam === "sync") setSyncInitialSong(song);
+        else setSongTitle(song);
         window.history.replaceState(null, "", window.location.pathname);
       }
     } catch { /* non-browser — ignore */ }
@@ -341,6 +348,7 @@ export default function PlaylistPitcher() {
         <div className="relative mt-8 flex justify-center gap-2">
           {([
             { key: "kit", labelKey: "playlistPitch.tabKit", icon: Sparkles },
+            { key: "sync", labelKey: "syncPitch.tabSync", icon: Clapperboard },
             { key: "curators", labelKey: "playlistPitch.tabCurators", icon: Users },
             { key: "tracker", labelKey: "playlistPitch.tabTracker", icon: ClipboardList },
           ] as { key: Tab; labelKey: string; icon: typeof Sparkles }[]).map((tabItem) => {
@@ -866,6 +874,11 @@ export default function PlaylistPitcher() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ═══ SYNC PITCH KIT TAB ═══ */}
+        {tab === "sync" && (
+          <SyncTab library={library} initialSongTitle={syncInitialSong} />
         )}
       </main>
 

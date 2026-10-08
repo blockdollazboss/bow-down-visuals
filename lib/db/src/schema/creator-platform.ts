@@ -36,6 +36,8 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   tipJarEnabled:   boolean("tip_jar_enabled").notNull().default(true),
   aiDesign:        jsonb("ai_design").$type<Record<string, unknown> | null>(),
   isPublic:        boolean("is_public").notNull().default(true),
+  /** Gold checkmark: staff-verified creator (Worker 8, migration 0091). */
+  isVerified:      boolean("is_verified").notNull().default(false),
   followerCount:   integer("follower_count").notNull().default(0),
   totalPlays:      integer("total_plays").notNull().default(0),
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -83,6 +85,8 @@ export const profileVideosTable = pgTable("profile_videos", {
   /** Optional episodic numbering for film/TV (series live as playlists with kind='series'). */
   season:            integer("season"),
   episode:           integer("episode"),
+  /** Sound linkage: the track this video uses (nullable). Lets UI link video <-> track both ways. */
+  soundTrackId:      uuid("sound_track_id").references(() => profileTracksTable.id, { onDelete: "set null" }),
   /** 0 = stream-only, >0 = paid download (Stripe, see digital_sales). */
   downloadPriceCents: integer("download_price_cents").notNull().default(0),
   viewCount:         integer("view_count").notNull().default(0),
@@ -90,6 +94,18 @@ export const profileVideosTable = pgTable("profile_videos", {
   repostCount:       integer("repost_count").notNull().default(0),
   commentCount:      integer("comment_count").notNull().default(0),
   isPublished:       boolean("is_published").notNull().default(false),
+  /** Shorts mechanics (0091): TikTok-style vertical short flag. */
+  isShort:           boolean("is_short").notNull().default(false),
+  /** Duet parent (the original short being duetted). NULL = original. */
+  duetWith:          uuid("duet_with").references(() => profileVideosTable.id, { onDelete: "set null" }),
+  /** Stitch parent (the original short being stitched). NULL = original. */
+  stitchWith:        uuid("stitch_with").references(() => profileVideosTable.id, { onDelete: "set null" }),
+  /** Sound used by this short: free-text id (slug) + display metadata. */
+  soundId:           text("sound_id"),
+  soundTitle:        text("sound_title"),
+  soundUrl:          text("sound_url"),
+  /** Denormalized count of videos using this sound_id. */
+  soundUseCount:     integer("sound_use_count").notNull().default(0),
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

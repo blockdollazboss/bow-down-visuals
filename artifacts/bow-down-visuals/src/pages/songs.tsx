@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle} from "lucide-react";
+import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -465,6 +465,17 @@ export default function SongsPage() {
                       >
                         <Blend className="h-4 w-4 mr-1" />
                         {t("songs.mashupWith")}
+                      </Button>
+                    </Link>
+                    <Link href={`/playlist-pitch?tab=sync&song=${encodeURIComponent(s.title)}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-primary/40 text-primary"
+                        title={t("songs.pitchForSync")}
+                      >
+                        <Clapperboard className="h-4 w-4 mr-1" />
+                        {t("songs.pitchForSync")}
                       </Button>
                     </Link>
                   </>
