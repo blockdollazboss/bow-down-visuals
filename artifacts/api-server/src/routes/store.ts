@@ -45,6 +45,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
+import { createJobNotification } from "../lib/job-notifications";
 
 const router = Router();
 
@@ -404,6 +405,30 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     }
 
     const link = await mintDownloadLink(saleId, fileUrl);
+
+    /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
+       already recorded; a notification failure must never fail the purchase.
+       The relay pings the creator in chat (exactly-once via the
+       UNIQUE(job_type, job_id) gate). ─────────────────────────────── */
+    try {
+      const creator = await db.execute(sql`
+        SELECT user_id, display_name FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+      `);
+      const crow = creator.rows[0] as Record<string, unknown> | undefined;
+      if (crow && String(crow["user_id"]) !== req.userId) {
+        await createJobNotification({
+          jobType: "sale",
+          jobId: saleId,
+          userId: String(crow["user_id"]),
+          status: "completed",
+          title: "You just got paid 👑",
+          message: `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.`,
+        });
+      }
+    } catch (notifyErr) {
+      logger.error({ notifyErr, saleId }, "[store] sale notification failed (non-fatal)");
+    }
+
     res.json({
       success: true,
       duplicate,
@@ -835,6 +860,446 @@ router.post("/store/log-to-tracker", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[store] log-to-tracker failed");
     res.status(500).json({ error: "Could not log this sale." });
+  }
+});
+
+/* ── Pricing intelligence ────────────────────────────────────────────────
+   GUIDE THEM TO THE MONEY: every creator vertical gets honest pricing
+   benchmarks ("here's what creators in your vertical charge"). The difficulty
+   ladder maps onto Creator Level stars:
+     1 star = "Smart price it for me"  (one tap, vertical-aware default)
+     2-3    = guided pricing presets   (pick from proven price points)
+     4-6    = full control             (any price, live fee preview)
+   Checkout and payout visibility are NEVER gated by level. */
+
+export const STORE_VERTICALS = [
+  "music", "video", "gaming", "podcast", "film", "tv", "influencer", "education", "other",
+] as const;
+export type StoreVertical = (typeof STORE_VERTICALS)[number];
+
+interface PricePoint {
+  smart: number;
+  low: number;
+  high: number;
+  presets: number[];
+  blurb: string;
+}
+
+const KIND_DEFAULTS: Record<string, PricePoint> = {
+  track: {
+    smart: 199, low: 99, high: 499, presets: [99, 199, 299],
+    blurb: "Single tracks move at impulse prices. $1.99 is the sweet spot — cheap enough to cop on sight, real enough to stack.",
+  },
+  video: {
+    smart: 499, low: 199, high: 1999, presets: [199, 499, 999],
+    blurb: "Exclusive videos price on access. $4.99 beats a paywall subscription for one drop fans actually want.",
+  },
+  album: {
+    smart: 799, low: 399, high: 1499, presets: [399, 799, 1299],
+    blurb: "Albums and EPs bundle value. $7.99 undercuts streaming apathy — fans pay to OWN the body of work.",
+  },
+  pack: {
+    smart: 999, low: 499, high: 2999, presets: [499, 999, 1999],
+    blurb: "Packs sell leverage: sounds, highlights, or assets buyers reuse forever. $9.99 prices the shortcut, not the files.",
+  },
+  digital: {
+    smart: 499, low: 199, high: 1999, presets: [199, 499, 999],
+    blurb: "Presets, templates, ebooks — price the transformation. $4.99 for the thing that saves them 10 hours is a steal.",
+  },
+};
+
+/* Vertical overrides: { [vertical]: { [kind]: PricePoint } }. Anything not
+   listed falls back to KIND_DEFAULTS. */
+const VERTICAL_OVERRIDES: Record<string, Record<string, PricePoint>> = {
+  education: {
+    video: {
+      smart: 2999, low: 999, high: 9999, presets: [999, 2999, 5999],
+      blurb: "Courses sell transformation, not content. Educators routinely charge $29.99+ — price the outcome, not the runtime.",
+    },
+    digital: {
+      smart: 1499, low: 499, high: 4999, presets: [499, 1499, 2999],
+      blurb: "Templates and guides that shortcut learning command premium prices. $14.99 is the educator's impulse tier.",
+    },
+  },
+  film: {
+    video: {
+      smart: 999, low: 499, high: 2499, presets: [499, 999, 1999],
+      blurb: "Series passes and exclusive premieres: $9.99 beats a theater ticket and fans keep it forever.",
+    },
+  },
+  tv: {
+    video: {
+      smart: 1499, low: 499, high: 2999, presets: [499, 1499, 2499],
+      blurb: "Episodic drops and season passes. $14.99 for the full season undercuts every streaming sub.",
+    },
+  },
+  gaming: {
+    pack: {
+      smart: 499, low: 199, high: 1499, presets: [199, 499, 999],
+      blurb: "Highlight packs and asset bundles: gamers pay $4.99 for the clips that make THEM look good.",
+    },
+    video: {
+      smart: 299, low: 99, high: 999, presets: [99, 299, 599],
+      blurb: "Exclusive gameplay and tutorials move fast at low prices. $2.99 is the gamer impulse buy.",
+    },
+  },
+  podcast: {
+    track: {
+      smart: 299, low: 99, high: 999, presets: [99, 299, 499],
+      blurb: "Bonus episodes and ad-free feeds: $2.99/mo-equivalent pricing wins. One payment, no subscription fatigue.",
+    },
+  },
+  influencer: {
+    digital: {
+      smart: 1499, low: 499, high: 2999, presets: [499, 1499, 2499],
+      blurb: "Presets are the influencer money printer. $14.99 for YOUR look is the industry standard.",
+    },
+    video: {
+      smart: 999, low: 299, high: 2999, presets: [299, 999, 1999],
+      blurb: "Behind-the-scenes and tutorials: $9.99 turns followers into customers.",
+    },
+  },
+  music: {
+    track: {
+      smart: 199, low: 99, high: 499, presets: [99, 199, 299],
+      blurb: "Singles move at $1.99. Price the feeling, not the file — fans cop the vibe.",
+    },
+    pack: {
+      smart: 1499, low: 499, high: 3999, presets: [499, 1499, 2999],
+      blurb: "Sample and loop packs: producers pay $14.99 for sounds that land placements.",
+    },
+  },
+  video: {
+    video: {
+      smart: 999, low: 299, high: 2999, presets: [299, 999, 1999],
+      blurb: "Video creators sell access and exclusivity. $9.99 is the proven drop price.",
+    },
+  },
+};
+
+const VERTICAL_LABELS: Record<string, string> = {
+  music: "Music", video: "Video", gaming: "Gaming", podcast: "Podcast",
+  film: "Film", tv: "TV", influencer: "Influencer", education: "Education", other: "Creator",
+};
+
+function pricePointFor(vertical: string, kind: string): { point: PricePoint; vertical: string } {
+  const v = (STORE_VERTICALS as readonly string[]).includes(vertical) ? vertical : "other";
+  const override = VERTICAL_OVERRIDES[v]?.[kind];
+  return { point: override ?? KIND_DEFAULTS[kind] ?? KIND_DEFAULTS["digital"]!, vertical: v };
+}
+
+function pricePointJson(point: PricePoint) {
+  return {
+    smartCents: point.smart,
+    smart: money(point.smart),
+    lowCents: point.low,
+    low: money(point.low),
+    highCents: point.high,
+    high: money(point.high),
+    presets: point.presets.map((c) => ({ cents: c, label: money(c) })),
+    blurb: point.blurb,
+  };
+}
+
+/* ── GET /api/store/price-guide — public pricing benchmarks ────────────── */
+router.get("/store/price-guide", publicApiLimiter, (req, res) => {
+  const vertical = String(req.query["vertical"] ?? "other");
+  const kind = String(req.query["kind"] ?? "");
+  if (kind && !DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number])) {
+    res.status(400).json({ error: "Unknown content kind." });
+    return;
+  }
+  const kinds = kind ? [kind] : [...DIGITAL_ITEM_KINDS];
+  const guide: Record<string, ReturnType<typeof pricePointJson>> = {};
+  for (const k of kinds) guide[k] = pricePointJson(pricePointFor(vertical, k).point);
+  res.json({
+    vertical: pricePointFor(vertical, kind || "track").vertical,
+    verticalLabel: VERTICAL_LABELS[pricePointFor(vertical, kind || "track").vertical] ?? "Creator",
+    verticals: STORE_VERTICALS.map((v) => ({ id: v, label: VERTICAL_LABELS[v] })),
+    guide,
+    note: "Benchmarks from what creators actually charge — a starting point, not a rule. You keep 90% of every sale.",
+  });
+});
+
+/* ── POST /api/store/suggest-price — 1-star "price it for me" ──────────── */
+const SuggestPriceSchema = z.object({
+  kind: ItemKindSchema,
+  itemId: z.string().regex(UUID_RE).optional(),
+});
+
+router.post("/store/suggest-price", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = SuggestPriceSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const prof = await db.execute(sql`
+      SELECT id, vertical FROM creator_profiles WHERE user_id = ${req.userId!} LIMIT 1
+    `);
+    const prow = prof.rows[0] as Record<string, unknown> | undefined;
+    if (!prow) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const vertical = String(prow["vertical"] ?? "other");
+    let title: string | null = null;
+    if (parsed.data.itemId) {
+      const item = await resolveSellableItem(parsed.data.kind, parsed.data.itemId);
+      if ("notForSale" in item || "notWired" in item) {
+        /* Item may be unpriced/unpublished — still suggest a price for it. */
+      } else if (item.profileId !== String(prow["id"])) {
+        res.status(403).json({ error: "That's not your content." });
+        return;
+      } else {
+        title = item.title;
+      }
+    }
+    const { point } = pricePointFor(vertical, parsed.data.kind);
+    const { feeCents, creatorCents } = splitFee(point.smart);
+    res.json({
+      kind: parsed.data.kind,
+      title,
+      vertical,
+      verticalLabel: VERTICAL_LABELS[vertical] ?? "Creator",
+      suggestedCents: point.smart,
+      suggested: money(point.smart),
+      youKeep: money(creatorCents),
+      platformFee: money(feeCents),
+      range: { low: money(point.low), high: money(point.high) },
+      presets: point.presets.map((c) => ({ cents: c, label: money(c) })),
+      blurb: point.blurb,
+      note: "Smart default from your vertical's benchmarks. One tap applies it — change it anytime.",
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] suggest-price failed");
+    res.status(500).json({ error: "Could not suggest a price." });
+  }
+});
+
+/* ── GET /api/store/products — creator's sellable catalog ──────────────── */
+router.get("/store/products", requireAuth, async (req, res) => {
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const tracks = await db.execute(sql`
+      SELECT id, title, download_price_cents, is_published, artwork_url
+      FROM profile_tracks WHERE profile_id = ${profile.id}
+      ORDER BY created_at DESC LIMIT 200
+    `);
+    const videos = await db.execute(sql`
+      SELECT id, title, download_price_cents, is_published, thumbnail_url AS artwork_url
+      FROM profile_videos WHERE profile_id = ${profile.id}
+      ORDER BY created_at DESC LIMIT 200
+    `);
+    const map = (rows: Record<string, unknown>[], kind: string) =>
+      rows.map((r) => {
+        const price = Number(r["download_price_cents"]);
+        const { creatorCents } = splitFee(price);
+        return {
+          kind,
+          id: String(r["id"]),
+          title: String(r["title"]),
+          priceCents: price,
+          price: money(price),
+          youKeep: money(creatorCents),
+          isPublished: !!r["is_published"],
+          forSale: !!r["is_published"] && price > 0,
+          artworkUrl: (r["artwork_url"] as string | null) ?? null,
+          buyUrl: `/store/buy/${kind}/${String(r["id"])}`,
+        };
+      });
+    const prof = await db.execute(sql`
+      SELECT vertical FROM creator_profiles WHERE id = ${profile.id} LIMIT 1
+    `);
+    const vertical = String((prof.rows[0] as Record<string, unknown> | undefined)?.["vertical"] ?? "other");
+    res.json({
+      vertical,
+      verticalLabel: VERTICAL_LABELS[vertical] ?? "Creator",
+      profileUrl: `/c/${profile.slug}`,
+      products: [
+        ...map(tracks.rows as Record<string, unknown>[], "track"),
+        ...map(videos.rows as Record<string, unknown>[], "video"),
+      ],
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] products failed");
+    res.status(500).json({ error: "Could not load your products." });
+  }
+});
+
+/* ── PATCH /api/store/price — owner sets a price (full control, 4-6★) ────
+   Checkout and payout visibility are NEVER gated by level — this endpoint
+   only changes the price tag. */
+const SetPriceSchema = z.object({
+  kind: z.enum(["track", "video"]),
+  id: z.string().regex(UUID_RE, "id must be a UUID"),
+  priceCents: z.number().int().min(0).max(100_000_00),
+});
+
+router.patch("/store/price", requireAuth, async (req, res) => {
+  const parsed = SetPriceSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    return;
+  }
+  const { kind, id, priceCents } = parsed.data;
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const table = kind === "track" ? "profile_tracks" : "profile_videos";
+    const updated = await db.execute(sql`
+      UPDATE ${sql.raw(table)}
+      SET download_price_cents = ${priceCents}
+      WHERE id = ${id} AND profile_id = ${profile.id}
+      RETURNING id, title, download_price_cents, is_published
+    `);
+    const row = updated.rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      res.status(404).json({ error: "Content not found — or it isn't yours." });
+      return;
+    }
+    const { feeCents, creatorCents } = splitFee(priceCents);
+    logger.info({ userId: req.userId, kind, id, priceCents }, "[store] price set");
+    res.json({
+      product: {
+        kind,
+        id: String(row["id"]),
+        title: String(row["title"]),
+        priceCents,
+        price: money(priceCents),
+        youKeep: money(creatorCents),
+        platformFee: money(feeCents),
+        platformFeePct: PLATFORM_FEE_PCT,
+        isPublished: !!row["is_published"],
+        forSale: !!row["is_published"] && priceCents > 0,
+        buyUrl: `/store/buy/${kind}/${id}`,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] set-price failed");
+    res.status(500).json({ error: "Could not set the price." });
+  }
+});
+
+/* ── GET /api/store/checklist — the Get Paid checklist ────────────────────
+   product live → priced → first sale → logged. The finale the seller owns. */
+router.get("/store/checklist", requireAuth, async (req, res) => {
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const pid = profile.id;
+    const live = await db.execute(sql`
+      SELECT (SELECT COUNT(*)::int FROM profile_tracks WHERE profile_id = ${pid} AND is_published)
+           + (SELECT COUNT(*)::int FROM profile_videos WHERE profile_id = ${pid} AND is_published)
+           AS c
+    `);
+    const priced = await db.execute(sql`
+      SELECT (SELECT COUNT(*)::int FROM profile_tracks WHERE profile_id = ${pid} AND is_published AND download_price_cents > 0)
+           + (SELECT COUNT(*)::int FROM profile_videos WHERE profile_id = ${pid} AND is_published AND download_price_cents > 0)
+           AS c
+    `);
+    const salesCount = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM digital_sales WHERE profile_id = ${pid}
+    `);
+    const firstDrop = await db.execute(sql`
+      SELECT item_kind, item_id FROM digital_sales WHERE profile_id = ${pid}
+      ORDER BY created_at ASC LIMIT 1
+    `);
+    const firstPriced = await db.execute(sql`
+      SELECT 'track' AS kind, id FROM profile_tracks
+      WHERE profile_id = ${pid} AND is_published AND download_price_cents > 0
+      UNION ALL
+      SELECT 'video' AS kind, id FROM profile_videos
+      WHERE profile_id = ${pid} AND is_published AND download_price_cents > 0
+      LIMIT 1
+    `);
+    const loggedCount = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM money_entries
+      WHERE user_id = ${req.userId!} AND entry_type = 'income' AND note LIKE 'Music store sale %'
+    `);
+
+    const liveCount = Number((live.rows[0] as Record<string, unknown>)["c"]);
+    const pricedCount = Number((priced.rows[0] as Record<string, unknown>)["c"]);
+    const saleCount = Number((salesCount.rows[0] as Record<string, unknown>)["c"]);
+    const logged = Number((loggedCount.rows[0] as Record<string, unknown>)["c"]);
+    const fdrop = firstDrop.rows[0] as Record<string, unknown> | undefined;
+    const fpriced = firstPriced.rows[0] as Record<string, unknown> | undefined;
+
+    const steps = [
+      {
+        id: "list",
+        label: "List your first product",
+        detail:
+          liveCount > 0
+            ? `${liveCount} live ${liveCount === 1 ? "drop" : "drops"} on your profile`
+            : "Tracks, videos, courses, packs — your content, your store",
+        done: liveCount > 0,
+        cta: { label: "View your profile", href: `/c/${profile.slug}` },
+      },
+      {
+        id: "price",
+        label: "Put a price on it",
+        detail:
+          pricedCount > 0
+            ? `${pricedCount} priced for sale`
+            : "One tap: smart price from your vertical's benchmarks",
+        done: pricedCount > 0,
+        cta: { label: "Price your content", href: "#pricing" },
+      },
+      {
+        id: "promote",
+        label: "Share your drop link",
+        detail: "Every drop page has one-tap share — fans can't buy what they can't find",
+        done: saleCount > 0,
+        cta: fpriced
+          ? {
+              label: "Share your first drop",
+              href: `/store/buy/${String(fpriced["kind"])}/${String(fpriced["id"])}`,
+            }
+          : { label: "Price something first", href: "#pricing" },
+      },
+      {
+        id: "sale",
+        label: "Make your first sale",
+        detail:
+          saleCount > 0
+            ? `${saleCount} ${saleCount === 1 ? "sale" : "sales"} — you just got paid 👑`
+            : "The moment the first payment lands, you get pinged instantly",
+        done: saleCount > 0,
+        cta: fdrop
+          ? {
+              label: "See what sold",
+              href: `/store/buy/${String(fdrop["item_kind"])}/${String(fdrop["item_id"])}`,
+            }
+          : { label: "How pricing works", href: "#pricing" },
+      },
+      {
+        id: "log",
+        label: "Log it in the Money Tracker",
+        detail:
+          saleCount > 0
+            ? logged >= saleCount
+              ? "Every sale logged — your books are clean"
+              : `${saleCount - logged} sale${saleCount - logged === 1 ? "" : "s"} waiting to be logged`
+            : "One tap per sale — your income ledger builds itself",
+        done: saleCount > 0 && logged >= saleCount,
+        cta: { label: "Open Money Tracker", href: "/coach?tab=money" },
+      },
+    ];
+    res.json({ steps, complete: steps.every((s) => s.done), profileUrl: `/c/${profile.slug}` });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] checklist failed");
+    res.status(500).json({ error: "Could not load your checklist." });
   }
 });
 

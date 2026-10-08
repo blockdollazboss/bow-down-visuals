@@ -27,7 +27,7 @@ import { logger } from "./logger";
  * - `none`    — stored but never delivered.
  */
 
-export type JobType = "lip_sync" | "export";
+export type JobType = "lip_sync" | "export" | "sale";
 export type JobCompletionStatus = "completed" | "failed";
 export type NotifyChannel = "relay" | "discord" | "log" | "none";
 
