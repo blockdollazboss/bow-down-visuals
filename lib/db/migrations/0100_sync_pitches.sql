@@ -10,6 +10,10 @@
 --   one_sheet_id/brief_id are nullable conveniences; nothing else references
 --   these tables, so deletes cascade by application logic only.
 
+-- pgcrypto provides gen_random_uuid() and gen_random_bytes() used below.
+-- Required on fresh databases (e.g. staging) where the extension isn't enabled.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS sync_one_sheets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL,
