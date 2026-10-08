@@ -348,10 +348,6 @@ export default function ChooseArtist() {
                         {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
                       </p>
                     )}
-                    {/* Theme name tag — who they are, in their colors */}
-                    <p style={{ fontSize: 9, color: T(0.9), marginTop: 3, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>
-                      {theme.name}
-                    </p>
                   </div>
 
                   {/* Theme border glow on selected */}
