@@ -42,6 +42,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-video": { cost: 400, feature: "Generate Video Clip" },
   "/api/generate-runway-clip": { cost: 400, feature: "Generate Video Clip" },
   "/api/generate-promo-clips": { cost: 400, feature: "Generate Promo Clips" },
+  "/api/canvas/generate": { cost: 150, feature: "Spotify Canvas Generator" },
   "/api/streamer-clips/analyze": { cost: 300, feature: "Analyze Stream for Clips" },
   "/api/streamer-clips/cut": { cost: 200, feature: "Cut Stream Clip" },
   "/api/generate-video-plan": { cost: 100, feature: "AI Video Plan" },

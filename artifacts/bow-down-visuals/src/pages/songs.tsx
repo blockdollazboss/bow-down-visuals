@@ -436,6 +436,19 @@ export default function SongsPage() {
                       <DiscAlbum className="h-4 w-4 mr-1" />
                       Make a cover
                     </Button>
+                    <Link
+                      href={`/video-editor?tab=export&canvas=1&canvasAudio=${encodeURIComponent(s.audio_url)}&canvasTitle=${encodeURIComponent(s.title)}`}
+                      title="Turn this song's cover art into an 8-second Spotify Canvas loop"
+                    >
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-primary/40 text-primary"
+                      >
+                        <Clapperboard className="h-4 w-4 mr-1" />
+                        Make a Canvas
+                      </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="outline"

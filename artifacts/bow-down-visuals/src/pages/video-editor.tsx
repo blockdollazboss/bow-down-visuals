@@ -73,6 +73,7 @@ import { PreProductionSection } from "@/components/editor/sections/PreProduction
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
+import { CanvasGeneratorSection } from "@/components/editor/sections/CanvasGeneratorSection";
 import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
 import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
 import {
@@ -304,6 +305,18 @@ export default function VideoEditor() {
     const params = new URLSearchParams(search);
     if (params.get("tab") === "pro-tools") {
       setTab("pro-tools");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  /* ── Canvas deep link: /video-editor?tab=export&canvas=1 ──
+     Lands the user on the Export tab where the Canvas Generator lives.
+     Pairs with ?canvasCover= / ?canvasAudio= / ?canvasTitle= / ?canvasArtist=
+     which the CanvasGeneratorSection reads for prefill. Used by "Make a
+     Canvas" on song results and "Animate as Canvas" on the cover-art page. */
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("tab") === "export" && params.get("canvas") === "1") {
+      setTab("export");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
@@ -1639,6 +1652,7 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "export" && (
+                    <>
                     <ExportSection
                       // NOTE: resolvedScenes (not raw scenes) so the export uses
                       // lip-synced clip URLs wherever the user enabled lip sync —
@@ -1661,6 +1675,17 @@ export default function VideoEditor() {
                       topic={songTitle || undefined}
                       handoffVideoUrl={lutHandoffUrl}
                     />
+                    {/* Spotify Canvas Generator — docked in the export/promo
+                        chain (DistroKid Canvas parity). Deep-linked via
+                        ?tab=export&canvas=1 from song results / cover art. */}
+                    <div className="mt-6">
+                      <CanvasGeneratorSection
+                        audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                        songTitle={songTitle || undefined}
+                        artistName={artistName || undefined}
+                      />
+                    </div>
+                    </>
                   )}
 
                   {tab === "studio" && (

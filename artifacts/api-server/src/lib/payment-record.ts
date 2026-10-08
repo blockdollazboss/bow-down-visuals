@@ -367,6 +367,43 @@ export async function recordThumbnailHistory(input: ThumbnailHistoryInput): Prom
   }
 }
 
+export interface CanvasHistoryInput {
+  userId:      string;
+  videoUrl:    string;
+  creditsUsed: number;
+  title?:       string | null;
+  style?:       string | null;
+}
+
+/**
+ * Insert a generation_history row for a completed Spotify Canvas.
+ * Status is "saved" immediately — credits were already charged by the time
+ * the canvas finishes rendering. Fire-and-forget safe — never throws.
+ */
+export async function recordCanvasHistory(input: CanvasHistoryInput): Promise<void> {
+  try {
+    await db
+      .insert(generationHistoryTable)
+      .values({
+        userId:         input.userId,
+        generationType: "spotify_canvas",
+        result: {
+          content:      input.videoUrl,
+          videoUrl:     input.videoUrl,
+          actionLabel:  input.title
+            ? `Canvas — ${input.title}${input.style ? ` [${input.style}]` : ""}`
+            : "Spotify Canvas",
+        },
+        creditsUsed: input.creditsUsed,
+        saveStatus:  "saved",
+        refunded:    false,
+      });
+    logger.info({ userId: input.userId }, "recordCanvasHistory: saved");
+  } catch (err) {
+    logger.warn({ err }, "recordCanvasHistory: failed (non-fatal)");
+  }
+}
+
 /**
  * Fetch generation history for a user, newest first.
  */

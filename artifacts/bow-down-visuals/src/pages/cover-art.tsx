@@ -356,6 +356,12 @@ export default function CoverArt() {
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition"
                   >
                     <Disc3 className="h-4 w-4" />{t("cover-art.sendToDistribute", { defaultValue: "Distribute" })}</Link>
+                  <Link
+                    href={`/video-editor?tab=export&canvas=1&canvasCover=${encodeURIComponent(result.url)}&canvasTitle=${encodeURIComponent(songTitle)}&canvasArtist=${encodeURIComponent(artistName)}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition"
+                    title="Turn this cover art into an 8-second Spotify Canvas loop"
+                  >
+                    <Sparkles className="h-4 w-4" />{t("cover-art.animateAsCanvas", { defaultValue: "Animate as Canvas" })}</Link>
                   <button
                     onClick={generate}
                     disabled={generating}
