@@ -11,6 +11,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
+import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
@@ -434,6 +435,15 @@ export default function SponsorshipOutreach() {
         {/* sponsor read generator — deal landed? write the actual spoken read */}
         <div className="relative mt-4">
           <SponsorReadPanel />
+        </div>
+
+        {/* invoice generator — deal landed? bill the brand. Prefilled from the
+            outreach form above (brand) and the creator profile / active artist. */}
+        <div className="relative">
+          <InvoiceGeneratorPanel
+            prefillBrand={brandName}
+            prefillCreator={creatorName || activeArtist?.artist_name || ""}
+          />
         </div>
 
         {/* tracker */}
