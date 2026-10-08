@@ -69,6 +69,11 @@ const Genres = lazyWithRetry(() => import("@/pages/discovery/genres"));
 const GenrePage = lazyWithRetry(() => import("@/pages/discovery/genre"));
 const Feed = lazyWithRetry(() => import("@/pages/discovery/feed"));
 
+/* Social (Worker 8): home timeline, trending, saved. */
+const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
+const Trending = lazyWithRetry(() => import("@/pages/trending"));
+const Saved = lazyWithRetry(() => import("@/pages/saved"));
+
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
 const MakeSong      = lazyWithRetry(() => import("@/pages/make-song"));
@@ -473,6 +478,9 @@ function AppShell() {
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
+          <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
+          <Route path="/trending"><Trending /></Route>
+          <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/referrals"><Referrals /></Route>
           <Route path="/team"><TeamPage /></Route>

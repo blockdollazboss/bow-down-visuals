@@ -16,8 +16,8 @@ import { creatorProfilesTable } from "./creator-platform";
  * ── Link graph (standing rule: everything links together) ────────────────
  * media_urls JSONB items use a shared attachment shape:
  *   { kind: 'image'|'video', url, thumb? }
- *   { kind: 'track'|'video', id, title, url, artwork?, artistSlug }
- *     → links to the creator's profile (/artist/:slug) where the sound lives
+ *   { kind: 'track', id, title, artwork?, artistSlug } → /track/:id
+ *   { kind: 'watch', id, title, thumb?, artistSlug }  → /watch/:id
  *   { kind: 'product', id, kindSlug, title, image?, storeSlug? }
  *     → links to /store/buy/:kind/:id (the drop page) or /shop/:slug
  *   { kind: 'event', id, title, date?, venue? }
@@ -89,9 +89,10 @@ export type Post = typeof postsTable.$inferSelect;
 export type Attachment =
   | { kind: "image"; url: string }
   | { kind: "video"; url: string; thumb?: string }
-  | { kind: "track"; id: string; title: string; url: string; artwork?: string; artistSlug: string }
-  | { kind: "product"; id: string; kindSlug: string; title: string; image?: string; storeSlug?: string }
-  | { kind: "event"; id: string; title: string; date?: string; venue?: string };
+  | { kind: "track"; id: string; title?: string; artwork?: string; artistSlug?: string }
+  | { kind: "watch"; id: string; title?: string; thumb?: string; artistSlug?: string }
+  | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string }
+  | { kind: "event"; id: string; title?: string; date?: string; venue?: string };
 
 export const REACTION_EMOJIS = ["like", "love", "fire", "clap", "mindblown"] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];

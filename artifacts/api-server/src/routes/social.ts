@@ -1096,7 +1096,8 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
    Saves:    POST   /api/saves  DELETE /api/saves/:kind/:targetId  (auth)
              GET    /api/saves/mine (auth)
    Discover: GET    /api/trending/topics       hashtag velocity, 24h
-             GET    /api/hashtag/:tag          posts for a hashtag
+             GET    /api/hashtag/:tag/posts    posts for a hashtag
+                    (/api/hashtag/:tag itself is the shorts worker's media hub)
 
    Link-graph rule (standing): @mentions → /artist/:slug, avatars → profiles,
    story viewer header → creator profile, track attachments → /track/:id,
@@ -1188,7 +1189,7 @@ function assertLinkable(att: z.infer<typeof attachmentSchema>) {
   if (att.kind === "product" && !(att.id && att.kindSlug)) {
     throw new Error("Product attachments must include id + kindSlug so they link to /store/buy/:kind/:id.");
   }
-  if ((att.kind === "track" || att.kind === "video") && !att.id) {
+  if ((att.kind === "track" || att.kind === "watch") && !att.id) {
     throw new Error("Sound/video attachments must include the media id so they link to /track/:id or /watch/:id.");
   }
   if (att.kind === "event" && !att.id) {
@@ -1394,12 +1395,35 @@ router.post("/api/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: R
 
 /* ── Highlights CRUD (owner-only) ── */
 
+/* Public: unexpired stories for one profile — powers the /artist/:slug
+   profile page stories section (Worker 4 mount). */
+router.get("/api/stories/by-profile/:profileId", async (req: Request, res: Response) => {
+  try {
+    const profileId = String(req.params["profileId"]);
+    if (!UUID_RE.test(profileId)) return res.status(400).json({ error: "invalid_id" });
+    const rows = await db.select().from(storiesTable)
+      .where(and(eq(storiesTable.profileId, profileId), gt(storiesTable.expiresAt, new Date())))
+      .orderBy(desc(storiesTable.createdAt)).limit(50);
+    return res.json({ stories: rows });
+  } catch {
+    return res.status(500).json({ error: "stories_failed" });
+  }
+});
+
 router.get("/api/stories/highlights", requireAuth, async (req: Request, res: Response) => {
   try {
-    const me = await myProfile(req.userId!);
-    if (!me) return res.json({ highlights: [] });
+    /* ?profile_id= views anyone's highlights (profile page); without it, mine. */
+    const pid = String(req.query["profile_id"] ?? "");
+    let profileId: string | null = null;
+    if (UUID_RE.test(pid)) {
+      profileId = pid;
+    } else {
+      const me = await myProfile(req.userId!);
+      if (!me) return res.json({ highlights: [] });
+      profileId = me.id;
+    }
     const rows = await db.select().from(storyHighlightsTable)
-      .where(eq(storyHighlightsTable.profileId, me.id))
+      .where(eq(storyHighlightsTable.profileId, profileId))
       .orderBy(desc(storyHighlightsTable.createdAt));
     return res.json({ highlights: rows });
   } catch {
@@ -2087,8 +2111,10 @@ router.get("/api/trending/topics", async (_req: Request, res: Response) => {
   }
 });
 
-/* Every trending topic links somewhere real: /hashtag/:tag. */
-router.get("/api/hashtag/:tag", async (req: Request, res: Response) => {
+/* Posts for a hashtag. NOTE: /api/hashtag/:tag itself belongs to the shorts
+   worker (media hub); this sibling returns the *posts* for the tag so the
+   hashtag page can add a Posts tab without colliding. */
+router.get("/api/hashtag/:tag/posts", async (req: Request, res: Response) => {
   try {
     const tag = String(req.params["tag"]).replace(/^#/, "").toLowerCase();
     if (!/^[a-z0-9_]{2,40}$/.test(tag)) return res.status(400).json({ error: "invalid_tag" });
