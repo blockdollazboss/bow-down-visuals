@@ -200,6 +200,15 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/wave8/media-kit/generate": { cost: 100, feature: "AI Media Kit Builder" },
   "/api/wave8/splits/pdf": { cost: 50, feature: "Royalty Split Sheet PDF" },
   "/api/wave8/sponsors/followup": { cost: 50, feature: "Sponsor Follow-up Draft" },
+  // Wave 9 — Suno + CapCut + directing layer (export-everywhere skipped: multi-ratio export already exists)
+  "/api/wave9a/structure/generate": { cost: 200, feature: "Song Structure Builder" },
+  "/api/wave9a/lyrics/timing": { cost: 50, feature: "Lyrics-to-Timeline" },
+  "/api/wave9b/beats/detect": { cost: 150, feature: "Beat-Sync Cuts" },
+  "/api/wave9b/templates/apply": { cost: 100, feature: "Timeline Edit Recipes" },
+  "/api/wave9b/bg/replace": { cost: 200, feature: "Background Replace" },
+  "/api/wave9c/direct/edit": { cost: 150, feature: "Voice-Directed Edits" },
+  "/api/wave9d/director/plan": { cost: 150, feature: "Character Director" },
+  "/api/wave9d/camera/prompt": { cost: 100, feature: "Camera Move Planner" },
 };
 
 /**
