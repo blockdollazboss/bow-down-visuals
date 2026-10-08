@@ -178,7 +178,7 @@ router.post("/wave9d/director/plan", publicApiLimiter, requireAuth, async (req, 
       .values({
         user_id: req.userId!,
         name: name || `Director Plan — ${new Date().toISOString().slice(0, 10)}`,
-        cast,
+        castMembers: cast,
         shots: mergedShots,
       })
       .returning({ id: wave9dDirectorPlansTable.id });
@@ -216,7 +216,7 @@ router.get("/wave9d/director/plans", publicApiLimiter, requireAuth, async (req, 
       .select({
         id: wave9dDirectorPlansTable.id,
         name: wave9dDirectorPlansTable.name,
-        cast: wave9dDirectorPlansTable.cast,
+        cast: wave9dDirectorPlansTable.castMembers,
         shots: wave9dDirectorPlansTable.shots,
         created_at: wave9dDirectorPlansTable.created_at,
       })
