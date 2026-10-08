@@ -23,6 +23,11 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -85,6 +90,7 @@ type RerollKind = (typeof REROLL_KINDS)[number];
 
 const analyzeBodySchema = z.object({
   videoUrl: z.string().url().max(2000).optional(),
+  attribution: attributionOptIn(),
 });
 
 const rerollBodySchema = z.object({
@@ -117,19 +123,33 @@ export function formatTimestamp(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 
+/** Options for the optional attribution tag burn. */
+export interface ClipCutAttributionOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+}
+
 /** Build ffmpeg args that cut [startSec, endSec) and reframe to 720x1280 vertical. */
 export function buildClipCutArgs(
   inputPath: string,
   outputPath: string,
   startSec: number,
   endSec: number,
+  opts: ClipCutAttributionOpts = {},
 ): string[] {
   const dur = Math.max(1, endSec - startSec);
+  let vf = "crop=ih*9/16:ih,scale=720:1280:flags=lanczos";
+  // Virality: optional gold "Made with Bow Down Visuals" tag, bottom-center.
+  if (opts.attribution && opts.attributionFontfile) {
+    vf += `,${attributionDrawtext(opts.attributionFontfile, 720)}`;
+  }
   return [
     "-ss", String(startSec),
     "-t", String(dur),
     "-i", inputPath,
-    "-vf", "crop=ih*9/16:ih,scale=720:1280:flags=lanczos",
+    "-vf", vf,
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "23",
@@ -442,6 +462,8 @@ export interface RepurposeJob {
   thumbnails: JobThumb[];
   error: string | null;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the cut clips (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const repurposeJobs = new Map<string, RepurposeJob>();
@@ -456,6 +478,8 @@ export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<v
   const workDir = await fs.mkdtemp(join(tmpdir(), "repcut-"));
   try {
     job.status = "processing";
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
     const signedUrl = await refreshSupabaseStorageUrl(videoRef);
     const resp = await fetch(signedUrl, { signal: AbortSignal.timeout(300_000) });
     if (!resp.ok) throw new Error(`Could not download source video (${resp.status})`);
@@ -466,7 +490,10 @@ export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<v
       const outputPath = join(workDir, `clip-${i}.mp4`);
       await execFileAsync(
         "ffmpeg",
-        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec),
+        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec, {
+          attribution: job.attribution,
+          attributionFontfile,
+        }),
         { timeout: 600_000 },
       );
       const outBuffer = await fs.readFile(outputPath);
@@ -538,7 +565,7 @@ router.post(
       });
       return;
     }
-    const { videoUrl } = parsed.data;
+    const { videoUrl, attribution } = parsed.data;
 
     let videoBuffer: Buffer | null = null;
     let originalName = "video.mp4";
@@ -661,6 +688,7 @@ router.post(
         thumbnails: [],
         error: null,
         createdAt: Date.now(),
+        attribution,
       };
       const thumbJob: RepurposeJob = {
         id: randomUUID(),

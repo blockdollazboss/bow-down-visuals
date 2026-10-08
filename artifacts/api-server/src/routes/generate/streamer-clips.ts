@@ -22,6 +22,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -79,6 +84,7 @@ const cutClipSchema = z.object({
 const cutBodySchema = z.object({
   videoRef: z.string().min(1).max(2000),
   clips: z.array(cutClipSchema).min(1).max(5),
+  attribution: attributionOptIn(),
 });
 
 const upload = multer({
@@ -102,19 +108,33 @@ export function formatTimestamp(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 
+/** Options for the optional attribution tag burn. */
+export interface ClipCutAttributionOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+}
+
 /** Build ffmpeg args that cut [startSec, endSec) and reframe to 720x1280 vertical. */
 export function buildClipCutArgs(
   inputPath: string,
   outputPath: string,
   startSec: number,
   endSec: number,
+  opts: ClipCutAttributionOpts = {},
 ): string[] {
   const dur = Math.max(1, endSec - startSec);
+  let vf = "crop=ih*9/16:ih,scale=720:1280:flags=lanczos";
+  // Virality: optional gold "Made with Bow Down Visuals" tag, bottom-center.
+  if (opts.attribution && opts.attributionFontfile) {
+    vf += `,${attributionDrawtext(opts.attributionFontfile, 720)}`;
+  }
   return [
     "-ss", String(startSec),
     "-t", String(dur),
     "-i", inputPath,
-    "-vf", "crop=ih*9/16:ih,scale=720:1280:flags=lanczos",
+    "-vf", vf,
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "23",
@@ -478,6 +498,8 @@ interface CutJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the cut clips (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const cutJobs = new Map<string, CutJob>();
@@ -492,6 +514,8 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "clipcut-"));
   try {
     job.status = "processing";
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
     const signedUrl = await refreshSupabaseStorageUrl(videoRef);
     const resp = await fetch(signedUrl, { signal: AbortSignal.timeout(300_000) });
     if (!resp.ok) throw new Error(`Could not download source video (${resp.status})`);
@@ -502,7 +526,10 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
       const outputPath = join(workDir, `clip-${i}.mp4`);
       await execFileAsync(
         "ffmpeg",
-        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec),
+        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec, {
+          attribution: job.attribution,
+          attributionFontfile,
+        }),
         { timeout: 600_000 },
       );
       const outBuffer = await fs.readFile(outputPath);
@@ -543,7 +570,7 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     });
     return;
   }
-  const { videoRef, clips } = parsed.data;
+  const { videoRef, clips, attribution } = parsed.data;
   for (const c of clips) {
     const dur = c.endSec - c.startSec;
     if (!(dur >= 5 && dur <= 90) || !Number.isFinite(c.startSec)) {
@@ -597,6 +624,7 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     error: null,
     creditsCharged: cost,
     createdAt: Date.now(),
+    attribution,
   };
   cutJobs.set(job.id, job);
   // Server-owned: runs detached from the request/tab lifecycle.

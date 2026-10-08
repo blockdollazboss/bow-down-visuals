@@ -50,6 +50,10 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  ATTRIBUTION_TEXT,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -126,6 +130,7 @@ const generateSchema = z.object({
   format: z.enum(["single", "dual"]).default("single"),
   coHostVoiceId: z.string().max(100).optional(),
   musicBed: z.boolean().default(false),
+  attribution: attributionOptIn(),
 });
 
 export type PodcastMode = z.infer<typeof generateSchema>["mode"];
@@ -291,6 +296,7 @@ export async function assembleEpisode(
   outPath: string,
   musicBed: boolean,
   workDir: string,
+  attribution = false,
 ): Promise<void> {
   const inputs: string[] = [];
   const filterParts: string[] = [];
@@ -328,8 +334,13 @@ export async function assembleEpisode(
     `${filterParts.join(";")};${labeled.join("")}concat=n=${labeled.length}:v=0:a=1[aout]`,
     "-map", "[aout]",
     "-c:a", "libmp3lame", "-b:a", "128k",
-    outPath,
   ];
+  // Virality: podcast episodes are audio-only, so the opt-in attribution
+  // lands as an ID3 comment tag instead of a burned video credit.
+  if (attribution) {
+    args.push("-metadata", `comment=${ATTRIBUTION_TEXT}`);
+  }
+  args.push(outPath);
   await execFileAsync("ffmpeg", args, { timeout: 300_000 });
 }
 
@@ -337,10 +348,20 @@ export async function assembleEpisode(
 export async function extractAudioFromVideo(
   videoPath: string,
   outPath: string,
+  attribution = false,
 ): Promise<void> {
+  const args = [
+    "-y", "-i", videoPath, "-vn", "-c:a", "libmp3lame", "-b:a", "128k",
+  ];
+  // Virality: audio-only export — the opt-in attribution lands as an ID3
+  // comment tag instead of a burned video credit.
+  if (attribution) {
+    args.push("-metadata", `comment=${ATTRIBUTION_TEXT}`);
+  }
+  args.push(outPath);
   await execFileAsync(
     "ffmpeg",
-    ["-y", "-i", videoPath, "-vn", "-c:a", "libmp3lame", "-b:a", "128k", outPath],
+    args,
     { timeout: 300_000 },
   );
 }
@@ -488,7 +509,7 @@ router.post(
 
     const {
       mode, script: rawScript, topic, videoUrl, title,
-      description, hostVoiceId, format, coHostVoiceId, musicBed,
+      description, hostVoiceId, format, coHostVoiceId, musicBed, attribution,
     } = parsed.data;
 
     if (mode === "script" && !rawScript.trim()) {
@@ -588,7 +609,7 @@ router.post(
         const videoPath = join(workDir, "source-video.mp4");
         await downloadToFile(videoUrl!, videoPath);
         const extractedPath = join(workDir, "extracted.mp3");
-        await extractAudioFromVideo(videoPath, extractedPath);
+        await extractAudioFromVideo(videoPath, extractedPath, attribution);
         durationSeconds = await probeDurationSeconds(extractedPath);
         if (durationSeconds <= 0) {
           // fall back to word-rate estimate from nothing — use a 1-block minimum
@@ -619,7 +640,7 @@ router.post(
         if (musicBed) {
           // sandwich the extracted audio between intro/outro beds
           episodeMp3Path = join(workDir, "episode.mp3");
-          await assembleEpisode([extractedPath], episodeMp3Path, true, workDir);
+          await assembleEpisode([extractedPath], episodeMp3Path, true, workDir, attribution);
           durationSeconds = await probeDurationSeconds(episodeMp3Path) || durationSeconds;
         } else {
           episodeMp3Path = extractedPath;
@@ -677,7 +698,7 @@ router.post(
         }
 
         episodeMp3Path = join(workDir, "episode.mp3");
-        await assembleEpisode(segmentFiles, episodeMp3Path, musicBed, workDir);
+        await assembleEpisode(segmentFiles, episodeMp3Path, musicBed, workDir, attribution);
         durationSeconds = await probeDurationSeconds(episodeMp3Path);
         if (durationSeconds <= 0) {
           durationSeconds = estimatePodcastCost(finalScript).estimatedSeconds;
@@ -719,6 +740,7 @@ router.post(
         mode,
         format,
         musicBed,
+        attribution,
         chapters,
         rssXml: rss,
         durationSeconds: Math.round(durationSeconds),

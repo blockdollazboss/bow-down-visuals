@@ -45,6 +45,11 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -198,6 +203,8 @@ export interface TranslateJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the dubbed videos (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const jobs = new Map<string, TranslateJob>();
@@ -325,27 +332,55 @@ async function synthesizeSpeech(
   return buf;
 }
 
+/** ffprobe: read the width of the first video stream (for the attribution tag sizing). */
+async function probeVideoWidth(inputPath: string): Promise<number | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", inputPath],
+      { timeout: 30_000 },
+    );
+    const w = parseInt(stdout.trim(), 10);
+    return Number.isFinite(w) && w > 0 ? w : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface MuxDubbedOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+  /** Output video width in px for tag sizing; probed per job when omitted. */
+  outputWidth?: number;
+}
+
 async function muxDubbedVideo(
   videoPath: string,
   dubbedAudioPath: string,
   outputPath: string,
+  opts: MuxDubbedOpts = {},
 ): Promise<void> {
-  await execFileAsync(
-    "ffmpeg",
-    [
-      "-y",
-      "-i", videoPath,
-      "-i", dubbedAudioPath,
-      "-map", "0:v:0",
-      "-map", "1:a:0",
-      "-c:v", "copy",
-      "-c:a", "aac",
-      "-b:a", "192k",
-      "-shortest",
-      outputPath,
-    ],
-    { timeout: 600_000 },
-  );
+  const args: string[] = [
+    "-y",
+    "-i", videoPath,
+    "-i", dubbedAudioPath,
+    "-map", "0:v:0",
+    "-map", "1:a:0",
+  ];
+  if (opts.attribution && opts.attributionFontfile) {
+    // The tag needs a filter pass, so the video stream is re-encoded
+    // (otherwise it stays a straight -c:v copy).
+    args.push(
+      "-vf", attributionDrawtext(opts.attributionFontfile, opts.outputWidth ?? 1280),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+    );
+  } else {
+    args.push("-c:v", "copy");
+  }
+  args.push("-c:a", "aac", "-b:a", "192k", "-shortest", outputPath);
+  await execFileAsync("ffmpeg", args, { timeout: 600_000 });
 }
 
 /* ── Background worker ───────────────────────────────────────────────── */
@@ -378,6 +413,13 @@ export async function runTranslateJob(
       throw new Error("No speech detected in this video — nothing to translate.");
     }
 
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
+    const attributionWidth =
+      job.attribution && attributionFontfile
+        ? (await probeVideoWidth(inputPath)) ?? undefined
+        : undefined;
+
     // 3–6. Per language: translate → TTS → mux → SRT → upload
     for (const langCode of job.languages) {
       const output = job.outputs.find((o) => o.language === langCode)!;
@@ -409,7 +451,11 @@ export async function runTranslateJob(
 
         // Mux under original video
         const outPath = join(workDir, `dubbed-${langCode}.mp4`);
-        await muxDubbedVideo(inputPath, dubbedPath, outPath);
+        await muxDubbedVideo(inputPath, dubbedPath, outPath, {
+          attribution: job.attribution,
+          attributionFontfile,
+          outputWidth: attributionWidth,
+        });
         const outBuffer = await fs.readFile(outPath);
         const videoRef = await uploadMediaToSupabaseStorage(
           `translate/${job.userId}/${job.id}-${langCode}.mp4`,
@@ -476,6 +522,7 @@ const translateSchema = z.object({
     .max(6, "Maximum 6 languages per job."),
   voiceId: z.string().min(1, "Voice is required.").max(100),
   durationSec: z.number().min(1).max(3600).optional(),
+  attribution: attributionOptIn(),
 });
 
 /**
@@ -533,7 +580,7 @@ router.post(
       return;
     }
 
-    const { languages, voiceId, durationSec } = parsed.data;
+    const { languages, voiceId, durationSec, attribution } = parsed.data;
     const unknown = languages.filter((l) => !isSupportedLanguage(l));
     if (unknown.length > 0) {
       res.status(400).json({ error: `Unsupported language(s): ${unknown.join(", ")}` });
@@ -596,6 +643,7 @@ router.post(
       error: null,
       creditsCharged: estimate.credits,
       createdAt: Date.now(),
+      attribution,
     };
     jobs.set(job.id, job);
 
@@ -606,6 +654,7 @@ router.post(
       jobId: job.id,
       status: job.status,
       languages: uniqueLangs,
+      attribution,
       creditsCharged: estimate.credits,
       creditsRemaining,
     });
