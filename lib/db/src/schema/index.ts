@@ -83,6 +83,7 @@ export * from "./milestones";
 export * from "./presave";
 export * from "./creator-platform";
 export * from "./creator-subscriptions";
+export * from "./creator-payouts";
 export * from "./custom-domains";
 export * from "./creator-social";
 export * from "./creator-stories-posts";

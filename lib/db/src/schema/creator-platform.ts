@@ -40,6 +40,12 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   isVerified:      boolean("is_verified").notNull().default(false),
   followerCount:   integer("follower_count").notNull().default(0),
   totalPlays:      integer("total_plays").notNull().default(0),
+  /** Stripe Connect (Express) money-out. account id set at onboarding;
+      flags synced from the account.updated webhook. */
+  stripeConnectAccountId:     text("stripe_connect_account_id"),
+  stripeConnectOnboarded:     boolean("stripe_connect_onboarded").notNull().default(false),
+  stripeConnectChargesEnabled: boolean("stripe_connect_charges_enabled").notNull().default(false),
+  stripeConnectPayoutsEnabled: boolean("stripe_connect_payouts_enabled").notNull().default(false),
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:       timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
