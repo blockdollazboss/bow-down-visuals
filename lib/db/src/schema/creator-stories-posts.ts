@@ -68,6 +68,10 @@ export const postsTable = pgTable("posts", {
   repostOf:    uuid("repost_of").references(() => postsTable.id),
   /** Optional community group this post belongs to (Worker 9 may FK this). */
   groupId:     uuid("group_id"),
+  /** NULL = published now; future = hidden until then (feed filters by time — no cron). 4+ stars. */
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+  /** 'public' | 'followers' — audience targeting (4+ stars). */
+  audience:    text("audience").notNull().default("public"),
   likeCount:   integer("like_count").notNull().default(0),
   repostCount: integer("repost_count").notNull().default(0),
   replyCount:  integer("reply_count").notNull().default(0),
@@ -120,3 +124,27 @@ export const savesTable = pgTable("saves", {
 ]);
 
 export type Save = typeof savesTable.$inferSelect;
+
+/* ── Polls (migration 0097; 2-3 star composer) ─────────────────────────── */
+
+export const pollOptionsTable = pgTable("poll_options", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  postId:     uuid("post_id").notNull().references(() => postsTable.id, { onDelete: "cascade" }),
+  optionText: text("option_text").notNull(),
+  voteCount:  integer("vote_count").notNull().default(0),
+  position:   integer("position").notNull().default(0),
+  createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertPollOptionSchema = createInsertSchema(pollOptionsTable).omit({ id: true, createdAt: true, voteCount: true });
+export type InsertPollOption = z.infer<typeof insertPollOptionSchema>;
+export type PollOption = typeof pollOptionsTable.$inferSelect;
+
+export const pollVotesTable = pgTable("poll_votes", {
+  userId:    uuid("user_id").notNull(),
+  postId:    uuid("post_id").notNull().references(() => postsTable.id, { onDelete: "cascade" }),
+  optionId:  uuid("option_id").notNull().references(() => pollOptionsTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.postId] })]);
+
+export type PollVote = typeof pollVotesTable.$inferSelect;
