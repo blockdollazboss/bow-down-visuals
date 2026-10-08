@@ -25,10 +25,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { computeSceneTimings } from "@/lib/scene-timing";
 import {
   normalizeEditorSettings,
   sceneHasClip,
   getClipEdit,
+  defaultClipEdit,
+  type ClipEdit,
   formatAspectCss,
   formatDimensions,
   FORMAT_PRESET_LABELS,
@@ -708,6 +711,59 @@ export default function VideoEditor() {
     setSettingsState(snap.settings);
   }, [undoStep, snapshotNow]);
 
+  /** Wave 9 — apply beat-cut times as real scene splits in the timeline model.
+      Same split semantics as TimelineDock's doSplit: the scene under each cut
+      time becomes two scenes with adjusted trimStart/trimEnd. Cuts are
+      processed ascending so inserted boundaries don't shift later cuts.
+      Undoable via the wrapped setScenes/setSettings. Returns the number of
+      cuts actually applied. */
+  const applyBeatCuts = useCallback((cuts: number[]): number => {
+    const curScenes = scenesRef.current;
+    const curSettings = settingsRef.current;
+    if (!curScenes.length || !cuts.length) return 0;
+    const audioDur = previewEngineState?.audioDuration ?? null;
+    let nextScenes = [...curScenes];
+    let nextClips: Record<string, ClipEdit> = { ...(curSettings.clips ?? {}) };
+    let applied = 0;
+    const sorted = [...cuts].filter((t) => Number.isFinite(t) && t > 0).sort((a, b) => a - b);
+    for (const t of sorted) {
+      const timings = computeSceneTimings(nextScenes, audioDur);
+      const idx = timings.findIndex((tm) => t >= tm.startSec && t < tm.endSec);
+      if (idx < 0) continue;
+      const tm = timings[idx]!;
+      const scene = nextScenes[idx]!;
+      const splitAt = t - tm.startSec;
+      /* Same 0.3s edge guard as doSplit — skip cuts too close to a boundary. */
+      if (splitAt <= 0.3 || splitAt >= tm.durationSec - 0.3) continue;
+      const ce = nextClips[scene.id] ?? defaultClipEdit();
+      const origTrimStart = ce.trimStart ?? 0;
+      const origTrimEnd = ce.trimEnd ?? 0;
+      const secondId = `sc_${Math.random().toString(36).slice(2, 10)}`;
+      const f = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+      const secondScene: SceneData = {
+        ...scene,
+        id: secondId,
+        sceneNumber: scene.sceneNumber + 0.5,
+        timestamp: `${f(tm.startSec + splitAt)}-${f(tm.endSec)}`,
+      };
+      const firstScene: SceneData = { ...scene, timestamp: `${f(tm.startSec)}-${f(tm.startSec + splitAt)}` };
+      nextScenes = [...nextScenes];
+      nextScenes[idx] = firstScene;
+      nextScenes.splice(idx + 1, 0, secondScene);
+      nextClips = {
+        ...nextClips,
+        [scene.id]: { ...ce, trimEnd: origTrimEnd + (tm.durationSec - splitAt) },
+        [secondId]: { ...ce, trimStart: origTrimStart + splitAt, useLipSync: false, lipSyncUrl: null, lipSyncStatus: null },
+      };
+      applied++;
+    }
+    if (applied > 0) {
+      setScenes(nextScenes);
+      setSettings({ ...curSettings, clips: nextClips });
+    }
+    return applied;
+  }, [previewEngineState?.audioDuration, setScenes, setSettings]);
+
   const handleRedo = useCallback(() => {
     const snap = redoStep(snapshotNow());
     if (!snap) return;
@@ -1352,6 +1408,7 @@ export default function VideoEditor() {
                         onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
                         projectKey={projectId || "default"}
                         onMarkersChange={setBeatGrid}
+                        onApplyCuts={applyBeatCuts}
                       />
                     </div>
                     {/* Wave 9 — Timeline Edit Recipes: preview-then-apply edit operations. */}

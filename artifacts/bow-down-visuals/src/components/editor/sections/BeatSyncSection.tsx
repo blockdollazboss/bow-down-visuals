@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Activity, Loader2, Scissors, X, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import type { EditorSettings, VideoChapter } from "@/lib/editor-settings";
@@ -53,6 +54,9 @@ interface BeatSyncSectionProps {
   projectKey?: string;
   /** Receives kept marker times (seconds) whenever they change. */
   onMarkersChange?: (times: number[]) => void;
+  /** Applies kept cut times as real scene splits in the timeline.
+      Returns the number of cuts applied. */
+  onApplyCuts?: (cuts: number[]) => number;
 }
 
 export function BeatSyncSection({
@@ -64,7 +68,10 @@ export function BeatSyncSection({
   onSeek,
   projectKey = "default",
   onMarkersChange,
+  onApplyCuts,
 }: BeatSyncSectionProps) {
+  const { t } = useTranslation();
+  const ns = "wave9.beatSync";
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
@@ -102,12 +109,12 @@ export function BeatSyncSection({
       }
       if (res.status === 503) {
         throw new Error(
-          typeof data.message === "string" ? data.message : "Beat detection is unavailable right now."
+          typeof data.message === "string" ? data.message : t(`${ns}.errorUnavailable`)
         );
       }
       if (!res.ok || !Array.isArray(data.beats)) {
         throw new Error(
-          typeof data.error === "string" ? data.error : "Beat detection failed."
+          typeof data.error === "string" ? data.error : t(`${ns}.errorGeneric`)
         );
       }
       const list: BeatMarker[] = (data.beats as number[])
@@ -119,11 +126,14 @@ export function BeatSyncSection({
       setMethod(typeof data.method === "string" ? data.method : null);
       setPhase("review");
       toast({
-        title: "Beats detected",
-        description: `${list.length} beat markers${typeof data.bpm === "number" ? ` at ~${data.bpm} BPM` : ""}. Review, adjust, then apply cuts.`,
+        title: t(`${ns}.detectedTitle`),
+        description: t(`${ns}.detectedToast`, {
+          n: list.length,
+          desc: typeof data.bpm === "number" ? ` at ~${data.bpm} BPM` : "",
+        }),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Beat detection failed.");
+      setError(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
     }
   }
 
@@ -157,17 +167,19 @@ export function BeatSyncSection({
 
   /** Apply cuts at kept markers:
    *  1) chapters — persisted in the project, exported to YouTube.
-   *  2) beatCutPlan in localStorage — the timeline dock + export pipeline
-   *     consume cut points from here (export wiring pending). */
+   *  2) beatCutPlan in localStorage — the export pipeline consumes cut
+   *     points from here.
+   *  3) real scene splits — via onApplyCuts, clips are actually divided
+   *     in the timeline model (same semantics as the S split tool). */
   function applyCuts() {
     if (keptMarkers.length === 0) return;
     const chapters: VideoChapter[] = keptMarkers.map((m, i) => ({
-      title: `Beat cut ${i + 1}`,
+      title: t(`${ns}.chapterTitle`, { n: i + 1 }),
       startSec: m.time,
       endSec: m.time,
     }));
     // Keep any non-beat chapters the user already had.
-    const existing = (settings.chapters ?? []).filter((c) => !c.title.startsWith("Beat cut "));
+    const existing = (settings.chapters ?? []).filter((c) => !c.title.startsWith(t(`${ns}.chapterPrefix`)));
     setSettings({ ...settings, chapters: [...existing, ...chapters].sort((a, b) => a.startSec - b.startSec) });
 
     try {
@@ -183,11 +195,17 @@ export function BeatSyncSection({
       /* storage full/blocked — chapters still carry the markers */
     }
 
+    // Real splits in the timeline model (no-op when the host doesn't wire onApplyCuts).
+    const splitCount = onApplyCuts ? onApplyCuts(keptMarkers.map((m) => m.time)) : 0;
+
     // Mark the plan visible in the review strip; chapters carry the persisted markers.
     setApplied(true);
     toast({
       title: "Beat cuts applied",
-      description: `${keptMarkers.length} cut points saved as chapter markers. Cuts slice clips on export when the beat-cut export step ships — for now they're marked on the timeline.`,
+      description:
+        splitCount > 0
+          ? `${splitCount} cut${splitCount === 1 ? "" : "s"} sliced into clips on the timeline.`
+          : `${keptMarkers.length} cut points saved as chapter markers.`,
     });
   }
 
