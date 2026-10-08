@@ -15,6 +15,7 @@ import {
   playEventsTable,
   notificationsTable,
   dmcaReportsTable,
+  shopsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
@@ -38,7 +39,12 @@ const router = Router();
    LINK GRAPH (every payload carries two-way link fields — no extra fetches):
    - profile payloads: id, slug, vertical + presence flags has_downloads
      (store), has_social_links, has_stream_schedule, has_media_kit,
-     tip_jar_enabled (tips). Link: /creator/:slug everywhere.
+     tip_jar_enabled (tips) + monetization_checklist {has_product,
+     has_price, has_tip_jar, has_domain, has_audience} with
+     money_moves_done / money_moves_total (5) — "guide them to the money":
+     UI renders "N of 5 money moves done" with zero extra fetches.
+     has_domain = user has a shop with a verified custom domain.
+     Link: /creator/:slug everywhere.
    - track/video payloads: id, profile_id, profile_slug, buyable,
      download_price_cents; videos also carry sound {id,title,audio_url,
      artwork_url,profile_slug} | null.
@@ -272,26 +278,49 @@ function enrichVideo(
   };
 }
 
-/** Presence flags so neighbors can link off a profile payload without extra round-trips. */
-async function profileFlags(profile: typeof creatorProfilesTable.$inferSelect) {
-  const [t, v] = await Promise.all([
-    db.select({ c: count() }).from(profileTracksTable).where(and(
+/**
+ * Presence flags + monetization checklist ("guide them to the money").
+ * Every profile payload carries these so UI workers can render the
+ * "N of 5 money moves done" Get-Paid nudge with zero extra round-trips.
+ * The 5 money moves: has_product -> has_price -> has_tip_jar -> has_domain
+ * -> has_audience. Vertical-agnostic: a gamer's VODs are products, a
+ * podcaster's episodes are products, an educator's course videos too.
+ */
+async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) {
+  const [tracks, videos, domainShops] = await Promise.all([
+    db.select({ price: profileTracksTable.downloadPriceCents }).from(profileTracksTable).where(and(
       eq(profileTracksTable.profileId, profile.id),
       eq(profileTracksTable.isPublished, true),
-      sql`${profileTracksTable.downloadPriceCents} > 0`,
     )),
-    db.select({ c: count() }).from(profileVideosTable).where(and(
+    db.select({ price: profileVideosTable.downloadPriceCents }).from(profileVideosTable).where(and(
       eq(profileVideosTable.profileId, profile.id),
       eq(profileVideosTable.isPublished, true),
-      sql`${profileVideosTable.downloadPriceCents} > 0`,
     )),
+    db.select({ id: shopsTable.id }).from(shopsTable).where(and(
+      eq(shopsTable.user_id, profile.userId),
+      eq(shopsTable.domain_verified, true),
+    )).limit(1),
   ]);
+  const hasProduct = tracks.length + videos.length > 0;
+  const hasPrice =
+    tracks.some((t) => (t.price ?? 0) > 0) || videos.some((v) => (v.price ?? 0) > 0);
   const socialLinks = (profile.socialLinks ?? {}) as Record<string, string>;
+  const monetization_checklist = {
+    has_product: hasProduct,
+    has_price: hasPrice,
+    has_tip_jar: profile.tipJarEnabled ?? false,
+    has_domain: domainShops.length > 0,
+    has_audience: (profile.followerCount ?? 0) > 0,
+  };
+  const money_moves_done = Object.values(monetization_checklist).filter(Boolean).length;
   return {
-    has_downloads: (t[0]?.c ?? 0) + (v[0]?.c ?? 0) > 0,
+    has_downloads: hasPrice,
     has_social_links: Object.keys(socialLinks).length > 0,
     has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
     has_media_kit: profile.mediaKit !== null,
+    monetization_checklist,
+    money_moves_done,
+    money_moves_total: 5,
   };
 }
 
@@ -395,7 +424,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
       return;
     }
 
-    const [topTracks, topVideos, profilePlaylists, counts, hasDownloads] = await Promise.all([
+    const [topTracks, topVideos, profilePlaylists, counts] = await Promise.all([
       db.select().from(profileTracksTable)
         .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
         .orderBy(desc(profileTracksTable.playCount)).limit(5),
@@ -418,23 +447,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
             playlists: playlistRows[0]?.playlistCount ?? 0,
           };
         }),
-      // Store presence: any published item with a download price.
-      Promise.all([
-        db.select({ c: count() }).from(profileTracksTable).where(and(
-          eq(profileTracksTable.profileId, profile.id),
-          eq(profileTracksTable.isPublished, true),
-          sql`${profileTracksTable.downloadPriceCents} > 0`,
-        )),
-        db.select({ c: count() }).from(profileVideosTable).where(and(
-          eq(profileVideosTable.profileId, profile.id),
-          eq(profileVideosTable.isPublished, true),
-          sql`${profileVideosTable.downloadPriceCents} > 0`,
-        )),
-      ]).then(([t, v]) => (t[0]?.c ?? 0) + (v[0]?.c ?? 0) > 0),
     ]);
 
     const sounds = await soundMapFor(topVideos, profile.slug);
-    const socialLinks = (profile.socialLinks ?? {}) as Record<string, string>;
+    const extras = await profileExtras(profile);
 
     res.json({
       profile: {
@@ -457,11 +473,9 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
         created_at: profile.createdAt,
-        // Presence flags — neighbors link off these without extra round-trips.
-        has_downloads: hasDownloads,
-        has_social_links: Object.keys(socialLinks).length > 0,
-        has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
-        has_media_kit: profile.mediaKit !== null,
+        // Presence flags + monetization checklist — neighbors link off these
+        // without extra round-trips; UI renders "N of 5 money moves done".
+        ...extras,
       },
       counts,
       top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug)),
@@ -521,11 +535,11 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     if (existing) {
       const [updated] = await db.update(creatorProfilesTable).set(values)
         .where(eq(creatorProfilesTable.id, existing.id)).returning();
-      res.json({ profile: { ...updated, ...(await profileFlags(updated)) }, created: false });
+      res.json({ profile: { ...updated, ...(await profileExtras(updated)) }, created: false });
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
-    res.status(201).json({ profile: { ...created, ...(await profileFlags(created)) }, created: true });
+    res.status(201).json({ profile: { ...created, ...(await profileExtras(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
     res.status(500).json({ error: "The save fumbled. Run it back." });
@@ -570,7 +584,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();
-    res.json({ profile: { ...updated, ...(await profileFlags(updated)) } });
+    res.json({ profile: { ...updated, ...(await profileExtras(updated)) } });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
