@@ -74,6 +74,8 @@ function param(req: Request, name: string): string {
        POST   /dm/:id/block                  (auth; participant)
      Explore:
        GET    /explore  blended trending payload (public)
+     Profiles (link-graph glue):
+       GET    /profiles/resolve?slug=  slug -> user_id for "Message" deep-links
 */
 
 /* ── Zod schemas ─────────────────────────────────────────────────────────── */
@@ -974,6 +976,31 @@ router.get("/explore", async (req, res) => {
   } catch (err) {
     console.error("[community] GET /explore failed", err);
     res.status(500).json({ error: "Couldn't load Explore — try again." });
+  }
+});
+
+/* ── Profile resolution (link-graph glue) ─────────────────────────────────
+   GET /api/profiles/resolve?slug= — maps a creator slug to its user_id so
+   any surface (groups, events, explore, profiles) can deep-link
+   "Message" -> /messages?to=<user_id>. Kept here (not in creator-platform)
+   so all cross-surface wiring lives in one contract. */
+router.get("/profiles/resolve", async (req, res) => {
+  try {
+    const slug = typeof req.query["slug"] === "string" ? req.query["slug"].trim().toLowerCase() : "";
+    if (!slug) { res.status(400).json({ error: "slug is required." }); return; }
+    const rows = await db.select({
+      userId: creatorProfilesTable.userId,
+      slug: creatorProfilesTable.slug,
+      displayName: creatorProfilesTable.displayName,
+      avatarUrl: creatorProfilesTable.avatarUrl,
+    })
+      .from(creatorProfilesTable).where(eq(creatorProfilesTable.slug, slug)).limit(1);
+    const p = rows[0];
+    if (!p) { res.status(404).json({ error: "Creator not found." }); return; }
+    res.json({ user_id: p.userId, slug: p.slug, display_name: p.displayName, avatar_url: p.avatarUrl });
+  } catch (err) {
+    console.error("[community] GET /profiles/resolve failed", err);
+    res.status(500).json({ error: "Couldn't resolve the profile — try again." });
   }
 });
 
