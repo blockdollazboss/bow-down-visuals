@@ -60,6 +60,7 @@ import draftsRouter from "./drafts";
 import generationHistoryRouter from "./generation-history";
 import thumbnailsRouter from "./thumbnails";
 import showcaseRouter from "./showcase";
+import embedApiRouter from "./embed";
 import albumsRouter from "./albums";
 import lipSyncRouter from "./lip-sync";
 import chatRouter from "./chat";
@@ -254,6 +255,7 @@ import storeRouter from "./store";
 import storefrontRouter from "./storefront";
 import creatorTiersRouter from "./creator-tiers";
 import aiPageDesignerRouter from "./ai-page-designer";
+import publicStatsRouter from "./public-stats";
 
 const router: IRouter = Router();
 
@@ -317,6 +319,7 @@ router.use(draftsRouter);
 router.use(generationHistoryRouter);
 router.use(thumbnailsRouter);
 router.use(showcaseRouter);
+router.use(embedApiRouter);
 router.use(albumsRouter);
 router.use(lipSyncRouter);
 router.use(preProductionRouter);
@@ -511,6 +514,7 @@ router.use(storeRouter);                    // /api/store/* (digital sales check
 router.use(storefrontRouter);               // /api/storefront/* (products, orders, discounts)
 router.use(creatorTiersRouter);             // /api/creator-tiers/*
 router.use("/ai-page-designer", aiPageDesignerRouter); // /api/ai-page-designer/*
+router.use(publicStatsRouter);                      // /api/public/stats (cached social-proof stats)
 // NOTE: social.ts (stories/posts/reactions) was already mounted above as socialRouter.
 
 export default router;
