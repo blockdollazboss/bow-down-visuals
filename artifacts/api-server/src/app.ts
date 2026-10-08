@@ -6,31 +6,50 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
+import { embedPageRouter } from "./routes/embed";
 import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { stagingGate } from "./lib/staging-gate";
+import { ogPreviewMiddleware } from "./lib/og-preview";
+import { getWaitlistInvitePublic } from "./routes/waitlist";
 
 const app: Express = express();
 
 /* Security headers (manual implementation — no helmet dependency).
    CSP is permissive for the Vite SPA bundle while blocking common injection vectors. */
 app.use((_req, res, next) => {
+  /* Embed pages (/embed/*) must be frameable on ANY site — they carry no
+     auth, set no cookies, and are the product's billboard. Skip
+     X-Frame-Options there and relax CSP (no frame-ancestors restriction). */
+  const isEmbed = _req.path.startsWith("/embed/");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  if (!isEmbed) {
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  }
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader(
     "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https: blob:",
-      "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co",
-      "frame-src https://js.stripe.com",
-      "font-src 'self' data: https:",
-      "media-src 'self' https: blob:",
-    ].join("; ")
+    isEmbed
+      ? [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: https: blob:",
+          "connect-src 'self'",
+          "media-src 'self' https: blob: data:",
+          "font-src 'self' data: https:",
+        ].join("; ")
+      : [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: https: blob:",
+          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co",
+          "frame-src https://js.stripe.com",
+          "font-src 'self' data: https:",
+          "media-src 'self' https: blob:",
+        ].join("; ")
   );
   next();
 });
@@ -94,7 +113,77 @@ app.use(express.urlencoded({ extended: true }));
 // (staging service); production never sets it, so this is a no-op there.
 app.use(stagingGate);
 
+/* Dynamic OG/Twitter link previews for shareable public URLs.
+   Bot-only: matches scraper User-Agents on shareable routes (/track/:id,
+   /watch/:id, /artist/:slug, …) and answers with per-entity og:* tags +
+   JSON-LD. Humans pass through to the SPA untouched. Must run before the
+   static/SPA fallback below. */
+app.use(ogPreviewMiddleware());
+
 app.use("/api", router);
+
+/* ── Embeddable player pages (virality) — registered BEFORE the SPA fallback
+   so /embed/* serves the tiny standalone HTML, not index.html. */
+app.use(embedPageRouter);
+
+/* ── Shareable waitlist position pages with real OG tags ───────────────────
+   /invite/:code is a client-side route (invite.tsx). Crawlers and link
+   unfurlers don't run the SPA's JS, so they get a bot-only HTML page here
+   with live OG tags (rank, invite count). Humans fall through to the SPA
+   fallback below, which serves index.html and renders the interactive page. */
+const INVITE_BOT_UA =
+  /twitterbot|facebookexternalhit|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|embedly|quora link preview|redditbot|applebot|googlebot|bingbot|pinterest|tumblr/i;
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+  );
+}
+
+app.get("/invite/:code", async (req: Request, res: Response, next: NextFunction) => {
+  const ua = req.get("user-agent") ?? "";
+  if (!INVITE_BOT_UA.test(ua)) return next();
+  try {
+    const data = await getWaitlistInvitePublic(String(req.params["code"] ?? ""));
+    if (!data) {
+      res.status(404).send("Invite not found.");
+      return;
+    }
+    const host = req.get("host") ?? "bowdownvisuals.com";
+    const proto = req.get("x-forwarded-proto") ?? req.protocol;
+    const pageUrl = `${proto}://${host}/invite/${data.code}`;
+    const title = `#${data.position} on the Bow Down Visuals waitlist — skip the line with me`;
+    const description =
+      `${data.invitesCount} ${data.invitesCount === 1 ? "friend has" : "friends have"} joined through this link. ` +
+      `Invite 3 friends to jump ${data.position} spots in the waitlist queue and unlock early access.`;
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />` +
+      `<title>${escapeHtml(title)}</title>` +
+      `<meta name="description" content="${escapeHtml(description)}" />` +
+      `<meta property="og:site_name" content="Bow Down Visuals" />` +
+      `<meta property="og:title" content="${escapeHtml(title)}" />` +
+      `<meta property="og:description" content="${escapeHtml(description)}" />` +
+      `<meta property="og:type" content="website" />` +
+      `<meta property="og:url" content="${escapeHtml(pageUrl)}" />` +
+      `<meta property="og:image" content="${proto}://${host}/opengraph.jpg" />` +
+      `<meta property="og:image:width" content="1200" />` +
+      `<meta property="og:image:height" content="630" />` +
+      `<meta name="twitter:card" content="summary_large_image" />` +
+      `<meta name="twitter:title" content="${escapeHtml(title)}" />` +
+      `<meta name="twitter:description" content="${escapeHtml(description)}" />` +
+      `<meta name="twitter:image" content="${proto}://${host}/opengraph.jpg" />` +
+      `<link rel="canonical" href="${escapeHtml(pageUrl)}" />` +
+      `<meta name="theme-color" content="#d4af37" /></head><body>` +
+      `<p>Redirecting to Bow Down Visuals…</p>` +
+      `<script>window.location.replace(${JSON.stringify(`/invite/${data.code}`)});</script>` +
+      `</body></html>`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.status(200).send(html);
+  } catch (err) {
+    logger.warn({ err }, "invite OG route failed");
+    next();
+  }
+});
 
 /* ── Serve the frontend SPA (single-service deployment) ───────────────────
    The Vite build outputs to artifacts/bow-down-visuals/dist/public.
@@ -165,7 +254,7 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
     const normalized = req.path.endsWith("/") && req.path.length > 1
       ? req.path.slice(0, -1)
       : req.path;
-    const status = CLIENT_ROUTES.has(normalized) ? 200 : 404;
+    const status = CLIENT_ROUTES.has(normalized) || normalized.startsWith("/invite/") ? 200 : 404;
     /* Serve index.html with 200 for known pages, 404 for unknown routes —
        the client router renders the app (or its 404 page) in both cases.
        Never cache it: it points at the hashed asset filenames. */

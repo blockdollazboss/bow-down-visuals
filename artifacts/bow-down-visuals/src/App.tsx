@@ -55,6 +55,13 @@ import VideoTemplates from "@/pages/templates/videos";
 import ThumbnailTemplates from "@/pages/templates/thumbnails";
 import HookTemplates from "@/pages/templates/hooks";
 import CaptionPacks from "@/pages/templates/captions";
+/* SEO programmatic pages (Worker 9, virality wave): tool pages, vertical
+   hubs, genre hubs — static imports so they render without lazy flash. */
+import ToolsIndex from "@/pages/seo/tools-index";
+import ForIndex from "@/pages/seo/for-index";
+import { ToolPageBySlug } from "@/pages/seo/tool-page";
+import { VerticalHubBySlug } from "@/pages/seo/vertical-hub";
+import { GenreHubBySlug } from "@/pages/seo/genre-hub";
 import Showcase from "@/pages/showcase/index";
 import ShowcaseItemPage from "@/pages/showcase/item";
 import PublicAlbumPage from "@/pages/albums/public";
@@ -89,6 +96,7 @@ const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
 const Generations   = lazyWithRetry(() => import("@/pages/generations"));
 const VideoEditor   = lazyWithRetry(() => import("@/pages/video-editor"));
 const BetaAccess    = lazyWithRetry(() => import("@/pages/beta-access"));
+const InvitePage    = lazyWithRetry(() => import("@/pages/invite"));
 const Contact       = lazyWithRetry(() => import("@/pages/contact"));
 const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
@@ -408,6 +416,12 @@ function AppShell() {
       if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
         localStorage.setItem("bdv_referral_code", ref.toUpperCase());
       }
+      /* Capture waitlist invite code from ?invite= (e.g. /invite/ABC123 deep
+       * links) — persisted so signup can auto-apply it to the inviter. */
+      const invite = params.get("invite");
+      if (invite && /^[A-Za-z0-9]{4,16}$/.test(invite)) {
+        localStorage.setItem("bdv_waitlist_invite", invite.toUpperCase());
+      }
     } catch { /* noop */ }
   }, []);
   /* The video editor is a full-viewport studio surface — the marketing site
@@ -450,6 +464,29 @@ function AppShell() {
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
           <Route path="/templates/hooks"><HookTemplates /></Route>
           <Route path="/templates/captions"><CaptionPacks /></Route>
+          {/* SEO programmatic pages — public, no login, prerendered at build */}
+          <Route path="/tools"><ToolsIndex /></Route>
+          <Route path="/tools/ai-thumbnail-maker"><ToolPageBySlug slug="ai-thumbnail-maker" /></Route>
+          <Route path="/tools/ai-hook-generator"><ToolPageBySlug slug="ai-hook-generator" /></Route>
+          <Route path="/tools/ai-music-video-maker"><ToolPageBySlug slug="ai-music-video-maker" /></Route>
+          <Route path="/tools/ai-caption-generator"><ToolPageBySlug slug="ai-caption-generator" /></Route>
+          <Route path="/tools/ai-clip-maker"><ToolPageBySlug slug="ai-clip-maker" /></Route>
+          <Route path="/tools/ai-song-maker"><ToolPageBySlug slug="ai-song-maker" /></Route>
+          <Route path="/for"><ForIndex /></Route>
+          <Route path="/for/youtubers"><VerticalHubBySlug slug="youtubers" /></Route>
+          <Route path="/for/podcasters"><VerticalHubBySlug slug="podcasters" /></Route>
+          <Route path="/for/streamers"><VerticalHubBySlug slug="streamers" /></Route>
+          <Route path="/for/musicians"><VerticalHubBySlug slug="musicians" /></Route>
+          <Route path="/for/tiktokers"><VerticalHubBySlug slug="tiktokers" /></Route>
+          <Route path="/for/educators"><VerticalHubBySlug slug="educators" /></Route>
+          <Route path="/genres/hip-hop"><GenreHubBySlug slug="hip-hop" /></Route>
+          <Route path="/genres/pop"><GenreHubBySlug slug="pop" /></Route>
+          <Route path="/genres/edm"><GenreHubBySlug slug="edm" /></Route>
+          <Route path="/genres/rock"><GenreHubBySlug slug="rock" /></Route>
+          <Route path="/genres/rnb"><GenreHubBySlug slug="rnb" /></Route>
+          <Route path="/genres/lofi"><GenreHubBySlug slug="lofi" /></Route>
+          <Route path="/genres/country"><GenreHubBySlug slug="country" /></Route>
+          <Route path="/genres/trap"><GenreHubBySlug slug="trap" /></Route>
           {/* Discovery — public, no login: charts, search, browse, vertical + genre hubs */}
           <Route path="/charts"><Charts /></Route>
           <Route path="/search"><DiscoverySearch /></Route>
@@ -462,6 +499,7 @@ function AppShell() {
           <Route path="/albums/:slug"><PublicAlbumPage /></Route>
           <Route path="/plan/:slug"><PlanPublic /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
+          <Route path="/invite/:code"><InvitePage /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>
           <Route path="/privacy"><Privacy /></Route>

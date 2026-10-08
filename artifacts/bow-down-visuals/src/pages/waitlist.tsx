@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { WaitlistSuccess, type WaitlistPosition } from "@/components/WaitlistInvite";
 import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
-  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Mail,
+  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Mail, Gift,
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -91,6 +92,19 @@ export default function Waitlist() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [inviterCode, setInviterCode] = useState("");
+  const [positionData, setPositionData] = useState<WaitlistPosition | null>(null);
+
+  /* Capture an invite code from ?invite= (shared invite links) */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("invite");
+      if (code && /^[A-Za-z0-9]{4,16}$/.test(code)) {
+        setInviterCode(code.toUpperCase());
+      }
+    } catch { /* noop */ }
+  }, []);
 
   function update(field: keyof FormValues, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -114,13 +128,27 @@ export default function Waitlist() {
           wantToCreate: form.wantToCreate,
           socialHandle: form.socialHandle,
           message: form.message,
+          inviteCode: inviterCode || undefined,
         }),
       });
-      const data = await res.json() as { error?: string; message?: string };
+      const data = await res.json() as {
+        error?: string; message?: string;
+        inviteCode?: string; position?: number; total?: number;
+        invitesCount?: number; milestones?: WaitlistPosition["milestones"];
+      };
       if (!res.ok) {
         setError(data.message ?? data.error ?? t("waitlist.submitError"));
         setLoading(false);
         return;
+      }
+      if (data.inviteCode && typeof data.position === "number") {
+        setPositionData({
+          inviteCode: data.inviteCode,
+          position: data.position,
+          total: data.total ?? data.position,
+          invitesCount: data.invitesCount ?? 0,
+          milestones: data.milestones ?? [],
+        });
       }
       setSubmitted(true);
     } catch {
@@ -171,6 +199,23 @@ export default function Waitlist() {
         {/* ── FORM ── */}
         <section className="max-w-2xl mx-auto px-5 md:px-8 pb-20">
           {submitted ? (
+            positionData ? (
+              <>
+                <WaitlistSuccess data={positionData} />
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                  <Link href="/">
+                    <Button variant="outline" className="border-white/10 text-white/60 hover:text-white hover:bg-white/5">
+                      {t("waitlist.backHome")}
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button className="gold-glow font-semibold gap-2">
+                      <Zap className="h-4 w-4" /> {t("waitlist.tryTools")}
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
             <div className="rounded-2xl border border-primary/25 bg-primary/5 p-10 text-center">
               <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
               <h3 className="text-2xl font-semibold text-white mb-3">{t("waitlist.successTitle")}</h3>
@@ -195,8 +240,15 @@ export default function Waitlist() {
                 </Link>
               </div>
             </div>
+            )
           ) : (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 md:p-9">
+              {inviterCode && (
+                <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+                  <Gift className="h-5 w-5 text-primary shrink-0" />
+                  <p className="text-sm text-white/70">{t("invite.invitedBanner")}</p>
+                </div>
+              )}
               <h2 className="text-xl font-semibold text-white mb-6">{t("waitlist.formTitle")}</h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
