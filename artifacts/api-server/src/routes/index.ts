@@ -247,6 +247,7 @@ import creatorPlatformRouter from "./creator-platform";
 import publishRouter from "./publish";
 import discoveryRouter from "./discovery";
 import shortsRouter from "./shorts";
+import challengeEngineRouter from "./challenge-engine";
 import creatorCommunityRouter from "./community";
 import domainsRouter from "./domains";
 import storeRouter from "./store";
@@ -503,6 +504,7 @@ router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows,
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use("/discovery", discoveryRouter);  // /api/discovery/*
 router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/challenges/*, /api/hashtag/*
+router.use(challengeEngineRouter);          // /api/challenges/* engine 2.0: prizes, votes, winners, lifecycle
 router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*, /api/explore
 router.use(domainsRouter);                  // /api/domains/*
 router.use(storeRouter);                    // /api/store/* (digital sales checkout)

@@ -13,6 +13,7 @@ import {
   Zap, BellRing, MessageCircle, Share, Globe,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SocialProofBand } from "@/components/SocialProofBand";
 
 /* ─── Unified download page: Android app + Chrome extension ─── */
 
@@ -80,6 +81,9 @@ export default function Download() {
             <p className="mt-4 text-white/50 max-w-xl mx-auto">{t("download.the_full_ai_content_studio_as_an")}</p>
           </div>
         </LuxReveal>
+
+        {/* Live social proof — real platform numbers */}
+        <SocialProofBand variant="compact" className="mb-10 rounded-2xl border border-primary/15 bg-black/40" />
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}

@@ -7,6 +7,7 @@ import {
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
+import { SocialProofBand } from "@/components/SocialProofBand";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes:
@@ -158,6 +159,9 @@ export default function CreatorPricing() {
           </p>
           <div className="mt-4 flex justify-center"><TierBadge /></div>
         </div>
+
+        {/* Live social proof — real platform numbers, musicians flavor */}
+        <SocialProofBand vertical="music" className="mt-10 rounded-3xl" />
 
         {/* money math — the cheat code, spelled out */}
         <section id="money-math" className="mt-12 rounded-3xl border border-amber-400/25 bg-gradient-to-br from-amber-400/10 via-black to-black p-6 sm:p-8">

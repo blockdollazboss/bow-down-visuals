@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { mediaUrl } from "@/lib/media-cdn";
+import { SocialProofBand } from "@/components/SocialProofBand";
 
 type Plan = {
   stars: number;
@@ -424,6 +425,9 @@ export default function Pricing() {
           </p>
           <WantedMeter onSelect={jumpToPlan} plans={PLANS} />
         </section>
+
+        {/* ── LIVE SOCIAL PROOF ── */}
+        <SocialProofBand variant="compact" className="border-y border-primary/10 bg-black/40" />
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-32">

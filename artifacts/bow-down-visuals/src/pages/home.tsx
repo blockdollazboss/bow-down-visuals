@@ -57,6 +57,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
+import { SocialProofBand } from "@/components/SocialProofBand";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -1756,6 +1757,7 @@ export default function Home() {
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
       <HeroSection />
+      <SocialProofBand />
       <CheatCodeTicker />
       <CheatCodeDemo />
       <CreatorVaultSection />

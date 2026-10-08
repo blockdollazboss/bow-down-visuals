@@ -14,6 +14,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
+import { SocialProofBand } from "@/components/SocialProofBand";
 import { mediaUrl } from "@/lib/media-cdn";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
@@ -74,6 +75,25 @@ export default function Signup() {
               });
             } catch { /* referral is best-effort */ }
           })();
+        }
+      } catch { /* noop */ }
+      /* Apply waitlist invite code if the user arrived via an invite link
+       * (e.g. /invite/ABC123). Auto-enrolls them on the waitlist so the
+       * inviter gets credited — attribution is idempotent server-side. */
+      try {
+        const inviteCode = localStorage.getItem("bdv_waitlist_invite");
+        if (inviteCode) {
+          localStorage.removeItem("bdv_waitlist_invite");
+          // Fire-and-forget: don't block signup success on the waitlist
+          fetch("/api/waitlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: values.displayName || values.email.split("@")[0],
+              email: values.email,
+              inviteCode,
+            }),
+          }).catch(() => { /* waitlist is best-effort */ });
         }
       } catch { /* noop */ }
       setSuccess(true);
@@ -145,6 +165,12 @@ export default function Signup() {
             <p className="text-white/60 text-lg">
               {t("signup.checkEmailDesc")}
             </p>
+            {/* Momentum: the clock starts the moment they're in. */}
+            <ol className="mx-auto max-w-xs space-y-2 text-left text-sm text-white/55">
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">1.</span> Verify your email — that's the only wait in this whole process.</li>
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">2.</span> Sign in — we'll walk you straight to your public page.</li>
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">3.</span> Your profile goes <span className="font-bold text-amber-300">live in 60 seconds</span> — name, vibe, share link.</li>
+            </ol>
             <Button onClick={() => setLocation("/login")} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
               {t("signup.goToSignIn")}
             </Button>
@@ -181,6 +207,12 @@ export default function Signup() {
       <ExtensionPromoBadge />
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
+
+      {/* Live social proof — real platform numbers, above the signup toolbar */}
+      <SocialProofBand
+        variant="compact"
+        className="border-t border-[#c9a84c]/15 bg-black/55 backdrop-blur-xl"
+      />
 
       {/* Bottom sign-up toolbar */}
       <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
