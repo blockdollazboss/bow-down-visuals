@@ -166,6 +166,7 @@ interface ShortRow extends Record<string, unknown> {
   viewer_following: boolean;
   duet_count: unknown;
   stitch_count: unknown;
+  challenges: Array<{ slug: string; title: string; hashtag: string }> | null;
   duet_parent_id: string | null;
   duet_parent_title: string | null;
   duet_parent_slug: string | null;
@@ -198,6 +199,7 @@ function shapeShort(r: ShortRow) {
     stitch_parent: r.stitch_parent_id ? { id: r.stitch_parent_id, title: r.stitch_parent_title, creator_slug: r.stitch_parent_slug } : null,
     duet_count: num(r.duet_count),
     stitch_count: num(r.stitch_count),
+    challenges: Array.isArray(r.challenges) ? r.challenges : [],
     viewer_liked: !!r.viewer_liked,
     viewer_following: !!r.viewer_following,
     created_at: r.created_at,
@@ -229,6 +231,9 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
                  / (1.0 + EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0 / 72.0) AS base_score,
                (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,
                (SELECT COUNT(*)::int FROM profile_videos s WHERE s.stitch_with = pv.id AND s.is_published = true) AS stitch_count,
+               (SELECT COALESCE(json_agg(json_build_object('slug', c.slug, 'title', c.title, 'hashtag', c.hashtag)), '[]'::json)
+                  FROM challenge_entries ce JOIN challenges c ON c.id = ce.challenge_id
+                 WHERE ce.video_id = pv.id) AS challenges,
                dp.id AS duet_parent_id, dp.title AS duet_parent_title, dcp.slug AS duet_parent_slug,
                sp.id AS stitch_parent_id, sp.title AS stitch_parent_title, scp.slug AS stitch_parent_slug
         FROM profile_videos pv
@@ -278,6 +283,9 @@ router.get("/shorts/:id", feedLimiter, async (req, res) => {
                / (1.0 + EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0 / 72.0) AS base_score,
              (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,
              (SELECT COUNT(*)::int FROM profile_videos s WHERE s.stitch_with = pv.id AND s.is_published = true) AS stitch_count,
+             (SELECT COALESCE(json_agg(json_build_object('slug', c.slug, 'title', c.title, 'hashtag', c.hashtag)), '[]'::json)
+                FROM challenge_entries ce JOIN challenges c ON c.id = ce.challenge_id
+               WHERE ce.video_id = pv.id) AS challenges,
              dp.id AS duet_parent_id, dp.title AS duet_parent_title, dcp.slug AS duet_parent_slug,
              sp.id AS stitch_parent_id, sp.title AS stitch_parent_title, scp.slug AS stitch_parent_slug
       FROM profile_videos pv
@@ -338,7 +346,6 @@ async function insertShort(
       id: profileVideosTable.id, profileId: profileVideosTable.profileId, title: profileVideosTable.title,
     }).from(profileVideosTable).where(eq(profileVideosTable.id, parentId)).limit(1);
     if (!row) return { error: "The original video doesn't exist. Dead link, chief.", status: 404 };
-    if (row.id === b.profile_id) return { error: "Can't duet your own profile — pick a video.", status: 400 };
     parent = row;
   }
 
