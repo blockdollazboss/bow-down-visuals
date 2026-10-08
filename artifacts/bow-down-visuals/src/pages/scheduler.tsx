@@ -571,7 +571,7 @@ export default function Scheduler() {
 /* ─── Plan tab — the AI Content Calendar, absorbed from /content-calendar ──
    Creators pick a niche + platforms, GPT-6 builds a 30-day posting calendar:
    every posting day gets a concept, format, platform, hook line, and best
-   posting time. 1 credit per calendar. Viewing the grid and checking off
+   posting time. 150 Visual Bucs per calendar. Viewing the grid and checking off
    completed days is free (progress persists in localStorage).
 
    Plan → Queue wiring: the + button on any posting day opens the scheduler
@@ -605,7 +605,7 @@ const PLAN_NICHE_PRESETS = [
   "Beauty & Fashion", "Tech", "Education", "Lifestyle",
 ];
 
-const PLAN_CREDIT_COST = 1;
+const PLAN_CREDIT_COST = 150;
 
 interface PlanDay {
   date: string;

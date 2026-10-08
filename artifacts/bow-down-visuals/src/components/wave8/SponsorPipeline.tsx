@@ -233,35 +233,32 @@ export default function SponsorPipeline() {
     }
   }
 
-  /* Free: closed → paid, and the deal value lands in the income ledger. */
+  /* Free: closed → paid, and the deal value lands in the income ledger —
+     via one TRANSACTIONAL server call. If the ledger write fails the deal
+     keeps its prior stage and the error is retryable. */
   async function handleMarkPaid(deal: Deal) {
     if (payingId) return;
     setPayingId(deal.id);
     clearCardMsg(deal.id);
     try {
-      const updated = await patchDeal(deal.id, { stage: "paid" });
-      if (!updated) return;
-      setDeals((prev) => prev.map((d) => (d.id === deal.id ? updated : d)));
-      if (updated.dealValueCents > 0) {
-        const res = await confirmedFetch("/api/money", {
-          skipConfirm: true,
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "income",
-            category: "Sponsorship",
-            amountCents: updated.dealValueCents,
-            note: updated.sponsorName.slice(0, 280),
-            date: todayYmd(),
-          }),
-        });
-        const data = (await res!.json().catch(() => ({}))) as { entry?: unknown; error?: string; message?: string };
-        if (!res || !res.ok || !data.entry) {
-          throw new Error(data.message || data.error || t("wave8.sponsors.errorPaid"));
-        }
+      const res = await confirmedFetch(`/api/wave8/sponsors/deals/${deal.id}/mark-paid`, {
+        skipConfirm: true,
+        method: "POST",
+      });
+      const data = (await res!.json().catch(() => ({}))) as {
+        deal?: Deal;
+        posted?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!res || !res.ok || !data.deal) {
+        throw new Error(data.message || data.error || t("wave8.sponsors.errorPaid"));
+      }
+      setDeals((prev) => prev.map((d) => (d.id === deal.id ? data.deal! : d)));
+      if (data.posted) {
         setCardMsg((prev) => ({
           ...prev,
-          [deal.id]: { ok: true, text: t("wave8.sponsors.paidPosted", { amount: fmtMoney(updated.dealValueCents) }) },
+          [deal.id]: { ok: true, text: t("wave8.sponsors.paidPosted", { amount: fmtMoney(data.deal!.dealValueCents) }) },
         }));
       } else {
         setCardMsg((prev) => ({

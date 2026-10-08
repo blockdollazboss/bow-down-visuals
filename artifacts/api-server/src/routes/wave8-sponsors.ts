@@ -6,7 +6,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
-import { db, wave8SponsorDealsTable } from "@workspace/db";
+import { db, wave8SponsorDealsTable, moneyEntriesTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 
 const router = Router();
@@ -170,6 +170,58 @@ router.patch("/wave8/sponsors/deals/:id", publicApiLimiter, requireAuth, async (
   } catch (err) {
     logger.error({ err }, "[wave8-sponsors] update failed");
     res.status(500).json({ error: "Could not update the sponsor deal." });
+  }
+});
+
+/* POST /api/wave8/sponsors/deals/:id/mark-paid — TRANSACTIONAL.
+   Marks the deal paid AND posts the deal value to the income ledger in a
+   single DB transaction. If the ledger insert fails, the deal keeps its
+   prior stage — the client can retry safely. Free (pure DB). */
+router.post("/wave8/sponsors/deals/:id/mark-paid", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    res.status(400).json({ error: "Deal id is required." });
+    return;
+  }
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [deal] = await tx
+        .select()
+        .from(wave8SponsorDealsTable)
+        .where(and(eq(wave8SponsorDealsTable.id, id), eq(wave8SponsorDealsTable.user_id, req.userId!)))
+        .limit(1);
+      if (!deal) return null;
+      const [updated] = await tx
+        .update(wave8SponsorDealsTable)
+        .set({ stage: "paid", updated_at: new Date() })
+        .where(and(eq(wave8SponsorDealsTable.id, id), eq(wave8SponsorDealsTable.user_id, req.userId!)))
+        .returning();
+      let entry: unknown = null;
+      if (updated.deal_value_cents > 0) {
+        const [row] = await tx
+          .insert(moneyEntriesTable)
+          .values({
+            user_id: req.userId!,
+            entry_type: "income",
+            category: "Sponsorship",
+            amount_cents: updated.deal_value_cents,
+            note: updated.sponsor_name.slice(0, 280),
+            entry_date: new Date().toISOString().slice(0, 10),
+          })
+          .returning();
+        entry = row;
+      }
+      return { deal: toPublic(updated), entry, posted: !!entry };
+    });
+    if (!result) {
+      res.status(404).json({ error: "Sponsor deal not found." });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    /* Transaction rolled back: the deal keeps its prior stage. Retryable. */
+    logger.error({ err }, "[wave8-sponsors] mark-paid failed, rolled back");
+    res.status(500).json({ error: "Could not mark the deal paid — nothing was changed. Please try again." });
   }
 });
 
