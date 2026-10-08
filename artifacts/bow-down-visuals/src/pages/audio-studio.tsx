@@ -2029,6 +2029,19 @@ function JobResult({
 
 /* ── AI Master panel ──────────────────────────────────────────────── */
 
+/* ── AI Master panel ──────────────────────────────────────────────────── */
+
+interface AdLibHandoff {
+  take?: string;
+  takeStyle?: string;
+  takeNotes?: string;
+  adlibs?: Array<{ line?: string; placement?: string; delivery?: string }>;
+  stacks?: Array<{ description?: string; voices?: string }>;
+  energy?: string;
+  songTitle?: string;
+  artistName?: string;
+}
+
 function MasterPanel() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -2048,6 +2061,23 @@ function MasterPanel() {
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const pollRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /* Wave 8 Ad-Lib Generator handoff: the vocal ad-lib plan arrives here as
+     direction notes for the mix/master session. One-shot: key removed on
+     pickup; the card is dismissible. */
+  const [adlibHandoff, setAdlibHandoff] = useState<AdLibHandoff | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wave8_adlibs");
+      if (!raw) return;
+      localStorage.removeItem("wave8_adlibs");
+      const h = JSON.parse(raw) as AdLibHandoff;
+      if (!h || (typeof h.takeStyle !== "string" && !(h.adlibs ?? []).length)) return;
+      setAdlibHandoff(h);
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Deep-link protocol: /mix-master?audioUrl=… pre-loads the master slot
      (e.g. a polished vocal handed off from AI Vocal Polish). */
@@ -2146,6 +2176,68 @@ function MasterPanel() {
 
   return (
     <div>
+      {adlibHandoff && (
+        <div className="mt-4 rounded-2xl border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] p-5" data-testid="adlib-handoff-card">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-[#C9A84C]/15 border border-[#C9A84C]/30 flex items-center justify-center shrink-0">
+              <Mic2 className="h-4 w-4 text-[#C9A84C]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-white">
+                {t("mixMaster.adlibPlanTitle", { defaultValue: "Ad-lib plan received" })}
+                {adlibHandoff.take ? (
+                  <span className="ml-2 rounded-md bg-[#C9A84C]/15 border border-[#C9A84C]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#C9A84C]">
+                    {t("mixMaster.adlibTakeLabel", { defaultValue: "Take {{take}}", take: adlibHandoff.take })}
+                  </span>
+                ) : null}
+              </p>
+              {(adlibHandoff.songTitle || adlibHandoff.artistName) && (
+                <p className="text-xs text-white/40 mt-0.5">
+                  {[adlibHandoff.songTitle, adlibHandoff.artistName].filter(Boolean).join(" — ")}
+                </p>
+              )}
+              {adlibHandoff.takeStyle && (
+                <p className="text-sm font-bold text-white/80 mt-2">{adlibHandoff.takeStyle}</p>
+              )}
+              {adlibHandoff.takeNotes && (
+                <p className="text-[13px] text-white/50 mt-1 leading-relaxed">{adlibHandoff.takeNotes}</p>
+              )}
+              {(adlibHandoff.adlibs ?? []).length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {(adlibHandoff.adlibs ?? []).map((a, i) => (
+                    <div key={i} className="text-[13px]">
+                      <span className="font-black text-[#C9A84C]">“{a.line}”</span>
+                      {a.placement && <span className="text-white/35 text-xs ml-2 uppercase tracking-wide">{a.placement}</span>}
+                      {a.delivery && <span className="text-white/50 text-xs block mt-0.5">{a.delivery}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(adlibHandoff.stacks ?? []).length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 mb-1.5">
+                    {t("mixMaster.adlibStacksLabel", { defaultValue: "Vocal stacks" })}
+                  </p>
+                  {(adlibHandoff.stacks ?? []).map((s, i) => (
+                    <p key={i} className="text-[13px] text-white/60">
+                      <span className="font-bold text-white/80">{s.voices}</span>
+                      {s.description ? ` — ${s.description}` : ""}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdlibHandoff(null)}
+              aria-label={t("mixMaster.adlibDismiss", { defaultValue: "Dismiss ad-lib plan" })}
+              className="rounded-lg p-1.5 text-white/35 hover:text-white hover:bg-white/10 transition shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {outOfCredits && <div className="mt-4"><OutOfCredits /></div>}
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">

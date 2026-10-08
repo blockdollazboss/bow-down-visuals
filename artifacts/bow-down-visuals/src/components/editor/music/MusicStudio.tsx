@@ -1,6 +1,7 @@
 import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Pause, Music2, Upload, Plus, Clock3, Disc3, ListMusic } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
-import type { EditorSettings, MusicStudioSettings } from "@/lib/editor-settings";
+import type { EditorSettings, MusicStudioSettings, AudioStem } from "@/lib/editor-settings";
+import { defaultStemEffects } from "@/lib/editor-settings";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { AiAutoMix } from "@/components/editor/music/AiAutoMix";
 import { ManualDAW } from "@/components/editor/music/ManualDAW";
@@ -90,6 +91,51 @@ export function MusicStudio({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSimple, ms.mode]);
+
+  /* Wave 9A Remix Chain handoff: a song version sent from the Remix Chain
+     arrives here as a stem so it can be mixed into the video's audio.
+     One-shot: key removed on pickup. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wave9a_version_handoff");
+      if (!raw) return;
+      localStorage.removeItem("wave9a_version_handoff");
+      const h = JSON.parse(raw) as {
+        versionId?: string;
+        label?: string;
+        notes?: string;
+        audioUrl?: string;
+        songId?: string;
+        songTitle?: string;
+      };
+      if (!h.audioUrl) return;
+      /* Guard against double-apply (e.g. StrictMode remount). */
+      if (ms.stems.some((s) => s.url === h.audioUrl)) return;
+      const stem: AudioStem = {
+        id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: h.label ? `${h.songTitle?.trim() || "Song"} — ${h.label}` : (h.songTitle?.trim() || "Remix version"),
+        type: "Full Song Mix",
+        url: h.audioUrl,
+        storagePath: "",
+        fileType: "audio/mpeg",
+        fileSize: 0,
+        uploadedAt: new Date().toISOString(),
+        muted: false,
+        solo: false,
+        locked: false,
+        volume: 100,
+        pan: 0,
+        trimStart: 0,
+        trimEnd: 0,
+        startTime: 0,
+        effects: defaultStemEffects(),
+      };
+      onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* A direct fallback render should use the mature Manual DAW export path,
      even if the user currently has AI Auto Mix selected. */

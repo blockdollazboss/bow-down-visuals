@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
@@ -105,6 +105,21 @@ export default function VideoStudio() {
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { addAsset } = useHubProject();
+
+  /* Wave 8 Thumbnail A/B handoff: the winning thumbnail arrives here and
+     anchors image-to-video generation. One-shot: key removed on pickup. */
+  useEffect(() => {
+    try {
+      const winner = localStorage.getItem("wave8_thumbnail_winner");
+      if (!winner) return;
+      localStorage.removeItem("wave8_thumbnail_winner");
+      setMode("image");
+      setReferenceImage(winner);
+    } catch {
+      /* storage unavailable — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Spine: pick up the project's song — its music-video idea becomes the
      prompt, and a project thumbnail can anchor image-to-video. */

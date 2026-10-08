@@ -291,6 +291,45 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* Wave 9A Lyrics-to-Timeline handoff: a caption plan drafted in the Music
+     Studio's Lyrics-to-Timeline panel lands here as caption lines so the
+     creator can style them immediately. One-shot: key removed on pickup. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wave9a_lyric_captions");
+      if (!raw) return;
+      localStorage.removeItem("wave9a_lyric_captions");
+      const handoff = JSON.parse(raw) as {
+        songTitle?: string;
+        lines?: Array<{ text?: string; start?: number; end?: number }>;
+      };
+      const lines = (handoff.lines ?? [])
+        .filter((l) => l && typeof l.text === "string" && l.text.trim().length > 0)
+        .map((l, i) => ({
+          id: `wave9a-${Date.now()}-${i}`,
+          startSec: Number.isFinite(Number(l.start)) ? Number(l.start) : 0,
+          endSec: Number.isFinite(Number(l.end)) ? Number(l.end) : 0,
+          text: String(l.text).trim(),
+        }));
+      if (lines.length === 0) return;
+      setSettings((prev) => ({
+        ...prev,
+        captions: { ...prev.captions, lines: [...prev.captions.lines, ...lines] },
+      }));
+      setTab("captions");
+      toast({
+        title: t("videoEditor.lyricCaptionsReadyTitle", { defaultValue: "Lyric captions ready" }),
+        description: t("videoEditor.lyricCaptionsReadyDesc", {
+          defaultValue: "{{count}} timed lyric lines from “{{title}}” were added — style them here.",
+          count: lines.length,
+          title: handoff.songTitle?.trim() || "your song",
+        }),
+      });
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /* ── Video-template deep link: /video-editor?tab=templates&template=<key> ──
      Used by the /templates/videos gallery and share links. The tab is in
      SIMPLE_VISIBLE_TABS so the deep link works in guide mode too. */

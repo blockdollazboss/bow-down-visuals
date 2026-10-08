@@ -302,6 +302,45 @@ export default function PromoClip() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Wave 8 Highlight Cutter handoff: a scored reel plan arrives via
+     localStorage — land on the from-scratch form with the title prefilled
+     and the segment plan folded into the instructions so the promo
+     generator cuts to the planned moments. One-shot: key removed on
+     pickup. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wave8_reel_plan");
+      if (!raw) return;
+      localStorage.removeItem("wave8_reel_plan");
+      const handoff = JSON.parse(raw) as {
+        vodTitle?: string;
+        summary?: string;
+        targetSeconds?: number;
+        reelPlan?: { totalSec?: number; segments?: Array<{ startSec?: number; endSec?: number; caption?: string }> };
+      };
+      const fmt = (sec: number) => {
+        const s = Math.max(0, Math.round(sec || 0));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${m}:${r.toString().padStart(2, "0")}`;
+      };
+      const segments = (handoff.reelPlan?.segments ?? []).filter((s) => s && Number.isFinite(Number(s.startSec)));
+      const planText = segments
+        .map((s, i) => `${i + 1}. ${fmt(Number(s.startSec))} → ${fmt(Number(s.endSec))}${s.caption ? ` — ${s.caption}` : ""}`)
+        .join("\n");
+      const parts = [
+        handoff.summary?.trim() || null,
+        planText
+          ? `Reel plan${handoff.targetSeconds ? ` (${handoff.targetSeconds}s target)` : ""}:\n${planText}`
+          : null,
+      ].filter(Boolean);
+      if (mode !== "from-scratch") switchMode("from-scratch");
+      if (handoff.vodTitle?.trim()) setValue("songTitle", handoff.vodTitle.trim(), { shouldDirty: true });
+      if (parts.length > 0) setValue("specialInstructions", parts.join("\n\n"), { shouldDirty: true });
+    } catch { /* malformed handoff — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── Shared output ── */
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
