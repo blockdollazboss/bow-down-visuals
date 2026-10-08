@@ -254,6 +254,17 @@ export default function ViralSoundFinder() {
           <p className="mt-2 text-xs text-white/35">{t("sounds.browsingCostNote", { count: MATCH_CREDIT_COST })}</p>
         </div>
 
+        {/* cross-link: make a custom sound in the AI Audio hub */}
+        <div className="relative mt-6 flex justify-center">
+          <Link
+            href="/ai-audio?tab=sfx"
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/[0.12]"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("sounds.aiAudioCta", { defaultValue: "Need a custom sound? Generate SFX with AI" })}
+          </Link>
+        </div>
+
         {/* ── BROWSE ─────────────────────────────────────────────────── */}
         <section className="relative mt-12">
           <div className="flex items-center justify-between">
