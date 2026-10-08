@@ -62,7 +62,7 @@ const ENHANCE_CAMERAS = [
 
 interface EnhanceStatus { type: "success" | "error" | "warning"; message: string }
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "error" | "unsaved";
 type InsertMode = "end" | "before" | "after" | "playhead";
 type UploadStatus = "idle" | "uploading" | "done" | "error";
 

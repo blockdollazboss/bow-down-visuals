@@ -19,6 +19,7 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -172,7 +173,7 @@ interface LoadedProject {
   } | null;
 }
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "error" | "unsaved";
 
 /** Auto PiP guard — requestPictureInPicture() throws "Metadata for the video
  *  element are not loaded yet" (which surfaces as a player error) when called
@@ -216,6 +217,16 @@ export default function VideoEditor() {
   const [scenes, setScenesState] = useState<SceneData[]>([]);
   const [settings, setSettingsState] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  /* Autosave preference — persisted per user in localStorage. Default ON
+     preserves the existing silent-autosave behavior. When OFF, changes only
+     mark the project "unsaved" until the user hits Save (or re-enables). */
+  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(() => {
+    try { const s = localStorage.getItem("bdv:autosave"); return s === null ? true : s === "true"; }
+    catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("bdv:autosave", String(autosaveEnabled)); } catch {}
+  }, [autosaveEnabled]);
   const [tab, setRawTab] = useState<EditorTab>("clips");
   /* LUT Import handoff: graded clip URL pre-loads the multi-ratio export card. */
   const [lutHandoffUrl, setLutHandoffUrl] = useState<string | null>(null);
@@ -837,12 +848,27 @@ export default function VideoEditor() {
   useEffect(() => {
     if (loading || !project) return;
     if (!hydrated.current) return;
+    if (!autosaveEnabled) {
+      // Autosave off: cancel any pending timer, don't touch the server —
+      // just flag unsaved changes.
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      setSaveState("unsaved");
+      return;
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
     saveTimer.current = setTimeout(() => { void persist(); }, 1200);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenes, settings, loading, project]);
+  }, [scenes, settings, loading, project, autosaveEnabled]);
+
+  /* ── Re-enabling autosave flushes any pending unsaved changes immediately ── */
+  useEffect(() => {
+    if (autosaveEnabled && saveState === "unsaved" && project && !loading) {
+      void saveNow();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosaveEnabled]);
 
   /* ── Auto-select first scene with clip for preview ── */
   useEffect(() => {
@@ -1335,6 +1361,20 @@ export default function VideoEditor() {
               <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
+              <label
+                className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
+                title={t("videoEditor.autosaveTitle")}
+                data-testid="autosave-toggle-wrap"
+              >
+                <Switch
+                  checked={autosaveEnabled}
+                  onCheckedChange={setAutosaveEnabled}
+                  className="scale-[0.8]"
+                  data-testid="autosave-toggle"
+                  aria-label={t("videoEditor.autosave")}
+                />
+                <span className="text-xs text-white/50 hidden lg:inline">{t("videoEditor.autosave")}</span>
+              </label>
               <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
@@ -4080,6 +4120,7 @@ function SaveIndicator({ state }: { state: SaveState }) {
   const { t } = useTranslation();
   if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.saving")}</span>;
   if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> {t("videoEditor.saved")}</span>;
+  if (state === "unsaved") return <span className="flex items-center gap-1.5 text-xs text-amber-400/90" data-testid="unsaved-indicator"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> {t("videoEditor.unsavedChanges")}</span>;
   if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> {t("videoEditor.saveFailed")}</span>;
   return null;
 }
