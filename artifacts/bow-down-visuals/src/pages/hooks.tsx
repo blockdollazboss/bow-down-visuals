@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
 import { getHookTemplate } from "@/data/hook-templates";
 import { getCaptionPack } from "@/data/caption-templates";
+import HookRewriter from "@/components/wave8/HookRewriter";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
  Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -630,6 +631,13 @@ export default function HookStudio() {
  </p>
  </div>
  )}
+ {/* Wave 8 · Hook Rewriter — docked after the generator UI, inside the hooks tab */}
+ <HookRewriter
+   onUseAsTopic={(text) => {
+     setTopic(text);
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }}
+ />
  </>
  )}
  </div>
