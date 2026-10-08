@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic, Tag } from "lucide-react";
 import InspoTab, { type InspoGeneratedData } from "@/components/InspoTab";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import SongMashup from "@/components/SongMashup";
@@ -17,6 +17,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { CoverSongModal } from "@/components/song/CoverSongModal";
+import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
@@ -164,6 +165,8 @@ export default function MakeSong() {
   const [projectBeat, setProjectBeat] = useState<HubAsset | null>(null);
   /* Cover Song (Suno Cover parity) — modal over the finished song. */
   const [coverOpen, setCoverOpen] = useState(false);
+  /* AI Vocal Polish (Suno parity) — modal over the finished song. */
+  const [polishOpen, setPolishOpen] = useState(false);
   const { toast } = useToast();
   const {
     setProjectName, setProjectType, setProjectConcept,
@@ -465,6 +468,22 @@ export default function MakeSong() {
         <>
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
+          {/* Producer Tag Maker — secondary entry (lives in Beat Maker, no sidebar sprawl) */}
+          <Link
+            href="/beat-maker?tab=tag"
+            className="mb-6 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 hover:bg-primary/[0.12] transition-colors group"
+          >
+            <span className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/40 flex items-center justify-center shrink-0">
+              <Tag className="w-4 h-4 text-primary" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-bold text-white">{t("producerTag.songMakerEntry")}</span>
+              <span className="block text-xs text-white/50">“It's the Shark!” — your signature drop, 5 effect presets</span>
+            </span>
+            <span className="text-sm font-semibold text-primary group-hover:underline whitespace-nowrap">
+              {t("producerTag.songMakerEntryCta")}
+            </span>
+          </Link>
           {/* Simple / Custom / Inspo mode toggle - Suno pattern */}
           <div className="flex gap-2 mb-6 flex-wrap">
             <button
@@ -792,6 +811,24 @@ export default function MakeSong() {
                           artistName: watched.artistName || undefined,
                         }}
                         initialLyrics={pkg.lyrics}
+                      />
+                      {/* AI Vocal Polish: gentle tuning nudge + key/tempo shift, docked with the other song actions. */}
+                      <button
+                        type="button"
+                        onClick={() => setPolishOpen(true)}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                      >
+                        <Mic className="h-4 w-4" />
+                        {t("vocalPolish.buttonLabel")} ({t("vocalPolish.buttonCost")})
+                      </button>
+                      <VocalPolishModal
+                        open={polishOpen}
+                        onClose={() => setPolishOpen(false)}
+                        source={{
+                          audioUrl,
+                          title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                          artistName: watched.artistName || undefined,
+                        }}
                       />
                     </>
                   )}

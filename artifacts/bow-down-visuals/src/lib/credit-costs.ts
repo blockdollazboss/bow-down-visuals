@@ -33,6 +33,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/mix-master/master": { cost: 800, feature: "AI Master (Mix & Master)" },
   "/api/mix-master/mix": { cost: 1500, feature: "AI Mix — Stems (Mix & Master)" },
   "/api/stems": { cost: 200, feature: "Stem Separation" },
+  "/api/vocal-polish": { cost: 200, feature: "AI Vocal Polish" },
   "/api/vocal-removal": { cost: 200, feature: "Vocal Removal" },
   "/api/mashup": { cost: 400, feature: "Song Mashup" },
 
@@ -81,6 +82,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/analyze-sections": { cost: 100, feature: "Analyze Song Sections" },
   "/api/transcribe": { cost: 100, feature: "Transcribe Audio" },
   "/api/transcribe-url": { cost: 100, feature: "Transcribe" },
+  "/api/remove-fillers/analyze": { cost: 200, feature: "AI Filler-Word Remover" },
   "/api/auto-chapters": { cost: 150, feature: "Auto Chapters" },
   "/api/mix-plan": { cost: 100, feature: "AI Mix Plan" },
 

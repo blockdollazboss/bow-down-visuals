@@ -9,7 +9,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Sparkles, Loader2, Download, Play, Square, Shuffle,
   Trash2, Wand2, Disc3, Scissors, Store, Music4, Timer, KeyRound,
-  SlidersHorizontal, Lock,
+  SlidersHorizontal, Lock, Tag,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -17,6 +17,7 @@ import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { ProducerTagMaker } from "@/components/producer-tag/ProducerTagMaker";
 
 /* Single source of truth for the AI beat price — the credit-cost registry. */
 const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 300;
@@ -739,14 +740,20 @@ function SequencerGate({ onEnable }: { onEnable: () => void }) {
 
 export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<"ai" | "seq">("ai");
+  const [tab, setTab] = useState<"ai" | "seq" | "tag">(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("tab") === "tag" ? "tag" : "ai";
+    } catch {
+      return "ai";
+    }
+  });
   const { stars, setStars } = useUserMode();
   const advanced = stars >= 6;
 
   // Drop back to the AI tab if the user leaves Advanced mode mid-session.
   useEffect(() => {
-    if (!advanced) setTab("ai");
-  }, [advanced]);
+    if (!advanced && tab === "seq") setTab("ai");
+  }, [advanced, tab]);
 
   const enableAdvanced = () => setStars(6);
 
@@ -762,6 +769,16 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
           }`}
         >
           <Sparkles className="w-4 h-4" /> {t("beatMaker.aiBeatTab")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("tag")}
+          title={t("producerTag.tabTooltip")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+            tab === "tag" ? "bg-primary text-black" : "text-white/60 hover:text-white"
+          }`}
+        >
+          <Tag className="w-4 h-4" /> {t("producerTag.tabLabel")}
         </button>
         {advanced ? (
           <button
@@ -789,6 +806,8 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
 
       {tab === "ai" ? (
         <AiBeatTab onGenerated={onGenerated} />
+      ) : tab === "tag" ? (
+        <ProducerTagMaker />
       ) : advanced ? (
         <SequencerTab onGenerated={onGenerated} />
       ) : (
