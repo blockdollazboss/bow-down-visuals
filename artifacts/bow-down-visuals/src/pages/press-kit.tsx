@@ -14,6 +14,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
 import PressReleasePanel, { type PressReleaseKit } from "@/components/PressReleasePanel";
+import MediaKitBuilder from "@/components/wave8/MediaKitBuilder";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
    Electronic press kits (EPKs): artists generate an AI-written bio and
@@ -353,6 +354,11 @@ export default function PressKitBuilder() {
             </button>
           ))}
         </div>
+
+        {/* ── Wave 8: AI Media Kit Builder ── */}
+        <section className="mb-8">
+          <MediaKitBuilder />
+        </section>
 
         {activeTab === "release" ? (
           <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
