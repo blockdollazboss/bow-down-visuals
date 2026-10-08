@@ -28,7 +28,7 @@ import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/component
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { CHARACTER_THEMES, getCharacterTheme } from "@/lib/character-themes";
+import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { downloadImage } from "@/lib/download-image";
 import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 
@@ -1380,6 +1380,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  /* Character's own theme color — name labels shine in the matching color. */
+  const vTheme = getCharacterTheme(vault.theme_id);
+  const TC = vTheme.primary;
 
   return (
     <>
@@ -1452,12 +1455,12 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
           <p style={{
             fontFamily: "Georgia, serif",
             fontSize: isActive ? 16 : 14,
-            fontWeight: 900, color: "#fff",
+            fontWeight: 900, color: TC,
             letterSpacing: isActive ? "0.04em" : "0",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             textShadow: "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
-            <p style={{ fontSize: 9.5, color: isActive ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <p style={{ fontSize: 9.5, color: isActive ? themeAlpha(TC, 0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
             </p>
         </div>
