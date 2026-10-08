@@ -485,7 +485,7 @@ function ShortCard({
       {/* bottom caption block */}
       <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black via-black/60 to-transparent px-4 pb-24 pt-10">
         <div className="mb-2 flex items-center gap-3">
-          <Link href={`/creator/${item.creator.slug}`}>
+          <Link href={`/artist/${item.creator.slug}`}>
             {item.creator.avatar_url ? (
               <img src={item.creator.avatar_url} alt={item.creator.display_name} className="h-11 w-11 rounded-full border-2 border-primary object-cover" />
             ) : (
@@ -495,7 +495,7 @@ function ShortCard({
             )}
           </Link>
           <div className="min-w-0 flex-1">
-            <Link href={`/creator/${item.creator.slug}`} className="block truncate font-bold text-white hover:text-primary">
+            <Link href={`/artist/${item.creator.slug}`} className="block truncate font-bold text-white hover:text-primary">
               @{item.creator.display_name}
             </Link>
             <p className="truncate text-xs text-white/50">{fmt(item.view_count)} views</p>

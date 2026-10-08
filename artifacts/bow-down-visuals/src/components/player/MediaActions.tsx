@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Repeat2, Share2, Download, Check, X, Facebook, ListPlus } from "lucide-react";
+import { Heart, Repeat2, Share2, Download, Check, X, Globe, ListPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddToPlaylist } from "@/components/player/AddToPlaylist";
 import {
@@ -228,7 +228,7 @@ export function ShareMenu({
             rel="noopener noreferrer"
             className="rounded-lg border border-white/10 text-white/70 hover:text-[#e8c86a] hover:border-[#e8c86a]/50 text-xs font-semibold py-2 text-center transition-colors flex items-center justify-center gap-1"
           >
-            {s.label === "Facebook" && <Facebook className="h-3.5 w-3.5" />}
+            {s.label === "Facebook" && <Globe className="h-3.5 w-3.5" />}
             {s.label}
           </a>
         ))}

@@ -145,7 +145,7 @@ let myReferralCode: string | null | undefined;
 
 /** The viewer's own referral code, for ?ref=CODE share links. Cached. */
 export async function getMyReferralCode(getAccessToken?: () => Promise<string | null>): Promise<string | null> {
-  if (myReferralCode !== undefined) return myReferralCode;
+  if (myReferralCode !== undefined) return myReferralCode ?? null;
   myReferralCode = null;
   try {
     const token = getAccessToken ? await getAccessToken() : null;
@@ -157,7 +157,7 @@ export async function getMyReferralCode(getAccessToken?: () => Promise<string | 
     const d = await r.json().catch(() => ({}));
     if (typeof d.code === "string" && d.code) myReferralCode = d.code.toUpperCase();
   } catch { /* guests simply share without a code */ }
-  return myReferralCode;
+  return myReferralCode ?? null;
 }
 
 /** Canonical share URL for a media page, carrying the viewer's referral code. */

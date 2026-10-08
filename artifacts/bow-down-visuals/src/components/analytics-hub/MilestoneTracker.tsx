@@ -414,7 +414,7 @@ export default function MilestoneTracker() {
                         {t("milestones.card")}
                       </a>
                       <Link
-                        href={`/promote?focus=${encodeURIComponent(t("milestones.celebrateCaption", { title: m.trackTitle, count: formatCount(m.streamCount) }))}`}
+                        href={`/promote?focus=${encodeURIComponent(t("milestones.celebrateCaption", { title: m.trackTitle, streams: formatCount(m.streamCount) }))}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110"
                       >
                         <Megaphone className="h-3.5 w-3.5" />

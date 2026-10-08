@@ -44,7 +44,7 @@ const router = Router();
      money_moves_done / money_moves_total (5) — "guide them to the money":
      UI renders "N of 5 money moves done" with zero extra fetches.
      has_domain = user has a shop with a verified custom domain.
-     Link: /creator/:slug everywhere.
+     Link: /artist/:slug everywhere.
    - track/video payloads: id, profile_id, profile_slug, buyable,
      download_price_cents; videos also carry sound {id,title,audio_url,
      artwork_url,profile_slug} | null.
@@ -635,7 +635,7 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
       kind: "follow",
       title: "New follower on deck 🦈",
       body: "Someone just followed your creator profile — keep the cheat code coming.",
-      link: `/creator/${profile.slug}`,
+      link: `/artist/${profile.slug}`,
     });
     res.json({ followed: true, follower_count: (profile.followerCount ?? 0) + 1 });
   } catch (err) {
@@ -711,7 +711,7 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
       kind: "comment",
       title: "Fresh ink on your wall 🦈",
       body: parsed.data.body.slice(0, 120),
-      link: `/creator/${profile.slug}`,
+      link: `/artist/${profile.slug}`,
     });
     res.status(201).json({ comment: withAuthorSlugs([comment], slugs)[0] });
   } catch (err) {
@@ -778,7 +778,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
         kind: "comment",
         title: `Someone's talking about "${media.title}" 🦈`,
         body: parsed.data.body.slice(0, 120),
-        link: `/creator/${profile.slug}`,
+        link: `/artist/${profile.slug}`,
       });
     }
     res.status(201).json({ comment: withAuthorSlugs([comment], commentSlugs)[0] });
@@ -811,7 +811,7 @@ router.post("/media/:kind/:id/like", requireAuth, async (req, res) => {
       await notify(profile.userId, {
         kind: "like",
         title: `Your upload "${media.title}" just got some love 🦈`,
-        link: `/creator/${profile.slug}`,
+        link: `/artist/${profile.slug}`,
       });
     }
     const fresh = await getMedia(kind, media.id);
@@ -864,7 +864,7 @@ router.post("/tracks/:id/repost", requireAuth, async (req, res) => {
       await notify(profile.userId, {
         kind: "repost",
         title: `"${track.title}" just got reposted — your reach is compounding 🦈`,
-        link: `/creator/${profile.slug}`,
+        link: `/artist/${profile.slug}`,
       });
     }
     const [fresh] = await db.select().from(profileTracksTable)
@@ -999,6 +999,260 @@ router.post("/dmca/report", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "dmca/report error");
     res.status(500).json({ error: "The report didn't go through. Try again." });
+  }
+});
+
+/* ── Media detail + playlists (integration: Worker 2's player pages) ─────────
+   These were in the frontend contract but never landed server-side.
+   Every payload carries link-graph fields — no extra fetches needed. */
+
+/** Serialize a profile row to the public artist ref shape. */
+function artistRef(profile: typeof creatorProfilesTable.$inferSelect) {
+  return {
+    id: profile.id,
+    slug: profile.slug,
+    display_name: profile.displayName,
+    avatar_url: profile.avatarUrl,
+    vertical: profile.vertical,
+    follower_count: profile.followerCount,
+  };
+}
+
+/** GET /api/media/track/:id — public audio detail + artist. */
+router.get("/media/track/:id", async (req, res) => {
+  try {
+    const track = await getMedia("track", String(req.params["id"]));
+    if (!track || !("audioUrl" in track) || !track.isPublished) {
+      res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
+      return;
+    }
+    const profile = await getProfileById(track.profileId);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
+      return;
+    }
+    res.json({ track: enrichTrack(track, profile.slug), artist: artistRef(profile) });
+  } catch (err) {
+    req.log.error({ err }, "media/track detail error");
+    res.status(500).json({ error: "Couldn't load that audio. Try again." });
+  }
+});
+
+/** GET /api/media/video/:id — public video detail + artist + sound linkage. */
+router.get("/media/video/:id", async (req, res) => {
+  try {
+    const video = await getMedia("video", String(req.params["id"]));
+    if (!video || !("videoUrl" in video) || !video.isPublished) {
+      res.status(404).json({ error: "That video isn't here. Dead link, chief." });
+      return;
+    }
+    const profile = await getProfileById(video.profileId);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "That video isn't here. Dead link, chief." });
+      return;
+    }
+    const sounds = await soundMapFor([video], profile.slug);
+    res.json({ video: enrichVideo(video, profile.slug, sounds), artist: artistRef(profile) });
+  } catch (err) {
+    req.log.error({ err }, "media/video detail error");
+    res.status(500).json({ error: "Couldn't load that video. Try again." });
+  }
+});
+
+/** GET /api/creator-profiles/:slug/media?kind=track|video&limit= — public media listing. */
+router.get("/creator-profiles/:slug/media", async (req, res) => {
+  try {
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, String(req.params["slug"]))).limit(1);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "No creator at that address." });
+      return;
+    }
+    const kind = req.query["kind"] === "video" ? "video" : "track";
+    const limit = Math.min(Math.max(parseInt(String(req.query["limit"] ?? "20"), 10) || 20, 1), 50);
+    if (kind === "video") {
+      const rows = await db.select().from(profileVideosTable).where(and(
+        eq(profileVideosTable.profileId, profile.id),
+        eq(profileVideosTable.isPublished, true),
+      )).orderBy(desc(profileVideosTable.createdAt)).limit(limit);
+      const sounds = await soundMapFor(rows, profile.slug);
+      res.json({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds)) });
+    } else {
+      const rows = await db.select().from(profileTracksTable).where(and(
+        eq(profileTracksTable.profileId, profile.id),
+        eq(profileTracksTable.isPublished, true),
+      )).orderBy(desc(profileTracksTable.createdAt)).limit(limit);
+      res.json({ items: rows.map((t) => enrichTrack(t, profile.slug)) });
+    }
+  } catch (err) {
+    req.log.error({ err }, "profile media listing error");
+    res.status(500).json({ error: "Couldn't load their catalog. Try again." });
+  }
+});
+
+/** GET /api/playlists/:id — public playlist + resolved items + owner. */
+router.get("/playlists/:id", async (req, res) => {
+  try {
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl || !pl.isPublic) {
+      res.status(404).json({ error: "That playlist isn't here. Dead link, chief." });
+      return;
+    }
+    const owner = await getProfileById(pl.ownerProfileId);
+    if (!owner || !owner.isPublic) {
+      res.status(404).json({ error: "That playlist isn't here. Dead link, chief." });
+      return;
+    }
+    const [resolved] = await resolvePlaylistItems([pl], owner.slug);
+    res.json({ playlist: resolved, owner: artistRef(owner) });
+  } catch (err) {
+    req.log.error({ err }, "playlist detail error");
+    res.status(500).json({ error: "Couldn't load that playlist. Try again." });
+  }
+});
+
+const playlistBody = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(500).default(""),
+  cover_url: z.string().max(500).nullable().optional(),
+  is_public: z.boolean().default(true),
+  kind: z.enum(["playlist", "series"]).default("playlist"),
+});
+
+/** GET /api/playlists/mine — my playlists (auth). */
+router.get("/playlists/mine", requireAuth, async (req, res) => {
+  try {
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile) { res.json({ playlists: [] }); return; }
+    const rows = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.ownerProfileId, profile.id))
+      .orderBy(desc(playlistsTable.createdAt));
+    const resolved = await resolvePlaylistItems(rows, profile.slug);
+    res.json({ playlists: resolved });
+  } catch (err) {
+    req.log.error({ err }, "playlists/mine error");
+    res.status(500).json({ error: "Couldn't load your playlists. Try again." });
+  }
+});
+
+/** POST /api/playlists — create (auth, needs own profile). */
+router.post("/playlists", requireAuth, async (req, res) => {
+  try {
+    const body = playlistBody.parse(req.body);
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile) {
+      res.status(403).json({ error: "Set up your creator profile first — then the playlists flow." });
+      return;
+    }
+    const [row] = await db.insert(playlistsTable).values({
+      ownerProfileId: profile.id,
+      title: body.title,
+      description: body.description,
+      coverUrl: body.cover_url ?? null,
+      isPublic: body.is_public,
+      kind: body.kind,
+      items: [],
+    }).returning();
+    const [resolved] = await resolvePlaylistItems([row], profile.slug);
+    res.status(201).json({ playlist: resolved });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Playlist needs a title, chief." }); return; }
+    req.log.error({ err }, "playlist create error");
+    res.status(500).json({ error: "Couldn't create that playlist. Try again." });
+  }
+});
+
+const playlistItemBody = z.object({
+  kind: z.enum(["track", "video"]),
+  id: z.string().uuid(),
+});
+
+/** POST /api/playlists/:id/items — add item (auth, owner only). */
+router.post("/playlists/:id/items", requireAuth, async (req, res) => {
+  try {
+    const { kind, id } = playlistItemBody.parse(req.body);
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile || profile.id !== pl.ownerProfileId) {
+      res.status(403).json({ error: "That's not your playlist to edit." });
+      return;
+    }
+    const media = await getMedia(kind, id);
+    if (!media || !media.isPublished) {
+      res.status(404).json({ error: "That upload doesn't exist here." });
+      return;
+    }
+    const items = [...(pl.items ?? [])];
+    if (!items.some((i) => i?.kind === kind && i?.id === id)) items.push({ kind, id });
+    await db.update(playlistsTable).set({ items }).where(eq(playlistsTable.id, pl.id));
+    res.json({ ok: true, item_count: items.length });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Need a kind and id, chief." }); return; }
+    req.log.error({ err }, "playlist add-item error");
+    res.status(500).json({ error: "Couldn't add that. Try again." });
+  }
+});
+
+/** DELETE /api/playlists/:id/items — remove item (auth, owner only). */
+router.delete("/playlists/:id/items", requireAuth, async (req, res) => {
+  try {
+    const { kind, id } = playlistItemBody.parse(req.body);
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile || profile.id !== pl.ownerProfileId) {
+      res.status(403).json({ error: "That's not your playlist to edit." });
+      return;
+    }
+    const items = (pl.items ?? []).filter((i) => !(i?.kind === kind && i?.id === id));
+    await db.update(playlistsTable).set({ items }).where(eq(playlistsTable.id, pl.id));
+    res.json({ ok: true, item_count: items.length });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Need a kind and id, chief." }); return; }
+    req.log.error({ err }, "playlist remove-item error");
+    res.status(500).json({ error: "Couldn't remove that. Try again." });
+  }
+});
+
+/** POST /api/playlists/:id/follow — follow a playlist (auth). */
+router.post("/playlists/:id/follow", requireAuth, async (req, res) => {
+  try {
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl || !pl.isPublic) { res.status(404).json({ error: "Playlist not found." }); return; }
+    await db.execute(sql`
+      UPDATE playlists SET follower_count = follower_count + 1 WHERE id = ${pl.id}
+    `);
+    const [fresh] = await db.select().from(playlistsTable).where(eq(playlistsTable.id, pl.id)).limit(1);
+    res.json({ following: true, follower_count: fresh?.followerCount ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "playlist follow error");
+    res.status(500).json({ error: "The follow didn't stick. Try again." });
+  }
+});
+
+/** DELETE /api/playlists/:id/unfollow — unfollow (auth). */
+router.delete("/playlists/:id/unfollow", requireAuth, async (req, res) => {
+  try {
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    await db.execute(sql`
+      UPDATE playlists SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = ${pl.id}
+    `);
+    const [fresh] = await db.select().from(playlistsTable).where(eq(playlistsTable.id, pl.id)).limit(1);
+    res.json({ following: false, follower_count: fresh?.followerCount ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "playlist unfollow error");
+    res.status(500).json({ error: "The unfollow didn't stick. Try again." });
   }
 });
 

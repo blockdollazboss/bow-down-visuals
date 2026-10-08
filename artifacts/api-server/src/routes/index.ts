@@ -242,6 +242,17 @@ import guestQuestionsRouter from "./generate/guest-questions";
 import slideshowRouter from "./generate/slideshow";
 import reactionVideoRouter from "./generate/reaction-video";
 import videoDubRouter from "./generate/video-dub";
+// ── Creator Streaming Platform (12-worker build, 2026-10-07) ──
+import creatorPlatformRouter from "./creator-platform";
+import publishRouter from "./publish";
+import discoveryRouter from "./discovery";
+import shortsRouter from "./shorts";
+import creatorCommunityRouter from "./community";
+import domainsRouter from "./domains";
+import storeRouter from "./store";
+import storefrontRouter from "./storefront";
+import creatorTiersRouter from "./creator-tiers";
+import aiPageDesignerRouter from "./ai-page-designer";
 
 const router: IRouter = Router();
 
@@ -486,5 +497,18 @@ router.use(podcastIntroRouter);
 router.use(guestQuestionsRouter);
 router.use(slideshowRouter);
 router.use(reactionVideoRouter);
+
+// ── Creator Streaming Platform ──
+router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows, likes, plays, DMCA
+router.use("/publish", publishRouter);      // /api/publish/*
+router.use("/discovery", discoveryRouter);  // /api/discovery/*
+router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/challenges/*, /api/hashtag/*
+router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*, /api/explore
+router.use(domainsRouter);                  // /api/domains/*
+router.use(storeRouter);                    // /api/store/* (digital sales checkout)
+router.use(storefrontRouter);               // /api/storefront/* (products, orders, discounts)
+router.use(creatorTiersRouter);             // /api/creator-tiers/*
+router.use("/ai-page-designer", aiPageDesignerRouter); // /api/ai-page-designer/*
+// NOTE: social.ts (stories/posts/reactions) was already mounted above as socialRouter.
 
 export default router;

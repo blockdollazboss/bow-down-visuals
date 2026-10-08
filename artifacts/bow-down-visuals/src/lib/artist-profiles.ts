@@ -56,6 +56,7 @@ export type SectionType =
   | "posts"       // social posts feed
   | "bio"         // about blocks
   | "shoutwall"   // profile comments
+  | "stories"     // 24h stories + highlights (Worker 8)
   | "topcreators"; // MySpace-style avatar strip
 
 export interface ProfileSection {
@@ -294,6 +295,7 @@ export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
   posts: "Social Posts",
   bio: "About",
   shoutwall: "Shout Wall",
+  stories: "Stories",
   topcreators: "Top Creators",
 };
 
@@ -376,6 +378,7 @@ export interface SocialPostItem {
 }
 
 export interface CreatorProfile {
+  id: string;
   user_id: string;
   slug: string;
   display_name: string;
@@ -410,6 +413,7 @@ export const DEFAULT_THEME: ThemeConfig = { ...THEME_PRESETS[0]! };
 export function emptyProfile(overrides: Partial<CreatorProfile> = {}): CreatorProfile {
   const tpl = starterTemplate((overrides.vertical as VerticalId) ?? "other");
   return {
+    id: "",
     user_id: "",
     slug: "",
     display_name: "",

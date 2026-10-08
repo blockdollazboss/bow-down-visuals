@@ -4,12 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Community UI shared kit (Worker 9: groups / events / DMs / explore) ──
    Gold/black luxury, cheat-code voice. Link-graph helpers keep every
-   surface wired: profiles -> /creator/:slug, groups -> /groups/:slug,
+   surface wired: profiles -> /artist/:slug, groups -> /groups/:slug,
    events -> /events/:id. Every card shareable with ?ref=CODE.
    Difficulty ladder (Creator Level): data-min-stars="4" on moderation +
    analytics, "5" on broadcast. Join / RSVP / chat are NEVER gated. */
 
-export const profileLink = (slug: string) => `/creator/${slug}`;
+export const profileLink = (slug: string) => `/artist/${slug}`;
 
 export function timeAgo(iso: string | Date | null): string {
   if (!iso) return "";

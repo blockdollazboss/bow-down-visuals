@@ -146,7 +146,7 @@ const resolveLimiter = rateLimit({
 
 /* ── POST /api/domains — claim a domain (auth) ─────────────────────────────── */
 
-router.post("/api/domains", requireAuth, createLimiter, async (req, res) => {
+router.post("/domains", requireAuth, createLimiter, async (req, res) => {
   const parsed = createDomainSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid hostname." });
@@ -193,7 +193,7 @@ router.post("/api/domains", requireAuth, createLimiter, async (req, res) => {
 
 /* ── GET /api/domains/mine — my domains (auth) ─────────────────────────────── */
 
-router.get("/api/domains/mine", requireAuth, async (req, res) => {
+router.get("/domains/mine", requireAuth, async (req, res) => {
   const profile = await myProfile(req.userId!);
   if (!profile) {
     res.json({ domains: [], free_subdomain: null });
@@ -239,7 +239,7 @@ async function collectDnsEvidence(hostname: string): Promise<DnsEvidence> {
   return evidence;
 }
 
-router.post("/api/domains/:id/verify", requireAuth, verifyLimiter, async (req, res) => {
+router.post("/domains/:id/verify", requireAuth, verifyLimiter, async (req, res) => {
   const idParsed = domainIdSchema.safeParse(req.params);
   if (!idParsed.success) {
     res.status(400).json({ error: "Invalid domain id." });
@@ -329,7 +329,7 @@ router.post("/api/domains/:id/verify", requireAuth, verifyLimiter, async (req, r
 
 /* ── DELETE /api/domains/:id — release a domain (auth) ─────────────────────── */
 
-router.delete("/api/domains/:id", requireAuth, async (req, res) => {
+router.delete("/domains/:id", requireAuth, async (req, res) => {
   const idParsed = domainIdSchema.safeParse(req.params);
   if (!idParsed.success) {
     res.status(400).json({ error: "Invalid domain id." });
@@ -360,7 +360,7 @@ router.delete("/api/domains/:id", requireAuth, async (req, res) => {
    2. <slug>.bowdownvisuals.com convention → slug, confirmed against a PUBLIC
       creator_profiles row (so unclaimed slugs don't site-mode). */
 
-router.get("/api/domains/resolve", resolveLimiter, async (req, res) => {
+router.get("/domains/resolve", resolveLimiter, async (req, res) => {
   const parsed = resolveQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing ?host=" });

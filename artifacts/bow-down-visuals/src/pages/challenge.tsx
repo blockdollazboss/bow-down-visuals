@@ -150,7 +150,7 @@ export default function ChallengePage() {
                     : <div className="flex h-full w-full items-center justify-center"><Trophy className="h-8 w-8 text-white/15" /></div>}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
                     <p className="truncate text-xs font-bold text-white">{e.title}</p>
-                    <Link href={`/creator/${e.creator.slug}`} onClick={(ev) => ev.stopPropagation()}
+                    <Link href={`/artist/${e.creator.slug}`} onClick={(ev) => ev.stopPropagation()}
                       className="text-[11px] text-primary hover:underline">@{e.creator.display_name}</Link>
                     <p className="text-[11px] text-white/50">{fmt(e.view_count)} views</p>
                   </div>

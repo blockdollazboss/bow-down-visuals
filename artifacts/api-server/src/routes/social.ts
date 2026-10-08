@@ -1298,7 +1298,7 @@ const createStorySchema = z.object({
   caption: z.string().max(280).optional().default(""),
 });
 
-router.post("/api/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile", message: "Create your creator profile first — then your stories live there for 24 hours." });
@@ -1317,7 +1317,7 @@ router.post("/api/stories", requireAuth, w8WriteLimiter, async (req: Request, re
   }
 });
 
-router.get("/api/stories/feed", requireAuth, async (req: Request, res: Response) => {
+router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     const followed = await db.select({ profileId: followsTable.profileId })
@@ -1343,7 +1343,7 @@ router.get("/api/stories/feed", requireAuth, async (req: Request, res: Response)
   }
 });
 
-router.post("/api/stories/:id/view", requireAuth, async (req: Request, res: Response) => {
+router.post("/stories/:id/view", requireAuth, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -1360,7 +1360,7 @@ router.post("/api/stories/:id/view", requireAuth, async (req: Request, res: Resp
    story owner and drops the reply in as a message. */
 const storyReplySchema = z.object({ body: z.string().trim().min(1).max(500) });
 
-router.post("/api/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -1397,7 +1397,7 @@ router.post("/api/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: R
 
 /* Public: unexpired stories for one profile — powers the /artist/:slug
    profile page stories section (Worker 4 mount). */
-router.get("/api/stories/by-profile/:profileId", async (req: Request, res: Response) => {
+router.get("/stories/by-profile/:profileId", async (req: Request, res: Response) => {
   try {
     const profileId = String(req.params["profileId"]);
     if (!UUID_RE.test(profileId)) return res.status(400).json({ error: "invalid_id" });
@@ -1410,7 +1410,7 @@ router.get("/api/stories/by-profile/:profileId", async (req: Request, res: Respo
   }
 });
 
-router.get("/api/stories/highlights", requireAuth, async (req: Request, res: Response) => {
+router.get("/stories/highlights", requireAuth, async (req: Request, res: Response) => {
   try {
     /* ?profile_id= views anyone's highlights (profile page); without it, mine. */
     const pid = String(req.query["profile_id"] ?? "");
@@ -1437,7 +1437,7 @@ const highlightSchema = z.object({
   story_ids: z.array(z.string().uuid()).max(100).optional().default([]),
 });
 
-router.post("/api/stories/highlights", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/stories/highlights", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile" });
@@ -1464,7 +1464,7 @@ async function ownHighlight(req: Request) {
   return h ?? null;
 }
 
-router.put("/api/stories/highlights/:id", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.put("/stories/highlights/:id", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const h = await ownHighlight(req);
     if (!h) return res.status(404).json({ error: "not_found" });
@@ -1481,7 +1481,7 @@ router.put("/api/stories/highlights/:id", requireAuth, w8WriteLimiter, async (re
   }
 });
 
-router.delete("/api/stories/highlights/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/stories/highlights/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const h = await ownHighlight(req);
     if (!h) return res.status(404).json({ error: "not_found" });
@@ -1492,7 +1492,7 @@ router.delete("/api/stories/highlights/:id", requireAuth, async (req: Request, r
   }
 });
 
-router.post("/api/stories/highlights/:id/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/stories/highlights/:id/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const h = await ownHighlight(req);
     if (!h) return res.status(404).json({ error: "not_found" });
@@ -1510,7 +1510,7 @@ router.post("/api/stories/highlights/:id/stories", requireAuth, w8WriteLimiter, 
 
 /* ════════════════ POSTS ════════════════ */
 
-router.post("/api/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile", message: "Create your creator profile first — posting is free, the profile is your stage." });
@@ -1601,7 +1601,7 @@ router.post("/api/posts", requireAuth, w8WriteLimiter, async (req: Request, res:
 /* Feed: ?mode=chrono (default — your timeline, no algorithm overlords 🦈)
    |foryou (followed + high-engagement + your own creators get a boost).
    ?before=ISO for pagination, ?limit. */
-router.get("/api/feed", requireAuth, async (req: Request, res: Response) => {
+router.get("/feed", requireAuth, async (req: Request, res: Response) => {
   try {
     const mode = req.query["mode"] === "foryou" ? "foryou" : "chrono";
     const limit = Math.min(Math.max(Number(req.query["limit"]) || 30, 1), 100);
@@ -1654,7 +1654,7 @@ router.get("/api/feed", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/api/posts/:id", async (req: Request, res: Response) => {
+router.get("/posts/:id", async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -1668,7 +1668,7 @@ router.get("/api/posts/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/api/posts/:id/replies", async (req: Request, res: Response) => {
+router.get("/posts/:id/replies", async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -1684,7 +1684,7 @@ router.get("/api/posts/:id/replies", async (req: Request, res: Response) => {
 
 const replySchema = z.object({ body: z.string().trim().min(1).max(500) });
 
-router.post("/api/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile" });
@@ -1716,7 +1716,7 @@ router.post("/api/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Req
   }
 });
 
-router.post("/api/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile" });
@@ -1752,7 +1752,7 @@ const quoteSchema = z.object({
   media_urls: z.array(attachmentSchema).max(10).optional().default([]),
 });
 
-router.post("/api/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile" });
@@ -1786,7 +1786,7 @@ router.post("/api/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Req
   }
 });
 
-router.delete("/api/posts/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/posts/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     if (!me) return res.status(403).json({ error: "no_profile" });
@@ -1805,7 +1805,7 @@ router.delete("/api/posts/:id", requireAuth, async (req: Request, res: Response)
 });
 
 /* Post analytics (own posts): engagement breakdown + the money hint. */
-router.get("/api/posts/:id/analytics", requireAuth, async (req: Request, res: Response) => {
+router.get("/posts/:id/analytics", requireAuth, async (req: Request, res: Response) => {
   try {
     const me = await myProfile(req.userId!);
     const id = String(req.params["id"]);
@@ -1850,7 +1850,7 @@ const assistSchema = z.object({
   tone: z.enum(["hype", "chill", "professional", "funny"]).optional().default("hype"),
 });
 
-router.post("/api/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = assistSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -1884,7 +1884,7 @@ router.post("/api/posts/assist", requireAuth, w8WriteLimiter, async (req: Reques
 /* Poll voting (one vote per user per post). */
 const voteSchema = z.object({ option_id: z.string().uuid() });
 
-router.post("/api/posts/:id/poll/vote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/posts/:id/poll/vote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -1921,7 +1921,7 @@ const reactSchema = z.object({
   emoji: z.enum(["like", "love", "fire", "clap", "mindblown"]),
 });
 
-router.post("/api/react", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/react", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = reactSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -1955,7 +1955,7 @@ router.post("/api/react", requireAuth, w8WriteLimiter, async (req: Request, res:
   }
 });
 
-router.delete("/api/react", requireAuth, async (req: Request, res: Response) => {
+router.delete("/react", requireAuth, async (req: Request, res: Response) => {
   try {
     const parsed = reactSchema.omit({ emoji: true }).safeParse(req.query);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -1993,7 +1993,7 @@ const saveSchema = z.object({
   target_id: z.string().uuid(),
 });
 
-router.post("/api/saves", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+router.post("/saves", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = saveSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -2006,7 +2006,7 @@ router.post("/api/saves", requireAuth, w8WriteLimiter, async (req: Request, res:
   }
 });
 
-router.delete("/api/saves/:kind/:targetId", requireAuth, async (req: Request, res: Response) => {
+router.delete("/saves/:kind/:targetId", requireAuth, async (req: Request, res: Response) => {
   try {
     const kind = String(req.params["kind"]);
     const targetId = String(req.params["targetId"]);
@@ -2022,7 +2022,7 @@ router.delete("/api/saves/:kind/:targetId", requireAuth, async (req: Request, re
   }
 });
 
-router.get("/api/saves/mine", requireAuth, async (req: Request, res: Response) => {
+router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
   try {
     const rows = await db.select().from(savesTable)
       .where(eq(savesTable.userId, req.userId!))
@@ -2075,7 +2075,7 @@ router.get("/api/saves/mine", requireAuth, async (req: Request, res: Response) =
 /* ════════════════ DISCOVERY ════════════════ */
 
 /* Hashtag velocity over the last 24h: post bodies + video tags. */
-router.get("/api/trending/topics", async (_req: Request, res: Response) => {
+router.get("/trending/topics", async (_req: Request, res: Response) => {
   try {
     const since = new Date(Date.now() - 24 * 3600_000);
     const [posts, videos] = await Promise.all([
@@ -2114,7 +2114,7 @@ router.get("/api/trending/topics", async (_req: Request, res: Response) => {
 /* Posts for a hashtag. NOTE: /api/hashtag/:tag itself belongs to the shorts
    worker (media hub); this sibling returns the *posts* for the tag so the
    hashtag page can add a Posts tab without colliding. */
-router.get("/api/hashtag/:tag/posts", async (req: Request, res: Response) => {
+router.get("/hashtag/:tag/posts", async (req: Request, res: Response) => {
   try {
     const tag = String(req.params["tag"]).replace(/^#/, "").toLowerCase();
     if (!/^[a-z0-9_]{2,40}$/.test(tag)) return res.status(400).json({ error: "invalid_tag" });

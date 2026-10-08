@@ -123,7 +123,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 }
 
 function MediaTile({ m, kind }: { m: TaggedMedia; kind: "short" | "video" | "track" }) {
-  const href = kind === "track" ? `/creator/${m.creator.slug}` : `/shorts?start=${m.id}`;
+  const href = kind === "track" ? `/artist/${m.creator.slug}` : `/shorts?start=${m.id}`;
   const thumb = m.thumbnail_url ?? m.artwork_url ?? null;
   const plays = m.view_count ?? m.play_count ?? 0;
   return (

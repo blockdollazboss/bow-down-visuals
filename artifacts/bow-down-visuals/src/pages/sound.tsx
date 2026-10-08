@@ -17,7 +17,7 @@ interface SoundVideo {
 interface SoundData {
   sound: { id: string; title: string | null; url: string | null; use_count: number; is_earning: boolean; earning_count: number };
   videos: SoundVideo[];
-  earning_items: { id: string; title: string; price_cents: number; creator: SoundVideo["creator"] }[];
+  earning_items: { id: string; title: string; price_cents: number; thumbnail_url?: string | null; creator: SoundVideo["creator"] }[];
 }
 
 function fmt(n: number): string {
@@ -147,7 +147,7 @@ export default function SoundPage() {
                     : <div className="flex h-full w-full items-center justify-center"><Music2 className="h-8 w-8 text-white/15" /></div>}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
                     <p className="truncate text-xs font-bold text-white">{v.title}</p>
-                    <Link href={`/creator/${v.creator.slug}`} onClick={(e) => e.stopPropagation()}
+                    <Link href={`/artist/${v.creator.slug}`} onClick={(e) => e.stopPropagation()}
                       className="text-[11px] text-primary hover:underline">@{v.creator.display_name}</Link>
                     <p className="text-[11px] text-white/50">{fmt(v.view_count)} views</p>
                   </div>

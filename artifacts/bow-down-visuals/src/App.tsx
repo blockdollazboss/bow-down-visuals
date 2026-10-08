@@ -109,6 +109,17 @@ const SoundDetailPage = lazyWithRetry(() => import("@/pages/sound"));
 const ChallengePage   = lazyWithRetry(() => import("@/pages/challenge"));
 const HashtagPage     = lazyWithRetry(() => import("@/pages/hashtag"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
+// ── Creator Streaming Platform pages ──
+const ArtistPublic = lazyWithRetry(() => import("@/pages/artist-public"));
+const ArtistSetup = lazyWithRetry(() => import("@/pages/artist-setup"));
+const Publish = lazyWithRetry(() => import("@/pages/publish"));
+const StreamTrackPage = lazyWithRetry(() => import("@/pages/stream/track"));
+const StreamWatchPage = lazyWithRetry(() => import("@/pages/stream/watch"));
+const StreamPlaylistPage = lazyWithRetry(() => import("@/pages/stream/playlist"));
+const CreatorDomainsPage = lazyWithRetry(() => import("@/pages/creator-domains"));
+const StoreDashboard = lazyWithRetry(() => import("@/pages/store-dashboard"));
+import { SiteModeGate } from "@/components/site-mode/SiteMode";
+import { NotificationsBell } from "@/components/discovery/NotificationsBell";
 const FogLab        = lazyWithRetry(() => import("@/pages/fog-lab"));
 const CursorLab     = lazyWithRetry(() => import("@/pages/cursor-lab"));
 const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
@@ -353,8 +364,11 @@ function AuthedLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-svh w-full">
         {!isHome && <AppSidebar />}
         <div className="min-w-0 flex-1 flex flex-col">
-          <div className="sticky top-0 z-40">
+          <div className="sticky top-0 z-40 relative">
             <VideoBanner />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <NotificationsBell />
+            </div>
           </div>
           <main className="min-w-0 flex-1 relative">
             <ThyCheatCodeHost />
@@ -460,6 +474,11 @@ function AppShell() {
           <Route path="/sound/:id"><SoundDetailPage /></Route>
           <Route path="/challenge/:slug"><ChallengePage /></Route>
           <Route path="/hashtag/:tag"><HashtagPage /></Route>
+          {/* Creator Streaming Platform — public surfaces */}
+          <Route path="/artist/:slug"><ArtistPublic /></Route>
+          <Route path="/track/:id"><StreamTrackPage /></Route>
+          <Route path="/watch/:id"><StreamWatchPage /></Route>
+          <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
           <Route path="/fog-lab"><FogLab /></Route>
@@ -609,6 +628,11 @@ function AppShell() {
                 <Route path="/store/buy/:kind/:id"><StoreBuy /></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
                 <Route path="/my-music"><ProtectedRoute><MyMusic /></ProtectedRoute></Route>
+                {/* Creator Streaming Platform — creator tools */}
+                <Route path="/artist-setup"><ProtectedRoute><ArtistSetup /></ProtectedRoute></Route>
+                <Route path="/publish"><ProtectedRoute><Publish /></ProtectedRoute></Route>
+                <Route path="/creator/domains"><ProtectedRoute><CreatorDomainsPage /></ProtectedRoute></Route>
+                <Route path="/store/dashboard"><ProtectedRoute><StoreDashboard /></ProtectedRoute></Route>
                 <Route path="/music-sales"><ProtectedRoute><MusicSales /></ProtectedRoute></Route>
                 <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
@@ -647,7 +671,9 @@ function App({ ssrPath }: { ssrPath?: string }) {
                   <ActiveArtistProvider>
                     <StreamingPlayerProvider>
                       <CharacterThemeApplier />
-                      <AppShell />
+                      <SiteModeGate>
+                        <AppShell />
+                      </SiteModeGate>
                     </StreamingPlayerProvider>
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>

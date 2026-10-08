@@ -11,6 +11,9 @@ import type {
 } from "@/lib/artist-profiles";
 import { fetchComments, postComment, profileUrl, type ProfileComment } from "@/lib/artist-profiles";
 import { RichText } from "@/lib/safe-richtext";
+import { apiJson, type Story, type StoryHighlight } from "@/lib/social-api";
+import { StoryViewer } from "@/components/social/StoryViewer";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Shared profile section renderer ─────────────────────────────────────
    Used by the public /artist/:slug page, the AI Designer preview, and the
@@ -26,6 +29,54 @@ export interface MediaItem {
   plays?: number;
   /** Deep link to the track/video page — media rows are never islands. */
   href?: string;
+}
+
+/* ─── Stories section (Worker 8 mount — 24h stories + highlights) ─────────── */
+export function StoriesSection({ profileId }: { profileId: string }) {
+  const { getAccessToken } = useAuth();
+  const [stories, setStories] = useState<Story[]>([]);
+  const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
+  const [viewerIdx, setViewerIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    apiJson<{ stories: Story[] }>(getAccessToken, `/api/stories/by-profile/${profileId}`)
+      .then((d) => setStories(d.stories ?? [])).catch(() => {});
+    apiJson<{ highlights: StoryHighlight[] }>(getAccessToken, `/api/stories/highlights?profile_id=${profileId}`)
+      .then((d) => setHighlights(d.highlights ?? [])).catch(() => {});
+  }, [profileId, getAccessToken]);
+
+  if (stories.length === 0 && highlights.length === 0) return null;
+  return (
+    <section aria-label="Stories">
+      {stories.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto py-2">
+          {stories.map((s, i) => (
+            <button key={s.id} onClick={() => setViewerIdx(i)} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5">
+              <span className="rounded-full bg-gradient-to-tr from-[#d4af37] via-[#f5e08c] to-[#b8860b] p-[3px]">
+                <img src={s.media_url} alt="" className="h-[62px] w-[62px] rounded-full object-cover" />
+              </span>
+              <span className="w-full truncate text-center text-[11px] text-neutral-300">Story</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {highlights.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto py-2">
+          {highlights.map((h) => (
+            <div key={h.id} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5 opacity-90">
+              <span className="flex h-[62px] w-[62px] items-center justify-center overflow-hidden rounded-full border border-[#d4af37]/50 bg-[#141414]">
+                {h.cover_url ? <img src={h.cover_url} alt="" className="h-full w-full object-cover" /> : <span className="text-[#d4af37] text-lg">✦</span>}
+              </span>
+              <span className="w-full truncate text-center text-[11px] text-neutral-300">{h.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {viewerIdx !== null && stories[viewerIdx] && (
+        <StoryViewer stories={stories} startIndex={viewerIdx} onClose={() => setViewerIdx(null)} />
+      )}
+    </section>
+  );
 }
 
 /* Internal vs external link renderer — keeps the link graph inside the
@@ -860,6 +911,8 @@ export function ProfileSections({
             ) : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No story yet — fans buy from creators they feel. The AI bio writer drafts it in one click." /></Shell> : null;
           case "shoutwall":
             return <ShoutWallSection key={s.id} title={s.title} slug={profile.slug} preview={preview} />;
+          case "stories":
+            return <StoriesSection key={s.id} profileId={profile.id} />;
           case "topcreators":
             return <TopCreatorsSection key={s.id} title={s.title} slugs={profile.top_creators} />;
           default:
