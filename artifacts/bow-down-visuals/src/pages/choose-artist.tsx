@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { fetchMyProfile } from "@/lib/artist-profiles";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { SUBJECT_TYPE_META, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
@@ -355,8 +356,8 @@ export default function ChooseArtist() {
                       textShadow: "0 1px 6px rgba(0,0,0,0.8)",
                     }}>{vault.artist_name}</p>
                     {vault.artist_type && (
-                      <p style={{ fontSize: 9.5, color: T(0.85), marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                        {vault.artist_type}
+                      <p style={{ fontSize: 9.5, color: SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].color, marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase", fontWeight: 800 }}>
+                        {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
                       </p>
                     )}
                     {/* Theme name tag — who they are, in their colors */}

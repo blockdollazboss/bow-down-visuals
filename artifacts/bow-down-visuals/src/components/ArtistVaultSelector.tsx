@@ -64,7 +64,7 @@ export function normalizeSubjectType(value: string | null | undefined): SubjectT
 
 export const SUBJECT_TYPE_META: Record<
   SubjectType,
-  { label: string; badge: string; dot: string; glow: string; description: string; icon: LucideIcon }
+  { label: string; badge: string; dot: string; glow: string; description: string; icon: LucideIcon; color: string }
 > = {
   singer: {
     label: "Singer",
@@ -73,6 +73,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
     description: "Singers and vocalists - for music videos and songs",
     icon: Mic,
+    color: "#67e8f9",
   },
   rapper: {
     label: "Rapper",
@@ -81,6 +82,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
     description: "Rappers and hip-hop artists - for music videos and songs",
     icon: Flame,
+    color: "#fcd34d",
   },
   influencer: {
     label: "Influencer",
@@ -89,6 +91,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(232,121,249,0.25)]",
     description: "Influencers and content creators - for promos, socials, and brand content",
     icon: Users,
+    color: "#f0abfc",
   },
   actor: {
     label: "Actor",
@@ -97,6 +100,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(96,165,250,0.25)]",
     description: "Actors, male presenters, hosts - for movies, series, and skits",
     icon: Clapperboard,
+    color: "#93c5fd",
   },
   actress: {
     label: "Actress",
@@ -105,6 +109,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,113,133,0.25)]",
     description: "Actresses, female presenters, hosts - for movies, series, and skits",
     icon: Drama,
+    color: "#fda4af",
   },
   character: {
     label: "Character",
@@ -113,6 +118,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(192,132,252,0.25)]",
     description: "Fictional characters, mascots, avatars - for stories and branding",
     icon: Ghost,
+    color: "#d8b4fe",
   },
   gamer: {
     label: "Gamer",
@@ -121,6 +127,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(52,211,153,0.25)]",
     description: "Gamers, streamers, esports players - for gaming content and streams",
     icon: Gamepad2,
+    color: "#6ee7b7",
   },
   streamer: {
     label: "Streamer",
@@ -129,6 +136,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(163,230,53,0.35)]",
     description: "Streamers, live creators, broadcasters - for live content and community streams",
     icon: Radio,
+    color: "#bef264",
   },
   podcaster: {
     label: "Podcaster",
@@ -137,6 +145,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,146,60,0.25)]",
     description: "Podcasters, hosts, interviewers - for podcasts and talk content",
     icon: Podcast,
+    color: "#fdba74",
   },
 };
 
