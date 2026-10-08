@@ -1405,7 +1405,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
       <div
         onClick={() => vault.reference_image_url && setLightboxOpen(true)}
         style={{
-        height: 220,
+        height: 300,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) top center/cover no-repeat`
           : isActive
@@ -1414,7 +1414,8 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
         position: "relative",
         cursor: vault.reference_image_url ? "zoom-in" : "default",
       }}>
-        {/* Living portrait video — when there's no still photo but a video exists */}
+        {/* Living portrait video — when there's no still photo but a video exists.
+            Anchored top so the subject's head stays in frame. */}
         {!vault.reference_image_url && vault.reference_video_url && (
           <video
             src={vault.reference_video_url}
@@ -1426,7 +1427,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
             style={{
               position: "absolute", inset: 0,
-              width: "100%", height: "100%", objectFit: "cover",
+              width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top",
               pointerEvents: "none",
             }}
           />
