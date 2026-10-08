@@ -666,7 +666,10 @@
     "brandingKit": "Branding Kit",
     "podcastStudio": "Podcast Studio",
     "audioStudio": "Audio Studio",
-    "aiAudio": "AI Audio"
+    "aiAudio": "AI Audio",
+    "pricing": "Pricing",
+    "visualBucHistory": "Visual Buc History",
+    "cursorStyle": "Cursor Style"
   },
   "academy": {
     "pageTitle": "Creator Academy",
@@ -5911,7 +5914,7 @@
   },
   "thumbnailTest": {
     "analyzing": "Analyzing…",
-    "applySuggestions": "Apply suggestions · {{cost}} credits",
+    "applySuggestions": "Apply suggestions · {{cost}} Visual Bucs",
     "backToDashboard": "Back to dashboard",
     "confidence": "{{confidence}}% confidence",
     "costNote": "2 Visual Bucs per test · 2 Visual Bucs per improved render · refunded automatically if the AI fails. Scores are AI predictions, not guarantees — your title, audience, and timing matter too.",
@@ -5928,7 +5931,7 @@
     "pageTitle": "Thumbnail A/B Tester",
     "predictedWinner": "Predicted winner: Thumbnail {{n}}",
     "removeThumbnailAria": "Remove thumbnail {{n}}",
-    "runTestButton": "Run test · {{cost}} credits",
+    "runTestButton": "Run test · {{cost}} Visual Bucs",
     "scoreContrast": "Color contrast",
     "scoreContrastText": "does it pop in a crowded feed?",
     "scoreCuriosity": "Curiosity gap",
@@ -6797,7 +6800,10 @@
       }
     },
     "videoLinkLoadedTitle": "Video loaded into the editor",
-    "videoLinkLoadedDesc": "Your clip is on the timeline — trim it, caption it, export it."
+    "videoLinkLoadedDesc": "Your clip is on the timeline — trim it, caption it, export it.",
+    "railBeatSync": "Beat Sync",
+    "railEditRecipes": "Edit Recipes",
+    "railVoiceEdits": "Voice Edits"
   },
   "viralityCheck": {
     "bestPostingTime": "Best Posting Time",
