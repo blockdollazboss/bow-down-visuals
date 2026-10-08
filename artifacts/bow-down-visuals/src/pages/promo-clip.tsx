@@ -22,6 +22,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
+import { CaptionStyler } from "@/components/wave8/CaptionStyler";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
 import type { SceneData } from "@/lib/scene-parser";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -1095,6 +1096,10 @@ export default function PromoClip() {
                 </div>
               );
             })()}
+
+            {/* Wave 8: AI Caption Styler — styled, timed captions for the clip.
+                Prefills from the song hook when present. */}
+            <CaptionStyler initialTranscript={watched.songHook || watched.songTitle || ""} />
 
           </div>
         )}
