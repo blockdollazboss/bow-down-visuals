@@ -469,7 +469,9 @@ async function transcribeWords(audioPath: string): Promise<VerboseTranscription>
 
 /* ─── ffmpeg cut assembly ─────────────────────────────────────────────── */
 
-function buildConcatArgs(
+/** Build the single-pass ffmpeg concat command for the keep-segments.
+ *  Exported for tests. */
+export function buildConcatArgs(
   inputPath: string,
   keeps: Array<{ start: number; end: number }>,
   outputPath: string,

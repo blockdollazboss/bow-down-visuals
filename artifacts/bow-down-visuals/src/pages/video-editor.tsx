@@ -296,13 +296,25 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
-  /* ── Video/clip deep link: /video-editor?video=<url> or ?clip=<url> ──
+  /* ── Pro Tools deep link: /video-editor?tab=pro-tools ──
+     Lands the user straight on the Pro Tools tab where the AI Filler-Word
+     Remover lives. Pairs with ?videoUrl= for hub handoffs. Simple-mode
+     users are redirected to a safe tab by setTab's built-in guard. */
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("tab") === "pro-tools") {
+      setTab("pro-tools");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  /* ── Video/clip deep link: /video-editor?video=<url>, ?clip=<url> or ?videoUrl=<url> ──
      Lets any tool hand a finished video straight into the editor as a new
-     scene clip. Runs once per URL; the param is stripped via replaceState. */
+     scene clip. Runs once per URL; the param is stripped via replaceState.
+     ?videoUrl= is the hub-project handoff convention (hub assets, podcast). */
   const [videoLinkConsumed, setVideoLinkConsumed] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(search);
-    const videoUrl = params.get("video") || params.get("clip");
+    const videoUrl = params.get("video") || params.get("clip") || params.get("videoUrl");
     if (!videoUrl || videoLinkConsumed === videoUrl) return;
     setVideoLinkConsumed(videoUrl);
     const scene: SceneData = {
@@ -333,6 +345,7 @@ export default function VideoEditor() {
     setTab("clips");
     params.delete("video");
     params.delete("clip");
+    params.delete("videoUrl");
     window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
     toast({
       title: t("videoEditor.videoLinkLoadedTitle"),

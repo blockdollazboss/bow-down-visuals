@@ -30,6 +30,7 @@ import {
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
 import { MotionTrackCard } from "./MotionTrackCard";
 import { MaskCard } from "./MaskCard";
+import { FillerRemoverCard } from "./FillerRemoverCard";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Pro Tools tab ───────────────────────────────────────────────────────
@@ -701,6 +702,9 @@ export function ProToolsSection({
 
       {/* ── 7. Motion Track ── */}
       <MotionTrackCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 8. AI Filler-Word Remover (Descript-style: cut ums/ahs + dead air) ── */}
+      <FillerRemoverCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
     </div>
   );
 }
