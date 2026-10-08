@@ -80,6 +80,14 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       await handleTierInvoiceFailed(inv);
       res.status(200).json({ received: true, kind: "creator_tier" });
       return;
+    } else if (event.type === "account.updated") {
+      /* Stripe Connect: keep the creator profile's onboarding flags in sync
+         with the Express account's capability state. */
+      const acct = event.data.object as Stripe.Account;
+      const { syncConnectAccountStatus } = await import("./stripe-connect");
+      await syncConnectAccountStatus(acct);
+      res.status(200).json({ received: true, kind: "connect_account" });
+      return;
     }
   } catch (err) {
     logger.error({ err, type: event.type }, "Stripe webhook: creator tier sync failed");
