@@ -36,6 +36,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/vocal-polish": { cost: 200, feature: "AI Vocal Polish" },
   "/api/vocal-removal": { cost: 200, feature: "Vocal Removal" },
   "/api/mashup": { cost: 400, feature: "Song Mashup" },
+  "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
 
   // ── Video ──────────────────────────────────────────────────────
   "/api/generate-video": { cost: 400, feature: "Generate Video Clip" },
@@ -140,6 +141,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/sponsors/deals": { cost: 500, feature: "Sponsor Deals" },
   "/api/outreach": { cost: 200, feature: "Outreach" },
   "/api/sponsor-read": { cost: 100, feature: "Sponsor Read" },
+  "/api/generate-invoice": { cost: 50, feature: "Generate Invoice" },
   "/api/shoutouts/ai-message": { cost: 100, feature: "AI Shoutout Message" },
   "/api/press-kit/generate": { cost: 300, feature: "Press Kit Generator" },
   "/api/press-release": { cost: 100, feature: "Press Release Generator" },

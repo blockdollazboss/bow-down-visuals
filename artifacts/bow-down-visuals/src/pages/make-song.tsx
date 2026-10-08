@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic, Tag } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload, Sparkles, Disc3, Blend, Mic, Tag, Users } from "lucide-react";
 import InspoTab, { type InspoGeneratedData } from "@/components/InspoTab";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import SongMashup from "@/components/SongMashup";
@@ -18,6 +18,7 @@ import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { CoverSongModal } from "@/components/song/CoverSongModal";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
+import { HarmonyGeneratorModal } from "@/components/song/HarmonyGeneratorModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
@@ -167,6 +168,8 @@ export default function MakeSong() {
   const [coverOpen, setCoverOpen] = useState(false);
   /* AI Vocal Polish (Suno parity) — modal over the finished song. */
   const [polishOpen, setPolishOpen] = useState(false);
+  /* AI Harmony Generator (Suno parity) — modal over the finished song. */
+  const [harmonyOpen, setHarmonyOpen] = useState(false);
   const { toast } = useToast();
   const {
     setProjectName, setProjectType, setProjectConcept,
@@ -829,6 +832,25 @@ export default function MakeSong() {
                           title: watched.songTitle || pkg.bestTitle || "Untitled Song",
                           artistName: watched.artistName || undefined,
                         }}
+                      />
+                      {/* AI Harmony Generator: backing-vocal harmonies, docked with the other song actions. */}
+                      <button
+                        type="button"
+                        onClick={() => setHarmonyOpen(true)}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                      >
+                        <Users className="h-4 w-4" />
+                        {t("harmony.buttonLabel")} ({t("harmony.buttonCost")})
+                      </button>
+                      <HarmonyGeneratorModal
+                        open={harmonyOpen}
+                        onClose={() => setHarmonyOpen(false)}
+                        source={{
+                          audioUrl,
+                          title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                          artistName: watched.artistName || undefined,
+                        }}
+                        initialLyrics={pkg.lyrics}
                       />
                     </>
                   )}
