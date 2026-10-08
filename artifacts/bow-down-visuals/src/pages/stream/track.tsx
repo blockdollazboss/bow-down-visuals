@@ -6,6 +6,9 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { useStreamingPlayer, trackToQueueItem } from "@/contexts/StreamingPlayerContext";
 import { MediaActions } from "@/components/player/MediaActions";
 import { MediaLinkBar } from "@/components/player/MediaLinkBar";
+import { GetPaidFinale, EarnEmptyState } from "@/components/player/GetPaidFinale";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMinStars } from "@/lib/creator-level";
 import { Waveform } from "@/components/player/Waveform";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
@@ -22,6 +25,8 @@ export default function StreamTrackPage() {
   const [, params] = useRoute("/track/:id");
   const id = params?.id ?? "";
   const player = useStreamingPlayer();
+  const { user } = useAuth();
+  const canSeekWave = useMinStars(3);
 
   const [track, setTrack] = useState<StreamTrack | null>(null);
   const [artist, setArtist] = useState<StreamProfileRef | null>(null);
@@ -84,12 +89,9 @@ export default function StreamTrackPage() {
   if (notFound || !track) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <Music2 className="h-12 w-12 text-[#e8c86a]/40 mx-auto mb-4" />
-          <p className="text-xl font-bold mb-2">This upload went missing</p>
-          <p className="text-white/40 text-sm mb-6">It may have been removed by its creator — or the link is just wrong. Either way, the cheat code has more.</p>
+        <EarnEmptyState what="drop" />
+          <p className="text-white/30 text-xs mt-2">Looking for something specific? It may have been removed by its creator.</p>
           <Link href="/showcase"><span className="text-[#e8c86a] underline text-sm">Back to the showcase</span></Link>
-        </div>
       </div>
     );
   }
@@ -151,7 +153,7 @@ export default function StreamTrackPage() {
               )}
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-white/45">
+            <div data-min-stars="2" className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-white/45">
               <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" /> {formatCount(track.play_count)} plays</span>
               <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(track.duration_sec)}</span>
             </div>
@@ -162,7 +164,7 @@ export default function StreamTrackPage() {
                 src={src || undefined}
                 progress={waveProgress}
                 height={80}
-                interactive={isCurrent}
+                interactive={isCurrent && canSeekWave}
                 onSeek={(r) => { if (isCurrent && player.duration) player.seek(r * player.duration); }}
               />
             </div>
@@ -185,7 +187,7 @@ export default function StreamTrackPage() {
               <MediaLinkBar kind="track" id={String(track.id)} artistSlug={artist?.slug} artistName={artistName} />
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div data-min-stars="3" className="mt-4 flex gap-2">
               <button
                 onClick={handleQueueAll}
                 className="flex items-center gap-2 text-sm text-white/60 hover:text-[#e8c86a] border border-white/10 hover:border-[#e8c86a]/50 rounded-full px-4 py-2 transition-colors"
@@ -234,6 +236,15 @@ export default function StreamTrackPage() {
             </div>
           </section>
         )}
+
+        <GetPaidFinale
+          title={track.title}
+          artistName={artistName}
+          artistSlug={artist?.slug}
+          isOwner={!!track.is_owner || (!!user && !!track.owner_user_id && track.owner_user_id === user.id)}
+          sharePath={`/track/${track.id}`}
+          downloadPriceCents={track.download_price_cents}
+        />
       </div>
     </div>
   );

@@ -141,6 +141,7 @@ export function MediaActions({
       </div>
 
       <button
+        data-min-stars="2"
         onClick={() => setAddOpen(true)}
         title={user ? "Save to a playlist" : "Sign in to save to playlists"}
         className={`${btn} rounded-full border border-white/15 text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] font-semibold flex items-center gap-2 transition-colors`}

@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
 
 /**
- * Creator Streaming Platform — groups, events, DMs (migration 0091).
+ * Creator Streaming Platform — groups, events, DMs (migration 0098).
  *
  * Link-graph contract (cross-surface wiring):
  *   groups  -> members link to /creator/:slug (Worker 2 profiles)
@@ -54,7 +54,7 @@ export const groupMembersTable = pgTable("group_members", {
 
 export type GroupMember = typeof groupMembersTable.$inferSelect;
 
-/* ── Group-scoped posts (see migration 0091 for the Worker 8 posts note) ── */
+/* ── Group-scoped posts (see migration 0098 for the Worker 8 posts note) ── */
 
 export const groupPostsTable = pgTable("group_posts", {
   id:           uuid("id").primaryKey().defaultRandom(),

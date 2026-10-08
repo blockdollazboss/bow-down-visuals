@@ -218,7 +218,7 @@ export default function StreamPlaylistPage() {
         >
           {inner}
         </button>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1 bg-black/70 rounded-full px-1">
+        <div data-min-stars="3" className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1 bg-black/70 rounded-full px-1">
           <button
             onClick={() => player.playNext(toQueueItem(item))}
             className="p-1.5 text-white/60 hover:text-[#e8c86a]" title="Play next" aria-label="Play next"
@@ -360,6 +360,7 @@ export default function StreamPlaylistPage() {
               <ListMusic className="h-10 w-10 text-[#e8c86a]/40 mx-auto mb-3" />
               <p className="text-white/70 font-semibold">An empty playlist? Bold strategy.</p>
               <p className="text-sm text-white/40 mt-1">The curator hasn't dropped anything in here yet — check back when the heat lands.</p>
+              <p className="text-xs text-white/35 mt-3">Your playlist could be earning followers right now. <Link href="/publish"><span className="text-[#e8c86a] hover:underline">Upload your first drop</span></Link></p>
             </div>
           ) : seasons ? (
             seasons.map(([season, group]) => (

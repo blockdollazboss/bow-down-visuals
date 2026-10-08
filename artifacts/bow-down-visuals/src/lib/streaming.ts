@@ -25,6 +25,9 @@ export interface StreamTrack {
   repost_count: number;
   comment_count: number;
   is_published: boolean;
+  /** Ownership (when the API provides it) — drives the Get Paid finale. */
+  is_owner?: boolean;
+  owner_user_id?: string | null;
 }
 
 export interface StreamVideo {
@@ -39,6 +42,9 @@ export interface StreamVideo {
   like_count: number;
   comment_count: number;
   is_published: boolean;
+  /** Ownership (when the API provides it) — drives the Get Paid finale. */
+  is_owner?: boolean;
+  owner_user_id?: string | null;
   /** Series/episode metadata (optional — shown as "S1 E3" when present). */
   season_number?: number | null;
   episode_number?: number | null;

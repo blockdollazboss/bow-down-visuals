@@ -286,7 +286,7 @@ export function StreamingPlayerBar() {
               <button onClick={handleShare} className="text-white/50 hover:text-[#e8c86a] p-2" aria-label="Share">
                 <Share2 className="h-5 w-5" />
               </button>
-              <button onClick={() => p.setQueueOpen(true)} className="text-white/50 hover:text-[#e8c86a] p-2" aria-label="Queue">
+              <button data-min-stars="3" onClick={() => p.setQueueOpen(true)} className="text-white/50 hover:text-[#e8c86a] p-2" aria-label="Queue">
                 <ListMusic className="h-5 w-5" />
               </button>
             </div>
@@ -348,6 +348,7 @@ export function StreamingPlayerBar() {
             <Share2 className={`h-4 w-4 ${copied ? "text-emerald-400" : ""}`} />
           </button>
           <button
+            data-min-stars="3"
             onClick={() => p.setQueueOpen(true)}
             className={`p-2 transition-colors ${p.queueOpen ? "text-[#e8c86a]" : "text-white/45 hover:text-[#e8c86a]"}`}
             aria-label="Toggle queue"
@@ -356,7 +357,7 @@ export function StreamingPlayerBar() {
             <ListMusic className="h-4 w-4" />
           </button>
           <VolumeControl volume={p.volume} muted={p.muted} setVolume={p.setVolume} toggleMute={p.toggleMute} />
-          <span className="hidden xl:block text-[11px] text-white/30 border border-white/10 rounded px-1.5 py-0.5">
+          <span data-min-stars="3" className="hidden xl:block text-[11px] text-white/30 border border-white/10 rounded px-1.5 py-0.5">
             {formatCount(p.queue.length)} in queue
           </span>
         </div>

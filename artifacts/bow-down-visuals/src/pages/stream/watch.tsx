@@ -9,6 +9,8 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { useStreamingPlayerOptional } from "@/contexts/StreamingPlayerContext";
 import { MediaActions } from "@/components/player/MediaActions";
 import { MediaLinkBar } from "@/components/player/MediaLinkBar";
+import { GetPaidFinale, EarnEmptyState } from "@/components/player/GetPaidFinale";
+import { useAuth } from "@/contexts/AuthContext";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
   fetchVideo, fetchMoreFromArtist, formatCount, formatDuration, formatSeriesLabel,
@@ -159,6 +161,7 @@ export default function StreamWatchPage() {
   const [, params] = useRoute("/watch/:id");
   const id = params?.id ?? "";
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { user } = useAuth();
   const sitePlayer = useStreamingPlayerOptional();
 
   const [video, setVideo] = useState<StreamVideo | null>(null);
@@ -230,12 +233,9 @@ export default function StreamWatchPage() {
   if (notFound || !video) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <Clapperboard className="h-12 w-12 text-[#e8c86a]/40 mx-auto mb-4" />
-          <p className="text-xl font-bold mb-2">This video didn't make the cut</p>
-          <p className="text-white/40 text-sm mb-6">Removed by its creator or a bad link. Plenty more where that came from.</p>
+        <EarnEmptyState what="video" />
+          <p className="text-white/30 text-xs mt-2">Removed by its creator or a bad link.</p>
           <Link href="/showcase"><span className="text-[#e8c86a] underline text-sm">Back to the showcase</span></Link>
-        </div>
       </div>
     );
   }
@@ -315,7 +315,7 @@ export default function StreamWatchPage() {
                   <span className="text-[#e8c86a] font-semibold">{artistName}</span>
                 )}
                 <span className="mx-2 text-white/20">•</span>
-                <span className="inline-flex items-center gap-1.5"><Eye className="h-4 w-4" /> {formatCount(video.view_count)} views</span>
+                <span data-min-stars="2" className="inline-flex items-center gap-1.5"><Eye className="h-4 w-4" /> {formatCount(video.view_count)} views</span>
                 {video.duration_sec ? <><span className="mx-2 text-white/20">•</span>{formatDuration(video.duration_sec)}</> : null}
               </p>
 
@@ -351,6 +351,14 @@ export default function StreamWatchPage() {
             </div>
 
             <CommentThread kind="video" mediaId={String(video.id)} />
+
+            <GetPaidFinale
+              title={video.title}
+              artistName={artistName}
+              artistSlug={artist?.slug}
+              isOwner={!!video.is_owner || (!!user && !!video.owner_user_id && video.owner_user_id === user.id)}
+              sharePath={`/watch/${video.id}`}
+            />
           </div>
 
           {/* Up next */}

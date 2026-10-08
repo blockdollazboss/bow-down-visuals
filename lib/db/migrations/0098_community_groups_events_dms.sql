@@ -1,4 +1,4 @@
--- Creator Streaming Platform — Worker 9 (0091): groups, events, DMs, group posts.
+-- Creator Streaming Platform — Worker 9 (0098): groups, events, DMs, group posts.
 --
 -- Groups/events are the social layer of the streaming platform: fan crews,
 -- creator-led communities, streams/drops/premieres, and 1:1 DMs.
