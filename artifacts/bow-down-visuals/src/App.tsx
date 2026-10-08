@@ -46,6 +46,7 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
  */
 import Home    from "@/pages/home";
 import Pricing from "@/pages/pricing";
+import CreatorPricing from "@/pages/creator-pricing";
 import Waitlist from "@/pages/waitlist";
 import Extension from "@/pages/extension";
 import Download from "@/pages/download";
@@ -111,6 +112,7 @@ const ShowFinder = lazyWithRetry(() => import("@/pages/shows"));
 const BrandDealFinder = lazyWithRetry(() => import("@/pages/brand-deals"));
 const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
+const SplitsAgreement = lazyWithRetry(() => import("@/pages/splits-agreement"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
@@ -409,6 +411,7 @@ function AppShell() {
 
           {/* Marketing (home lives inside the sidebar layout below) */}
           <Route path="/pricing"><Pricing /></Route>
+          <Route path="/creator-pricing"><CreatorPricing /></Route>
           <Route path="/waitlist"><Waitlist /></Route>
           <Route path="/extension"><Extension /></Route>
           <Route path="/download"><Download /></Route>
@@ -450,6 +453,7 @@ function AppShell() {
           <Route path="/brand-deals"><BrandDealFinder /></Route>
           <Route path="/distribute"><Distribute /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
+          <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
