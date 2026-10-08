@@ -1,0 +1,787 @@
+import { Router } from "express";
+import { z } from "zod";
+import rateLimit from "express-rate-limit";
+import { db } from "@workspace/db";
+import {
+  creatorProfilesTable,
+  profileTracksTable,
+  profileVideosTable,
+  playlistsTable,
+  followsTable,
+  profileCommentsTable,
+  mediaCommentsTable,
+  likesTable,
+  repostsTable,
+  playEventsTable,
+  notificationsTable,
+  dmcaReportsTable,
+} from "@workspace/db";
+import { eq, and, desc, sql, count } from "drizzle-orm";
+import { requireAuth } from "../middlewares/require-auth";
+
+const router = Router();
+
+/* ── Creator Streaming Platform — public contract (for other workers) ───────
+   ALL CREATORS — not music-only. `vertical` on creator_profiles classifies
+   the lane ('music' | 'video' | 'gaming' | 'podcast' | 'film' | 'tv' |
+   'influencer' | 'education' | 'other'). The profile_tracks and
+   profile_videos table names stay stable (contract), but they hold GENERIC
+   audio/video content: a podcaster's episodes live in profile_tracks, a
+   YouTuber's uploads in profile_videos. Same columns, same counters.
+   Vertical extras: stream_schedule JSONB on profiles (gamers: [{day,time,title}],
+   twitch/youtube/kick URLs live in social_links); media_kit JSONB on profiles
+   (influencers: {audience_size, engagement_rate, rates, niches});
+   playlists.kind 'playlist'|'series' + profile_videos.season/episode for
+   film/TV episodic series (ordered playlist items = episode order).
+   Tables (lib/db/migrations 0085–0088, drizzle lib/db/src/schema/):
+     creator_profiles(user_id UNIQUE, slug UNIQUE, display_name, bio,
+       avatar_url, banner_url, theme_id DEFAULT 'gold-lux', theme_config JSONB,
+       sections JSONB, featured_media JSONB, social_links JSONB,
+       top_creators JSONB, tip_jar_enabled, ai_design JSONB, is_public,
+       follower_count, total_plays, created_at, updated_at)
+     profile_tracks(profile_id FK CASCADE, title, audio_url, artwork_url,
+       genre, tags TEXT[], isrc, duration_sec,
+       download_price_cents [0=stream-only, >0=paid download],
+       play_count, like_count, repost_count, comment_count,
+       is_published, created_at)
+     profile_videos(profile_id FK CASCADE, title, video_url, thumbnail_url,
+       description, genre, tags TEXT[], duration_sec, download_price_cents,
+       view_count, like_count, repost_count, comment_count,
+       is_published, created_at)
+     playlists(owner_profile_id FK CASCADE, title, description, cover_url,
+       is_public, items JSONB [{kind:'track'|'video', id}], follower_count)
+     follows(follower_user_id, profile_id) PK both
+     profile_comments(profile_id FK CASCADE, author_user_id, body)
+     media_comments(kind 'track'|'video', media_id, author_user_id, body)
+     likes(user_id, kind, target_id) PK all three
+     reposts(user_id, track_id) PK both
+     play_events(kind, media_id, user_id NULLABLE, played_at)
+     notifications(user_id, kind, title, body, link, is_read)
+     digital_sales(buyer_user_id, profile_id, item_kind 'track'|'album',
+       item_id, stripe_session_id UNIQUE, amount_cents, platform_fee_cents,
+       creator_amount_cents)
+     download_links(token PK, sale_id FK CASCADE, file_url, expires_at, used_count)
+     dmca_reports(reporter_name, reporter_email, reporter_org,
+       infringing_urls JSONB, original_urls JSONB, description,
+       agree_under_penalty, status DEFAULT 'new')
+*/
+
+/* ── Zod schemas ───────────────────────────────────────────────────────────── */
+
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const slugSchema = z.string().trim().toLowerCase().regex(SLUG_RE,
+  "Slug must be 3-40 chars: lowercase letters, numbers, hyphens; no leading/trailing hyphen.");
+
+const VERTICALS = ["music", "video", "gaming", "podcast", "film", "tv", "influencer", "education", "other"] as const;
+const verticalSchema = z.string().trim().toLowerCase().pipe(z.enum(VERTICALS));
+
+const streamScheduleSchema = z.array(z.object({
+  day: z.string().trim().max(20),
+  time: z.string().trim().max(20),
+  title: z.string().trim().max(120).optional(),
+})).max(14);
+
+const mediaKitSchema = z.record(z.string(), z.unknown());
+
+const upsertProfileSchema = z.object({
+  slug: slugSchema,
+  display_name: z.string().trim().min(1).max(80),
+  vertical: verticalSchema.optional().default("music"),
+  stream_schedule: streamScheduleSchema.optional().default([]),
+  media_kit: mediaKitSchema.optional().nullable(),
+  bio: z.string().max(2000).optional().default(""),
+  avatar_url: z.string().url().optional().nullable(),
+  banner_url: z.string().url().optional().nullable(),
+  theme_id: z.string().max(40).optional().default("gold-lux"),
+  theme_config: z.record(z.string(), z.unknown()).optional().default({}),
+  sections: z.array(z.record(z.string(), z.unknown())).optional().default([]),
+  featured_media: z.record(z.string(), z.unknown()).optional().nullable(),
+  social_links: z.record(z.string(), z.string()).optional().default({}),
+  top_creators: z.array(z.record(z.string(), z.unknown())).optional().default([]),
+  tip_jar_enabled: z.boolean().optional().default(true),
+  ai_design: z.record(z.string(), z.unknown()).optional().nullable(),
+  is_public: z.boolean().optional().default(true),
+});
+
+const updateMeSchema = z.object({
+  bio: z.string().max(2000).optional(),
+  vertical: verticalSchema.optional(),
+  stream_schedule: streamScheduleSchema.optional(),
+  media_kit: mediaKitSchema.optional().nullable(),
+  avatar_url: z.string().url().optional().nullable(),
+  banner_url: z.string().url().optional().nullable(),
+  theme_id: z.string().max(40).optional(),
+  theme_config: z.record(z.string(), z.unknown()).optional(),
+  sections: z.array(z.record(z.string(), z.unknown())).optional(),
+  featured_media: z.record(z.string(), z.unknown()).optional().nullable(),
+  social_links: z.record(z.string(), z.string()).optional(),
+  top_creators: z.array(z.record(z.string(), z.unknown())).optional(),
+  tip_jar_enabled: z.boolean().optional(),
+  ai_design: z.record(z.string(), z.unknown()).optional().nullable(),
+  is_public: z.boolean().optional(),
+  display_name: z.string().trim().min(1).max(80).optional(),
+});
+
+const commentSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+});
+
+const dmcaReportSchema = z.object({
+  reporter_name: z.string().trim().min(1).max(120),
+  reporter_email: z.string().trim().email().max(200),
+  reporter_org: z.string().trim().max(200).optional().nullable(),
+  infringing_urls: z.array(z.string().url().max(500)).min(1).max(25),
+  original_urls: z.array(z.string().url().max(500)).max(25).optional().default([]),
+  description: z.string().trim().min(20).max(5000),
+  agree_under_penalty: z.string().trim().min(1).max(100),
+});
+
+/* ── Helpers ───────────────────────────────────────────────────────────────── */
+
+const MEDIA_KINDS = ["track", "video"] as const;
+type MediaKind = (typeof MEDIA_KINDS)[number];
+
+function parseKind(v: unknown): MediaKind | null {
+  return v === "track" || v === "video" ? v : null;
+}
+
+async function getProfileById(id: string) {
+  const [row] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, id)).limit(1);
+  return row ?? null;
+}
+
+async function getMedia(kind: MediaKind, id: string) {
+  if (kind === "track") {
+    const [row] = await db.select().from(profileTracksTable).where(eq(profileTracksTable.id, id)).limit(1);
+    return row ?? null;
+  }
+  const [row] = await db.select().from(profileVideosTable).where(eq(profileVideosTable.id, id)).limit(1);
+  return row ?? null;
+}
+
+/** Internal counter columns per media kind. Identifiers are constants — never user input. */
+const COUNTER_TABLES: Record<MediaKind, string> = { track: "profile_tracks", video: "profile_videos" };
+const COUNTER_COLUMNS: Record<string, string> = {
+  "track:play": "play_count", "track:like": "like_count",
+  "track:repost": "repost_count", "track:comment": "comment_count",
+  "video:play": "view_count", "video:like": "like_count",
+  "video:repost": "repost_count", "video:comment": "comment_count",
+};
+
+async function bumpCounter(
+  kind: MediaKind,
+  id: string,
+  action: "play" | "like" | "repost" | "comment",
+  delta: 1 | -1 = 1,
+): Promise<void> {
+  const table = COUNTER_TABLES[kind]!;
+  const col = COUNTER_COLUMNS[`${kind}:${action}`]!;
+  await db.execute(sql`
+    UPDATE ${sql.identifier(table)}
+    SET ${sql.identifier(col)} = GREATEST(${sql.identifier(col)} + ${delta}, 0)
+    WHERE ${sql.identifier("id")} = ${id}
+  `);
+}
+
+/** Best-effort notification to the profile owner; never fails the request. */
+async function notify(profileOwnerUserId: string | null | undefined, n: {
+  kind: string; title: string; body?: string; link?: string;
+}) {
+  if (!profileOwnerUserId) return;
+  try {
+    await db.insert(notificationsTable).values({
+      userId: profileOwnerUserId,
+      kind: n.kind,
+      title: n.title,
+      body: n.body ?? "",
+      link: n.link ?? "",
+    });
+  } catch (err) {
+    // Notification delivery is non-critical.
+  }
+}
+
+/** Rate limiter: 1 counted play per IP per media item per 60s window. */
+const playLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 1,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => `${req.ip ?? "unknown"}|${req.params["kind"] ?? "?"}|${req.params["id"] ?? "?"}`,
+  message: { error: "Already counted that play — the cheat code remembers. 🦈" },
+});
+
+/* ── Profiles ──────────────────────────────────────────────────────────────── */
+
+/** Public profile page payload. 404 when the profile is private. */
+router.get("/creator-profiles/:slug", async (req, res) => {
+  try {
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, String(req.params["slug"]).toLowerCase()))
+      .limit(1);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+
+    const [topTracks, topVideos, profilePlaylists, counts] = await Promise.all([
+      db.select().from(profileTracksTable)
+        .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
+        .orderBy(desc(profileTracksTable.playCount)).limit(5),
+      db.select().from(profileVideosTable)
+        .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)))
+        .orderBy(desc(profileVideosTable.viewCount)).limit(5),
+      db.select().from(playlistsTable)
+        .where(and(eq(playlistsTable.ownerProfileId, profile.id), eq(playlistsTable.isPublic, true)))
+        .orderBy(desc(playlistsTable.createdAt)).limit(5),
+      db.select({ trackCount: count() }).from(profileTracksTable)
+        .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
+        .then(async (trackRows) => {
+          const videoRows = await db.select({ videoCount: count() }).from(profileVideosTable)
+            .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)));
+          const playlistRows = await db.select({ playlistCount: count() }).from(playlistsTable)
+            .where(and(eq(playlistsTable.ownerProfileId, profile.id), eq(playlistsTable.isPublic, true)));
+          return {
+            tracks: trackRows[0]?.trackCount ?? 0,
+            videos: videoRows[0]?.videoCount ?? 0,
+            playlists: playlistRows[0]?.playlistCount ?? 0,
+          };
+        }),
+    ]);
+
+    res.json({
+      profile: {
+        id: profile.id,
+        slug: profile.slug,
+        display_name: profile.displayName,
+        vertical: profile.vertical,
+        stream_schedule: profile.streamSchedule,
+        media_kit: profile.mediaKit,
+        bio: profile.bio,
+        avatar_url: profile.avatarUrl,
+        banner_url: profile.bannerUrl,
+        theme_id: profile.themeId,
+        theme_config: profile.themeConfig,
+        sections: profile.sections,
+        featured_media: profile.featuredMedia,
+        social_links: profile.socialLinks,
+        top_creators: profile.topCreators,
+        tip_jar_enabled: profile.tipJarEnabled,
+        follower_count: profile.followerCount,
+        total_plays: profile.totalPlays,
+        created_at: profile.createdAt,
+      },
+      counts,
+      top_tracks: topTracks,
+      top_videos: topVideos,
+      playlists: profilePlaylists,
+    });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/:slug error");
+    res.status(500).json({ error: "The profile wouldn't load. Give it another shot." });
+  }
+});
+
+/** Create or update the caller's profile (one per user). */
+router.post("/creator-profiles", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const parsed = upsertProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "That profile data didn't pass the vibe check.", details: parsed.error.issues });
+      return;
+    }
+    const data = parsed.data;
+
+    const [existing] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId)).limit(1);
+
+    // Slug must be unique across OTHER profiles.
+    const [slugTaken] = await db.select({ id: creatorProfilesTable.id }).from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, data.slug)).limit(1);
+    if (slugTaken && (!existing || slugTaken.id !== existing.id)) {
+      res.status(409).json({ error: "That handle's already claimed. Cheat-code thinkers pick a fresh one." });
+      return;
+    }
+
+    const values = {
+      userId,
+      slug: data.slug,
+      displayName: data.display_name,
+      vertical: data.vertical,
+      streamSchedule: data.stream_schedule,
+      mediaKit: data.media_kit ?? null,
+      bio: data.bio,
+      avatarUrl: data.avatar_url ?? null,
+      bannerUrl: data.banner_url ?? null,
+      themeId: data.theme_id,
+      themeConfig: data.theme_config,
+      sections: data.sections,
+      featuredMedia: data.featured_media ?? null,
+      socialLinks: data.social_links,
+      topCreators: data.top_creators,
+      tipJarEnabled: data.tip_jar_enabled,
+      aiDesign: data.ai_design ?? null,
+      isPublic: data.is_public,
+      updatedAt: new Date(),
+    };
+
+    if (existing) {
+      const [updated] = await db.update(creatorProfilesTable).set(values)
+        .where(eq(creatorProfilesTable.id, existing.id)).returning();
+      res.json({ profile: updated, created: false });
+      return;
+    }
+    const [created] = await db.insert(creatorProfilesTable).values(values).returning();
+    res.status(201).json({ profile: created, created: true });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles POST error");
+    res.status(500).json({ error: "The save fumbled. Run it back." });
+  }
+});
+
+/** Update the caller's profile (theme, sections, bio, links, etc.). */
+router.put("/creator-profiles/me", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const parsed = updateMeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "That profile data didn't pass the vibe check.", details: parsed.error.issues });
+      return;
+    }
+    const data = parsed.data;
+
+    const [existing] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId)).limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "No profile yet — claim your corner of the cheat code first." });
+      return;
+    }
+
+    const patch: Partial<typeof creatorProfilesTable.$inferInsert> = { updatedAt: new Date() };
+    if (data.vertical !== undefined) patch.vertical = data.vertical;
+    if (data.stream_schedule !== undefined) patch.streamSchedule = data.stream_schedule;
+    if (data.media_kit !== undefined) patch.mediaKit = data.media_kit;
+    if (data.bio !== undefined) patch.bio = data.bio;
+    if (data.avatar_url !== undefined) patch.avatarUrl = data.avatar_url;
+    if (data.banner_url !== undefined) patch.bannerUrl = data.banner_url;
+    if (data.theme_id !== undefined) patch.themeId = data.theme_id;
+    if (data.theme_config !== undefined) patch.themeConfig = data.theme_config;
+    if (data.sections !== undefined) patch.sections = data.sections;
+    if (data.featured_media !== undefined) patch.featuredMedia = data.featured_media;
+    if (data.social_links !== undefined) patch.socialLinks = data.social_links;
+    if (data.top_creators !== undefined) patch.topCreators = data.top_creators;
+    if (data.tip_jar_enabled !== undefined) patch.tipJarEnabled = data.tip_jar_enabled;
+    if (data.ai_design !== undefined) patch.aiDesign = data.ai_design;
+    if (data.is_public !== undefined) patch.isPublic = data.is_public;
+    if (data.display_name !== undefined) patch.displayName = data.display_name;
+
+    const [updated] = await db.update(creatorProfilesTable).set(patch)
+      .where(eq(creatorProfilesTable.id, existing.id)).returning();
+    res.json({ profile: updated });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/me error");
+    res.status(500).json({ error: "The update slipped. Try again." });
+  }
+});
+
+/** Slug availability check for the profile editor. */
+router.get("/creator-profiles/check-slug", requireAuth, async (req, res) => {
+  try {
+    const raw = String(req.query["slug"] ?? "");
+    const parsed = slugSchema.safeParse(raw);
+    if (!parsed.success) {
+      res.json({ available: false, valid: false, error: parsed.error.issues[0]?.message ?? "Invalid slug." });
+      return;
+    }
+    const slug = parsed.data;
+    const [taken] = await db.select({ id: creatorProfilesTable.id, userId: creatorProfilesTable.userId })
+      .from(creatorProfilesTable).where(eq(creatorProfilesTable.slug, slug)).limit(1);
+    const available = !taken || taken.userId === req.userId;
+    res.json({ available, valid: true, slug });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/check-slug error");
+    res.status(500).json({ error: "Couldn't check that handle. Try again." });
+  }
+});
+
+/* ── Follows ───────────────────────────────────────────────────────────────── */
+
+router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const profile = await getProfileById(String(req.params["id"]));
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+    if (profile.userId === userId) {
+      res.status(400).json({ error: "Following yourself? Bold. It doesn't work, but we respect the confidence." });
+      return;
+    }
+    await db.insert(followsTable)
+      .values({ followerUserId: userId, profileId: profile.id })
+      .onConflictDoNothing({ target: [followsTable.followerUserId, followsTable.profileId] });
+    await db.update(creatorProfilesTable)
+      .set({ followerCount: sql`${creatorProfilesTable.followerCount} + 1`, updatedAt: new Date() })
+      .where(eq(creatorProfilesTable.id, profile.id));
+    await notify(profile.userId, {
+      kind: "follow",
+      title: "New follower on deck 🦈",
+      body: "Someone just followed your creator profile — keep the cheat code coming.",
+      link: `/creator/${profile.slug}`,
+    });
+    res.json({ followed: true, follower_count: (profile.followerCount ?? 0) + 1 });
+  } catch (err) {
+    req.log.error({ err }, "follow error");
+    res.status(500).json({ error: "The follow didn't stick. Try again." });
+  }
+});
+
+router.delete("/creator-profiles/:id/unfollow", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const profile = await getProfileById(String(req.params["id"]));
+    if (!profile) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+    const deleted = await db.delete(followsTable)
+      .where(and(eq(followsTable.followerUserId, userId), eq(followsTable.profileId, profile.id)))
+      .returning({ id: followsTable.profileId });
+    if (deleted.length > 0) {
+      await db.update(creatorProfilesTable)
+        .set({ followerCount: sql`GREATEST(${creatorProfilesTable.followerCount} - 1, 0)`, updatedAt: new Date() })
+        .where(eq(creatorProfilesTable.id, profile.id));
+    }
+    res.json({ followed: false, follower_count: Math.max((profile.followerCount ?? 1) - 1, 0) });
+  } catch (err) {
+    req.log.error({ err }, "unfollow error");
+    res.status(500).json({ error: "The unfollow didn't stick. Try again." });
+  }
+});
+
+/* ── Wall comments ─────────────────────────────────────────────────────────── */
+
+router.get("/creator-profiles/:id/comments", async (req, res) => {
+  try {
+    const profile = await getProfileById(String(req.params["id"]));
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+    const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20), 1), 100);
+    const offset = Math.max(Number(req.query["offset"] ?? 0), 0);
+    const comments = await db.select().from(profileCommentsTable)
+      .where(eq(profileCommentsTable.profileId, profile.id))
+      .orderBy(desc(profileCommentsTable.createdAt)).limit(limit).offset(offset);
+    res.json({ comments });
+  } catch (err) {
+    req.log.error({ err }, "wall comments GET error");
+    res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
+  }
+});
+
+router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
+  try {
+    const profile = await getProfileById(String(req.params["id"]));
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
+      return;
+    }
+    const parsed = commentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "That comment didn't pass the vibe check.", details: parsed.error.issues });
+      return;
+    }
+    const [comment] = await db.insert(profileCommentsTable).values({
+      profileId: profile.id,
+      authorUserId: req.userId!,
+      body: parsed.data.body,
+    }).returning();
+    await notify(profile.userId, {
+      kind: "comment",
+      title: "Fresh ink on your wall 🦈",
+      body: parsed.data.body.slice(0, 120),
+      link: `/creator/${profile.slug}`,
+    });
+    res.status(201).json({ comment });
+  } catch (err) {
+    req.log.error({ err }, "wall comments POST error");
+    res.status(500).json({ error: "The comment didn't land. Try again." });
+  }
+});
+
+/* ── Media comments ────────────────────────────────────────────────────────── */
+
+router.get("/media/:kind/:id/comments", async (req, res) => {
+  try {
+    const kind = parseKind(req.params["kind"]);
+    if (!kind) {
+      res.status(400).json({ error: "kind has to be 'track' or 'video' — pick a lane." });
+      return;
+    }
+    const media = await getMedia(kind, String(req.params["id"]));
+    if (!media) {
+      res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
+      return;
+    }
+    const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20), 1), 100);
+    const offset = Math.max(Number(req.query["offset"] ?? 0), 0);
+    const comments = await db.select().from(mediaCommentsTable)
+      .where(and(eq(mediaCommentsTable.kind, kind), eq(mediaCommentsTable.mediaId, media.id)))
+      .orderBy(desc(mediaCommentsTable.createdAt)).limit(limit).offset(offset);
+    res.json({ comments });
+  } catch (err) {
+    req.log.error({ err }, "media comments GET error");
+    res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
+  }
+});
+
+router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
+  try {
+    const kind = parseKind(req.params["kind"]);
+    if (!kind) {
+      res.status(400).json({ error: "kind has to be 'track' or 'video' — pick a lane." });
+      return;
+    }
+    const media = await getMedia(kind, String(req.params["id"]));
+    if (!media) {
+      res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
+      return;
+    }
+    const parsed = commentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "That comment didn't pass the vibe check.", details: parsed.error.issues });
+      return;
+    }
+    const [comment] = await db.insert(mediaCommentsTable).values({
+      kind,
+      mediaId: media.id,
+      authorUserId: req.userId!,
+      body: parsed.data.body,
+    }).returning();
+    await bumpCounter(kind, media.id, "comment");
+    const profile = await getProfileById(media.profileId);
+    if (profile && profile.userId !== req.userId) {
+      await notify(profile.userId, {
+        kind: "comment",
+        title: `Someone's talking about "${media.title}" 🦈`,
+        body: parsed.data.body.slice(0, 120),
+        link: `/creator/${profile.slug}`,
+      });
+    }
+    res.status(201).json({ comment });
+  } catch (err) {
+    req.log.error({ err }, "media comments POST error");
+    res.status(500).json({ error: "The comment didn't land. Try again." });
+  }
+});
+
+/* ── Likes / reposts ───────────────────────────────────────────────────────── */
+
+router.post("/media/:kind/:id/like", requireAuth, async (req, res) => {
+  try {
+    const kind = parseKind(req.params["kind"]);
+    if (!kind) {
+      res.status(400).json({ error: "kind has to be 'track' or 'video' — pick a lane." });
+      return;
+    }
+    const media = await getMedia(kind, String(req.params["id"]));
+    if (!media) {
+      res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
+      return;
+    }
+    await db.insert(likesTable)
+      .values({ userId: req.userId!, kind, targetId: media.id })
+      .onConflictDoNothing({ target: [likesTable.userId, likesTable.kind, likesTable.targetId] });
+    await bumpCounter(kind, media.id, "like");
+    const profile = await getProfileById(media.profileId);
+    if (profile && profile.userId !== req.userId) {
+      await notify(profile.userId, {
+        kind: "like",
+        title: `Your upload "${media.title}" just got some love 🦈`,
+        link: `/creator/${profile.slug}`,
+      });
+    }
+    res.json({ liked: true });
+  } catch (err) {
+    req.log.error({ err }, "like error");
+    res.status(500).json({ error: "The like didn't land. Try again." });
+  }
+});
+
+router.delete("/media/:kind/:id/unlike", requireAuth, async (req, res) => {
+  try {
+    const kind = parseKind(req.params["kind"]);
+    if (!kind) {
+      res.status(400).json({ error: "kind has to be 'track' or 'video' — pick a lane." });
+      return;
+    }
+    const deleted = await db.delete(likesTable)
+      .where(and(
+        eq(likesTable.userId, req.userId!),
+        eq(likesTable.kind, kind),
+        eq(likesTable.targetId, String(req.params["id"])),
+      ))
+      .returning({ targetId: likesTable.targetId });
+    if (deleted.length > 0) {
+      await bumpCounter(kind, String(req.params["id"]), "like", -1);
+    }
+    res.json({ liked: false });
+  } catch (err) {
+    req.log.error({ err }, "unlike error");
+    res.status(500).json({ error: "The unlike didn't stick. Try again." });
+  }
+});
+
+router.post("/tracks/:id/repost", requireAuth, async (req, res) => {
+  try {
+    const [track] = await db.select().from(profileTracksTable)
+      .where(eq(profileTracksTable.id, String(req.params["id"]))).limit(1);
+    if (!track) {
+      res.status(404).json({ error: "That audio doesn't exist here. Dead link, chief." });
+      return;
+    }
+    await db.insert(repostsTable)
+      .values({ userId: req.userId!, trackId: track.id })
+      .onConflictDoNothing({ target: [repostsTable.userId, repostsTable.trackId] });
+    await bumpCounter("track", track.id, "repost");
+    const profile = await getProfileById(track.profileId);
+    if (profile && profile.userId !== req.userId) {
+      await notify(profile.userId, {
+        kind: "repost",
+        title: `"${track.title}" just got reposted — your reach is compounding 🦈`,
+        link: `/creator/${profile.slug}`,
+      });
+    }
+    res.json({ reposted: true });
+  } catch (err) {
+    req.log.error({ err }, "repost error");
+    res.status(500).json({ error: "The repost didn't land. Try again." });
+  }
+});
+
+router.delete("/tracks/:id/unrepost", requireAuth, async (req, res) => {
+  try {
+    const deleted = await db.delete(repostsTable)
+      .where(and(
+        eq(repostsTable.userId, req.userId!),
+        eq(repostsTable.trackId, String(req.params["id"])),
+      ))
+      .returning({ trackId: repostsTable.trackId });
+    if (deleted.length > 0) {
+      await bumpCounter("track", String(req.params["id"]), "repost", -1);
+    }
+    res.json({ reposted: false });
+  } catch (err) {
+    req.log.error({ err }, "unrepost error");
+    res.status(500).json({ error: "The unrepost didn't stick. Try again." });
+  }
+});
+
+/* ── Plays (public, rate-limited) ──────────────────────────────────────────── */
+
+router.post("/media/:kind/:id/play", playLimiter, async (req, res) => {
+  try {
+    const kind = parseKind(req.params["kind"]);
+    if (!kind) {
+      res.status(400).json({ error: "kind has to be 'track' or 'video' — pick a lane." });
+      return;
+    }
+    const media = await getMedia(kind, String(req.params["id"]));
+    if (!media) {
+      res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
+      return;
+    }
+    await bumpCounter(kind, media.id, "play");
+    await db.insert(playEventsTable).values({
+      kind,
+      mediaId: media.id,
+      userId: req.userId ?? null,
+    });
+    await db.update(creatorProfilesTable)
+      .set({ totalPlays: sql`${creatorProfilesTable.totalPlays} + 1`, updatedAt: new Date() })
+      .where(eq(creatorProfilesTable.id, media.profileId));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "play error");
+    res.status(500).json({ error: "The play didn't count. Hit it again." });
+  }
+});
+
+/* ── Notifications ─────────────────────────────────────────────────────────── */
+
+router.get("/notifications", requireAuth, async (req, res) => {
+  try {
+    const rows = await db.select().from(notificationsTable)
+      .where(eq(notificationsTable.userId, req.userId!))
+      .orderBy(desc(notificationsTable.createdAt)).limit(50);
+    const unread = rows.filter((r) => !r.isRead).length;
+    res.json({ notifications: rows, unread_count: unread });
+  } catch (err) {
+    req.log.error({ err }, "notifications GET error");
+    res.status(500).json({ error: "Notifications wouldn't load. Give it another shot." });
+  }
+});
+
+router.post("/notifications/:id/read", requireAuth, async (req, res) => {
+  try {
+    const [updated] = await db.update(notificationsTable)
+      .set({ isRead: true })
+      .where(and(eq(notificationsTable.id, String(req.params["id"])), eq(notificationsTable.userId, req.userId!)))
+      .returning({ id: notificationsTable.id });
+    if (!updated) {
+      res.status(404).json({ error: "That notification's gone — probably old news anyway." });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "notifications read error");
+    res.status(500).json({ error: "Couldn't clear that one. Try again." });
+  }
+});
+
+/* ── DMCA takedown reports (public) ──────────────────────────────────────────
+   No reporting flow existed on the site (copyright.tsx is informational
+   only), so this is the intake endpoint. Reports land in dmca_reports
+   (status 'new') for manual operator review; details are also logged
+   (email notification hook left as a log stub — no paid services). */
+
+router.post("/dmca/report", async (req, res) => {
+  try {
+    const parsed = dmcaReportSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "That report didn't pass the vibe check.", details: parsed.error.issues });
+      return;
+    }
+    const d = parsed.data;
+    if (!/yes|true|agree/i.test(d.agree_under_penalty)) {
+      res.status(400).json({ error: "You have to agree to the good-faith statement — under penalty of perjury, no shortcuts." });
+      return;
+    }
+    const [report] = await db.insert(dmcaReportsTable).values({
+      reporterName: d.reporter_name,
+      reporterEmail: d.reporter_email,
+      reporterOrg: d.reporter_org ?? null,
+      infringingUrls: d.infringing_urls,
+      originalUrls: d.original_urls,
+      description: d.description,
+      agreeUnderPenalty: d.agree_under_penalty,
+    }).returning({ id: dmcaReportsTable.id });
+    // Email-notification stub: no paid mail provider; surface in logs for the
+    // operator (a webhook/SES hook can read dmca_reports WHERE status='new').
+    req.log.warn(
+      { reportId: report.id, reporter: d.reporter_email, urls: d.infringing_urls.length },
+      "DMCA takedown report received — manual review required",
+    );
+    res.status(201).json({ ok: true, id: report.id });
+  } catch (err) {
+    req.log.error({ err }, "dmca/report error");
+    res.status(500).json({ error: "The report didn't go through. Try again." });
+  }
+});
+
+export default router;
