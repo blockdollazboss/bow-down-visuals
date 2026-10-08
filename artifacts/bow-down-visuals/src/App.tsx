@@ -130,6 +130,7 @@ const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
+const BioPublic = lazyWithRetry(() => import("@/pages/bio-public"));
 const ReviewPage = lazyWithRetry(() => import("@/pages/review"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
@@ -457,6 +458,8 @@ function AppShell() {
           <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
+          {/* Public link-in-bio page (no login) — viral fan surface */}
+          <Route path="/bio/:slug"><BioPublic /></Route>
           {/* Public client review page (tokenized, no login) — the client's handshake with the product */}
           <Route path="/review/:token"><ReviewPage /></Route>
 

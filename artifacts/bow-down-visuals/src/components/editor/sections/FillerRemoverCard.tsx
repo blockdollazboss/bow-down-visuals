@@ -311,8 +311,6 @@ export function FillerRemoverCard({
     );
   }
 
-  const busy = phase === "analyzing" || phase === "rendering";
-
   return (
     <EditorCard
       title={t("fillerRemover.title")}

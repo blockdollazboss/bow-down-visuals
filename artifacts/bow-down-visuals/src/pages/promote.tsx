@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
+import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
    Pick a feature, pick a format and tone, and get ready-to-post marketing
@@ -102,6 +103,7 @@ function ResultBlock({ label, text }: { label: string; text: string }) {
 export default function Promote() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const [tab, setTab] = useState<"copy" | "bio">("copy");
   const [featureKey, setFeatureKey] = useState(SITE_FEATURES[0]!.key);
   const [contentType, setContentType] = useState<ContentTypeKey>("twitter");
   const [tone, setTone] = useState<ToneKey>("hype");
@@ -196,7 +198,37 @@ export default function Promote() {
         </div>
       </section>
 
+      {/* Tab bar: Promo Copy | Link in Bio (builder docked, no new sidebar item) */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8">
+        <div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-1.5">
+          {(
+            [
+              { key: "copy", label: t("promote.tabs.promoCopy") },
+              { key: "bio", label: t("promote.tabs.linkInBio") },
+            ] as const
+          ).map((tb) => (
+            <button
+              key={tb.key}
+              onClick={() => setTab(tb.key)}
+              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                tab === tb.key
+                  ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black"
+                  : "text-white/55 hover:text-white"
+              }`}
+            >
+              {tb.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">
+        {tab === "bio" ? (
+          <div className="pt-6">
+            <LinkInBioBuilder />
+          </div>
+        ) : (
+          <>
         <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6 md:p-8">
           {/* Feature picker */}
           <label className="text-xs font-bold uppercase tracking-widest text-white/45">
@@ -352,6 +384,8 @@ export default function Promote() {
         <div className="mt-10">
           <SocialKitPanel />
         </div>
+          </>
+        )}
       </section>
 
 
