@@ -7,6 +7,7 @@ import { ManualDAW } from "@/components/editor/music/ManualDAW";
 import { SongWorkflow } from "@/components/editor/music/SongWorkflow";
 import { LipSyncStudio } from "@/components/editor/music/LipSyncStudio";
 import { GenerateAudio } from "@/components/editor/music/GenerateAudio";
+import { AdLibGenerator } from "@/components/wave8/AdLibGenerator";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
 import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
@@ -157,6 +158,15 @@ export function MusicStudio({
   }, []);
 
   const progress = preview.duration > 0 ? Math.min(1, preview.position / preview.duration) : 0;
+
+  /* Vocal-producer input for the Wave 8 Ad-Lib Generator: artist voice
+     description composed from the active vault profile. */
+  const vaultVoiceDesc = activeArtist
+    ? [activeArtist.genre, activeArtist.voice_style, activeArtist.personality]
+        .filter((s): s is string => !!s && s.trim().length > 0)
+        .map((s) => s.trim())
+        .join(" · ")
+    : null;
 
   return (
     <div className="space-y-4">
@@ -358,6 +368,14 @@ export function MusicStudio({
 
       {/* ── Song workflow: lyrics / transcript / video audio ── */}
       {songWorkflow}
+
+      {/* ── Wave 8 — AI Ad-Lib Generator (vocal production, docked next to lyrics) ── */}
+      <AdLibGenerator
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+        artistName={artistName ?? null}
+        vaultVoice={vaultVoiceDesc}
+      />
 
       {/* ── Mode content — organized sections ── */}
       {ms.mode === "auto" && (
