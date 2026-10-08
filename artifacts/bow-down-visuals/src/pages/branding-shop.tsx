@@ -10,6 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import MerchDropPlanner from "@/components/wave8/MerchDropPlanner";
 import {
   BRANDING_PRODUCTS,
   BRANDING_STYLES,
@@ -697,6 +698,12 @@ export default function BrandingShop() {
               );
             })}
           </div>
+            )}
+            {/* ── Wave 8: Merch Drop Planner — docks below the merch grid ── */}
+            {shopCat === "merch" && (
+              <div className="mt-12">
+                <MerchDropPlanner />
+              </div>
             )}
           </>
         )}
