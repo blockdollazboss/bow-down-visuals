@@ -131,21 +131,33 @@ export async function createOnboardingLink(accountId: string, req?: Request): Pr
   });
 }
 
-/* Live capability state straight from Stripe (v2). For a recipient account
- * the money-in/out signal is the stripe_transfers capability status. */
+/* Live capability state straight from Stripe (v2). For a recipient account:
+ * - stripe_transfers = money IN (platform → creator's Stripe balance)
+ * - payouts = money OUT (Stripe balance → creator's bank)
+ * "Payouts enabled" on the Get Paid card reflects the payouts capability. */
 export async function getConnectStatus(accountId: string): Promise<ConnectFields> {
   const stripe = getConnectStripe();
   const acct = await stripe.v2.core.accounts.retrieve(accountId);
-  const transfers = acct.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers as
-    | { status?: string }
+  const balance = acct.configuration?.recipient?.capabilities?.stripe_balance as
+    | { stripe_transfers?: { status?: string }; payouts?: { status?: string } }
     | undefined;
-  const active = transfers?.status === "active";
+  const transfersActive = balance?.stripe_transfers?.status === "active";
+  const payoutsActive = balance?.payouts?.status === "active";
   const entries = acct.requirements?.entries ?? [];
+  logger.info(
+    {
+      accountId,
+      transfersStatus: balance?.stripe_transfers?.status,
+      payoutsStatus: balance?.payouts?.status,
+      requirementsEntries: entries.length,
+    },
+    "[connect] v2 capability state",
+  );
   return {
     accountId: acct.id,
-    onboarded: active || entries.length === 0,
-    chargesEnabled: active,
-    payoutsEnabled: active,
+    onboarded: payoutsActive || transfersActive || entries.length === 0,
+    chargesEnabled: transfersActive,
+    payoutsEnabled: payoutsActive,
   };
 }
 
@@ -194,15 +206,18 @@ export async function syncConnectAccountStatus(acct: {
     logger.warn({ accountId: acct.id }, "[connect] account.updated for unknown account — skipping");
     return;
   }
-  const transfers = acct.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers;
-  const active = transfers?.status === "active";
+  const balance = acct.configuration?.recipient?.capabilities?.stripe_balance as
+    | { stripe_transfers?: { status?: string }; payouts?: { status?: string } }
+    | undefined;
+  const transfersActive = balance?.stripe_transfers?.status === "active";
+  const payoutsActive = balance?.payouts?.status === "active";
   const entries = acct.requirements?.entries ?? [];
-  const onboarded = active || entries.length === 0;
+  const onboarded = payoutsActive || transfersActive || entries.length === 0;
   await db.execute(sql`
     UPDATE creator_profiles
     SET stripe_connect_onboarded = ${onboarded},
-        stripe_connect_charges_enabled = ${active},
-        stripe_connect_payouts_enabled = ${active},
+        stripe_connect_charges_enabled = ${transfersActive},
+        stripe_connect_payouts_enabled = ${payoutsActive},
         updated_at = NOW()
     WHERE id = ${profileId}
   `);
@@ -211,8 +226,8 @@ export async function syncConnectAccountStatus(acct: {
       profileId,
       accountId: acct.id,
       onboarded,
-      chargesEnabled: active,
-      payoutsEnabled: active,
+      chargesEnabled: transfersActive,
+      payoutsEnabled: payoutsActive,
     },
     "[connect] account status synced from webhook (v2)",
   );
