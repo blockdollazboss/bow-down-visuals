@@ -2152,7 +2152,8 @@
     "spotlightBadge": "#{{n}} SPOTLIGHT",
     "startCreating": "Start Creating with This Artist",
     "subtitle": "Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.",
-    "title": "Who's In Front of the Camera?"
+    "title": "Who's In Front of the Camera?",
+    "dragHint": "Drag any artist onto a spotlight slot to choose who shines where."
   },
   "clipMaker": {
     "analyzeNote": "AI transcribes your VOD and finds the {{vibe}} moments worth clipping. You only pay when highlights are found.",

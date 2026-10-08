@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -36,6 +36,9 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   voice_name: text("voice_name"),
   voice_preview_url: text("voice_preview_url"),
   is_active: boolean("is_active").notNull().default(false),
+  /* Spotlight slot order (choose-artist page). Lower = earlier slot.
+     The user drag-and-drops which artist/character holds each spotlight. */
+  spotlight_order: integer("spotlight_order").notNull().default(0),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   /* Soft delete: when set, the vault is hidden but the data is preserved.

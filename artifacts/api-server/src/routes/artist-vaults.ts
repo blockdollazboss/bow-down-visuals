@@ -3,7 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and, desc, isNull, or } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
@@ -68,10 +68,15 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
   const d = parsed.data;
 
   try {
+    /* New vaults go to the end of the user's spotlight order. */
+    const maxRow = (await db.execute(
+      sql`SELECT COALESCE(MAX(spotlight_order), -1)::int AS "maxOrder" FROM artist_vaults WHERE user_id = ${req.userId!} AND deleted_at IS NULL`,
+    )).rows[0] as { maxOrder: number } | undefined;
     const [row] = await db
       .insert(artistVaultsTable)
       .values({
         user_id: req.userId!,
+        spotlight_order: (maxRow?.maxOrder ?? -1) + 1,
         artist_name: d.artistName,
         artist_type: d.artistType ?? null,
         genre: d.genre ?? null,
@@ -124,6 +129,26 @@ router.get("/artist-vaults", requireAuth, async (req, res) => {
     .orderBy(desc(artistVaultsTable.created_at));
 
   res.json({ vaults });
+});
+
+/* ─── Spotlight slot order ──────────────────────────────────────────────
+   PUT /artist-vaults/spotlight-order { order: [<vaultId>, ...] }
+   The user drag-and-drops which artist/character holds each spotlight slot
+   on the choose-artist page. Only the user's OWN vaults can be reordered. */
+router.put("/artist-vaults/spotlight-order", requireAuth, async (req, res) => {
+  const parsed = z.object({ order: z.array(z.string().uuid()).max(50) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "order must be an array of vault UUIDs" });
+    return;
+  }
+  const ids = parsed.data.order;
+  for (let i = 0; i < ids.length; i++) {
+    await db
+      .update(artistVaultsTable)
+      .set({ spotlight_order: i, updated_at: new Date() })
+      .where(and(eq(artistVaultsTable.id, ids[i]), eq(artistVaultsTable.user_id, req.userId!)));
+  }
+  res.json({ ok: true });
 });
 
 router.put("/artist-vaults/:id", requireAuth, async (req, res) => {

@@ -33,6 +33,7 @@ export interface ArtistVault {
   voice_preview_url: string | null;
   is_active: boolean;
   created_at: string;
+  spotlight_order?: number | null;
 }
 
 /* ─── Subject types ────────────────────────────────────────────────────────

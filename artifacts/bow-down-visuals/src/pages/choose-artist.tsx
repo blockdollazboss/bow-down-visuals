@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star, Aperture, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,78 @@ export default function ChooseArtist() {
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(activeArtist?.id ?? null);
+
+  /* ── Drag-and-drop spotlight slots ───────────────────────────────────
+     Pointer-based so it works with mouse AND touch. A press becomes a drag
+     after moving 10px; otherwise it's a tap (select). Dropping a card on a
+     spotlight slot moves it there; the order persists to the account. */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropSlot, setDropSlot] = useState<number | null>(null);
+  const dragRef = useRef<{ id: string; sx: number; sy: number; dragging: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  function onCardPointerDown(vaultId: string, e: React.PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragRef.current = { id: vaultId, sx: e.clientX, sy: e.clientY, dragging: false };
+  }
+
+  function onCardPointerMove(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.dragging) {
+      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 10) return;
+      d.dragging = true;
+      suppressClick.current = true;
+      setDragId(d.id);
+    }
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-spot-slot]");
+    setDropSlot(el ? Number((el as HTMLElement).dataset.spotSlot) : null);
+  }
+
+  function onCardPointerUp(e: React.PointerEvent) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d?.dragging) {
+      setDragId(null);
+      setDropSlot(null);
+      return;
+    }
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-spot-slot]");
+    const target = el ? Number((el as HTMLElement).dataset.spotSlot) : null;
+    const draggedId = d.id;
+    setDragId(null);
+    setDropSlot(null);
+    if (target != null && !Number.isNaN(target)) moveToSlot(draggedId, target);
+    setTimeout(() => { suppressClick.current = false; }, 50);
+  }
+
+  function handleCardClick(vaultId: string) {
+    if (suppressClick.current) return;
+    setSelectedId((prev) => (prev === vaultId ? null : vaultId));
+  }
+
+  async function moveToSlot(draggedId: string, targetSlot: number) {
+    const ordered = [...sortedVaults];
+    const from = ordered.findIndex((v) => v.id === draggedId);
+    if (from === -1 || from === targetSlot) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(Math.min(targetSlot, ordered.length), 0, moved);
+    const reordered = ordered.map((v, i) => ({ ...v, spotlight_order: i }));
+    const orderMap = new Map(reordered.map((v) => [v.id, v.spotlight_order as number]));
+    setVaults((prev) =>
+      prev.map((v) => (orderMap.has(v.id) ? { ...v, spotlight_order: orderMap.get(v.id)! } : v)),
+    );
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/artist-vaults/spotlight-order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ order: reordered.map((v) => v.id) }),
+      });
+    } catch {
+      /* order still applies locally; syncs next load */
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -61,10 +133,12 @@ export default function ChooseArtist() {
     }
   }
 
-  /* Top 3 featured (active artist first, then most recent), max 10 total. */
+  /* Spotlight slots: user's drag-and-drop order wins (spotlight_order asc),
+     then most recent. Top 3 featured, max 10 total. */
   const sortedVaults = [...vaults].sort((a, b) => {
-    if (a.id === activeArtist?.id) return -1;
-    if (b.id === activeArtist?.id) return 1;
+    const ao = a.spotlight_order ?? 0;
+    const bo = b.spotlight_order ?? 0;
+    if (ao !== bo) return ao - bo;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
   const featuredVaults = sortedVaults.slice(0, 3);
@@ -131,13 +205,16 @@ export default function ChooseArtist() {
         ) : (
           <>
             {/* Featured top 3 — studio spotlight */}
-            <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="flex items-center justify-center gap-2 mb-2">
               <Camera className="h-4 w-4 text-[#C9A84C]" />
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
                 {t("chooseArtist.inSpotlight")}
               </p>
               <Camera className="h-4 w-4 text-[#C9A84C]" />
             </div>
+            <p className="text-center text-xs text-white/35 mb-4">
+              {t("chooseArtist.dragHint")}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
@@ -150,21 +227,30 @@ export default function ChooseArtist() {
                 <button
                   key={vault.id}
                   type="button"
-                  onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                  onClick={() => handleCardClick(vault.id)}
+                  onPointerDown={(e) => onCardPointerDown(vault.id, e)}
+                  onPointerMove={onCardPointerMove}
+                  onPointerUp={onCardPointerUp}
+                  onPointerCancel={() => { dragRef.current = null; setDragId(null); setDropSlot(null); }}
                   data-testid={`artist-card-${vault.id}`}
+                  data-spot-slot={index}
                   style={{
                     textAlign: "left",
                     borderRadius: 20,
-                    border: isSelected ? `2px solid ${T(0.6)}` : "1px solid rgba(255,255,255,0.07)",
-                    boxShadow: isSelected ? `0 0 40px ${T(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+                    border: isSelected ? `2px solid ${T(0.6)}` : dropSlot === index ? `2px dashed ${T(0.9)}` : "1px solid rgba(255,255,255,0.07)",
+                    boxShadow: isSelected ? `0 0 40px ${T(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : dropSlot === index ? `0 0 24px ${T(0.35)}` : "none",
                     padding: 0,
-                    cursor: "pointer",
+                    cursor: dragId ? "grabbing" : "grab",
                     position: "relative",
                     overflow: "hidden",
                     transition: "all 0.2s ease",
                     display: "block",
                     width: "100%",
                     height: 240,
+                    opacity: dragId === vault.id ? 0.45 : 1,
+                    touchAction: "none",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
@@ -263,7 +349,7 @@ export default function ChooseArtist() {
                   }}>
                     <p style={{
                       fontFamily: "Georgia, serif",
-                      fontSize: 15, fontWeight: 900, color: "#fff",
+                      fontSize: 15, fontWeight: 900, color: THEME,
                       letterSpacing: "0.03em",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       textShadow: "0 1px 6px rgba(0,0,0,0.8)",
@@ -307,13 +393,24 @@ export default function ChooseArtist() {
                       <button
                         key={vault.id}
                         type="button"
-                        onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                        onClick={() => handleCardClick(vault.id)}
+                        onPointerDown={(e) => onCardPointerDown(vault.id, e)}
+                        onPointerMove={onCardPointerMove}
+                        onPointerUp={onCardPointerUp}
+                        onPointerCancel={() => { dragRef.current = null; setDragId(null); setDropSlot(null); }}
                         className="rounded-xl border p-3 text-left transition"
-                        style={isSelected ? {
-                          borderColor: themeAlpha(rTheme.primary, 0.6),
-                          background: rTheme.cardTint,
-                          boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
-                        } : undefined}
+                        style={{
+                          ...(isSelected ? {
+                            borderColor: themeAlpha(rTheme.primary, 0.6),
+                            background: rTheme.cardTint,
+                            boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
+                          } : undefined),
+                          opacity: dragId === vault.id ? 0.45 : 1,
+                          cursor: dragId ? "grabbing" : "grab",
+                          touchAction: "none",
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
+                        }}
                       >
                         <div className="flex items-center gap-2.5">
                           {vault.reference_video_url ? (
