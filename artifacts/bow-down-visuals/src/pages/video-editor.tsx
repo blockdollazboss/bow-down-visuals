@@ -1792,7 +1792,15 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "beat-sync" && (
-                    <div className="p-4">
+                    <ToolPanelShell
+                      tool="beat-sync"
+                      kicker={t("videoEditor.railBeatSync", { defaultValue: "Beat Sync" })}
+                      title={t("videoEditor.beatSyncTitle", { defaultValue: "Beat Sync" })}
+                      subtitle={t("videoEditor.beatSyncDesc", {
+                        defaultValue: "Detect the beats in your audio and snap cuts to the rhythm — mark, keep, and apply.",
+                      })}
+                      price="150 Visual Bucs"
+                    >
                       <BeatSyncSection
                         scenes={scenes}
                         settings={settings}
@@ -1804,7 +1812,7 @@ export default function VideoEditor() {
                         onMarkersChange={setBeatGrid}
                         onApplyCuts={applyBeatCuts}
                       />
-                    </div>
+                    </ToolPanelShell>
                   )}
 
 
@@ -2020,7 +2028,14 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "captions" && (
-                    <>
+                    <ToolPanelShell
+                      tool="captions"
+                      kicker={t("videoEditor.railText", { defaultValue: "Text" })}
+                      title={t("videoEditor.captionsTitle", { defaultValue: "Captions" })}
+                      subtitle={t("videoEditor.captionsDesc", {
+                        defaultValue: "Auto-transcribe, style, and translate your captions — word-by-word viral styles included.",
+                      })}
+                    >
                       {/* ── AI Caption Suite (Wave 5): the single user-facing
                           concept for captions — Generate → Style → Translate.
                           Orchestrates /api/auto-captions, /api/caption-styler,
@@ -2064,10 +2079,18 @@ export default function VideoEditor() {
                       getAccessToken={getAccessToken}
                       visiblePresetIds={template.captionPresets}
                     />
-                    </>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "effects" && (
+                    <ToolPanelShell
+                      tool="effects"
+                      kicker={t("videoEditor.railEffects", { defaultValue: "Effects" })}
+                      title={t("videoEditor.effectsTitle", { defaultValue: "Effects" })}
+                      subtitle={t("videoEditor.effectsDesc", {
+                        defaultValue: "Cinematic looks, color grades, and transitions — tap any effect to preview it live on the player.",
+                      })}
+                    >
                     <EffectsSection
                       scenes={scenes}
                       settings={settings}
@@ -2091,9 +2114,18 @@ export default function VideoEditor() {
                         setTab("export");
                       }}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "motion" && (
+                    <ToolPanelShell
+                      tool="motion"
+                      kicker={t("videoEditor.railMotion", { defaultValue: "Motion" })}
+                      title={t("videoEditor.motionTitle", { defaultValue: "Motion Graphics" })}
+                      subtitle={t("videoEditor.motionDesc", {
+                        defaultValue: "Animated text and graphic overlays — kinetic titles that move with your video.",
+                      })}
+                    >
                     <MotionGraphicsSection
                       playheadTimeSec={previewEngineState?.currentTime ?? 0}
                       activeArtist={activeArtist}
@@ -2109,18 +2141,36 @@ export default function VideoEditor() {
                         });
                       }}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "branding" && (
+                    <ToolPanelShell
+                      tool="branding"
+                      kicker={t("videoEditor.railBrand", { defaultValue: "Brand" })}
+                      title={t("videoEditor.brandingTitle", { defaultValue: "Brand Kit" })}
+                      subtitle={t("videoEditor.brandingDesc", {
+                        defaultValue: "Your logo, colors, and watermark — Thy Crown stamped on every export.",
+                      })}
+                    >
                     <BrandingSection
                       settings={settings}
                       setSettings={setSettings}
                       artistName={artistName}
                       songTitle={songTitle}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "lip-sync" && (
+                    <ToolPanelShell
+                      tool="lip-sync"
+                      kicker={t("videoEditor.railLipSync", { defaultValue: "Lip Sync" })}
+                      title={t("videoEditor.lipSyncTitle", { defaultValue: "Lip Sync" })}
+                      subtitle={t("videoEditor.lipSyncDesc", {
+                        defaultValue: "Match mouths to the audio — AI lip-sync that actually lines up with the words.",
+                      })}
+                    >
                     <LipSyncSection
                       scenes={scenes}
                       settings={settings}
@@ -2130,6 +2180,7 @@ export default function VideoEditor() {
                       audioDuration={previewEngineState?.audioDuration ?? null}
                       projectId={projectId}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "pre-production" && project && (

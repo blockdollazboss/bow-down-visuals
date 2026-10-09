@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Clapperboard,
   Mic2,
+  Mic,
   Languages,
   Recycle,
   Sparkles,
@@ -13,6 +14,11 @@ import {
   Fingerprint,
   Laugh,
   Timer,
+  AudioWaveform,
+  Captions,
+  Crown,
+  Film,
+  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -31,7 +37,13 @@ export type VisualVibesTool =
   | "locations"
   | "style-stealer"
   | "meme-machine"
-  | "three-second-lab";
+  | "three-second-lab"
+  | "beat-sync"
+  | "captions"
+  | "effects"
+  | "motion"
+  | "branding"
+  | "lip-sync";
 
 interface ToolTheme {
   /** Signature accent (glows, badge border, watermark tint). */
@@ -59,6 +71,12 @@ const TOOL_THEMES: Record<VisualVibesTool, ToolTheme> = {
   "style-stealer": { accent: "#8b5cf6", accentSoft: "rgba(139,92,246,0.12)",   glow1: "rgba(124,58,237,0.18)",  glow2: "rgba(167,139,250,0.08)",  icon: Fingerprint },
   "meme-machine":  { accent: "#a3e635", accentSoft: "rgba(163,230,53,0.12)",   glow1: "rgba(163,230,53,0.15)",  glow2: "rgba(190,242,100,0.07)",  icon: Laugh },
   "three-second-lab": { accent: "#fb923c", accentSoft: "rgba(251,146,60,0.12)", glow1: "rgba(251,146,60,0.16)", glow2: "rgba(253,186,116,0.08)",  icon: Timer },
+  "beat-sync":    { accent: "#fb7185", accentSoft: "rgba(251,113,133,0.12)",   glow1: "rgba(251,113,133,0.16)", glow2: "rgba(253,164,175,0.08)",  icon: AudioWaveform },
+  "captions":     { accent: "#fde047", accentSoft: "rgba(253,224,71,0.12)",    glow1: "rgba(253,224,71,0.16)",  glow2: "rgba(254,240,138,0.08)",  icon: Captions },
+  "effects":      { accent: "#f472b6", accentSoft: "rgba(244,114,182,0.12)",   glow1: "rgba(244,114,182,0.16)",  glow2: "rgba(249,168,212,0.08)",  icon: Zap },
+  "motion":       { accent: "#60a5fa", accentSoft: "rgba(96,165,250,0.12)",    glow1: "rgba(96,165,250,0.16)",   glow2: "rgba(147,197,253,0.08)",  icon: Film },
+  "branding":     { accent: "#f59e0b", accentSoft: "rgba(245,158,11,0.12)",    glow1: "rgba(245,158,11,0.16)",   glow2: "rgba(252,211,77,0.08)",   icon: Crown },
+  "lip-sync":     { accent: "#f9a8d4", accentSoft: "rgba(249,168,212,0.12)",   glow1: "rgba(249,168,212,0.16)",  glow2: "rgba(251,207,232,0.08)",  icon: Mic },
 };
 
 export function toolTheme(tool: VisualVibesTool): ToolTheme {
