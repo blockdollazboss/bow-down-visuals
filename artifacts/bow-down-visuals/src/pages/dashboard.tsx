@@ -540,6 +540,7 @@ export default function Dashboard() {
         <LeaderboardWidget />
 
         <ExtensionPromoBanner />
+        <AwayDigestModal />
       </div>
     </div>
   );

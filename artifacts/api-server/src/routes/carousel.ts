@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { requireAuth } from "../middlewares/require-auth";
 import { deductCredits } from "../lib/credits.js";
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
  */
 router.post("/api/carousel/export", requireAuth, async (req, res) => {
   try {
-    const userId = (req as AuthedRequest).user.id;
+    const userId = (req as unknown as { userId: string }).userId;
     const slideCount = Math.min(Math.max(Number(req.body?.slideCount) || 1, 1), 10);
     const newBalance = await deductCredits(userId, 100);
     res.json({ ok: true, slideCount, charged: 100, balance: newBalance });
