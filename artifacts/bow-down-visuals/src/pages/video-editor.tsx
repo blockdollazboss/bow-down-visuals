@@ -4114,9 +4114,7 @@ function MasterPreviewPlayer({
           className="flex items-center justify-between px-2 py-1 bg-black/80 border-b border-white/[0.1] select-none shrink-0"
           title="Master Player"
         >
-          <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 uppercase tracking-wider">
-            {!isMinimized && "Master Player"}
-          </span>
+          <span className="flex items-center gap-1" />
           <span className="flex items-center gap-0.5">
             {/* Before/after compare — only when an effect is actually altering the picture */}
             {showCompareToggle && (
