@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { QRCodeModal } from "@/components/QRCode";
 import { useTranslation } from "react-i18next";
 
 /* ─── Promoter HQ — the referral program as a job ──────────────────────────
@@ -644,6 +645,7 @@ export default function Referrals() {
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? t("referrals.link.copied") : t("referrals.link.copy")}
                 </button>
+                <QRCodeModal data={referralLink} title="Referral QR Code" />
               </div>
             </div>
 

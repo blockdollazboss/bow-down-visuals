@@ -6,6 +6,7 @@ import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
+import { QRLoginButton } from "@/components/QRLogin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -198,6 +199,7 @@ export default function Login() {
                   loadingProvider={socialLoading}
                   mode="signin"
                 />
+                <QRLoginButton onSuccess={() => window.location.reload()} />
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"

@@ -96,6 +96,7 @@ const InvitePage    = lazyWithRetry(() => import("@/pages/invite"));
 const Contact       = lazyWithRetry(() => import("@/pages/contact"));
 const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
+const QRLoginApprove = lazyWithRetry(() => import("@/pages/qr-login"));
 const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
 const Admin         = lazyWithRetry(() => import("@/pages/admin"));
@@ -392,6 +393,7 @@ function AppShell() {
           {/* Auth routes */}
           <Route path="/login"><Login /></Route>
           <Route path="/signup"><Signup /></Route>
+          <Route path="/qr-login"><QRLoginApprove /></Route>
 
           {/* Marketing (home lives inside the sidebar layout below) */}
           <Route path="/pricing"><Pricing /></Route>
