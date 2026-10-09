@@ -14,8 +14,20 @@ const router = Router();
 */
 
 const RP_NAME = "Bow Down Visuals";
-const RP_ID = process.env.WEBAUTHN_RP_ID ?? "bowdownvisuals.com";
-const ORIGIN = process.env.PUBLIC_URL ?? "https://bowdownvisuals.com";
+// RP ID derived from request host when available, fallback to env
+function getRpId(req: any): string {
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
+  // Use the actual host (works for staging and production)
+  if (host.includes("bowdownvisuals.com")) return "bowdownvisuals.com";
+  if (host.includes("onrender.com")) return host.split(":")[0];
+  return process.env.WEBAUTHN_RP_ID ?? "bowdownvisuals.com";
+}
+
+function getOrigin(req: any): string {
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "bowdownvisuals.com";
+  return `${proto}://${host}`;
+}
 
 function base64urlToBuffer(s: string): Buffer {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -54,7 +66,7 @@ router.post("/auth/webauthn/register-options", publicApiLimiter, async (req, res
 
     res.json({
       challenge: challengeB64,
-      rp: { name: RP_NAME, id: RP_ID },
+      rp: { name: RP_NAME, id: getRpId(req) },
       user: {
         id: bufferToBase64url(Buffer.from(userId)),
         name: email,
@@ -103,7 +115,7 @@ router.post("/auth/webauthn/register-verify", publicApiLimiter, async (req, res)
       res.status(400).json({ error: "Invalid ceremony type" });
       return;
     }
-    if (clientData.origin !== ORIGIN) {
+    if (clientData.origin !== getOrigin(req)) {
       res.status(400).json({ error: "Invalid origin" });
       return;
     }
@@ -176,7 +188,7 @@ router.post("/auth/webauthn/login-options", publicApiLimiter, async (req, res) =
 
     res.json({
       challenge: challengeB64,
-      rpId: RP_ID,
+      rpId: getRpId(req),
       timeout: 60000,
       userVerification: "required",
       allowCredentials: allowCredentials.length ? allowCredentials : undefined,
