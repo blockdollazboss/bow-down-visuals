@@ -3870,7 +3870,7 @@ function MasterPreviewPlayer({
         data-testid="master-player-canvas"
         ref={compareTrackRef}
         className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
-        style={{ aspectRatio: arCss, width: isFullscreen ? "100%" : floatWidth, height: isFullscreen ? "100%" : "auto", maxWidth: "100%" }}
+        style={{ aspectRatio: arCss, width: isFullscreen ? "100%" : floatWidth, height: isFullscreen ? "100%" : "auto", maxWidth: "100%", marginLeft: "auto", marginRight: "auto" }}
       >
         {/* ── Blur-background layer (fit mode = blur) ── */}
         {fitMode === "blur" && !isFullscreen && !isMinimized && (
