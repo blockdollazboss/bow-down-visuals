@@ -99,6 +99,43 @@ const VIBES: Vibe[] = [
     gradient: "linear-gradient(135deg, #0d1b2a 0%, #415a77 55%, #e0c3fc 130%)",
     accent: "#e0c3fc",
   },
+  /* ── Decade Filter: era looks (free, same preset engine) ─────────── */
+  {
+    id: "90s",
+    overlays: ["Dust", "Light Leaks"],
+    intensity: { Dust: 70, "Light Leaks": 35 },
+    effects: ["VHS", "Film Grain", "Warm Grade"],
+    captionStyle: "karaoke",
+    gradient: "linear-gradient(135deg, #1a0f2e 0%, #5b2a86 55%, #ff6ec7 130%)",
+    accent: "#ff6ec7",
+  },
+  {
+    id: "y2k",
+    overlays: ["Sparks", "Lens Flare"],
+    intensity: { Sparks: 60, "Lens Flare": 50 },
+    effects: ["Vibrant Pop", "Glow"],
+    captionStyle: "viral-shorts",
+    gradient: "linear-gradient(135deg, #001a33 0%, #0066cc 50%, #00ffcc 130%)",
+    accent: "#00ffcc",
+  },
+  {
+    id: "80s",
+    overlays: ["Light Leaks", "Dust"],
+    intensity: { "Light Leaks": 65, Dust: 40 },
+    effects: ["Warm Grade", "VHS", "Neon Glow"],
+    captionStyle: "neon-glow",
+    gradient: "linear-gradient(135deg, #2b0033 0%, #cc00ff 50%, #ff9900 130%)",
+    accent: "#ff9900",
+  },
+  {
+    id: "70s-film",
+    overlays: ["Dust", "Smoke"],
+    intensity: { Dust: 80, Smoke: 30 },
+    effects: ["Warm Grade", "Film Grain", "Vignette"],
+    captionStyle: "boxed",
+    gradient: "linear-gradient(135deg, #2e1a0a 0%, #8b5a2b 55%, #e8c87a 130%)",
+    accent: "#e8c87a",
+  },
 ];
 
 /** Vibe-relevant slice of settings, for active-vibe matching. */

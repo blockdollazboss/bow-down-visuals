@@ -197,6 +197,44 @@ export function buildCoverImagePrompt(input: CoverArtInput, art: ArtDirection): 
   ).slice(0, 4000);
 }
 
+/* ─── Reusable image generation (lyric-stories + friends) ─────────────────
+   Standalone wrapper around the same GPT Image pipeline this route uses, so
+   other routes can generate artwork without duplicating provider code. */
+export interface CoverImageJob {
+  prompt: string;
+  ratio: "1:1" | "16:9" | "9:16";
+  tier: "standard" | "premium";
+}
+
+export async function generateCoverImageBuffer(job: CoverImageJob): Promise<Buffer> {
+  const imageResp = await getOpenAI().images.generate({
+    model: IMAGE_MODEL,
+    prompt: job.prompt,
+    size: resolveCoverArtSize(job.ratio),
+    quality: job.tier === "premium" ? "high" : "medium",
+    n: 1,
+  });
+  const b64 = imageResp.data?.[0]?.b64_json;
+  if (!b64) throw new Error("Image generation returned no image data.");
+  return Buffer.from(b64, "base64");
+}
+
+export async function storeGeneratedArtwork(
+  userId: string,
+  buffer: Buffer,
+  prefix = "cover-art",
+): Promise<{ url: string; path: string }> {
+  const filePath = `${userId}/${prefix}/${randomUUID()}.png`;
+  const { error: upErr } = await getSupabaseAdmin().storage
+    .from(COVER_ART_BUCKET)
+    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
+  if (upErr) throw upErr;
+  const {
+    data: { publicUrl },
+  } = getSupabaseAdmin().storage.from(COVER_ART_BUCKET).getPublicUrl(filePath);
+  return { url: publicUrl, path: filePath };
+}
+
 /* ─── Storage ─────────────────────────────────────────────────────────────── */
 async function uploadCoverArt(userId: string, buffer: Buffer): Promise<{ url: string; path: string }> {
   const filePath = `${userId}/cover-art/${randomUUID()}.png`;

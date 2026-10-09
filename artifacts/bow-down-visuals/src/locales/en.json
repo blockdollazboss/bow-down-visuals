@@ -6857,7 +6857,15 @@
     "vibe_golden_hour_desc": "Warm sunset glow · light leaks",
     "vibe_neon_nights_desc": "Cyberpunk nights · neon glow",
     "vibe_vintage_film_desc": "Retro VHS texture · dust and grain",
-    "vibe_dreamy_desc": "Soft ethereal haze · cool glow"
+    "vibe_dreamy_desc": "Soft ethereal haze · cool glow",
+    "vibe_90s": "90s",
+    "vibe_90s_desc": "VHS haze · neon nostalgia",
+    "vibe_y2k": "Y2K",
+    "vibe_y2k_desc": "Chrome gloss · digital pop",
+    "vibe_80s": "80s",
+    "vibe_80s_desc": "Neon grids · warm glow",
+    "vibe_70s_film": "70s Film",
+    "vibe_70s_film_desc": "Grainy warmth · vintage cinema"
   },
   "viralityCheck": {
     "bestPostingTime": "Best Posting Time",
@@ -11150,7 +11158,9 @@
       "voiceover": "Voiceover",
       "podcast": "Podcast",
       "sounds": "Sounds",
-      "hum": "Hum-to-Hit"
+      "hum": "Hum-to-Hit",
+      "finish": "Finish My Song",
+      "ratemix": "Rate My Mix"
     },
     "desc": {
       "cleanup": "Remove background noise and room hiss from any recording — 3 Visual Bucs.",
@@ -11160,7 +11170,9 @@
       "voiceover": "Studio-quality AI narration for your videos.",
       "podcast": "Record, edit, and produce your podcast.",
       "sounds": "Find viral sounds trending right now.",
-      "hum": "Hum a melody — get a full song built around it (500 Visual Bucs on generate, analysis free)."
+      "hum": "Hum a melody — get a full song built around it (500 Visual Bucs on generate, analysis free).",
+      "finish": "Upload your unfinished demo — AI writes what's missing and produces the finished song (4 Visual Bucs).",
+      "ratemix": "Upload your mix — real measurements + AI fix-it coaching. Coaching only, your audio stays untouched (1 Visual Buc)."
     }
   },
   "aiAudio": {

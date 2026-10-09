@@ -111,7 +111,7 @@ async function transcodeToMp3(raw: Buffer): Promise<Buffer> {
 
 /** Upload the hum to ElevenLabs for conditioning. Returns song_id or null
  *  (null = enterprise-gated or failed → caller degrades to text reference). */
-async function uploadHumForConditioning(apiKey: string, mp3: Buffer): Promise<string | null> {
+export async function uploadHumForConditioning(apiKey: string, mp3: Buffer): Promise<string | null> {
   try {
     const form = new FormData();
     // Uint8Array.from copies into a fresh ArrayBuffer — satisfies BlobPart typing.
@@ -132,7 +132,7 @@ async function uploadHumForConditioning(apiKey: string, mp3: Buffer): Promise<st
 }
 
 /** Compose via a composition plan with the hum as a conditioning reference. */
-async function composeWithConditioning(
+export async function composeWithConditioning(
   apiKey: string,
   musicModel: string,
   songId: string,
@@ -178,7 +178,7 @@ async function composeWithConditioning(
 
 /** Plain text-prompt compose — the documented fallback when audio
  *  conditioning is unavailable on this ElevenLabs account. */
-async function composeTextPrompt(
+export async function composeTextPrompt(
   apiKey: string,
   musicModel: string,
   prompt: string,

@@ -12,6 +12,7 @@ import MilestoneTracker from "@/components/analytics-hub/MilestoneTracker";
 import ContentIdMonitor from "@/components/analytics-hub/ContentIdMonitor";
 import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
 import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
+import FanDecoderSection from "@/components/analytics-hub/FanDecoderSection";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -21,7 +22,7 @@ import {
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
   ArrowRight, Music2, Swords, ShieldCheck, Trophy, RefreshCw, FileVideo,
   Heart, MessageCircle, Lightbulb, Clock, ChevronRight, Zap,
-  ClipboardCheck, Gauge,
+  ClipboardCheck, Gauge, Ear,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -789,7 +790,7 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected" | "channelAudit" | "virality">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected" | "channelAudit" | "virality" | "fandecoder">("dashboard");
   /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
      into Step 2 (from Hook Studio's "full intelligence check"). */
   const [intelInitialHook, setIntelInitialHook] = useState("");
@@ -825,6 +826,9 @@ export default function AnalyticsHub() {
         setHubTab("channelAudit");
       } else if (params.get("tab") === "virality") {
         setHubTab("virality");
+      }
+      else if (params.get("tab") === "fan-decoder") {
+        setHubTab("fandecoder");
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -1199,6 +1203,19 @@ export default function AnalyticsHub() {
             >
               <Gauge className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabVirality", { defaultValue: "Virality Check" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "fandecoder"}
+              onClick={() => setHubTab("fandecoder")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "fandecoder"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Ear className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabFanDecoder", { defaultValue: "Fan Decoder" })}
             </button>
           </div>
         </div>
@@ -1945,6 +1962,9 @@ export default function AnalyticsHub() {
             its only home. */}
         {hubTab === "virality" && (
           <ViralityCheckPanel />
+        )}
+        {hubTab === "fandecoder" && (
+          <FanDecoderSection />
         )}
       </main>
 

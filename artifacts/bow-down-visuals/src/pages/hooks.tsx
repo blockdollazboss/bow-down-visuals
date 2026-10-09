@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import CommentToVideoSection from "@/components/hooks/CommentToVideoSection";
+import AIInterviewSection from "@/components/hooks/AIInterviewSection";
+import LyricStoriesSection from "@/components/hooks/LyricStoriesSection";
 import {
  Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
  Clapperboard, Film, GraduationCap, Wrench, CheckCircle2, AlertTriangle,
  MousePointerClick, Copy, Check, PenLine, Type, MonitorPlay, Music2,
  Camera, RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh,
  CalendarDays, Dices, Lightbulb, Image as ImageIcon, Music, Compass, Captions,
- MessageSquareReply,
+ MessageSquareReply, Mic2, BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import ScriptWriter from "@/pages/script-writer";
@@ -37,7 +39,7 @@ import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
  generation on GPT-6 Sol. Video-type keys must stay in sync with the
  backend route's VIDEO_TYPES enum. */
 
-type TabKey = "hooks" | "preflight" | "captions" | "cta" | "titles" | "dice" | "scripts" | "styler" | "comments";
+type TabKey = "hooks" | "preflight" | "captions" | "cta" | "titles" | "dice" | "scripts" | "styler" | "comments" | "interview" | "lyrics";
 
 type CtaGoalKey = "subscribe" | "comment" | "share" | "follow" | "buy" | "stream";
 
@@ -998,7 +1000,7 @@ export default function HookStudio() {
  try {
  const params = new URLSearchParams(window.location.search);
  const tabParam = params.get("tab");
- if (tabParam === "captions" || tabParam === "cta" || tabParam === "titles" || tabParam === "dice" || tabParam === "scripts" || tabParam === "styler" || tabParam === "comments") setTab(tabParam);
+ if (tabParam === "captions" || tabParam === "cta" || tabParam === "titles" || tabParam === "dice" || tabParam === "scripts" || tabParam === "styler" || tabParam === "comments" || tabParam === "interview" || tabParam === "lyrics") setTab(tabParam);
  const topicParam = params.get("topic")?.trim().slice(0, 300);
  /* Multi-ratio export handoff: ?tab=captions&platform=tiktok&topic=…
     pre-selects the platform and topic on the caption writer. */
@@ -1276,6 +1278,8 @@ export default function HookStudio() {
  { key: "preflight", icon: Gauge },
  { key: "dice", icon: Dices },
  { key: "comments", icon: MessageSquareReply },
+ { key: "interview", icon: Mic2 },
+ { key: "lyrics", icon: BookOpen },
  ] as { key: TabKey; icon: LucideIcon }[]
  ).map(({ key, icon: Icon }) => {
  const selected = tab === key;
@@ -1292,7 +1296,7 @@ export default function HookStudio() {
  }`}
  >
  <Icon className="h-4 w-4" aria-hidden="true" />
- {t(`hooks.tab.${key}.label`, { defaultValue: key === "titles" ? "Titles" : key === "dice" ? "Dice" : key === "scripts" ? "Scripts" : key === "styler" ? "Caption Styler" : key === "comments" ? "Comments" : undefined })}
+ {t(`hooks.tab.${key}.label`, { defaultValue: key === "titles" ? "Titles" : key === "dice" ? "Dice" : key === "scripts" ? "Scripts" : key === "styler" ? "Caption Styler" : key === "comments" ? "Comments" : key === "interview" ? "Interview" : key === "lyrics" ? "Lyric Stories" : undefined })}
  </button>
  );
  })}
@@ -2017,6 +2021,20 @@ export default function HookStudio() {
  {tab === "comments" && (
  <div className="relative mt-8">
  <CommentToVideoSection />
+ </div>
+ )}
+
+ {/* ── AI INTERVIEW ─────────────────────────────────────────────── */}
+ {tab === "interview" && (
+ <div className="relative mt-8">
+ <AIInterviewSection />
+ </div>
+ )}
+
+ {/* ── LYRIC STORIES ────────────────────────────────────────────── */}
+ {tab === "lyrics" && (
+ <div className="relative mt-8">
+ <LyricStoriesSection />
  </div>
  )}
 

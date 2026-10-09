@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, type LucideIcon } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { CreateRedirect } from "@/components/create-redirect";
 import { MakeSongModule } from "./make-song";
@@ -10,6 +10,7 @@ import CartoonStudio from "@/pages/cartoon-studio";
 import CoverArt from "@/pages/cover-art";
 import DreamCollabPanel from "@/components/create/DreamCollabPanel";
 import LinkToHitPanel from "@/components/create/LinkToHitPanel";
+import CoverInMotionPanel from "@/components/create/CoverInMotionPanel";
 import { SongAndVideoModule } from "./song-and-video";
 import { HubModule } from "./hub";
 
@@ -34,7 +35,7 @@ export { CreateRedirect };
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */
 
-export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit";
+export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion";
 
 const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = [
   { key: "song-video", labelKey: "songVideo", icon: Mic2 },
@@ -42,11 +43,14 @@ const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = 
   { key: "video", labelKey: "video", icon: Video },
   { key: "cartoon", labelKey: "cartoon", icon: Clapperboard },
   { key: "coverart", labelKey: "coverArt", icon: Disc3 },
+  { key: "dream-collab", labelKey: "dreamCollab", icon: Users },
+  { key: "link-to-hit", labelKey: "linkToHit", icon: Link2 },
+  { key: "cover-motion", labelKey: "coverMotion", icon: Play },
   { key: "hub", labelKey: "hub", icon: Layers },
 ];
 
 function isPanel(p: string | null): p is CreatePanel {
-  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart" || p === "dream-collab" || p === "link-to-hit";
+  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart" || p === "dream-collab" || p === "link-to-hit" || p === "cover-motion";
 }
 
 function panelFromSearch(search: string): CreatePanel {
@@ -151,6 +155,7 @@ export default function Create() {
           {panel === "coverart" && <CoverArt />}
           {panel === "dream-collab" && <DreamCollabPanel />}
           {panel === "link-to-hit" && <LinkToHitPanel />}
+          {panel === "cover-motion" && <CoverInMotionPanel />}
           {panel === "hub" && <HubModule />}
         </div>
       </div>
