@@ -2357,7 +2357,7 @@ export default function VideoEditor() {
                   className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-r border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
                   title="Expand panel"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               )}
 
@@ -2565,7 +2565,7 @@ export default function VideoEditor() {
                   className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-l border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
                   title="Expand panel"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
               )}
 
@@ -3268,7 +3268,7 @@ function MasterPreviewPlayer({
   /* ── Master player: LOCKED IN — docked inline in the center column, never a
    *    floating overlay. Fullscreen replaces the docked player entirely;
    *    minimize/hide are independent presentation states on top of it. ── */
-  const isMinimized = false; // Minimize removed — user doesn't need it
+  const isMinimized = !!settings.masterPlayerMinimized && !isFullscreen;
   const isHidden = !!settings.masterPlayerHidden && !isFullscreen;
   const aspect = floatPlayerAspect((settings.export.format ?? "9:16") as VideoFormat);
 
