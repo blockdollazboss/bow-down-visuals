@@ -2357,7 +2357,7 @@ export default function VideoEditor() {
                   className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-r border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
                   title="Expand panel"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
               )}
 
@@ -2565,7 +2565,7 @@ export default function VideoEditor() {
                   className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-l border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
                   title="Expand panel"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               )}
 
