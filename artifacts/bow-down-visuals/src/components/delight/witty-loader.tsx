@@ -90,15 +90,16 @@ export default function WittyLoader({ message }: { message?: string }) {
         <p className="text-white/50 text-sm mt-3">
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
-        {/* Ticket-stub barcode */}
-        <div className="mt-8">
-          <BarcodeStrip />
-        </div>
       </div>
 
-      {/* ── BOTTOM-RIGHT: the crowned mark ── */}
-      <div className="absolute bottom-8 right-6 md:right-10 z-10">
+      {/* ── BOTTOM-LEFT: the crowned mark ── */}
+      <div className="absolute bottom-8 left-6 md:left-14 z-10">
         <CrownedLogo />
+      </div>
+
+      {/* ── BOTTOM-RIGHT: ticket-stub barcode ── */}
+      <div className="absolute bottom-8 right-6 md:right-10 z-10">
+        <BarcodeStrip />
       </div>
 
       {/* ── TOP-RIGHT: now featuring ── */}
