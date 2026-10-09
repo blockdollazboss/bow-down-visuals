@@ -65,7 +65,7 @@ function SharkFin() {
     };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -8%" }}>
       <svg width={hovering ? 36 : 28} height={hovering ? 36 : 28} viewBox="0 0 24 24"
         className="transition-all duration-150 drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]"
         style={{ transform: clicking ? "scale(0.85) rotate(-10deg)" : "none" }}>
