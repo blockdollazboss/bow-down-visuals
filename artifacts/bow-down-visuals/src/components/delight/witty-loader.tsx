@@ -91,7 +91,6 @@ export default function WittyLoader({ message }: { message?: string }) {
             <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
             <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
           </div>
-        </div>
       </div>
 
       {/* ── TOP-RIGHT: the title treatment ── */}
