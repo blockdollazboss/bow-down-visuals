@@ -308,6 +308,16 @@ export default function VideoEditor() {
   const PANEL_MIN = 240;
   const PANEL_MAX = 600;
   const PANEL_DEFAULT = 340;
+  /* 5 snap positions for the panel dividers — with dot indicators */
+  const PANEL_SNAPS = [240, 330, 420, 510, 600];
+  const snapPanelWidth = (w: number) => {
+    let best = PANEL_SNAPS[0], bestDist = Math.abs(w - best);
+    for (const s of PANEL_SNAPS) {
+      const d = Math.abs(w - s);
+      if (d < bestDist) { best = s; bestDist = d; }
+    }
+    return best;
+  };
   /* Right-side tabs: CREATE MORE + FINISH — output/distribution workflow.
      Left side builds the video; right side amplifies and finishes it. */
   const RIGHT_TABS = new Set([
@@ -346,7 +356,11 @@ export default function VideoEditor() {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       panelDragRef.current = null;
-      try { localStorage.setItem("bdv:panelWidth", String(panelWidthRef.current)); } catch { /* ignore */ }
+      // Snap to nearest of the 5 positions
+      const snapped = snapPanelWidth(panelWidthRef.current);
+      panelWidthRef.current = snapped;
+      setPanelWidth(snapped);
+      try { localStorage.setItem("bdv:panelWidth", String(snapped)); } catch { /* ignore */ }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -381,7 +395,11 @@ export default function VideoEditor() {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       rightPanelDragRef.current = null;
-      try { localStorage.setItem("bdv:rightPanelWidth", String(rightPanelWidthRef.current)); } catch { /* ignore */ }
+      // Snap to nearest of the 5 positions
+      const snapped = snapPanelWidth(rightPanelWidthRef.current);
+      rightPanelWidthRef.current = snapped;
+      setRightPanelWidth(snapped);
+      try { localStorage.setItem("bdv:rightPanelWidth", String(snapped)); } catch { /* ignore */ }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -2328,18 +2346,37 @@ export default function VideoEditor() {
                 </div>
               </aside>
 
-              {/* ── DRAGGABLE DIVIDER: resize the tool panel (double-click resets) ── */}
+              {/* ── DRAGGABLE DIVIDER: resize the tool panel — snaps to 5 positions (double-click resets) ── */}
               <div
                 role="separator"
                 aria-orientation="vertical"
                 aria-label="Resize tool panel"
-                title="Drag to resize the panel · double-click to reset"
+                title="Drag to resize the panel · snaps to 5 positions · double-click to reset"
                 onPointerDown={onPanelDividerDown}
                 onDoubleClick={resetPanelWidth}
-                className="w-[9px] -ml-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex items-center justify-center group"
+                className="w-[9px] -ml-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex flex-col items-center justify-center gap-1.5 group py-4"
                 data-testid="panel-divider"
               >
-                <div className="w-[3px] h-24 rounded-full bg-white/10 group-hover:bg-primary/80 group-active:bg-primary transition-colors" />
+                {/* 5 snap position dots — active dot glows gold */}
+                {PANEL_SNAPS.map((s, i) => (
+                  <button
+                    key={s}
+                    type="button"
+                    title={`Snap ${i + 1} of 5 (${s}px)`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      panelWidthRef.current = s;
+                      setPanelWidth(s);
+                      try { localStorage.setItem("bdv:panelWidth", String(s)); } catch { /* ignore */ }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`rounded-full transition-all ${
+                      panelWidth === s
+                        ? "h-2 w-2 bg-primary shadow-[0_0_8px_rgba(201,168,76,0.8)]"
+                        : "h-1.5 w-1.5 bg-white/20 hover:bg-white/50"
+                    }`}
+                  />
+                ))}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setPanelCollapsed(true); }}
@@ -2536,18 +2573,37 @@ export default function VideoEditor() {
                 </div>
               </main>
 
-              {/* ── RIGHT DIVIDER: resize the right panel (double-click resets) ── */}
+              {/* ── RIGHT DIVIDER: resize the right panel — snaps to 5 positions (double-click resets) ── */}
               <div
                 role="separator"
                 aria-orientation="vertical"
                 aria-label="Resize right panel"
-                title="Drag to resize the panel · double-click to reset"
+                title="Drag to resize the panel · snaps to 5 positions · double-click to reset"
                 onPointerDown={onRightPanelDividerDown}
                 onDoubleClick={resetRightPanelWidth}
-                className="w-[9px] -mr-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex items-center justify-center group"
+                className="w-[9px] -mr-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex flex-col items-center justify-center gap-1.5 group py-4"
                 data-testid="right-panel-divider"
               >
-                <div className="w-[3px] h-24 rounded-full bg-white/10 group-hover:bg-primary/80 group-active:bg-primary transition-colors" />
+                {/* 5 snap position dots — active dot glows gold */}
+                {PANEL_SNAPS.map((s, i) => (
+                  <button
+                    key={s}
+                    type="button"
+                    title={`Snap ${i + 1} of 5 (${s}px)`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      rightPanelWidthRef.current = s;
+                      setRightPanelWidth(s);
+                      try { localStorage.setItem("bdv:rightPanelWidth", String(s)); } catch { /* ignore */ }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`rounded-full transition-all ${
+                      rightPanelWidth === s
+                        ? "h-2 w-2 bg-primary shadow-[0_0_8px_rgba(201,168,76,0.8)]"
+                        : "h-1.5 w-1.5 bg-white/20 hover:bg-white/50"
+                    }`}
+                  />
+                ))}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setRightPanelCollapsed(true); }}
