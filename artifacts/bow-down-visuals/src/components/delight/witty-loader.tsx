@@ -90,8 +90,8 @@ export default function WittyLoader({ message }: { message?: string }) {
         </div>
       </div>
 
-      {/* ── MIDDLE-RIGHT: the title treatment ── */}
-      <div className="absolute right-6 md:right-14 top-1/2 -translate-y-1/2 z-10 max-w-md text-right">
+      {/* ── TOP-RIGHT: the title treatment ── */}
+      <div className="absolute top-8 right-6 md:right-14 z-10 max-w-md text-right">
         {/* The headline */}
         <h1
           key={line}
