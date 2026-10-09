@@ -44,6 +44,12 @@ import mixPlanRouter from "./generate/mix-plan";
 import musicAudioRouter from "./generate/music-audio";
 import songCoverRouter from "./generate/song-cover";
 import humToSongRouter from "./generate/hum-to-song";
+import finishMySongRouter from "./generate/finish-my-song";
+import rateMyMixRouter from "./generate/rate-my-mix";
+import fanDecoderRouter from "./generate/fan-decoder";
+import aiInterviewRouter from "./generate/ai-interview";
+import lyricStoriesRouter from "./generate/lyric-stories";
+import coverInMotionRouter from "./generate/cover-in-motion";
 import songHarmonyRouter from "./generate/song-harmony";
 import beatRouter from "./generate/beat";
 import musicExportRouter from "./music-export";
@@ -569,5 +575,11 @@ router.use(wave9bEditorRouter);        // /api/wave9b/*
 router.use(wave9cDirectEditRouter);    // /api/wave9c/direct/*
 router.use(wave9dDirectorRouter);      // /api/wave9d/director/*
 router.use(wave9dCameraRouter);        // /api/wave9d/camera/*
+router.use(finishMySongRouter);        // /api/finish-my-song/*
+router.use(rateMyMixRouter);           // /api/rate-my-mix/*
+router.use(fanDecoderRouter);          // /api/fan-decoder/*
+router.use(aiInterviewRouter);         // /api/ai-interview/*
+router.use(lyricStoriesRouter);        // /api/lyric-stories/*
+router.use(coverInMotionRouter);       // /api/cover-in-motion/*
 
 export default router;
