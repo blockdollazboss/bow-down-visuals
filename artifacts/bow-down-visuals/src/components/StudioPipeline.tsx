@@ -46,7 +46,7 @@ const STEPS: PipelineStep[] = [
     icon: Film,
     title: "Promo",
     makeLabel: "Promo Plans",
-    makeHref: "/promo-clip",
+    makeHref: "/video-editor?tab=promo-clips",
     makeDesc: "TikTok, Reels & Shorts ideas for your release.",
     uploadLabel: "Upload your assets",
     uploadDesc: "Artwork, clips, stems — promo uses them.",

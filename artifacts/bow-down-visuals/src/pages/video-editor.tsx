@@ -377,6 +377,19 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+  /* ── Generic rail-tab deep link: /video-editor?tab=<rail-tab-id> ──
+     Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
+     Validates against known tab ids; setTab's built-in guard keeps Simple-mode
+     users on safe tabs. */
+  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes"];
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const deepTab = params.get("tab");
+    if (deepTab && (RAIL_TAB_IDS as string[]).includes(deepTab) && deepTab !== "templates" && deepTab !== "pro-tools") {
+      setTab(deepTab as EditorTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
   /* ── Canvas deep link: /video-editor?tab=export&canvas=1 ──
      Lands the user on the Export tab where the Canvas Generator lives.
      Pairs with ?canvasCover= / ?canvasAudio= / ?canvasTitle= / ?canvasArtist=

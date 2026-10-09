@@ -86,7 +86,6 @@ const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
 const Create        = lazyWithRetry(() => import("@/pages/create"));
 const VideoStudio   = lazyWithRetry(() => import("@/pages/video-studio"));
-const PromoClip     = lazyWithRetry(() => import("@/pages/promo-clip"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
 const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
 const Generations   = lazyWithRetry(() => import("@/pages/generations"));
@@ -136,7 +135,6 @@ const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
 const TeamPage = lazyWithRetry(() => import("@/pages/team"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
-const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const AudioStudio = lazyWithRetry(() => import("@/pages/audio-studio"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const BrandingKit = lazyWithRetry(() => import("@/pages/branding-kit"));
@@ -167,9 +165,6 @@ const EventDetailPage = lazyWithRetry(() => import("@/pages/event-detail"));
 const Messages = lazyWithRetry(() => import("@/pages/messages"));
 const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
-const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
-const Translate = lazyWithRetry(() => import("@/pages/translate"));
-const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
 const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
@@ -484,7 +479,7 @@ function AppShell() {
           <Route path="/distribute"><Distribute /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
-          <Route path="/upscale"><Upscale /></Route>
+          <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
           <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
@@ -494,8 +489,8 @@ function AppShell() {
           <Route path="/referrals"><Referrals /></Route>
           <Route path="/team"><TeamPage /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
-          <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
-          <Route path="/watermark-removal"><Redirect to="/upscale?tab=enhance" /></Route>
+          <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
+          <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
@@ -514,7 +509,7 @@ function AppShell() {
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
-          <Route path="/clip-maker"><Redirect to="/repurpose?mode=stream" /></Route>
+          <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
           <Route path="/nfc-cards"><NfcCards /></Route>
           <Route path="/jewelry-shop"><JewelryShop /></Route>
@@ -553,7 +548,7 @@ function AppShell() {
                 <Route path="/video-studio"><ProtectedRoute><VideoStudio /></ProtectedRoute></Route>
                 <Route path="/song-and-video"><CreateRedirect to="/create?panel=song-video" /></Route>
                 <Route path="/create"><ProtectedRoute><Create /></ProtectedRoute></Route>
-                <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
+                <Route path="/promo-clip"><Redirect to="/video-editor?tab=promo-clips" /></Route>
                 <Route path="/thumbnail"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library" /></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
@@ -583,10 +578,10 @@ function AppShell() {
                 {/* ── Wired-up orphaned pages (site organization) ── */}
                 <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
                 <Route path="/cover-art"><Redirect to="/create?panel=coverart" /></Route>
-                <Route path="/lyric-video"><ProtectedRoute><LyricVideo /></ProtectedRoute></Route>
-                <Route path="/translate"><ProtectedRoute><Translate /></ProtectedRoute></Route>
+                <Route path="/lyric-video"><Redirect to="/video-editor?tab=lyric-video" /></Route>
+                <Route path="/translate"><Redirect to="/video-editor?tab=translate" /></Route>
                 <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>
-                <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
+                <Route path="/repurpose"><Redirect to="/video-editor?tab=repurpose" /></Route>
                 <Route path="/trends"><Redirect to="/scheduler?tab=trends" /></Route>
                 {/* Discovery feed — new drops from followed creators (auth) */}
                 <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>

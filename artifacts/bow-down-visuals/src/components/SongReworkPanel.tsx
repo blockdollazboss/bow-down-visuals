@@ -405,7 +405,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
           <p className="text-sm font-bold text-white mb-3">{result.title}</p>
           <audio controls src={result.audio_url} className="w-full h-9 mb-4" />
           <div className="flex flex-wrap gap-2">
-            <Link href="/lyric-video" className={ghostBtn}>
+            <Link href="/video-editor?tab=lyric-video" className={ghostBtn}>
               <Mic2 className="h-3.5 w-3.5" /> {t("songRework.makeLyricVideo")}
             </Link>
             <Link href="/cover-art" className={ghostBtn}>

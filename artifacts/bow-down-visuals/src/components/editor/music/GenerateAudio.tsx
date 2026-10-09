@@ -323,7 +323,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               defaultTitle={lastGenerated.name}
             />
             <a
-              href="/lyric-video"
+              href="/video-editor?tab=lyric-video"
               className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"
             >
               → Make a lyric video with timestamped lyrics

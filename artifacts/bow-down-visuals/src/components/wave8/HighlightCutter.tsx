@@ -355,7 +355,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
           {/* Handoffs */}
           <div className="grid gap-2 sm:grid-cols-2">
             <Link
-              href="/promo-clip"
+              href="/video-editor?tab=promo-clips"
               onClick={sendToPromoClips}
               className="flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-6 py-3.5 text-sm font-black text-primary transition hover:bg-primary/20"
               data-testid="highlights-send-to-promo"
