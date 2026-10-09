@@ -741,9 +741,9 @@ function CheatCodeDemo() {
 /* ───── Proof band — real numbers only, counted from the repo ───── */
 
 const PROOF_STATS = [
-  { value: "81" },
+  { value: "19" },
   { value: "$9" },
-  { value: "4 VB" },
+  { value: "400 VB" },
   { value: "0" },
 ];
 
