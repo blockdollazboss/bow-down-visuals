@@ -537,8 +537,7 @@ export default function VideoEditor() {
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
   /** Selected clip index — shared between the persistent TimelineDock and the Studio tab inspector. */
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  /** Inspector panel — collapsed by default so the player gets the space; one tap to bring back. */
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+
   /** Wave 9 — kept beat-marker times from BeatSyncSection, fed into TimelineTemplatesSection's beatGrid. */
   const [beatGrid, setBeatGrid] = useState<number[]>([]);
 
@@ -1470,7 +1469,7 @@ export default function VideoEditor() {
             </div>
 
             {/* ── CapCut 3-pane layout: rail · panel · preview · inspector ── */}
-            <div className="flex-1 flex min-h-0" style={{ paddingBottom: dockHeight }}>
+            <div className="flex-1 flex min-h-0 relative" style={{ paddingBottom: dockHeight }}>
 
               {/* ── LEFT RAIL: icon nav ── */}
               <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
@@ -2400,20 +2399,25 @@ export default function VideoEditor() {
                 </div>
               </main>
 
-              {/* ── RIGHT: inspector (collapsible — closed by default so the player gets the space) ── */}
-              {inspectorOpen ? (
-              <aside className="w-[280px] shrink-0 bg-[#0a0a0a] border-l border-white/10 overflow-y-auto hidden xl:block" aria-label={t("videoEditor.inspector")}>
-                <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
+              {/* ── CONTEXTUAL INSPECTOR: floating overlay, slides in only when a scene
+                  is selected. No permanent sidebar, no toggle button — the player
+                  keeps the space. ── */}
+              {selectedIdx != null && scenes[selectedIdx] && (
+              <div
+                className="absolute top-0 right-0 bottom-0 z-30 w-[300px] max-w-[85vw] bg-[#0a0a0a]/95 backdrop-blur-md border-l border-primary/20 shadow-[-16px_0_48px_rgba(0,0,0,0.6)] flex flex-col animate-[slideInRight_0.25s_ease-out]"
+                role="complementary"
+                aria-label={t("videoEditor.inspector")}
+              >
+                <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest flex-1">{t("videoEditor.inspector")}</h2>
-                  <button type="button" onClick={() => setInspectorOpen(false)}
+                  <button type="button" onClick={() => setSelectedIdx(null)}
                     className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
                     title={t("videoEditor.hideInspector")} aria-label={t("videoEditor.hideInspector")}>
                     <PanelRightClose className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <div className="p-4">
-                  {selectedIdx != null && scenes[selectedIdx] ? (
-                    (() => {
+                <div className="p-4 overflow-y-auto flex-1">
+                  {(() => {
                       const scene = scenes[selectedIdx];
                       const hasClip = sceneHasClip(scene);
                       return (
@@ -2448,27 +2452,8 @@ export default function VideoEditor() {
                           </button>
                         </div>
                       );
-                    })()
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-white/40 leading-relaxed">{t("videoEditor.selectSceneHint")}</p>
-                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.scenesLabel")}</span><span className="text-xs font-bold text-white">{scenes.length}</span></div>
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.withClipsLabel")}</span><span className="text-xs font-bold text-white">{scenes.filter((s) => sceneHasClip(s)).length}</span></div>
-                        <div className="flex items-center justify-between"><span className="text-[11px] text-white/40">{t("videoEditor.approvedLabel")}</span><span className="text-xs font-bold text-white">{scenes.filter((s) => s.approved && sceneHasClip(s)).length}</span></div>
-                      </div>
-                    </div>
-                  )}
+                    })()}
                 </div>
-              </aside>
-              ) : (
-              /* Slim edge toggle when the inspector is closed */
-              <div className="w-[36px] shrink-0 bg-[#0a0a0a] border-l border-white/10 hidden xl:flex flex-col items-center pt-3">
-                <button type="button" onClick={() => setInspectorOpen(true)}
-                  className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
-                  title={t("videoEditor.showInspector")} aria-label={t("videoEditor.showInspector")}>
-                  <PanelRightOpen className="h-3.5 w-3.5" />
-                </button>
               </div>
               )}
             </div>

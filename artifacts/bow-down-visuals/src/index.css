@@ -1447,3 +1447,8 @@ html[data-star-level="5"] [data-min-stars="6"] {
   0%   { opacity: 0; transform: translateY(24px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
