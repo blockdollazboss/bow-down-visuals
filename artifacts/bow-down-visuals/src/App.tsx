@@ -375,7 +375,7 @@ function AppShell() {
   return (
     <>
       <ScrollToTop />
-      {typeof window !== "undefined" && <BowDownAIGuide />}
+      {typeof window !== "undefined" && !location.startsWith("/video-editor") && <BowDownAIGuide />}
       {typeof window !== "undefined" && <ThyCheatCodeChat />}
       {typeof window !== "undefined" && <GuideMe />}
       {typeof window !== "undefined" && <HelpPanel />}
