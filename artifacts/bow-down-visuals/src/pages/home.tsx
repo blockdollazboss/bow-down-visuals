@@ -69,7 +69,6 @@ const STEPS = [
   { number: "03", icon: Globe },
 ];
 
-const OUTPUT_TYPE_COUNT = 12;
 
 const CREATOR_TYPES = [
   { icon: Mic2 },
@@ -174,30 +173,6 @@ const SOFTWARE_APPLICATION_JSON_LD = {
 
 const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 
-/* ──────────────────── Capability ticker ──────────────────── */
-
-function CheatCodeTicker() {
-  const { t } = useTranslation();
-  const items = Array.from({ length: 14 }, (_, i) => t(`home.ticker.${i}`));
-  const row = [...items, ...items];
-  return (
-    <div
-      className="lux-marquee lux-marquee-mask relative overflow-hidden border-b border-white/[0.06] bg-black/40 py-5"
-      aria-hidden="true"
-    >
-      <div className="lux-marquee-track flex w-max">
-        {row.map((item, i) => (
-          <span key={i} className="flex items-center gap-10 pr-10">
-            <span className="whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.24em] text-white/40">
-              {item}
-            </span>
-            <span className="h-1.5 w-1.5 rotate-45 bg-primary/60 shrink-0" />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function SectionDivider() {
   return (
@@ -816,40 +791,6 @@ function HowItWorks() {
   );
 }
 
-function WhatYouCanMake() {
-  const { t } = useTranslation();
-  return (
-    <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
-      <LuxReveal className="max-w-6xl mx-auto">
-        <div className="text-center mb-14 space-y-4">
-          <MarketingBadge variant="kicker">
-            {t("home.makeKicker")}
-          </MarketingBadge>
-          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            {t("home.makeTitle")}
-          </h2>
-          <p className="text-white/50 text-lg max-w-xl mx-auto">
-            {t("home.makeSub")}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {Array.from({ length: OUTPUT_TYPE_COUNT }, (_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
-            >
-              <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
-              <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
-                {t(`home.outputTypes.${i}`)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </LuxReveal>
-    </section>
-  );
-}
 
 function BuiltForCreators() {
   const { t } = useTranslation();
@@ -920,46 +861,6 @@ function BuiltForCreators() {
   );
 }
 
-/* ───── Signature moment: the manifesto. One full-bleed statement. ───── */
-
-function ManifestoBand() {
-  const { t } = useTranslation();
-  return (
-    <section aria-label="Manifesto" className="relative overflow-hidden">
-      <LuxReveal>
-        <div className="relative flex min-h-[68svh] items-center justify-center px-5 py-24">
-          {/* Shark King backdrop */}
-          <img
-            src="/bowdownvisuals-banner-sharkking.jpg"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover opacity-45"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/55 to-black" aria-hidden="true" />
-          <div className="absolute inset-0 lux-vignette" aria-hidden="true" />
-
-          <div className="relative z-10 max-w-4xl text-center">
-            <div className="mb-6 flex justify-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-primary">
-                <Crown className="h-3.5 w-3.5" /> {t("home.manifestoKicker")}
-              </span>
-            </div>
-            <h2 className="font-display text-6xl sm:text-7xl md:text-8xl font-black tracking-tight text-white leading-none">
-              {t("home.manifestoTitleA")} <span className="gold-text-shine">{t("home.manifestoTitleB")}</span>
-            </h2>
-            <p className="mx-auto mt-6 max-w-2xl font-display text-xl sm:text-2xl italic text-white/80 leading-relaxed">
-              {t("home.manifestoBody")}
-            </p>
-            <p className="mt-8 text-xs text-white/30 font-medium tracking-wide">
-              {t("home.manifestoRumor")}{" "}
-              <span className="text-primary/60 font-mono">↑↑↓↓←→←→</span>
-            </p>
-          </div>
-        </div>
-      </LuxReveal>
-    </section>
-  );
-}
 
 /* ───── Studio showcase — the full arsenal, grouped ───── */
 
@@ -1159,88 +1060,7 @@ function PricingSection() {
 }
 
 
-function ExtensionPromo() {
-  const { t } = useTranslation();
-  const showExtensionPromo = useExtensionPromoVisible();
-  if (!showExtensionPromo) return null;
-  return (
-    <section className="py-20 md:py-28 px-5">
-      <LuxReveal className="max-w-5xl mx-auto">
-        <div className="relative overflow-hidden rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 via-black to-black p-8 md:p-12">
-          <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
-          <div className="relative z-10 text-center space-y-6">
-            <MarketingBadge variant="kicker">
-              {t("home.extKicker")}
-            </MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              {t("home.extTitleA")} <span className="text-[#e8c86a]">{t("home.extTitleB")}</span>
-            </h2>
-            <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              {t("home.extSub")}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-              <a
-                href="/bow-down-visuals-extension-v2.zip"
-                download
-                onClick={markExtensionDownloaded}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
-              >
-                <Download className="h-5 w-5" />
-                {t("home.extDownload")}
-              </a>
-            </div>
-            <p className="text-white/30 text-sm">
-              {t("home.extNote")}
-            </p>
-          </div>
-        </div>
-      </LuxReveal>
-    </section>
-  );
-}
 
-function ReferralPromo() {
-  const { t } = useTranslation();
-  return (
-    <section className="py-20 md:py-28 px-5">
-      <LuxReveal className="max-w-5xl mx-auto">
-        <div className="relative overflow-hidden rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 via-black to-black p-8 md:p-12">
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
-          <div className="relative z-10 text-center space-y-6">
-            <MarketingBadge variant="kicker">
-              {t("home.referKicker")}
-            </MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              {t("home.referTitleA")} <span className="text-[#e8c86a]">{t("home.referTitleB")}</span>
-            </h2>
-            <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              {t("home.referBodyA")}<span className="text-white font-semibold">{t("home.referBodyB")}</span>{t("home.referBodyC")}
-              <span className="text-white font-semibold">{t("home.referBodyD")}</span>{t("home.referBodyE")}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-              <a
-                href="/referrals"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
-              >
-                <Gift className="h-5 w-5" />
-                {t("home.referCta")}
-              </a>
-              <a
-                href="/signup"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
-              >
-                {t("home.referStart")}
-              </a>
-            </div>
-            <p className="text-white/30 text-sm">
-              {t("home.referNote")}
-            </p>
-          </div>
-        </div>
-      </LuxReveal>
-    </section>
-  );
-}
 
 function FAQSection() {
   const { t } = useTranslation();
@@ -1604,79 +1424,65 @@ function BrandingShopSection() {
 
 /* ───── Label Pitch + music-business stack — demo to deal ───── */
 
-const BIZ_PIPELINE = [
-  { icon: Megaphone, href: "/label-pitch" },
-  { icon: Globe, href: "/coach?tab=distribute" },
-  { icon: Lock, href: "/academy?tab=copyright" },
-  { icon: BadgeDollarSign, href: "/coach?tab=money&view=royalties" },
-];
 
-function LabelPitchSection() {
+
+
+/* ───── Promo strip — jackpot + referral + extension in one tight band ───── */
+
+function PromoStrip() {
   const { t } = useTranslation();
+  const showExtensionPromo = useExtensionPromoVisible();
   return (
-    <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
+    <section aria-label="Promotions" className="py-14 md:py-20 px-5">
       <LuxReveal className="max-w-6xl mx-auto">
-        <div className="text-center mb-14 space-y-4">
-          <MarketingBadge variant="kicker">
-            {t("home.bizKicker")}
-          </MarketingBadge>
-          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            {t("home.bizTitleA")}{" "}
-            <span className="gold-text-shine">{t("home.bizTitleB")}</span>
-          </h2>
-          <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            {t("home.bizSub")}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {BIZ_PIPELINE.map((step, i) => (
-            <div key={step.href} className="relative">
-              <Link
-                href={step.href}
-                className="group block h-full p-7 rounded-2xl lux-panel lux-card-lift"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Jackpot */}
+          <div className="flex flex-col p-6 rounded-2xl border border-primary/25 bg-primary/[0.06] hover:border-primary/40 transition-colors">
+            <Trophy className="h-7 w-7 text-primary mb-4" />
+            <h3 className="font-bold text-white text-lg mb-2">{t("home.jackpotBold")}</h3>
+            <p className="text-white/55 text-sm leading-relaxed flex-1">{t("home.jackpotBody")}</p>
+            <Link
+              href="/signup"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary/15 border border-primary/40 px-5 py-2.5 text-primary font-bold hover:bg-primary/25 transition text-sm w-fit"
+            >
+              {t("home.jackpotCta")} <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          {/* Referral */}
+          <div className="flex flex-col p-6 rounded-2xl border border-[#C9A84C]/25 bg-gradient-to-br from-[#C9A84C]/[0.07] to-transparent hover:border-[#C9A84C]/40 transition-colors">
+            <Gift className="h-7 w-7 text-[#e8c86a] mb-4" />
+            <h3 className="font-bold text-white text-lg mb-2">
+              {t("home.referTitleA")} <span className="text-[#e8c86a]">{t("home.referTitleB")}</span>
+            </h3>
+            <p className="text-white/55 text-sm leading-relaxed flex-1">
+              {t("home.referBodyA")}<span className="text-white font-semibold">{t("home.referBodyB")}</span>{t("home.referBodyC")}
+              <span className="text-white font-semibold">{t("home.referBodyD")}</span>{t("home.referBodyE")}
+            </p>
+            <a
+              href="/referrals"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-5 py-2.5 text-black font-bold text-sm hover:brightness-110 transition w-fit"
+            >
+              <Gift className="h-4 w-4" /> {t("home.referCta")}
+            </a>
+          </div>
+          {/* Extension */}
+          {showExtensionPromo && (
+            <div className="flex flex-col p-6 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-primary/30 transition-colors">
+              <Download className="h-7 w-7 text-primary mb-4" />
+              <h3 className="font-bold text-white text-lg mb-2">
+                {t("home.extTitleA")} <span className="text-[#e8c86a]">{t("home.extTitleB")}</span>
+              </h3>
+              <p className="text-white/55 text-sm leading-relaxed flex-1">{t("home.extSub")}</p>
+              <a
+                href="/bow-down-visuals-extension-v2.zip"
+                download
+                onClick={markExtensionDownloaded}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-5 py-2.5 text-primary font-bold hover:bg-primary/10 transition text-sm w-fit"
               >
-                <div className="flex items-center justify-between mb-5">
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <step.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <span className="text-4xl font-black text-primary/25 select-none">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-white text-lg mb-2">{t(`home.bizPipeline.${i}.title`)}</h3>
-                <p className="text-white/50 text-sm leading-relaxed mb-4">{t(`home.bizPipeline.${i}.body`)}</p>
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:text-yellow-300 transition-colors">
-                  {t("home.bizOpen")} <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                </span>
-              </Link>
+                <Download className="h-4 w-4" /> {t("home.extDownload")}
+              </a>
             </div>
-          ))}
-        </div>
-      </LuxReveal>
-    </section>
-  );
-}
-
-/* ───── Jackpot band — monthly win mechanic ───── */
-
-function JackpotBand() {
-  const { t } = useTranslation();
-  return (
-    <section className="py-10 px-5">
-      <LuxReveal className="max-w-5xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left px-8 py-6 rounded-2xl border border-primary/25 bg-primary/[0.06]">
-          <Trophy className="h-8 w-8 text-primary shrink-0" />
-          <p className="text-white/70">
-            <span className="text-white font-bold">{t("home.jackpotBold")}</span>{" "}
-            {t("home.jackpotBody")}
-          </p>
-          <Link
-            href="/signup"
-            className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-primary/15 border border-primary/40 px-6 py-3 text-primary font-bold hover:bg-primary/25 transition text-sm"
-          >
-            {t("home.jackpotCta")} <ArrowRight className="h-4 w-4" />
-          </Link>
+          )}
         </div>
       </LuxReveal>
     </section>
@@ -1765,24 +1571,17 @@ export default function Home() {
       <KonamiEgg />
       <HeroSection />
       <SocialProofBand />
-      <CheatCodeTicker />
+      <ProofBand />
       <CheatCodeDemo />
       <CreatorVaultSection />
-      <ProofBand />
       <MusicVideoTeaser />
       <HowItWorks />
       <SectionDivider />
-      <WhatYouCanMake />
       <BuiltForCreators />
-      <ManifestoBand />
       <StudioShowcase />
       <BrandingShopSection />
-      <LabelPitchSection />
       <PricingSection />
-      <JackpotBand />
-      <SectionDivider />
-      <ReferralPromo />
-      <ExtensionPromo />
+      <PromoStrip />
       <AcademySection />
       <SectionDivider />
       <FAQSection />
