@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS qr_login_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   token TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'consumed', 'expired')),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '5 minutes',
   approved_at TIMESTAMPTZ,
