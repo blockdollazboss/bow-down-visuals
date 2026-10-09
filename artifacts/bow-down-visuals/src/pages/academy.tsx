@@ -3,7 +3,8 @@ import { Link } from "wouter";
 import {
  GraduationCap, Sparkles, Loader2, ArrowRight, ArrowLeft, Clock,
  CheckCircle2, Circle, Play, MessageCircleQuestion, Send, Lightbulb,
- CalendarDays, Target, BookOpen, ChevronRight, Zap,
+ CalendarDays, Target, BookOpen, ChevronRight, Zap, Mic, TrendingUp,
+ Coins, Palette, Workflow, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -93,6 +94,17 @@ const LEVEL_META: Record<AcademyLevel, { labelKey: string; cls: string }> = {
  beginner: { labelKey: "academy.levels.beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
  intermediate: { labelKey: "academy.levels.intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
  advanced: { labelKey: "academy.levels.advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+};
+
+/* ─── Course catalog visuals: per-category gradient banner + watermark icon ──
+   Mirrors the ProjectCard TYPE_GRADIENTS pattern from my-projects.tsx. */
+const COURSE_VISUALS: Record<string, { gradient: string; iconColor: string; Icon: LucideIcon; labelKey: string }> = {
+ "video-production": { gradient: "from-amber-500/30 via-amber-600/10 to-black/40",   iconColor: "text-amber-400",  Icon: Mic,        labelKey: "academy.catProduction" },
+ "tiktok-growth":    { gradient: "from-green-500/30 via-emerald-600/10 to-black/40", iconColor: "text-green-400",  Icon: TrendingUp, labelKey: "academy.catGrowth" },
+ "youtube-shorts":   { gradient: "from-green-500/30 via-emerald-600/10 to-black/40", iconColor: "text-green-400",  Icon: TrendingUp, labelKey: "academy.catGrowth" },
+ "monetization":     { gradient: "from-yellow-500/30 via-primary/10 to-black/40",     iconColor: "text-primary",   Icon: Coins,      labelKey: "academy.catMonetization" },
+ "branding":         { gradient: "from-purple-500/30 via-violet-600/10 to-black/40", iconColor: "text-purple-400", Icon: Palette,    labelKey: "academy.catBranding" },
+ "content-systems":  { gradient: "from-amber-500/30 via-amber-600/10 to-black/40",   iconColor: "text-amber-400",  Icon: Workflow,   labelKey: "academy.catProduction" },
 };
 
 const PLATFORM_OPTS = [
@@ -528,21 +540,35 @@ function AcademyMain() {
  const prog = courseProgress[course.id] ?? { done: 0, total: course.lessons.length };
  const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
  const badge = LEVEL_META[course.level];
+ const visuals = COURSE_VISUALS[course.id] ?? COURSE_VISUALS["video-production"];
+ const { Icon: CatIcon } = visuals;
  return (
  <button
  key={course.id}
  onClick={() => { setSelectedCourseId(course.id); setActiveLessonKey(null); setError(null); window.scrollTo({ top: 0 }); }}
- className="group rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-left transition hover:border-primary/50 hover:bg-primary/[0.05]"
+ className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] text-left transition hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.05] hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"
  >
- <div className="flex items-start justify-between gap-3">
- <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>
+ {/* ── Visual header: per-category gradient banner + watermark icon ── */}
+ <div className={`relative h-24 overflow-hidden bg-gradient-to-br md:h-28 ${visuals.gradient}`}>
+ <div className="absolute -bottom-7 -right-4 text-white/[0.08] [&>svg]:h-24 [&>svg]:w-24 md:[&>svg]:h-28 md:[&>svg]:w-28">
+ <CatIcon aria-hidden="true" />
+ </div>
+ <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+ <span className={`absolute bottom-3 left-4 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${visuals.iconColor}`}>
+ <CatIcon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(visuals.labelKey)}
+ </span>
+ <span className={`absolute right-4 top-3 rounded-full border px-3 py-1 text-[11px] font-bold backdrop-blur-sm ${badge.cls}`}>
  {t(badge.labelKey)}
  </span>
+ </div>
+ <div className="p-6">
+ <div className="flex items-start justify-between gap-3">
  <span className="flex items-center gap-1 text-[11px] text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
  </span>
  </div>
- <h3 className="mt-3 font-display text-xl font-black text-white group-hover:text-primary">
+ <h3 className="mt-1 font-display text-xl font-black text-white group-hover:text-primary">
  {course.title}
  </h3>
  <p className="mt-1 text-sm font-semibold text-primary/70">{course.tagline}</p>
@@ -564,6 +590,7 @@ function AcademyMain() {
  {prog.done > 0 ? t("academy.continueCourse") : t("academy.startCourse")}
  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
  </p>
+ </div>
  </button>
  );
  })}

@@ -744,7 +744,11 @@
     "coachThinking": "The coach is thinking…",
     "askPlaceholder": "Ask about {{title}}…",
     "askCoachAria": "Ask the coach",
-    "signInToAsk": "to ask the coach."
+    "signInToAsk": "to ask the coach.",
+    "catProduction": "Production",
+    "catGrowth": "Growth",
+    "catMonetization": "Monetization",
+    "catBranding": "Branding"
   },
   "admin": {
     "pageTitle": "Admin",
@@ -10963,7 +10967,12 @@
       "thisWeek": "This week",
       "voiceLabel": "Voice / style note (optional)",
       "voicePlaceholder": "How should the posts sound? e.g. bold, funny, luxury",
-      "weekLabel": "Week starting (Monday)"
+      "weekLabel": "Week starting (Monday)",
+      "ghostPost": "Your {day} post",
+      "ghostVideo": "Your {day} video",
+      "ghostClip": "Your {day} clip",
+      "planMyWeek": "Plan My Week",
+      "ghostCtaSub": "Tell the AI your content pillars and it drafts the whole week in seconds."
     },
     "highlights": {
       "chatLogLabel": "Chat log (optional)",
