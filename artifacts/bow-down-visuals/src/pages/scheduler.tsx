@@ -4,7 +4,7 @@ import {
   Camera, Music2, ThumbsUp, Trash2, Pencil, CheckCircle2, XCircle,
   AlertTriangle, ChevronLeft, ChevronRight, Wand2, ListVideo, Inbox,
   History, GripVertical, RefreshCw, ExternalLink, Megaphone, Copy,
-  Clapperboard, AtSign, Share2, Link2, TrendingUp,
+  Clapperboard, AtSign, Share2, Link2, TrendingUp, Zap,
   Play, Images, Radio, MessageSquare, Stethoscope, ArrowRight, RotateCcw,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -18,6 +18,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import CalendarAutofill from "@/components/wave8/CalendarAutofill";
 import TrendPredictor from "./trends";
+import TrendJackerSection from "@/components/scheduler/TrendJackerSection";
 import { Button } from "@/components/ui/button";
 import type { SocialAccountInfo } from "@/components/ConnectedAccounts";
 import {
@@ -57,7 +58,7 @@ import {
    - TikTok posts land in your TikTok drafts inbox — TikTok's API can't
      publish straight to your feed, so you finish the post in TikTok. */
 
-type Tab = "calendar" | "queue" | "drafts" | "posted" | "community" | "trends";
+type Tab = "calendar" | "queue" | "drafts" | "posted" | "community" | "trends" | "trend-jacker";
 
 interface PlatformOpt {
   key: SchedulerPlatformKey;
@@ -207,6 +208,7 @@ export default function Scheduler() {
       const q = new URLSearchParams(window.location.search);
       if (q.get("tab") === "plan") return "calendar";
       if (q.get("tab") === "trends") return "trends";
+      if (q.get("tab") === "trend-jacker") return "trend-jacker";
       if (q.get("niche") && !q.get("shared")) return "calendar";
     } catch { /* non-browser — ignore */ }
     return "calendar";
@@ -470,6 +472,7 @@ export default function Scheduler() {
               { key: "posted", label: t("scheduler.tabs.posted"), icon: History },
               { key: "community", label: t("scheduler.tabs.community"), icon: Megaphone },
               { key: "trends", label: t("scheduler.tabs.trends", { defaultValue: "Trends" }), icon: TrendingUp },
+              { key: "trend-jacker", label: t("scheduler.tabs.trendJacker", { defaultValue: "Trend Jacker" }), icon: Zap },
             ] as { key: Tab; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -535,6 +538,7 @@ export default function Scheduler() {
               />
             )}
             {tab === "trends" && <TrendPredictor />}
+            {tab === "trend-jacker" && <TrendJackerSection />}
           </div>
         )}
 

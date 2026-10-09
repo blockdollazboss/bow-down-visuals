@@ -11,6 +11,7 @@ import {
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
+  Fingerprint, Laugh, Timer,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -103,6 +104,9 @@ import CartoonStudio from "@/pages/cartoon-studio";
 import ThumbnailStudio from "@/pages/thumbnail-studio";
 import { VisualVibesSection } from "@/components/editor/sections/VisualVibesSection";
 import LocationsPage from "@/pages/locations";
+import { StyleStealerSection } from "@/components/editor/sections/StyleStealerSection";
+import { MemeMachineSection } from "@/components/editor/sections/MemeMachineSection";
+import { ThreeSecondLabSection } from "@/components/editor/sections/ThreeSecondLabSection";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
@@ -120,7 +124,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -382,7 +386,20 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations"];
+  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
+
+  /* 3-Second Lab: prefill the video description from the timeline's opening
+     (first scene lyric/action or first caption line). */
+  const threeSecondLabHint = useMemo(() => {
+    const first = scenes[0];
+    const bits: string[] = [];
+    if (first?.lyricLine?.trim()) bits.push(first.lyricLine.trim());
+    if (first?.action?.trim()) bits.push(first.action.trim());
+    if (first?.aiVideoPrompt?.trim()) bits.push(first.aiVideoPrompt.trim().slice(0, 200));
+    const cap = settings.captions.lines[0]?.text?.trim();
+    if (cap) bits.push(cap);
+    return bits.join(" — ").slice(0, 300);
+  }, [scenes, settings.captions.lines]);
   useEffect(() => {
     const params = new URLSearchParams(search);
     const deepTab = params.get("tab");
@@ -1435,6 +1452,9 @@ export default function VideoEditor() {
                     { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
                     { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
                     { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
+                    { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
+                    { id: "meme-machine", label: t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }), icon: <Laugh className="h-5 w-5" />, testId: "rail-meme-machine" },
+                    { id: "three-second-lab", label: t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }), icon: <Timer className="h-5 w-5" />, testId: "rail-three-second-lab" },
                   ])
                     .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -1484,6 +1504,9 @@ export default function VideoEditor() {
                       thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
                       vibes: t("videoEditor.railVibes", { defaultValue: "Vibes" }),
                       locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
+                      "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
+                      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
+                      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
                     }[tab]}
                   </h2>
                 </div>
@@ -1994,6 +2017,9 @@ export default function VideoEditor() {
                   {tab === "thumbnails" && <ThumbnailStudio defaultTab="generate" />}
                   {tab === "vibes" && <VisualVibesSection settings={settings} setSettings={setSettings} />}
                   {tab === "locations" && <LocationsPage />}
+                  {tab === "style-stealer" && <StyleStealerSection settings={settings} setSettings={setSettings} />}
+                  {tab === "meme-machine" && <MemeMachineSection settings={settings} setSettings={setSettings} />}
+                  {tab === "three-second-lab" && <ThreeSecondLabSection openingHint={threeSecondLabHint} />}
                 </div>
               </aside>
 

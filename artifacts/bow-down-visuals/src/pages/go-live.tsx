@@ -43,8 +43,9 @@ import ShowFinder from "@/pages/shows";
 import DiscordBotSetup from "@/pages/discord-bot";
 import LiveShopping from "@/pages/live-shopping";
 import GamersHub from "@/pages/gamers";
+import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 
-type LiveTab = "golive" | "shows" | "discord" | "shopping" | "gamers";
+type LiveTab = "golive" | "shows" | "discord" | "shopping" | "gamers" | "copilot";
 
 function GoLiveMain() {
   const { t } = useTranslation();
@@ -396,7 +397,7 @@ export default function GoLive() {
   const [tab, setTab] = useState<LiveTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "shows" || q === "discord" || q === "shopping" || q === "gamers") return q;
+      if (q === "shows" || q === "discord" || q === "shopping" || q === "gamers" || q === "copilot") return q;
     } catch { /* non-browser — ignore */ }
     return "golive";
   });
@@ -407,6 +408,7 @@ export default function GoLive() {
     { key: "discord", label: t("goLive.tabDiscord", { defaultValue: "Discord" }) },
     { key: "shopping", label: t("goLive.tabShopping", { defaultValue: "Live Shopping" }) },
     { key: "gamers", label: t("goLive.tabGamers", { defaultValue: "Gamers" }) },
+    { key: "copilot", label: t("goLive.tabCopilot", { defaultValue: "Stream Copilot" }) },
   ];
 
   return (
@@ -429,7 +431,7 @@ export default function GoLive() {
           ))}
         </div>
       </div>
-      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "shopping" ? <LiveShopping /> : <GamersHub />}
+      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "shopping" ? <LiveShopping /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
     </div>
   );
 }

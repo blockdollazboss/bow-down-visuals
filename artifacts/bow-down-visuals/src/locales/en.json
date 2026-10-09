@@ -11149,7 +11149,8 @@
       "aiaudio": "AI Audio",
       "voiceover": "Voiceover",
       "podcast": "Podcast",
-      "sounds": "Sounds"
+      "sounds": "Sounds",
+      "hum": "Hum-to-Hit"
     },
     "desc": {
       "cleanup": "Remove background noise and room hiss from any recording — 3 Visual Bucs.",
@@ -11158,7 +11159,8 @@
       "aiaudio": "Make beats, build sample packs, and generate sound effects.",
       "voiceover": "Studio-quality AI narration for your videos.",
       "podcast": "Record, edit, and produce your podcast.",
-      "sounds": "Find viral sounds trending right now."
+      "sounds": "Find viral sounds trending right now.",
+      "hum": "Hum a melody — get a full song built around it (500 Visual Bucs on generate, analysis free)."
     }
   },
   "aiAudio": {

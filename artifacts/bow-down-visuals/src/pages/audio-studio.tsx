@@ -18,6 +18,7 @@ import AiAudio from "@/pages/ai-audio";
 import VoiceoverStudio from "@/pages/voiceover";
 import PodcastStudio from "@/pages/podcast";
 import ViralSoundFinder from "@/pages/sounds";
+import { HumToSong } from "@/components/HumToSong";
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
    Server-side background-noise removal for creator audio: podcasts,
    voiceovers, stream clips, live recordings. Real DSP denoising via
@@ -3026,7 +3027,7 @@ function MixMasterPanel() {
    One page, three tools. Each tab keeps its own paid endpoint, credit cost,
    and charge-then-refund discipline — only the page chrome is shared. */
 
-type StudioTab = "cleanup" | "stems" | "master" | "aiaudio" | "voiceover" | "podcast" | "sounds";
+type StudioTab = "cleanup" | "stems" | "master" | "aiaudio" | "voiceover" | "podcast" | "sounds" | "hum";
 
 const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> = [
   { id: "cleanup", labelKey: "audioStudio.tabs.cleanup", descKey: "audioStudio.desc.cleanup" },
@@ -3036,6 +3037,7 @@ const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> =
   { id: "voiceover", labelKey: "audioStudio.tabs.voiceover", descKey: "audioStudio.desc.voiceover" },
   { id: "podcast", labelKey: "audioStudio.tabs.podcast", descKey: "audioStudio.desc.podcast" },
   { id: "sounds", labelKey: "audioStudio.tabs.sounds", descKey: "audioStudio.desc.sounds" },
+  { id: "hum", labelKey: "audioStudio.tabs.hum", descKey: "audioStudio.desc.hum" },
 ];
 
 export default function AudioStudio() {
@@ -3043,7 +3045,7 @@ export default function AudioStudio() {
   const [tab, setTab] = useState<StudioTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds") return q;
+      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds" || q === "hum") return q;
       return "cleanup";
     } catch {
       return "cleanup";
@@ -3109,7 +3111,7 @@ export default function AudioStudio() {
         </p>
 
         <div className="mt-2">
-          {tab === "cleanup" ? <CleanupPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : <ViralSoundFinder />}
+          {tab === "cleanup" ? <CleanupPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : tab === "hum" ? <HumToSong /> : <ViralSoundFinder />}
         </div>
       </main>
     </div>

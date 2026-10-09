@@ -8,6 +8,8 @@ import { MakeSongModule } from "./make-song";
 import { MakeVideoModule } from "./make-video";
 import CartoonStudio from "@/pages/cartoon-studio";
 import CoverArt from "@/pages/cover-art";
+import DreamCollabPanel from "@/components/create/DreamCollabPanel";
+import LinkToHitPanel from "@/components/create/LinkToHitPanel";
 import { SongAndVideoModule } from "./song-and-video";
 import { HubModule } from "./hub";
 
@@ -32,7 +34,7 @@ export { CreateRedirect };
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */
 
-export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart";
+export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit";
 
 const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = [
   { key: "song-video", labelKey: "songVideo", icon: Mic2 },
@@ -44,7 +46,7 @@ const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = 
 ];
 
 function isPanel(p: string | null): p is CreatePanel {
-  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart";
+  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart" || p === "dream-collab" || p === "link-to-hit";
 }
 
 function panelFromSearch(search: string): CreatePanel {
@@ -147,6 +149,8 @@ export default function Create() {
           {panel === "video" && <MakeVideoModule />}
           {panel === "cartoon" && <CartoonStudio initialTab="video" />}
           {panel === "coverart" && <CoverArt />}
+          {panel === "dream-collab" && <DreamCollabPanel />}
+          {panel === "link-to-hit" && <LinkToHitPanel />}
           {panel === "hub" && <HubModule />}
         </div>
       </div>
