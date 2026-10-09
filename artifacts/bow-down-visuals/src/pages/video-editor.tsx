@@ -3743,7 +3743,7 @@ function MasterPreviewPlayer({
     <div
       ref={outerRef}
       style={floatStyle}
-      className={`relative mb-6 ${theaterOn && !isHidden ? "z-[60]" : ""}`}
+      className={`relative mb-6 mx-auto ${theaterOn && !isHidden ? "z-[60]" : ""}`}
     >
       {/* ── Ambient glow: blurred, dimmed mirror of the playing video, bleeding
           out from behind the gold frame. Hidden when minimized/fullscreen. ── */}
