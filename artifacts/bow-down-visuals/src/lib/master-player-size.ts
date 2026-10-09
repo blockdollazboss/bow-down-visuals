@@ -25,8 +25,9 @@ import {
 /** Width of the minimized player chip (matches video-editor.tsx). */
 export const MASTER_PLAYER_MINIMIZED_CHIP_WIDTH = 96;
 
-/** Margin (px) kept above/below the player inside the toolbar↔dock band. */
-export const MASTER_PLAYER_FIT_MARGIN = 16;
+/** Margin (px) kept above/below the player inside the toolbar↔dock band.
+ *  Kept small — just enough to see the player's hover glow, nothing more. */
+export const MASTER_PLAYER_FIT_MARGIN = 8;
 
 export interface MasterPlayerFitInput {
   /** window.innerHeight at render time. */

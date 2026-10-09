@@ -7,7 +7,7 @@ import {
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
-  Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
+  Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, AlertTriangle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
   PanelRightClose, PanelRightOpen,
@@ -1980,7 +1980,7 @@ export default function VideoEditor() {
                 {/* ── MASTER PLAYER — pinned to the top of the workspace column.
                     Sticky + solid background so it stays fixed in view while the
                     panels below scroll; it never drifts or pops out while editing. ── */}
-                <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center p-4 md:p-6">
+                <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center px-2 py-2">
                   <div className="w-full max-w-6xl">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
@@ -2062,39 +2062,9 @@ export default function VideoEditor() {
                       </div>
                     );
                   })()}
-                  {selectedMixMissing && (
-                    <div
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06]"
-                      data-testid="video-audio-fallback-warning"
-                    >
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-400/80 shrink-0" />
-                      <p className="text-[11px] text-amber-200/70 leading-snug min-w-0 flex-1 truncate">
-                        {t("videoEditor.previewingWithFallback", {
-                          fallback: previewAudioResolution.fallbackSource === "project-audio"
-                            ? t("videoEditor.fallbackUploadedSong")
-                            : previewAudioResolution.fallbackSource === "first-stem"
-                            ? t("videoEditor.fallbackFirstStem")
-                            : t("videoEditor.fallbackNoAudio"),
-                          label: VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source],
-                        })}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={requestMissingMixRender}
-                        disabled={directAudioExportStatus.status === "rendering"}
-                        data-testid="btn-render-missing-video-audio"
-                        className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
-                      >
-                        {directAudioExportStatus.status === "rendering" ? (
-                          <><Loader2 className="h-3 w-3 animate-spin no-underline" /> {t("videoEditor.rendering")}</>
-                        ) : canDirectRenderMissingMix ? (
-                          t("videoEditor.renderMix")
-                        ) : (
-                          t("videoEditor.openMusicStudio")
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {/* ── Audio fallback warning now lives as a compact pill in the
+                      TimelineDock transport row (audioWarningPill prop) — not a
+                      full-width banner here. ── */}
                   {/* ── Collapsible Debug Panel — only with ?debug=1 and at 6 stars (debug/experimental).
                       The editor should feel like a finished product, not a sandbox. ── */}
                   {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
@@ -2231,6 +2201,40 @@ export default function VideoEditor() {
 
       {project && (
         <TimelineDock
+          audioWarningPill={selectedMixMissing ? (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 shrink-0"
+              data-testid="video-audio-fallback-warning"
+              title={t("videoEditor.previewingWithFallback", {
+                fallback: previewAudioResolution.fallbackSource === "project-audio"
+                  ? t("videoEditor.fallbackUploadedSong")
+                  : previewAudioResolution.fallbackSource === "first-stem"
+                  ? t("videoEditor.fallbackFirstStem")
+                  : t("videoEditor.fallbackNoAudio"),
+                label: VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source],
+              })}
+            >
+              <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
+              <span className="text-[10px] font-bold text-amber-200/80 whitespace-nowrap hidden sm:inline">
+                {t("videoEditor.audioFallbackPill")}
+              </span>
+              <button
+                type="button"
+                onClick={requestMissingMixRender}
+                disabled={directAudioExportStatus.status === "rendering"}
+                data-testid="btn-render-missing-video-audio"
+                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
+              >
+                {directAudioExportStatus.status === "rendering" ? (
+                  <><Loader2 className="h-3 w-3 animate-spin no-underline" /> {t("videoEditor.rendering")}</>
+                ) : canDirectRenderMissingMix ? (
+                  t("videoEditor.renderMix")
+                ) : (
+                  t("videoEditor.openMusicStudio")
+                )}
+              </button>
+            </div>
+          ) : undefined}
           scenes={scenes}
           setScenes={setScenes}
           settings={settings}

@@ -314,8 +314,9 @@ export function TimelineTemplatesSection({
           </div>
         )}
 
-        {/* ── Recipe cards ── */}
-        <div className="grid gap-2.5 sm:grid-cols-3">
+        {/* ── Recipe cards — single-column rows (the rail is narrow; a 3-up grid
+            cramps the text). ── */}
+        <div className="grid gap-2.5 grid-cols-1">
           {RECIPES.map((r) => (
             <button
               key={r.id}
@@ -323,19 +324,21 @@ export function TimelineTemplatesSection({
               onClick={() => compileRecipe(r.id)}
               disabled={phase === "compiling" || (r.needsAudio && !audioUrl)}
               title={r.needsAudio && !audioUrl ? t(`${ns}.needsAudioTitle`) : t(r.descKey)}
-              className="text-left rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-[#C9A84C]/40 hover:bg-[#C9A84C]/[0.04] transition-all px-4 py-3.5 disabled:opacity-40 disabled:cursor-not-allowed group"
+              className="text-left rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-[#C9A84C]/40 hover:bg-[#C9A84C]/[0.04] transition-all px-4 py-3 disabled:opacity-40 disabled:cursor-not-allowed group"
               data-testid={`wave9b-recipe-${r.id}`}
             >
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-[#C9A84C] group-hover:text-[#e8c96a] transition-colors">{r.icon}</span>
-                <span className="text-sm font-black text-white">{t(r.nameKey)}</span>
+              <div className="flex items-start gap-3">
+                <span className="text-[#C9A84C] group-hover:text-[#e8c96a] transition-colors shrink-0 mt-0.5">{r.icon}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-white">{t(r.nameKey)}</span>
+                  <span className="block text-[11px] text-white/40 leading-relaxed mt-0.5">{t(r.descKey)}</span>
+                  {r.id === "jumpcut-vlog" && beatGrid.length > 0 && (
+                    <span className="block text-[10px] text-[#e8c96a]/70 mt-1 font-bold">
+                      {t(`${ns}.beatSnapNote`, { n: beatGrid.length })}
+                    </span>
+                  )}
+                </span>
               </div>
-              <p className="text-[11px] text-white/40 leading-relaxed">{t(r.descKey)}</p>
-              {r.id === "jumpcut-vlog" && beatGrid.length > 0 && (
-                <p className="text-[10px] text-[#e8c96a]/70 mt-1.5 font-bold">
-                  {t(`${ns}.beatSnapNote`, { n: beatGrid.length })}
-                </p>
-              )}
             </button>
           ))}
         </div>

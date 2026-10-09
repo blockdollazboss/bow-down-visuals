@@ -1181,9 +1181,12 @@ export type MasterPlayerSnapPosition =
  *  1152px) instead of capping at 800px — the old cap left large empty gutters
  *  on desktop. The vertical-band clamp in the player still keeps it inside the
  *  toolbar↔timeline space, so portrait formats can't overflow the viewport. */
-export const MASTER_PLAYER_DEFAULT_WIDTH = 640;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
 export const MASTER_PLAYER_MAX_WIDTH = 1152;
+/* Default = fill the available band (capped by MAX_WIDTH and the fit math).
+   The fit function clamps to what actually fits, so a MAX default means
+   "grow to fill" until the user drags to resize (their size is then saved). */
+export const MASTER_PLAYER_DEFAULT_WIDTH = MASTER_PLAYER_MAX_WIDTH;
 /** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
  *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
  *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
@@ -1652,7 +1655,7 @@ export function defaultEditorSettings(): EditorSettings {
     overlayQualityMode: "music-video",
     watermarkType: "logo",
     watermarkPosition: "bottom-right",
-    watermarkSize: "medium",
+    watermarkSize: "small",
     watermarkMargin: 16,
     watermarkShowOnPreview: true,
     watermarkIncludeInExport: true,
@@ -1961,7 +1964,7 @@ export function normalizeEditorSettings(
     overlayQualityMode: (stored.overlayQualityMode && ["off", "subtle", "visible", "music-video", "heavy"].includes(stored.overlayQualityMode)) ? stored.overlayQualityMode : "music-video",
     watermarkType: (stored.watermarkType && ["logo", "text", "none"].includes(stored.watermarkType)) ? stored.watermarkType : "logo",
     watermarkPosition: (stored.watermarkPosition && ["bottom-right", "bottom-left", "top-right", "top-left"].includes(stored.watermarkPosition)) ? stored.watermarkPosition : "bottom-right",
-    watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "medium",
+    watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "small",
     watermarkMargin: typeof stored.watermarkMargin === "number" ? stored.watermarkMargin : 16,
     watermarkShowOnPreview: typeof stored.watermarkShowOnPreview === "boolean" ? stored.watermarkShowOnPreview : true,
     watermarkIncludeInExport: typeof stored.watermarkIncludeInExport === "boolean" ? stored.watermarkIncludeInExport : true,

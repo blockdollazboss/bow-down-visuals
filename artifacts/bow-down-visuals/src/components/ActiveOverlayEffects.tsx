@@ -566,7 +566,7 @@ export function ActiveOverlayEffects({
   watermarkText = "Bow Down Visuals",
   watermarkType = "logo",
   watermarkPosition = "bottom-right",
-  watermarkSize = "medium",
+  watermarkSize = "small",
   watermarkMargin = 16,
   watermarkShowOnPreview = true,
   brandingWatermark = null,

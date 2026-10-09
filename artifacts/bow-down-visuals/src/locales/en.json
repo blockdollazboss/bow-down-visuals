@@ -6808,7 +6808,8 @@
     "videoLinkLoadedDesc": "Your clip is on the timeline — trim it, caption it, export it.",
     "railBeatSync": "Beat Sync",
     "railEditRecipes": "Edit Recipes",
-    "railVoiceEdits": "Voice Edits"
+    "railVoiceEdits": "Voice Edits",
+    "audioFallbackPill": "Previewing fallback audio"
   },
   "viralityCheck": {
     "bestPostingTime": "Best Posting Time",

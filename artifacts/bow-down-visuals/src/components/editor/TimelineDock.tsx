@@ -93,6 +93,8 @@ interface TimelineDockProps {
   onHeightChange?: (height: number) => void;
   /** Replaces a scene's clip URL (e.g. with a freeze-frame render). */
   onReplaceClipVideo?: (sceneId: string, url: string) => void;
+  /** Compact audio-fallback warning pill rendered in the transport row (right side). */
+  audioWarningPill?: React.ReactNode;
 }
 
 export function TimelineDock({
@@ -102,6 +104,7 @@ export function TimelineDock({
   selectedIdx, setSelectedIdx,
   onHeightChange,
   onReplaceClipVideo,
+  audioWarningPill,
 }: TimelineDockProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -711,6 +714,8 @@ export function TimelineDock({
         </button>
 
         <div className="flex-1" />
+
+        {audioWarningPill}
 
         <span className="text-[9px] text-muted-foreground/60 hidden md:inline">
           {isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
