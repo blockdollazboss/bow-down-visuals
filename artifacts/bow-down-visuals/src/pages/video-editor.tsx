@@ -2425,7 +2425,7 @@ export default function VideoEditor() {
 
                   </div>
                 </div>
-                <div className="shrink-0 px-4 md:px-6 pb-4 space-y-3 w-full max-w-6xl mx-auto">
+                <div className="shrink-0 px-4 md:px-6 w-full max-w-6xl mx-auto">
                   {/* Active Artist pill */}
                   {activeArtist && (() => {
                     const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
