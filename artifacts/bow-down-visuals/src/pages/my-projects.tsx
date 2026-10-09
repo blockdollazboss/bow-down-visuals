@@ -100,6 +100,13 @@ const TYPE_COLORS: Record<string, string> = {
   "Promo Clip Maker":   "text-green-400",
   "Thumbnail Maker":    "text-yellow-400",
 };
+const TYPE_GRADIENTS: Record<string, string> = {
+  "Make a Song":        "from-yellow-500/30 via-amber-600/10 to-black/40",
+  "Make a Music Video": "from-blue-500/30 via-blue-600/10 to-black/40",
+  "Make Song + Video":  "from-pink-500/30 via-pink-600/10 to-black/40",
+  "Promo Clip Maker":   "from-green-500/30 via-emerald-600/10 to-black/40",
+  "Thumbnail Maker":    "from-orange-500/30 via-amber-600/10 to-black/40",
+};
 
 /* ─── Result Modal ─── */
 function ResultModal({
@@ -336,8 +343,6 @@ function ProjectCard({
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
 
-  const content = project.output_data?.result ?? "";
-  const preview = content.slice(0, 260).replace(/##\s+/g, "").trim();
   const date = new Date(project.created_at).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
@@ -348,6 +353,14 @@ function ProjectCard({
 
   const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
   const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
+  const headerGradient = TYPE_GRADIENTS[project.project_type] ?? "from-primary/30 via-primary/10 to-black/40";
+
+  const savedScenes = (project.output_data?.scenes ?? []) as { demoClipUrl?: string | null; provider?: string | null }[];
+  const clipCount = savedScenes.filter((s) => s.demoClipUrl).length;
+  const clipUrls = savedScenes
+    .map((s) => s.demoClipUrl)
+    .filter((u): u is string => !!u)
+    .slice(0, 3);
 
   function handleDelete() {
     if (!confirm(t("myProjects.deleteProjectConfirm", { title: displayTitle }))) return;
@@ -357,17 +370,45 @@ function ProjectCard({
 
   return (
     <div
-      className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-all overflow-hidden ${
+      className={`group rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)] ${
         deleting ? "opacity-40 pointer-events-none" : ""
       }`}
     >
-      <div className="p-5 md:p-6">
+      {/* ── Visual header: filmstrip when scene clips exist, else type-tinted banner ── */}
+      {clipUrls.length > 0 ? (
+        <div className="relative h-28 md:h-32 flex overflow-hidden bg-black">
+          {clipUrls.map((url) => (
+            <video
+              key={url}
+              src={url}
+              muted
+              playsInline
+              preload="metadata"
+              className="flex-1 min-w-0 h-full object-cover"
+            />
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
+          <span className={`absolute left-3 bottom-2.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${iconColor}`}>
+            {icon}
+            {displayProjectType(project.project_type, t)}
+          </span>
+        </div>
+      ) : (
+        <div className={`relative h-24 md:h-28 overflow-hidden bg-gradient-to-br ${headerGradient}`}>
+          <div className="absolute -right-4 -bottom-7 text-white/[0.08] [&>svg]:h-24 [&>svg]:w-24 md:[&>svg]:h-28 md:[&>svg]:w-28">
+            {icon}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+          <span className={`absolute left-4 bottom-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${iconColor}`}>
+            {icon}
+            {displayProjectType(project.project_type, t)}
+          </span>
+        </div>
+      )}
+      <div className="p-4 md:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className={iconColor}>{icon}</span>
-              <span className="text-xs font-semibold text-white/40">{displayProjectType(project.project_type, t)}</span>
-              <span className="text-white/15 text-xs">·</span>
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="text-xs text-white/30">{date}</span>
               {project.credits_used > 0 && (
                 <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
@@ -419,22 +460,13 @@ function ProjectCard({
           </div>
         </div>
 
-        {(() => {
-          const savedScenes = (project.output_data?.scenes ?? []) as { demoClipUrl?: string | null; provider?: string | null }[];
-          const clipCount = savedScenes.filter((s) => s.demoClipUrl).length;
-          if (clipCount === 0) return null;
-          return (
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
-                <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                {t("myProjects.runwayClipsSaved", { count: clipCount })}
-              </span>
-            </div>
-          );
-        })()}
-
-        {preview && (
-          <p className="text-white/35 text-sm leading-relaxed mt-3 line-clamp-2">{preview}</p>
+        {clipCount > 0 && (
+          <div className="flex items-center gap-1.5 mt-2.5">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
+              <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              {t("myProjects.runwayClipsSaved", { count: clipCount })}
+            </span>
+          </div>
         )}
       </div>
     </div>

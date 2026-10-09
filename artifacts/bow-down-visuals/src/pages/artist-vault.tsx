@@ -372,11 +372,11 @@ function StyledSelect({
   );
 }
 
-function FieldWrapper({ label, hint, children }: {
-  label: string; hint?: string; children: React.ReactNode;
+function FieldWrapper({ label, hint, children, id }: {
+  label: string; hint?: string; children: React.ReactNode; id?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 scroll-mt-24" id={id}>
       <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{label}</Label>
       {hint && <p className="text-xs text-white/30 -mt-1">{hint}</p>}
       {children}
@@ -1856,8 +1856,12 @@ export default function ArtistVault() {
   return (
     <div className="min-h-screen bg-black text-white lux-page">
 
+      {/* ── Cinematic ambient background ── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[480px] bg-[#C9A84C]/[0.07] rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -left-40 w-[500px] h-[500px] bg-amber-700/[0.05] rounded-full blur-[110px]" />
+        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-yellow-600/[0.05] rounded-full blur-[110px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
       </div>
 
       {openVault && (
