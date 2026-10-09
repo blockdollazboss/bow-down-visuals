@@ -41,16 +41,19 @@ export function useWittyLine(intervalMs = 2200): string {
 }
 
 export default function WittyLoader({ message }: { message?: string }) {
-  const witty = useWittyLine();
   const { t } = useTranslation();
-  const line = message ?? witty;
 
-  const [promoIdx, setPromoIdx] = useState(0);
+  // Single synced rotation — headline and promo switch together
+  const [slideIdx, setSlideIdx] = useState(0);
   useEffect(() => {
-    const id = window.setInterval(() => setPromoIdx((i) => (i + 1) % FEATURE_PROMOS.length), 4000);
+    const id = window.setInterval(() => setSlideIdx((i) => i + 1), 4000);
     return () => window.clearInterval(id);
   }, []);
-  const promo = FEATURE_PROMOS[promoIdx % FEATURE_PROMOS.length]!;
+
+  const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
+  const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
+  const line = message ?? safe[slideIdx % safe.length] ?? FALLBACK_LINES[0]!;
+  const promo = FEATURE_PROMOS[slideIdx % FEATURE_PROMOS.length]!;
 
   return (
     <div className="fixed inset-0 z-[20000] bg-background overflow-hidden">
@@ -80,7 +83,7 @@ export default function WittyLoader({ message }: { message?: string }) {
 
       {/* Top-left: now featuring */}
       <div
-        key={promoIdx}
+        key={slideIdx}
         className="absolute top-6 left-6 md:left-14 z-10 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
       >
           <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
