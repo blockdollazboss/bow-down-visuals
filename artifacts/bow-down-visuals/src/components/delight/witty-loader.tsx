@@ -73,15 +73,16 @@ export default function WittyLoader({ message }: { message?: string }) {
         style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
       />
 
-      {/* Top-left: brand eyebrow + now featuring */}
-      <div className="absolute top-8 left-6 md:left-14 z-10">
-        <p className="text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em]">
-          Bow Down Visuals presents
-        </p>
-        <div
-          key={promoIdx}
-          className="mt-4 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
-        >
+      {/* Top-left corner: brand eyebrow */}
+      <p className="absolute top-8 left-6 md:left-14 z-10 text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap">
+        Bow Down Visuals presents
+      </p>
+
+      {/* Top-left: now featuring */}
+      <div
+        key={promoIdx}
+        className="absolute top-6 left-6 md:left-14 z-10 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
+      >
           <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
           <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
             <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
