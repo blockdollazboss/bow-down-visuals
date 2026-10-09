@@ -53,7 +53,7 @@ export default function WittyLoader({ message }: { message?: string }) {
   const promo = FEATURE_PROMOS[promoIdx % FEATURE_PROMOS.length]!;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background overflow-hidden">
       {/* Promo background - Shark King with Visual Bucs */}
       <div
         aria-hidden
