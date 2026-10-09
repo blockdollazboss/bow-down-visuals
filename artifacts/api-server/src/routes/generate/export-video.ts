@@ -1002,6 +1002,8 @@ export interface ExportRequestBody {
       source?: string | null;
       /** 1–200, interpreted as % width for images. */
       size?: number;
+      /** CSS animation shorthand for motion graphics (e.g. "mg-fade-up 0.6s ease-out both"). */
+      motionCss?: string;
     }[] | null;
     /** Export quality controls (Feature Wave 6). When `enabled`, the final
      *  FFmpeg pass is parameterized by these settings; defaults match the
@@ -1936,6 +1938,51 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         "bottom-center":{ x: "(W-w)/2",        y: `H-h-${bm}` },
         "bottom-right": { x: `W-w-${em}`,      y: `H-h-${bm}` },
       };
+      /* ── Motion graphics → ffmpeg: parse the CSS animation name/duration from
+       * motionCss and generate animated drawtext expressions. Approximations —
+       * scale/rotate/blur can't be done in drawtext, so we do fade + slide,
+       * which reads as the same entrance energy in the export. ── */
+      function motionExpr(motionCss: string | undefined, startSec: number, baseX: string, baseY: string): { x: string; y: string; alpha: string } {
+        if (!motionCss) return { x: baseX, y: baseY, alpha: "1" };
+        const m = motionCss.match(/(mg-[a-z-]+)\s+([\d.]+)s/);
+        if (!m) return { x: baseX, y: baseY, alpha: "1" };
+        const name = m[1]!;
+        const dur = Math.max(0.2, Math.min(2.0, parseFloat(m[2]!)));
+        const t = `(t-${startSec.toFixed(3)})`;
+        const prog = `min(1\\,max(0\\,${t}/${dur.toFixed(2)}))`; // 0→1 over duration
+        const fadeIn = `min(1\\,${t}/0.35)`; // quick fade
+        switch (name) {
+          case "mg-slide-up":
+          case "mg-fade-up":
+            return {
+              x: baseX,
+              y: `'${baseY}+48*(1-${prog})'`.replace(/^'|'$/g, ""),
+              alpha: fadeIn,
+            };
+          case "mg-kinetic-slam":
+            return { x: baseX, y: baseY, alpha: `'min(1\\,${t}/0.25)'`.replace(/^'|'$/g, "") };
+          case "mg-bar-slide":
+            return {
+              x: `'${baseX}-W*(1-${prog})'`.replace(/^'|'$/g, ""),
+              y: baseY,
+              alpha: fadeIn,
+            };
+          case "mg-zoom-flash":
+            // fade in then out
+            return { x: baseX, y: baseY, alpha: `'if(lt(${t}\\,${dur.toFixed(2)})\\,${fadeIn}\\,max(0\\,1-(${t}-${dur.toFixed(2)})/0.4))'`.replace(/^'|'$/g, "") };
+          case "mg-whoosh-wipe":
+            return {
+              x: `'${baseX}-W*1.2+W*2.4*${prog}'`.replace(/^'|'$/g, ""),
+              y: baseY,
+              alpha: `'if(between(${t}\\,0\\,${dur.toFixed(2)})\\,1\\,0)'`.replace(/^'|'$/g, ""),
+            };
+          default:
+            // mg-typewriter, mg-gold-shimmer, mg-bell-ring, mg-sub-pulse,
+            // mg-crown-reveal, mg-sparkle, mg-blink-caret → simple fade
+            return { x: baseX, y: baseY, alpha: fadeIn };
+        }
+      }
+
       let ovIdx = 0;
       for (const ov of overlayItems) {
         const enableClause = (typeof ov.startSec === "number" && typeof ov.endSec === "number")
@@ -1948,14 +1995,21 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           const pos   = OVERLAY_POS[ov.position ?? "bottom-center"] ?? OVERLAY_POS["bottom-center"]!;
           const fs    = ov.fontSize ?? (ov.type === "lower-third" ? 36 : 40);
           const fc    = ov.textColor ?? "#FFFFFF";
-          const alpha = (ov.opacity ?? 1.0).toFixed(2);
+          const baseAlpha = (ov.opacity ?? 1.0);
           const bg    = ov.type === "lower-third"
             ? `:box=1:boxcolor=black@0.65:boxborderw=12`
             : `:borderw=3:bordercolor=0x000000`;
           const txt   = escapeDrawtext(ov.content);
+          // Motion graphics: animate x/y/alpha from motionCss
+          const startSec = typeof ov.startSec === "number" ? ov.startSec : 0;
+          const motion = motionExpr(ov.motionCss, startSec, pos.x, pos.y);
+          // Combine base opacity with motion alpha
+          const alphaExpr = motion.alpha === "1"
+            ? baseAlpha.toFixed(2)
+            : `'${baseAlpha.toFixed(2)}*(${motion.alpha})'`;
           filterParts.push(
             `[${workLabel}]drawtext=fontfile='${SANS_BOLD}':text='${txt}':${enableClause}` +
-            `:x=${pos.x}:y=${pos.y}:fontsize=${fs}:fontcolor=${fc}@${alpha}${bg}[${nextLabel}]`,
+            `:x=${motion.x}:y=${motion.y}:fontsize=${fs}:fontcolor=${fc}@${alphaExpr}${bg}[${nextLabel}]`,
           );
           workLabel = nextLabel;
         } else if (ov.type === "color") {
