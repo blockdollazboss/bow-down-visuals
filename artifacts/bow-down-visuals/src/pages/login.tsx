@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
 import { QRLoginButton } from "@/components/QRLogin";
+import { PasskeyLoginButton } from "@/components/Passkey";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -200,6 +201,7 @@ export default function Login() {
                   mode="signin"
                 />
                 <QRLoginButton onSuccess={() => window.location.reload()} />
+                <PasskeyLoginButton onSuccess={() => window.location.reload()} />
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"
