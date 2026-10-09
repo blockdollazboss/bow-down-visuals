@@ -65,7 +65,7 @@ function SharkFin() {
     };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -12, marginTop: -12 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -12, marginTop: -12 }}>
       <svg width={hovering ? 36 : 28} height={hovering ? 36 : 28} viewBox="0 0 24 24"
         className="transition-all duration-150 drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]"
         style={{ transform: clicking ? "scale(0.85) rotate(-10deg)" : "none" }}>
@@ -81,7 +81,7 @@ function Crown() {
   const hovering = useHoverState();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -10 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -14, marginTop: -10 }}>
       <svg width={hovering ? 36 : 28} height={hovering ? 28 : 22} viewBox="0 0 24 18"
         className="transition-all duration-150"
         style={{ filter: hovering ? "drop-shadow(0 0 12px rgba(201,168,76,1))" : "drop-shadow(0 0 6px rgba(201,168,76,0.6))" }}>
@@ -103,7 +103,7 @@ function BucsCoin() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
       {/* Gentle float + slow shine, no frantic spin */}
       <div className="animate-[float_3s_ease-in-out_infinite]">
         <img
@@ -149,10 +149,10 @@ function GoldTrail() {
   return (
     <>
       {trail.map((p) => (
-        <div key={p.id} className="fixed top-0 left-0 z-[9998] pointer-events-none w-2 h-2 rounded-full bg-[#e8c86a]/60"
+        <div key={p.id} className="fixed top-0 left-0 z-[2147483646] pointer-events-none w-2 h-2 rounded-full bg-[#e8c86a]/60"
           style={{ transform: `translate(${p.x}px, ${p.y}px)`, marginLeft: -4, marginTop: -4 }} />
       ))}
-      <div ref={dotRef} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -4, marginTop: -4 }}>
+      <div ref={dotRef} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -4, marginTop: -4 }}>
         <div className="w-2 h-2 rounded-full bg-[#C9A84C] shadow-[0_0_10px_rgba(201,168,76,1)]" />
       </div>
     </>
@@ -169,7 +169,7 @@ function Lightning() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -10, marginTop: -14 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -10, marginTop: -14 }}>
       <svg width="24" height="32" viewBox="0 0 24 32" className="drop-shadow-[0_0_10px_rgba(232,200,106,0.9)]">
         <path d="M13 2 L 5 18 L 11 18 L 9 30 L 19 12 L 13 12 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1" />
       </svg>
@@ -210,7 +210,7 @@ function PixelShark() {
   }, []);
 
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -24, marginTop: -24 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -24, marginTop: -24 }}>
       {/* Bubble trail */}
       {bubbles.map((id) => (
         <span
@@ -287,7 +287,7 @@ function Flame() {
     };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -16 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -14, marginTop: -16 }}>
       <svg width="28" height="36" viewBox="0 0 24 32"
         className="animate-[flicker_0.5s_ease-in-out_infinite]"
         style={{
@@ -308,7 +308,7 @@ function Diamond() {
   const hovering = useHoverState();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -14 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -16, marginTop: -14 }}>
       <svg width="32" height="28" viewBox="0 0 32 28"
         className="transition-all duration-150"
         style={{
@@ -334,7 +334,7 @@ function Star() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -18 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -18, marginTop: -18 }}>
       <svg width="36" height="36" viewBox="0 0 24 24"
         className="animate-spin"
         style={{ animationDuration: "4s", filter: "drop-shadow(0 0 10px rgba(201,168,76,0.8))" }}>
@@ -359,7 +359,7 @@ function MoneyBag() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -18, marginTop: -20 }}>
       <svg width={hovering ? 44 : 36} height={hovering ? 48 : 40} viewBox="0 0 36 40"
         className="transition-all duration-150"
         style={{ filter: "drop-shadow(0 0 10px rgba(201,168,76,0.8))" }}>
@@ -388,7 +388,7 @@ function GoldKey() {
     return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -8, marginTop: -8 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -8, marginTop: -8 }}>
       <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: turn ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s", filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
         <circle cx="10" cy="10" r="6" fill="none" stroke="#C9A84C" strokeWidth="3" />
         <path d="M14 14 L 26 26 M22 22 L 26 18 M24 24 L 28 20" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
@@ -402,7 +402,7 @@ function Trophy() {
   const hovering = useHoverState();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
       <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: hovering ? "drop-shadow(0 0 14px rgba(232,200,106,1))" : "drop-shadow(0 0 8px rgba(201,168,76,0.7))", transform: hovering ? "scale(1.15)" : "scale(1)", transition: "all 0.15s" }}>
         <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
         <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke="#C9A84C" strokeWidth="2" />
@@ -423,7 +423,7 @@ function Rocket() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -18 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -14, marginTop: -18 }}>
       <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
         <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
         <circle cx="14" cy="12" r="3" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1" />
@@ -439,7 +439,7 @@ function Crosshair() {
   const hovering = useHoverState();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
       <svg width="40" height="40" viewBox="0 0 40 40" style={{ transform: hovering ? "scale(0.85)" : "scale(1)", transition: "transform 0.15s", filter: "drop-shadow(0 0 6px rgba(201,168,76,0.8))" }}>
         <circle cx="20" cy="20" r="14" fill="none" stroke="#C9A84C" strokeWidth="2" />
         <circle cx="20" cy="20" r="3" fill="#e8c86a" />
@@ -459,7 +459,7 @@ function MusicNote() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -12, marginTop: -16 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -12, marginTop: -16 }}>
       <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
         <path d="M10 28 C 10 32, 4 32, 4 28 C 4 24, 10 24, 10 28 M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
         <ellipse cx="7" cy="28" rx="5" ry="4" fill="#C9A84C" />
@@ -482,7 +482,7 @@ function Gamepad() {
     return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -14 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -20, marginTop: -14 }}>
       <svg width="40" height="28" viewBox="0 0 40 28" className={rumble ? "animate-bounce" : ""} style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
         <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
         <circle cx="12" cy="12" r="2" fill="#0a0a0a" /><circle cx="28" cy="12" r="2" fill="#0a0a0a" />
@@ -503,7 +503,7 @@ function Camera() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -14 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ marginLeft: -18, marginTop: -14 }}>
       <svg width="36" height="28" viewBox="0 0 36 28" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
         <rect x="2" y="8" width="32" height="18" rx="4" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
         <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1.5" />
@@ -521,7 +521,10 @@ export function CustomCursor() {
   const [hideNative, setHideNative] = useState(false);
 
   useEffect(() => {
-    const shouldHide = !isTouch;
+    // In fullscreen, the custom cursor renders behind the fullscreen top layer —
+    // hiding the native cursor there leaves the user with NO cursor. Keep native.
+    const isFullscreen = !!document.fullscreenElement;
+    const shouldHide = !isTouch && !isFullscreen;
     setHideNative(shouldHide);
     if (shouldHide) {
       const style = document.createElement("style");
@@ -531,9 +534,34 @@ export function CustomCursor() {
       return () => {
         document.getElementById("bdv-custom-cursor-hide")?.remove();
       };
+    } else {
+      document.getElementById("bdv-custom-cursor-hide")?.remove();
     }
     return undefined;
   }, [cursor, isTouch]);
+
+  /* Re-evaluate when entering/exiting fullscreen. */
+  useEffect(() => {
+    const onFsChange = () => {
+      const isFs = !!document.fullscreenElement;
+      if (isFs) {
+        document.getElementById("bdv-custom-cursor-hide")?.remove();
+        setHideNative(false);
+      } else if (!isTouch) {
+        // Re-apply the hide when leaving fullscreen (non-touch only).
+        const existing = document.getElementById("bdv-custom-cursor-hide");
+        if (!existing) {
+          const style = document.createElement("style");
+          style.id = "bdv-custom-cursor-hide";
+          style.textContent = "* { cursor: none !important; }";
+          document.head.appendChild(style);
+        }
+        setHideNative(true);
+      }
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, [isTouch]);
 
   if (isTouch || !hideNative) return null;
 
