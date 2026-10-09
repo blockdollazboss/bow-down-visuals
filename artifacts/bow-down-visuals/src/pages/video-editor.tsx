@@ -2378,8 +2378,8 @@ export default function VideoEditor() {
                 )}
                 {/* ── MASTER PLAYER — docked: fills the center column edge-to-edge,
                     connected to the timeline below. No floating, no centering. ── */}
-                <div className="shrink-0 z-20 bg-black flex">
-                  <div className="w-full">
+                <div className="shrink-0 z-20 bg-black flex justify-center">
+                  <div className="w-full flex justify-center">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
                       eng={previewEngineState}
@@ -3850,7 +3850,7 @@ function MasterPreviewPlayer({
         data-testid="master-player-canvas"
         ref={compareTrackRef}
         className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
-        style={{ aspectRatio: arCss, width: "100%", height: isFullscreen ? "100%" : "auto", maxWidth: "100%" }}
+        style={{ aspectRatio: arCss, width: isFullscreen ? "100%" : floatWidth, height: isFullscreen ? "100%" : "auto", maxWidth: "100%" }}
       >
         {/* ── Blur-background layer (fit mode = blur) ── */}
         {fitMode === "blur" && !isFullscreen && !isMinimized && (
