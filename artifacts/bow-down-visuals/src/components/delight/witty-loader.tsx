@@ -16,6 +16,15 @@ const FALLBACK_LINES = [
   "Lighting the throne room…",
 ];
 
+/* Rotating feature highlight promos - shown below the status line */
+const FEATURE_PROMOS = [
+  { title: "Refer & Earn", desc: "Invite creators, earn 25% of their credit purchases for 90 days." },
+  { title: "AI Music Videos", desc: "Turn your songs into cinematic music videos in minutes." },
+  { title: "Viral Thumbnails", desc: "Scroll-stopping thumbnails with AI A/B testing." },
+  { title: "Thy Hook Vault", desc: "Hooks engineered to stop the scroll." },
+  { title: "4K Masterpiece Exports", desc: "Crystal-clear 4K quality on every export." },
+];
+
 export function useWittyLine(intervalMs = 2200): string {
   const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
@@ -36,9 +45,24 @@ export default function WittyLoader({ message }: { message?: string }) {
   const { t } = useTranslation();
   const line = message ?? witty;
 
+  const [promoIdx, setPromoIdx] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setPromoIdx((i) => (i + 1) % FEATURE_PROMOS.length), 4000);
+    return () => window.clearInterval(id);
+  }, []);
+  const promo = FEATURE_PROMOS[promoIdx % FEATURE_PROMOS.length]!;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* ambient gold glow — the throne room is never dark */}
+      {/* Promo background - Shark King with Visual Bucs */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-cover bg-center opacity-40"
+        style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
+      />
+      {/* Dark overlay for text readability */}
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+      {/* ambient gold glow - the throne room is never dark */}
       <div
         aria-hidden
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[560px] rounded-full bg-primary/[0.07] blur-[130px] pointer-events-none"
@@ -60,6 +84,11 @@ export default function WittyLoader({ message }: { message?: string }) {
         <p className="text-white/30 text-xs">
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
+        {/* Rotating feature promo */}
+        <div key={promoIdx} className="mt-4 max-w-xs animate-in fade-in duration-500">
+          <p className="text-primary font-black text-sm uppercase tracking-wider">{promo.title}</p>
+          <p className="text-white/50 text-xs mt-1">{promo.desc}</p>
+        </div>
       </div>
     </div>
   );
