@@ -587,7 +587,7 @@
     "contests": "Contests",
     "coverArt": "Cover Art",
     "create": "Thy Lab",
-    "creatorVault": "Creator Vault",
+    "creatorVault": "Creative Vault",
     "creditHistory": "Credit History",
     "credits": "Visual Bucs",
     "dailyBonus": "Daily Bonus",
@@ -11976,12 +11976,32 @@
     "levelUp_copied": "Copied",
     "levelUp_dismiss": "Keep creating",
     "levelUp_shareText": "I just hit {rank} ({stars}★) on Bow Down Visuals — the content creation cheat code. 🦈",
-    "levelUp_unlocks_1": ["One-tap AI autopilot flows", "The essential generate button, nothing else"],
-    "levelUp_unlocks_2": ["Style presets & guided picks", "AI still runs it, you approve"],
-    "levelUp_unlocks_3": ["Tweak options: variations, tone, length", "Your taste, AI speed"],
-    "levelUp_unlocks_4": ["Advanced settings panels", "Manual prompt editing"],
-    "levelUp_unlocks_5": ["Pro controls: model pickers", "Quality & format controls", "Batch generation"],
-    "levelUp_unlocks_6": ["Every knob, every setting", "Raw manual overrides", "Experimental features"],
+    "levelUp_unlocks_1": [
+      "One-tap AI autopilot flows",
+      "The essential generate button, nothing else"
+    ],
+    "levelUp_unlocks_2": [
+      "Style presets & guided picks",
+      "AI still runs it, you approve"
+    ],
+    "levelUp_unlocks_3": [
+      "Tweak options: variations, tone, length",
+      "Your taste, AI speed"
+    ],
+    "levelUp_unlocks_4": [
+      "Advanced settings panels",
+      "Manual prompt editing"
+    ],
+    "levelUp_unlocks_5": [
+      "Pro controls: model pickers",
+      "Quality & format controls",
+      "Batch generation"
+    ],
+    "levelUp_unlocks_6": [
+      "Every knob, every setting",
+      "Raw manual overrides",
+      "Experimental features"
+    ],
     "board_title": "Weekly Leaderboard",
     "board_reset": "Resets Monday",
     "board_creations": "creations",
