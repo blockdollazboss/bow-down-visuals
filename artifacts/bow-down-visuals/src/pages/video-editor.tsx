@@ -389,15 +389,12 @@ export default function VideoEditor() {
     setRightPanelWidth(PANEL_DEFAULT);
     try { localStorage.removeItem("bdv:rightPanelWidth"); } catch { /* ignore */ }
   }, []);
-  /* Auto-expand the right panel when a right-side tab is selected,
-     auto-collapse when a left-side tab is selected (avoid empty black void).
-     Mirror for the left panel: collapse on right tabs, expand on left tabs. */
+  /* Selecting a tab expands its side's panel. Panels are independent —
+     both sides can be open at the same time; the user collapses each manually. */
   useEffect(() => {
     if (RIGHT_TABS.has(tab)) {
       setRightPanelCollapsed(false);
-      setPanelCollapsed(true);
     } else {
-      setRightPanelCollapsed(true);
       setPanelCollapsed(false);
     }
   }, [tab]);
