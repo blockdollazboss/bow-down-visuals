@@ -602,7 +602,7 @@ function TimelinePreviewPlayer({
       className={
         isFullscreen
           ? "bg-[#080808] flex flex-col w-full h-full overflow-hidden"
-          : "rounded-xl border border-primary/20 bg-[#080808] overflow-hidden"
+          : "bg-[#080808] flex flex-col w-full h-full overflow-hidden"
       }
     >
       {/* Hidden audio element — IS the master clock */}
@@ -742,7 +742,7 @@ function TimelinePreviewPlayer({
 
       {/* ── Controls ─────────────────────────────────────────── */}
       <div
-        className={`px-4 py-3 border-t border-white/[0.05] space-y-3 ${isFullscreen ? "overflow-y-auto max-h-64 shrink-0" : ""}`}
+        className="px-4 py-3 border-t border-white/[0.05] space-y-3 shrink-0"
       >
         {/* Caption overlay info */}
         {!isFullscreen && (
