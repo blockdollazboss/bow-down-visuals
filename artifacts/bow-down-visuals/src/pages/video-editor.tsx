@@ -2462,6 +2462,37 @@ export default function VideoEditor() {
 
                   </div>
                 </div>
+                {/* ── Panel size sync: 5 presets set BOTH sides to the same width ── */}
+                <div className="shrink-0 flex items-center justify-center gap-1.5 py-2">
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider mr-1">Panels:</span>
+                  {PANEL_SNAPS.map((s, i) => {
+                    const synced = panelWidth === s && rightPanelWidth === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        title={`Set both panels to ${s}px (preset ${i + 1} of 5)`}
+                        onClick={() => {
+                          panelWidthRef.current = s;
+                          setPanelWidth(s);
+                          rightPanelWidthRef.current = s;
+                          setRightPanelWidth(s);
+                          try {
+                            localStorage.setItem("bdv:panelWidth", String(s));
+                            localStorage.setItem("bdv:rightPanelWidth", String(s));
+                          } catch { /* ignore */ }
+                        }}
+                        className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                          synced
+                            ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
+                            : "bg-white/5 text-white/40 border border-white/10 hover:text-white hover:border-white/30"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="shrink-0 px-4 md:px-6 w-full max-w-6xl mx-auto">
                   {/* Active Artist pill */}
                   {activeArtist && (() => {
