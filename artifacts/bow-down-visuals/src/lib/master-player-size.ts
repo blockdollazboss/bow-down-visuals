@@ -77,26 +77,16 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
     input.columnWidth > 0 ? input.columnWidth : Infinity
   );
 
-  /* Fill the frame: as wide as possible while fitting the vertical band,
-   * so the player fills the empty space without sliding under the timeline. */
+  /* Simple division: player fills the available space.
+   * Width = min(column width, vertical band * aspect ratio).
+   * This keeps the player in frame for any aspect ratio, centered. */
   const fitW = Math.min(maxW, bandH * aspect);
 
-  /* Grow landscape-ish formats so 16:9 never renders as a thin strip —
-   * but never beyond what actually fits. */
-  const desired = Math.max(input.savedWidth, MASTER_PLAYER_MIN_HEIGHT * aspect);
-
-  /* If the saved width is stale/tiny compared to the available fit, ignore it
-   * and fill the space. Only respect savedWidth when it's close to the fit
-   * (user deliberately sized it). */
-  const fitWForDesired = Math.min(maxW, bandH * aspect);
-  const effectiveDesired = desired > fitWForDesired * 0.9 ? desired : fitWForDesired;
-
-  /* The min-width floor must never bust the fit: clamp the floor itself.
-   * When the band is tiny the video shrinks (chrome stays visible); when
-   * the band is gone entirely the canvas collapses to 0 but the transport
-   * rows — separate flex children — still render. */
-  const floor = Math.min(MASTER_PLAYER_MIN_WIDTH, fitW);
-  const width = Math.max(floor, Math.min(effectiveDesired, fitW));
+  /* Respect user's saved width only if it's within the fit (they sized it
+   * deliberately). Otherwise fill the available space. */
+  const width = input.savedWidth > 0 && input.savedWidth <= fitW
+    ? input.savedWidth
+    : fitW;
 
   return { width: Math.round(width), height: Math.round(width / aspect) };
 }
