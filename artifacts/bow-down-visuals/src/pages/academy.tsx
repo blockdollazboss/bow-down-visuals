@@ -15,6 +15,12 @@ import {
 } from "@/lib/academy-courses";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import Guides from "@/pages/guides";
+import CopyrightAssistant from "@/pages/copyright";
+import LlcGuide from "@/pages/llc-guide";
+import CommunityManager from "@/pages/community";
+
+type AcademyTab = "academy" | "guides" | "copyright" | "llc" | "community";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
  The education hub for creators: a free-to-browse course catalog with
@@ -125,7 +131,7 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
  return data;
 }
 
-export default function CreatorAcademy() {
+function AcademyMain() {
  const { t } = useTranslation();
  usePageTitle(t("academy.pageTitle"), t("academy.pageDescription"));
  const { user, getAccessToken, refreshProfile } = useAuth();
@@ -818,4 +824,48 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
  </div>
  );
+}
+
+/* ─── Tabbed wrapper ─── */
+export default function CreatorAcademy() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<AcademyTab>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (q === "guides" || q === "copyright" || q === "llc" || q === "community") return q;
+    } catch { /* non-browser — ignore */ }
+    return "academy";
+  });
+
+  const TABS: Array<{ key: AcademyTab; label: string }> = [
+    { key: "academy", label: t("academy.tabAcademy", { defaultValue: "Academy" }) },
+    { key: "guides", label: t("academy.tabGuides", { defaultValue: "Guides" }) },
+    { key: "copyright", label: t("academy.tabCopyright", { defaultValue: "Copyright" }) },
+    { key: "llc", label: t("academy.tabLlc", { defaultValue: "LLC Guide" }) },
+    { key: "community", label: t("academy.tabCommunity", { defaultValue: "Community" }) },
+  ];
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-5xl px-4 pt-8">
+        <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                tab === key
+                  ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
+                  : "text-white/50 hover:text-white/80 border border-white/10"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "academy" ? <AcademyMain /> : tab === "guides" ? <Guides /> : tab === "copyright" ? <CopyrightAssistant /> : tab === "llc" ? <LlcGuide /> : <CommunityManager />}
+    </div>
+  );
 }

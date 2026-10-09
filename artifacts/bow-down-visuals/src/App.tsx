@@ -142,12 +142,9 @@ const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const BrandingKit = lazyWithRetry(() => import("@/pages/branding-kit"));
 const AnalyticsHub = lazyWithRetry(() => import("@/pages/analytics-hub"));
 const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
-const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
-const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
-const Guides = lazyWithRetry(() => import("@/pages/guides"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
@@ -183,7 +180,6 @@ const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
 const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
 const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
-const Community = lazyWithRetry(() => import("@/pages/community"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
@@ -512,14 +508,14 @@ function AppShell() {
           <Route path="/analytics-hub"><AnalyticsHub /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
           <Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>
-          <Route path="/copyright"><CopyrightAssistant /></Route>
-          <Route path="/llc-guide"><LlcGuide /></Route>
+          <Route path="/copyright"><Redirect to="/academy?tab=copyright" /></Route>
+          <Route path="/llc-guide"><Redirect to="/academy?tab=llc" /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:id"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
-          <Route path="/guides"><Guides /></Route>
+          <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/repurpose?mode=stream" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
           <Route path="/nfc-cards"><NfcCards /></Route>
@@ -609,7 +605,7 @@ function AppShell() {
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
-                <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>
+                <Route path="/community"><Redirect to="/academy?tab=community" /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
                 <Route path="/mix-master"><Redirect to="/audio-studio?tab=master" /></Route>
                 <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
