@@ -51,6 +51,7 @@ import {
 import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { captionFontFamily } from "@/lib/fonts";
+import { getLibraryPreset } from "@/data/library-presets";
 import {
   COMPARE_POS_DEFAULT,
   COMPARE_POS_MIN,
@@ -166,6 +167,56 @@ const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Cinematic Contrast":  "contrast(155%) saturate(88%) brightness(90%)",
 };
 
+/* ─── Thy Library deep-link maps ──────────────────────────────────────────
+   Library preset slugs → the editor's built-in, export-safe catalogs.
+   The library's 30 fx / 20 text-style / 15 transition presets are curated
+   vibes; the editor only burns built-in names on export (see
+   api-server effects-ffmpeg.ts), so each slug maps to its closest built-in
+   rather than inventing a filter the export can't reproduce. */
+const LIBRARY_FX_TO_EFFECT: Record<string, string> = {
+  "fx-gold-hour": "Luxury Gold", "fx-cinematic-teal": "Teal & Orange",
+  "fx-noir": "Black & White", "fx-vintage-film": "Warm Grade",
+  "fx-neon-nights": "Neon Glow", "fx-moody-blue": "Moody Desaturated",
+  "fx-sunset-bloom": "Warm Grade", "fx-cyberpunk": "Street Night",
+  "fx-forest-mist": "Moody Desaturated", "fx-desert-heat": "Warm Grade",
+  "fx-arctic": "Cool Grade", "fx-blood-moon": "Vibrant Pop",
+  "fx-lavender-dream": "Cool Grade", "fx-emerald-city": "Teal & Orange",
+  "fx-champagne": "Glow", "fx-midnight-oil": "Vignette",
+  "fx-candy-pop": "Vibrant Pop", "fx-old-money": "Moody Desaturated",
+  "fx-toxic": "Neon Glow", "fx-ultraviolet": "Cool Grade",
+  "fx-paper-white": "Glow", "fx-ember": "Warm Grade",
+  "fx-tide": "Teal & Orange", "fx-royal": "Luxury Gold",
+  "fx-static-vhs": "VHS", "fx-rose-gold": "Luxury Gold",
+  "fx-ink-black": "Moody Desaturated", "fx-honey": "Warm Grade",
+  "fx-storm": "Moody Desaturated", "fx-gilded": "Luxury Gold",
+};
+
+/* Library text-style slugs → caption font ids (the 12 Google Fonts loaded in
+   index.html; Playfair Display isn't loaded, so luxe/royal map to Cinzel). */
+const LIBRARY_TEXTSTYLE_TO_FONT: Record<string, string> = {
+  "txt-beast-mode": "anton", "txt-luxe-serif": "cinzel",
+  "txt-street-tag": "marker", "txt-neon-glow": "bebas",
+  "txt-bubble-pop": "titan", "txt-condensed-punch": "barlow",
+  "txt-slab-authority": "alfa-slab", "txt-archivo-black": "archivo",
+  "txt-righteous": "righteous", "txt-bungee": "bungee",
+  "txt-cinzel": "cinzel", "txt-luckiest": "luckiest",
+  "txt-poppins-bold": "poppins", "txt-gold-foil": "cinzel",
+  "txt-chrome": "archivo", "txt-outline-only": "anton",
+  "txt-shadow-drop": "bebas", "txt-glitch": "archivo",
+  "txt-handwritten": "marker", "txt-royal-script": "cinzel",
+};
+
+const LIBRARY_TRANSITION_MAP: Record<string, string> = {
+  "tr-whip-pan": "Whip Pan", "tr-zoom-burst": "Zoom",
+  "tr-glitch-cut": "Glitch", "tr-spin-in": "Spin",
+  "tr-slide-wipe": "Slide", "tr-fade-through": "Crossfade",
+  "tr-light-leak": "Light Leak", "tr-shake-hit": "Flash",
+  "tr-page-turn": "Slide", "tr-morph-zoom": "Zoom",
+  "tr-split-screen": "Slide", "tr-ink-bleed": "Blur Dissolve",
+  "tr-flash-cut": "Flash", "tr-vertigo": "Zoom",
+  "tr-gold-sweep": "Light Leak",
+};
+
 function buildEffectFilter(effects: string[]): string {
   return effects
     .map((fx) => EFFECT_CSS_FILTERS[fx])
@@ -244,6 +295,10 @@ export default function VideoEditor() {
     try { localStorage.setItem("bdv:autosave", String(autosaveEnabled)); } catch {}
   }, [autosaveEnabled]);
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  /* Thy Library transition deep-link (?transition=<slug>): scenes load async,
+     so the mapped transition parks here until scenes arrive, then applies
+     to every clip exactly once. */
+  const pendingTransitionRef = useRef<string | null>(null);
   /* ── Resizable tool panel: drag the divider between the panel and the
      preview to size it. Width persists per browser. Double-click resets. ── */
   const PANEL_MIN = 240;
@@ -366,6 +421,69 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* ── Thy Library deep-links (?fx= / ?textstyle= / ?transition=) ──────────
+     Each slug resolves against the library preset catalog, then maps to the
+     editor's built-in export-safe catalog (see LIBRARY_*_MAP above).
+     ?fx= activates the effect + opens the Effects tab.
+     ?textstyle= sets the caption font + opens the Text tab.
+     ?transition= parks in pendingTransitionRef and applies to every clip
+     once scenes load (they're async) + opens the Timeline tab.
+     Unknown slugs are ignored — never throws, never blocks the editor. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fxSlug = params.get("fx");
+      if (fxSlug) {
+        const preset = getLibraryPreset(fxSlug);
+        const mapped = preset && preset.category === "Effects" ? LIBRARY_FX_TO_EFFECT[preset.slug] : undefined;
+        if (mapped) {
+          setSettings((prev) => ({
+            ...prev,
+            effects: prev.effects.includes(mapped) ? prev.effects : [...prev.effects, mapped],
+          }));
+          setTab("effects");
+        }
+      }
+      const tsSlug = params.get("textstyle");
+      if (tsSlug) {
+        const preset = getLibraryPreset(tsSlug);
+        const fontId = preset && preset.category === "Text Styles" ? LIBRARY_TEXTSTYLE_TO_FONT[preset.slug] : undefined;
+        if (fontId) {
+          setSettings((prev) => ({
+            ...prev,
+            captions: { ...prev.captions, fontFamily: fontId },
+          }));
+          setTab("captions");
+        }
+      }
+      const trSlug = params.get("transition");
+      if (trSlug) {
+        const preset = getLibraryPreset(trSlug);
+        const mapped = preset && preset.category === "Transitions" ? LIBRARY_TRANSITION_MAP[preset.slug] : undefined;
+        if (mapped) {
+          pendingTransitionRef.current = mapped;
+          setTab("timeline");
+        }
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* Applies the parked library transition to every clip once scenes exist. */
+  useEffect(() => {
+    const mapped = pendingTransitionRef.current;
+    if (!mapped || scenes.length === 0) return;
+    pendingTransitionRef.current = null;
+    setSettings((prev) => {
+      const next = { ...prev.clips };
+      for (const s of scenes) {
+        next[s.id] = { ...defaultClipEdit(), ...(next[s.id] ?? {}), transition: mapped };
+      }
+      return { ...prev, clips: next };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenes]);
   /* Wave 9A Lyrics-to-Timeline handoff: a caption plan drafted in the Music
      Studio's Lyrics-to-Timeline panel lands here as caption lines so the
      creator can style them immediately. One-shot: key removed on pickup. */

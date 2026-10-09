@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useHubProject } from "@/lib/hub-project";
+import { getLibraryTemplate } from "@/data/library-templates";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -65,6 +66,24 @@ export function IntrosOutrosTool() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [recent, setRecent] = useState<RecentSting[]>([]);
   const pollRef = useRef<number | null>(null);
+
+  /* Template deep-link: ?template=<slug> from Thy Library pre-selects the
+     sting type (intro/outro from the slug prefix) and seeds the tagline with
+     the template's vibe when the field is empty. Unknown slugs are ignored. */
+  useEffect(() => {
+    try {
+      const slug = new URLSearchParams(window.location.search).get("template");
+      if (!slug) return;
+      const tpl = getLibraryTemplate(slug);
+      if (!tpl || tpl.category !== "Intros & Outros") return;
+      if (slug.startsWith("outro-")) setType("outro");
+      else if (slug.startsWith("intro-")) setType("intro");
+      setTagline((prev) => (prev.trim() ? prev : `${tpl.title} — ${tpl.blurb}`.slice(0, 80)));
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Poll the Seedance task until it completes. Server-owned: safe to
      keep this tab open or come back later. */
