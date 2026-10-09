@@ -390,12 +390,15 @@ export default function VideoEditor() {
     try { localStorage.removeItem("bdv:rightPanelWidth"); } catch { /* ignore */ }
   }, []);
   /* Auto-expand the right panel when a right-side tab is selected,
-     auto-collapse when a left-side tab is selected (avoid empty black void) */
+     auto-collapse when a left-side tab is selected (avoid empty black void).
+     Mirror for the left panel: collapse on right tabs, expand on left tabs. */
   useEffect(() => {
     if (RIGHT_TABS.has(tab)) {
       setRightPanelCollapsed(false);
+      setPanelCollapsed(true);
     } else {
       setRightPanelCollapsed(true);
+      setPanelCollapsed(false);
     }
   }, [tab]);
   /* LUT Import handoff: graded clip URL pre-loads the multi-ratio export card. */
