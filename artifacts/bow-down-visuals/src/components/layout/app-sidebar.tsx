@@ -541,7 +541,7 @@ export function AppSidebar() {
             )}
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? profile.email}</p>
+                <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? "Creator"}</p>
                 <Link
                   href="/pricing"
                   title="View ranks"
