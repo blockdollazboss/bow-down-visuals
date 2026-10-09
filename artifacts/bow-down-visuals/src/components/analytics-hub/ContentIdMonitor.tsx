@@ -489,7 +489,7 @@ export default function ContentIdMonitor() {
                 Your tracks
               </h2>
               <Link
-                href="/distribute"
+                href="/coach?tab=distribute"
                 className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
               >
                 Protect a release <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

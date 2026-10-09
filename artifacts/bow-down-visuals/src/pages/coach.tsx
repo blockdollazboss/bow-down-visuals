@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
  DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
  Play, Camera, Music2, Copy,
+ Handshake, Megaphone, Coffee, Disc3, Crown, Store, ShoppingBag,
+ Rocket, Newspaper, Mail, Users, Trophy, Gift, UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +14,22 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
+
+/* ── Money-hub tabs: former standalone pages, now lazy-loaded tabs ─────── */
+const BrandDeals = lazy(() => import("@/pages/brand-deals"));
+const Shoutouts = lazy(() => import("@/pages/shoutouts"));
+const Tips = lazy(() => import("@/pages/tips"));
+const Beats = lazy(() => import("@/pages/beats"));
+const Memberships = lazy(() => import("@/pages/memberships"));
+const Storefronts = lazy(() => import("@/pages/storefronts"));
+const MyShop = lazy(() => import("@/pages/my-shop"));
+const Distribute = lazy(() => import("@/pages/distribute"));
+const PressKit = lazy(() => import("@/pages/press-kit"));
+const EmailList = lazy(() => import("@/pages/email-list"));
+const Collabs = lazy(() => import("@/pages/collabs"));
+const Contests = lazy(() => import("@/pages/contests"));
+const Referrals = lazy(() => import("@/pages/referrals"));
+const TeamPage = lazy(() => import("@/pages/team"));
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -119,14 +137,82 @@ export default function MonetizationCoach() {
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
- const [activeTab, setActiveTab] = useState<"plan" | "niche" | "money">("plan");
+/* ── Money-hub tab groups ─────────────────────────────────────────────── */
+type CoachTab =
+  | "plan" | "niche" | "money"
+  | "brand-deals" | "shoutouts" | "tips" | "beats" | "memberships"
+  | "distribute" | "storefronts" | "my-shop"
+  | "press-kit" | "email-list" | "collabs" | "contests" | "referrals" | "team";
+
+interface CoachTabDef { key: CoachTab; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
+interface CoachTabGroup { id: string; labelKey: string; defaultLabel: string; tabs: CoachTabDef[]; }
+
+const COACH_TAB_GROUPS: CoachTabGroup[] = [
+  {
+    id: "plan", labelKey: "coach.tabGroupPlan", defaultLabel: "Plan",
+    tabs: [
+      { key: "plan", labelKey: "coach.tabPlan", defaultLabel: "Money Plan", Icon: Target },
+      { key: "niche", labelKey: "coach.tabNiche", defaultLabel: "Niche Analyzer", Icon: Sparkles },
+    ],
+  },
+  {
+    id: "track", labelKey: "coach.tabGroupTrack", defaultLabel: "Track",
+    tabs: [
+      { key: "money", labelKey: "coach.tabMoneyTracker", defaultLabel: "Money Tracker", Icon: Wallet },
+    ],
+  },
+  {
+    id: "earn", labelKey: "coach.tabGroupEarn", defaultLabel: "Earn",
+    tabs: [
+      { key: "brand-deals", labelKey: "coach.tabBrandDeals", defaultLabel: "Brand Deals", Icon: Handshake },
+      { key: "shoutouts", labelKey: "coach.tabShoutouts", defaultLabel: "Shoutouts", Icon: Megaphone },
+      { key: "tips", labelKey: "coach.tabTips", defaultLabel: "Tips", Icon: Coffee },
+      { key: "beats", labelKey: "coach.tabBeats", defaultLabel: "Sell Beats", Icon: Disc3 },
+      { key: "memberships", labelKey: "coach.tabMemberships", defaultLabel: "Memberships", Icon: Crown },
+    ],
+  },
+  {
+    id: "sell", labelKey: "coach.tabGroupSell", defaultLabel: "Sell",
+    tabs: [
+      { key: "distribute", labelKey: "coach.tabDistribute", defaultLabel: "Distribute", Icon: Rocket },
+      { key: "storefronts", labelKey: "coach.tabStorefronts", defaultLabel: "Storefronts", Icon: Store },
+      { key: "my-shop", labelKey: "coach.tabMyShop", defaultLabel: "My Shop", Icon: ShoppingBag },
+    ],
+  },
+  {
+    id: "grow", labelKey: "coach.tabGroupGrow", defaultLabel: "Grow",
+    tabs: [
+      { key: "press-kit", labelKey: "coach.tabPressKit", defaultLabel: "Press Kit", Icon: Newspaper },
+      { key: "email-list", labelKey: "coach.tabEmailList", defaultLabel: "Email List", Icon: Mail },
+      { key: "collabs", labelKey: "coach.tabCollabs", defaultLabel: "Collabs", Icon: Users },
+      { key: "contests", labelKey: "coach.tabContests", defaultLabel: "Contests", Icon: Trophy },
+      { key: "referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
+      { key: "team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
+    ],
+  },
+];
+
+const ALL_COACH_TABS = COACH_TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
+
+function HubTabFallback() {
+  return (
+    <div className="flex items-center justify-center py-24 text-white/40">
+      <Loader2 className="h-6 w-6 animate-spin" />
+    </div>
+  );
+}
+
+ const [activeTab, setActiveTab] = useState<CoachTab>("plan");
  const search = useSearch();
 
- /* Deep-link: /coach?tab=money (e.g. from a paid brand deal or invoice)
-    lands directly on the Money Tracker tab. */
+ /* Deep-link: /coach?tab=<coach-tab> (e.g. from a paid brand deal or
+    invoice) lands directly on that tab. Optional &subtab= forwards an
+    inner tab to embedded pages (distribute: releases|new|plan;
+    brand-deals: finder|pitch|marketplace). */
+ const distributeSubTab = new URLSearchParams(search).get("subtab");
  useEffect(() => {
  const tab = new URLSearchParams(search).get("tab");
- if (tab === "money" || tab === "niche" || tab === "plan") setActiveTab(tab);
+ if (tab && (ALL_COACH_TABS as string[]).includes(tab)) setActiveTab(tab as CoachTab);
  }, [search]);
 
  function togglePlatform(key: PlatformKey) {
@@ -222,25 +308,31 @@ export default function MonetizationCoach() {
  </p>
  </div>
 
- {/* ── TABS: money plan vs niche analyzer vs money tracker ─────────── */}
+ {/* ── TABS: grouped money-hub navigation ─────────────────────────── */}
  <div className="relative mt-8 flex justify-center">
- <div className="inline-flex flex-wrap justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
- {([
- { key: "plan", label: "Money Plan" },
- { key: "niche", label: "Niche Analyzer" },
- { key: "money", label: t("coach.tabMoneyTracker") },
- ] as const).map((tab) => (
+ <div className="flex flex-wrap justify-center gap-x-5 gap-y-4 max-w-4xl">
+ {COACH_TAB_GROUPS.map((group) => (
+ <div key={group.id} className="flex flex-col items-center gap-1.5">
+ <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+ {t(group.labelKey, { defaultValue: group.defaultLabel })}
+ </span>
+ <div className="inline-flex flex-wrap justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 gap-1">
+ {group.tabs.map((tab) => (
  <button
  key={tab.key}
  onClick={() => setActiveTab(tab.key)}
- className={`rounded-xl px-6 py-2.5 text-sm font-bold transition ${
+ className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold transition ${
  activeTab === tab.key
  ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
  : "text-white/55 hover:text-white"
  }`}
  >
- {tab.label}
+ <tab.Icon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(tab.labelKey, { defaultValue: tab.defaultLabel })}
  </button>
+ ))}
+ </div>
+ </div>
  ))}
  </div>
  </div>
@@ -249,6 +341,26 @@ export default function MonetizationCoach() {
  <MoneyTrackerPanel />
  ) : activeTab === "niche" ? (
  <NicheAnalyzerPanel />
+ ) : activeTab !== "plan" ? (
+ /* ── Embedded money-hub pages (lazy) ──────────────────────────── */
+ <Suspense fallback={<HubTabFallback />}>
+ <div className="relative mt-6">
+ {activeTab === "brand-deals" && <BrandDeals key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "pitch" || distributeSubTab === "finder" || distributeSubTab === "marketplace" ? distributeSubTab : undefined} />}
+ {activeTab === "shoutouts" && <Shoutouts />}
+ {activeTab === "tips" && <Tips />}
+ {activeTab === "beats" && <Beats />}
+ {activeTab === "memberships" && <Memberships />}
+ {activeTab === "distribute" && <Distribute key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "plan" || distributeSubTab === "new" || distributeSubTab === "releases" ? distributeSubTab : undefined} />}
+ {activeTab === "storefronts" && <Storefronts />}
+ {activeTab === "my-shop" && <MyShop />}
+ {activeTab === "press-kit" && <PressKit />}
+ {activeTab === "email-list" && <EmailList />}
+ {activeTab === "collabs" && <Collabs />}
+ {activeTab === "contests" && <Contests />}
+ {activeTab === "referrals" && <Referrals />}
+ {activeTab === "team" && <TeamPage />}
+ </div>
+ </Suspense>
  ) : (
  <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}

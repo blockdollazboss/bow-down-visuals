@@ -239,7 +239,7 @@ export default function PromoteButton({ product }: { product: StoreProductDTO })
                 </p>
               )}
               {emailState === "done" && (
-                <Link href="/email-list">
+                <Link href="/coach?tab=email-list">
                   <span className="mt-1 inline-block cursor-pointer px-1 text-[11px] font-bold text-primary">
                     Open your email list →
                   </span>

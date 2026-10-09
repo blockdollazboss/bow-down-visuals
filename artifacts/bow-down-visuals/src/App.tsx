@@ -125,14 +125,9 @@ const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
-const BrandDealFinder = lazyWithRetry(() => import("@/pages/brand-deals"));
-const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const SplitsAgreement = lazyWithRetry(() => import("@/pages/splits-agreement"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
-const Tips = lazyWithRetry(() => import("@/pages/tips"));
-const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
-const TeamPage = lazyWithRetry(() => import("@/pages/team"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const AudioStudio = lazyWithRetry(() => import("@/pages/audio-studio"));
@@ -156,7 +151,6 @@ const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
 const Movies = lazyWithRetry(() => import("@/pages/movies"));
 const WebsiteBuilder = lazyWithRetry(() => import("@/pages/website-builder"));
 const MediaDetector = lazyWithRetry(() => import("@/pages/media-detector"));
-const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 /* ── Worker 9: community — groups / events / DMs / explore ── */
 const Groups = lazyWithRetry(() => import("@/pages/groups"));
 const GroupDetail = lazyWithRetry(() => import("@/pages/group-detail"));
@@ -165,23 +159,15 @@ const EventDetailPage = lazyWithRetry(() => import("@/pages/event-detail"));
 const Messages = lazyWithRetry(() => import("@/pages/messages"));
 const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
-const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
-const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
-const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
 const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
 const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
 const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
-const Contests = lazyWithRetry(() => import("@/pages/contests"));
-const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
 const MyMusic = lazyWithRetry(() => import("@/pages/my-music"));
-const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
-const Beats = lazyWithRetry(() => import("@/pages/beats"));
-const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
  *
@@ -473,22 +459,22 @@ function AppShell() {
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><Redirect to="/scheduler?tab=calendar" /></Route>
-          <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
+          <Route path="/sponsors"><Redirect to="/coach?tab=brand-deals&subtab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
-          <Route path="/brand-deals"><BrandDealFinder /></Route>
-          <Route path="/distribute"><Distribute /></Route>
+          <Route path="/brand-deals"><Redirect to="/coach?tab=brand-deals" /></Route>
+          <Route path="/distribute"><Redirect to="/coach?tab=distribute" /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
-          <Route path="/tips"><Tips /></Route>
+          <Route path="/tips"><Redirect to="/coach?tab=tips" /></Route>
           <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
           <Route path="/trending"><Trending /></Route>
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
-          <Route path="/referrals"><Referrals /></Route>
-          <Route path="/team"><TeamPage /></Route>
-          <Route path="/storefronts"><Storefronts /></Route>
+          <Route path="/referrals"><Redirect to="/coach?tab=referrals" /></Route>
+          <Route path="/team"><Redirect to="/coach?tab=team" /></Route>
+          <Route path="/storefronts"><Redirect to="/coach?tab=storefronts" /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
@@ -568,9 +554,9 @@ function AppShell() {
                 <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
                 <Route path="/website-builder"><ProtectedRoute><WebsiteBuilder /></ProtectedRoute></Route>
                 <Route path="/detector"><ProtectedRoute><MediaDetector /></ProtectedRoute></Route>
-                <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch" /></Route>
-                <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
-                <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
+                <Route path="/sponsorship-outreach"><Redirect to="/coach?tab=brand-deals&subtab=pitch" /></Route>
+                <Route path="/shoutouts"><Redirect to="/coach?tab=shoutouts" /></Route>
+                <Route path="/release-checklist"><Redirect to="/coach?tab=distribute&subtab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route path="/discord-bot"><Redirect to="/go-live?tab=discord" /></Route>
                 <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
@@ -590,13 +576,13 @@ function AppShell() {
                 <Route path="/ai-audio"><Redirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
                 <Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>
-                <Route path="/press-kit"><ProtectedRoute><PressKit /></ProtectedRoute></Route>
-                <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
-                <Route path="/collabs"><ProtectedRoute><Collabs /></ProtectedRoute></Route>
+                <Route path="/press-kit"><Redirect to="/coach?tab=press-kit" /></Route>
+                <Route path="/email-list"><Redirect to="/coach?tab=email-list" /></Route>
+                <Route path="/collabs"><Redirect to="/coach?tab=collabs" /></Route>
                 <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
                 <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
-                <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
+                <Route path="/contests"><Redirect to="/coach?tab=contests" /></Route>
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
                 <Route path="/community"><Redirect to="/academy?tab=community" /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
@@ -605,14 +591,14 @@ function AppShell() {
                 <Route path="/sfx"><Redirect to="/ai-audio?tab=sfx" /></Route>
                 <Route path="/samples"><Redirect to="/ai-audio?tab=samples" /></Route>
                 <Route path="/podcast"><Redirect to="/audio-studio?tab=podcast" /></Route>
-                <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
+                <Route path="/beats"><Redirect to="/coach?tab=beats" /></Route>
                 <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><Redirect to="/go-live?tab=shopping" /></Route>
-                <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
+                <Route path="/memberships"><Redirect to="/coach?tab=memberships" /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
-                <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/my-shop"><Redirect to="/coach?tab=my-shop" /></Route>
                 <Route path="/store/buy/:kind/:id"><StoreBuy /></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
                 <Route path="/my-music"><ProtectedRoute><MyMusic /></ProtectedRoute></Route>

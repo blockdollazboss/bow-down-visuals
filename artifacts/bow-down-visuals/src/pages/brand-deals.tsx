@@ -120,7 +120,7 @@ function fitBar(score: number): string {
   return "from-white/40 to-white/20";
 }
 
-export default function BrandDealFinder() {
+export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" | "pitch" | "marketplace" }) {
   const { t } = useTranslation();
   const { user, profile, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -131,6 +131,7 @@ export default function BrandDealFinder() {
      from the press kit still lands on the Pitch Kit tab. */
   type MainTab = "finder" | "pitch" | "marketplace";
   const [mainTab, setMainTab] = useState<MainTab>(() => {
+    if (initialTab) return initialTab;
     try {
       const q = new URLSearchParams(window.location.search);
       const forced = q.get("tab");

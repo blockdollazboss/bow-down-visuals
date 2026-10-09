@@ -2939,11 +2939,12 @@ function ReleasePlanTab() {
 
 /* ── page ────────────────────────────────────────────────────────────────── */
 
-export default function Distribute() {
+export default function Distribute({ initialTab }: { initialTab?: "releases" | "new" | "plan" }) {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [tab, setTab] = useState<"releases" | "new" | "plan">(() => {
+    if (initialTab) return initialTab;
     try { return new URLSearchParams(window.location.search).get("tab") === "plan" ? "plan" : "releases"; } catch { return "releases"; }
   });
   const [releases, setReleases] = useState<Release[]>([]);

@@ -618,7 +618,7 @@ export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
                     </button>
                     <button
                       onClick={() => {
-                        window.location.href = "/distribute";
+                        window.location.href = "/coach?tab=distribute";
                       }}
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-white/80 transition hover:border-primary/40 hover:text-primary"
                     >

@@ -321,7 +321,7 @@ export function CanvasGeneratorSection({
                 </button>
                 {addedToAssets && (
                   <Link
-                    href="/distribute"
+                    href="/coach?tab=distribute"
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white/70 transition hover:text-white"
                   >
                     Continue to Distribute →

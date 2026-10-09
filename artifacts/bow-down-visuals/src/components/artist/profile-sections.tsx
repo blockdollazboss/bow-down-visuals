@@ -417,7 +417,7 @@ export function MediaKitSection({ title, profile }: { title: string; profile: Cr
       title={title}
       action={
         <Link
-          href="/brand-deals"
+          href="/coach?tab=brand-deals"
           className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition hover:scale-105"
           style={{ backgroundColor: "var(--ap-primary)", color: "#000" }}
         >

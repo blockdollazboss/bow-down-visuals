@@ -128,7 +128,7 @@ export default function SplitsOverview() {
           will show exactly what each collaborator earns.
         </p>
         <Link
-          href="/distribute"
+          href="/coach?tab=distribute"
           className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-6 py-3 text-sm font-black text-black transition hover:scale-[1.03]"
         >
           <Disc3 className="h-4 w-4" aria-hidden="true" /> Set up splits in Distribute
@@ -174,7 +174,7 @@ export default function SplitsOverview() {
               </p>
             </div>
             <Link
-              href="/distribute"
+              href="/coach?tab=distribute"
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-primary/50 hover:text-white"
             >
               <Link2 className="h-3.5 w-3.5" aria-hidden="true" /> Edit splits
