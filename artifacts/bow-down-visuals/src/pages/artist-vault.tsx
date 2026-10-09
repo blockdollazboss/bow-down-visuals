@@ -31,6 +31,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { downloadImage } from "@/lib/download-image";
 import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
+import CartoonStudio from "@/pages/cartoon-studio";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -1588,6 +1589,12 @@ export default function ArtistVault() {
   const [wardrobeGenVaultId, setWardrobeGenVaultId] = useState<string | null>(null);
   const [wardrobeRefreshKey, setWardrobeRefreshKey] = useState(0);
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
+  const [tab, setTab] = useState<"vault" | "characters">(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      return q === "characters" ? q : "vault";
+    } catch { return "vault"; }
+  });
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
@@ -1955,6 +1962,32 @@ export default function ArtistVault() {
             ))}
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {([
+            { key: "vault", label: t("artistVault.tabVault", { defaultValue: "Vault" }) },
+            { key: "characters", label: t("artistVault.tabCharacters", { defaultValue: "Characters" }) },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                tab === key
+                  ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
+                  : "text-white/50 hover:text-white/80 border border-white/10"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "characters" ? (
+          <CartoonStudio initialTab="characters" />
+        ) : (
+        <>
 
         {/* Status banners */}
         {saveSuccess && (
@@ -2352,6 +2385,8 @@ export default function ArtistVault() {
             </div>
           )}
         </div>
+          </>
+        )}
 
       </div>
     </div>

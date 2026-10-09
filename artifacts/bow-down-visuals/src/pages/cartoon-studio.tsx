@@ -67,7 +67,7 @@ interface PollResult {
   error?: string;
 }
 
-export default function CartoonStudio() {
+export default function CartoonStudio({ initialTab }: { initialTab?: StudioTab } = {}) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -75,6 +75,7 @@ export default function CartoonStudio() {
   usePageTitle(t("cartoonStudio.pageTitle"), t("cartoonStudio.pageDescription"));
 
   const [tab, setTab] = useState<StudioTab>(() => {
+    if (initialTab) return initialTab;
     try {
       const param = new URLSearchParams(window.location.search).get("tab");
       if (param === "video" || param === "characters" || param === "cartoonize") return param;
