@@ -19,6 +19,7 @@ import { buildProToolsFilterChain, buildSpeedCurveFilter, buildKeyframeFilter, t
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
+import { recordCreation } from "../../lib/retention";
 import {
   createExportJob,
   getExportJob,
@@ -2793,6 +2794,8 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
     }
 
     await completeJob(jobId, result);
+    // Retention hook: a finished export counts as a creation day + feeds the export quest.
+    void recordCreation(ctx.userId, "export");
   } catch (err) {
     ctx.log.error({ err: err instanceof Error ? err.message : err, jobId }, "[export] background job failed");
     await failJob(jobId, normalizeJobError(err)).catch((persistErr) =>

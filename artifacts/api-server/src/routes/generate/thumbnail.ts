@@ -4,6 +4,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordThumbnailHistory } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -375,6 +376,8 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       creditsUsed,
       creditsRemaining: creditsAfter,
     });
+    // Retention hook: counts as a creation day + feeds the thumbnail quest.
+    void recordCreation(req.userId!, "thumbnail");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

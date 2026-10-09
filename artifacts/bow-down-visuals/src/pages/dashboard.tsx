@@ -13,6 +13,10 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
+import CreationStreakWidget from "@/components/CreationStreakWidget";
+import QuestsWidget from "@/components/QuestsWidget";
+import { DailyDropCard } from "@/components/DailyDropCard";
+import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
 
 
@@ -299,6 +303,15 @@ export default function Dashboard() {
             )}
           </div>
         </section>
+
+        {/* ── RETENTION: CREATION STREAK + WEEKLY QUESTS (dismissible, toggleable) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+          <CreationStreakWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
+          <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
+        </div>
+
+        {/* ── THY DAILY DROP ── */}
+        <DailyDropCard />
 
         {/* ── ACTIVE ARTIST STRIP (compact) ── */}
         {activeArtist ? (() => {

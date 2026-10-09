@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, hubProjectsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { recordCreation } from "../lib/retention";
 
 const router = Router();
 
@@ -93,6 +94,8 @@ router.put("/hub/project", requireAuth, async (req, res) => {
     });
 
   res.json({ success: true });
+  // Retention hook: saving a project counts as a creation day.
+  void recordCreation(req.userId!, "project");
 });
 
 /* Clear the synced project (local cache is cleared client-side). */

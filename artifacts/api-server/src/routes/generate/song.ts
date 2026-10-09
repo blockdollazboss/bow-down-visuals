@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -231,6 +232,8 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
+    // Retention hook: counts as a creation day + feeds the song quest.
+    void recordCreation(req.userId!, "song");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });
