@@ -39,7 +39,7 @@ export function MysteryCrate() {
   const [cooldown, setCooldown] = useState(0);
   const [loadError, setLoadError] = useState(false);
 
-  const hidden = !user || location.startsWith("/login") || location.startsWith("/signup");
+  const hidden = !user || location.startsWith("/login") || location.startsWith("/signup") || location.startsWith("/video-editor");
 
   async function api(path: string, opts?: RequestInit) {
     const token = await getAccessToken();

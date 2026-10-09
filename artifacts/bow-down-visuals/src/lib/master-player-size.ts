@@ -77,9 +77,9 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
     input.columnWidth > 0 ? input.columnWidth : Infinity
   );
 
-  /* Fill 100% of the available width. The height follows the aspect ratio —
-   * the user wants the player to take the full space. */
-  const fitW = maxW;
+  /* Fill the frame: as wide as possible while fitting the vertical band,
+   * so the player fills the empty space without sliding under the timeline. */
+  const fitW = Math.min(maxW, bandH * aspect);
 
   /* Grow landscape-ish formats so 16:9 never renders as a thin strip —
    * but never beyond what actually fits. */
