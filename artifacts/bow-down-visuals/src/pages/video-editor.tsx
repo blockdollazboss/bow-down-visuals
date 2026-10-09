@@ -4103,15 +4103,11 @@ function MasterPreviewPlayer({
       className={`relative ${
         isFullscreen
           ? "bg-black flex flex-col"
-          : `rounded-2xl p-[1.5px] bg-gradient-to-br from-[#f7dd7f] via-[#C9A84C]/60 to-[#6e5623] flex flex-col transition-shadow duration-300 ${
-              isResizingFloat
-                ? "shadow-[0_0_90px_-10px_rgba(201,168,76,0.65),0_30px_70px_-20px_rgba(0,0,0,0.95)]"
-                : "shadow-[0_0_70px_-12px_rgba(201,168,76,0.35),0_30px_70px_-20px_rgba(0,0,0,0.95)]"
-            }`
+          : "bg-black flex flex-col overflow-hidden"
       }`}
       style={{ zIndex: 1 }}
     >
-      <div className={isFullscreen ? "flex flex-col h-full bg-black" : "rounded-[calc(1rem-1.5px)] bg-black overflow-hidden flex flex-col"}>
+      <div className="flex flex-col h-full bg-black overflow-hidden">
       {!isFullscreen && (
         <div
           ref={chromeHeaderRef}
