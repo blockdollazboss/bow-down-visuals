@@ -13,6 +13,7 @@ import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
 import { GeneratingStatus } from "@/components/delight/witty-loader";
+import { CostBadge } from "@/components/CostBadge";
 
 /* ─── Higgsfield-style camera movements ─── */
 
@@ -397,7 +398,7 @@ export default function VideoStudio() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-5 w-5" /> Generate Video
+                  <Sparkles className="h-5 w-5" /> Generate Video <CostBadge cost={400} className="ml-2" />
                 </>
               )}
             </button>

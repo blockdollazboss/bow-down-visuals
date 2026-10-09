@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { CostBadge } from "@/components/CostBadge";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntelligenceChain";
@@ -22,7 +23,7 @@ import {
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
   ArrowRight, Music2, Swords, ShieldCheck, Trophy, RefreshCw, FileVideo,
   Heart, MessageCircle, Lightbulb, Clock, ChevronRight, Zap,
-  ClipboardCheck, Gauge, Ear,
+  ClipboardCheck, Gauge, Ear, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -71,6 +72,8 @@ type HubState = Record<PlatformKey, PlatformData>;
 const STORAGE_KEY = "analytics-hub-v1";
 const INSIGHT_COST = 2;
 const COMPETITOR_COST = 200;
+const COACH_COST = 100;
+const MAX_COACH_POSTS = 8;
 const MAX_HISTORY = 24;
 
 const PLATFORM_KEYS: PlatformKey[] = ["tiktok", "instagram", "youtube", "x"];
@@ -154,6 +157,33 @@ interface CompetitorResult {
   message?: string;
 }
 
+/* ─── AI Coach ─────────────────────────────────────────────────────────
+   POST /api/ai-coach: reads top posts + niche and explains WHY posts
+   won/lost, with actionable next steps. { platform, posts:
+   [{title, views, likes, comments, shares, watchTimeSec, postedAt}],
+   niche } → { insights, patterns, mistakes, nextSteps }. Costs 100
+   Visual Bucs, charged via the confirmedFetch confirmation dialog. */
+interface CoachPost {
+  title: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  watchTimeSec: number;
+  postedAt: string;
+}
+
+interface CoachResult {
+  insights?: string;
+  patterns?: string[];
+  mistakes?: string[];
+  nextSteps?: string[];
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
@@ -189,6 +219,35 @@ function loadState(): HubState {
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
+
+/* Compact number field for the AI Coach post rows. */
+function CoachNumberField({
+  label,
+  value,
+  onChange,
+  placeholder = "0",
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/40">
+        {label}
+      </label>
+      <input
+        type="number"
+        min={0}
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        className={inputClass}
+      />
+    </div>
+  );
+}
 
 const FIELD_LABELS: { key: keyof PlatformStats; labelKey: string; hintKey: string; isPercent?: boolean }[] = [
   { key: "followers", labelKey: "analyticsHub.fields.followers", hintKey: "analyticsHub.fieldHints.followers" },
@@ -802,6 +861,16 @@ export default function AnalyticsHub() {
   const [compLoading, setCompLoading] = useState(false);
   const [compError, setCompError] = useState<string | null>(null);
 
+  /* ── AI Coach section state ─────────────────────────────────────────
+     Per-post rows the creator fills in (or imports from their hub stats);
+     sent to POST /api/ai-coach via confirmedFetch. */
+  const [coachPlatform, setCoachPlatform] = useState<PlatformKey>("tiktok");
+  const [coachNiche, setCoachNiche] = useState("");
+  const [coachPosts, setCoachPosts] = useState<CoachPost[]>([]);
+  const [coachResult, setCoachResult] = useState<CoachResult | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [coachError, setCoachError] = useState<string | null>(null);
+
   /* Load persisted data once (client-side; SSR-free). Also honors
      deep-links: ?tab=intelligence opens the Content Intelligence chain,
      ?hook= prefills its Step 2; ?tab=content-id opens the Content ID tab
@@ -1048,6 +1117,90 @@ export default function AnalyticsHub() {
       setCompError(err instanceof Error ? err.message : t("analyticsHub.competitor.errorFailed"));
     } finally {
       setCompLoading(false);
+    }
+  }
+
+  /* ── AI Coach ─────────────────────────────────────────────────────── */
+  function blankCoachPost(): CoachPost {
+    return { title: "", views: 0, likes: 0, comments: 0, shares: 0, watchTimeSec: 0, postedAt: "" };
+  }
+
+  /** Prefills one post row from the hub's own top-post stat for the
+      currently selected platform — "whatever summary data exists". */
+  function importCoachPostFromStats() {
+    const stats = hub[coachPlatform].stats;
+    if (stats.topPostViews <= 0) return;
+    setCoachPosts((prev) => [
+      ...prev,
+      {
+        ...blankCoachPost(),
+        title: `${PLATFORMS[coachPlatform].label} ${t("analyticsHub.aiCoach.topPostSuffix", { defaultValue: "top post" })}`,
+        views: stats.topPostViews,
+      },
+    ]);
+  }
+
+  function updateCoachPost(idx: number, patch: Partial<CoachPost>) {
+    setCoachPosts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  }
+
+  async function askAiCoach() {
+    if (coachLoading || !user) return;
+    const posts = coachPosts
+      .filter((p) => p.title.trim().length > 0)
+      .map((p) => ({ ...p, title: p.title.trim() }));
+    if (posts.length === 0) {
+      setCoachError(
+        t("analyticsHub.aiCoach.needPost", {
+          defaultValue: "Add at least one post with a title first — that's what the coach breaks down.",
+        })
+      );
+      return;
+    }
+    setCoachLoading(true);
+    setCoachError(null);
+    setOutOfCredits(false);
+    try {
+      const token = await getAccessToken();
+      const res = await confirmedFetch("/api/ai-coach", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          platform: coachPlatform,
+          posts,
+          niche: coachNiche.trim().slice(0, 80),
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as CoachResult;
+      if (handlePaidFailure(res, data)) return;
+      if (!res.ok || (!data.insights && !Array.isArray(data.patterns))) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            t("analyticsHub.aiCoach.errorFailed", {
+              defaultValue: "The coach couldn't read your numbers. Try again.",
+            })
+        );
+      }
+      setCoachResult(data);
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("ai-coach-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setCoachError(
+        err instanceof Error
+          ? err.message
+          : t("analyticsHub.aiCoach.errorFailed", {
+              defaultValue: "The coach couldn't read your numbers. Try again.",
+            })
+      );
+    } finally {
+      setCoachLoading(false);
     }
   }
 
@@ -1583,6 +1736,314 @@ export default function AnalyticsHub() {
                       <Sparkles className="h-4 w-4" aria-hidden="true" />
                     )}
                     {t("analyticsHub.rerunPlan", { cost: INSIGHT_COST })}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── AI COACH ───────────────────────────────────────────────
+            Performance coach: the creator adds their top posts (or imports
+            the top-post stat from their hub numbers), picks a platform +
+            niche, and POST /api/ai-coach explains WHY posts won/lost with
+            actionable next steps. 100 Visual Bucs via confirmedFetch. */}
+        <div className="relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <Lightbulb className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold">
+                {t("analyticsHub.aiCoach.title", { defaultValue: "AI Performance Coach" })}
+              </h2>
+              <p className="text-sm text-white/45">
+                {t("analyticsHub.aiCoach.subtitle", {
+                  defaultValue: "Show the coach your top posts — it tells you why they won or flopped, and what to do next.",
+                })}
+              </p>
+            </div>
+          </div>
+
+          {/* platform + niche */}
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.aiCoach.platformLabel", { defaultValue: "Platform" })}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PLATFORM_KEYS.map((key) => {
+                  const { label, Mark } = PLATFORMS[key];
+                  const active = coachPlatform === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCoachPlatform(key)}
+                      aria-pressed={active}
+                      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition ${
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-white/15 bg-white/[0.04] text-white/60 hover:border-white/30 hover:text-white"
+                      }`}
+                    >
+                      <Mark className="h-4 w-4" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.aiCoach.nicheLabel", { defaultValue: "Your niche" })}
+              </label>
+              <input
+                type="text"
+                value={coachNiche}
+                onChange={(e) => setCoachNiche(e.target.value)}
+                placeholder={t("analyticsHub.aiCoach.nichePlaceholder", { defaultValue: "e.g. fitness comedy, real-estate tips…" })}
+                maxLength={80}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* post rows */}
+          <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
+            {t("analyticsHub.aiCoach.postsLabel", { defaultValue: "Your top posts" })}
+          </p>
+          <div className="space-y-3">
+            {coachPosts.map((post, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-black text-primary">
+                    {i + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={post.title}
+                    onChange={(e) => updateCoachPost(i, { title: e.target.value })}
+                    placeholder={t("analyticsHub.aiCoach.postTitlePlaceholder", { defaultValue: "Post title or what it was about…" })}
+                    maxLength={120}
+                    className={`${inputClass} flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCoachPosts((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label={t("analyticsHub.aiCoach.removePost", { defaultValue: "Remove post" })}
+                    className="shrink-0 rounded-xl border border-white/10 p-2.5 text-white/50 transition hover:border-red-500/50 hover:text-red-300"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                  <CoachNumberField
+                    label={t("analyticsHub.aiCoach.views", { defaultValue: "Views" })}
+                    value={post.views}
+                    onChange={(v) => updateCoachPost(i, { views: v })}
+                  />
+                  <CoachNumberField
+                    label={t("analyticsHub.aiCoach.likes", { defaultValue: "Likes" })}
+                    value={post.likes}
+                    onChange={(v) => updateCoachPost(i, { likes: v })}
+                  />
+                  <CoachNumberField
+                    label={t("analyticsHub.aiCoach.comments", { defaultValue: "Comments" })}
+                    value={post.comments}
+                    onChange={(v) => updateCoachPost(i, { comments: v })}
+                  />
+                  <CoachNumberField
+                    label={t("analyticsHub.aiCoach.shares", { defaultValue: "Shares" })}
+                    value={post.shares}
+                    onChange={(v) => updateCoachPost(i, { shares: v })}
+                  />
+                  <CoachNumberField
+                    label={t("analyticsHub.aiCoach.watchTime", { defaultValue: "Avg. watch (sec)" })}
+                    value={post.watchTimeSec}
+                    onChange={(v) => updateCoachPost(i, { watchTimeSec: v })}
+                  />
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      {t("analyticsHub.aiCoach.postedOn", { defaultValue: "Posted on" })}
+                    </label>
+                    <input
+                      type="date"
+                      value={post.postedAt}
+                      onChange={(e) => updateCoachPost(i, { postedAt: e.target.value })}
+                      className={`${inputClass} [color-scheme:dark]`}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCoachPosts((prev) => [...prev, blankCoachPost()])}
+              disabled={coachPosts.length >= MAX_COACH_POSTS}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("analyticsHub.aiCoach.addPost", { defaultValue: "Add a post" })}
+            </button>
+            <button
+              type="button"
+              onClick={importCoachPostFromStats}
+              disabled={coachPosts.length >= MAX_COACH_POSTS || hub[coachPlatform].stats.topPostViews <= 0}
+              title={t("analyticsHub.aiCoach.importHint", {
+                defaultValue: "Pulls your top-post views from the numbers above",
+              })}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-bold text-white/70 transition hover:border-primary/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              {t("analyticsHub.aiCoach.importFromStats", {
+                defaultValue: "Import top post from my stats",
+              })}
+              {hub[coachPlatform].stats.topPostViews > 0 && (
+                <span className="text-primary">({fmt(hub[coachPlatform].stats.topPostViews)} {t("analyticsHub.views", { defaultValue: "views" })})</span>
+              )}
+            </button>
+          </div>
+          {coachPosts.length === 0 && (
+            <p className="mt-3 flex items-center gap-1.5 text-sm text-white/40">
+              <AlertTriangle className="h-4 w-4 text-amber-300/80" aria-hidden="true" />
+              {t("analyticsHub.aiCoach.emptyHint", {
+                defaultValue: "Add your best and worst posts — the contrast is what the coach reads.",
+              })}
+            </p>
+          )}
+
+          {/* ask button */}
+          <div className="mt-8 text-center">
+            {user ? (
+              <button
+                onClick={askAiCoach}
+                disabled={coachLoading || coachPosts.length === 0}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {coachLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Lightbulb className="h-6 w-6" aria-hidden="true" />
+                )}
+                {coachLoading
+                  ? t("analyticsHub.aiCoach.coaching", { defaultValue: "Coaching…" })
+                  : t("analyticsHub.aiCoach.ask", { defaultValue: "Ask AI Coach" })}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
+              >
+                <Lightbulb className="h-6 w-6" aria-hidden="true" />
+                {t("analyticsHub.aiCoach.signIn", { defaultValue: "Sign in to ask the coach" })}
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            )}
+            <p className="mt-2.5 text-xs text-white/35">
+              {t("analyticsHub.aiCoach.costNote", {
+                defaultValue: "Costs 100 Visual Bucs per run",
+              })}
+              <CostBadge cost={COACH_COST} className="ml-2" />
+            </p>
+            {outOfCredits && (
+              <div className="mx-auto mt-4 max-w-md">
+                <OutOfCredits />
+              </div>
+            )}
+            {coachError && !outOfCredits && (
+              <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {coachError}
+              </p>
+            )}
+          </div>
+
+          {/* results */}
+          {coachResult && (
+            <div id="ai-coach-results" className="mt-8">
+              {coachResult.insights && (
+                <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-6">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                    <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("analyticsHub.aiCoach.readout", { defaultValue: "The coach's read" })}
+                  </p>
+                  <p className="text-[15px] leading-relaxed text-white/85">{coachResult.insights}</p>
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                {coachResult.patterns && coachResult.patterns.length > 0 && (
+                  <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-5">
+                    <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-emerald-400">
+                      <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t("analyticsHub.aiCoach.patterns", { defaultValue: "What worked" })}
+                    </p>
+                    <ul className="space-y-2.5">
+                      {coachResult.patterns.map((p, i) => (
+                        <li key={`pattern-${i}`} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/80">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {coachResult.mistakes && coachResult.mistakes.length > 0 && (
+                  <div className="rounded-2xl border border-red-500/25 bg-red-500/[0.06] p-5">
+                    <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-red-400">
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t("analyticsHub.aiCoach.mistakes", { defaultValue: "What flopped" })}
+                    </p>
+                    <ul className="space-y-2.5">
+                      {coachResult.mistakes.map((m, i) => (
+                        <li key={`mistake-${i}`} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/80">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {coachResult.nextSteps && coachResult.nextSteps.length > 0 && (
+                <>
+                  <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                    {t("analyticsHub.aiCoach.nextSteps", { defaultValue: "Your next moves" })}
+                  </p>
+                  <div className="grid gap-3">
+                    {coachResult.nextSteps.map((step, i) => (
+                      <div
+                        key={`step-${i}`}
+                        className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/40"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+                          {i + 1}
+                        </span>
+                        <p className="pt-1 text-[15px] leading-relaxed text-white/90">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {user && (
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={askAiCoach}
+                    disabled={coachLoading}
+                    className="inline-flex items-center gap-2 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+                  >
+                    {coachLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Lightbulb className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {t("analyticsHub.aiCoach.rerun", { defaultValue: "Ask again" })}
+                    <CostBadge cost={COACH_COST} className="ml-1" />
                   </button>
                 </div>
               )}

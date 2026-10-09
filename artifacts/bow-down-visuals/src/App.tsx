@@ -80,6 +80,7 @@ const Feed = lazyWithRetry(() => import("@/pages/discovery/feed"));
 /* Social (Worker 8): home timeline, trending, saved. */
 const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
 const Trending = lazyWithRetry(() => import("@/pages/trending"));
+const Remix = lazyWithRetry(() => import("@/pages/remix"));
 const Saved = lazyWithRetry(() => import("@/pages/saved"));
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
@@ -479,6 +480,7 @@ function AppShell() {
           <Route path="/tips"><Redirect to="/coach?tab=tips" /></Route>
           <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
           <Route path="/trending"><Trending /></Route>
+          <Route path="/remix"><Remix /></Route>
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/referrals"><Redirect to="/coach?tab=referrals" /></Route>

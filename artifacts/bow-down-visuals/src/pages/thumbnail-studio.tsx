@@ -35,6 +35,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useTranslation } from "react-i18next";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { CostBadge } from "@/components/CostBadge";
 
 interface GeneratedImage {
   url: string;
@@ -841,7 +842,7 @@ export function ThumbnailMakerModule() {
                 </>
               ) : (
                 <>
-                  <ImageIcon className="h-5 w-5" />{t("thumbnailMaker.generateButton")}</>
+                  <ImageIcon className="h-5 w-5" />{t("thumbnailMaker.generateButton")} <CostBadge cost={200} className="ml-2" /></>
               )}
             </Button>
             <p className="text-white/25 text-xs mt-3">{t("thumbnailMaker.costNote")}</p>

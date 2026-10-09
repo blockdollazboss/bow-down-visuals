@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useRemixDeeplink } from "@/hooks/use-remix-deeplink";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
@@ -962,6 +963,10 @@ export default function VideoEditor() {
     setSettingsState(next);
   }, [pushHistory, snapshotNow]);
 
+  /* Trending Remix Feed deep-link (?remix=<slug>) — applies the preset's
+     effect/motion and opens the relevant tab. */
+  useRemixDeeplink({ setSettings, setTab });
+
   const handleUndo = useCallback(() => {
     const snap = undoStep(snapshotNow());
     if (!snap) return;
@@ -1564,6 +1569,9 @@ export default function VideoEditor() {
               </Button>
               <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
+              </Button>
+              <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
+                <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
               <label
                 className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"

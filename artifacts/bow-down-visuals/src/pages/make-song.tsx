@@ -26,6 +26,7 @@ import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationResult } from "@/components/GenerationResult";
+import { CostBadge } from "@/components/CostBadge";
 import { HumToSong } from "@/components/HumToSong";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -567,7 +568,7 @@ export function MakeSongModule() {
                 disabled={!simplePrompt.trim() || loading}
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-black font-bold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all"
               >
-                {loading ? "Generating..." : "Generate Song"}
+                {loading ? "Generating..." : (<>Generate Song <CostBadge cost={400} className="ml-2" /></>)}
               </button>
             </div>
           ) : (
@@ -726,7 +727,7 @@ export function MakeSongModule() {
                 ) : (
                   <>
                     <Music className="h-5 w-5" />
-                    {t("makeSong.createMySong")}
+                    {t("makeSong.createMySong")} <CostBadge cost={400} className="ml-2" />
                   </>
                 )}
               </Button>

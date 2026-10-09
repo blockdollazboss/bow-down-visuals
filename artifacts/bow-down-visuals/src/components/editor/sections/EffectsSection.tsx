@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw, Palette } from "lucide-react";
+import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw, Palette, Scissors, Loader2 } from "lucide-react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { CostBadge } from "@/components/CostBadge";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS, OVERLAY_DEFAULT_INTENSITY,
@@ -78,6 +80,44 @@ function IntensityRow({
 }
 
 export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades, onReplaceClipVideo, onGoToCaptions, onGoToExport }: EffectsSectionProps) {
+  const { confirmedFetch } = useConfirmedApi();
+  const [bgRemovalScene, setBgRemovalScene] = useState<string>("");
+  const [bgRemoving, setBgRemoving] = useState(false);
+  const [bgRemovalError, setBgRemovalError] = useState("");
+
+  async function handleRemoveBackground() {
+    if (!bgRemovalScene || bgRemoving) return;
+    const scene = scenes.find((s) => s.id === bgRemovalScene);
+    const videoUrl = scene?.demoClipUrl;
+    if (!videoUrl) {
+      setBgRemovalError("Selected scene has no video to process.");
+      return;
+    }
+    setBgRemovalError("");
+    setBgRemoving(true);
+    try {
+      const res = await confirmedFetch("/api/video-background-removal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl }),
+        overrideCost: 500,
+        overrideFeature: "Video Background Removal",
+      });
+      if (!res) { setBgRemoving(false); return; } // user cancelled
+      const data = await res.json();
+      if (!res.ok) {
+        setBgRemovalError(data.message || data.error || "Background removal failed.");
+      } else if (data.url && onReplaceClipVideo) {
+        onReplaceClipVideo(bgRemovalScene, data.url);
+      } else {
+        setBgRemovalError("No output URL returned.");
+      }
+    } catch (e) {
+      setBgRemovalError(e instanceof Error ? e.message : "Background removal failed.");
+    } finally {
+      setBgRemoving(false);
+    }
+  }
   const [showLutImport, setShowLutImport] = useState(false);
   const lutRef = useRef<HTMLDivElement>(null);
   /* Template-curated galleries (empty/undefined = show all) */
@@ -595,6 +635,46 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             </div>
           );
         })()}
+      </EditorCard>
+
+      {/* ── Background Removal — one-click AI (chroma-key) ── */}
+      <EditorCard
+        title="Remove Background"
+        subtitle="One-click AI background removal — works best with solid backgrounds"
+        icon={<Scissors className="h-4 w-4" />}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-white/50">
+            Select a scene, and AI will remove the background (outputs with alpha channel for overlays).
+            <CostBadge cost={500} className="ml-2" />
+          </p>
+          <div className="flex gap-2">
+            <select
+              value={bgRemovalScene}
+              onChange={(e) => setBgRemovalScene(e.target.value)}
+              className="flex-1 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2 text-sm text-white"
+            >
+              <option value="">Select a scene…</option>
+              {scenes.map((s, i) => (
+                <option key={s.id} value={s.id}>
+                  Scene {i + 1}{s.demoClipUrl ? "" : " (no video)"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleRemoveBackground}
+              disabled={!bgRemovalScene || bgRemoving}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-black text-black hover:brightness-110 disabled:opacity-40 transition-all"
+            >
+              {bgRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+              {bgRemoving ? "Removing…" : "Remove"}
+            </button>
+          </div>
+          {bgRemovalError && (
+            <p className="text-xs text-red-400">{bgRemovalError}</p>
+          )}
+        </div>
       </EditorCard>
 
       {/* ── Transitions ── */}
