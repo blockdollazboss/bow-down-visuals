@@ -19,7 +19,7 @@ export type VideoFormat = "9:16" | "16:9" | "1:1" | "4:5";
 export type FitMode    = "fill" | "fit" | "blur";
 export type Intensity = "low" | "medium" | "high";
 export type ExportQuality = "draft" | "final";
-export type ExportResolution = "720p" | "1080p";
+export type ExportResolution = "720p" | "1080p" | "4k";
 
 export type AutoEditPresetId =
   | "drill"

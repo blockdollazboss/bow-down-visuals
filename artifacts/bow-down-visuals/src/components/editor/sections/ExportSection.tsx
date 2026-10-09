@@ -206,6 +206,7 @@ const AUDIO_SOURCE_OPTIONS: AudioSourceOption[] = [
 const RESOLUTION_OPTIONS: { value: ExportResolution; label: string }[] = [
   { value: "720p", label: "720p" },
   { value: "1080p", label: "1080p" },
+  { value: "4k", label: "4K Masterpiece" },
 ];
 function isSourceAvailable(
   source: VideoAudioSource,
