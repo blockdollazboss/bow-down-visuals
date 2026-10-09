@@ -153,7 +153,6 @@ const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const DiscordBot = lazyWithRetry(() => import("@/pages/discord-bot"));
 const Guides = lazyWithRetry(() => import("@/pages/guides"));
-const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
@@ -169,7 +168,6 @@ const Movies = lazyWithRetry(() => import("@/pages/movies"));
 const WebsiteBuilder = lazyWithRetry(() => import("@/pages/website-builder"));
 const MediaDetector = lazyWithRetry(() => import("@/pages/media-detector"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
-const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
 /* ── Worker 9: community — groups / events / DMs / explore ── */
 const Groups = lazyWithRetry(() => import("@/pages/groups"));
@@ -179,13 +177,10 @@ const EventDetailPage = lazyWithRetry(() => import("@/pages/event-detail"));
 const Messages = lazyWithRetry(() => import("@/pages/messages"));
 const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
-const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
 const Translate = lazyWithRetry(() => import("@/pages/translate"));
-const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
 const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
-const Trends = lazyWithRetry(() => import("@/pages/trends"));
 const Voiceover = lazyWithRetry(() => import("@/pages/voiceover"));
 const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
@@ -536,7 +531,7 @@ function AppShell() {
           <Route path="/promote"><Promote /></Route>
           <Route path="/guides"><Guides /></Route>
           <Route path="/clip-maker"><Redirect to="/repurpose?mode=stream" /></Route>
-          <Route path="/branding-shop"><BrandingShop /></Route>
+          <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
           <Route path="/nfc-cards"><NfcCards /></Route>
           <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
@@ -599,16 +594,16 @@ function AppShell() {
                 <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
-                <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
+                <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
                 <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
-                <Route path="/caption-styler"><ProtectedRoute><CaptionStyler /></ProtectedRoute></Route>
+                <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
                 <Route path="/cover-art"><ProtectedRoute><CoverArt /></ProtectedRoute></Route>
                 <Route path="/lyric-video"><ProtectedRoute><LyricVideo /></ProtectedRoute></Route>
                 <Route path="/translate"><ProtectedRoute><Translate /></ProtectedRoute></Route>
-                <Route path="/script-writer"><ProtectedRoute><ScriptWriter /></ProtectedRoute></Route>
+                <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>
                 <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
-                <Route path="/trends"><ProtectedRoute><Trends /></ProtectedRoute></Route>
+                <Route path="/trends"><Redirect to="/scheduler?tab=trends" /></Route>
                 {/* Discovery feed — new drops from followed creators (auth) */}
                 <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>
                 <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest" /></Route>

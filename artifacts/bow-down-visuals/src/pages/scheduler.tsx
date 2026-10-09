@@ -17,6 +17,7 @@ import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import CalendarAutofill from "@/components/wave8/CalendarAutofill";
+import TrendPredictor from "./trends";
 import { Button } from "@/components/ui/button";
 import type { SocialAccountInfo } from "@/components/ConnectedAccounts";
 import {
@@ -56,7 +57,7 @@ import {
    - TikTok posts land in your TikTok drafts inbox — TikTok's API can't
      publish straight to your feed, so you finish the post in TikTok. */
 
-type Tab = "calendar" | "queue" | "drafts" | "posted" | "community";
+type Tab = "calendar" | "queue" | "drafts" | "posted" | "community" | "trends";
 
 interface PlatformOpt {
   key: SchedulerPlatformKey;
@@ -205,6 +206,7 @@ export default function Scheduler() {
     try {
       const q = new URLSearchParams(window.location.search);
       if (q.get("tab") === "plan") return "calendar";
+      if (q.get("tab") === "trends") return "trends";
       if (q.get("niche") && !q.get("shared")) return "calendar";
     } catch { /* non-browser — ignore */ }
     return "calendar";
@@ -467,6 +469,7 @@ export default function Scheduler() {
               { key: "drafts", label: t("scheduler.tabs.drafts", { num: drafts.length }), icon: Inbox },
               { key: "posted", label: t("scheduler.tabs.posted"), icon: History },
               { key: "community", label: t("scheduler.tabs.community"), icon: Megaphone },
+              { key: "trends", label: t("scheduler.tabs.trends", { defaultValue: "Trends" }), icon: TrendingUp },
             ] as { key: Tab; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -531,6 +534,7 @@ export default function Scheduler() {
                 onOutOfCredits={() => setOutOfCredits(true)}
               />
             )}
+            {tab === "trends" && <TrendPredictor />}
           </div>
         )}
 
