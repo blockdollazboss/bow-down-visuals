@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Crown } from "lucide-react";
 
 /* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
    Rotating mascot-voiced status lines in Thy Cheat Code's voice: royal,
@@ -45,10 +44,10 @@ export default function WittyLoader({ message }: { message?: string }) {
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[560px] rounded-full bg-primary/[0.07] blur-[130px] pointer-events-none"
       />
       <div className="relative flex flex-col items-center gap-5 px-6 text-center">
-        {/* crown mark */}
+        {/* Shark King logo mark */}
         <div className="relative">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_40px_rgba(212,175,55,0.25)]">
-            <Crown className="h-8 w-8 text-primary" aria-hidden />
+          <div className="h-20 w-20 rounded-2xl overflow-hidden border border-primary/30 shadow-[0_0_40px_rgba(212,175,55,0.25)]">
+            <img src="/logo-static.webp" alt="Bow Down Visuals" className="h-full w-full object-cover" />
           </div>
           <div className="absolute inset-0 rounded-2xl border border-primary/40 animate-ping opacity-20" aria-hidden />
         </div>
