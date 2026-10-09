@@ -12,6 +12,7 @@ import {
  type JackpotStatus,
 } from "@/components/cheat-code-jackpot-logic";
 import { DraggableWidget } from "@/components/draggable-widget";
+import { useLocation } from "wouter";
 
 /**
  * Cheat Code Jackpot — the site-wide monthly prize event.
@@ -144,6 +145,10 @@ async function fetchStatus(): Promise<JackpotStatus> {
 
 export function CheatCodeJackpot() {
  const { user, getAccessToken, refreshProfile } = useAuth();
+ const [location] = useLocation();
+ /* The video editor is a focused studio surface — the jackpot promo banner
+  * and D-pad FAB don't belong there. */
+ const inEditor = location.startsWith("/video-editor");
  const [status, setStatus] = useState<JackpotStatus | null>(null);
  const [dismissed, setDismissed] = useState(
  () =>
@@ -399,7 +404,7 @@ export function CheatCodeJackpot() {
  return (
  <>
  {/* ── Status banner ─────────────────────────────────────────── */}
- {showBanner && bannerBody && (
+ {showBanner && bannerBody && !inEditor && (
  <div
  role="status"
  className={cn(
@@ -455,7 +460,7 @@ export function CheatCodeJackpot() {
  )}
 
  {/* ── D-pad FAB (mobile / touch entry) — draggable, snaps to grid ── */}
- {phase === "live" && (
+ {phase === "live" && !inEditor && (
  <DraggableWidget id="jackpot-dpad" defaultAnchor={{ x: 0.94, y: 0.08 }}>
  <button
  type="button"

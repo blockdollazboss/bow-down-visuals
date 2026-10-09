@@ -11,7 +11,7 @@ import {
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
-  Fingerprint, Laugh, Timer,
+  Fingerprint, Laugh, Timer, Moon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -537,6 +537,8 @@ export default function VideoEditor() {
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
   /** Selected clip index — shared between the persistent TimelineDock and the Studio tab inspector. */
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  /** Dim mode: dims everything except the master player and timeline for focused viewing. */
+  const [dimMode, setDimMode] = useState(false);
 
   /** Wave 9 — kept beat-marker times from BeatSyncSection, fed into TimelineTemplatesSection's beatGrid. */
   const [beatGrid, setBeatGrid] = useState<number[]>([]);
@@ -1472,7 +1474,7 @@ export default function VideoEditor() {
             <div className="flex-1 flex min-h-0 relative" style={{ paddingBottom: dockHeight }}>
 
               {/* ── LEFT RAIL: icon nav ── */}
-              <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
+              <nav className={`w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto transition-opacity duration-300 ${dimMode ? "opacity-25" : ""}`} aria-label="Editor sections">
                 {orderedRailTabs([
                     // ── 1. PLAN & SOURCE ──
                     { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
@@ -1528,7 +1530,7 @@ export default function VideoEditor() {
               </nav>
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
-              <aside style={{ width: panelWidth }} className="shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
+              <aside style={{ width: panelWidth }} className={`shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block transition-opacity duration-300 ${dimMode ? "opacity-25" : ""}`}>
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest">
                     {{
@@ -2286,6 +2288,8 @@ export default function VideoEditor() {
                       onSetMuted={(m) => timelinePlayerRef.current?.setMuted(m)}
                       onSetPlaybackRate={(r) => timelinePlayerRef.current?.setPlaybackRate(r)}
                       dockHeight={dockHeight}
+                      dimMode={dimMode}
+                      onToggleDim={() => setDimMode(v => !v)}
                       headerHeight={headerHeight}
                     />
 
@@ -2750,6 +2754,8 @@ function MasterPreviewPlayer({
   onSeek, onSetVolume, onSetMuted, onSetPlaybackRate,
   dockHeight,
   headerHeight,
+  dimMode,
+  onToggleDim,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
@@ -2775,6 +2781,8 @@ function MasterPreviewPlayer({
   onSetPlaybackRate: (rate: number) => void;
   dockHeight: number;
   headerHeight: number;
+  dimMode: boolean;
+  onToggleDim: () => void;
 }) {
   const { t } = useTranslation();
   const containerRef  = useRef<HTMLDivElement | null>(null);
@@ -3717,6 +3725,21 @@ function MasterPreviewPlayer({
               className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
             >
               <EyeOff className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onToggleDim}
+              data-testid="master-player-dim-toggle"
+              title={dimMode ? t("videoEditor.exitDim", { defaultValue: "Exit dim mode" }) : t("videoEditor.dimMode", { defaultValue: "Dim everything except player & timeline" })}
+              aria-pressed={dimMode}
+              className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
+                dimMode
+                  ? "text-[#f7dd7f] bg-[#C9A84C]/20"
+                  : "text-white/50 hover:text-white hover:bg-white/[0.1]"
+              }`}
+            >
+              <Moon className="h-3 w-3" />
             </button>
           </span>
         </div>
