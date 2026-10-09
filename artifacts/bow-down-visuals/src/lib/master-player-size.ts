@@ -82,10 +82,11 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
    * This keeps the player in frame for any aspect ratio, centered. */
   const fitW = Math.min(maxW, bandH * aspect);
 
-  /* Respect user's saved width only if it's within the fit (they sized it
-   * deliberately). Otherwise fill the available space. */
-  const width = input.savedWidth > 0 && input.savedWidth <= fitW
-    ? input.savedWidth
+  /* Fill the available space. Only respect a saved width if it's close to
+   * full (user deliberately sized it). Ignore stale/tiny saved widths that
+   * would leave the player floating small in a large column. */
+  const width = input.savedWidth > fitW * 0.8
+    ? Math.min(input.savedWidth, fitW)
     : fitW;
 
   return { width: Math.round(width), height: Math.round(width / aspect) };
