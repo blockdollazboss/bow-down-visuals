@@ -1266,7 +1266,7 @@ export default function HookStudio() {
  </div>
 
  {/* tabs */}
- <div className="relative mt-10 flex justify-center gap-2" role="tablist" aria-label={t("hooks.tablistAria")}>
+ <div className="relative mt-10 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist" aria-label={t("hooks.tablistAria")}>
  {(
  [
  { key: "hooks", icon: Zap },
@@ -1289,7 +1289,7 @@ export default function HookStudio() {
  role="tab"
  aria-selected={selected}
  onClick={() => switchTab(key)}
- className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+ className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition ${
  selected
  ? "bg-primary text-black shadow-[0_0_18px_rgba(212,175,55,0.35)]"
  : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"

@@ -1104,7 +1104,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "dashboard"}
               onClick={() => setHubTab("dashboard")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "dashboard"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1117,7 +1117,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "competitor"}
               onClick={() => setHubTab("competitor")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "competitor"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1130,7 +1130,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "intelligence"}
               onClick={() => setHubTab("intelligence")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "intelligence"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1143,7 +1143,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "contentid"}
               onClick={() => setHubTab("contentid")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "contentid"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1156,7 +1156,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "milestones"}
               onClick={() => setHubTab("milestones")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "milestones"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1169,7 +1169,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "connected"}
               onClick={() => setHubTab("connected")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "connected"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1182,7 +1182,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "channelAudit"}
               onClick={() => setHubTab("channelAudit")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "channelAudit"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1195,7 +1195,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "virality"}
               onClick={() => setHubTab("virality")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "virality"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
@@ -1208,7 +1208,7 @@ export default function AnalyticsHub() {
               role="tab"
               aria-selected={hubTab === "fandecoder"}
               onClick={() => setHubTab("fandecoder")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 hubTab === "fandecoder"
                   ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
                   : "text-white/60 hover:text-white"
