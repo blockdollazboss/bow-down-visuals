@@ -578,26 +578,26 @@
     "admin": "Admin",
     "aiStreamerClips": "AI Streamer Clips",
     "aiStudio": "AI Studio",
-    "analytics": "Analytics",
+    "analytics": "Thy Receipts",
     "bowRace": "Bow Race",
     "brandDeals": "Brand Deals",
     "captionStyler": "Caption Styler",
     "community": "Community",
-    "contentCalendar": "Content Calendar",
+    "contentCalendar": "Thy War Room",
     "contests": "Contests",
     "coverArt": "Cover Art",
-    "create": "Create",
+    "create": "Thy Lab",
     "creatorVault": "Creator Vault",
     "creditHistory": "Credit History",
     "credits": "Credits",
     "dailyBonus": "Daily Bonus",
-    "dashboard": "Dashboard",
+    "dashboard": "Thy Throne Room",
     "earn": "Earn",
     "grow": "Grow",
     "help": "Help",
     "home": "Home",
     "homeOfGamers": "Home of Gamers",
-    "hookStudio": "Hook Studio",
+    "hookStudio": "Thy Hook Vault",
     "hourlyCrate": "Hourly Crate",
     "jewelry": "Jewelry",
     "locations": "Locations",
@@ -605,7 +605,7 @@
     "logout": "Log Out",
     "lyricVideoMaker": "Lyric Video Maker",
     "merch": "Merch",
-    "monetizationCoach": "Monetization Coach",
+    "monetizationCoach": "Thy Money Room",
     "myClips": "My Clips",
     "myProjects": "Thy Vision",
     "nfcCards": "NFC Cards",
@@ -619,7 +619,7 @@
     "songs": "Songs",
     "spotlight": "Spotlight",
     "thumbnailMaker": "Thumbnail Maker",
-    "thumbnailStudio": "Thumbnail Studio",
+    "thumbnailStudio": "Thy Click Magnets",
     "titleStudio": "Title Studio",
     "translator": "Translator",
     "videoEditor": "Visual Vibes",
@@ -631,7 +631,7 @@
     "soundFinder": "Sound Finder",
     "analyticsHub": "Analytics Hub",
     "playlistPitcher": "Playlist Pitcher",
-    "goLive": "Go Live",
+    "goLive": "Thy Stage",
     "showFinder": "Show Finder",
     "discordBot": "Discord Bot",
     "monetize": "Monetize",
@@ -655,7 +655,7 @@
     "team": "Team",
     "learn": "Learn",
     "guidesServices": "Guides & Services",
-    "creatorAcademy": "Creator Academy",
+    "creatorAcademy": "Thy Playbook",
     "copyright": "Copyright",
     "llcGuide": "LLC Guide",
     "tools": "Tools",
@@ -664,17 +664,17 @@
     "watermarkRemoval": "Watermark Removal",
     "vocalRemoval": "Vocal Removal",
     "aiMastering": "AI Mastering",
-    "brandingKit": "Branding Kit",
+    "brandingKit": "Thy Crown",
     "podcastStudio": "Podcast Studio",
-    "audioStudio": "Audio Studio",
+    "audioStudio": "Thy Booth",
     "aiAudio": "AI Audio",
-    "pricing": "Pricing",
-    "visualBucHistory": "Visual Buc History",
+    "pricing": "Thy Rank",
+    "visualBucHistory": "Thy Bucs",
     "cursorStyle": "Cursor Style",
     "cartoonStudio": "Cartoon Studio"
   },
   "academy": {
-    "pageTitle": "Creator Academy",
+    "pageTitle": "Thy Playbook",
     "pageDescription": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
     "levels": {
       "beginner": "Beginner",
@@ -695,8 +695,8 @@
     "errorAskQuestion": "Ask a real question — the coach needs something to work with.",
     "errorCoachEmpty": "The coach came back empty — try again.",
     "heroEyebrow": "The creator education hub",
-    "heroTitleStart": "Creator",
-    "heroTitleAccent": "Academy",
+    "heroTitleStart": "Thy",
+    "heroTitleAccent": "Playbook",
     "heroSubtitle": "Courses on production, growth, monetization, and branding — taught by AI, personalized to your goals. Browse free, learn for 100 Visual Bucs a lesson.",
     "pathBadge": "AI learning path · {{credits}} Visual Buc",
     "pathTitle": "Your personalized course path",
@@ -1025,7 +1025,7 @@
     "errorInsightsFailed": "AI insights failed — try again.",
     "errorSuggestionsFailed": "AI suggestions failed — try again.",
     "heroEyebrow": "Command center",
-    "heroTitleStart": "Analytics,",
+    "heroTitleStart": "Thy Receipts,",
     "heroTitleAccent": "decoded",
     "heroSubtitle": "Your live stats from every connected platform — free. Then the AI reads the tea leaves: what's working, what to post next, and when.",
     "refreshStats": "Refresh stats",
@@ -1945,7 +1945,7 @@
   },
   "brandingKit": {
     "eyebrow": "Brand Identity",
-    "pageTitle": "Branding Kit",
+    "pageTitle": "Thy Crown",
     "subtitle": "Everything your channel needs to look premium — logos, video stings, and a full stream bundle, all generated in one matching identity.",
     "tabs": {
       "intros": {
@@ -1958,7 +1958,7 @@
         "label": "Stream Bundle"
       }
     },
-    "title": "Branding Kit"
+    "title": "Thy Crown"
   },
   "brandingShop": {
     "addToCart": "Add to cart",
@@ -2265,8 +2265,8 @@
     "subscribersPlaceholder": "Subscribers",
     "subtitle": "The money end of the creator loop: where you stand on every monetization program, what your niche actually pays, and your next 3 money moves.",
     "threshold": "Threshold: {{value}}",
-    "titleHighlight": "Coach",
-    "titleStart": "Monetization",
+    "titleHighlight": "Money Room",
+    "titleStart": "Thy",
     "videosPerWeek": "Videos per week",
     "whereDoYouPost": "Where do you post?",
     "yourNiche": "Your niche",
@@ -2716,7 +2716,7 @@
   "create": {
     "pageTitle": "Create",
     "pageDescription": "Start anything: a song + video, a song, a video, or the guided Creation Hub.",
-    "title": "Create",
+    "title": "Thy Lab",
     "subtitle": "One studio, four ways to start. Pick a lane — every finished piece flows into its natural next step.",
     "backToDashboard": "Back to Dashboard",
     "modes": {
@@ -2794,7 +2794,7 @@
     "no_saved_projects_yet": "No saved projects yet.",
     "start_your_first_project": "Start your first project",
     "getting_started": "Getting Started",
-    "metaTitle": "Dashboard",
+    "metaTitle": "Thy Throne Room",
     "metaDescription": "Your creator command center — every AI tool in one place.",
     "command_center": "Command Center",
     "greet_night": "Up late, {{name}}?",
@@ -3292,7 +3292,7 @@
     "download": "Download"
   },
   "goLive": {
-    "pageTitle": "Go Live",
+    "pageTitle": "Thy Stage",
     "pageDescription": "Stream dashboard — announce your Discord streams and hype your community.",
     "untitledStream": "Untitled stream",
     "failedToPostDiscord": "Failed to post to Discord.",
@@ -3429,8 +3429,8 @@
       }
     },
     "kicker": "Thy Cheat Code's money tools",
-    "heroTitleA": "Hook",
-    "heroTitleB": "Studio",
+    "heroTitleA": "Thy",
+    "heroTitleB": "Hook Vault",
     "heroSub": "Your money is made in the first 3 seconds. Generate scroll-stopping openers — then run your post through the pre-flight before you ship it.",
     "hookGenSub": "Five first-3-second openers, engineered to stop the scroll.",
     "whatKindLabel": "What kind of video?",
@@ -8831,7 +8831,7 @@
       "offerCatalogName": "Bow Down Visuals Plans"
     },
     "pageDescription": "Choose your rank — six star-rated creator plans.",
-    "pageTitle": "Pricing",
+    "pageTitle": "Thy Rank",
     "planCard": {
       "bestFor": "Best for: {{bestFor}}",
       "perMonth": "/month",
@@ -9240,8 +9240,8 @@
     }
   },
   "scheduler": {
-    "titlePrefix": "Content",
-    "titleSuffix": "Scheduler",
+    "titlePrefix": "Thy",
+    "titleSuffix": "War Room",
     "signInPrompt": "Sign in to schedule posts across Instagram, TikTok, and Facebook.",
     "signIn": "Sign in",
     "badge": "Post everywhere from one calendar",
@@ -11199,7 +11199,7 @@
   },
   "audioStudio": {
     "back": "Back",
-    "title": "Audio Studio",
+    "title": "Thy Booth",
     "subtitle": "Clean up, split, and master your audio — every tool in one place.",
     "tabs": {
       "cleanup": "Cleanup",
@@ -11247,7 +11247,7 @@
     }
   },
   "thumbnailStudio": {
-    "title": "Thumbnail Studio",
+    "title": "Thy Click Magnets",
     "subtitle": "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
     "tabs": {
       "generate": "Generate",
