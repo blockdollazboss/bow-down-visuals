@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { getSupabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface Collaborator {
   userId: string;
@@ -18,65 +18,75 @@ export function useCollaboration(projectId: string, userName: string) {
   const userId = useRef(`user-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
-    if (!projectId) return;
-    const supabase = getSupabase();
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    /* No project or no Supabase client (env vars missing) — stay silent. */
+    if (!projectId || !supabase) return;
+    const client = supabase;
+    let channel: any = null;
+    try {
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)];
 
-    const channel = supabase.channel(`project:${projectId}`, {
-      config: { presence: { key: userId.current } },
-    });
+      channel = client.channel(`project:${projectId}`, {
+        config: { presence: { key: userId.current } },
+      });
 
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        const others: Collaborator[] = [];
-        Object.entries(state).forEach(([key, presences]: [string, any]) => {
-          if (key === userId.current) return;
-          const p = presences[0];
-          if (p) {
-            others.push({
-              userId: key,
-              name: p.name ?? "Anonymous",
-              color: p.color ?? "#888",
-              cursor: p.cursor,
+      channel
+        .on("presence", { event: "sync" }, () => {
+          const state = channel.presenceState();
+          const others: Collaborator[] = [];
+          Object.entries(state).forEach(([key, presences]: [string, any]) => {
+            if (key === userId.current) return;
+            const p = presences[0];
+            if (p) {
+              others.push({
+                userId: key,
+                name: p.name ?? "Anonymous",
+                color: p.color ?? "#888",
+                cursor: p.cursor,
+              });
+            }
+          });
+          setCollaborators(others);
+        })
+        .on("presence", { event: "join" }, () => {
+          // Handled by sync
+        })
+        .subscribe(async (status: string) => {
+          if (status === "SUBSCRIBED") {
+            await channel.track({
+              name: userName,
+              color,
+              cursor: null,
             });
           }
         });
-        setCollaborators(others);
-      })
-      .on("presence", { event: "join" }, ({ newPresences }: any) => {
-        // Handled by sync
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await channel.track({
-            name: userName,
-            color,
-            cursor: null,
-          });
-        }
-      });
 
-    channelRef.current = channel;
+      channelRef.current = channel;
 
-    // Broadcast cursor position (throttled)
-    let lastSent = 0;
-    const onMouseMove = (e: MouseEvent) => {
-      const now = Date.now();
-      if (now - lastSent < 100) return;
-      lastSent = now;
-      channel.track({
-        name: userName,
-        color,
-        cursor: { x: e.clientX, y: e.clientY },
-      });
-    };
-    window.addEventListener("mousemove", onMouseMove);
+      // Broadcast cursor position (throttled)
+      let lastSent = 0;
+      const onMouseMove = (e: MouseEvent) => {
+        const now = Date.now();
+        if (now - lastSent < 100) return;
+        lastSent = now;
+        channel.track({
+          name: userName,
+          color,
+          cursor: { x: e.clientX, y: e.clientY },
+        });
+      };
+      window.addEventListener("mousemove", onMouseMove);
 
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        if (channel) client.removeChannel(channel);
+      };
+    } catch (err) {
+      console.warn("[LiveCollaboration] presence unavailable:", err);
+      if (channel) {
+        try { client.removeChannel(channel); } catch { /* noop */ }
+      }
+      return;
+    }
   }, [projectId, userName]);
 
   return { collaborators };

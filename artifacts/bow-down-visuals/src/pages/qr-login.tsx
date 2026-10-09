@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
    Logged-in user confirms to sign in the desktop session. */
 export default function QRLoginApprove() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "confirm" | "approving" | "done" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -29,13 +29,25 @@ export default function QRLoginApprove() {
     if (!token || !user) return;
     setStatus("approving");
     try {
-      const session = await fetch("/api/auth/qr-approve", {
+      // Send the real Supabase JWT. The server verifies it and derives the
+      // user id from the verified token — the user id is never trusted
+      // from the client.
+      const jwt = await getAccessToken();
+      if (!jwt) {
+        setError("Session expired — please log in again");
+        setStatus("error");
+        return;
+      }
+      const res = await fetch("/api/auth/qr-approve", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, userId: user.id }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ token }),
       });
-      const data = await session.json();
-      if (data.success) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setStatus("done");
       } else {
         setError(data.error ?? "Approval failed");

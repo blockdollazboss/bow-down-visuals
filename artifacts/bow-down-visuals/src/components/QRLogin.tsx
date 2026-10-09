@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
 import { QrCode, X, Loader2, CheckCircle } from "lucide-react";
 import { QRCodeImage } from "./QRCode";
+import { getSupabase } from "@/lib/supabase";
 
 /* QR Login component for the login page.
-   Desktop generates a token, shows QR, polls until mobile approves. */
+   Desktop generates a token, shows QR, polls until mobile approves, then
+   exchanges the one-time exchange code for a Supabase magic link and
+   establishes its own real Supabase session via verifyOtp. */
 export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "waiting" | "approved" | "expired" | "error">("loading");
+  const [genNonce, setGenNonce] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     setStatus("loading");
+    setToken(null);
+    setQrUrl(null);
     fetch("/api/auth/qr-token", { method: "POST" })
       .then((r) => r.json())
       .then((data) => {
@@ -25,7 +31,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
         }
       })
       .catch(() => setStatus("error"));
-  }, [open ]);
+  }, [open, genNonce]);
 
   useEffect(() => {
     if (!open || !token || status !== "waiting") return;
@@ -33,18 +39,36 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
       try {
         const res = await fetch(`/api/auth/qr-token/${token}`);
         const data = await res.json();
-        if (data.status === "approved") {
+        if (data.status === "approved" && data.exchangeCode) {
           setStatus("approved");
           window.clearInterval(id);
-          // Mark consumed and trigger success
-          await fetch("/api/auth/qr-consume", {
+          // Exchange the one-time code for a Supabase sign-in link, then
+          // establish this device's own session. The exchange code is
+          // single-use: a replayed exchange is rejected server-side.
+          const exRes = await fetch("/api/auth/qr-exchange", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
+            body: JSON.stringify({ token, exchangeCode: data.exchangeCode }),
           });
-          // The actual session creation happens via Supabase magic link or
-          // the mobile device shares a session token. For now, reload to
-          // pick up the session if the mobile approval set a cookie.
+          const exData = await exRes.json();
+          if (!exRes.ok || !exData.actionLink) {
+            setStatus("error");
+            return;
+          }
+          const actionUrl = new URL(exData.actionLink);
+          const tokenHash = actionUrl.searchParams.get("token");
+          if (!tokenHash) {
+            setStatus("error");
+            return;
+          }
+          const { error } = await getSupabase().auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "email",
+          });
+          if (error) {
+            setStatus("error");
+            return;
+          }
           setTimeout(() => {
             onSuccess();
             setOpen(false);
@@ -110,7 +134,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
               <div className="py-12">
                 <p className="font-semibold mb-2">Code expired</p>
                 <button
-                  onClick={() => { setToken(null); setStatus("loading"); }}
+                  onClick={() => setGenNonce((n) => n + 1)}
                   className="px-4 py-2 rounded-lg bg-primary text-black font-semibold"
                 >
                   Generate New Code

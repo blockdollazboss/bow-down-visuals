@@ -19,6 +19,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
+import { useCollaboration, CollaboratorCursors } from "@/components/LiveCollaboration";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -256,6 +257,14 @@ export default function VideoEditor() {
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
+
+  /* ── Live collaboration presence (Supabase Realtime, no-op without project/Supabase) ── */
+  const collabUserName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Creator";
+  const { collaborators } = useCollaboration(projectId ?? "", collabUserName);
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
@@ -1606,6 +1615,8 @@ export default function VideoEditor() {
     <>
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
       <VideoBanner onHeightChange={setHeaderHeight} />
+      {/* Live collaborator cursors overlay */}
+      <CollaboratorCursors collaborators={collaborators} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
@@ -1635,6 +1646,30 @@ export default function VideoEditor() {
                 <h1 className="text-sm font-bold text-white tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
               </div>
               <SaveIndicator state={saveState} />
+              {/* ── Live collaborators (Supabase presence) ── */}
+              {collaborators.length > 0 && (
+                <div
+                  className="flex items-center -space-x-1.5 shrink-0"
+                  title={`Live now: ${collaborators.map((c) => c.name).join(", ")}`}
+                  data-testid="collaborator-indicator"
+                >
+                  {collaborators.slice(0, 4).map((c) => (
+                    <div
+                      key={c.userId}
+                      title={c.name}
+                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                  {collaborators.length > 4 && (
+                    <div className="h-6 w-6 rounded-full border-2 border-black bg-white/10 flex items-center justify-center text-[10px] font-bold text-white/70">
+                      +{collaborators.length - 4}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex-1" />
               <Button
                 onClick={() => setShowTemplatePicker(true)}
