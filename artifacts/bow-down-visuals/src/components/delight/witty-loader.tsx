@@ -184,8 +184,8 @@ function CrownedLogo() {
   );
 }
 
-/* BarcodeStrip — true-scale scannable-style barcode, fixed proportions.
-   Real barcode anatomy: quiet zones, guard bars, 1:2:3:4 width ratios. */
+/* BarcodeStrip — a real barcode label. White sticker, black bars,
+   percentage as the printed numbers below. Bars fill left to right. */
 function BarcodeStrip() {
   const [progress, setProgress] = useState(0);
 
@@ -200,54 +200,50 @@ function BarcodeStrip() {
   }, []);
 
   // UPC-style pattern: guard | data | middle guard | data | guard
-  // Widths in module units (1 = thinnest bar), true 1:2:3:4 ratios
-  const MODULE = 2; // px per module — true print scale
+  const MODULE = 2;
   const bars: number[] = [
-    1, 1, 1, // left guard (bar-space-bar)
-    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4, // left data
-    1, 1, 1, 1, 1, // center guard (space-bar-space-bar-space)
-    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1, // right data
-    1, 1, 1, // right guard
+    1, 1, 1,
+    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4,
+    1, 1, 1, 1, 1,
+    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1,
+    1, 1, 1,
   ];
   const totalModules = bars.reduce((a, b) => a + b, 0);
   let filled = 0;
+  const pct = Math.min(100, Math.floor(progress));
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Quiet zone + barcode */}
-      <div className="bg-white/[0.03] rounded-sm px-5 py-3">
-        <div className="flex items-stretch" style={{ height: "56px" }}>
-          {bars.map((w, i) => {
-            const barStart = (filled / totalModules) * 100;
-            filled += w;
-            const barEnd = (filled / totalModules) * 100;
-            const isLit = progress >= barEnd;
-            const isPartial = progress > barStart && progress < barEnd;
-            // Alternate bar/space: even indices are bars, odd are spaces
-            const isBar = i % 2 === 0;
-            return (
-              <div
-                key={i}
-                className="transition-colors duration-200"
-                style={{
-                  width: `${w * MODULE}px`,
-                  height: "100%",
-                  backgroundColor: !isBar
-                    ? "transparent"
-                    : isLit
-                      ? "#d4af37"
-                      : isPartial
-                        ? "rgba(212,175,55,0.45)"
-                        : "rgba(255,255,255,0.14)",
-                  boxShadow: isBar && isLit ? "0 0 6px rgba(212,175,55,0.55)" : "none",
-                }}
-              />
-            );
-          })}
-        </div>
+    <div
+      className="bg-white rounded-md px-4 pt-3 pb-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+      style={{ transform: "rotate(-1.5deg)" }}
+    >
+      {/* Quiet zone + bars */}
+      <div className="flex items-stretch" style={{ height: "48px" }}>
+        {bars.map((w, i) => {
+          const barStart = (filled / totalModules) * 100;
+          filled += w;
+          const barEnd = (filled / totalModules) * 100;
+          const isLit = progress >= barEnd;
+          const isBar = i % 2 === 0;
+          return (
+            <div
+              key={i}
+              className="transition-colors duration-200"
+              style={{
+                width: `${w * MODULE}px`,
+                height: "100%",
+                backgroundColor: !isBar ? "transparent" : isLit ? "#111111" : "#e5e5e5",
+              }}
+            />
+          );
+        })}
       </div>
-      <p className="text-white/40 text-[11px] font-mono mt-2 tracking-widest">
-        {Math.min(100, Math.floor(progress))}%
+      {/* Printed numbers — the percentage */}
+      <p
+        className="text-center text-black font-mono font-bold tracking-[0.3em] mt-1"
+        style={{ fontSize: "13px" }}
+      >
+        {String(pct).padStart(3, "0")}%
       </p>
     </div>
   );
