@@ -75,16 +75,14 @@ export default function WittyLoader({ message }: { message?: string }) {
 
       {/* ── LEFT: the title treatment ── */}
       <div className="absolute left-6 md:left-14 top-1/2 -translate-y-1/2 z-10 max-w-md">
-        {/* Brand mark */}
-        <CrownedLogo />
         {/* Eyebrow */}
-        <p className="text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] mt-8">
+        <p className="text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em]">
           Bow Down Visuals presents
         </p>
         {/* The headline */}
         <h1
           key={line}
-          className="text-white text-4xl md:text-6xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-left duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          className="text-white text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-left duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
         >
           {line}
         </h1>
@@ -95,6 +93,11 @@ export default function WittyLoader({ message }: { message?: string }) {
         <div className="mt-8">
           <BarcodeStrip />
         </div>
+      </div>
+
+      {/* ── BOTTOM-RIGHT: the crowned mark ── */}
+      <div className="absolute bottom-8 right-6 md:right-10 z-10">
+        <CrownedLogo />
       </div>
 
       {/* ── TOP-RIGHT: now featuring ── */}
