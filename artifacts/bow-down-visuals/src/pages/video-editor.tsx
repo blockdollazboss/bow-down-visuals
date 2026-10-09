@@ -2376,9 +2376,10 @@ export default function VideoEditor() {
                     <p className="text-[#C9A84C] font-black text-sm bg-black/70 px-4 py-2 rounded-full">{t("videoEditor.dropToApply")}</p>
                   </div>
                 )}
-                {/* ── MASTER PLAYER — locked to the top of its space, panels flush below ── */}
-                <div className="shrink-0 z-20 bg-black flex justify-center px-2 py-2">
-                  <div className="w-full max-w-[1440px]">
+                {/* ── MASTER PLAYER — docked: fills the center column edge-to-edge,
+                    connected to the timeline below. No floating, no centering. ── */}
+                <div className="shrink-0 z-20 bg-black flex">
+                  <div className="w-full">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
                       eng={previewEngineState}
@@ -3027,10 +3028,8 @@ function MasterPreviewPlayer({
     : isHidden
       ? { display: "none" }
       : {
-          width: floatWidth,
+          width: "100%",
           maxWidth: "100%",
-          marginLeft: "auto",
-          marginRight: "auto",
         };
 
   /* ── Controls auto-hide (fullscreen only) ── */
@@ -3743,7 +3742,7 @@ function MasterPreviewPlayer({
     <div
       ref={outerRef}
       style={floatStyle}
-      className={`relative mb-6 mx-auto ${theaterOn && !isHidden ? "z-[60]" : ""}`}
+      className={`relative ${theaterOn && !isHidden ? "z-[60]" : ""}`}
     >
       {/* ── Ambient glow: blurred, dimmed mirror of the playing video, bleeding
           out from behind the gold frame. Hidden when minimized/fullscreen. ── */}
