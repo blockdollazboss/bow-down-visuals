@@ -98,9 +98,7 @@ const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
 const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
-const MyClips       = lazyWithRetry(() => import("@/pages/my-clips"));
 const Admin         = lazyWithRetry(() => import("@/pages/admin"));
-const Songs         = lazyWithRetry(() => import("@/pages/songs"));
 const Locations     = lazyWithRetry(() => import("@/pages/locations"));
 const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
@@ -574,9 +572,9 @@ function AppShell() {
                 <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library" /></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
                 <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
-                <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
+                <Route path="/my-clips"><Redirect to="/my-projects?tab=myclips" /></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
-                <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
+                <Route path="/songs"><Redirect to="/my-projects?tab=songs" /></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>

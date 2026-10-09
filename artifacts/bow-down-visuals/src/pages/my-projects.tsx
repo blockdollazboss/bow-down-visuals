@@ -19,6 +19,8 @@ import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import MyClips from "@/pages/my-clips";
+import SongsPage from "@/pages/songs";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -631,7 +633,13 @@ export default function MyProjects() {
   const { t } = useTranslation();
   usePageTitle(t("myProjects.pageTitle"), t("myProjects.pageDescription"));
   const { user, getAccessToken } = useAuth();
-  const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history">("projects");
+  const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history" | "myclips" | "songs">(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (q === "myclips" || q === "songs") return q;
+    } catch { /* non-browser — ignore */ }
+    return "projects";
+  });
 
   const [history, setHistory]             = useState<GenerationHistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -753,6 +761,8 @@ export default function MyProjects() {
     { id: "projects" as const, labelKey: "myProjects.tabProjects",          count: projects.length },
     { id: "drafts"   as const, labelKey: "myProjects.tabDrafts",            count: drafts.length },
     { id: "clips"    as const, labelKey: "myProjects.tabClips",             count: clips.length },
+    { id: "myclips"  as const, labelKey: "myProjects.tabMyClips",           count: 0 },
+    { id: "songs"    as const, labelKey: "myProjects.tabSongs",             count: 0 },
     { id: "history"  as const, labelKey: "myProjects.tabHistory",           count: history.length },
   ];
 
@@ -1084,6 +1094,12 @@ export default function MyProjects() {
             </div>
           )
         )}
+
+        {/* ── MY CLIPS (FULL CLIPS MANAGER) ── */}
+        {tab === "myclips" && <MyClips />}
+
+        {/* ── SONGS ── */}
+        {tab === "songs" && <SongsPage />}
 
       </div>
     </div>

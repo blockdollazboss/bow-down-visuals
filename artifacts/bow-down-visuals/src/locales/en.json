@@ -8176,7 +8176,9 @@
     "analysisComplete": "Analysis complete",
     "noContentSaved": "No content saved.",
     "generationsLink": "Generation history →",
-    "importLink": "Import media →"
+    "importLink": "Import media →",
+    "tabMyClips": "My Clips",
+    "tabSongs": "Songs"
   },
   "merch": {
     "back": "Back",
