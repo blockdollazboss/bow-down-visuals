@@ -11098,12 +11098,20 @@
     "tabs": {
       "cleanup": "Cleanup",
       "stems": "Stems",
-      "master": "Mix & Master"
+      "master": "Mix & Master",
+      "aiaudio": "AI Audio",
+      "voiceover": "Voiceover",
+      "podcast": "Podcast",
+      "sounds": "Sounds"
     },
     "desc": {
       "cleanup": "Remove background noise and room hiss from any recording — 3 Visual Bucs.",
       "stems": "Split any song into vocals, drums, bass, and melody — 4 Visual Bucs.",
-      "master": "Radio-ready masters and full stem mixdowns — 4 to 15 Visual Bucs."
+      "master": "Radio-ready masters and full stem mixdowns — 4 to 15 Visual Bucs.",
+      "aiaudio": "Make beats, build sample packs, and generate sound effects.",
+      "voiceover": "Studio-quality AI narration for your videos.",
+      "podcast": "Record, edit, and produce your podcast.",
+      "sounds": "Find viral sounds trending right now."
     }
   },
   "aiAudio": {

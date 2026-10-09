@@ -14,6 +14,10 @@ import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import AiAudio from "@/pages/ai-audio";
+import VoiceoverStudio from "@/pages/voiceover";
+import PodcastStudio from "@/pages/podcast";
+import ViralSoundFinder from "@/pages/sounds";
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
    Server-side background-noise removal for creator audio: podcasts,
    voiceovers, stream clips, live recordings. Real DSP denoising via
@@ -2980,7 +2984,7 @@ function MixMasterPanel() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
           {TAB_BUTTONS.map((b) => {
             const Icon = b.icon;
             const active = tab === b.id;
@@ -3022,12 +3026,16 @@ function MixMasterPanel() {
    One page, three tools. Each tab keeps its own paid endpoint, credit cost,
    and charge-then-refund discipline — only the page chrome is shared. */
 
-type StudioTab = "cleanup" | "stems" | "master";
+type StudioTab = "cleanup" | "stems" | "master" | "aiaudio" | "voiceover" | "podcast" | "sounds";
 
 const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> = [
   { id: "cleanup", labelKey: "audioStudio.tabs.cleanup", descKey: "audioStudio.desc.cleanup" },
   { id: "stems", labelKey: "audioStudio.tabs.stems", descKey: "audioStudio.desc.stems" },
   { id: "master", labelKey: "audioStudio.tabs.master", descKey: "audioStudio.desc.master" },
+  { id: "aiaudio", labelKey: "audioStudio.tabs.aiaudio", descKey: "audioStudio.desc.aiaudio" },
+  { id: "voiceover", labelKey: "audioStudio.tabs.voiceover", descKey: "audioStudio.desc.voiceover" },
+  { id: "podcast", labelKey: "audioStudio.tabs.podcast", descKey: "audioStudio.desc.podcast" },
+  { id: "sounds", labelKey: "audioStudio.tabs.sounds", descKey: "audioStudio.desc.sounds" },
 ];
 
 export default function AudioStudio() {
@@ -3035,7 +3043,8 @@ export default function AudioStudio() {
   const [tab, setTab] = useState<StudioTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      return q === "stems" || q === "master" ? q : "cleanup";
+      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds") return q;
+      return "cleanup";
     } catch {
       return "cleanup";
     }
@@ -3100,7 +3109,7 @@ export default function AudioStudio() {
         </p>
 
         <div className="mt-2">
-          {tab === "cleanup" ? <CleanupPanel /> : tab === "stems" ? <StemsPanel /> : <MixMasterPanel />}
+          {tab === "cleanup" ? <CleanupPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : <ViralSoundFinder />}
         </div>
       </main>
     </div>

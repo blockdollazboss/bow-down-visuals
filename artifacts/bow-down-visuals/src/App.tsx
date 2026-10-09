@@ -104,7 +104,6 @@ const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
-const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const ShortsFeed      = lazyWithRetry(() => import("@/pages/shorts"));
 const SoundDetailPage = lazyWithRetry(() => import("@/pages/sound"));
 const ChallengePage   = lazyWithRetry(() => import("@/pages/challenge"));
@@ -179,7 +178,6 @@ const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
 const Translate = lazyWithRetry(() => import("@/pages/translate"));
 const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
-const Voiceover = lazyWithRetry(() => import("@/pages/voiceover"));
 const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
@@ -189,8 +187,6 @@ const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detai
 const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const Community = lazyWithRetry(() => import("@/pages/community"));
-const AiAudio = lazyWithRetry(() => import("@/pages/ai-audio"));
-const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
@@ -469,7 +465,7 @@ function AppShell() {
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Redirect to="/hooks?tab=dice" /></Route>
           <Route path="/hooks"><HookStudio /></Route>
-          <Route path="/sounds"><SoundFinder /></Route>
+          <Route path="/sounds"><Redirect to="/audio-studio?tab=sounds" /></Route>
           {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
           <Route path="/shorts"><ShortsFeed /></Route>
           <Route path="/sound/:id"><SoundDetailPage /></Route>
@@ -606,9 +602,9 @@ function AppShell() {
                 <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>
                 <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest" /></Route>
                 <Route path="/audio-studio"><ProtectedRoute><AudioStudio /></ProtectedRoute></Route>
-                <Route path="/ai-audio"><ProtectedRoute><AiAudio /></ProtectedRoute></Route>
+                <Route path="/ai-audio"><Redirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
-                <Route path="/voiceover"><ProtectedRoute><Voiceover /></ProtectedRoute></Route>
+                <Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>
                 <Route path="/press-kit"><ProtectedRoute><PressKit /></ProtectedRoute></Route>
                 <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
                 <Route path="/collabs"><ProtectedRoute><Collabs /></ProtectedRoute></Route>
@@ -623,7 +619,7 @@ function AppShell() {
                 <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
                 <Route path="/sfx"><Redirect to="/ai-audio?tab=sfx" /></Route>
                 <Route path="/samples"><Redirect to="/ai-audio?tab=samples" /></Route>
-                <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
+                <Route path="/podcast"><Redirect to="/audio-studio?tab=podcast" /></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
                 <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
