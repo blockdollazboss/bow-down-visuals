@@ -89,7 +89,60 @@ export default function WittyLoader({ message }: { message?: string }) {
           <p className="text-primary font-black text-sm uppercase tracking-wider">{promo.title}</p>
           <p className="text-white/50 text-xs mt-1">{promo.desc}</p>
         </div>
+        {/* Barcode-style loading bar */}
+        <BarcodeLoader />
       </div>
+    </div>
+  );
+}
+
+/* Barcode loading bar - vertical bars of varying widths that fill with gold */
+function BarcodeLoader() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) return 0;
+        return p + Math.random() * 8 + 2;
+      });
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Deterministic pseudo-random bar widths for a barcode look
+  const bars = [3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 2, 4];
+  const totalWidth = bars.reduce((a, b) => a + b, 0) + bars.length * 2;
+  let filled = 0;
+
+  return (
+    <div className="mt-6 w-64">
+      <div className="flex items-end gap-[2px] h-10 justify-center">
+        {bars.map((w, i) => {
+          const barStart = (filled / totalWidth) * 100;
+          filled += w + 2;
+          const barEnd = (filled / totalWidth) * 100;
+          const isLit = progress >= barEnd;
+          const isPartial = progress > barStart && progress < barEnd;
+          return (
+            <div
+              key={i}
+              className="transition-colors duration-200"
+              style={{
+                width: `${w * 2}px`,
+                height: "100%",
+                backgroundColor: isLit
+                  ? "#d4af37"
+                  : isPartial
+                    ? "rgba(212,175,55,0.5)"
+                    : "rgba(255,255,255,0.12)",
+                boxShadow: isLit ? "0 0 8px rgba(212,175,55,0.6)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+      <p className="text-white/40 text-xs mt-2 font-mono">{Math.min(100, Math.floor(progress))}%</p>
     </div>
   );
 }
