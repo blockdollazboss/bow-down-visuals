@@ -85,12 +85,18 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
    * but never beyond what actually fits. */
   const desired = Math.max(input.savedWidth, MASTER_PLAYER_MIN_HEIGHT * aspect);
 
+  /* If the saved width is stale/tiny compared to the available fit, ignore it
+   * and fill the space. Only respect savedWidth when it's close to the fit
+   * (user deliberately sized it). */
+  const fitWForDesired = Math.min(maxW, bandH * aspect);
+  const effectiveDesired = desired > fitWForDesired * 0.9 ? desired : fitWForDesired;
+
   /* The min-width floor must never bust the fit: clamp the floor itself.
    * When the band is tiny the video shrinks (chrome stays visible); when
    * the band is gone entirely the canvas collapses to 0 but the transport
    * rows — separate flex children — still render. */
   const floor = Math.min(MASTER_PLAYER_MIN_WIDTH, fitW);
-  const width = Math.max(floor, Math.min(desired, fitW));
+  const width = Math.max(floor, Math.min(effectiveDesired, fitW));
 
   return { width: Math.round(width), height: Math.round(width / aspect) };
 }

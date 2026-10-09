@@ -1185,7 +1185,7 @@ export type MasterPlayerSnapPosition =
  *  on desktop. The vertical-band clamp in the player still keeps it inside the
  *  toolbar↔timeline space, so portrait formats can't overflow the viewport. */
 export const MASTER_PLAYER_MIN_WIDTH = 180;
-export const MASTER_PLAYER_MAX_WIDTH = 1152;
+export const MASTER_PLAYER_MAX_WIDTH = 1440;
 /* Default = fill the available band (capped by MAX_WIDTH and the fit math).
    The fit function clamps to what actually fits, so a MAX default means
    "grow to fill" until the user drags to resize (their size is then saved). */
