@@ -60,11 +60,11 @@ export default function WittyLoader({ message }: { message?: string }) {
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
       />
-      {/* Cinematic left gradient — the poster reads left to right */}
+      {/* Cinematic right gradient — the poster reads right side */}
       <div
         aria-hidden
         className="absolute inset-0"
-        style={{ background: "linear-gradient(100deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
+        style={{ background: "linear-gradient(260deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
       />
       {/* Vignette — theater darkness at the edges */}
       <div
@@ -73,13 +73,25 @@ export default function WittyLoader({ message }: { message?: string }) {
         style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
       />
 
-      {/* Top-left: brand eyebrow */}
-      <p className="absolute top-8 left-6 md:left-14 z-10 text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em]">
-        Bow Down Visuals presents
-      </p>
+      {/* Top-left: brand eyebrow + now featuring */}
+      <div className="absolute top-8 left-6 md:left-14 z-10">
+        <p className="text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em]">
+          Bow Down Visuals presents
+        </p>
+        <div
+          key={promoIdx}
+          className="mt-4 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
+        >
+          <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
+          <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
+            <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
+            <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
+          </div>
+        </div>
+      </div>
 
-      {/* ── LEFT: the title treatment ── */}
-      <div className="absolute left-6 md:left-14 top-1/2 -translate-y-1/2 z-10 max-w-md">
+      {/* ── MIDDLE-RIGHT: the title treatment ── */}
+      <div className="absolute right-6 md:right-14 top-1/2 -translate-y-1/2 z-10 max-w-md text-right">
         {/* The headline */}
         <h1
           key={line}
@@ -102,17 +114,6 @@ export default function WittyLoader({ message }: { message?: string }) {
         <BarcodeStrip />
       </div>
 
-      {/* ── TOP-RIGHT: now featuring ── */}
-      <div
-        key={promoIdx}
-        className="absolute top-8 right-6 md:right-10 z-10 max-w-[280px] animate-in fade-in slide-in-from-right duration-700"
-      >
-        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
-        <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
-          <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
-          <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
-        </div>
-      </div>
     </div>
   );
 }
