@@ -225,7 +225,6 @@ const SECTIONS: NavSection[] = [
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
-      { href: "/carousel-maker", labelKey: "nav.carouselMaker", icon: LayoutGrid },
       { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
       { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
       { href: "/library", labelKey: "nav.library", icon: Library },
