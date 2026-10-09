@@ -607,7 +607,7 @@
     "merch": "Merch",
     "monetizationCoach": "Monetization Coach",
     "myClips": "My Clips",
-    "myProjects": "My Projects",
+    "myProjects": "Thy Vision",
     "nfcCards": "NFC Cards",
     "profile": "Profile",
     "promoClipMaker": "Clip Maker",
@@ -1195,8 +1195,8 @@
     "photoShootLook": "Photo Shoot Look",
     "backToDashboard": "Back to Dashboard",
     "freeBadge": "Free",
-    "profilesTitle": "Artist Profiles",
-    "profilesSubtitle": "Save your artist's look, style, colors, and brand once — then load it on any tool to keep all your visuals consistent.",
+    "profilesTitle": "Creative Vault",
+    "profilesSubtitle": "Your entire creative identity lives here — artist looks, characters, and brand DNA. Save it once, load it on any tool, keep every visual consistent.",
     "tagArtistDescription": "Artist Description",
     "tagVisualStyle": "Visual Style",
     "tagHairTattoos": "Hair & Tattoos",
@@ -1274,7 +1274,8 @@
     "loading": "Loading...",
     "noProfilesYet": "No profiles saved yet",
     "profileCount": "{{count}} profiles",
-    "emptyProfiles": "Fill out the form above to save your first artist profile."
+    "emptyProfiles": "Fill out the form above to save your first artist profile.",
+    "emptyProfilesTitle": "Your vault is empty"
   },
   "audioCleanup": {
     "pageTitle": "Audio Cleanup",
@@ -8206,9 +8207,9 @@
     "noMembers": "No members tracked yet."
   },
   "myProjects": {
-    "pageTitle": "My Projects",
+    "pageTitle": "Thy Vision",
     "pageDescription": "All your songs, videos, and creative projects in one place.",
-    "heading": "My Projects",
+    "heading": "Thy Vision",
     "subheading": "Saved projects, unsaved drafts, and all your generated Runway clips — all in one place.",
     "backToDashboard": "Back to Dashboard",
     "tabProjects": "Projects",
@@ -9829,7 +9830,7 @@
     "heading": "Lost in the vault?",
     "description": "This page drifted off the map. The crown's still here, though — let's get you back to the studio.",
     "backToHome": "Back to Home",
-    "myProjects": "My Projects"
+    "myProjects": "Thy Vision"
   },
   "nfcCardProfile": {
     "shareTitle": "Digital business card",

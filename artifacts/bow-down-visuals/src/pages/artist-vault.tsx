@@ -1949,20 +1949,41 @@ export default function ArtistVault() {
         </Link>
 
         {/* Page header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Archive className="h-5 w-5 text-white" />
+        <div className="mb-10 relative">
+          {/* Giant watermark */}
+          <Archive className="absolute -right-4 -top-8 h-36 w-36 text-[#C9A84C]/[0.06] rotate-12 pointer-events-none hidden sm:block" aria-hidden="true" />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] flex items-center justify-center shadow-[0_0_28px_rgba(201,168,76,0.35)]">
+              <Archive className="h-5 w-5 text-black" />
             </div>
-            <Badge className="bg-white/5 text-white/40 border-white/10 text-xs font-bold tracking-wide">{t("artistVault.freeBadge")}</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">{t("artistVault.freeBadge")}</Badge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">{t("artistVault.profilesTitle")}</h1>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">
+            <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">{t("artistVault.profilesTitle")}</span>
+          </h1>
           <p className="text-white/50 text-lg max-w-2xl">
             {t("artistVault.profilesSubtitle")}
           </p>
+          {/* Attribute quick-jumps — tap to jump straight to that form section */}
           <div className="flex flex-wrap gap-2 mt-5">
-            {[t("artistVault.tagArtistDescription"), t("artistVault.tagVisualStyle"), t("artistVault.tagHairTattoos"), t("artistVault.tagJewelry"), t("artistVault.tagClothing"), t("artistVault.tagBrandColors"), t("artistVault.tagDoNotChange"), t("artistVault.tagSpecialStyle")].map((tag) => (
-              <span key={tag} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full">{tag}</span>
+            {[
+              { label: t("artistVault.tagArtistDescription"), target: "field-artist-description" },
+              { label: t("artistVault.tagVisualStyle"), target: "field-visual-style" },
+              { label: t("artistVault.tagHairTattoos"), target: "field-hair" },
+              { label: t("artistVault.tagJewelry"), target: "field-jewelry" },
+              { label: t("artistVault.tagClothing"), target: "field-clothing" },
+              { label: t("artistVault.tagBrandColors"), target: "field-brand-colors" },
+              { label: t("artistVault.tagDoNotChange"), target: "field-do-not-change" },
+              { label: t("artistVault.tagSpecialStyle"), target: "field-special-style" },
+            ].map(({ label, target }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+              >
+                {label}
+              </button>
             ))}
           </div>
         </div>
@@ -2011,8 +2032,69 @@ export default function ArtistVault() {
           </div>
         )}
 
+        {/* Saved Profiles Grid */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-black text-white">{t("artistVault.savedProfiles")}</h2>
+              <p className="text-sm text-white/40 mt-1">
+                {loadingVaults
+                  ? t("artistVault.loading")
+                  : vaults.length === 0
+                    ? t("artistVault.noProfilesYet")
+                    : t("artistVault.profileCount", { count: vaults.length })}
+              </p>
+            </div>
+            {vaults.length > 0 && (
+              <button
+                onClick={startNew}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:border-primary/30 hover:bg-primary/5 transition-colors"
+              >
+                <Plus className="h-4 w-4" /> {t("artistVault.newProfileButton")}
+              </button>
+            )}
+          </div>
+
+          {loadingVaults ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+            </div>
+          ) : vaults.length === 0 ? (
+            <div className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.04] to-transparent p-10 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center mx-auto mb-4">
+                <Archive className="h-7 w-7 text-primary" />
+              </div>
+              <p className="text-white font-bold mb-1">{t("artistVault.emptyProfilesTitle", { defaultValue: "Your vault is empty" })}</p>
+              <p className="text-white/40 text-sm mb-5 max-w-sm mx-auto">{t("artistVault.emptyProfiles")}</p>
+              <button
+                type="button"
+                onClick={() => document.getElementById("new-artist-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black text-sm font-bold hover:brightness-110 transition"
+              >
+                <Plus className="h-4 w-4" /> {t("artistVault.newProfileButton")}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lux-stagger">
+              {vaults.map((vault) => (
+                <VaultCard
+                  key={vault.id}
+                  vault={vault}
+                  onOpen={() => setOpenVault(vault)}
+                  onEdit={() => startEdit(vault)}
+                  onDelete={() => deleteVault(vault.id)}
+                  onLock={() => setConsistencyVault(vault)}
+                  onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
+                  onShare={() => shareVault(vault.id)}
+                  isActive={activeArtist?.id === vault.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Form card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+        <div id="new-artist-form" className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden scroll-mt-24">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05] bg-white/[0.01]">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -2081,7 +2163,7 @@ export default function ArtistVault() {
             </FieldWrapper>
 
             {/* Artist Description */}
-            <FieldWrapper label={t("artistVault.fieldArtistDescription")} hint={t("artistVault.fieldArtistDescriptionHint")}>
+            <FieldWrapper id="field-artist-description" label={t("artistVault.fieldArtistDescription")} hint={t("artistVault.fieldArtistDescriptionHint")}>
               <Textarea
                 {...register("artistDescription")}
                 placeholder={t("artistVault.descriptionPlaceholder")}
@@ -2096,7 +2178,7 @@ export default function ArtistVault() {
                 <StyledSelect name="genre" placeholder={t("artistVault.selectGenre")} options={GENRES}
                   value={watched.genre} onChange={(v) => setValue("genre", v)} />
               </FieldWrapper>
-              <FieldWrapper label={t("artistVault.fieldVisualStyle")}>
+              <FieldWrapper id="field-visual-style" label={t("artistVault.fieldVisualStyle")}>
                 <StyledSelect name="visualStyle" placeholder={t("artistVault.selectVisualStyle")} options={VISUAL_STYLES}
                   value={watched.visualStyle} onChange={(v) => setValue("visualStyle", v)} />
               </FieldWrapper>
@@ -2106,16 +2188,16 @@ export default function ArtistVault() {
             <div data-min-stars="3">
               <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">{t("artistVault.appearanceSection")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label={t("artistVault.fieldHair")} hint={t("artistVault.fieldHairHint")}>
+                <FieldWrapper id="field-hair" label={t("artistVault.fieldHair")} hint={t("artistVault.fieldHairHint")}>
                   <Input {...register("hair")} placeholder={t("artistVault.hairPlaceholder")} className={inputClass} />
                 </FieldWrapper>
                 <FieldWrapper label={t("artistVault.fieldTattoos")} hint={t("artistVault.fieldTattoosHint")}>
                   <Input {...register("tattoos")} placeholder={t("artistVault.tattoosPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label={t("artistVault.fieldJewelry")} hint={t("artistVault.fieldJewelryHint")}>
+                <FieldWrapper id="field-jewelry" label={t("artistVault.fieldJewelry")} hint={t("artistVault.fieldJewelryHint")}>
                   <Input {...register("jewelry")} placeholder={t("artistVault.jewelryPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label={t("artistVault.fieldClothing")} hint={t("artistVault.fieldClothingHint")}>
+                <FieldWrapper id="field-clothing" label={t("artistVault.fieldClothing")} hint={t("artistVault.fieldClothingHint")}>
                   <Input {...register("clothingStyle")} placeholder={t("artistVault.clothingPlaceholder")} className={inputClass} />
                 </FieldWrapper>
               </div>
@@ -2159,7 +2241,7 @@ export default function ArtistVault() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label={t("artistVault.fieldBrandColors")} hint={t("artistVault.fieldBrandColorsHint")}>
+                <FieldWrapper id="field-brand-colors" label={t("artistVault.fieldBrandColors")} hint={t("artistVault.fieldBrandColorsHint")}>
                   <Input {...register("brandColors")} placeholder={t("artistVault.brandColorsPlaceholder")} className={inputClass} />
                 </FieldWrapper>
                 <FieldWrapper label={t("artistVault.fieldVoiceStyle")} hint={t("artistVault.fieldVoiceStyleHint")}>
@@ -2240,7 +2322,7 @@ export default function ArtistVault() {
 
             {/* Do Not Change Rules */}
             <div data-min-stars="4" className="rounded-xl border border-red-500/15 bg-red-500/[0.03] p-5">
-              <FieldWrapper label={t("artistVault.doNotChangeTitle")} hint={t("artistVault.doNotChangeHint")}>
+              <FieldWrapper id="field-do-not-change" label={t("artistVault.doNotChangeTitle")} hint={t("artistVault.doNotChangeHint")}>
                 <Textarea
                   {...register("doNotChangeRules")}
                   placeholder={t("artistVault.doNotChangePlaceholder")}
@@ -2252,7 +2334,7 @@ export default function ArtistVault() {
 
             {/* Special Style Rules */}
             <div data-min-stars="4" className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
-              <FieldWrapper label={t("artistVault.specialStyleTitle")} hint={t("artistVault.specialStyleHint")}>
+              <FieldWrapper id="field-special-style" label={t("artistVault.specialStyleTitle")} hint={t("artistVault.specialStyleHint")}>
                 <Textarea
                   {...register("specialStyleRules")}
                   placeholder={t("artistVault.specialStylePlaceholder")}
@@ -2339,56 +2421,6 @@ export default function ArtistVault() {
           </form>
         </div>
 
-        {/* Saved Profiles Grid */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-black text-white">{t("artistVault.savedProfiles")}</h2>
-              <p className="text-sm text-white/40 mt-1">
-                {loadingVaults
-                  ? t("artistVault.loading")
-                  : vaults.length === 0
-                    ? t("artistVault.noProfilesYet")
-                    : t("artistVault.profileCount", { count: vaults.length })}
-              </p>
-            </div>
-            {vaults.length > 0 && (
-              <button
-                onClick={startNew}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:border-primary/30 hover:bg-primary/5 transition-colors"
-              >
-                <Plus className="h-4 w-4" /> {t("artistVault.newProfileButton")}
-              </button>
-            )}
-          </div>
-
-          {loadingVaults ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-white/30" />
-            </div>
-          ) : vaults.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] p-10 text-center">
-              <Archive className="h-10 w-10 text-white/15 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">{t("artistVault.emptyProfiles")}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lux-stagger">
-              {vaults.map((vault) => (
-                <VaultCard
-                  key={vault.id}
-                  vault={vault}
-                  onOpen={() => setOpenVault(vault)}
-                  onEdit={() => startEdit(vault)}
-                  onDelete={() => deleteVault(vault.id)}
-                  onLock={() => setConsistencyVault(vault)}
-                  onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
-                  onShare={() => shareVault(vault.id)}
-                  isActive={activeArtist?.id === vault.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
           </>
         )}
 

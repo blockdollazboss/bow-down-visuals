@@ -28,7 +28,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   dashboard: {
     title: "Creator Studio — Getting Started",
     steps: [
-      { n: 1, title: "Choose your artist",  desc: "Go to Artist Profiles, create your artist, and click Set as Active Artist." },
+      { n: 1, title: "Choose your artist",  desc: "Go to the Creative Vault, create your artist, and click Set as Active Artist." },
       { n: 2, title: "Pick what to create", desc: "Click Start from Scratch, Video for My Song, or Promo Clips from the menu." },
       { n: 3, title: "Generate with AI",    desc: "Follow the on-screen steps. AI writes lyrics and creates video scene prompts for you." },
       { n: 4, title: "Save your project",   desc: "Your project saves automatically. Find it in My Projects anytime." },
@@ -41,7 +41,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 
   "artist-vault": {
-    title: "Artist Profiles — Guide",
+    title: "Creative Vault — Guide",
     steps: [
       { n: 1, title: "Fill in your artist details",  desc: "Enter name, type, genre, visual style, hair, tattoos, clothing, and brand colors." },
       { n: 2, title: "Upload a reference photo",      desc: "Add a front-facing photo so AI tools can match your artist's face and style." },
