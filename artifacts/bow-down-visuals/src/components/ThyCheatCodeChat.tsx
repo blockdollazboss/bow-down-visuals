@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { VoiceInputButton } from "@/components/VoiceInput";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
@@ -383,6 +384,7 @@ export function ThyCheatCodeChat() {
 
           {/* Input */}
           <div className="flex items-center gap-2 border-t-4 border-[#C9A84C]/60 bg-[#0d0b06] p-3">
+            <VoiceInputButton onTranscript={(text) => setInput((prev) => prev ? prev + " " + text : text)} />
             <input
               ref={inputRef}
               value={input}
