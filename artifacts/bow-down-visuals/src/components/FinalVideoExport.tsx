@@ -14,6 +14,7 @@ import { useHubProject } from "@/lib/hub-project";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ConfettiBurst from "@/components/artist/confetti-burst";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
@@ -832,6 +833,15 @@ export function FinalVideoExport({
         {/* ── Completed ── */}
         {!outOfCredits && status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
+            <ConfettiBurst />
+            <div className="text-center space-y-1 pb-1">
+              <p className="text-xl font-black text-white">
+                Your masterpiece is ready 👑
+              </p>
+              <p className="text-sm text-white/50">
+                Fresh out the vault. Go make the internet bow down.
+              </p>
+            </div>
             <video
               src={exportUrl}
               controls

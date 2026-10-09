@@ -31,7 +31,7 @@
     "pageDescription": "Sign in to Bow Down Visuals.",
     "invalidEmail": "Enter a valid email",
     "passwordMinLength": "Password must be at least 6 characters",
-    "somethingWentWrong": "Something went wrong. Try again.",
+    "somethingWentWrong": "The vault door jammed. Try again.",
     "resetLinkSent": "Check your email for a reset link.",
     "backToSignIn": "Back to sign in",
     "sending": "Sending...",
@@ -51,7 +51,7 @@
     "copied": "Copied!",
     "copy": "Copy",
     "create": "Create",
-    "creditsBalance": "Credit Balance",
+    "creditsBalance": "Visual Bucs Balance",
     "delete": "Delete",
     "download": "Download",
     "edit": "Edit",
@@ -11587,5 +11587,32 @@
     "alsoTry": "Also try",
     "alsoTryMusicVideo": "Cartoon Music Video style",
     "alsoTryEditRecipe": "Kids / Cartoon Edit recipe"
+  },
+  "delight": {
+    "loaderLines": [
+      "Waking up Thy Cheat Code…",
+      "Polishing the crown…",
+      "Sharpening the shark teeth…",
+      "Rolling out the gold carpet…",
+      "Summoning your creative vault…",
+      "Tuning the cheat codes…",
+      "Lighting the throne room…",
+      "Feeding the vault guards…"
+    ],
+    "loaderSub": "Thy Cheat Code is getting your world ready",
+    "generatingLines": [
+      "Thy Cheat Code is cooking…",
+      "The sharks are rendering frames…",
+      "Sprinkling gold dust on pixels…",
+      "Teaching AI your vibe…",
+      "This is the part where magic happens…",
+      "Almost worthy of the crown…"
+    ],
+    "exportCelebration": "Your masterpiece is ready 👑",
+    "exportCelebrationSub": "Fresh out the vault. Go make the internet bow down.",
+    "errorTitle": "The vault guards tripped.",
+    "errorBody": "Something glitched on our side — nothing you made was lost. Give it a second and try again, your highness.",
+    "errorRetry": "Try again",
+    "emptyVaultCta": "Fill thy vault"
   }
 }

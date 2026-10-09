@@ -12,6 +12,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
+import { GeneratingStatus } from "@/components/delight/witty-loader";
 
 /* ─── Higgsfield-style camera movements ─── */
 
@@ -400,6 +401,8 @@ export default function VideoStudio() {
                 </>
               )}
             </button>
+
+            {generating && <GeneratingStatus />}
 
             {error && (
               <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">

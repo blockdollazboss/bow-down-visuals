@@ -219,20 +219,29 @@ class RouteErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-[60vh] flex items-center justify-center px-6 py-16">
-          <div className="max-w-sm text-center space-y-4">
-            <p className="text-white/80 font-semibold">
-              This page didn't load properly.
+        <div className="min-h-[60vh] flex items-center justify-center px-6 py-16 relative overflow-hidden">
+          <div
+            aria-hidden
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full bg-primary/[0.06] blur-[120px] pointer-events-none"
+          />
+          <div className="relative max-w-sm text-center space-y-4">
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+              <span className="text-2xl" aria-hidden>
+                🦈
+              </span>
+            </div>
+            <p className="text-white font-bold text-lg">
+              The vault guards tripped.
             </p>
             <p className="text-white/40 text-sm leading-relaxed">
-              Nothing was lost — reloading usually fixes it right away.
+              Something glitched on our side — nothing you made was lost. Give it a second and try again, your highness.
             </p>
             <button
               type="button"
               onClick={() => window.location.reload()}
               className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-black hover:brightness-110 transition"
             >
-              Reload page
+              Try again
             </button>
           </div>
         </div>

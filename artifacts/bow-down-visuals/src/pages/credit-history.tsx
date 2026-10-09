@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
+import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2, Coins } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -155,9 +155,21 @@ export default function CreditHistory() {
               </div>
 
               {payments.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
-                  No purchases yet.{" "}
-                  <Link href="/pricing#credit-packs" className="text-primary hover:underline">{t("credit-history.buy_visual_bucs")}</Link>{t("credit-history.to_get_started")}</div>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-8 text-center space-y-3">
+                  <div className="mx-auto h-12 w-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+                    <Coins className="h-6 w-6 text-primary" aria-hidden />
+                  </div>
+                  <p className="text-white font-bold">Thy vault awaits its first treasure.</p>
+                  <p className="text-white/40 text-sm max-w-xs mx-auto">
+                    No Visual Bucs purchases yet — every empire starts with a single coin.
+                  </p>
+                  <Link
+                    href="/pricing#credit-packs"
+                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition"
+                  >
+                    {t("credit-history.buy_visual_bucs")}
+                  </Link>
+                </div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
