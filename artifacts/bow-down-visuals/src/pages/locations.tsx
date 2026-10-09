@@ -13,7 +13,7 @@ interface LocationRecord {
   created_at: string;
 }
 
-export default function LocationsPage() {
+export default function LocationsPage({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   usePageTitle(t("locations.pageTitle"), t("locations.pageDescription"));
   const { getAccessToken } = useAuth();
@@ -118,7 +118,10 @@ export default function LocationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-8 max-w-5xl mx-auto">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white px-4 py-8 max-w-5xl mx-auto"}>
+      {/* Hero (standalone page only; the shell provides it when embedded) */}
+      {!embedded && (
+      <>
       <div className="flex items-center gap-3 mb-1">
         <MapPin className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">{t("locations.pageTitle")}</h1>
@@ -126,6 +129,8 @@ export default function LocationsPage() {
       <p className="text-sm text-white/50 mb-6">
         {t("locations.subtitle")}
       </p>
+      </>
+      )}
 
       {/* Add */}
       <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 mb-6">

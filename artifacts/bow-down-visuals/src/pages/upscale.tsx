@@ -984,7 +984,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
 
 /* ─── Page shell with tabs ────────────────────────────────────────────── */
 
-export default function Upscale() {
+export default function Upscale({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   usePageTitle(t("upscale.pageTitle"), t("upscale.pageDescription"));
   const [tab, setTab] = useState<TabKey>(() => {
@@ -992,8 +992,11 @@ export default function Upscale() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-3xl px-4 py-10">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-3xl px-4 py-10"}>
+        {/* Back link + hero (standalone page only; the shell provides them when embedded) */}
+        {!embedded && (
+        <>
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> {t("upscale.back")}
         </Link>
@@ -1007,6 +1010,8 @@ export default function Upscale() {
             <p className="text-sm text-white/45">{t("upscale.pageSub")}</p>
           </div>
         </div>
+        </>
+        )}
 
         {/* Tab bar */}
         <div className="mt-6 grid grid-cols-3 gap-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5" role="tablist" aria-label={t("upscale.tabListLabel")}>

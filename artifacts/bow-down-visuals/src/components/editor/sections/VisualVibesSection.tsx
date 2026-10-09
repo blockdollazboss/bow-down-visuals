@@ -162,9 +162,11 @@ function matchesVibe(s: EditorSettings, vibe: Vibe): boolean {
 interface VisualVibesSectionProps {
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
+  /** When true, skips the internal header (a shell provides it). */
+  bare?: boolean;
 }
 
-export function VisualVibesSection({ settings, setSettings }: VisualVibesSectionProps) {
+export function VisualVibesSection({ settings, setSettings, bare }: VisualVibesSectionProps) {
   const { t } = useTranslation();
   /** Snapshot of the user's own settings before the first vibe apply (Reset target). */
   const [preVibeSettings, setPreVibeSettings] = useState<EditorSettings | null>(null);
@@ -190,6 +192,7 @@ export function VisualVibesSection({ settings, setSettings }: VisualVibesSection
   return (
     <div className="space-y-4">
       {/* Header */}
+      {!bare && (
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-black text-white flex items-center gap-2">
@@ -203,6 +206,7 @@ export function VisualVibesSection({ settings, setSettings }: VisualVibesSection
           </p>
         </div>
       </div>
+      )}
 
       {/* Active vibe banner + reset */}
       <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">

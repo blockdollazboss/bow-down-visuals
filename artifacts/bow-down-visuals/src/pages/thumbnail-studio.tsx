@@ -1731,7 +1731,7 @@ function studioTabLabel(t: (k: string, o?: Record<string, unknown>) => string, k
   });
 }
 
-export default function ThumbnailStudio({ defaultTab }: { defaultTab?: StudioTabKey } = {}) {
+export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?: StudioTabKey; embedded?: boolean } = {}) {
   const { t } = useTranslation();
   usePageTitle(
     t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" }),
@@ -1761,11 +1761,16 @@ export default function ThumbnailStudio({ defaultTab }: { defaultTab?: StudioTab
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      {!embedded && (
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
-      <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
+      )}
+      <div className={embedded ? "" : "relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14"}>
+        {/* Back link + hero (standalone page only; the shell provides them when embedded) */}
+        {!embedded && (
+        <>
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
@@ -1788,6 +1793,8 @@ export default function ThumbnailStudio({ defaultTab }: { defaultTab?: StudioTab
             })}
           </p>
         </div>
+        </>
+        )}
 
         {/* tabs */}
         <div className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5" role="tablist" aria-label={t("thumbnailStudio.tabs.aria", { defaultValue: "Thumbnail studio sections" })}>

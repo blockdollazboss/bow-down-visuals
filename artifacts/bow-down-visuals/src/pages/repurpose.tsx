@@ -694,7 +694,7 @@ function StreamVodClips() {
   );
 }
 
-export default function Repurpose() {
+export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
@@ -937,9 +937,10 @@ export default function Repurpose() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
-        {/* Hero */}
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-5xl px-4 pb-24 pt-28"}>
+        {/* Hero (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Recycle className="h-3.5 w-3.5" />
@@ -952,6 +953,7 @@ export default function Repurpose() {
             {t("repurpose.hero")}
           </p>
         </div>
+        )}
 
         {/* Mode toggle: 10-piece Content Pack vs Stream VOD clip cutter */}
         <div className="mt-8 flex justify-center">

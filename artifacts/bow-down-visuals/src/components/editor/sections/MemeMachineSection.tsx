@@ -32,12 +32,14 @@ const MEME_FORMATS: MemeFormat[] = [
 interface MemeMachineSectionProps {
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
+  /** When true, skips the internal header (a shell provides it). */
+  bare?: boolean;
 }
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none";
 
-export function MemeMachineSection({ settings, setSettings }: MemeMachineSectionProps) {
+export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineSectionProps) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -114,6 +116,7 @@ export function MemeMachineSection({ settings, setSettings }: MemeMachineSection
 
   return (
     <div className="space-y-4">
+      {!bare && (
       <div>
         <h3 className="text-sm font-black text-white flex items-center gap-2">
           <Laugh className="h-4 w-4 text-primary" />
@@ -125,6 +128,7 @@ export function MemeMachineSection({ settings, setSettings }: MemeMachineSection
           })}
         </p>
       </div>
+      )}
 
       <div>
         <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-1.5">

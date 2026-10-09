@@ -23,6 +23,8 @@ interface Opening {
 
 interface ThreeSecondLabSectionProps {
   openingHint: string;
+  /** When true, skips the internal header (a shell provides it). */
+  bare?: boolean;
 }
 
 const inputClass =
@@ -34,7 +36,7 @@ function scoreColor(score: number): string {
   return "text-white/50";
 }
 
-export function ThreeSecondLabSection({ openingHint }: ThreeSecondLabSectionProps) {
+export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSectionProps) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -84,6 +86,7 @@ export function ThreeSecondLabSection({ openingHint }: ThreeSecondLabSectionProp
 
   return (
     <div className="space-y-4">
+      {!bare && (
       <div>
         <h3 className="text-sm font-black text-white flex items-center gap-2">
           <Timer className="h-4 w-4 text-primary" />
@@ -95,6 +98,7 @@ export function ThreeSecondLabSection({ openingHint }: ThreeSecondLabSectionProp
           })}
         </p>
       </div>
+      )}
 
       <div>
         <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">

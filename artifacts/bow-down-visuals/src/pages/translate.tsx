@@ -37,7 +37,7 @@ const inputClass =
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed";
 
-export default function Translate() {
+export default function Translate({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -240,8 +240,10 @@ export default function Translate() {
   const failedOutputs = job?.outputs.filter((o) => !o.videoUrl && o.error) ?? [];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-10">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-5xl px-4 pb-24 pt-10"}>
+        {/* Hero (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-300">
             <Languages className="h-3.5 w-3.5" />{t("translate.badge")}</div>
@@ -251,6 +253,7 @@ export default function Translate() {
             <AlertTriangle className="h-3.5 w-3.5" /> {HONESTY_NOTE}
           </p>
         </div>
+        )}
 
         {!user ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center text-white/60">{t("translate.signInPrompt")}</div>

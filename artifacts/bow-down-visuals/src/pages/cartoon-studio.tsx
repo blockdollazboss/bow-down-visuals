@@ -67,7 +67,7 @@ interface PollResult {
   error?: string;
 }
 
-export default function CartoonStudio({ initialTab }: { initialTab?: StudioTab } = {}) {
+export default function CartoonStudio({ initialTab, embedded }: { initialTab?: StudioTab; embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -293,11 +293,16 @@ export default function CartoonStudio({ initialTab }: { initialTab?: StudioTab }
   const canCartoonize = !!uploadPreview && !busy;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      {!embedded && (
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
-      <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
+      )}
+      <div className={embedded ? "" : "relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14"}>
+        {/* Back link + hero (standalone page only; the shell provides them when embedded) */}
+        {!embedded && (
+        <>
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
@@ -321,6 +326,8 @@ export default function CartoonStudio({ initialTab }: { initialTab?: StudioTab }
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">{t("cartoonStudio.subtitle")}</p>
         </div>
+        </>
+        )}
 
         {/* tabs */}
         <div

@@ -107,6 +107,8 @@ import LocationsPage from "@/pages/locations";
 import { StyleStealerSection } from "@/components/editor/sections/StyleStealerSection";
 import { MemeMachineSection } from "@/components/editor/sections/MemeMachineSection";
 import { ThreeSecondLabSection } from "@/components/editor/sections/ThreeSecondLabSection";
+import { ToolPanelShell } from "@/components/editor/ToolPanelShell";
+import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
@@ -2052,18 +2054,139 @@ export default function VideoEditor() {
                       </div>
                     </>
                   )}
-                  {tab === "promo-clips" && <PromoClip />}
-                  {tab === "lyric-video" && <LyricVideo />}
-                  {tab === "translate" && <Translate />}
-                  {tab === "repurpose" && <Repurpose />}
-                  {tab === "upscale" && <Upscale />}
-                  {tab === "cartoonize" && <CartoonStudio initialTab="cartoonize" />}
-                  {tab === "thumbnails" && <ThumbnailStudio defaultTab="generate" />}
-                  {tab === "vibes" && <VisualVibesSection settings={settings} setSettings={setSettings} />}
-                  {tab === "locations" && <LocationsPage />}
-                  {tab === "style-stealer" && <StyleStealerSection settings={settings} setSettings={setSettings} />}
-                  {tab === "meme-machine" && <MemeMachineSection settings={settings} setSettings={setSettings} />}
-                  {tab === "three-second-lab" && <ThreeSecondLabSection openingHint={threeSecondLabHint} />}
+                  {tab === "promo-clips" && (
+                    <ToolPanelShell
+                      tool="promo-clips"
+                      kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
+                      title={t("promo-clip.title")}
+                      subtitle={t("promo-clip.subtitle")}
+                      price={t("promo-clip.creditBadge")}
+                    >
+                      <PromoClip embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "lyric-video" && (
+                    <ToolPanelShell
+                      tool="lyric-video"
+                      kicker={t("lyricVideo.badge")}
+                      title={<>{t("lyricVideo.titlePrefix")}<span className="text-violet-300">{t("lyricVideo.titleHighlight")}</span></>}
+                      subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
+                    >
+                      <LyricVideo embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "translate" && (
+                    <ToolPanelShell
+                      tool="translate"
+                      kicker={t("translate.badge")}
+                      title={t("translate.pageTitle")}
+                      subtitle={t("translate.pageSubtitle")}
+                    >
+                      <Translate embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "repurpose" && (
+                    <ToolPanelShell
+                      tool="repurpose"
+                      kicker={t("repurpose.badge")}
+                      title={<>{t("repurpose.titlePrefix")} <span className="text-teal-300">{t("repurpose.titleSuffix")}</span></>}
+                      subtitle={t("repurpose.hero")}
+                    >
+                      <Repurpose embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "upscale" && (
+                    <ToolPanelShell
+                      tool="upscale"
+                      kicker={t("videoEditor.railUpscale", { defaultValue: "Upscale" })}
+                      title={t("upscale.pageTitle")}
+                      subtitle={t("upscale.pageSub")}
+                    >
+                      <Upscale embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "cartoonize" && (
+                    <ToolPanelShell
+                      tool="cartoonize"
+                      kicker={t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" })}
+                      title={t("cartoonStudio.title")}
+                      subtitle={t("cartoonStudio.subtitle")}
+                      price={t("cartoonStudio.costBadge")}
+                    >
+                      <CartoonStudio initialTab="cartoonize" embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "thumbnails" && (
+                    <ToolPanelShell
+                      tool="thumbnails"
+                      kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
+                      title={t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
+                      subtitle={t("thumbnailStudio.subtitle", {
+                        defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
+                      })}
+                      price={t("thumbnailMaker.costBadge")}
+                    >
+                      <ThumbnailStudio defaultTab="generate" embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "vibes" && (
+                    <ToolPanelShell
+                      tool="vibes"
+                      kicker={t("videoEditor.railVibes", { defaultValue: "Vibes" })}
+                      title={t("videoEditor.vibesTitle", { defaultValue: "Vibes" })}
+                      subtitle={t("videoEditor.vibesDesc", {
+                        defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no credits.",
+                      })}
+                    >
+                      <VisualVibesSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "locations" && (
+                    <ToolPanelShell
+                      tool="locations"
+                      kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
+                      title={t("locations.pageTitle")}
+                      subtitle={t("locations.subtitle")}
+                    >
+                      <LocationsPage embedded />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "style-stealer" && (
+                    <ToolPanelShell
+                      tool="style-stealer"
+                      kicker={t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" })}
+                      title={t("videoEditor.styleStealerTitle", { defaultValue: "Style Stealer" })}
+                      subtitle={t("videoEditor.styleStealerDesc", {
+                        defaultValue: "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline.",
+                      })}
+                    >
+                      <StyleStealerSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "meme-machine" && (
+                    <ToolPanelShell
+                      tool="meme-machine"
+                      kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
+                      title={t("videoEditor.memeMachineTitle", { defaultValue: "Meme Machine" })}
+                      subtitle={t("videoEditor.memeMachineDesc", {
+                        defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines. Apply drops the winner onto your timeline as styled captions.",
+                      })}
+                    >
+                      <MemeMachineSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+                  {tab === "three-second-lab" && (
+                    <ToolPanelShell
+                      tool="three-second-lab"
+                      kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
+                      title={t("videoEditor.labTitle", { defaultValue: "3-Second Lab" })}
+                      subtitle={t("videoEditor.labDesc", {
+                        defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
+                      })}
+                    >
+                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
+                    </ToolPanelShell>
+                  )}
                 </div>
               </aside>
 

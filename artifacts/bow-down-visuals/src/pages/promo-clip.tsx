@@ -223,7 +223,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
-export default function PromoClip() {
+export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   usePageTitle(t("promo-clip.pageTitle"), t("promo-clip.pageDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -519,22 +519,27 @@ export default function PromoClip() {
   /* ─────────────────────────── RENDER ─────────────────────────── */
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
 
-      {/* Ambient glow */}
+      {/* Ambient glow (standalone page only; the shell provides it when embedded) */}
+      {!embedded && (
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
+      )}
 
-      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
+      <div className={embedded ? "" : "relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14"}>
 
-        {/* Breadcrumb */}
+        {/* Breadcrumb (standalone page only) */}
+        {!embedded && (
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           {t("promo-clip.backToDashboard")}
         </Link>
+        )}
 
-        {/* Page header */}
+        {/* Page header (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
@@ -554,6 +559,7 @@ export default function PromoClip() {
             ))}
           </div>
         </div>
+        )}
 
         <ProjectFlowBar
           kinds={["song", "video", "script"]}

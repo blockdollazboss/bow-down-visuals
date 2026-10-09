@@ -61,7 +61,7 @@ const ASPECTS: { key: LyricVideoAspect; label: string; icon: typeof MonitorPlay 
   { key: "9:16", label: "Vertical 9:16", icon: Smartphone },
 ];
 
-export default function LyricVideo() {
+export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -251,8 +251,10 @@ export default function LyricVideo() {
   const matchPct = alignment?.matchRate != null ? Math.round(alignment.matchRate * 100) : null;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-10">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-5xl px-4 pb-24 pt-10"}>
+        {/* Hero (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Music4 className="h-3.5 w-3.5" /> {t("lyricVideo.badge")}
@@ -264,6 +266,7 @@ export default function LyricVideo() {
             {t("lyricVideo.subtitle", { alignCredits: ALIGN_CREDITS, renderCredits: RENDER_CREDITS })}
           </p>
         </div>
+        )}
 
         {outOfCredits && (
           <div className="mb-6"><OutOfCredits /></div>
