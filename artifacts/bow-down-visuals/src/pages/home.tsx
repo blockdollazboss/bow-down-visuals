@@ -446,6 +446,11 @@ function HeroSection() {
             {t("home.referEarnBadge")}
           </div>
         </Link>
+        {/* Zero skills required badge */}
+        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold text-primary border border-primary/40 bg-primary/10">
+          <Sparkles className="h-3.5 w-3.5" />
+          {t("home.zeroSkillsBadge", { defaultValue: "Zero creator skills required" })}
+        </div>
         </div>
 
         {/* Headline */}
