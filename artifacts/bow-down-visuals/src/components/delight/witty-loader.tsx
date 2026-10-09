@@ -76,8 +76,8 @@ export default function WittyLoader({ message }: { message?: string }) {
         style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
       />
 
-      {/* Top-center: brand eyebrow */}
-      <p className="absolute top-8 left-1/2 -translate-x-1/2 z-10 text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap">
+      {/* Bottom-center: brand eyebrow */}
+      <p className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap">
         Bow Down Visuals presents
       </p>
 
