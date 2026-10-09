@@ -112,43 +112,64 @@ export default function WittyLoader({ message }: { message?: string }) {
   );
 }
 
-/* CrownedLogo — the Shark King levitates with a breathing gold aura,
-   a slow-orbiting light ring, and a periodic shine sweep. */
+/* CrownedLogo — bare Shark King mark, no box. Levitates with a breathing
+   gold aura and orbiting light ring. The aura brightens and the mark swells
+   subtly as your cursor approaches — alive, not gimmicky. */
 function CrownedLogo() {
+  const [proximity, setProximity] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = wrapRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2);
+        const dy = e.clientY - (r.top + r.height / 2);
+        const dist = Math.hypot(dx, dy);
+        const maxDist = Math.max(window.innerWidth, window.innerHeight) * 0.4;
+        setProximity(Math.max(0, 1 - dist / maxDist));
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <div className="relative w-fit">
-      <div className="relative animate-[float_4s_ease-in-out_infinite]">
-        {/* Breathing aura */}
+    <div ref={wrapRef} className="relative w-fit">
+      <div
+        className="relative animate-[float_4s_ease-in-out_infinite] transition-transform duration-300 ease-out"
+        style={{ transform: `scale(${1 + proximity * 0.1})` }}
+      >
+        {/* Breathing aura — brightens with cursor proximity */}
         <div
           aria-hidden
-          className="absolute inset-0 -m-6 rounded-full bg-primary/20 blur-2xl animate-[breathe_3s_ease-in-out_infinite]"
+          className="absolute inset-0 -m-8 rounded-full blur-2xl animate-[breathe_3s_ease-in-out_infinite] transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle, rgba(212,175,55,${0.25 + proximity * 0.45}) 0%, transparent 70%)`,
+          }}
         />
         {/* Orbiting light ring */}
-        <div aria-hidden className="absolute inset-0 -m-3 animate-[spin_12s_linear_infinite]">
+        <div aria-hidden className="absolute inset-0 -m-4 animate-[spin_12s_linear_infinite]">
           <div className="absolute inset-0 rounded-full border border-transparent border-t-primary/70 border-r-primary/30" />
         </div>
-        {/* The mark, double size */}
-        <div className="relative overflow-hidden rounded-3xl">
-          <img
-            src="/logo-static.webp"
-            alt="Bow Down Visuals"
-            className="h-28 w-28 object-contain drop-shadow-[0_0_30px_rgba(212,175,55,0.5)]"
-          />
-          {/* Shine sweep */}
-          <div
-            aria-hidden
-            className="absolute inset-0 animate-[shine_5s_ease-in-out_infinite]"
-            style={{
-              background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%)",
-              backgroundSize: "250% 100%",
-            }}
-          />
-        </div>
+        {/* Bare mark — no box, no container */}
+        <img
+          src="/logo-static.webp"
+          alt="Bow Down Visuals"
+          className="relative h-28 w-28 object-contain"
+          style={{ filter: `drop-shadow(0 0 ${20 + proximity * 30}px rgba(212,175,55,${0.4 + proximity * 0.5}))` }}
+        />
       </div>
       <style>{`
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes breathe { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.08); } }
-        @keyframes shine { 0% { background-position: 120% 0; } 60%, 100% { background-position: -120% 0; } }
       `}</style>
     </div>
   );
