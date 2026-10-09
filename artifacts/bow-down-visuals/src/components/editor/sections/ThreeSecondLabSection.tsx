@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Timer, Loader2, Sparkles, Trophy } from "lucide-react";
+import { Timer, Loader2, Sparkles, Trophy, Upload, X, Clapperboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ── 3-Second Lab ─────────────────────────────────────────────────────────
@@ -47,6 +48,38 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [openings, setOpenings] = useState<Opening[]>([]);
+
+  /* ── Custom clip upload — analyze your own clip instead of the timeline opening ── */
+  const { upload, uploading: clipUploading, error: clipError, clearError: clearClipError } = useFileUpload();
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [clipName, setClipName] = useState("");
+  const [clipLocalError, setClipLocalError] = useState<string | null>(null);
+  const clipInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleClipFile(file: File) {
+    clearClipError();
+    setClipLocalError(null);
+    if (!file.type.startsWith("video/")) {
+      setClipLocalError("Please choose a video file (MP4, MOV, WebM).");
+      return;
+    }
+    if (file.size > 80 * 1024 * 1024) {
+      setClipLocalError("Video must be 80 MB or smaller.");
+      return;
+    }
+    const url = await upload(file);
+    if (url) {
+      setClipUrl(url);
+      setClipName(file.name);
+      setOpenings([]);
+    }
+  }
+
+  function removeClip() {
+    setClipUrl(null);
+    setClipName("");
+    if (clipInputRef.current) clipInputRef.current.value = "";
+  }
 
   async function generate() {
     if (!description.trim() || loading) return;
@@ -100,9 +133,79 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
       </div>
       )}
 
+      {/* ── Upload your own clip ── */}
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.05] p-3.5">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5">
+          <Upload className="h-3.5 w-3.5" />
+          {t("videoEditor.labUploadTitle", { defaultValue: "Upload your clip" })}
+        </p>
+        {clipUrl ? (
+          <div className="flex items-center gap-3">
+            <video
+              src={clipUrl}
+              className="h-16 w-24 rounded-lg border border-primary/30 object-cover shrink-0 bg-black"
+              muted
+              playsInline
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-white truncate">{clipName}</p>
+              <p className="text-[10px] text-white/40 mt-0.5">
+                {t("videoEditor.labClipActive", { defaultValue: "Describe this clip below — the lab scores openings for it." })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => clipInputRef.current?.click()}
+              className="shrink-0 rounded-lg border border-white/15 px-2.5 py-1.5 text-[11px] font-bold text-white/70 hover:border-primary/50 hover:text-white transition"
+            >
+              {t("videoEditor.labReplace", { defaultValue: "Replace" })}
+            </button>
+            <button
+              type="button"
+              onClick={removeClip}
+              className="shrink-0 rounded-lg border border-white/15 p-1.5 text-white/50 hover:border-red-400/50 hover:text-red-300 transition"
+              title={t("videoEditor.labRemove", { defaultValue: "Remove clip" })}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => clipInputRef.current?.click()}
+            disabled={clipUploading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-black/30 px-4 py-5 text-sm text-white/60 hover:border-primary/60 hover:text-white transition disabled:opacity-50"
+          >
+            {clipUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : (
+              <Clapperboard className="h-4 w-4 text-primary" />
+            )}
+            {clipUploading
+              ? t("videoEditor.labUploading", { defaultValue: "Uploading…" })
+              : t("videoEditor.labUploadCta", { defaultValue: "Choose a video clip (MP4/MOV, ≤ 80 MB) — or analyze the timeline opening below" })}
+          </button>
+        )}
+        <input
+          ref={clipInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleClipFile(f);
+          }}
+        />
+        {(clipError || clipLocalError) && (
+          <p className="text-xs text-red-400 mt-2">{clipError ?? clipLocalError}</p>
+        )}
+      </div>
+
       <div>
         <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
-          {t("videoEditor.labVideoLabel", { defaultValue: "What is the video about? *" })}
+          {clipUrl
+            ? t("videoEditor.labVideoLabelClip", { defaultValue: "Describe your uploaded clip *" })
+            : t("videoEditor.labVideoLabel", { defaultValue: "What is the video about? *" })}
         </label>
         <textarea
           value={description}

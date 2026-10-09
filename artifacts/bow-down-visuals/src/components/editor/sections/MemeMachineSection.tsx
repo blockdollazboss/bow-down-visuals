@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Laugh, Loader2, Sparkles, Check } from "lucide-react";
+import { Laugh, Loader2, Sparkles, Check, Upload, X, ImageIcon } from "lucide-react";
 import type { CaptionStylePreset, EditorSettings } from "@/lib/editor-settings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ── Meme Machine ─────────────────────────────────────────────────────────
@@ -53,7 +54,50 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
   const [picked, setPicked] = useState<number | null>(null);
   const [applied, setApplied] = useState(false);
 
-  const format = MEME_FORMATS.find((f) => f.id === formatId) ?? MEME_FORMATS[0];
+  /* ── Custom meme template upload ── */
+  const { upload, uploading: templateUploading, error: templateError, clearError: clearTemplateError } = useFileUpload();
+  const [templateUrl, setTemplateUrl] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateLocalError, setTemplateLocalError] = useState<string | null>(null);
+  const templateInputRef = useRef<HTMLInputElement | null>(null);
+
+  const CUSTOM_FORMAT: MemeFormat = {
+    id: "custom",
+    captionStyle: "viral-shorts",
+    clipSecs: 7,
+    hint: "Custom uploaded template",
+  };
+  const allFormats = templateUrl ? [...MEME_FORMATS, CUSTOM_FORMAT] : MEME_FORMATS;
+
+  const format = allFormats.find((f) => f.id === formatId) ?? MEME_FORMATS[0];
+
+  async function handleTemplateFile(file: File) {
+    clearTemplateError();
+    setTemplateLocalError(null);
+    if (!file.type.startsWith("image/")) {
+      setTemplateLocalError("Please choose an image file (JPG, PNG, WebP).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setTemplateLocalError("Image must be 10 MB or smaller.");
+      return;
+    }
+    const url = await upload(file);
+    if (url) {
+      setTemplateUrl(url);
+      setTemplateName(file.name);
+      setFormatId("custom");
+      setPicked(null);
+      setApplied(false);
+    }
+  }
+
+  function removeTemplate() {
+    setTemplateUrl(null);
+    setTemplateName("");
+    if (formatId === "custom") setFormatId("top-bottom");
+    if (templateInputRef.current) templateInputRef.current.value = "";
+  }
 
   async function generate() {
     if (!context.trim() || loading) return;
@@ -130,21 +174,95 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
       </div>
       )}
 
+      {/* ── Upload your own meme template ── */}
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.05] p-3.5">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5">
+          <Upload className="h-3.5 w-3.5" />
+          {t("videoEditor.memeMachineUploadTitle", { defaultValue: "Upload your own template" })}
+        </p>
+        {templateUrl ? (
+          <div className="flex items-center gap-3">
+            <img
+              src={templateUrl}
+              alt={templateName}
+              className="h-16 w-16 rounded-lg border border-primary/30 object-cover shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-white truncate">{templateName}</p>
+              <p className="text-[10px] text-white/40 mt-0.5">
+                {t("videoEditor.memeMachineCustomActive", { defaultValue: "Custom format selected — pick it below or keep a preset." })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => templateInputRef.current?.click()}
+              className="shrink-0 rounded-lg border border-white/15 px-2.5 py-1.5 text-[11px] font-bold text-white/70 hover:border-primary/50 hover:text-white transition"
+            >
+              {t("videoEditor.memeMachineReplace", { defaultValue: "Replace" })}
+            </button>
+            <button
+              type="button"
+              onClick={removeTemplate}
+              className="shrink-0 rounded-lg border border-white/15 p-1.5 text-white/50 hover:border-red-400/50 hover:text-red-300 transition"
+              title={t("videoEditor.memeMachineRemove", { defaultValue: "Remove template" })}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => templateInputRef.current?.click()}
+            disabled={templateUploading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-black/30 px-4 py-5 text-sm text-white/60 hover:border-primary/60 hover:text-white transition disabled:opacity-50"
+          >
+            {templateUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : (
+              <ImageIcon className="h-4 w-4 text-primary" />
+            )}
+            {templateUploading
+              ? t("videoEditor.memeMachineUploading", { defaultValue: "Uploading…" })
+              : t("videoEditor.memeMachineUploadCta", { defaultValue: "Choose a meme image (JPG/PNG, ≤ 10 MB)" })}
+          </button>
+        )}
+        <input
+          ref={templateInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleTemplateFile(f);
+          }}
+        />
+        {(templateError || templateLocalError) && (
+          <p className="text-xs text-red-400 mt-2">{templateError ?? templateLocalError}</p>
+        )}
+      </div>
+
       <div>
         <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-1.5">
           {t("videoEditor.memeMachineFormat", { defaultValue: "Meme format" })}
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {MEME_FORMATS.map((f) => (
+          {allFormats.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setFormatId(f.id)}
               className={`rounded-xl border px-3 py-2 text-left transition ${formatId === f.id ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/30"}`}
             >
-              <p className={`text-xs font-black ${formatId === f.id ? "text-primary" : "text-white"}`}>
-                {t(`videoEditor.memeFormat_${f.id}`, { defaultValue: f.hint })}
-              </p>
+              <span className="flex items-center gap-2">
+                {f.id === "custom" && templateUrl && (
+                  <img src={templateUrl} alt="" className="h-8 w-8 rounded-md object-cover border border-primary/30 shrink-0" />
+                )}
+                <p className={`text-xs font-black ${formatId === f.id ? "text-primary" : "text-white"}`}>
+                  {f.id === "custom"
+                    ? t("videoEditor.memeFormat_custom", { defaultValue: "My Upload" })
+                    : t(`videoEditor.memeFormat_${f.id}`, { defaultValue: f.hint })}
+                </p>
+              </span>
               <p className="text-[10px] text-white/40 mt-0.5">~{f.clipSecs}s · {f.captionStyle}</p>
             </button>
           ))}
