@@ -337,7 +337,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
         <FloatingAdminPanel />
-        <FloatingLanguageSwitcher />
+        {(isHome || location.startsWith("/settings")) && <FloatingLanguageSwitcher />}
         {typeof window !== "undefined" && <OnboardingTour />}
         {typeof window !== "undefined" && <StreamingPlayerBar />}
       </div>

@@ -24,6 +24,7 @@ export function LanguageSwitcher({ variant = "icon" }: { variant?: "icon" | "ful
 
   const changeLanguage = (code: SupportedLanguage) => {
     i18n.changeLanguage(code);
+    localStorage.setItem("bdv-language", code);
     setOpen(false);
   };
 
