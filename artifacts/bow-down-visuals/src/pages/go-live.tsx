@@ -39,7 +39,14 @@ interface Stream {
   vod_url: string | null;
 }
 
-export default function GoLive() {
+import ShowFinder from "@/pages/shows";
+import DiscordBotSetup from "@/pages/discord-bot";
+import LiveShopping from "@/pages/live-shopping";
+import GamersHub from "@/pages/gamers";
+
+type LiveTab = "golive" | "shows" | "discord" | "shopping" | "gamers";
+
+function GoLiveMain() {
   const { t } = useTranslation();
   usePageTitle(t("goLive.pageTitle"), t("goLive.pageDescription"));
   const { getAccessToken } = useAuth();
@@ -379,6 +386,50 @@ export default function GoLive() {
           </section>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── Tabbed wrapper ─── */
+export default function GoLive() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<LiveTab>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (q === "shows" || q === "discord" || q === "shopping" || q === "gamers") return q;
+    } catch { /* non-browser — ignore */ }
+    return "golive";
+  });
+
+  const TABS: Array<{ key: LiveTab; label: string }> = [
+    { key: "golive", label: t("goLive.tabGoLive", { defaultValue: "Go Live" }) },
+    { key: "shows", label: t("goLive.tabShows", { defaultValue: "Shows" }) },
+    { key: "discord", label: t("goLive.tabDiscord", { defaultValue: "Discord" }) },
+    { key: "shopping", label: t("goLive.tabShopping", { defaultValue: "Live Shopping" }) },
+    { key: "gamers", label: t("goLive.tabGamers", { defaultValue: "Gamers" }) },
+  ];
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-5xl px-4 pt-8">
+        <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                tab === key
+                  ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
+                  : "text-white/50 hover:text-white/80 border border-white/10"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "shopping" ? <LiveShopping /> : <GamersHub />}
     </div>
   );
 }

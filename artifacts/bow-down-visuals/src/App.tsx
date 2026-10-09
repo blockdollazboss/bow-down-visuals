@@ -126,7 +126,6 @@ const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
-const ShowFinder = lazyWithRetry(() => import("@/pages/shows"));
 const BrandDealFinder = lazyWithRetry(() => import("@/pages/brand-deals"));
 const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
@@ -148,7 +147,6 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
-const DiscordBot = lazyWithRetry(() => import("@/pages/discord-bot"));
 const Guides = lazyWithRetry(() => import("@/pages/guides"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
@@ -165,7 +163,6 @@ const Movies = lazyWithRetry(() => import("@/pages/movies"));
 const WebsiteBuilder = lazyWithRetry(() => import("@/pages/website-builder"));
 const MediaDetector = lazyWithRetry(() => import("@/pages/media-detector"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
-const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
 /* ── Worker 9: community — groups / events / DMs / explore ── */
 const Groups = lazyWithRetry(() => import("@/pages/groups"));
 const GroupDetail = lazyWithRetry(() => import("@/pages/group-detail"));
@@ -195,7 +192,6 @@ const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
-const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
@@ -489,7 +485,7 @@ function AppShell() {
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><Redirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
-          <Route path="/shows"><ShowFinder /></Route>
+          <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
           <Route path="/brand-deals"><BrandDealFinder /></Route>
           <Route path="/distribute"><Distribute /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
@@ -587,9 +583,9 @@ function AppShell() {
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
-                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><Redirect to="/go-live?tab=discord" /></Route>
                 <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
-                <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
+                <Route path="/gamers"><Redirect to="/go-live?tab=gamers" /></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
                 <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
                 <Route path="/cover-art"><ProtectedRoute><CoverArt /></ProtectedRoute></Route>
@@ -624,7 +620,7 @@ function AppShell() {
                 <Route path="/beat-maker"><Redirect to="/ai-audio?tab=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
-                <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
+                <Route path="/live-shopping"><Redirect to="/go-live?tab=shopping" /></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
@@ -639,7 +635,7 @@ function AppShell() {
                 <Route path="/music-sales"><Redirect to="/store/dashboard?view=digital" /></Route>
                 <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
 
-                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><Redirect to="/go-live?tab=discord" /></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
