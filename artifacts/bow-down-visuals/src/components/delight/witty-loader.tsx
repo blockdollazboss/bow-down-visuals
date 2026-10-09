@@ -67,14 +67,15 @@ export default function WittyLoader({ message }: { message?: string }) {
         aria-hidden
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[560px] rounded-full bg-primary/[0.07] blur-[130px] pointer-events-none"
       />
+      {/* Shark King logo — top-left brand mark, clean, no border */}
+      <div className="absolute top-6 left-6 z-10">
+        <img
+          src="/logo-static.webp"
+          alt="Bow Down Visuals"
+          className="h-14 w-14 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.35)]"
+        />
+      </div>
       <div className="relative flex flex-col items-center gap-5 px-6 text-center">
-        {/* Shark King logo mark */}
-        <div className="relative">
-          <div className="h-20 w-20 rounded-2xl overflow-hidden border border-primary/30 shadow-[0_0_40px_rgba(212,175,55,0.25)]">
-            <img src="/logo-static.webp" alt="Bow Down Visuals" className="h-full w-full object-cover" />
-          </div>
-          <div className="absolute inset-0 rounded-2xl border border-primary/40 animate-ping opacity-20" aria-hidden />
-        </div>
         <p
           key={line}
           className="text-white/80 text-base font-semibold animate-in fade-in duration-500 max-w-xs"
