@@ -4510,7 +4510,7 @@ function MasterPreviewPlayer({
           <button
             type="button"
             onClick={onTogglePlay}
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 z-30 flex items-center justify-center"
             aria-label={t("videoEditor.startPreview")}
           >
             <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center hover:bg-primary/30 transition-colors backdrop-blur-sm">
