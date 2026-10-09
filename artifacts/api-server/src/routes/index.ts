@@ -290,6 +290,7 @@ import storefrontRouter from "./storefront";
 import creatorTiersRouter from "./creator-tiers";
 import aiPageDesignerRouter from "./ai-page-designer";
 import publicStatsRouter from "./public-stats";
+import retentionDropsRouter from "./retention-drops";
 
 const router: IRouter = Router();
 
@@ -587,5 +588,6 @@ router.use(fanDecoderRouter);          // /api/fan-decoder/*
 router.use(aiInterviewRouter);         // /api/ai-interview/*
 router.use(lyricStoriesRouter);        // /api/lyric-stories/*
 router.use(coverInMotionRouter);       // /api/cover-in-motion/*
+router.use(retentionDropsRouter);      // /api/retention/daily-drop, /api/retention/away-digest
 
 export default router;
