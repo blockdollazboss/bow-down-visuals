@@ -2466,6 +2466,7 @@ export default function VideoEditor() {
       </div>
 
       {project && (
+        <div className={`relative ${settings.masterPlayerTheater ? "z-[60]" : ""}`}>
         <TimelineDock
           audioWarningPill={selectedMixMissing ? (
             <div
@@ -2521,6 +2522,7 @@ export default function VideoEditor() {
             )
           }
         />
+        </div>
       )}
     </div>
     {showTemplatePicker && (
