@@ -158,7 +158,7 @@ function CrownedLogo() {
           aria-hidden
           className="absolute inset-0 -m-8 rounded-full blur-2xl animate-[breathe_3s_ease-in-out_infinite] transition-opacity duration-300"
           style={{
-            background: `radial-gradient(circle, rgba(212,175,55,${0.25 + proximity * 0.45}) 0%, transparent 70%)`,
+            background: `radial-gradient(circle, rgba(212,175,55,${0.08 + proximity * 0.15}) 0%, transparent 70%)`,
           }}
         />
         {/* Orbiting light ring */}
@@ -170,7 +170,7 @@ function CrownedLogo() {
           src="/logo-static.webp"
           alt="Bow Down Visuals"
           className="relative h-28 w-28 object-contain"
-          style={{ filter: `drop-shadow(0 0 ${20 + proximity * 30}px rgba(212,175,55,${0.4 + proximity * 0.5}))` }}
+          style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}
         />
       </div>
       <style>{`
