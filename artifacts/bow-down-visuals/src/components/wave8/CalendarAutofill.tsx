@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   GripVertical,
   Loader2,
+  Megaphone,
+  Scissors,
   Sparkles,
   X,
 } from "lucide-react";
@@ -83,6 +86,27 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
 
   const [dragSlotId, setDragSlotId] = useState<string | null>(null);
   const [dropDay, setDropDay] = useState<number | null>(null);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pillarsRef = useRef<HTMLInputElement>(null);
+
+  /* Ghost sample week shown when the week is truly empty — sells the future. */
+  const GHOST_WEEK: { dayIndex: number; kind: "post" | "video" | "clip" }[] = [
+    { dayIndex: 0, kind: "post" },
+    { dayIndex: 2, kind: "video" },
+    { dayIndex: 3, kind: "clip" },
+    { dayIndex: 4, kind: "post" },
+    { dayIndex: 5, kind: "clip" },
+  ];
+  const GHOST_ICON = { post: Megaphone, video: Clapperboard, clip: Scissors } as const;
+  const GHOST_KEY = { post: "ghostPost", video: "ghostVideo", clip: "ghostClip" } as const;
+
+  function handlePlanMyWeek() {
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => pillarsRef.current?.focus({ preventScroll: true }), 450);
+  }
+
+  const isEmptyWeek = slots.length === 0 && !loading;
 
   const loadSlots = useCallback(
     async (week: string) => {
@@ -203,7 +227,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
   const weekLabel = `${prettyDay(days[0].date)} – ${prettyDay(days[6].date)}`;
 
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+    <div ref={panelRef} className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -221,6 +245,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
             {t("wave8.calendar.pillarsLabel")}
           </label>
           <input
+            ref={pillarsRef}
             value={pillarsText}
             onChange={(e) => setPillarsText(e.target.value)}
             placeholder={t("wave8.calendar.pillarsPlaceholder")}
@@ -336,8 +361,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
                       <span className="block text-xs text-white/40">{prettyDay(day.date)}</span>
                     </p>
                     <div className="space-y-2">
-                      {daySlots.map((slot) => {
-                        const bestTime = extractBestTime(slot.notes);
+                      {daySlots.map((slot) => {                        const bestTime = extractBestTime(slot.notes);
                         return (
                           <div
                             key={slot.id}
@@ -399,18 +423,53 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
                           </div>
                         );
                       })}
+                      {isEmptyWeek &&
+                        GHOST_WEEK.filter((g) => g.dayIndex === day.dayIndex).map((g) => {
+                          const GhostIcon = GHOST_ICON[g.kind];
+                          return (
+                            <div
+                              key={`ghost-${g.dayIndex}`}
+                              aria-hidden="true"
+                              className="pointer-events-none select-none rounded-xl border border-dashed border-primary/30 bg-primary/[0.05] p-2.5 opacity-60"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <GhostIcon
+                                  className="h-3.5 w-3.5 shrink-0 text-primary/70"
+                                  aria-hidden="true"
+                                />
+                                <p className="text-[12px] font-bold leading-snug text-white/55">
+                                  {t(`wave8.calendar.${GHOST_KEY[g.kind]}`, { day: day.label })}
+                                </p>
+                              </div>
+                              <span className="mt-1.5 inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/35">
+                                {g.kind}
+                              </span>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <p className="mt-3 text-center text-[11px] text-white/30">
-              {t("wave8.calendar.dragHint")}
-            </p>
-            {slots.length === 0 && !loading && (
-              <p className="mt-2 text-center text-sm text-white/40">
-                {t("wave8.calendar.emptyWeek")}
+            {!isEmptyWeek && (
+              <p className="mt-3 text-center text-[11px] text-white/30">
+                {t("wave8.calendar.dragHint")}
               </p>
+            )}
+            {isEmptyWeek && (
+              <div className="mx-auto mt-6 max-w-md text-center">
+                <Button
+                  onClick={handlePlanMyWeek}
+                  className="bg-primary px-8 py-3 text-base font-black text-black shadow-[0_0_28px_rgba(212,175,55,0.45)] transition hover:bg-primary/90 hover:shadow-[0_0_36px_rgba(212,175,55,0.6)]"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
+                  {t("wave8.calendar.planMyWeek")}
+                </Button>
+                <p className="mt-3 text-sm text-white/45">
+                  {t("wave8.calendar.ghostCtaSub")}
+                </p>
+              </div>
             )}
           </>
         )}
