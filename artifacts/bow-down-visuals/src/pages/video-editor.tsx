@@ -4479,21 +4479,7 @@ function MasterPreviewPlayer({
       </div>
       {/* ── end inner (rounded, clipped) layer ── */}
 
-      {/* ── Resize handle — drag to grow/shrink; aspect ratio stays locked to export format ── */}
-      {!isFullscreen && !isMinimized && !isHidden && (
-        <div
-          onPointerDown={handleResizeStart}
-          data-testid="master-player-resize-handle"
-          title={t("videoEditor.dragToResize")}
-          className={`absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize flex items-end justify-end p-0.5 ${
-            isResizingFloat ? "opacity-100" : "opacity-40 hover:opacity-90"
-          } transition-opacity`}
-        >
-          <svg viewBox="0 0 10 10" className="h-2.5 w-2.5 text-white/80" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M9 1 L1 9 M9 5 L5 9 M9 9 L9 9" />
-          </svg>
-        </div>
-      )}
+
     </div>
     {/* ── end gold frame ── */}
     </div>
