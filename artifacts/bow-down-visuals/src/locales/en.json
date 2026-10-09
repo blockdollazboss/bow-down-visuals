@@ -2723,7 +2723,10 @@
       "video": "Video",
       "hub": "Creation Hub",
       "cartoon": "Cartoon",
-      "coverArt": "Cover Art"
+      "coverArt": "Cover Art",
+      "dreamCollab": "Dream Collab",
+      "linkToHit": "Link-to-Hit",
+      "coverMotion": "Cover in Motion"
     }
   },
   "credit-history": {
@@ -6865,7 +6868,11 @@
     "vibe_80s": "80s",
     "vibe_80s_desc": "Neon grids · warm glow",
     "vibe_70s_film": "70s Film",
-    "vibe_70s_film_desc": "Grainy warmth · vintage cinema"
+    "vibe_70s_film_desc": "Grainy warmth · vintage cinema",
+    "railStyleStealer": "Style Stealer",
+    "railMemeMachine": "Meme Machine",
+    "railThreeSecondLab": "3-Second Lab",
+    "railLocations": "Locations"
   },
   "viralityCheck": {
     "bestPostingTime": "Best Posting Time",
