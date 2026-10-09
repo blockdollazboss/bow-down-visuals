@@ -90,7 +90,7 @@
     "heroSubtitle": "Everything you need to create like a pro — music, videos, thumbnails, branding, and more. All powered by AI.",
     "heroTitle": "The Content Creation Cheat Code",
     "pageTitle": "Bow Down Visuals — The Content Creator's Cheat Code",
-    "pageDescription": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create.",
+    "pageDescription": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 19 studios — pay only for what you create.",
     "shareLabel": "Spread the code",
     "shareLabelTellCreator": "Tell a creator",
     "shareX": "Share on X",
@@ -113,7 +113,7 @@
     "heroHeadlineA": "Your competitors will think you",
     "heroHeadlineB": "hired a team.",
     "heroSlogan": "This feels like cheating. That's the point.",
-    "heroSub": "Bow Down Visuals is the AI studio that writes your songs, shoots your videos, cuts your promo, and runs your business — 80+ tools, one Visual Buc system, zero permission needed.",
+    "heroSub": "Bow Down Visuals is the AI studio that writes your songs, shoots your videos, cuts your promo, and runs your business — 19 studios, one Visual Buc system, zero permission needed.",
     "watchItWork": "Watch it work",
     "alreadyHaveAccount": "Already have an account? ",
     "signIn": "Sign in",
@@ -289,7 +289,7 @@
     "manifestoKicker": "A message from the king",
     "manifestoTitleA": "BOW",
     "manifestoTitleB": "DOWN.",
-    "manifestoBody": "The industry had its turn. 80+ AI tools. One cheat code. Zero permission needed.",
+    "manifestoBody": "The industry had its turn. 19 studios. One cheat code. Zero permission needed.",
     "manifestoRumor": "Rumor: this page has a cheat code.",
     "studioKicker": "The Studio",
     "studioTitle": "One login. The whole machine.",
@@ -302,17 +302,17 @@
           {
             "title": "Make a Song",
             "description": "Full songs — lyrics, melody, and production in minutes.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
-            "title": "Make a Music Video",
-            "description": "Cinematic AI scenes built for your track.",
-            "cost": "4 VB"
+            "title": "Cartoon Studio",
+            "description": "Cartoon videos, characters & comic-style visuals in one studio.",
+            "cost": "400 VB"
           },
           {
-            "title": "Song + Video",
-            "description": "The full package — song and video in one flow.",
-            "cost": "4 VB"
+            "title": "Link-to-Hit",
+            "description": "Turn any viral link into a comedy music video — roast clips, funny song.",
+            "cost": "300 VB"
           }
         ]
       },
@@ -323,17 +323,17 @@
           {
             "title": "Visual Vibes",
             "description": "Cut, caption, and grade — with lip sync built in.",
-            "cost": "Lip sync 3 VB"
+            "cost": "300 VB"
           },
           {
-            "title": "AI Voiceover",
-            "description": "Studio-quality narration in any voice.",
-            "cost": "2 VB/min"
+            "title": "Finish My Song",
+            "description": "Upload your unfinished demo — AI writes the rest and produces it.",
+            "cost": "400 VB"
           },
           {
             "title": "Upscale",
             "description": "Honest 1080p and 4K upscaling. No fake “enhance”.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -344,17 +344,17 @@
           {
             "title": "Promo Clips",
             "description": "Scroll-stopping clips for TikTok, Reels, and Shorts.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Hook Studio",
             "description": "First-3-second hooks plus a virality pre-flight check.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
-            "title": "Scheduler",
-            "description": "Auto-post to Instagram, TikTok, and Facebook.",
-            "cost": "1 VB/post"
+            "title": "Trend Jacker",
+            "description": "Spot the trend, ship your version in minutes.",
+            "cost": "200 VB"
           }
         ]
       },
@@ -365,17 +365,17 @@
           {
             "title": "Monetization Coach",
             "description": "Your 30-day money plan, platform by platform.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Sponsor Match",
             "description": "AI-matched brand deals, plus pitches that close.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Merch Designer",
             "description": "AI merch mockups — dropship-ready.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       }
@@ -449,7 +449,7 @@
     "faqs": [
       {
         "q": "What is Bow Down Visuals?",
-        "a": "The AI studio for content creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required."
+        "a": "The AI studio for content creators — 19 studios that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required."
       },
       {
         "q": "How do Visual Bucs work?",
@@ -566,7 +566,8 @@
     "academyTitleA": "The cheat code",
     "academyTitleB": "comes with a manual.",
     "academySub": "A free catalog of masterclasses in video, music, and branding — the same playbook the tools run on, taught straight. AI lessons from 1 Visual Buc each.",
-    "academyCta": "Explore the Academy"
+    "academyCta": "Explore the Academy",
+    "newBadge": "NEW"
   },
   "language": {
     "current": "Language",

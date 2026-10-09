@@ -53,6 +53,8 @@ import {
   Podcast,
   Tv,
   Store,
+  Flame,
+  TrendingUp,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -78,39 +80,39 @@ const CREATOR_TYPES = [
   { icon: Star },
 ];
 
-/* Studio showcase — 4 categories × 3 cards. Every cost and route verified
-   against credit-costs.ts and App.tsx. */
+/* Studio showcase — 4 categories × 3 cards. Every href points DIRECTLY at its
+   hub URL (no redirect chains); tab/panel params verified against the hub pages. */
 const STUDIO = [
   {
     icon: Sparkles,
     tools: [
-      { icon: Music, href: "/make-song", featured: false },
-      { icon: Clapperboard, href: "/make-video", featured: false },
-      { icon: Mic2, href: "/song-and-video", featured: true },
+      { icon: Music, href: "/create?panel=song", featured: false },
+      { icon: Palette, href: "/cartoon-studio", featured: false, isNew: true },
+      { icon: Flame, href: "/create?panel=link-to-hit", featured: true, isNew: true },
     ],
   },
   {
     icon: Scissors,
     tools: [
       { icon: Scissors, href: "/video-editor", featured: false },
-      { icon: AudioLines, href: "/voiceover", featured: false },
-      { icon: Rocket, href: "/upscale", featured: false },
+      { icon: AudioLines, href: "/audio-studio?tab=finish", featured: false, isNew: true },
+      { icon: Rocket, href: "/video-editor?tab=upscale", featured: false },
     ],
   },
   {
     icon: Megaphone,
     tools: [
-      { icon: Film, href: "/promo-clip", featured: false },
+      { icon: Film, href: "/video-editor?tab=promo-clips", featured: false },
       { icon: Zap, href: "/hooks", featured: false },
-      { icon: CalendarCheck, href: "/scheduler", featured: false },
+      { icon: TrendingUp, href: "/scheduler?tab=trend-jacker", featured: false, isNew: true },
     ],
   },
   {
     icon: BadgeDollarSign,
     tools: [
       { icon: DollarSign, href: "/coach", featured: false },
-      { icon: Handshake, href: "/sponsors", featured: false },
-      { icon: Shirt, href: "/merch", featured: false },
+      { icon: Handshake, href: "/coach?tab=brand-deals", featured: false },
+      { icon: Shirt, href: "/branding-kit?tab=shop", featured: false },
     ],
   },
 ];
@@ -125,7 +127,7 @@ const CREDIT_PACKS = [
 const FAQS = [
   {
     q: "What is Bow Down Visuals?",
-    a: "The AI studio for content creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required.",
+    a: "The AI studio for content creators — 19 studios that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required.",
   },
   {
     q: "How do Visual Bucs work?",
@@ -160,7 +162,7 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple Visual Buc pricing.",
+    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 19 studios on simple Visual Buc pricing.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "USD",
@@ -893,7 +895,7 @@ function BuiltForCreators() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { icon: Film, key: "movies", href: "/movies" },
-              { icon: Podcast, key: "podcasts", href: "/podcast" },
+              { icon: Podcast, key: "podcasts", href: "/audio-studio?tab=podcast" },
               { icon: Tv, key: "streamers", href: "/go-live" },
             ].map((f) => (
               <Link
@@ -1034,9 +1036,14 @@ function StudioShowcase() {
                         <h4 className="font-semibold text-white text-lg leading-tight">
                           {t(`home.studio.${ci}.tools.${ti}.title`)}
                         </h4>
-                        <MarketingBadge variant="muted" className="shrink-0">
-                          {t(`home.studio.${ci}.tools.${ti}.cost`)}
-                        </MarketingBadge>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {tool.isNew && (
+                            <MarketingBadge variant="soon">{t("home.newBadge")}</MarketingBadge>
+                          )}
+                          <MarketingBadge variant="muted">
+                            {t(`home.studio.${ci}.tools.${ti}.cost`)}
+                          </MarketingBadge>
+                        </div>
                       </div>
                       <p className="text-white/50 text-sm leading-relaxed">
                         {t(`home.studio.${ci}.tools.${ti}.description`)}
@@ -1584,7 +1591,7 @@ function BrandingShopSection() {
 
         <div className="text-center">
           <Link
-            href="/branding-shop"
+            href="/branding-kit?tab=shop"
             className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-8 py-4 text-primary font-bold hover:bg-primary/10 transition"
           >
             {t("home.brandingCta")} <ArrowRight className="h-4 w-4" />
@@ -1599,9 +1606,9 @@ function BrandingShopSection() {
 
 const BIZ_PIPELINE = [
   { icon: Megaphone, href: "/label-pitch" },
-  { icon: Globe, href: "/distribute" },
-  { icon: Lock, href: "/copyright" },
-  { icon: BadgeDollarSign, href: "/royalties" },
+  { icon: Globe, href: "/coach?tab=distribute" },
+  { icon: Lock, href: "/academy?tab=copyright" },
+  { icon: BadgeDollarSign, href: "/coach?tab=money&view=royalties" },
 ];
 
 function LabelPitchSection() {
