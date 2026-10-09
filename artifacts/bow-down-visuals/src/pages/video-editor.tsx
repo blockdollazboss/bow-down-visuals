@@ -1474,34 +1474,39 @@ export default function VideoEditor() {
               {/* ── LEFT RAIL: icon nav ── */}
               <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
                 {orderedRailTabs([
+                    // ── 1. PLAN & SOURCE ──
+                    { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
                     { id: "clips", label: t("videoEditor.railMedia"), icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
                     { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
                     { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
+                    // ── 2. BUILD ──
                     { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
                     { id: "beat-sync", label: t("videoEditor.railBeatSync"), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-beat-sync" },
-                    { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
                     { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
                     { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
                     { id: "motion", label: t("videoEditor.railMotion", { defaultValue: "Motion" }), icon: <Wand2 className="h-5 w-5" />, testId: "rail-motion" },
-                    { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
                     { id: "lip-sync", label: t("videoEditor.railLipSync"), icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
-                    { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
-                    { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
-                    { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                     { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
-                    { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
-                    { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
-                    { id: "lyric-video", label: t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-lyric-video" },
-                    { id: "translate", label: t("videoEditor.railTranslate", { defaultValue: "Translate" }), icon: <Languages className="h-5 w-5" />, testId: "rail-translate" },
-                    { id: "repurpose", label: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }), icon: <Repeat className="h-5 w-5" />, testId: "rail-repurpose" },
+                    { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
+                    // ── 3. STYLE & POLISH ──
+                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
+                    { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
+                    { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
                     { id: "upscale", label: t("videoEditor.railUpscale", { defaultValue: "Upscale" }), icon: <Maximize className="h-5 w-5" />, testId: "rail-upscale" },
                     { id: "cartoonize", label: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }), icon: <Sparkles className="h-5 w-5" />, testId: "rail-cartoonize" },
+                    // ── 4. CREATE MORE ──
+                    { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
+                    { id: "lyric-video", label: t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-lyric-video" },
                     { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
-                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
-                    { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
-                    { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
                     { id: "meme-machine", label: t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }), icon: <Laugh className="h-5 w-5" />, testId: "rail-meme-machine" },
                     { id: "three-second-lab", label: t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }), icon: <Timer className="h-5 w-5" />, testId: "rail-three-second-lab" },
+                    { id: "translate", label: t("videoEditor.railTranslate", { defaultValue: "Translate" }), icon: <Languages className="h-5 w-5" />, testId: "rail-translate" },
+                    { id: "repurpose", label: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }), icon: <Repeat className="h-5 w-5" />, testId: "rail-repurpose" },
+                    // ── 5. FINISH ──
+                    { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
+                    { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
+                    { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                   ])
                     .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
