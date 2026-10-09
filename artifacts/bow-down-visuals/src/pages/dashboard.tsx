@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,9 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
+import SharkDropModal, { type SharkDrop } from "@/components/retention/SharkDropModal";
+import LevelUpModal from "@/components/retention/LevelUpModal";
+import LeaderboardWidget from "@/components/retention/LeaderboardWidget";
 import CreationStreakWidget from "@/components/CreationStreakWidget";
 import QuestsWidget from "@/components/QuestsWidget";
 import { DailyDropCard } from "@/components/DailyDropCard";
@@ -118,6 +121,10 @@ export default function Dashboard() {
   const [streak, setStreak] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
+  const [sharkDrop, setSharkDrop] = useState<SharkDrop | null>(null);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const sharkFiredFor = useRef<string | null>(null);
+  const levelFiredFor = useRef<Set<string>>(new Set());
 
   const name = firstName(profile?.display_name, user?.email);
   const balance = profile?.credits ?? 0;
@@ -194,6 +201,50 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [user, getAccessToken]);
 
+  /* ── Retention delight: shark drop dice roll + level-up check ──
+     The server owns all the rules (15% drop chance, 2-per-7-day cap,
+     exactly-once celebrations); the client only surfaces what it returns.
+     Shark drop rolls once per user per mount; level-check re-runs if the
+     resolved star level changes (auth resolves async) — the celebrate
+     POST is idempotent, so re-runs never double-fire. */
+  useEffect(() => {
+    if (!user || sharkFiredFor.current === user.id) return;
+    sharkFiredFor.current = user.id;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch("/api/retention/shark-drop", { headers });
+        if (res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { drop?: SharkDrop | null };
+          if (d.drop) setSharkDrop(d.drop);
+        }
+      } catch {
+        /* Non-fatal: the drop simply doesn't appear on failure. */
+      }
+    })();
+  }, [user, getAccessToken]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `${user.id}:${stars}`;
+    if (levelFiredFor.current.has(key)) return;
+    levelFiredFor.current.add(key);
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`/api/retention/level-check?currentLevel=${stars}`, { headers });
+        if (res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { uncelebrated?: number[] };
+          if (d.uncelebrated && d.uncelebrated.length > 0) setLevelUp(d.uncelebrated[0]!);
+        }
+      } catch {
+        /* Non-fatal. */
+      }
+    })();
+  }, [user, stars, getAccessToken]);
+
   /* ── Derived: money pipeline ── */
   const money = useMemo(() => {
     const active = deals.filter((d) => !["paid", "lost", "rejected", "dead"].includes((d.stage || "").toLowerCase()));
@@ -251,6 +302,18 @@ export default function Dashboard() {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-8 md:py-10 space-y-8">
+
+        {/* ── RETENTION DELIGHT MODALS (dismissible, pref-gated server-side) ── */}
+        {sharkDrop && (
+          <SharkDropModal
+            drop={sharkDrop}
+            onClaimed={() => setSharkDrop(null)}
+            onDismiss={() => setSharkDrop(null)}
+          />
+        )}
+        {levelUp !== null && (
+          <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />
+        )}
 
         {/* ── PAYMENT TOAST ── */}
         {paymentToast && (
@@ -472,6 +535,9 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+
+        {/* ── 7. WEEKLY LEADERBOARD + DELIGHT SETTINGS ── */}
+        <LeaderboardWidget />
 
         <ExtensionPromoBanner />
       </div>
