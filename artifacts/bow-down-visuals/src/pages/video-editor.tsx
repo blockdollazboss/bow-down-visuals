@@ -2233,10 +2233,10 @@ export default function VideoEditor() {
                     <p className="text-[#C9A84C] font-black text-sm bg-black/70 px-4 py-2 rounded-full">{t("videoEditor.dropToApply")}</p>
                   </div>
                 )}
-                {/* ── MASTER PLAYER — pinned to the top of the workspace column.
-                    Sticky + solid background so it stays fixed in view while the
-                    panels below scroll; it never drifts or pops out while editing. ── */}
-                <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center px-2 py-2">
+                {/* ── Top spacer: collapses when content is tall, centers player+panels when short ── */}
+                <div className="shrink-0 grow-[0.6] min-h-0" aria-hidden="true" />
+                {/* ── MASTER PLAYER — sits in the available space with panels flush below ── */}
+                <div className="shrink-0 z-20 bg-black flex justify-center px-2 py-2">
                   <div className="w-full max-w-[1440px]">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
