@@ -206,7 +206,8 @@ function NavItemBadge({ text }: { text: string }) {
   );
 }
 
-/* ── Grouped navigation: every routed page reachable, no dead links ── */
+/* ── Grouped navigation: 19 hub entries. Every former standalone page lives
+   as a tab inside its hub; old URLs redirect (see App.tsx). ── */
 const SECTIONS: NavSection[] = [
   {
     titleKey: "nav.home",
@@ -219,88 +220,34 @@ const SECTIONS: NavSection[] = [
     titleKey: "nav.create",
     links: [
       { href: "/create", labelKey: "nav.create", icon: Layers },
-      { href: "/ai-audio", labelKey: "nav.aiAudio", icon: Drum },
       { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
-      { href: "/promo-clip", labelKey: "nav.promoClipMaker", icon: Film },
-      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
-      { href: "/my-clips", labelKey: "nav.myClips", icon: Library },
-      { href: "/songs", labelKey: "nav.songs", icon: Music2 },
-      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
-    ],
-  },
-  {
-    titleKey: "nav.aiStudio",
-    links: [
+      { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
-      { href: "/script-writer", labelKey: "nav.scriptWriter", icon: PenLine },
-      { href: "/caption-styler", labelKey: "nav.captionStyler", icon: Captions },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
-      { href: "/cartoon-studio", labelKey: "nav.cartoonStudio", icon: Clapperboard },
-      { href: "/cover-art", labelKey: "nav.coverArt", icon: Disc3 },
-      { href: "/lyric-video", labelKey: "nav.lyricVideoMaker", icon: AudioWaveform },
-      { href: "/voiceover", labelKey: "nav.voiceoverStudio", icon: Mic2 },
-      { href: "/translate", labelKey: "nav.translator", icon: Languages },
+      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
     ],
   },
   {
     titleKey: "nav.grow",
     links: [
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
-      { href: "/trends", labelKey: "nav.trendPredictor", icon: TrendingUp },
-      { href: "/repurpose", labelKey: "nav.contentRepurposer", icon: Repeat },
-      { href: "/sounds", labelKey: "nav.soundFinder", icon: AudioWaveform },
       { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
-      { href: "/shows", labelKey: "nav.showFinder", icon: Ticket },
-      { href: "/discord-bot", labelKey: "nav.discordBot", icon: Bot },
-      { href: "/locations", labelKey: "nav.locations", icon: MapPin },
-      { href: "/gamers", labelKey: "nav.homeOfGamers", icon: Gamepad2 },
+      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
     ],
   },
   {
     titleKey: "nav.monetize",
     links: [
-      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
       { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
-      { href: "/brand-deals", labelKey: "nav.brandDealFinder", icon: Handshake },
-      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone },
-      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake },
-      { href: "/branding-shop", labelKey: "nav.brandingShop", icon: Store },
-      { href: "/jewelry", labelKey: "nav.logoToLuxury", icon: Gem },
-      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc },
-      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart },
-      { href: "/memberships", labelKey: "nav.memberships", icon: Star },
-      { href: "/coach?tab=money&view=royalties", labelKey: "nav.royalties", icon: Wallet },
-      { href: "/storefronts", labelKey: "nav.storefronts", icon: ShoppingBag },
-      { href: "/my-shop", labelKey: "nav.myShop", icon: Store },
-      { href: "/release-checklist", labelKey: "nav.releaseChecklist", icon: ClipboardCheck },
-      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
-      { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
-      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
-      { href: "/contests", labelKey: "nav.contests", icon: Trophy },
-      { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
-      { href: "/team", labelKey: "nav.team", icon: Users },
-    ],
-  },
-  {
-    titleKey: "nav.learn",
-    links: [
-      { href: "/guides", labelKey: "nav.guidesServices", icon: BookOpen },
-      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
-      { href: "/copyright", labelKey: "nav.copyright", icon: Copyright },
-      { href: "/llc-guide", labelKey: "nav.llcGuide", icon: Scale },
-      { href: "/community", labelKey: "nav.community", icon: UsersRound },
+      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
     ],
   },
   {
     titleKey: "nav.tools",
     links: [
       { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
-      { href: "/upscale", labelKey: "nav.upscaleClean", icon: Maximize },
-      { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
-      { href: "/ai-audio", labelKey: "nav.aiAudio", icon: Drum },
-      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
-      { href: "/podcast", labelKey: "nav.podcastStudio", icon: Podcast },
     ],
   },
 ];
@@ -308,7 +255,6 @@ const SECTIONS: NavSection[] = [
 const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
   { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
-  { href: "/cursor-lab", labelKey: "nav.cursorStyle", icon: MousePointer2 },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 

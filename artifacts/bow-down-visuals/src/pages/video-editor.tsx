@@ -10,7 +10,7 @@ import {
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, AlertTriangle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
-  PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette,
+  PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -102,6 +102,7 @@ import Upscale from "@/pages/upscale";
 import CartoonStudio from "@/pages/cartoon-studio";
 import ThumbnailStudio from "@/pages/thumbnail-studio";
 import { VisualVibesSection } from "@/components/editor/sections/VisualVibesSection";
+import LocationsPage from "@/pages/locations";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
@@ -119,7 +120,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -381,7 +382,7 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes"];
+  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations"];
   useEffect(() => {
     const params = new URLSearchParams(search);
     const deepTab = params.get("tab");
@@ -1433,6 +1434,7 @@ export default function VideoEditor() {
                     { id: "cartoonize", label: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }), icon: <Sparkles className="h-5 w-5" />, testId: "rail-cartoonize" },
                     { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
                     { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
+                    { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
                   ])
                     .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -1481,6 +1483,7 @@ export default function VideoEditor() {
                       cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
                       thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
                       vibes: t("videoEditor.railVibes", { defaultValue: "Vibes" }),
+                      locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
                     }[tab]}
                   </h2>
                 </div>
@@ -1990,6 +1993,7 @@ export default function VideoEditor() {
                   {tab === "cartoonize" && <CartoonStudio initialTab="cartoonize" />}
                   {tab === "thumbnails" && <ThumbnailStudio defaultTab="generate" />}
                   {tab === "vibes" && <VisualVibesSection settings={settings} setSettings={setSettings} />}
+                  {tab === "locations" && <LocationsPage />}
                 </div>
               </aside>
 
