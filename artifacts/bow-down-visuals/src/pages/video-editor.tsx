@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Layers, Play, Pause,
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
-  Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
+  Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, AlertTriangle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
@@ -310,6 +310,7 @@ export default function VideoEditor() {
       return Number.isFinite(v) ? Math.min(PANEL_MAX, Math.max(PANEL_MIN, v)) : PANEL_DEFAULT;
     } catch { return PANEL_DEFAULT; }
   });
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const panelWidthRef = useRef(panelWidth);
   const panelDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const onPanelDividerDown = useCallback((e: React.PointerEvent) => {
@@ -1646,7 +1647,7 @@ export default function VideoEditor() {
               </nav>
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
-              <aside style={{ width: panelWidth }} className="shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
+              <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest">
                     {{
@@ -2345,7 +2346,26 @@ export default function VideoEditor() {
                 data-testid="panel-divider"
               >
                 <div className="w-[3px] h-24 rounded-full bg-white/10 group-hover:bg-primary/80 group-active:bg-primary transition-colors" />
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setPanelCollapsed(true); }}
+                  className="absolute top-2 -left-1 h-6 w-6 rounded-full bg-black/80 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-primary/50 transition-colors"
+                  title="Collapse panel"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
               </div>
+              {/* Expand button when panel is collapsed */}
+              {panelCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => setPanelCollapsed(false)}
+                  className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-r border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
+                  title="Expand panel"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
 
               {/* ── CENTER: preview ── */}
               <main
