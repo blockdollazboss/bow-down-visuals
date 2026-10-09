@@ -377,6 +377,7 @@ function TimelinePreviewPlayer({
     v: HTMLVideoElement,
     errorLabel: string,
     clipTimeInScene = 0,
+    autoplay = true,
   ) {
     if (!scene.demoClipUrl) return;
     const rawOffset = scene.clipVideoOffsetSec ?? 0;
@@ -400,7 +401,12 @@ function TimelinePreviewPlayer({
     } else {
       // Negative offset or mid-scene seek: adjust currentTime directly
       v.currentTime = Math.max(0, clipTimeInScene - rawOffset);
-      v.play().catch((e: Error) => setLastError(`${errorLabel}: ${e.message}`));
+      // Only start playback when the caller intends it. A seek on a paused
+      // timeline must never autoplay — the old unconditional play() here raced
+      // with the sync pause() in seekTo and lost on iOS (clip visibly played).
+      if (autoplay) {
+        v.play().catch((e: Error) => setLastError(`${errorLabel}: ${e.message}`));
+      }
     }
   }
 
@@ -543,13 +549,13 @@ function TimelinePreviewPlayer({
       } else if (audioRef.current) {
         audioRef.current.currentTime = toTrackTime(t);
       }
-      // Seek video to correct clip position
+      // Seek video to correct clip position — pass the actual play state so a
+      // paused seek never autoplays the clip.
       const idx = isManual ? sceneAtManual(t, sceneTimings, manualResult!.order) : sceneAt(t, offsets);
       const scene = idx >= 0 ? scenes[idx] : undefined;
       if (scene?.demoClipUrl && videoRef.current) {
         const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
-        loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
-        if (!isPlayingNow) videoRef.current.pause();
+        loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset, isPlayingNow);
       } else if (videoRef.current) {
         videoRef.current.pause();
       }
