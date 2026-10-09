@@ -4221,7 +4221,7 @@ function MasterPreviewPlayer({
 
       {/* ── Info strip: scene · format · loop status (timecode moved into the transport row) ── */}
       {!isMinimized && (
-        <div className="flex items-center gap-1.5 px-3 pt-2 flex-wrap">
+        <div className="flex items-center gap-1.5 px-3 pt-1 flex-wrap">
           {hasScenes && sceneOffsets.length > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[10px] font-bold text-[#f0d488]">
               <Film className="h-2.5 w-2.5" />
@@ -4246,7 +4246,7 @@ function MasterPreviewPlayer({
           secondary). Main row: ONE clean line — play/pause · seek · time ·
           volume · fullscreen. ── */}
       {!isMinimized && (
-      <div className={`mx-2.5 mt-2 mb-1 rounded-2xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-2 py-2 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
+      <div className={`mx-2.5 mt-1 mb-0.5 rounded-2xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-2 py-1 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
