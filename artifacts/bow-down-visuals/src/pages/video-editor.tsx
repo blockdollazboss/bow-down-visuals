@@ -266,16 +266,7 @@ export default function VideoEditor() {
   /** Creator Level star thresholds per rail tab — clips / music / timeline /
    *  export are core (level 1) and never gated. */
   const TAB_MIN_STARS: Partial<Record<EditorTab, number>> = {
-    branding: 2,
-    "beat-sync": 2,
-    "pre-production": 2,
-    captions: 3,
-    effects: 3,
-    "edit-recipes": 3,
-    studio: 4,
-    "voice-edits": 4,
-    "lip-sync": 5,
-    "pro-tools": 5,
+    // Zero creator skills required — every tab open to everyone.
   };
 
   const [loading, setLoading] = useState(true);
