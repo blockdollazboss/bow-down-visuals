@@ -62,11 +62,11 @@ export default function WittyLoader({ message }: { message?: string }) {
       />
       {/* One uniform dark veil - no banding, no double-background */}
       <div aria-hidden className="absolute inset-0 bg-black/55" />
-      {/* Shark King logo — magnetic 3D, tracks your cursor */}
-      <MagneticLogo />
-      {/* ── Cinematic asymmetric layout ── */}
-      {/* Bottom-left: the show title */}
-      <div className="absolute bottom-28 left-6 md:left-10 z-10 max-w-sm">
+      {/* Shark King logo — levitating hero with pulsing aura + shine sweep */}
+      <CrownedLogo />
+      {/* ── Premium asymmetric layout ── */}
+      {/* Center-top: the show title, under the logo */}
+      <div className="absolute top-40 md:top-44 left-1/2 -translate-x-1/2 z-10 text-center max-w-lg px-6">
         <p
           key={line}
           className="text-white text-xl md:text-2xl font-bold leading-snug animate-in fade-in duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
@@ -78,10 +78,10 @@ export default function WittyLoader({ message }: { message?: string }) {
         </p>
       </div>
 
-      {/* Right edge: vertical promo card */}
+      {/* Bottom-left: promo card */}
       <div
         key={promoIdx}
-        className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 hidden sm:block max-w-xs animate-in fade-in duration-500"
+        className="absolute bottom-8 left-6 md:left-10 z-10 max-w-xs animate-in fade-in duration-500"
       >
         <div className="border-l-2 border-primary/60 pl-5">
           <p className="text-primary font-black text-xl uppercase tracking-[0.2em]">{promo.title}</p>
@@ -89,65 +89,52 @@ export default function WittyLoader({ message }: { message?: string }) {
         </div>
       </div>
 
-      {/* Bottom center: true-scale barcode */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+      {/* Bottom-right: true-scale barcode */}
+      <div className="absolute bottom-8 right-6 md:right-10 z-10">
         <BarcodeStrip />
       </div>
     </div>
   );
 }
 
-/* MagneticLogo — the Shark King watches your cursor.
-   3D tilt toward the mouse + glow intensifies on approach. */
-function MagneticLogo() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0, glow: 0.35 });
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let raf = 0;
-    const onMove = (e: MouseEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        const cx = r.left + r.width / 2;
-        const cy = r.top + r.height / 2;
-        const dx = e.clientX - cx;
-        const dy = e.clientY - cy;
-        const dist = Math.hypot(dx, dy);
-        const maxDist = Math.max(window.innerWidth, window.innerHeight) / 2;
-        const proximity = Math.max(0, 1 - dist / maxDist);
-        // Tilt toward cursor, capped at ±18deg
-        const tiltY = Math.max(-18, Math.min(18, (dx / window.innerWidth) * 36));
-        const tiltX = Math.max(-18, Math.min(18, -(dy / window.innerHeight) * 36));
-        setTilt({ x: tiltX, y: tiltY, glow: 0.35 + proximity * 0.65 });
-      });
-    };
-    const onLeave = () => setTilt({ x: 0, y: 0, glow: 0.35 });
-    window.addEventListener("mousemove", onMove);
-    document.documentElement.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.documentElement.removeEventListener("mouseleave", onLeave);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
+/* CrownedLogo — the Shark King levitates with a breathing gold aura,
+   a slow-orbiting light ring, and a periodic shine sweep. No mouse needed. */
+function CrownedLogo() {
   return (
-    <div className="absolute top-6 left-6 z-10" style={{ perspective: "600px" }}>
-      <div
-        ref={ref}
-        className="transition-transform duration-150 ease-out will-change-transform"
-        style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${1 + (tilt.glow - 0.35) * 0.25})` }}
-      >
-        <img
-          src="/logo-static.webp"
-          alt="Bow Down Visuals"
-          className="h-14 w-14 object-contain"
-          style={{ filter: `drop-shadow(0 0 ${12 + tilt.glow * 24}px rgba(212,175,55,${tilt.glow}))` }}
+    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
+      <div className="relative animate-[float_4s_ease-in-out_infinite]">
+        {/* Breathing aura */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -m-6 rounded-full bg-primary/20 blur-2xl animate-[breathe_3s_ease-in-out_infinite]"
         />
+        {/* Orbiting light ring */}
+        <div aria-hidden className="absolute inset-0 -m-3 animate-[spin_12s_linear_infinite]">
+          <div className="absolute inset-0 rounded-full border border-transparent border-t-primary/70 border-r-primary/30" />
+        </div>
+        {/* The mark, double size */}
+        <div className="relative overflow-hidden rounded-3xl">
+          <img
+            src="/logo-static.webp"
+            alt="Bow Down Visuals"
+            className="h-28 w-28 object-contain drop-shadow-[0_0_30px_rgba(212,175,55,0.5)]"
+          />
+          {/* Shine sweep */}
+          <div
+            aria-hidden
+            className="absolute inset-0 animate-[shine_5s_ease-in-out_infinite]"
+            style={{
+              background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%)",
+              backgroundSize: "250% 100%",
+            }}
+          />
+        </div>
       </div>
+      <style>{`
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes breathe { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.08); } }
+        @keyframes shine { 0% { background-position: 120% 0; } 60%, 100% { background-position: -120% 0; } }
+      `}</style>
     </div>
   );
 }
