@@ -19,6 +19,14 @@ import {
   Crown,
   Film,
   Zap,
+  LayoutTemplate,
+  Music2,
+  ListVideo,
+  BookOpen,
+  MessageSquareText,
+  Scissors,
+  SlidersHorizontal,
+  Download,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -43,7 +51,17 @@ export type VisualVibesTool =
   | "effects"
   | "motion"
   | "branding"
-  | "lip-sync";
+  | "lip-sync"
+  | "clips"
+  | "templates"
+  | "music"
+  | "timeline"
+  | "pre-production"
+  | "voice-edits"
+  | "edit-recipes"
+  | "studio"
+  | "pro-tools"
+  | "export";
 
 interface ToolTheme {
   /** Signature accent (glows, badge border, watermark tint). */
@@ -77,6 +95,16 @@ const TOOL_THEMES: Record<VisualVibesTool, ToolTheme> = {
   "motion":       { accent: "#60a5fa", accentSoft: "rgba(96,165,250,0.12)",    glow1: "rgba(96,165,250,0.16)",   glow2: "rgba(147,197,253,0.08)",  icon: Film },
   "branding":     { accent: "#f59e0b", accentSoft: "rgba(245,158,11,0.12)",    glow1: "rgba(245,158,11,0.16)",   glow2: "rgba(252,211,77,0.08)",   icon: Crown },
   "lip-sync":     { accent: "#f9a8d4", accentSoft: "rgba(249,168,212,0.12)",   glow1: "rgba(249,168,212,0.16)",  glow2: "rgba(251,207,232,0.08)",  icon: Mic },
+  "clips":         { accent: "#ff6b4a", accentSoft: "rgba(255,107,74,0.12)",    glow1: "rgba(255,107,74,0.16)",   glow2: "rgba(255,150,110,0.08)",  icon: Film },
+  "templates":     { accent: "#a855f7", accentSoft: "rgba(168,85,247,0.12)",   glow1: "rgba(168,85,247,0.16)",   glow2: "rgba(192,132,252,0.08)",  icon: LayoutTemplate },
+  "music":         { accent: "#4ade80", accentSoft: "rgba(74,222,128,0.12)",    glow1: "rgba(74,222,128,0.16)",   glow2: "rgba(134,239,172,0.08)",  icon: Music2 },
+  "timeline":      { accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.12)",   glow1: "rgba(59,130,246,0.16)",   glow2: "rgba(147,197,253,0.08)",  icon: ListVideo },
+  "pre-production":{ accent: "#f59e0b", accentSoft: "rgba(245,158,11,0.12)",    glow1: "rgba(245,158,11,0.16)",   glow2: "rgba(252,211,77,0.08)",   icon: BookOpen },
+  "voice-edits":   { accent: "#14b8a6", accentSoft: "rgba(20,184,166,0.12)",   glow1: "rgba(20,184,166,0.16)",   glow2: "rgba(94,234,212,0.08)",   icon: MessageSquareText },
+  "edit-recipes":  { accent: "#f97316", accentSoft: "rgba(249,115,22,0.12)",   glow1: "rgba(249,115,22,0.16)",   glow2: "rgba(253,186,116,0.08)",  icon: Scissors },
+  "studio":        { accent: "#eab308", accentSoft: "rgba(234,179,8,0.12)",    glow1: "rgba(234,179,8,0.16)",    glow2: "rgba(253,224,71,0.08)",   icon: Clapperboard },
+  "pro-tools":     { accent: "#cbd5e1", accentSoft: "rgba(203,213,225,0.12)",  glow1: "rgba(203,213,225,0.16)",  glow2: "rgba(226,232,240,0.08)",  icon: SlidersHorizontal },
+  "export":        { accent: "#fbbf24", accentSoft: "rgba(251,191,36,0.14)",   glow1: "rgba(251,191,36,0.20)",   glow2: "rgba(253,224,71,0.10)",   icon: Download },
 };
 
 export function toolTheme(tool: VisualVibesTool): ToolTheme {

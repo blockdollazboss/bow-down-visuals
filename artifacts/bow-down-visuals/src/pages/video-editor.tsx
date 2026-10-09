@@ -1769,6 +1769,14 @@ export default function VideoEditor() {
                   </div>
 
                   {tab === "timeline" && (
+                    <ToolPanelShell
+                      tool="timeline"
+                      kicker={t("videoEditor.railTimeline", { defaultValue: "Timeline" })}
+                      title={t("videoEditor.timelineTitle", { defaultValue: "Timeline" })}
+                      subtitle={t("videoEditor.timelineDesc", {
+                        defaultValue: "Arrange scenes, trim, and fine-tune your edit.",
+                      })}
+                    >
                     <>
                     <TimelineSection
                       scenes={scenes}
@@ -1789,6 +1797,7 @@ export default function VideoEditor() {
                     />
                     {/* Wave 9 sections moved to their own rail tabs (Beat Sync / Edit Recipes) for direct reachability. */}
                     </>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "beat-sync" && (
@@ -1817,6 +1826,14 @@ export default function VideoEditor() {
 
 
                   {tab === "clips" && (
+                    <ToolPanelShell
+                      tool="clips"
+                      kicker={t("videoEditor.railMedia", { defaultValue: "Media" })}
+                      title={t("videoEditor.mediaTitle", { defaultValue: "Media" })}
+                      subtitle={t("videoEditor.mediaDesc", {
+                        defaultValue: "Pull clips, videos, and assets straight into your timeline.",
+                      })}
+                    >
                         <div className="space-y-6">
                           {/* Hub project spine — pull finished clips/videos straight into the timeline */}
                           <ProjectFlowBar
@@ -1994,9 +2011,18 @@ export default function VideoEditor() {
                             songTitle={songTitle}
                           />
                         </div>
+                    </ToolPanelShell>
                       )}
 
                   {tab === "templates" && (
+                    <ToolPanelShell
+                      tool="templates"
+                      kicker={t("videoEditor.railTemplates", { defaultValue: "Templates" })}
+                      title={t("videoEditor.templatesTitle", { defaultValue: "Templates" })}
+                      subtitle={t("videoEditor.templatesDesc", {
+                        defaultValue: "Start from a proven template — swap in your clips and post.",
+                      })}
+                    >
                     <TemplatesTabPanel
                       scenes={scenes}
                       deepLinkedKey={deepLinkedTemplateKey}
@@ -2005,9 +2031,18 @@ export default function VideoEditor() {
                       onUseInEditor={handleSplitScreenUseInEditor}
                       onMultiRatio={handleSplitScreenMultiRatio}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "music" && (
+                    <ToolPanelShell
+                      tool="music"
+                      kicker={t("videoEditor.railAudio", { defaultValue: "Audio" })}
+                      title={t("videoEditor.audioTitle", { defaultValue: "Audio" })}
+                      subtitle={t("videoEditor.audioDesc", {
+                        defaultValue: "Generate music, beats, and voice for your video.",
+                      })}
+                    >
                     <MusicStudio
                       settings={settings}
                       onChange={setSettings}
@@ -2025,6 +2060,7 @@ export default function VideoEditor() {
                       onExportRequestHandled={() => setRequestedAudioExport(null)}
                       onDirectExportStatusChange={setDirectAudioExportStatus}
                     />
+                    </ToolPanelShell>
                   )}
 
                   {tab === "captions" && (
@@ -2184,6 +2220,14 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "pre-production" && project && (
+                    <ToolPanelShell
+                      tool="pre-production"
+                      kicker={t("videoEditor.railPrePro", { defaultValue: "Pre-Pro" })}
+                      title={t("videoEditor.preProTitle", { defaultValue: "Pre-Production" })}
+                      subtitle={t("videoEditor.preProDesc", {
+                        defaultValue: "Plan your video before you build it — concept to shot list.",
+                      })}
+                    >
                     <PreProductionSection
                       settings={settings}
                       setSettings={setSettings}
@@ -2191,11 +2235,20 @@ export default function VideoEditor() {
                       genre={project.genre ?? undefined}
                       mood={project.mood ?? undefined}
                     />
+                    </ToolPanelShell>
                   )}
 
 
 
                   {tab === "voice-edits" && (
+                    <ToolPanelShell
+                      tool="voice-edits"
+                      kicker={t("videoEditor.railVoiceEdits", { defaultValue: "Voice" })}
+                      title={t("videoEditor.voiceEditsTitle", { defaultValue: "Voice Edits" })}
+                      subtitle={t("videoEditor.voiceEditsDesc", {
+                        defaultValue: "Direct your edits with your voice — just describe the change.",
+                      })}
+                    >
                     <div className="p-4">
                       <VoiceDirectedEditsSection
                         scenes={scenes}
@@ -2206,6 +2259,7 @@ export default function VideoEditor() {
                         projectTitle={songTitle || undefined}
                       />
                     </div>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "upscale" && (
@@ -2613,6 +2667,14 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "edit-recipes" && (
+                    <ToolPanelShell
+                      tool="edit-recipes"
+                      kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
+                      title={t("videoEditor.editRecipesTitle", { defaultValue: "Edit Recipes" })}
+                      subtitle={t("videoEditor.editRecipesDesc", {
+                        defaultValue: "One-tap edit recipes — proven formulas for viral cuts.",
+                      })}
+                    >
                     <div className="p-4">
                       <TimelineTemplatesSection
                         scenes={scenes}
@@ -2624,9 +2686,18 @@ export default function VideoEditor() {
                         projectKey={projectId || "default"}
                       />
                     </div>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "studio" && (
+                    <ToolPanelShell
+                      tool="studio"
+                      kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
+                      title={t("videoEditor.studioTitle", { defaultValue: "Studio" })}
+                      subtitle={t("videoEditor.studioDesc", {
+                        defaultValue: "Advanced studio controls for precision editing.",
+                      })}
+                    >
                     <>
                     <StudioEditorSection
                       scenes={scenes}
@@ -2647,9 +2718,18 @@ export default function VideoEditor() {
                     />
                     {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
                     </>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "pro-tools" && (
+                    <ToolPanelShell
+                      tool="pro-tools"
+                      kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
+                      title={t("videoEditor.proToolsTitle", { defaultValue: "Pro Tools" })}
+                      subtitle={t("videoEditor.proToolsDesc", {
+                        defaultValue: "Professional-grade tools for power creators.",
+                      })}
+                    >
                     <>
                       <ProToolsSection
                         scenes={resolvedScenes}
@@ -2683,9 +2763,18 @@ export default function VideoEditor() {
                         />
                       </div>
                     </>
+                    </ToolPanelShell>
                   )}
 
                   {tab === "export" && (
+                    <ToolPanelShell
+                      tool="export"
+                      kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
+                      title={t("videoEditor.exportTitle", { defaultValue: "Export" })}
+                      subtitle={t("videoEditor.exportDesc", {
+                        defaultValue: "Render your finished video and ship it everywhere.",
+                      })}
+                    >
                     <>
                     <ExportSection
                       // NOTE: resolvedScenes (not raw scenes) so the export uses
@@ -2720,6 +2809,7 @@ export default function VideoEditor() {
                       />
                     </div>
                     </>
+                    </ToolPanelShell>
                   )}
                 </div>
               </aside>
