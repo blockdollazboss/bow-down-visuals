@@ -4108,69 +4108,6 @@ function MasterPreviewPlayer({
       style={{ zIndex: 1 }}
     >
       <div className="flex flex-col h-full bg-black overflow-hidden">
-      {!isFullscreen && (
-        <div
-          ref={chromeHeaderRef}
-          className="flex items-center justify-between px-2 py-1 bg-black/80 border-b border-white/[0.1] select-none shrink-0"
-          title="Master Player"
-        >
-          <span className="flex items-center gap-1" />
-          <span className="flex items-center gap-0.5">
-            {/* Before/after compare — only when an effect is actually altering the picture */}
-            {showCompareToggle && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setCompareOn((v) => !v)}
-                data-testid="master-player-compare-toggle"
-                title={compareOn ? t("videoEditor.exitCompare") : t("videoEditor.compareEffects")}
-                aria-pressed={compareOn}
-                className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
-                  compareOn
-                    ? "text-[#f7dd7f] bg-[#C9A84C]/20"
-                    : "text-white/50 hover:text-white hover:bg-white/[0.1]"
-                }`}
-              >
-                <Columns2 className="h-3 w-3" />
-              </button>
-            )}
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={toggleTheater}
-              data-testid="master-player-theater-toggle"
-              title={theaterOn ? t("videoEditor.exitVisualMode") : t("videoEditor.visualMode")}
-              className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
-                theaterOn
-                  ? "text-[#f7dd7f] bg-[#C9A84C]/20"
-                  : "text-white/50 hover:text-white hover:bg-white/[0.1]"
-              }`}
-            >
-              <Theater className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={toggleMinimize}
-              data-testid="master-player-minimize-toggle"
-              title={isMinimized ? t("videoEditor.restorePlayer") : t("videoEditor.minimizePlayer")}
-              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
-            >
-              {isMinimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
-            </button>
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={toggleHidden}
-              data-testid="master-player-hide-toggle"
-              title={t("videoEditor.hidePlayer")}
-              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
-            >
-              <EyeOff className="h-3 w-3" />
-            </button>
-          </span>
-        </div>
-      )}
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
       {(() => {
         const fmt    = settings.export.format ?? "9:16";
