@@ -3268,7 +3268,7 @@ function MasterPreviewPlayer({
   /* ── Master player: LOCKED IN — docked inline in the center column, never a
    *    floating overlay. Fullscreen replaces the docked player entirely;
    *    minimize/hide are independent presentation states on top of it. ── */
-  const isMinimized = !!settings.masterPlayerMinimized && !isFullscreen;
+  const isMinimized = false; // Minimize removed — user doesn't need it
   const isHidden = !!settings.masterPlayerHidden && !isFullscreen;
   const aspect = floatPlayerAspect((settings.export.format ?? "9:16") as VideoFormat);
 
