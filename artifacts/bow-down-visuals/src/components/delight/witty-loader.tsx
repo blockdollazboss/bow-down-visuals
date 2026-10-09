@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
@@ -62,24 +62,18 @@ export default function WittyLoader({ message }: { message?: string }) {
       />
       {/* One uniform dark veil - no banding, no double-background */}
       <div aria-hidden className="absolute inset-0 bg-black/55" />
-      {/* Shark King logo — top-left brand mark, clean, no border */}
-      <div className="absolute top-6 left-6 z-10">
-        <img
-          src="/logo-static.webp"
-          alt="Bow Down Visuals"
-          className="h-14 w-14 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.35)]"
-        />
-      </div>
+      {/* Shark King logo — magnetic 3D, tracks your cursor */}
+      <MagneticLogo />
       {/* ── Cinematic asymmetric layout ── */}
       {/* Bottom-left: the show title */}
-      <div className="absolute bottom-24 left-6 md:left-10 z-10 max-w-md">
+      <div className="absolute bottom-28 left-6 md:left-10 z-10 max-w-sm">
         <p
           key={line}
-          className="text-white text-3xl md:text-5xl font-black leading-tight animate-in fade-in duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
+          className="text-white text-xl md:text-2xl font-bold leading-snug animate-in fade-in duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
         >
           {line}
         </p>
-        <p className="text-white/50 text-sm mt-2">
+        <p className="text-white/50 text-xs mt-1">
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
       </div>
@@ -87,23 +81,79 @@ export default function WittyLoader({ message }: { message?: string }) {
       {/* Right edge: vertical promo card */}
       <div
         key={promoIdx}
-        className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 hidden sm:block max-w-[220px] animate-in fade-in duration-500"
+        className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 hidden sm:block max-w-xs animate-in fade-in duration-500"
       >
-        <div className="border-l-2 border-primary/60 pl-4">
-          <p className="text-primary font-black text-sm uppercase tracking-[0.2em]">{promo.title}</p>
-          <p className="text-white/60 text-xs mt-2 leading-relaxed">{promo.desc}</p>
+        <div className="border-l-2 border-primary/60 pl-5">
+          <p className="text-primary font-black text-xl uppercase tracking-[0.2em]">{promo.title}</p>
+          <p className="text-white/70 text-sm mt-3 leading-relaxed">{promo.desc}</p>
         </div>
       </div>
 
-      {/* Bottom edge: full-width barcode film strip */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
+      {/* Bottom center: true-scale barcode */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
         <BarcodeStrip />
       </div>
     </div>
   );
 }
 
-/* BarcodeStrip — full-width film-leader progress strip along the bottom edge */
+/* MagneticLogo — the Shark King watches your cursor.
+   3D tilt toward the mouse + glow intensifies on approach. */
+function MagneticLogo() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0, glow: 0.35 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = Math.max(window.innerWidth, window.innerHeight) / 2;
+        const proximity = Math.max(0, 1 - dist / maxDist);
+        // Tilt toward cursor, capped at ±18deg
+        const tiltY = Math.max(-18, Math.min(18, (dx / window.innerWidth) * 36));
+        const tiltX = Math.max(-18, Math.min(18, -(dy / window.innerHeight) * 36));
+        setTilt({ x: tiltX, y: tiltY, glow: 0.35 + proximity * 0.65 });
+      });
+    };
+    const onLeave = () => setTilt({ x: 0, y: 0, glow: 0.35 });
+    window.addEventListener("mousemove", onMove);
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <div className="absolute top-6 left-6 z-10" style={{ perspective: "600px" }}>
+      <div
+        ref={ref}
+        className="transition-transform duration-150 ease-out will-change-transform"
+        style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${1 + (tilt.glow - 0.35) * 0.25})` }}
+      >
+        <img
+          src="/logo-static.webp"
+          alt="Bow Down Visuals"
+          className="h-14 w-14 object-contain"
+          style={{ filter: `drop-shadow(0 0 ${12 + tilt.glow * 24}px rgba(212,175,55,${tilt.glow}))` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* BarcodeStrip — true-scale scannable-style barcode, fixed proportions.
+   Real barcode anatomy: quiet zones, guard bars, 1:2:3:4 width ratios. */
 function BarcodeStrip() {
   const [progress, setProgress] = useState(0);
 
@@ -117,39 +167,54 @@ function BarcodeStrip() {
     return () => window.clearInterval(id);
   }, []);
 
-  const bars = [3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 2, 4,
-                2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1];
-  const totalWidth = bars.reduce((a, b) => a + b, 0) + bars.length * 2;
+  // UPC-style pattern: guard | data | middle guard | data | guard
+  // Widths in module units (1 = thinnest bar), true 1:2:3:4 ratios
+  const MODULE = 2; // px per module — true print scale
+  const bars: number[] = [
+    1, 1, 1, // left guard (bar-space-bar)
+    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4, // left data
+    1, 1, 1, 1, 1, // center guard (space-bar-space-bar-space)
+    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1, // right data
+    1, 1, 1, // right guard
+  ];
+  const totalModules = bars.reduce((a, b) => a + b, 0);
   let filled = 0;
 
   return (
-    <div className="relative">
-      <div className="flex items-end gap-[2px] h-12 px-6">
-        {bars.map((w, i) => {
-          const barStart = (filled / totalWidth) * 100;
-          filled += w + 2;
-          const barEnd = (filled / totalWidth) * 100;
-          const isLit = progress >= barEnd;
-          const isPartial = progress > barStart && progress < barEnd;
-          return (
-            <div
-              key={i}
-              className="transition-colors duration-200 flex-1"
-              style={{
-                minWidth: `${w}px`,
-                height: "100%",
-                backgroundColor: isLit
-                  ? "#d4af37"
-                  : isPartial
-                    ? "rgba(212,175,55,0.5)"
-                    : "rgba(255,255,255,0.08)",
-                boxShadow: isLit ? "0 0 8px rgba(212,175,55,0.6)" : "none",
-              }}
-            />
-          );
-        })}
+    <div className="flex flex-col items-center">
+      {/* Quiet zone + barcode */}
+      <div className="bg-white/[0.03] rounded-sm px-5 py-3">
+        <div className="flex items-stretch" style={{ height: "56px" }}>
+          {bars.map((w, i) => {
+            const barStart = (filled / totalModules) * 100;
+            filled += w;
+            const barEnd = (filled / totalModules) * 100;
+            const isLit = progress >= barEnd;
+            const isPartial = progress > barStart && progress < barEnd;
+            // Alternate bar/space: even indices are bars, odd are spaces
+            const isBar = i % 2 === 0;
+            return (
+              <div
+                key={i}
+                className="transition-colors duration-200"
+                style={{
+                  width: `${w * MODULE}px`,
+                  height: "100%",
+                  backgroundColor: !isBar
+                    ? "transparent"
+                    : isLit
+                      ? "#d4af37"
+                      : isPartial
+                        ? "rgba(212,175,55,0.45)"
+                        : "rgba(255,255,255,0.14)",
+                  boxShadow: isBar && isLit ? "0 0 6px rgba(212,175,55,0.55)" : "none",
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
-      <p className="absolute right-6 -top-6 text-white/50 text-xs font-mono">
+      <p className="text-white/40 text-[11px] font-mono mt-2 tracking-widest">
         {Math.min(100, Math.floor(progress))}%
       </p>
     </div>
