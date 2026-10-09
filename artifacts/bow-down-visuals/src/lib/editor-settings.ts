@@ -1198,9 +1198,9 @@ export const MASTER_PLAYER_MIN_HEIGHT = 220;
 
 /** Default/min/max px height of the resizable TimelineDock body (ruler + waveform + clip track).
  *  DEFAULT matches the dock's original fixed content height so existing projects look unchanged. */
-export const TIMELINE_DOCK_DEFAULT_HEIGHT = 96;
-export const TIMELINE_DOCK_MIN_HEIGHT = 80;
-export const TIMELINE_DOCK_MAX_HEIGHT = 320;
+export const TIMELINE_DOCK_DEFAULT_HEIGHT = 128;
+export const TIMELINE_DOCK_MIN_HEIGHT = 100;
+export const TIMELINE_DOCK_MAX_HEIGHT = 400;
 
 export const MASTER_PLAYER_SNAP_POSITIONS: MasterPlayerSnapPosition[] = [
   "top-left", "top-left-quarter", "top-center", "top-right-quarter", "top-right",

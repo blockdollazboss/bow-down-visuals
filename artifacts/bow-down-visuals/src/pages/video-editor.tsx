@@ -4218,34 +4218,13 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Info strip: scene · format · loop status (timecode moved into the transport row) ── */}
-      {!isMinimized && (
-        <div className="flex items-center gap-1.5 px-3 pt-1 flex-wrap">
-          {hasScenes && sceneOffsets.length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[10px] font-bold text-[#f0d488]">
-              <Film className="h-2.5 w-2.5" />
-              {t("videoEditor.sceneChip", { current: activeSceneIdx + 1, total: sceneOffsets.length })}
-            </span>
-          )}
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] font-black text-white/50 tracking-widest">
-            {settings.export.format ?? "9:16"}
-          </span>
-          {loop && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/15 border border-[#C9A84C]/40 text-[10px] font-bold text-[#f0d488] uppercase tracking-wider">
-              <Repeat className="h-2.5 w-2.5" />
-              {t("videoEditor.loopChip")}
-            </span>
-          )}
-        </div>
-      )}
-
       {/* ── Transport bar — floating glass console pinned to the bottom of the
           player (always visible docked; auto-hides in fullscreen; hidden while
           minimized). Utility row: scene nav + player settings (compact,
           secondary). Main row: ONE clean line — play/pause · seek · time ·
           volume · fullscreen. ── */}
       {!isMinimized && (
-      <div className={`mx-2.5 mt-1 mb-0.5 rounded-2xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-2 py-1 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
+      <div className={`mx-1 mt-0.5 rounded-xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-1.5 py-1 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
@@ -4326,10 +4305,10 @@ function MasterPreviewPlayer({
         </div>
         {/* ── Main transport row — one clean line at the bottom of the player:
             play/pause · seek · time · volume · fullscreen ── */}
-        <div className="flex items-center gap-2 mt-1.5 border-t border-white/[0.06] pt-2">
+        <div className="flex items-center gap-1.5 mt-1">
           {/* Play / Pause — hero button */}
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
+            className="flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
             title={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
