@@ -1002,7 +1002,7 @@ export function ExportSection({
           videoUrl={finalVideoUrl}
           title={topic || "My video"}
           from="/video-editor"
-          fromLabel="Video Editor"
+          fromLabel="Visual Vibes"
         />
       )}
 
@@ -1012,7 +1012,7 @@ export function ExportSection({
           videoUrl={finalVideoUrl}
           title={topic || "My video"}
           from="/video-editor"
-          fromLabel="Video Editor"
+          fromLabel="Visual Vibes"
         />
       )}
 

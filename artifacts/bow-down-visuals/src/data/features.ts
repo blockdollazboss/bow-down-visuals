@@ -109,7 +109,7 @@ export const SITE_FEATURES: SiteFeature[] = [
   },
   {
     key: "video-editor",
-    name: "Video Editor",
+    name: "Visual Vibes",
     tagline: "Pro timeline editor with transitions & effects",
     route: "/video-editor",
     category: "create",

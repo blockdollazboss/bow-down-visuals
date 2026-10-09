@@ -86,7 +86,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "video-editor",
-    title: "Video Editor",
+    title: "Visual Vibes",
     body: "This is where your projects live — assemble scenes, add captions, transitions and effects, then export your final video.",
     target: '[data-tour="nav-video-editor"]',
   },

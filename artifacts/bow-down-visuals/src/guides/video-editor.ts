@@ -2,7 +2,7 @@ import type { PageGuide } from "./types";
 
 export const videoEditorGuide: PageGuide = {
   route: "/video-editor",
-  pageName: "Video Editor",
+  pageName: "Visual Vibes",
   summary:
     "A full timeline editor in your browser — arrange clips, add captions and transitions, then export your finished video.",
   steps: [

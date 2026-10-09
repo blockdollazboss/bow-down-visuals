@@ -226,7 +226,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
             <div className="text-center py-6">
               <Layers className="h-8 w-8 text-white/20 mx-auto mb-2" />
               <p className="text-sm text-white/50 font-medium">No projects with scenes found</p>
-              <p className="text-[11px] text-white/30 mt-1">Open the Video Editor and rebuild scenes first.</p>
+              <p className="text-[11px] text-white/30 mt-1">Open Visual Vibes and rebuild scenes first.</p>
             </div>
           ) : attachedInfo ? (
             /* Success state */
@@ -279,14 +279,14 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                 <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] px-3 py-3 text-center">
                   <p className="text-xs font-bold text-amber-400">No scenes saved yet</p>
                   <p className="text-[10px] text-white/35 mt-0.5">
-                    Open the Video Editor, load your scenes, then come back and attach.
+                    Open Visual Vibes, load your scenes, then come back and attach.
                   </p>
                   <Link
                     href={`/video-editor?project=${selectedProject.id}`}
                     className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-primary hover:underline"
                     onClick={onClose}
                   >
-                    <ChevronRight className="h-3 w-3" /> Open Video Editor
+                    <ChevronRight className="h-3 w-3" /> Open Visual Vibes
                   </Link>
                 </div>
               )}
@@ -369,7 +369,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
           <div className="px-5 pb-4 flex gap-2">
             <Link href={`/video-editor?project=${selectedProject?.id ?? ""}`} className="flex-1">
               <button className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                <ChevronRight className="h-4 w-4" /> Open Video Editor
+                <ChevronRight className="h-4 w-4" /> Open Visual Vibes
               </button>
             </Link>
             <button
@@ -1097,8 +1097,8 @@ export default function MyClips() {
           <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
             <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-[12px] text-white/50 leading-relaxed">
-              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in your Video Editor — no Visual Bucs charged.
-              Open the Video Editor afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
+              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in Visual Vibes — no Visual Bucs charged.
+              Open Visual Vibes afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
             </p>
           </div>
         )}

@@ -32,7 +32,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 2, title: "Pick what to create", desc: "Click Start from Scratch, Video for My Song, or Promo Clips from the menu." },
       { n: 3, title: "Generate with AI",    desc: "Follow the on-screen steps. AI writes lyrics and creates video scene prompts for you." },
       { n: 4, title: "Save your project",   desc: "Your project saves automatically. Find it in My Projects anytime." },
-      { n: 5, title: "Edit and export",     desc: "Open the Video Editor from My Projects to add effects, captions, and export your final video." },
+      { n: 5, title: "Edit and export",     desc: "Open Visual Vibes from My Projects to add effects, captions, and export your final video." },
     ],
     tips: [
       "Set an active artist first — it unlocks character consistency across all AI tools.",
@@ -56,7 +56,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 
   "video-editor": {
-    title: "Video Editor — Step by Step",
+    title: "Visual Vibes — Step by Step",
     steps: [
       { n: 1, title: "Rebuild scenes if needed",  desc: "If your scene list is empty, click Rebuild Scenes to regenerate from your video plan." },
       { n: 2, title: "Select one scene",          desc: "Click on any scene in the timeline to expand it and see its details." },
@@ -75,7 +75,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   "my-projects": {
     title: "My Projects — Guide",
     steps: [
-      { n: 1, title: "Open a saved project",     desc: "Click Open Project on any card. This loads your project in the Video Editor." },
+      { n: 1, title: "Open a saved project",     desc: "Click Open Project on any card. This loads your project in Visual Vibes." },
       { n: 2, title: "Check generated clips",    desc: "Switch to the Clips tab in the editor to see all generated video clips for your scenes." },
       { n: 3, title: "Check generation history", desc: "Go to the Generation History tab to see every AI generation, Visual Buc use, and clip preview." },
       { n: 4, title: "Continue editing",         desc: "Open any project to continue adding clips, music, captions, or effects where you left off." },
@@ -93,7 +93,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 2, title: "Generate lyrics",          desc: "Click Generate Lyrics. AI writes a full song structure with verses, hooks, and bridge." },
       { n: 3, title: "Generate video plan",      desc: "Click Generate Video Plan. AI creates a scene-by-scene visual breakdown for your music video." },
       { n: 4, title: "Review and save",          desc: "Review the lyrics and video plan. Edit anything you want, then click Save Project." },
-      { n: 5, title: "Open in Video Editor",     desc: "Go to My Projects and open your saved project to start generating video clips scene by scene." },
+      { n: 5, title: "Open in Visual Vibes",     desc: "Go to My Projects and open your saved project to start generating video clips scene by scene." },
     ],
     tips: [
       "Set an active artist before generating — it adds your character style to the video plan automatically.",
@@ -107,7 +107,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 1, title: "Enter your song concept", desc: "Fill in the artist, genre, mood, and any theme or story you want the song to be about." },
       { n: 2, title: "Generate your lyrics",    desc: "Click Generate and AI writes a full song with verses, hook, bridge, and outro." },
       { n: 3, title: "Review and edit",         desc: "Edit any part of the generated lyrics to match your vision exactly." },
-      { n: 4, title: "Copy or save",            desc: "Copy the lyrics to use anywhere, or save them to a project for use in the Video Editor." },
+      { n: 4, title: "Copy or save",            desc: "Copy the lyrics to use anywhere, or save them to a project for use in Visual Vibes." },
     ],
     tips: [
       "Be specific about mood and theme — detailed inputs give better lyrics output.",
@@ -120,7 +120,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 1, title: "Paste your lyrics",         desc: "Paste your song lyrics into the text area so AI can plan scenes around your song structure." },
       { n: 2, title: "Generate a video plan",     desc: "Click Generate Video Plan. AI creates a visual scene breakdown matched to your lyrics." },
       { n: 3, title: "Review scenes",             desc: "Each scene shows a shot type, location, action, and AI video prompt. Edit any scene you want." },
-      { n: 4, title: "Save and open editor",      desc: "Save the project and open it in the Video Editor to start generating clips scene by scene." },
+      { n: 4, title: "Save and open editor",      desc: "Save the project and open it in Visual Vibes to start generating clips scene by scene." },
     ],
     tips: [
       "Set an active artist before generating to bake in character consistency across all scenes.",

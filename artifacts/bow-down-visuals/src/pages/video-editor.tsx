@@ -10,7 +10,7 @@ import {
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, AlertTriangle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
-  PanelRightClose, PanelRightOpen,
+  PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -94,6 +94,14 @@ import { TimelineDock } from "@/components/editor/TimelineDock";
 import TemplatePicker from "@/components/TemplatePicker";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import type { HubAsset } from "@/lib/hub-project";
+import PromoClip from "@/pages/promo-clip";
+import LyricVideo from "@/pages/lyric-video";
+import Translate from "@/pages/translate";
+import Repurpose from "@/pages/repurpose";
+import Upscale from "@/pages/upscale";
+import CartoonStudio from "@/pages/cartoon-studio";
+import ThumbnailStudio from "@/pages/thumbnail-studio";
+import { VisualVibesSection } from "@/components/editor/sections/VisualVibesSection";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
@@ -111,7 +119,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -1404,6 +1412,14 @@ export default function VideoEditor() {
                     { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                     { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
                     { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
+                    { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
+                    { id: "lyric-video", label: t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-lyric-video" },
+                    { id: "translate", label: t("videoEditor.railTranslate", { defaultValue: "Translate" }), icon: <Languages className="h-5 w-5" />, testId: "rail-translate" },
+                    { id: "repurpose", label: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }), icon: <Repeat className="h-5 w-5" />, testId: "rail-repurpose" },
+                    { id: "upscale", label: t("videoEditor.railUpscale", { defaultValue: "Upscale" }), icon: <Maximize className="h-5 w-5" />, testId: "rail-upscale" },
+                    { id: "cartoonize", label: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }), icon: <Sparkles className="h-5 w-5" />, testId: "rail-cartoonize" },
+                    { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
+                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
                   ])
                     .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -1444,6 +1460,14 @@ export default function VideoEditor() {
                       studio: t("videoEditor.railAdvanced"),
                       "voice-edits": t("videoEditor.railVoiceEdits"),
                       "pro-tools": t("videoEditor.railProTools"),
+                      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
+                      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
+                      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
+                      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
+                      upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
+                      cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
+                      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
+                      vibes: t("videoEditor.railVibes", { defaultValue: "Vibes" }),
                     }[tab]}
                   </h2>
                 </div>
@@ -1945,6 +1969,14 @@ export default function VideoEditor() {
                       </div>
                     </>
                   )}
+                  {tab === "promo-clips" && <PromoClip />}
+                  {tab === "lyric-video" && <LyricVideo />}
+                  {tab === "translate" && <Translate />}
+                  {tab === "repurpose" && <Repurpose />}
+                  {tab === "upscale" && <Upscale />}
+                  {tab === "cartoonize" && <CartoonStudio initialTab="cartoonize" />}
+                  {tab === "thumbnails" && <ThumbnailStudio defaultTab="generate" />}
+                  {tab === "vibes" && <VisualVibesSection settings={settings} setSettings={setSettings} />}
                 </div>
               </aside>
 

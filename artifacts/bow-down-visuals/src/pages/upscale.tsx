@@ -974,7 +974,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
             href={`/video-editor?video=${encodeURIComponent(outputUrl)}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
           >
-            <Clapperboard className="h-4 w-4" /> {t("watermarkRemoval.sendToVideoEditor", { defaultValue: "Send to Video Editor" })}
+            <Clapperboard className="h-4 w-4" /> {t("watermarkRemoval.sendToVideoEditor", { defaultValue: "Send to Visual Vibes" })}
           </a>
         </div>
       )}
