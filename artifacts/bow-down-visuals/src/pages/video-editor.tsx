@@ -241,6 +241,50 @@ export default function VideoEditor() {
     try { localStorage.setItem("bdv:autosave", String(autosaveEnabled)); } catch {}
   }, [autosaveEnabled]);
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  /* ── Resizable tool panel: drag the divider between the panel and the
+     preview to size it. Width persists per browser. Double-click resets. ── */
+  const PANEL_MIN = 240;
+  const PANEL_MAX = 600;
+  const PANEL_DEFAULT = 340;
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem("bdv:panelWidth"));
+      return Number.isFinite(v) ? Math.min(PANEL_MAX, Math.max(PANEL_MIN, v)) : PANEL_DEFAULT;
+    } catch { return PANEL_DEFAULT; }
+  });
+  const panelWidthRef = useRef(panelWidth);
+  const panelDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const onPanelDividerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    panelDragRef.current = { startX: e.clientX, startW: panelWidthRef.current };
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => {
+      const d = panelDragRef.current;
+      if (!d) return;
+      const w = d.startW + (ev.clientX - d.startX);
+      const clamped = Math.min(PANEL_MAX, Math.max(PANEL_MIN, Math.round(w)));
+      panelWidthRef.current = clamped;
+      setPanelWidth(clamped);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      panelDragRef.current = null;
+      try { localStorage.setItem("bdv:panelWidth", String(panelWidthRef.current)); } catch { /* ignore */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }, []);
+  const resetPanelWidth = useCallback(() => {
+    panelWidthRef.current = PANEL_DEFAULT;
+    setPanelWidth(PANEL_DEFAULT);
+    try { localStorage.removeItem("bdv:panelWidth"); } catch { /* ignore */ }
+  }, []);
   /* LUT Import handoff: graded clip URL pre-loads the multi-ratio export card. */
   const [lutHandoffUrl, setLutHandoffUrl] = useState<string | null>(null);
   /* ── Template system: "what are you making?" drives format, tool order,
@@ -1475,8 +1519,8 @@ export default function VideoEditor() {
                     ))}
               </nav>
 
-              {/* ── LEFT PANEL: active section ── */}
-              <aside className="w-[340px] shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
+              {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
+              <aside style={{ width: panelWidth }} className="shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest">
                     {{
@@ -2022,6 +2066,20 @@ export default function VideoEditor() {
                   {tab === "three-second-lab" && <ThreeSecondLabSection openingHint={threeSecondLabHint} />}
                 </div>
               </aside>
+
+              {/* ── DRAGGABLE DIVIDER: resize the tool panel (double-click resets) ── */}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize tool panel"
+                title="Drag to resize the panel · double-click to reset"
+                onPointerDown={onPanelDividerDown}
+                onDoubleClick={resetPanelWidth}
+                className="w-[9px] -ml-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex items-center justify-center group"
+                data-testid="panel-divider"
+              >
+                <div className="w-[3px] h-24 rounded-full bg-white/10 group-hover:bg-primary/80 group-active:bg-primary transition-colors" />
+              </div>
 
               {/* ── CENTER: preview ── */}
               <main
