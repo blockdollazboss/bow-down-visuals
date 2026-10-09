@@ -23,7 +23,6 @@ export const ORGANIZATION_JSON_LD = {
   name: "Bow Down Visuals",
   url: SITE_URL,
   logo: `${SITE_URL}/logo-static.webp`,
-  email: "support@bowdownvisuals.com",
   description:
     "Bow Down Visuals is an AI-powered creative studio for content creators, generating song lyrics, music video treatments, promo content, and thumbnails.",
   sameAs: [],
