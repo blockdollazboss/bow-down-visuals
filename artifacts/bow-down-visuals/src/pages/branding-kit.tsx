@@ -4,6 +4,7 @@ import { Palette, Clapperboard, Tv, Store, Gem } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
+import { BrowseLibraryButton } from "@/pages/library";
 import { StreamPackTool } from "@/pages/stream-pack";
 import BrandingShop from "@/pages/branding-shop";
 import JewelryStudio from "@/pages/jewelry";
@@ -80,6 +81,9 @@ export default function BrandingKit() {
       </div>
 
       {/* Active tool */}
+      <div className="flex justify-end mb-4">
+        <BrowseLibraryButton tab="templates" category="Intros & Outros" tool="brand" />
+      </div>
       <div className="pb-10">
         {tab === "logo" && <LogoMakerTool key="logo" />}
         {tab === "intros" && <IntrosOutrosTool key="intros" />}

@@ -11777,6 +11777,183 @@
     "toggle_quests": "Weekly quests",
     "collapse": "Collapse",
     "expand": "Expand",
-    "hide_widget": "Hide for now"
+    "hide_widget": "Hide for now",
+    "dailyDrop": {
+      "title": "Thy Daily Drop",
+      "subtitle": "One fresh template, preset, or hook every day — the same drop for everyone.",
+      "cta": "Use today's drop",
+      "dismiss": "Dismiss",
+      "kindThumbnail": "Thumbnail template",
+      "kindCaption": "Caption style",
+      "kindVideo": "Video preset",
+      "kindHook": "Hook formula"
+    },
+    "awayDigest": {
+      "title": "While you were away",
+      "subtitle": "You were gone {hours}h — here's what you missed",
+      "dismiss": "Got it",
+      "managePrefs": "Notification settings",
+      "jobsCompleted": "Renders finished",
+      "renderDone": "Video render complete",
+      "jobsFailed": "{count} render needs attention",
+      "jobsFailed_plural": "{count} renders need attention",
+      "newProjects": "New projects",
+      "bowRace": "Bow Race",
+      "bowRaceProgress": "{bows} / {target} bows",
+      "bowRaceYouWon": "You won this month's Bow Race!",
+      "jackpot": "Cheat Code Jackpot",
+      "jackpotPrize": "{prize} VB on the line",
+      "jackpotEnds": "Ends {date}",
+      "missedDrops": "Drops you missed",
+      "streak": "Creation streak",
+      "streakDays": "{count} day streak",
+      "streakBest": "Best: {count}",
+      "viewProject": "Open",
+      "empty": "All quiet while you were gone — welcome back."
+    },
+    "prefs": {
+      "title": "Nudges & retention",
+      "subtitle": "Every nudge on this site has an off switch. Turn anything off and it stays silent.",
+      "dailyDropEnabled": {
+        "title": "Thy Daily Drop",
+        "desc": "Show a fresh template, preset, or hook on your dashboard every day."
+      },
+      "awayDigestEnabled": {
+        "title": "While You Were Away",
+        "desc": "Show a catch-up digest when you return after 24+ hours away."
+      },
+      "creationStreaksEnabled": {
+        "title": "Creation streaks",
+        "desc": "Track consecutive days you create and celebrate milestones."
+      },
+      "questsEnabled": {
+        "title": "Weekly quests",
+        "desc": "Three fresh quests every Monday with Visual Bucs rewards."
+      },
+      "saved": "Preferences saved",
+      "saveFailed": "Couldn't save — try again."
+    },
+    "drops": {
+      "fitness-transformation-youtube-thumbnail": {
+        "title": "Transformation Beast",
+        "description": "The split-screen before/after layout that rules fitness thumbnails — preloaded with bold gold type."
+      },
+      "new-single-release-hook": {
+        "title": "Single Drop Hook",
+        "description": "Announce your release like it's already a hit: the 3-line hook formula built for new singles."
+      },
+      "single-release-captions": {
+        "title": "Single Release Captions",
+        "description": "A full caption pack for release day — post copy, hashtags, and CTA variants in your voice."
+      },
+      "photo-dump-montage": {
+        "title": "Photo Dump Montage",
+        "description": "Turn a camera roll into a beat-synced montage in one click — made for tour recaps and studio days."
+      },
+      "podcast-episode-thumbnail": {
+        "title": "Podcast Pop",
+        "description": "High-contrast guest framing with episode-number styling that pops on the podcast shelf."
+      },
+      "music-video-premiere-hook": {
+        "title": "Premiere Countdown Hook",
+        "description": "Build the 48-hour countdown: the hook sequence that turns a premiere into an event."
+      },
+      "music-video-launch-captions": {
+        "title": "Video Launch Captions",
+        "description": "Launch-day captions tuned for watch-through — tease the visual without spoiling it."
+      },
+      "lyric-sync-cut": {
+        "title": "Lyric Sync Cut",
+        "description": "Words on the beat, cuts on the bar — the lyric-video edit preset your fans will replay."
+      },
+      "gaming-video-thumbnail": {
+        "title": "Rage-Click Gaming",
+        "description": "Exaggerated reaction framing with neon accents — the gaming thumbnail formula that wins the sidebar."
+      },
+      "tour-announcement-hook": {
+        "title": "Tour Drop Hook",
+        "description": "Dates, cities, and FOMO in three lines — the announcement hook that sells tickets."
+      },
+      "album-announcement-captions": {
+        "title": "Album Rollout Captions",
+        "description": "A caption arc for the full rollout: tease, tracklist, drop day, and the thank-you post."
+      },
+      "product-promo-punch": {
+        "title": "Promo Punch Cut",
+        "description": "Thirty seconds of pure product energy — fast cuts, bold supers, and a CTA that converts."
+      },
+      "money-finance-youtube-thumbnail": {
+        "title": "Money Talk Frame",
+        "description": "Authority framing for finance content — charts, bold numbers, and the look that earns the click."
+      },
+      "studio-session-hook": {
+        "title": "Studio Session Hook",
+        "description": "Make the booth cinematic: the behind-the-glass hook that makes process content bingeable."
+      },
+      "tour-promo-captions": {
+        "title": "Tour Promo Captions",
+        "description": "City-by-city caption variants with ticket CTAs — copy, paste, sell out."
+      },
+      "before-after-reveal": {
+        "title": "Before/After Reveal",
+        "description": "The satisfying wipe reveal — built for glow-ups, mixes, and room tours alike."
+      },
+      "vlog-travel-thumbnail": {
+        "title": "Wanderlust Frame",
+        "description": "Epic destination framing with location type that makes viewers plan the trip."
+      },
+      "day-in-the-life-hook": {
+        "title": "Day-in-the-Life Hook",
+        "description": "Open on the most interesting 5 seconds first — the vlog hook that stops the scroll."
+      },
+      "merch-drop-captions": {
+        "title": "Merch Drop Captions",
+        "description": "Drop-day captions with urgency baked in — sizes, link, and the sell-out nudge."
+      },
+      "travel-recap": {
+        "title": "Travel Recap Cut",
+        "description": "Your whole trip in 60 seconds — transitions on the beat, titles on the landmarks."
+      },
+      "youtube-shorts-thumbnail": {
+        "title": "Shorts Shelf Stopper",
+        "description": "Vertical-first thumbnail styling engineered for the Shorts shelf."
+      },
+      "songwriting-process-hook": {
+        "title": "Songwriter's Hook",
+        "description": "From voice memo to chorus in 15 seconds — the process hook songwriters love."
+      },
+      "stream-milestone-captions": {
+        "title": "Milestone Captions",
+        "description": "Celebrate the numbers without bragging — milestone captions your day-ones will share."
+      },
+      "talking-head-polish": {
+        "title": "Talking Head Polish",
+        "description": "The clean creator cut — jump-cut pacing, caption pop, and b-roll prompts built in."
+      },
+      "tech-review-thumbnail": {
+        "title": "Tech Review Frame",
+        "description": "Product-hero framing with spec callouts — the review thumbnail that reads at any size."
+      },
+      "mixing-tips-hook": {
+        "title": "Mix Tip Hook",
+        "description": "One tip, one transformation — the educational hook that builds authority fast."
+      },
+      "question-engagement-captions": {
+        "title": "Comment Magnet Captions",
+        "description": "Question captions engineered for real conversation — engagement without the cheap tricks."
+      },
+      "hype-trailer": {
+        "title": "Hype Trailer Cut",
+        "description": "The 20-second sizzle — quick hits, a rising riser, and a title card that lands."
+      },
+      "music-video-thumbnail": {
+        "title": "Cinematic Still",
+        "description": "Pull the money frame from your video — graded, titled, and ready to click."
+      },
+      "grow-on-tiktok-hook": {
+        "title": "TikTok Growth Hook",
+        "description": "The pattern-interrupt opener built for TikTok's first two seconds."
+      }
+    }
   }
 }

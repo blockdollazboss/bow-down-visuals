@@ -680,7 +680,9 @@
     "introsOutros": "Intro & Outro",
     "streamPack": "Pacchetto Stream",
     "thumbnailABTest": "Test A/B Thumbnail",
-    "podcastStudio": "Podcast Studio"
+    "podcastStudio": "Podcast Studio",
+    "carouselMaker": "Carousel Maker",
+    "library": "Thy Library"
   },
   "academy": {
     "pageTitle": "Creator Academy",

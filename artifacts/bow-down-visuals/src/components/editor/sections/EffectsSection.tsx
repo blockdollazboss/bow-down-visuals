@@ -12,6 +12,7 @@ import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
 import { CinematicFxCard } from "@/components/editor/sections/CinematicFxCard";
 import { LutImportSection } from "@/components/editor/sections/LutImportSection";
+import { BrowseLibraryButton } from "@/pages/library";
 
 interface EffectsSectionProps {
   scenes: SceneData[];
@@ -128,6 +129,9 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
               <span className="text-sm font-semibold">{preset.label}</span>
             </button>
           ))}
+        </div>
+        <div className="mt-3 flex justify-center">
+          <BrowseLibraryButton tab="presets" tool="video" />
         </div>
       </EditorCard>
 

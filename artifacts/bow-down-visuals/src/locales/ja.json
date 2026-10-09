@@ -680,7 +680,9 @@
     "introsOutros": "Intros & Outros",
     "streamPack": "Stream Pack",
     "thumbnailABTest": "Thumbnail A/B Test",
-    "podcastStudio": "Podcast Studio"
+    "podcastStudio": "Podcast Studio",
+    "carouselMaker": "Carousel Maker",
+    "library": "Thy Library"
   },
   "makeVideo": {
     "pageTitle": "ミュージックビデオを作成",

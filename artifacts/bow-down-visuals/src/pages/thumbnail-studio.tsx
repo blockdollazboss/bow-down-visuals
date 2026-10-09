@@ -1078,6 +1078,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { BrowseLibraryButton } from "@/pages/library";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
@@ -1792,6 +1793,9 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
               defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
             })}
           </p>
+          <div className="mt-4">
+            <BrowseLibraryButton tab="templates" category="Thumbnails" tool="thumbnail" />
+          </div>
         </div>
         </>
         )}
