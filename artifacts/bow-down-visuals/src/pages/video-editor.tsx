@@ -296,6 +296,9 @@ export default function VideoEditor() {
     try { localStorage.setItem("bdv:autosave", String(autosaveEnabled)); } catch {}
   }, [autosaveEnabled]);
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  /* Independent tab state per side — both panels can show different content. */
+  const [leftTab, setLeftTab] = useState<EditorTab>("clips");
+  const [rightTab, setRightTab] = useState<EditorTab>("thumbnails");
   /* Thy Library transition deep-link (?transition=<slug>): scenes load async,
      so the mapped transition parks here until scenes arrive, then applies
      to every clip exactly once. */
@@ -389,13 +392,13 @@ export default function VideoEditor() {
     setRightPanelWidth(PANEL_DEFAULT);
     try { localStorage.removeItem("bdv:rightPanelWidth"); } catch { /* ignore */ }
   }, []);
-  /* Selecting a tab expands its side's panel. Panels are independent —
-     both sides can be open at the same time; the user collapses each manually. */
+  /* Keep the legacy shared tab in sync with the side-specific tabs.
+     Panels are independent — both sides can be open showing different content. */
   useEffect(() => {
     if (RIGHT_TABS.has(tab)) {
-      setRightPanelCollapsed(false);
+      setRightTab(tab);
     } else {
-      setPanelCollapsed(false);
+      setLeftTab(tab);
     }
   }, [tab]);
   /* LUT Import handoff: graded clip URL pre-loads the multi-ratio export card. */
@@ -443,6 +446,14 @@ export default function VideoEditor() {
     // user on an advanced tab. Redirect to a safe default instead.
     const next = isSimple && !SIMPLE_VISIBLE_TABS.includes(t) ? "clips" : t;
     setRawTab(next);
+    // Route to the correct side's independent tab state.
+    if (RIGHT_TABS.has(next)) {
+      setRightTab(next);
+      setRightPanelCollapsed(false);
+    } else {
+      setLeftTab(next);
+      setPanelCollapsed(false);
+    }
     window.dispatchEvent(new CustomEvent("bdv-editor-tab", { detail: next }));
   }
   useEffect(() => {
@@ -1699,7 +1710,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
                         className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
-                          tab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
+                          leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
                         }`}
                       >
                         {item.icon}
@@ -1741,7 +1752,7 @@ export default function VideoEditor() {
                       "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
                       "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
                       "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
-                    }[tab]}
+                    }[leftTab]}
                   </h2>
                 </div>
                 <div className="p-4">
@@ -1765,7 +1776,7 @@ export default function VideoEditor() {
                     />
                   </div>
 
-                  {tab === "timeline" && (
+                  {leftTab === "timeline" && (
                     <ToolPanelShell
                       tool="timeline"
                       kicker={t("videoEditor.railTimeline", { defaultValue: "Timeline" })}
@@ -1797,7 +1808,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "beat-sync" && (
+                  {leftTab === "beat-sync" && (
                     <ToolPanelShell
                       tool="beat-sync"
                       kicker={t("videoEditor.railBeatSync", { defaultValue: "Beat Sync" })}
@@ -1822,7 +1833,7 @@ export default function VideoEditor() {
                   )}
 
 
-                  {tab === "clips" && (
+                  {leftTab === "clips" && (
                     <ToolPanelShell
                       tool="clips"
                       kicker={t("videoEditor.railMedia", { defaultValue: "Media" })}
@@ -2011,7 +2022,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                       )}
 
-                  {tab === "templates" && (
+                  {leftTab === "templates" && (
                     <ToolPanelShell
                       tool="templates"
                       kicker={t("videoEditor.railTemplates", { defaultValue: "Templates" })}
@@ -2031,7 +2042,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "music" && (
+                  {leftTab === "music" && (
                     <ToolPanelShell
                       tool="music"
                       kicker={t("videoEditor.railAudio", { defaultValue: "Audio" })}
@@ -2060,7 +2071,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "captions" && (
+                  {leftTab === "captions" && (
                     <ToolPanelShell
                       tool="captions"
                       kicker={t("videoEditor.railText", { defaultValue: "Text" })}
@@ -2115,7 +2126,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "effects" && (
+                  {leftTab === "effects" && (
                     <ToolPanelShell
                       tool="effects"
                       kicker={t("videoEditor.railEffects", { defaultValue: "Effects" })}
@@ -2150,7 +2161,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "motion" && (
+                  {leftTab === "motion" && (
                     <ToolPanelShell
                       tool="motion"
                       kicker={t("videoEditor.railMotion", { defaultValue: "Motion" })}
@@ -2177,7 +2188,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "branding" && (
+                  {leftTab === "branding" && (
                     <ToolPanelShell
                       tool="branding"
                       kicker={t("videoEditor.railBrand", { defaultValue: "Brand" })}
@@ -2195,7 +2206,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "lip-sync" && (
+                  {leftTab === "lip-sync" && (
                     <ToolPanelShell
                       tool="lip-sync"
                       kicker={t("videoEditor.railLipSync", { defaultValue: "Lip Sync" })}
@@ -2216,7 +2227,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "pre-production" && project && (
+                  {leftTab === "pre-production" && project && (
                     <ToolPanelShell
                       tool="pre-production"
                       kicker={t("videoEditor.railPrePro", { defaultValue: "Pre-Pro" })}
@@ -2237,7 +2248,7 @@ export default function VideoEditor() {
 
 
 
-                  {tab === "voice-edits" && (
+                  {leftTab === "voice-edits" && (
                     <ToolPanelShell
                       tool="voice-edits"
                       kicker={t("videoEditor.railVoiceEdits", { defaultValue: "Voice" })}
@@ -2259,7 +2270,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "upscale" && (
+                  {leftTab === "upscale" && (
                     <ToolPanelShell
                       tool="upscale"
                       kicker={t("videoEditor.railUpscale", { defaultValue: "Upscale" })}
@@ -2269,7 +2280,7 @@ export default function VideoEditor() {
                       <Upscale embedded />
                     </ToolPanelShell>
                   )}
-                  {tab === "cartoonize" && (
+                  {leftTab === "cartoonize" && (
                     <ToolPanelShell
                       tool="cartoonize"
                       kicker={t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" })}
@@ -2280,7 +2291,7 @@ export default function VideoEditor() {
                       <CartoonStudio initialTab="cartoonize" embedded />
                     </ToolPanelShell>
                   )}
-                  {tab === "vibes" && (
+                  {leftTab === "vibes" && (
                     <ToolPanelShell
                       tool="vibes"
                       kicker={t("videoEditor.railVibes", { defaultValue: "Vibes" })}
@@ -2292,7 +2303,7 @@ export default function VideoEditor() {
                       <VisualVibesSection settings={settings} setSettings={setSettings} bare />
                     </ToolPanelShell>
                   )}
-                  {tab === "locations" && (
+                  {leftTab === "locations" && (
                     <ToolPanelShell
                       tool="locations"
                       kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
@@ -2302,7 +2313,7 @@ export default function VideoEditor() {
                       <LocationsPage embedded />
                     </ToolPanelShell>
                   )}
-                  {tab === "style-stealer" && (
+                  {leftTab === "style-stealer" && (
                     <ToolPanelShell
                       tool="style-stealer"
                       kicker={t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" })}
@@ -2574,11 +2585,11 @@ export default function VideoEditor() {
                       studio: t("videoEditor.railAdvanced"),
                       "pro-tools": t("videoEditor.railProTools"),
                       export: t("videoEditor.railExport"),
-                    } as Record<string, string>)[tab] ?? ""}
+                    } as Record<string, string>)[rightTab] ?? ""}
                   </h2>
                 </div>
                 <div className="p-4">
-                  {tab === "promo-clips" && (
+                  {rightTab === "promo-clips" && (
                     <ToolPanelShell
                       tool="promo-clips"
                       kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
@@ -2590,7 +2601,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "lyric-video" && (
+                  {rightTab === "lyric-video" && (
                     <ToolPanelShell
                       tool="lyric-video"
                       kicker={t("lyricVideo.badge")}
@@ -2601,7 +2612,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "thumbnails" && (
+                  {rightTab === "thumbnails" && (
                     <ToolPanelShell
                       tool="thumbnails"
                       kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
@@ -2615,7 +2626,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "meme-machine" && (
+                  {rightTab === "meme-machine" && (
                     <ToolPanelShell
                       tool="meme-machine"
                       kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
@@ -2628,7 +2639,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "three-second-lab" && (
+                  {rightTab === "three-second-lab" && (
                     <ToolPanelShell
                       tool="three-second-lab"
                       kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
@@ -2641,7 +2652,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "translate" && (
+                  {rightTab === "translate" && (
                     <ToolPanelShell
                       tool="translate"
                       kicker={t("translate.badge")}
@@ -2652,7 +2663,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "repurpose" && (
+                  {rightTab === "repurpose" && (
                     <ToolPanelShell
                       tool="repurpose"
                       kicker={t("repurpose.badge")}
@@ -2663,7 +2674,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "edit-recipes" && (
+                  {rightTab === "edit-recipes" && (
                     <ToolPanelShell
                       tool="edit-recipes"
                       kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
@@ -2686,7 +2697,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "studio" && (
+                  {rightTab === "studio" && (
                     <ToolPanelShell
                       tool="studio"
                       kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
@@ -2718,7 +2729,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "pro-tools" && (
+                  {rightTab === "pro-tools" && (
                     <ToolPanelShell
                       tool="pro-tools"
                       kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
@@ -2763,7 +2774,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {tab === "export" && (
+                  {rightTab === "export" && (
                     <ToolPanelShell
                       tool="export"
                       kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
@@ -2838,7 +2849,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
                         className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
-                          tab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
+                          rightTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
                         }`}
                       >
                         {item.icon}
