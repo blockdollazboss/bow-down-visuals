@@ -111,7 +111,7 @@ export default function AIInterviewSection() {
           <Mic2 className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("aiInterview.title", { defaultValue: "AI Interview" })}</h3>
           <span className="ml-auto rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
-            {t("aiInterview.cost", { defaultValue: "1 + 2 VB" })}
+            {t("aiInterview.cost", { defaultValue: "100 + 200 VB" })}
           </span>
         </div>
         <p className="text-sm text-white/50 mb-6">
@@ -138,7 +138,7 @@ export default function AIInterviewSection() {
         <button type="button" onClick={getQuestions} disabled={loading || !topic.trim()}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-40">
           {loading && questions.length === 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {t("aiInterview.getQuestions", { defaultValue: "Ask Me 5 Questions (1 VB)" })}
+          {t("aiInterview.getQuestions", { defaultValue: "Ask Me 5 Questions (100 VB)" })}
         </button>
 
         {questions.length > 0 && (
@@ -157,7 +157,7 @@ export default function AIInterviewSection() {
             <button type="button" onClick={buildPackage} disabled={loading || !answers.some((a) => a.trim())}
               className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-6 py-3 text-sm font-black text-primary transition hover:bg-primary/20 disabled:opacity-40">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {t("aiInterview.buildPackage", { defaultValue: "Cut My Clips + Cards (2 VB)" })}
+              {t("aiInterview.buildPackage", { defaultValue: "Cut My Clips + Cards (200 VB)" })}
             </button>
           </div>
         )}
