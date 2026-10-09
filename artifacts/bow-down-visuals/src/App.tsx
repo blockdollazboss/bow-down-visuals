@@ -162,6 +162,7 @@ const ReviewPage = lazyWithRetry(() => import("@/pages/review"));
 const SyncOneSheetPublic = lazyWithRetry(() => import("@/pages/sync-one-sheet-public"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailStudio = lazyWithRetry(() => import("@/pages/thumbnail-studio"));
+const CartoonStudio = lazyWithRetry(() => import("@/pages/cartoon-studio"));
 const LabelPitch = lazyWithRetry(() => import("@/pages/label-pitch"));
 const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
 const Movies = lazyWithRetry(() => import("@/pages/movies"));
@@ -584,6 +585,7 @@ function AppShell() {
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>
+                <Route path="/cartoon-studio"><ProtectedRoute><CartoonStudio /></ProtectedRoute></Route>
                 <Route path="/merch"><Redirect to="/branding-shop?tab=merch" /></Route>
                 <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists" /></Route>
                 <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>

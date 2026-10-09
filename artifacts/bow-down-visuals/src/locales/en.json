@@ -669,7 +669,8 @@
     "aiAudio": "AI Audio",
     "pricing": "Pricing",
     "visualBucHistory": "Visual Buc History",
-    "cursorStyle": "Cursor Style"
+    "cursorStyle": "Cursor Style",
+    "cartoonStudio": "Cartoon Studio"
   },
   "academy": {
     "pageTitle": "Creator Academy",
@@ -11411,5 +11412,48 @@
       "usedConfirm": "Loaded into the scene.",
       "usedDetail": "Enriched prompt loaded into Scene {scene}."
     }
+  },
+  "cartoonStudio": {
+    "pageTitle": "Cartoon Studio — Bow Down Visuals",
+    "pageDescription": "Make cartoon videos, design cartoon characters, and cartoonize photos — all in one studio.",
+    "backToDashboard": "Back to dashboard",
+    "costBadge": "Video 400 VB · Images 200 VB",
+    "title": "Cartoon Studio",
+    "subtitle": "Cartoons are part of content creation. Generate cartoon clips, design characters, or cartoonize any photo — one smooth workflow.",
+    "tabsAria": "Cartoon studio sections",
+    "tabVideo": "Cartoon Video",
+    "tabCharacters": "Characters",
+    "tabCartoonize": "Cartoonize",
+    "styleLabel": "Cartoon style",
+    "styleAnimeName": "Anime",
+    "style3dToonName": "3D Toon",
+    "styleClassic2dName": "Classic 2D",
+    "styleComicName": "Comic Book",
+    "promptLabel": "Describe your cartoon video",
+    "videoPromptPlaceholder": "A brave shark captain sailing through a neon candy ocean, seagulls made of popcorn…",
+    "durationLabel": "Duration",
+    "aspectLabel": "Aspect ratio",
+    "generateVideo": "Generate cartoon video ({cost} VB)",
+    "videoFeatureName": "Cartoon Video",
+    "videoStarted": "Cartoon video started",
+    "videoStartedDesc": "Rendering your cartoon clip — this takes a minute or two.",
+    "characterLabel": "Describe your cartoon character",
+    "characterPlaceholder": "A sleepy robot barista with a crooked antenna, round belly, big kind eyes…",
+    "generateCharacter": "Generate character sheet ({cost} VB)",
+    "characterFeatureName": "Cartoon Character Sheet",
+    "characterResultAlt": "Generated cartoon character sheet",
+    "uploadPrompt": "Tap to upload a photo to cartoonize",
+    "uploadPreviewAlt": "Photo to cartoonize",
+    "removePhoto": "Remove photo",
+    "cartoonizeButton": "Cartoonize photo ({cost} VB)",
+    "cartoonizeFeatureName": "Cartoonize Photo",
+    "cartoonizeResultAlt": "Cartoonized photo",
+    "generating": "Generating…",
+    "generationFailed": "Generation failed. Visual Bucs were not charged.",
+    "networkError": "Network error while generating. Visual Bucs were not charged.",
+    "download": "Download",
+    "alsoTry": "Also try",
+    "alsoTryMusicVideo": "Cartoon Music Video style",
+    "alsoTryEditRecipe": "Kids / Cartoon Edit recipe"
   }
 }

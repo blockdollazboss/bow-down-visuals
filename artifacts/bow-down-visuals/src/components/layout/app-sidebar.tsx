@@ -235,6 +235,7 @@ const SECTIONS: NavSection[] = [
       { href: "/script-writer", labelKey: "nav.scriptWriter", icon: PenLine },
       { href: "/caption-styler", labelKey: "nav.captionStyler", icon: Captions },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
+      { href: "/cartoon-studio", labelKey: "nav.cartoonStudio", icon: Clapperboard },
       { href: "/cover-art", labelKey: "nav.coverArt", icon: Disc3 },
       { href: "/lyric-video", labelKey: "nav.lyricVideoMaker", icon: AudioWaveform },
       { href: "/voiceover", labelKey: "nav.voiceoverStudio", icon: Mic2 },
