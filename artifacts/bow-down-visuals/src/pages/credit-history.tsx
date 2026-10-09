@@ -111,30 +111,33 @@ export default function CreditHistory() {
         </div>
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("credit-history.visual_buc_history")}</h1>
-          <p className="text-white/40 mt-1 text-sm">{t("credit-history.track_your_purchases_and_visual")}</p>
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+            <Coins className="h-3.5 w-3.5" />{t("credit-history.current_balance")}
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight">{t("credit-history.visual_buc_history")}</h1>
+          <p className="text-white/55 mt-2 text-sm max-w-xl">{t("credit-history.track_your_purchases_and_visual")}</p>
         </div>
 
         {/* Section 1: Current Balance */}
-        <section className="rounded-2xl border border-primary/25 bg-primary/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <section className="rounded-xl bg-[#0a0a0a] border border-[#d4a017]/30 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#d4a017]/50 transition-colors">
           <div className="flex items-center gap-4">
             <VisualBucsIcon className="h-14 w-14" />
             <div>
-              <p className="text-sm text-white/50 font-medium uppercase tracking-widest">{t("credit-history.current_balance")}</p>
-              <p className="text-4xl font-extrabold text-primary leading-tight">
+              <p className="text-xs font-black uppercase tracking-widest text-white/60">{t("credit-history.current_balance")}</p>
+              <p className="text-4xl font-black text-[#fbbf24] leading-tight">
                 {profile?.credits?.toLocaleString("en-US") ?? "—"}
               </p>
               <p className="text-xs text-white/30 mt-0.5">{t("credit-history.visual_bucs_available")}</p>
             </div>
           </div>
-          <Button asChild className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_16px_rgba(218,165,32,0.35)]">
+          <Button asChild className="bg-gradient-to-r from-[#fbbf24] to-[#d4a017] hover:brightness-110 transition text-black font-bold shadow-[0_0_16px_rgba(251,191,36,0.35)]">
             <Link href="/pricing#credit-packs">{t("credit-history.buy_more_visual_bucs")}</Link>
           </Button>
         </section>
 
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#fbbf24]/60" />
           </div>
         )}
 
@@ -147,34 +150,34 @@ export default function CreditHistory() {
             {/* Section 2: Purchase History */}
             <section className="space-y-4">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold">{t("credit-history.purchase_history")}</h2>
+                <ShoppingCart className="h-5 w-5 text-[#fbbf24]" />
+                <h2 className="text-xl font-black tracking-tight">{t("credit-history.purchase_history")}</h2>
                 {payments.length > 0 && (
                   <span className="ml-auto text-xs text-white/30">{payments.length} purchase{payments.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
               {payments.length === 0 ? (
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-8 text-center space-y-3">
-                  <div className="mx-auto h-12 w-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-                    <Coins className="h-6 w-6 text-primary" aria-hidden />
+                <div className="rounded-xl border border-[#d4a017]/25 bg-[#d4a017]/[0.04] p-8 text-center space-y-3">
+                  <div className="mx-auto h-14 w-14 rounded-2xl bg-[#d4a017]/10 border border-[#d4a017]/40 flex items-center justify-center">
+                    <Coins className="h-7 w-7 text-[#fbbf24]" aria-hidden />
                   </div>
-                  <p className="text-white font-bold">Thy vault awaits its first treasure.</p>
-                  <p className="text-white/40 text-sm max-w-xs mx-auto">
+                  <p className="text-white font-black text-lg">Thy vault awaits its first treasure.</p>
+                  <p className="text-white/50 text-sm max-w-xs mx-auto leading-relaxed">
                     No Visual Bucs purchases yet — every empire starts with a single coin.
                   </p>
                   <Link
                     href="/pricing#credit-packs"
-                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition"
+                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black hover:brightness-110 transition"
                   >
                     {t("credit-history.buy_visual_bucs")}
                   </Link>
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
+                <div className="rounded-xl bg-[#0a0a0a] border border-white/10 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                      <tr className="border-b border-white/10 bg-white/[0.03]">
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.date")}</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.pack")}</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.visual_bucs_added")}</th>
@@ -188,7 +191,7 @@ export default function CreditHistory() {
                           <td className="px-4 py-3 text-white/50">{fmt(p.createdAt)}</td>
                           <td className="px-4 py-3 text-white/70">{p.creditPack ?? "—"}</td>
                           <td className="px-4 py-3">
-                            <span className="flex items-center gap-1 text-primary font-semibold">
+                            <span className="flex items-center gap-1 text-[#fbbf24] font-semibold">
                               <Zap className="h-3.5 w-3.5" />+{p.creditsAmount.toLocaleString("en-US")}
                             </span>
                           </td>
@@ -210,19 +213,33 @@ export default function CreditHistory() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
-                <h2 className="text-lg font-bold">{t("credit-history.visual_buc_activity")}</h2>
+                <h2 className="text-xl font-black tracking-tight">{t("credit-history.visual_buc_activity")}</h2>
                 {usage.length > 0 && (
                   <span className="ml-auto text-xs text-white/30">{usage.length} transaction{usage.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
               {usage.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">{t("credit-history.no_visual_buc_activity_yet_start")}</div>
+                <div className="rounded-xl bg-[#0a0a0a] border border-white/10 p-8 text-center space-y-3">
+                  <div className="mx-auto h-14 w-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center">
+                    <TrendingDown className="h-7 w-7 text-white/40" aria-hidden />
+                  </div>
+                  <p className="text-white font-black text-lg">{t("credit-history.no_visual_buc_activity_yet_start")}</p>
+                  <p className="text-white/50 text-sm max-w-xs mx-auto leading-relaxed">
+                    {t("credit-history.track_your_purchases_and_visual")}
+                  </p>
+                  <Link
+                    href="/pricing#credit-packs"
+                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black hover:brightness-110 transition"
+                  >
+                    {t("credit-history.buy_visual_bucs")}
+                  </Link>
+                </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
+                <div className="rounded-xl bg-[#0a0a0a] border border-white/10 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                      <tr className="border-b border-white/10 bg-white/[0.03]">
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.date")}</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.action")}</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">{t("credit-history.type")}</th>

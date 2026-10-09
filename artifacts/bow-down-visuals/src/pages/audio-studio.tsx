@@ -3073,20 +3073,31 @@ export default function AudioStudio() {
   const activeDesc = STUDIO_TABS.find((tb) => tb.id === tab)?.descKey ?? "";
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> {t("audioStudio.back", { defaultValue: "Back" })}
+    <div className="min-h-screen bg-black text-white lux-page">
+      {/* Ambient glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-[#d4a017]/[0.07] rounded-full blur-[120px]" />
+      </div>
+      <main className="relative z-10 mx-auto max-w-3xl px-4 py-10">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-[#fbbf24] transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> {t("audioStudio.back", { defaultValue: "Back" })}
         </Link>
 
-        <div className="flex items-center gap-3 mb-2">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <AudioWaveform className="h-5 w-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-black">{t("audioStudio.title", { defaultValue: "Audio Studio" })}</h1>
-            <p className="text-sm text-white/45">{t("audioStudio.subtitle", { defaultValue: "Clean up, split, and master your audio — every tool in one place." })}</p>
+        {/* Hero */}
+        <div className="mb-8">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#fbbf24]">
+            <AudioWaveform className="h-3 w-3" />
+            {t("audioStudio.kicker", { defaultValue: "Thy Booth" })}
           </div>
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#d4a017]/15 border border-[#d4a017]/30 text-[#fbbf24] shadow-[0_0_24px_rgba(212,160,23,0.25)]">
+              <AudioWaveform className="h-6 w-6" />
+            </span>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">{t("audioStudio.title", { defaultValue: "Audio Studio" })}</h1>
+            </div>
+          </div>
+          <p className="mt-3 text-sm md:text-base text-white/50 max-w-2xl leading-relaxed">{t("audioStudio.subtitle", { defaultValue: "Clean up, split, and master your audio — every tool in one place." })}</p>
         </div>
 
         {/* Tabs */}
@@ -3098,10 +3109,10 @@ export default function AudioStudio() {
                 key={tb.id}
                 type="button"
                 onClick={() => switchTab(tb.id)}
-                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                className={`rounded-xl px-3 py-3 text-sm transition ${
                   active
-                    ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
-                    : "text-white/50 hover:text-white/80"
+                    ? "bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-black shadow-[0_0_18px_rgba(212,160,23,0.35)]"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.04] font-bold"
                 }`}
               >
                 {t(tb.labelKey, { defaultValue: tb.id })}

@@ -370,7 +370,7 @@ function ProjectCard({
 
   return (
     <div
-      className={`group rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)] ${
+      className={`group rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)] ${
         deleting ? "opacity-40 pointer-events-none" : ""
       }`}
     >
@@ -590,7 +590,7 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
   }
 
   return (
-    <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden transition-all ${deleting ? "opacity-40 pointer-events-none" : ""}`}>
+    <div className={`rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden transition-all hover:border-white/20 ${deleting ? "opacity-40 pointer-events-none" : ""}`}>
       {clip.video_url && (
         <div className="aspect-video bg-black">
           <video
@@ -831,8 +831,8 @@ export default function MyProjects() {
 
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <FolderOpen className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#fbbf24] to-[#d4a017] flex items-center justify-center shadow-[0_0_28px_rgba(251,191,36,0.35)]">
+              <FolderOpen className="h-5 w-5 text-black" />
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">{t("myProjects.heading")}</h1>
@@ -881,8 +881,8 @@ export default function MyProjects() {
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
-                <FolderOpen className="h-8 w-8 text-white/20" />
+              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
+                <FolderOpen className="h-8 w-8 text-primary/60" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noProjects")}</h2>
@@ -915,8 +915,8 @@ export default function MyProjects() {
             </div>
           ) : drafts.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
-                <FileEdit className="h-8 w-8 text-white/20" />
+              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
+                <FileEdit className="h-8 w-8 text-primary/60" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noDrafts")}</h2>
@@ -954,8 +954,8 @@ export default function MyProjects() {
             </div>
           ) : clips.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
-                <Video className="h-8 w-8 text-white/20" />
+              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
+                <Video className="h-8 w-8 text-primary/60" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noClips")}</h2>
@@ -995,8 +995,8 @@ export default function MyProjects() {
             </div>
           ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
-                <History className="h-8 w-8 text-white/20" />
+              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
+                <History className="h-8 w-8 text-primary/60" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noHistory")}</h2>
@@ -1040,7 +1040,7 @@ export default function MyProjects() {
                   row.save_status === "save_failed" ? t("myProjects.statusSaveFailed") :
                   row.save_status === "charged"     ? t("myProjects.statusGenerated") : row.save_status;
                 return (
-                  <div key={row.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+                  <div key={row.id} className="rounded-xl border border-white/10 bg-[#0a0a0a] p-4 space-y-3 hover:border-white/20 transition-colors">
                     {/* Clip video preview (if video_url exists) */}
                     {isClip && row.video_url && (
                       <div className="rounded-lg overflow-hidden bg-black border border-white/[0.06]">

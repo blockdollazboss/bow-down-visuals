@@ -40,8 +40,12 @@ export default function BrandingKit() {
     <div className="min-h-screen bg-black text-white">
 
       {/* Hero */}
-      <div className="mx-auto max-w-5xl px-4 pt-12 pb-6 text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.25em] text-primary/70 mb-3">
+      <div className="relative mx-auto max-w-5xl px-4 pt-12 pb-6 text-center">
+        {/* ambient gold glow */}
+        <div className="pointer-events-none absolute inset-x-0 -top-8 flex justify-center" aria-hidden="true">
+          <div className="h-[220px] w-[520px] rounded-full bg-yellow-600/10 blur-[110px]" />
+        </div>
+        <p className="relative mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-primary">
           {t("brandingKit.eyebrow")}
         </p>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight">

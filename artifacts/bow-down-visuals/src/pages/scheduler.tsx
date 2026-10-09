@@ -401,10 +401,16 @@ export default function Scheduler() {
     }
     return (
       <div className="min-h-screen bg-black text-white">
-        <main className="mx-auto max-w-3xl px-5 pb-24 pt-24 text-center">
-          <h1 className="font-display text-4xl font-black">{t("scheduler.titlePrefix")} <span className="text-primary">{t("scheduler.titleSuffix")}</span></h1>
-          <p className="mt-4 text-white/55">{t("scheduler.signInPrompt")}</p>
-          <Button asChild className="mt-8 bg-primary text-black hover:bg-primary/90">
+        <main className="relative mx-auto max-w-3xl px-5 pb-24 pt-24 text-center">
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">
+            <div className="h-[240px] w-[520px] rounded-full bg-yellow-600/10 blur-[110px]" />
+          </div>
+          <p className="relative mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+            <CalendarDays className="h-3 w-3" aria-hidden="true" /> {t("scheduler.badge")}
+          </p>
+          <h1 className="relative font-display text-4xl font-black">{t("scheduler.titlePrefix")} <span className="text-primary">{t("scheduler.titleSuffix")}</span></h1>
+          <p className="relative mt-4 text-white/55">{t("scheduler.signInPrompt")}</p>
+          <Button asChild className="relative mt-8 bg-primary text-black hover:bg-primary/90">
             <a href="/login">{t("scheduler.signIn")}</a>
           </Button>
         </main>

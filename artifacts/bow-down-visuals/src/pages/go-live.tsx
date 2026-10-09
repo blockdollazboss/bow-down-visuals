@@ -184,12 +184,18 @@ function GoLiveMain() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-4xl mx-auto px-5 md:px-8 py-10 space-y-8">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors">
+      <div className="relative max-w-4xl mx-auto px-5 md:px-8 py-10 space-y-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">
+          <div className="h-[240px] w-[520px] rounded-full bg-yellow-600/10 blur-[110px]" />
+        </div>
+        <Link href="/dashboard" className="relative inline-flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors">
           <ArrowLeft className="h-4 w-4" /> {t("goLive.backToDashboard")}
         </Link>
 
-        <div>
+        <div className="relative">
+          <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]">
+            <Radio className="h-3 w-3" aria-hidden="true" /> {t("goLive.kicker", { defaultValue: "Stream mission control" })}
+          </p>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight">
             <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">{t("goLive.pageTitle")}</span>
           </h1>
@@ -199,7 +205,7 @@ function GoLiveMain() {
         </div>
 
         {status && !status.configured && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4 flex items-start gap-3">
+          <div className="relative rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-bold text-amber-200">{t("goLive.noWebhookTitle")}</p>
@@ -211,12 +217,15 @@ function GoLiveMain() {
         )}
 
         {/* ── Announce panel ── */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Radio className="h-5 w-5 text-amber-300" />
-              {t("goLive.streamAnnouncement")}
-            </h2>
+        <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+                <Radio className="h-3.5 w-3.5" />
+                {t("goLive.streamAnnouncement")}
+              </p>
+              <h2 className="text-lg font-black mt-1">{t("goLive.streamAnnouncementTitle", { defaultValue: "Announce your stream" })}</h2>
+            </div>
             {liveStream && (
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/30 rounded-full px-3 py-1">
                 <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> {t("goLive.liveBadge", { title: liveStream.title })}
@@ -269,7 +278,7 @@ function GoLiveMain() {
             <Button
               onClick={handleGoLive}
               disabled={announcing || !status?.configured}
-              className="gold-glow gap-2"
+              className="gold-glow gap-2 bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-bold hover:brightness-110"
               data-testid="btn-announce-live"
             >
               {announcing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
@@ -301,11 +310,14 @@ function GoLiveMain() {
         </section>
 
         {/* ── Schedule ── */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <CalendarPlus className="h-5 w-5 text-amber-300" />
-            {t("goLive.scheduleStreamTitle")}
-          </h2>
+        <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
+          <div>
+            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+              <CalendarPlus className="h-3.5 w-3.5" />
+              {t("goLive.scheduleStreamKicker", { defaultValue: "Plan ahead" })}
+            </p>
+            <h2 className="text-lg font-black mt-1">{t("goLive.scheduleStreamTitle")}</h2>
+          </div>
           <div className="grid md:grid-cols-3 gap-3">
             <input
               value={schedTitle}
@@ -334,11 +346,11 @@ function GoLiveMain() {
             {t("goLive.scheduleButton")}
           </Button>
 
-          {upcoming.length > 0 && (
+          {upcoming.length > 0 ? (
             <div className="space-y-2 pt-2">
               <p className="text-xs font-bold text-white/50 uppercase tracking-wider">{t("goLive.upcoming")}</p>
               {upcoming.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3">
+                <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 transition hover:border-amber-400/40">
                   <div className="min-w-0">
                     <p className="font-bold text-sm truncate">{s.title}</p>
                     <p className="text-xs text-white/40 flex items-center gap-1.5 mt-0.5">
@@ -358,18 +370,27 @@ function GoLiveMain() {
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-white/15 bg-black/40 px-4 py-8 text-center">
+              <CalendarPlus className="h-8 w-8 text-[#fbbf24]/50 mx-auto mb-2" />
+              <p className="text-sm font-bold text-white/70">{t("goLive.noUpcomingTitle", { defaultValue: "No streams scheduled yet" })}</p>
+              <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("goLive.noUpcomingDesc", { defaultValue: "Set a date above and your next stream will show up here." })}</p>
+            </div>
           )}
         </section>
 
         {/* ── Recent ── */}
         {recent.length > 0 && (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-3">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-amber-300" />
-              {t("goLive.recentStreams")}
-            </h2>
+          <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {t("goLive.recentStreamsKicker", { defaultValue: "History" })}
+              </p>
+              <h2 className="text-lg font-black mt-1">{t("goLive.recentStreams")}</h2>
+            </div>
             {recent.map((s) => (
-              <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/40 px-4 py-3">
+              <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/40 px-4 py-3 transition hover:border-white/15">
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{s.title}</p>
                   <p className="text-xs text-white/40 mt-0.5">
@@ -378,7 +399,7 @@ function GoLiveMain() {
                   </p>
                 </div>
                 {s.vod_url && (
-                  <a href={s.vod_url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-300 underline underline-offset-2 shrink-0 ml-3">
+                  <a href={s.vod_url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-300 underline underline-offset-2 shrink-0 ml-3 hover:text-amber-200">
                     {t("goLive.watchVod")}
                   </a>
                 )}

@@ -248,13 +248,13 @@ function SingleShotCoverArt() {
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-2.5">
-        <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-          <ImageIcon className="h-5 w-5 text-primary" />
+        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#fbbf24] to-[#d4a017] flex items-center justify-center shrink-0 shadow-[0_0_28px_rgba(251,191,36,0.35)]">
+          <ImageIcon className="h-5 w-5 text-black" />
         </div>
         <MarketingBadge variant="muted">{t("thumbnail.costBadge")}</MarketingBadge>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+      <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div data-min-stars="2">
             <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="thumbnail" />
@@ -320,7 +320,7 @@ function SingleShotCoverArt() {
               <Link
                 key={thumb.id}
                 href="/thumbnails"
-                className="shrink-0 w-44 rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/40 transition-colors"
+                className="shrink-0 w-44 rounded-xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
               >
                 {thumb.thumbnail_url ? (
                   <img src={thumb.thumbnail_url} alt={thumb.song_title ?? t("thumbnail.thumbnailFallback")} className="w-44 aspect-video object-cover" loading="lazy" />
@@ -624,7 +624,7 @@ export function ThumbnailMakerModule() {
         actionLabel={t("hubSpine.flowBar.useSongInVideo")}
         onPick={handleProjectPick}
       />
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
+      <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8 space-y-8">
           {/* Video reference badge (?video= deep-link from caption suite) */}
           {videoRef && (
             <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
@@ -1134,10 +1134,10 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-zinc-400">{label}</span>
-        <span className="text-zinc-200 font-semibold tabular-nums">{value}</span>
+        <span className="text-white/50">{label}</span>
+        <span className="text-white/85 font-semibold tabular-nums">{value}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
         <div className={`h-full rounded-full ${scoreColor(value)}`} style={{ width: `${value}%` }} />
       </div>
     </div>
@@ -1256,9 +1256,9 @@ function ThumbnailAbTester() {
     <div>
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="w-7 h-7 text-amber-400" />
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">{t("thumbnailTest.pageTitle")}</h2>
+          <h2 className="text-2xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">{t("thumbnailTest.pageTitle")}</h2>
         </div>
-        <p className="text-zinc-400 max-w-2xl mb-8">{t("thumbnailTest.pageSubtitle")}<span className="text-zinc-500">{t("thumbnailTest.subtitleNote")}</span>
+        <p className="text-white/55 max-w-2xl mb-8">{t("thumbnailTest.pageSubtitle")}<span className="text-white/35">{t("thumbnailTest.subtitleNote")}</span>
         </p>
 
         {outOfCredits && <OutOfCredits />}
@@ -1270,7 +1270,7 @@ function ThumbnailAbTester() {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors mb-6 ${
-            dragOver ? "border-amber-400 bg-amber-400/5" : "border-zinc-800 hover:border-zinc-700 bg-zinc-950"
+            dragOver ? "border-primary bg-primary/5" : "border-white/10 hover:border-primary/40 bg-[#0a0a0a]"
           }`}
         >
           <input
@@ -1281,23 +1281,23 @@ function ThumbnailAbTester() {
             className="hidden"
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
           />
-          <Upload className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-          <p className="text-zinc-300 font-medium">{t("thumbnailTest.uploadCta")}</p>
-          <p className="text-zinc-500 text-sm mt-1">{t("thumbnailTest.uploadFormats", { uploaded: files.length, max: MAX_FILES })}</p>
+          <Upload className="w-8 h-8 text-primary mx-auto mb-3" />
+          <p className="text-white/80 font-medium">{t("thumbnailTest.uploadCta")}</p>
+          <p className="text-white/35 text-sm mt-1">{t("thumbnailTest.uploadFormats", { uploaded: files.length, max: MAX_FILES })}</p>
         </div>
 
         {/* Previews */}
         {previews.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {previews.map((src, i) => (
-              <div key={i} className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
+              <div key={i} className="relative rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a]">
                 <img src={src} alt={t("thumbnailTest.thumbnailAlt", { n: i + 1 })} className="w-full aspect-video object-cover" />
                 <span className="absolute top-2 left-2 text-xs font-bold bg-black/70 text-amber-300 px-2 py-0.5 rounded">
                   {i + 1}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-zinc-300 hover:text-red-400"
+                  className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white/60 hover:text-red-400"
                   aria-label={t("thumbnailTest.removeThumbnailAria", { n: i + 1 })}
                 >
                   <X className="w-4 h-4" />
@@ -1314,29 +1314,29 @@ function ThumbnailAbTester() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("thumbnailTest.titlePlaceholder")}
             maxLength={200}
-            className="rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3 text-sm placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+            className="rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
           />
           <input
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
             placeholder={t("thumbnailTest.nichePlaceholder")}
             maxLength={100}
-            className="rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3 text-sm placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+            className="rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
           />
         </div>
 
         <button
           onClick={runTest}
           disabled={files.length < MIN_FILES || testing || !user}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-3 font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed hover:from-amber-400 hover:to-amber-500 transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] to-[#d4a017] px-6 py-3 font-bold text-black disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all shadow-[0_4px_24px_rgba(251,191,36,0.35)]"
         >
           {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
           {testing ? t("thumbnailTest.analyzing") : t("thumbnailTest.runTestButton", { cost: CREDIT_COST })}
         </button>
-        {!user && <p className="text-zinc-500 text-sm mt-2">{t("thumbnailTest.signInPrompt")}</p>}
+        {!user && <p className="text-white/35 text-sm mt-2">{t("thumbnailTest.signInPrompt")}</p>}
 
         {error && (
-          <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+          <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}
           </div>
         )}
@@ -1354,8 +1354,8 @@ function ThumbnailAbTester() {
                   {t("thumbnailTest.confidence", { confidence: result.confidence })}
                 </span>
               </div>
-              <p className="text-zinc-300 text-sm">{result.reasoning}</p>
-              <p className="text-zinc-500 text-xs mt-3 italic">{result.disclaimer}</p>
+              <p className="text-white/75 text-sm">{result.reasoning}</p>
+              <p className="text-white/35 text-xs mt-3 italic">{result.disclaimer}</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -1364,13 +1364,13 @@ function ThumbnailAbTester() {
                 return (
                   <div
                     key={a.index}
-                    className={`rounded-2xl border p-5 bg-zinc-950 ${
-                      isWinner ? "border-amber-400/50" : "border-zinc-800"
+                    className={`rounded-2xl border p-5 bg-[#0a0a0a] ${
+                      isWinner ? "border-primary/50 shadow-[0_0_32px_rgba(251,191,36,0.15)]" : "border-white/10 hover:border-white/20"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-zinc-200">{t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}</span>
+                        <span className="text-sm font-bold text-white/90">{t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}</span>
                         {isWinner && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
                             <CheckCircle2 className="w-4 h-4" />{t("thumbnailTest.winnerBadge")}</span>
@@ -1382,7 +1382,7 @@ function ThumbnailAbTester() {
                       <img
                         src={previews[a.index]}
                         alt={t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}
-                        className="w-full aspect-video object-cover rounded-lg border border-zinc-800 mb-4"
+                        className="w-full aspect-video object-cover rounded-lg border border-white/10 mb-4"
                       />
                     )}
                     <div className="space-y-2.5 mb-4">
@@ -1393,7 +1393,7 @@ function ThumbnailAbTester() {
                     {a.strengths.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-semibold text-emerald-300 mb-1">{t("thumbnailTest.strengthsLabel")}</p>
-                        <ul className="text-xs text-zinc-400 list-disc list-inside space-y-0.5">
+                        <ul className="text-xs text-white/50 list-disc list-inside space-y-0.5">
                           {a.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1401,7 +1401,7 @@ function ThumbnailAbTester() {
                     {a.weaknesses.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-semibold text-red-300 mb-1">{t("thumbnailTest.weaknessesLabel")}</p>
-                        <ul className="text-xs text-zinc-400 list-disc list-inside space-y-0.5">
+                        <ul className="text-xs text-white/50 list-disc list-inside space-y-0.5">
                           {a.weaknesses.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1409,7 +1409,7 @@ function ThumbnailAbTester() {
                     {a.tips.length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs font-semibold text-amber-300 mb-1">{t("thumbnailTest.fixesLabel")}</p>
-                        <ul className="text-xs text-zinc-300 list-disc list-inside space-y-0.5">
+                        <ul className="text-xs text-white/70 list-disc list-inside space-y-0.5">
                           {a.tips.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1420,7 +1420,7 @@ function ThumbnailAbTester() {
                         <img
                           src={improvedUrls[a.index]}
                           alt={t("thumbnailTest.improvedAlt")}
-                          className="w-full aspect-video object-cover rounded-lg border border-emerald-800 mb-2"
+                          className="w-full aspect-video object-cover rounded-lg border border-emerald-500/30 mb-2"
                         />
                         <a
                           href={improvedUrls[a.index]}
@@ -1449,24 +1449,24 @@ function ThumbnailAbTester() {
 
             <button
               onClick={() => { setResult(null); setImprovedUrls({}); }}
-              className="mt-8 inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200"
+              className="mt-8 inline-flex items-center gap-2 text-sm text-white/40 hover:text-white"
             >
               <RefreshCw className="w-4 h-4" />{t("thumbnailTest.testDifferent")}</button>
           </section>
         )}
 
         {/* How it works */}
-        <section className="mt-12 rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
-          <h3 className="font-bold text-zinc-200 mb-3 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-amber-400" />{t("thumbnailTest.howItWorks")}</h3>
-          <ul className="text-sm text-zinc-400 space-y-2 list-disc list-inside">
-            <li><span className="text-zinc-200">{t("thumbnailTest.scoreCuriosity")}</span> — {t("thumbnailTest.scoreCuriosityText")}</li>
-            <li><span className="text-zinc-200">{t("thumbnailTest.scoreReadability")}</span> — {t("thumbnailTest.scoreReadabilityText")}</li>
-            <li><span className="text-zinc-200">{t("thumbnailTest.scoreEmotion")}</span> — {t("thumbnailTest.scoreEmotionText")}</li>
-            <li><span className="text-zinc-200">{t("thumbnailTest.scoreContrast")}</span> — {t("thumbnailTest.scoreContrastText")}</li>
-            <li><span className="text-zinc-200">{t("thumbnailTest.scoreFace")}</span> — {t("thumbnailTest.scoreFaceText")}</li>
+        <section className="mt-12 rounded-2xl border border-white/10 bg-[#0a0a0a] p-6">
+          <h3 className="font-black text-white mb-3 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-primary" />{t("thumbnailTest.howItWorks")}</h3>
+          <ul className="text-sm text-white/55 space-y-2 list-disc list-inside">
+            <li><span className="text-white/85">{t("thumbnailTest.scoreCuriosity")}</span> — {t("thumbnailTest.scoreCuriosityText")}</li>
+            <li><span className="text-white/85">{t("thumbnailTest.scoreReadability")}</span> — {t("thumbnailTest.scoreReadabilityText")}</li>
+            <li><span className="text-white/85">{t("thumbnailTest.scoreEmotion")}</span> — {t("thumbnailTest.scoreEmotionText")}</li>
+            <li><span className="text-white/85">{t("thumbnailTest.scoreContrast")}</span> — {t("thumbnailTest.scoreContrastText")}</li>
+            <li><span className="text-white/85">{t("thumbnailTest.scoreFace")}</span> — {t("thumbnailTest.scoreFaceText")}</li>
           </ul>
-          <p className="text-xs text-zinc-500 mt-4">{t("thumbnailTest.costNote")}</p>
+          <p className="text-xs text-white/35 mt-4">{t("thumbnailTest.costNote")}</p>
         </section>
     </div>
   );
@@ -1557,7 +1557,7 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
     <div>
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight mb-2">{t("thumbnails.libraryTitle")}</h2>
+            <h2 className="text-2xl font-black text-white tracking-tight mb-2">{t("thumbnails.libraryTitle")}</h2>
             <p className="text-white/50 max-w-2xl">{t("thumbnails.librarySubtitle")}</p>
           </div>
           <Button onClick={onGoGenerate} className="gold-glow font-bold rounded-xl gap-2">
@@ -1577,8 +1577,10 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
         )}
 
         {!loading && !error && thumbnails.length === 0 && (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-12 text-center">
-            <ImageIcon className="h-10 w-10 text-white/20 mx-auto mb-4" />
+          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-12 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center mx-auto mb-4">
+              <ImageIcon className="h-8 w-8 text-primary/60" />
+            </div>
             <p className="text-white/60 font-medium mb-2">{t("thumbnails.emptyTitle")}</p>
             <p className="text-white/30 text-sm mb-6">{t("thumbnails.emptyBody")}</p>
             <Button onClick={onGoGenerate} className="gold-glow font-bold rounded-xl">{t("thumbnails.openMaker")}</Button>
@@ -1590,7 +1592,7 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
             {allThumbnails.map((thumb) => (
               <div
                 key={thumb.id}
-                className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/30 transition-colors"
+                className="group rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <button
                   onClick={() => setLightbox(thumb)}
@@ -1663,7 +1665,7 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
           onClick={() => setLightbox(null)}
         >
           <div
-            className="relative max-w-5xl w-full rounded-2xl border border-white/10 bg-zinc-950 overflow-hidden"
+            className="relative max-w-5xl w-full rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1781,12 +1783,12 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
 
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <ImageIcon className="h-5 w-5 text-primary" />
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#fbbf24] to-[#d4a017] flex items-center justify-center shrink-0 shadow-[0_0_28px_rgba(251,191,36,0.35)]">
+              <ImageIcon className="h-5 w-5 text-black" />
             </div>
             <MarketingBadge variant="muted">{t("thumbnailMaker.costBadge")}</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
             {t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
@@ -1811,7 +1813,7 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
               onClick={() => switchTab(key)}
               className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                 tab === key
-                  ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-black"
+                  ? "bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black shadow-[0_0_18px_rgba(251,191,36,0.35)]"
                   : "text-white/50 hover:text-white"
               }`}
             >

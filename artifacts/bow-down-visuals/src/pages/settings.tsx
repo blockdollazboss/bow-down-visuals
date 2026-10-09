@@ -86,13 +86,18 @@ export default function Settings() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-            <SettingsIcon className="h-5 w-5 text-primary" />
+        <div>
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+            <SettingsIcon className="h-3.5 w-3.5" />{t("settings.kicker", { defaultValue: "Account" })}
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h1>
-            <p className="text-white/40 mt-1 text-sm">{t("settings.subtitle")}</p>
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-[#d4a017]/10 border border-[#d4a017]/30 flex items-center justify-center">
+              <SettingsIcon className="h-5 w-5 text-[#fbbf24]" />
+            </div>
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight">{t("settings.title")}</h1>
+              <p className="text-white/55 mt-2 text-sm max-w-xl">{t("settings.subtitle")}</p>
+            </div>
           </div>
         </div>
 

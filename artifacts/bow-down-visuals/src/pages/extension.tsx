@@ -125,11 +125,11 @@ export default function Extension() {
 
       {/* Hero */}
       <section className="relative overflow-hidden px-5 pt-24 pb-16 md:pt-32 md:pb-24">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#d4a017]/10 rounded-full blur-[120px] pointer-events-none" />
         <LuxReveal className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
           <MarketingBadge variant="kicker">
             <Puzzle className="h-3.5 w-3.5 mr-1.5" />{t("extension.download_now_chrome_web_store_so")}</MarketingBadge>
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">{t("extension.thy_cheat_code")}<span className="text-[#e8c86a]">{t("extension.in_your_browser")}</span>
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight">{t("extension.thy_cheat_code")}<span className="text-[#e8c86a]">{t("extension.in_your_browser")}</span>
           </h1>
           <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto">{t("extension.the_entire_bow_down_visuals_crea")}</p>
 
@@ -138,10 +138,10 @@ export default function Extension() {
               href="/bow-down-visuals-extension-v2.zip"
               download
               onClick={markExtensionDownloaded}
-              className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+              className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#fbbf24] to-[#d4a017] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(251,191,36,0.35)]"
             >
               <Download className="h-5 w-5" />{t("extension.download_for_chrome_v2_0_1")}</a>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
+            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 text-left">
               <p className="font-semibold text-sm mb-2">{t("extension.load_it_in_30_seconds")}</p>
               <ol className="text-white/55 text-sm space-y-1.5 list-decimal list-inside">
                 <li>{t("extension.unzip_the_downloaded_file")}</li>
@@ -155,7 +155,7 @@ export default function Extension() {
             <div className="pt-2">
               <p className="text-white/40 text-sm mb-3">{t("extension.rather_wait_for_the_one_click_in")}</p>
             {state === "done" ? (
-              <div className="rounded-2xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-6 text-center">
+              <div className="rounded-2xl border border-[#d4a017]/40 bg-[#d4a017]/10 p-6 text-center">
                 <Check className="h-8 w-8 text-[#e8c86a] mx-auto mb-2" />
                 <p className="font-semibold text-lg">{t("extension.you_re_on_the_list")}</p>
                 <p className="text-white/60 text-sm mt-1">{t("extension.we_ll_email_you_the_install_link")}</p>
@@ -164,7 +164,7 @@ export default function Extension() {
               <form onSubmit={submit} className="space-y-3">
                 <Input className={inputClass} placeholder={t("extension.your_name")} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
                 <Input className={inputClass} placeholder={t("extension.email_for_the_launch_link")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={160} />
-                <Button type="submit" disabled={state === "sending"} className="w-full h-12 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] text-black font-bold text-base hover:brightness-110 transition">
+                <Button type="submit" disabled={state === "sending"} className="w-full h-12 rounded-xl bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-bold text-base hover:brightness-110 transition">
                   <Bell className="h-4 w-4 mr-2" />
                   {state === "sending" ? "Joining…" : "Notify me at launch"}
                 </Button>
@@ -188,8 +188,8 @@ export default function Extension() {
           <div className="space-y-3">
             {GUIDE_STEPS.map((s, i) => (
               <LuxReveal key={s.title} delay={i * 0.04}>
-                <div className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A84C] to-[#e8c86a] text-black font-bold text-sm">
+                <div className="flex gap-4 rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 hover:border-white/20 transition-colors">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fbbf24] to-[#d4a017] text-black font-bold text-sm">
                     {i + 1}
                   </span>
                   <div>
@@ -204,7 +204,7 @@ export default function Extension() {
             <h3 className="font-semibold text-lg mb-3 text-center">{t("extension.something_off_quick_fixes")}</h3>
             <div className="space-y-3">
               {GUIDE_FIXES.map((f) => (
-                <div key={f.q} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <div key={f.q} className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5">
                   <p className="font-semibold mb-1.5 text-sm">{f.q}</p>
                   <p className="text-white/55 text-sm leading-relaxed">{f.a}</p>
                 </div>
@@ -225,7 +225,7 @@ export default function Extension() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TABS.map((t, i) => (
               <LuxReveal key={t.name} delay={i * 0.06}>
-                <div className="h-full rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-3 hover:border-[#C9A84C]/40 transition">
+                <div className="h-full rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 space-y-3 hover:border-[#d4a017]/40 transition">
                   <t.icon className="h-7 w-7 text-[#e8c86a]" />
                   <h3 className="font-semibold text-lg">💬 {t.name}</h3>
                   <p className="text-white/55 text-sm leading-relaxed">{t.body}</p>
@@ -233,7 +233,7 @@ export default function Extension() {
               </LuxReveal>
             ))}
             <LuxReveal delay={0.3}>
-              <div className="h-full rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-br from-[#C9A84C]/15 to-transparent p-6 space-y-3">
+              <div className="h-full rounded-2xl border border-[#d4a017]/40 bg-gradient-to-br from-[#d4a017]/15 to-transparent p-6 space-y-3">
                 <Zap className="h-7 w-7 text-[#e8c86a]" />
                 <h3 className="font-semibold text-lg">{t("extension.omnibox_shortcut")}</h3>
                 <p className="text-white/55 text-sm leading-relaxed">{t("extension.type")}<span className="text-white font-mono">{t("extension.bdv")}</span>{t("extension.tab_in_the_address_bar_to_ask_th")}</p>
@@ -248,7 +248,7 @@ export default function Extension() {
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-4">
           {PERKS.map((p, i) => (
             <LuxReveal key={p.title} delay={i * 0.06}>
-              <div className="text-center space-y-3 p-6">
+              <div className="text-center space-y-3 p-6 rounded-2xl border border-white/10 bg-[#0a0a0a] hover:border-[#d4a017]/40 transition-colors">
                 <p.icon className="h-8 w-8 text-[#e8c86a] mx-auto" />
                 <h3 className="font-semibold">{p.title}</h3>
                 <p className="text-white/55 text-sm">{p.body}</p>
@@ -268,7 +268,7 @@ export default function Extension() {
           <div className="space-y-3">
             {FAQS.map((f, i) => (
               <LuxReveal key={f.q} delay={i * 0.05}>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5">
                   <p className="font-semibold mb-1.5">{f.q}</p>
                   <p className="text-white/55 text-sm leading-relaxed">{f.a}</p>
                 </div>

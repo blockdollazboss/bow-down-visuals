@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, type LucideIcon } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
 import { CreateRedirect } from "@/components/create-redirect";
@@ -136,8 +136,12 @@ export default function Create() {
         </Link>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+        <div className="mb-10">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#fbbf24]">
+            <Sparkles className="h-3 w-3" />
+            {t("create.kicker", { defaultValue: "Thy Lab" })}
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
             {t("create.title")}
           </h1>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
@@ -181,7 +185,7 @@ export default function Create() {
               onClick={() => switchPanel(key)}
               className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 panel === key
-                  ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-black"
+                  ? "bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-black shadow-[0_0_20px_rgba(212,160,23,0.35)]"
                   : "text-white/50 hover:text-white"
               }`}
             >

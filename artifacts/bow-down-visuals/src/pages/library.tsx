@@ -131,9 +131,12 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 md:py-12">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-8 md:py-12">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">
+          <div className="h-[240px] w-[560px] rounded-full bg-yellow-600/10 blur-[110px]" />
+        </div>
         {/* ── Hero ── */}
-        <div className="text-center mb-8">
+        <div className="relative text-center mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#e8c86a]">
             <LibraryIcon className="h-3.5 w-3.5" />
             {t("library.kicker", { defaultValue: "Thy creative arsenal" })}
@@ -403,9 +406,16 @@ function FontCard({ font, isFav, onFav, copied, onCopy, t }: {
 /* ─── Empty state ─── */
 function EmptyState({ t }: { t: (k: string, o?: any) => string }) {
   return (
-    <div className="text-center py-16">
-      <LibraryIcon className="h-10 w-10 text-white/20 mx-auto mb-4" />
-      <p className="text-white/40">{t("library.noResults", { defaultValue: "Nothing found — try another search." })}</p>
+    <div className="rounded-3xl border border-dashed border-white/15 bg-[#0a0a0a] px-6 py-16 text-center">
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4a017]/25 bg-[#d4a017]/10">
+        <LibraryIcon className="h-6 w-6 text-[#fbbf24]" />
+      </span>
+      <h3 className="mt-4 text-lg font-black">
+        {t("library.noResultsTitle", { defaultValue: "Nothing found" })}
+      </h3>
+      <p className="mx-auto mt-1.5 max-w-sm text-sm text-white/45">
+        {t("library.noResults", { defaultValue: "Nothing found — try another search." })}
+      </p>
     </div>
   );
 }

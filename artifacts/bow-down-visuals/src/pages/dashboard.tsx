@@ -519,7 +519,18 @@ export default function Dashboard() {
           {loading ? (
             <div className="space-y-2">{[0,1,2].map(i => <div key={i} className="h-12 rounded-xl lux-skeleton" />)}</div>
           ) : usage.length === 0 ? (
-            <p className="text-xs text-white/30 py-4 text-center">{t("dashboard.activity_empty")}</p>
+            <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/[0.03] px-6 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/25">
+                <Activity className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm font-black text-white">{t("dashboard.activity_empty")}</p>
+              <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("dashboard.no_projects_sub")}</p>
+              <Link href="/create">
+                <Button size="sm" className="gold-glow font-black mt-4 gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />{t("dashboard.create_with_ai")}
+                </Button>
+              </Link>
+            </div>
           ) : (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.05] overflow-hidden">
               {usage.slice(0, 5).map(u => (
