@@ -508,6 +508,9 @@ export interface OverlayItem {
   color: string;
   /** CSS color for text overlay text. */
   textColor: string;
+  /** Optional CSS animation shorthand for motion graphics (e.g. "mg-kinetic-slam 1.2s cubic-bezier(.2,.9,.3,1.2) both").
+   *  Keyframes live in index.css (mg-*). Applied by OverlayLayer. */
+  motionCss?: string;
 }
 
 export interface TransitionItem {

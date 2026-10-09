@@ -77,6 +77,7 @@ import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
+import { MotionGraphicsSection } from "@/components/editor/sections/MotionGraphicsSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDirectedEditsSection";
 import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
@@ -126,7 +127,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "motion" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -432,7 +433,7 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
+  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "motion", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
 
   /* 3-Second Lab: prefill the video description from the timeline's opening
      (first scene lyric/action or first caption line). */
@@ -1482,6 +1483,7 @@ export default function VideoEditor() {
                     { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
                     { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
                     { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
+                    { id: "motion", label: t("videoEditor.railMotion", { defaultValue: "Motion" }), icon: <Wand2 className="h-5 w-5" />, testId: "rail-motion" },
                     { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
                     { id: "lip-sync", label: t("videoEditor.railLipSync"), icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
                     { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
@@ -1534,6 +1536,7 @@ export default function VideoEditor() {
                       "edit-recipes": t("videoEditor.railEditRecipes"),
                       captions: t("videoEditor.railText"),
                       effects: t("videoEditor.railEffects"),
+                      motion: t("videoEditor.railMotion", { defaultValue: "Motion" }),
                       branding: t("videoEditor.railBrand"),
                       "lip-sync": t("videoEditor.railLipSync"),
                       "pre-production": t("videoEditor.railPrePro"),
@@ -1911,6 +1914,24 @@ export default function VideoEditor() {
                       onGoToExport={(videoUrl) => {
                         if (videoUrl) setLutHandoffUrl(videoUrl);
                         setTab("export");
+                      }}
+                    />
+                  )}
+
+                  {tab === "motion" && (
+                    <MotionGraphicsSection
+                      playheadTimeSec={previewEngineState?.currentTime ?? 0}
+                      activeArtist={activeArtist}
+                      onAddToTimeline={(item) => {
+                        const id = `motion-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                        setSettings((prev) => ({
+                          ...prev,
+                          overlayItems: [...(prev.overlayItems ?? []), { ...item, id }],
+                        }));
+                        toast({
+                          title: t("motionGraphics.addedToast", { defaultValue: "Motion graphic added" }),
+                          description: t("motionGraphics.addedToastDesc", { defaultValue: "Placed on the timeline at the playhead." }),
+                        });
                       }}
                     />
                   )}
