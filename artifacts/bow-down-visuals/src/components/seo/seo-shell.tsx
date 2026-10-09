@@ -414,7 +414,7 @@ export function toolJsonLd(
       price: "0",
       priceCurrency: "USD",
       description:
-        "Free to browse; credits apply when generating. New accounts start with free trial credits.",
+        "Free to browse; Visual Bucs apply when generating. New accounts start with free trial Visual Bucs.",
     },
   };
 }

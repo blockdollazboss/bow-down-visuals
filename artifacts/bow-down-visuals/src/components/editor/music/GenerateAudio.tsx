@@ -237,7 +237,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Takes" hint="2 takes costs 2× credits">
+          <Field label="Takes" hint="2 takes costs 2× Visual Bucs">
             <Segmented value={variantCount} options={VARIANT_OPTIONS} onChange={setVariantCount} />
           </Field>
           <Field label="Instrumental">

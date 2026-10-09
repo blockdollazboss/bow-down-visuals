@@ -315,7 +315,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
 
           {/* ── Credits note ── */}
           <p className="text-[10px] text-white/25 text-center">
-            AI Edit is free during development. Credits may apply in production.
+            AI Edit is free during development. Visual Bucs may apply in production.
           </p>
 
           {/* ── Auto Apply AI Transitions toggle ── */}

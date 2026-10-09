@@ -201,7 +201,7 @@ export function VisualVibesSection({ settings, setSettings, bare }: VisualVibesS
           </h3>
           <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
             {t("videoEditor.vibesDesc", {
-              defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no credits.",
+              defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no Visual Bucs.",
             })}
           </p>
         </div>
@@ -291,7 +291,7 @@ export function VisualVibesSection({ settings, setSettings, bare }: VisualVibesS
       <p className="text-[10px] text-white/35 flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-primary/70" />
         {t("videoEditor.vibesFree", {
-          defaultValue: "Vibes are pure settings — no AI, no credits charged. Undo works as normal.",
+          defaultValue: "Vibes are pure settings — no AI, no Visual Bucs charged. Undo works as normal.",
         })}
       </p>
     </div>

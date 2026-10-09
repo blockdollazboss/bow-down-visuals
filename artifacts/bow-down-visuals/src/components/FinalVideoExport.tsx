@@ -876,7 +876,7 @@ export function FinalVideoExport({
                     const origin = window.location.origin;
                     const refPart = referralCode ? `\nMake your own: ${origin}/?ref=${encodeURIComponent(referralCode)}` : `\nMake your own: ${origin}/`;
                     navigator.clipboard?.writeText(`${exportUrl}\n\nMade with Bow Down Visuals 🦈${refPart}`);
-                    toast({ title: "Share link copied", description: referralCode ? "Video link + your referral link — every share can earn you credits." : "Video link copied — share it everywhere." });
+                    toast({ title: "Share link copied", description: referralCode ? "Video link + your referral link — every share can earn you Visual Bucs." : "Video link copied — share it everywhere." });
                   }}
                   className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                   data-testid="btn-handoff-share"

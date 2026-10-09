@@ -225,13 +225,13 @@ export function LutImportSection({
       if (res === null) return; // user cancelled the credit confirm
       const data = (await res.json().catch(() => ({}))) as Partial<ApplyResult> & { error?: string; message?: string };
       if (!res.ok || !data.url) {
-        setError(data.message ?? data.error ?? "LUT apply failed — no credits were spent.");
+        setError(data.message ?? data.error ?? "LUT apply failed — no Visual Bucs were spent.");
         return;
       }
       setResult({ url: data.url!, storageRef: data.storageRef ?? "", lut: data.lut ?? "LUT", creditsRemaining: data.creditsRemaining ?? 0 });
       toast({ title: "LUT burned in", description: `${data.lut} applied — ${APPLY_COST} Visual Bucs.` });
     } catch {
-      setError("LUT apply failed — no credits were spent.");
+      setError("LUT apply failed — no Visual Bucs were spent.");
     } finally {
       setApplying(false);
     }
