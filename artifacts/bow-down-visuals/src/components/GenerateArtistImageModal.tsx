@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { getSupabase } from "@/lib/supabase";
+import { r2List } from "@/lib/r2-storage";
 import {
   ARTIST_IMAGE_MODELS,
   ARTIST_IMAGE_RATIOS,
@@ -78,19 +78,13 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   async function loadRecent() {
     if (!userId) return;
     try {
-      const sb = getSupabase();
-      const { data, error: listErr } = await sb.storage
-        .from("artist-references")
-        .list(`${userId}/generated`, { limit: 12, sortBy: { column: "created_at", order: "desc" } });
-      if (listErr || !data) return;
+      const token = await getAccessToken();
+      const files = await r2List(`${userId}/generated`, token);
       setRecent(
-        data
+        files
           .filter((f) => /\.(jpe?g|png|webp)$/i.test(f.name))
-          .map((f) => {
-            const p = `${userId}/generated/${f.name}`;
-            const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(p);
-            return { name: f.name, url: publicUrl, path: p };
-          }),
+          .slice(0, 12)
+          .map((f) => ({ name: f.name, url: f.url, path: f.path })),
       );
     } catch { /* best-effort */ }
   }

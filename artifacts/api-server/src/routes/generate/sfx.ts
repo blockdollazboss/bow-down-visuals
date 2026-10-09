@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 import {
   recordGenerationHistory,
   markGenerationHistoryCharged,
@@ -162,13 +163,11 @@ router.post(
         return;
       }
 
-      const sb = req.userSupabase!;
       const path = `${req.userId}/sfx/${Date.now()}-sfx.mp3`;
-      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, buffer, {
-        contentType: "audio/mpeg",
-        upsert: true,
-      });
-      if (upErr) {
+      const r2Key = `audio-stems/${path}`;
+      try {
+        await r2Upload(r2Key, buffer, "audio/mpeg");
+      } catch (upErr) {
         logger.error({ err: upErr }, "[sfx] bucket upload failed");
         await refundOnFailure();
         res.status(500).json({
@@ -177,14 +176,14 @@ router.post(
         });
         return;
       }
-      const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+      const publicUrl = r2PublicUrl(r2Key);
 
       /* Save to history FIRST (throws → 500, and we refund below via catch). */
       const genHistoryId = await recordGenerationHistory({
         userId: req.userId!,
         generationType: "Generate SFX",
         prompt: prompt.trim().slice(0, 500),
-        content: data.publicUrl,
+        content: publicUrl,
         creditsUsed: SFX_CREDIT_COST,
       });
 
@@ -192,7 +191,7 @@ router.post(
       markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
       res.json({
-        url: data.publicUrl,
+        url: publicUrl,
         storagePath: path,
         durationSeconds: safeDuration,
         category: categoryKey,

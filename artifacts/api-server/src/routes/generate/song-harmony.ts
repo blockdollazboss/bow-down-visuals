@@ -37,6 +37,7 @@ import { db, songsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { parseSupabaseStorageRefBucketed } from "../../lib/objectStorage";
+import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeFile, readFile, mkdtemp, rm } from "fs/promises";
@@ -165,6 +166,16 @@ async function downloadSourceAudio(
       .limit(1);
     if (!song) throw new Error("Song not found in your library.");
     if (song.audio_path) {
+      // Try R2 first (new storage), then legacy Supabase ref.
+      const r2Key = song.audio_path.startsWith("audio-stems/")
+        ? song.audio_path
+        : `audio-stems/${song.audio_path}`;
+      try {
+        const buffer = await r2Download(r2Key);
+        return { buffer, title: song.title };
+      } catch {
+        /* fall through to legacy Supabase ref */
+      }
       const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
       if (parsed) {
         const { data, error } = await getSupabaseAdmin().storage
@@ -443,13 +454,13 @@ router.post("/generate-harmony", requireAuth, async (req, res) => {
         );
         const storagePath = `${prefix}/stem-${part.key}.mp3`;
         const buf = await readFile(mp3Path);
-        const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, buf, {
-          contentType: "audio/mpeg",
-          upsert: true,
-        });
-        if (upErr) throw new Error(`Could not save the "${part.label}" stem.`);
-        const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(storagePath);
-        uploadedStems.push({ key: part.key, label: part.label, url: urlData.publicUrl, storagePath });
+        const stemR2Key = `audio-stems/${storagePath}`;
+        try {
+          await r2Upload(stemR2Key, buf, "audio/mpeg");
+        } catch (upErr) {
+          throw new Error(`Could not save the "${part.label}" stem.`);
+        }
+        uploadedStems.push({ key: part.key, label: part.label, url: r2PublicUrl(stemR2Key), storagePath });
       }
       const mixMp3Path = join(workdir, "harmony-mix.mp3");
       await execFileAsync(
@@ -459,13 +470,13 @@ router.post("/generate-harmony", requireAuth, async (req, res) => {
       );
       const mixBuf = await readFile(mixMp3Path);
       const mixStoragePath = `${prefix}/harmony-mix.mp3`;
-      const { error: mixUpErr } = await sb.storage.from(BUCKET).upload(mixStoragePath, mixBuf, {
-        contentType: "audio/mpeg",
-        upsert: true,
-      });
-      if (mixUpErr) throw new Error("Could not save the harmony mix.");
-      const { data: mixUrlData } = sb.storage.from(BUCKET).getPublicUrl(mixStoragePath);
-      const mixUrl = mixUrlData.publicUrl;
+      const mixR2Key = `audio-stems/${mixStoragePath}`;
+      try {
+        await r2Upload(mixR2Key, mixBuf, "audio/mpeg");
+      } catch (mixUpErr) {
+        throw new Error("Could not save the harmony mix.");
+      }
+      const mixUrl = r2PublicUrl(mixR2Key);
 
       // ── Step 1: history FIRST (throws → 500, nothing charged). ──
       const mixTitle = `${sourceTitle} (Harmony Mix)`;

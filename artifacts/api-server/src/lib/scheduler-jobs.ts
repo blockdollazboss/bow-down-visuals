@@ -26,7 +26,7 @@ import {
   TikTokApiError,
   type TikTokOAuthConfig,
 } from "./social-tiktok";
-import { refreshSupabaseStorageUrl } from "./objectStorage";
+import { refreshSupabaseStorageUrl, isStorageRef } from "./objectStorage";
 import { refundCredits } from "./credits";
 
 /**
@@ -191,7 +191,7 @@ function fullCaption(post: ScheduledPost): string {
 
 async function resolveMediaUrl(mediaUrl: string): Promise<string> {
   let url = mediaUrl;
-  if (url.startsWith("supabase://")) {
+  if (isStorageRef(url)) {
     url = await refreshSupabaseStorageUrl(url);
   }
   if (!/^https:\/\//.test(url)) {

@@ -23,7 +23,7 @@ import {
   SubjectBadge,
   type SubjectType,
 } from "@/components/ArtistVaultSelector";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile, r2Remove, storageKeyFromUrl } from "@/lib/r2-storage";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 import { useTranslation } from "react-i18next";
@@ -1024,14 +1024,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
     setUploading(true);
     setError(null);
     try {
-      const sb = getSupabase();
+      const token = await getAccessToken().catch(() => null);
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const filePath = `${user.id}/${vaultId}/wardrobe/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await sb.storage
-        .from("artist-references")
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
       await addOutfit(outfitLabel.trim() || t("artistVault.customOutfit"), publicUrl, filePath);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
@@ -1646,23 +1642,11 @@ export default function ArtistVault() {
     setUploadingPhoto(true);
     setPhotoError(null);
     try {
-      const sb = getSupabase();
+      const token = await getAccessToken().catch(() => null);
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const artistFolder = editId ?? "new";
       const filePath = `${user.id}/${artistFolder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await sb.storage
-        .from(PHOTO_BUCKET)
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-      if (uploadError) {
-        const msg = uploadError.message ?? "";
-        if (msg.toLowerCase().includes("bucket") && msg.toLowerCase().includes("not found")) {
-          throw new Error(t("artistVault.bucketMissing", { bucket: PHOTO_BUCKET }));
-        }
-        throw uploadError;
-      }
-      const { data: { publicUrl } } = sb.storage
-        .from(PHOTO_BUCKET)
-        .getPublicUrl(filePath);
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
       setPhotoUrl(publicUrl);
       setPhotoPath(filePath);
     } catch (err) {
@@ -1807,12 +1791,9 @@ export default function ArtistVault() {
       const vault = vaults.find((v) => v.id === id);
       if (vault?.reference_image_url) {
         try {
-          const sb = getSupabase();
-          const pathToRemove = vault.reference_image_path ?? (() => {
-            const u = new URL(vault.reference_image_url!);
-            return u.pathname.split("/artist-references/")[1] ?? null;
-          })();
-          if (pathToRemove) await sb.storage.from("artist-references").remove([pathToRemove]);
+          const token = await getAccessToken().catch(() => null);
+          const pathToRemove = vault.reference_image_path ?? storageKeyFromUrl(vault.reference_image_url);
+          if (pathToRemove) await r2Remove(pathToRemove, token);
         } catch { /* best-effort */ }
       }
       await fetch(`/api/artist-vaults/${id}`, {

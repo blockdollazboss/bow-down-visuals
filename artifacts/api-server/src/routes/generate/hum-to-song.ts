@@ -10,6 +10,7 @@ import { join } from "path";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { analyzeMelody, type MelodyAnalysis } from "../../lib/melody-analysis";
 import { db, humRecordingsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -261,21 +262,21 @@ async function storeHum(req: Request, raw: Buffer): Promise<{ row: HumRow; mp3: 
   const mp3 = await transcodeToMp3(raw);
   const analysis = await analyzeMelody(raw);
 
-  const sb = req.userSupabase!;
   const path = `hum/${req.userId}/${Date.now()}-${randomUUID()}.mp3`;
-  const { error: upErr } = await sb.storage.from(BUCKET).upload(path, mp3, {
-    contentType: "audio/mpeg",
-    upsert: true,
-  });
-  if (upErr) throw new Error("Could not save the hum recording.");
-  const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+  const r2Key = `audio-stems/${path}`;
+  try {
+    await r2Upload(r2Key, mp3, "audio/mpeg");
+  } catch (upErr) {
+    throw new Error("Could not save the hum recording.");
+  }
+  const humUrl = r2PublicUrl(r2Key);
 
   const inserted = await db
     .insert(humRecordingsTable)
     .values({
       userId: req.userId!,
       audioRef: path,
-      audioUrl: data.publicUrl,
+      audioUrl: humUrl,
       analysis: analysis as unknown as Record<string, unknown>,
     })
     .returning({ id: humRecordingsTable.id, audioRef: humRecordingsTable.audioRef, audioUrl: humRecordingsTable.audioUrl, analysis: humRecordingsTable.analysis });
@@ -361,10 +362,18 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
         res.status(404).json({ error: "Hum recording not found — analyze it again." });
         return;
       }
-      const sb = req.userSupabase!;
-      const { data, error } = await sb.storage.from(BUCKET).download(found.audioRef);
-      if (error || !data) throw new Error("Could not load the saved hum recording.");
-      mp3 = Buffer.from(await data.arrayBuffer());
+      const r2Key = found.audioRef.startsWith("audio-stems/")
+        ? found.audioRef
+        : `audio-stems/${found.audioRef}`;
+      try {
+        mp3 = await r2Download(r2Key);
+      } catch {
+        // Fall back to legacy Supabase storage
+        const sb = req.userSupabase!;
+        const { data, error } = await sb.storage.from(BUCKET).download(found.audioRef);
+        if (error || !data) throw new Error("Could not load the saved hum recording.");
+        mp3 = Buffer.from(await data.arrayBuffer());
+      }
       analysis = found.analysis as unknown as MelodyAnalysis;
       humRow = found as HumRow;
     } else {
@@ -427,25 +436,25 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
       }
 
       // Save the finished song.
-      const sb = req.userSupabase!;
       const songPath = `${req.userId}/generated/${Date.now()}-hum-to-song.mp3`;
-      const { error: upErr } = await sb.storage.from(BUCKET).upload(songPath, songBuffer, {
-        contentType: "audio/mpeg",
-        upsert: true,
-      });
-      if (upErr) throw new Error("Could not save the generated song.");
-      const { data } = sb.storage.from(BUCKET).getPublicUrl(songPath);
+      const songR2Key = `audio-stems/${songPath}`;
+      try {
+        await r2Upload(songR2Key, songBuffer, "audio/mpeg");
+      } catch (upErr) {
+        throw new Error("Could not save the generated song.");
+      }
+      const songUrl = r2PublicUrl(songR2Key);
 
       await db
         .update(humRecordingsTable)
-        .set({ songUrl: data.publicUrl, songRef: songPath, influence })
+        .set({ songUrl, songRef: songPath, influence })
         .where(eq(humRecordingsTable.id, humRow.id));
 
       const genHistoryId = await recordGenerationHistory({
         userId: req.userId!,
         generationType: "Hum to Song",
         prompt: prompt.slice(0, 500),
-        content: data.publicUrl,
+        content: songUrl,
         artistName: fields.artistName || undefined,
         songTitle: fields.songTitle || undefined,
         creditsUsed: HUM_CREDIT_COST,
@@ -453,7 +462,7 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
       markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
       res.json({
-        url: data.publicUrl,
+        url: songUrl,
         storagePath: songPath,
         humRef: humRow.id,
         humUrl: humRow.audioUrl,

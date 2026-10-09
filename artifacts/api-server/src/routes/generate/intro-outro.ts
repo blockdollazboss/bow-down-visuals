@@ -7,7 +7,7 @@ import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import { z } from "zod";
 import {
   buildIntroOutroPrompt,
@@ -191,13 +191,8 @@ router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
       try {
         await downloadToFile(runwayUrl, tmpFile);
         const objectName = `intros-outros/${randomUUID()}.mp4`;
-        const { error: upErr } = await getSupabaseAdmin().storage
-          .from(INTRO_OUTRO_BUCKET)
-          .upload(objectName, readFileSync(tmpFile), { contentType: "video/mp4", upsert: false });
-        if (upErr) throw upErr;
-        const { data: { publicUrl } } = getSupabaseAdmin().storage
-          .from(INTRO_OUTRO_BUCKET)
-          .getPublicUrl(objectName);
+        // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+        const publicUrl = await uploadPublicMediaToR2(INTRO_OUTRO_BUCKET, objectName, readFileSync(tmpFile), "video/mp4");
         res.json({ status: "succeeded", url: publicUrl, path: objectName, creditsRemaining });
       } catch (uploadErr: unknown) {
         /* Upload failed after a successful charge — refund so the user

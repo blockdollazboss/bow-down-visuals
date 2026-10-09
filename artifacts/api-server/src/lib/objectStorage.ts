@@ -10,6 +10,14 @@ import {
   setObjectAclPolicy,
 } from "./objectAcl";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { r2Upload, r2GetSignedUrl, r2KeyExists, isR2Configured } from "./r2-client";
+
+/* R2 key prefix per legacy bucket — R2 has a single bucket, so the old
+   Supabase bucket name becomes the top-level folder prefix, keeping the
+   same key structure (`generated-clips/clips/<uuid>.mp4`). */
+export function r2KeyForBucket(bucket: string, objectName: string): string {
+  return `${bucket}/${objectName.replace(/^\/+/, "")}`;
+}
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
@@ -326,18 +334,24 @@ async function signObjectURL({
    Clip storage moved from Replit-owned GCS (signed via the Replit sidecar,
    which doesn't exist on Render) to Supabase Storage.
 
-   CORE RULE: persist STABLE STORAGE REFS, never signed URLs. A storage ref
-   looks like `supabase://generated-clips/clips/<uuid>.mp4`. Readers mint a
+   2026-10-09 R2 migration: new writes go to Cloudflare R2 (zero egress).
+   Refs are now `r2://<bucket>/<objectPath>` (e.g.
+   `r2://generated-clips/clips/<uuid>.mp4`); legacy `supabase://` refs keep
+   working through the dual-stack ref parser.
+
+   CORE RULE: persist STABLE STORAGE REFS, never signed URLs. Readers mint a
    fresh short-lived signed URL from the ref on every read
    (refreshSupabaseStorageUrl / refreshSupabaseStorageUrlsDeep).
 
    Detection:
-   - starts with `supabase://generated-clips/` → our storage ref → re-sign.
-   - a signed URL under this project's `generated-clips` bucket (minted by an
-     earlier read) → parse the object path out and re-sign.
+   - starts with `r2://<bucket>/` → R2 storage ref → mint R2 presigned URL.
+   - starts with `supabase://<bucket>/` → legacy storage ref → re-sign from R2
+     when the object was migrated there, else from Supabase.
+   - a signed URL under this project's bucket (minted by an earlier read) →
+     parse the object path out and re-sign.
    - starts with `https://storage.googleapis.com/` → legacy GCS URL → left
      as-is (legacy no-op; unplayable if the 7-day signature expired).
-   - anything else (public Supabase URLs, Runway CDN URLs, …) → as-is.
+   - anything else (public Supabase/R2 URLs, Runway CDN URLs, …) → as-is.
    ══════════════════════════════════════════════════════════════════════════ */
 
 /** Private Supabase Storage bucket for server-generated media (Runway clips, thumbnails, chain frames). */
@@ -345,6 +359,20 @@ export const SUPABASE_CLIPS_BUCKET = "generated-clips";
 
 /** Stable storage-ref URI scheme persisted in the DB for Supabase-hosted media. */
 export const SUPABASE_STORAGE_REF_PREFIX = `supabase://${SUPABASE_CLIPS_BUCKET}/`;
+
+/** Stable storage-ref URI scheme persisted in the DB for R2-hosted media
+ *  (Cloudflare R2 migration, 2026-10-09 — zero egress fees). New writes use
+ *  `r2://<bucket>/<objectPath>`; old `supabase://` refs keep working via the
+ *  dual-stack ref parser below. */
+export const R2_STORAGE_REF_PREFIX = "r2://";
+
+/** True when the value is one of our stable storage refs (either scheme). */
+export function isStorageRef(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (value.startsWith("r2://") || value.startsWith("supabase://"))
+  );
+}
 
 /** Signed-URL TTL minted at read time (1 day). */
 export const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
@@ -362,6 +390,8 @@ const LEGACY_GCS_URL_PREFIX = "https://storage.googleapis.com/";
  *  After creating, we re-read the bucket and throw LOUDLY if it is still
  *  missing, so an upload can never silently march into a doomed upload. */
 export async function ensureSupabaseClipsBucket(): Promise<void> {
+  // R2 migration: R2 needs no bucket ensure — the single bucket already exists.
+  if (isR2Configured()) return;
   const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
   const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url || !serviceRoleKey) {
@@ -470,14 +500,22 @@ export async function ensureShopProductsBucket(): Promise<void> {
 
 /**
  * Upload a buffer to the private `generated-clips` bucket. Returns the
- * STABLE STORAGE REF (`supabase://generated-clips/<objectName>`) — persist
- * this, never a signed URL.
+ * STABLE STORAGE REF — persist this, never a signed URL.
+ *
+ * R2 migration (2026-10-09): writes go to Cloudflare R2 and return an
+ * `r2://generated-clips/<objectName>` ref. When R2 is not configured, falls
+ * back to the legacy Supabase path (`supabase://generated-clips/...`).
  */
 export async function uploadMediaToSupabaseStorage(
   objectName: string,
   buffer: Buffer,
   contentType: string,
 ): Promise<string> {
+  if (isR2Configured()) {
+    const key = r2KeyForBucket(SUPABASE_CLIPS_BUCKET, objectName);
+    await r2Upload(key, buffer, contentType);
+    return `${R2_STORAGE_REF_PREFIX}${SUPABASE_CLIPS_BUCKET}/${objectName}`;
+  }
   const supabase = getSupabaseAdmin();
   try {
     await ensureSupabaseClipsBucket();
@@ -502,6 +540,34 @@ export async function uploadMediaToSupabaseStorage(
   return `${SUPABASE_STORAGE_REF_PREFIX}${objectName}`;
 }
 
+/**
+ * Upload public media (jewelry renders, merch mockups, logos, intros/outros,
+ * sample packs, cover-in-motion videos) — R2 first (zero egress), Supabase
+ * fallback when R2 is not configured. Returns the PUBLIC URL.
+ *
+ * R2 key structure preserves the old bucket layout:
+ * `<bucket>/<objectPath>` inside the single R2 bucket.
+ */
+export async function uploadPublicMediaToR2(
+  bucket: string,
+  objectPath: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  if (isR2Configured()) {
+    return r2Upload(r2KeyForBucket(bucket, objectPath), buffer, contentType);
+  }
+  const supabase = getSupabaseAdmin();
+  const { error: upErr } = await supabase.storage
+    .from(bucket)
+    .upload(objectPath, buffer, { contentType, upsert: false });
+  if (upErr) throw upErr;
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(bucket).getPublicUrl(objectPath);
+  return publicUrl;
+}
+
 /** Private Supabase Storage bucket for final exported videos (much larger
  *  files than generated clips, so it gets its own bucket + higher limit). */
 export const VIDEO_EXPORTS_BUCKET = "video-exports";
@@ -517,6 +583,8 @@ export const VIDEO_EXPORTS_BUCKET = "video-exports";
  *  After creating, we re-read the bucket and throw LOUDLY if it is still
  *  missing, so an export can never silently march into a doomed upload. */
 export async function ensureVideoExportsBucket(): Promise<void> {
+  // R2 migration: R2 needs no bucket ensure — the single bucket already exists.
+  if (isR2Configured()) return;
   const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
   const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url || !serviceRoleKey) {
@@ -573,9 +641,12 @@ export async function ensureVideoExportsBucket(): Promise<void> {
  * (duplex: 'half') rather than supabase-js .upload(), whose stream-body
  * handling isn't guaranteed under this Node/fetch combination.
  *
- * Returns the STABLE STORAGE REF (`supabase://<bucket>/<objectName>`) —
- * persist this, never a signed URL (readers re-sign via
- * refreshSupabaseStorageUrl / refreshSupabaseStorageUrlsDeep).
+ * Returns the STABLE STORAGE REF — persist this, never a signed URL (readers
+ * re-sign via refreshSupabaseStorageUrl / refreshSupabaseStorageUrlsDeep).
+ *
+ * R2 migration (2026-10-09): writes go to Cloudflare R2 and return an
+ * `r2://<bucket>/<objectName>` ref. When R2 is not configured, falls back to
+ * the legacy Supabase streaming path.
  */
 export async function uploadFileStreamToSupabaseStorage(
   bucket: string,
@@ -583,6 +654,12 @@ export async function uploadFileStreamToSupabaseStorage(
   filePath: string,
   contentType: string,
 ): Promise<string> {
+  if (isR2Configured()) {
+    // Heap-safe: the S3 client streams the file; nothing is buffered in RAM.
+    const key = r2KeyForBucket(bucket, objectName);
+    await r2Upload(key, createReadStream(filePath), contentType);
+    return `${R2_STORAGE_REF_PREFIX}${bucket}/${objectName}`;
+  }
   const url = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
   const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url) {
@@ -637,15 +714,23 @@ export interface ParsedStorageRef {
 
 /**
  * Extract the bucket + object path from a stored value when it refers to one
- * of our Supabase buckets — either a `supabase://<bucket>/<path>` storage
- * ref or a previously-minted signed URL under this project's bucket.
- * Returns null for legacy GCS URLs and everything else.
+ * of our storage buckets — either an `r2://<bucket>/<path>` ref, a legacy
+ * `supabase://<bucket>/<path>` storage ref, or a previously-minted signed URL
+ * under this project's bucket. Returns null for legacy GCS URLs and
+ * everything else.
  */
 export function parseSupabaseStorageRefBucketed(
   value: string,
 ): ParsedStorageRef | null {
   if (typeof value !== "string" || value.length === 0) return null;
   for (const bucket of KNOWN_STORAGE_BUCKETS) {
+    // R2 refs (new writes): r2://generated-clips/clips/<uuid>.mp4
+    const r2Prefix = `${R2_STORAGE_REF_PREFIX}${bucket}/`;
+    if (value.startsWith(r2Prefix)) {
+      const objectPath = value.slice(r2Prefix.length);
+      return objectPath.length > 0 ? { bucket, objectPath } : null;
+    }
+    // Legacy Supabase refs: supabase://generated-clips/clips/<uuid>.mp4
     const prefix = `supabase://${bucket}/`;
     if (value.startsWith(prefix)) {
       const objectPath = value.slice(prefix.length);
@@ -672,9 +757,10 @@ export function parseSupabaseStorageRefBucketed(
 
 /**
  * Extract the object path from a stored value when it refers to any of our
- * Supabase buckets — either a `supabase://<bucket>/<path>` storage ref or a
- * previously-minted signed URL under this project's bucket. Returns null
- * for legacy GCS URLs and everything else.
+ * storage buckets — either an `r2://<bucket>/<path>` ref, a legacy
+ * `supabase://<bucket>/<path>` storage ref, or a previously-minted signed URL
+ * under this project's bucket. Returns null for legacy GCS URLs and
+ * everything else.
  */
 export function parseSupabaseStorageRef(value: string): string | null {
   const parsed = parseSupabaseStorageRefBucketed(value);
@@ -683,14 +769,20 @@ export function parseSupabaseStorageRef(value: string): string | null {
 
 /**
  * Normalize a media value to the stable storage-ref form when it points at
- * one of our Supabase buckets. Use at WRITE time before persisting. The
- * bucket is preserved (`supabase://video-exports/...` stays video-exports).
- * Legacy GCS URLs and unrelated URLs pass through unchanged.
+ * one of our storage buckets. Use at WRITE time before persisting. The bucket
+ * and scheme are preserved (`r2://video-exports/...` stays r2,
+ * `supabase://video-exports/...` stays supabase). Legacy GCS URLs and
+ * unrelated URLs pass through unchanged.
  */
 export function normalizeToStorageRef(
   value: string | null | undefined,
 ): string | null {
   if (value == null) return null;
+  if (typeof value === "string" && value.startsWith(R2_STORAGE_REF_PREFIX)) {
+    const parsed = parseSupabaseStorageRefBucketed(value);
+    if (!parsed) return value;
+    return `${R2_STORAGE_REF_PREFIX}${parsed.bucket}/${parsed.objectPath}`;
+  }
   const parsed = parseSupabaseStorageRefBucketed(value);
   if (!parsed) return value;
   return `supabase://${parsed.bucket}/${parsed.objectPath}`;
@@ -701,10 +793,37 @@ export function normalizeToStorageRef(
  * own older signed URLs) are re-signed from the bucket they point at;
  * legacy GCS URLs and everything else pass through unchanged so callers
  * never see a hard failure.
+ *
+ * R2 migration (2026-10-09): `r2://` refs mint R2 presigned URLs. Legacy
+ * `supabase://` refs try R2 first (files migrated from Supabase to R2 keep
+ * their old refs working) and fall back to Supabase signing when R2 misses.
  */
 export async function refreshSupabaseStorageUrl(value: string): Promise<string> {
   const parsed = parseSupabaseStorageRefBucketed(value);
   if (!parsed) return value; // legacy GCS / public / unrelated → as-is
+  const r2Key = r2KeyForBucket(parsed.bucket, parsed.objectPath);
+
+  // New R2 refs — presign directly.
+  if (typeof value === "string" && value.startsWith(R2_STORAGE_REF_PREFIX)) {
+    try {
+      return await r2GetSignedUrl(r2Key, SUPABASE_SIGNED_URL_TTL_SEC);
+    } catch {
+      return value;
+    }
+  }
+
+  // Legacy supabase:// refs — R2 first when the object was migrated there
+  // (r2KeyExists, because presigning never 404s), Supabase fallback.
+  if (isR2Configured()) {
+    try {
+      if (await r2KeyExists(r2Key)) {
+        return await r2GetSignedUrl(r2Key, SUPABASE_SIGNED_URL_TTL_SEC);
+      }
+      // Not migrated yet — fall through to the legacy Supabase signer below.
+    } catch {
+      // R2 error — fall through to the legacy Supabase signer below.
+    }
+  }
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.storage

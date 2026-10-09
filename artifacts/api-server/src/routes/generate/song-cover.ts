@@ -30,6 +30,7 @@ import { db, songsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { parseSupabaseStorageRefBucketed } from "../../lib/objectStorage";
+import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
@@ -102,6 +103,16 @@ async function downloadSourceAudio(
     if (!song) throw new Error("Song not found in your library.");
     // Prefer the stable storage ref; fall back to the stored URL.
     if (song.audio_path) {
+      // Try R2 first (new storage), then legacy Supabase ref.
+      const r2Key = song.audio_path.startsWith("audio-stems/")
+        ? song.audio_path
+        : `audio-stems/${song.audio_path}`;
+      try {
+        const buffer = await r2Download(r2Key);
+        return { buffer, title: song.title };
+      } catch {
+        /* fall through to legacy Supabase ref */
+      }
       const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
       if (parsed) {
         const { data, error } = await getSupabaseAdmin().storage
@@ -248,22 +259,17 @@ router.post("/song-cover", requireAuth, async (req, res) => {
 
   // Upload the cover audio.
   const coverTitle = (title ?? "").trim() || `${sourceTitle} (Cover)`;
-  const sb = req.userSupabase!;
   const storagePath = `${req.userId}/generated/${Date.now()}-song-cover.mp3`;
+  const r2Key = `audio-stems/${storagePath}`;
   try {
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, audioBuf, {
-      contentType: "audio/mpeg",
-      upsert: true,
-    });
-    if (upErr) throw new Error("Could not save the cover audio.");
+    await r2Upload(r2Key, audioBuf, "audio/mpeg");
   } catch (err) {
     // Pre-charge failure: nothing was charged.
     req.log.error({ err }, "song-cover: upload failed");
     res.status(500).json({ error: "Could not save the cover audio." });
     return;
   }
-  const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(storagePath);
-  const coverUrl = urlData.publicUrl;
+  const coverUrl = r2PublicUrl(r2Key);
 
   // Step 1: Save to history FIRST (throws → 500, no credits charged).
   let genHistoryId: string;

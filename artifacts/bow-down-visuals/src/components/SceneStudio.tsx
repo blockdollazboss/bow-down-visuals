@@ -14,7 +14,7 @@ import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -125,6 +125,7 @@ function hasUsableClip(url: string | null | undefined): boolean {
 async function buildCastReference(
   characters: { name: string; imageUrl: string }[],
   userId: string,
+  token: string | null,
 ): Promise<string | null> {
   const withPhotos = characters.filter((c) => /^https:\/\//i.test(c.imageUrl));
   if (withPhotos.length < 2) return withPhotos[0]?.imageUrl ?? null;
@@ -175,13 +176,8 @@ async function buildCastReference(
     );
     if (!blob) return withPhotos[0]?.imageUrl ?? null;
 
-    const sb = getSupabase();
     const filePath = `${userId}/cast/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-    const { error: uploadError } = await sb.storage
-      .from("artist-references")
-      .upload(filePath, blob, { upsert: true, contentType: "image/jpeg" });
-    if (uploadError) throw uploadError;
-    const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
+    const publicUrl = await r2UploadFile(filePath, blob, "image/jpeg", token);
     return publicUrl;
   } catch {
     /* fall back to the main character's photo */
@@ -504,7 +500,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
       ];
       if (castMembers.length >= 2 && !chaining && !outfitRefUrl && !scene.locationImageUrl) {
-        const composite = await buildCastReference(castMembers, user?.id ?? "anon");
+        const composite = await buildCastReference(castMembers, user?.id ?? "anon", token);
         if (composite) referenceImageUrl = composite;
       }
 

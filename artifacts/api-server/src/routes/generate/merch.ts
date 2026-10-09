@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import { db, merchDesignsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -34,14 +34,9 @@ const MERCH_BUCKET = "generated-clips";
 
 async function uploadMockup(userId: string, buffer: Buffer): Promise<{ url: string; path: string }> {
   const filePath = `merch/${userId}/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(MERCH_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(MERCH_BUCKET)
-    .getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(MERCH_BUCKET, filePath, buffer, "image/png");
+  return { url, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

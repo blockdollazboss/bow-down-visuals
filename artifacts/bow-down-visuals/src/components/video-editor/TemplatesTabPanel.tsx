@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile } from "@/lib/r2-storage";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   ArrowLeft,
@@ -196,15 +196,10 @@ export default function TemplatesTabPanel({
   }
 
   async function uploadFile(file: File, folder: string): Promise<string> {
-    const sb = getSupabase();
+    const token = await getAccessToken().catch(() => null);
     const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().slice(0, 8);
     const path = `${user?.id ?? "anon"}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await sb.storage
-      .from("artist-references")
-      .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
-    if (error) throw error;
-    const { data } = sb.storage.from("artist-references").getPublicUrl(path);
-    return data.publicUrl;
+    return r2UploadFile(path, file, file.type || "application/octet-stream", token);
   }
 
   async function handleSlotFile(slot: CatalogSlot, file: File) {

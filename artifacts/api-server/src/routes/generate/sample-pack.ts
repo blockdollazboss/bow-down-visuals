@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   generatePackSchema,
   creditCostForPackSize,
@@ -72,14 +72,9 @@ async function uploadSample(
   fileName: string,
 ): Promise<{ url: string; path: string | null }> {
   const filePath = `${userId}/samples/${packId}/${fileName}`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(SAMPLE_BUCKET)
-    .upload(filePath, buffer, { contentType: "audio/wav", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(SAMPLE_BUCKET)
-    .getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(SAMPLE_BUCKET, filePath, buffer, "audio/wav");
+  return { url, path: filePath };
 }
 
 /** Synthesize one drum/FX one-shot with ffmpeg. Returns the WAV buffer. */

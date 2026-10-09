@@ -14,6 +14,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { analyzeMelody } from "../../lib/melody-analysis";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 import {
   uploadHumForConditioning,
   composeWithConditioning,
@@ -257,16 +258,18 @@ router.post("/finish-my-song/complete", publicApiLimiter, requireAuth, upload.si
       songBuffer = await composeTextPrompt(apiKey, musicModel, prompt, false);
     }
 
-    /* Save the finished song to the user's storage. */
+    /* Save the finished song to R2. */
     const songPath = `${req.userId}/generated/${Date.now()}-finish-my-song.mp3`;
-    const { error: upErr } = await getSupabaseAdmin().storage
-      .from(BUCKET)
-      .upload(songPath, songBuffer, { contentType: "audio/mpeg", upsert: false });
-    if (upErr) throw new Error("Could not save the finished song.");
-    const { data } = getSupabaseAdmin().storage.from(BUCKET).getPublicUrl(songPath);
+    const songR2Key = `audio-stems/${songPath}`;
+    try {
+      await r2Upload(songR2Key, songBuffer, "audio/mpeg");
+    } catch (upErr) {
+      throw new Error("Could not save the finished song.");
+    }
+    const songUrl = r2PublicUrl(songR2Key);
 
     res.json({
-      songUrl: data.publicUrl,
+      songUrl,
       lyrics: parts.lyrics,
       arrangement: parts.arrangement,
       influence,

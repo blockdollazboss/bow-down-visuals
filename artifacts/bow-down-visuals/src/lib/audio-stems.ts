@@ -1,36 +1,57 @@
-import { getSupabase } from "@/lib/supabase";
 import {
   defaultStemEffects, STEM_MAX_MB,
   type AudioStem,
 } from "@/lib/editor-settings";
-
-const BUCKET = "audio-stems";
 
 export interface StemUploadResult {
   url: string;
   storagePath: string;
 }
 
-/** Upload a stem audio file to the audio-stems bucket under the user's folder. */
+/** Upload a stem audio file to R2 via a presigned PUT URL from the backend. */
 export async function uploadStemFile(userId: string, file: File): Promise<StemUploadResult> {
   if (file.size > STEM_MAX_MB * 1024 * 1024) {
     throw new Error(`File must be under ${STEM_MAX_MB}MB`);
   }
-  const sb = getSupabase();
   const ext = file.name.split(".").pop() ?? "wav";
   const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error } = await sb.storage.from(BUCKET).upload(storagePath, file, { upsert: true });
-  if (error) throw error;
-  const { data } = sb.storage.from(BUCKET).getPublicUrl(storagePath);
-  return { url: data.publicUrl, storagePath };
+  const key = `audio-stems/${storagePath}`;
+
+  // Get a presigned PUT URL from the backend (auth required).
+  const presignRes = await fetch("/api/r2/presign-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, contentType: file.type || "audio/wav" }),
+  });
+  if (!presignRes.ok) {
+    throw new Error("Could not start the upload. Please try again.");
+  }
+  const { uploadUrl, publicUrl } = await presignRes.json();
+
+  // Upload directly to R2.
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "audio/wav" },
+    body: file,
+  });
+  if (!putRes.ok) {
+    throw new Error("Upload failed. Please try again.");
+  }
+  return { url: publicUrl, storagePath };
 }
 
-/** Best-effort delete of a stem file from storage. */
+/** Best-effort delete of a stem file from R2. */
 export async function removeStemFile(storagePath: string): Promise<void> {
   if (!storagePath) return;
   try {
-    const sb = getSupabase();
-    await sb.storage.from(BUCKET).remove([storagePath]);
+    const key = storagePath.startsWith("audio-stems/")
+      ? storagePath
+      : `audio-stems/${storagePath}`;
+    await fetch("/api/r2/object", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
   } catch {
     /* best-effort */
   }

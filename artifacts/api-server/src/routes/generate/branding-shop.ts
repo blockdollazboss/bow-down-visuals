@@ -17,6 +17,7 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
 import {
   fulfillmentMode,
   toOrderStatus,
@@ -195,13 +196,7 @@ async function runwayGenerateAndUpload(
   const buf = Buffer.from(await dl.arrayBuffer());
 
   const filePath = `${userId}/branding/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin()
-    .storage.from(BRANDING_BUCKET)
-    .upload(filePath, buf, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(BRANDING_BUCKET).getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buf, "image/png");
   return publicUrl;
 }
 

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   resolveLogoPlan,
   buildLogoPrompt,
@@ -47,14 +47,9 @@ export function __clearPendingLogoTasks() {
 
 async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Promise<{ url: string; path: string }> {
   const filePath = `logos/${userId}/${randomUUID()}.${ext}`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(LOGO_BUCKET)
-    .upload(filePath, buffer, { contentType: ext === "png" ? "image/png" : "image/jpeg", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(LOGO_BUCKET)
-    .getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(LOGO_BUCKET, filePath, buffer, ext === "png" ? "image/png" : "image/jpeg");
+  return { url, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

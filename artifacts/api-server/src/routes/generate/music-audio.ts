@@ -12,6 +12,7 @@ import { writeFile, readFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 
 const execFileAsync = promisify(execFile);
 
@@ -206,22 +207,20 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     }
 
     // Upload each variant.
-    const sb = req.userSupabase!;
     const variantsOut: Array<{ url: string; storagePath: string; label: string }> = [];
     for (let v = 0; v < finalBuffers.length; v++) {
       const path = `${req.userId}/generated/${Date.now()}-music-v${v + 1}.mp3`;
-      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, finalBuffers[v], {
-        contentType: "audio/mpeg",
-        upsert: true,
-      });
-      if (upErr) {
+      const r2Key = `audio-stems/${path}`;
+      try {
+        await r2Upload(r2Key, finalBuffers[v], "audio/mpeg");
+      } catch (upErr) {
         req.log.error({ err: upErr }, "generate-music-audio: upload failed");
         res.status(500).json({ error: "Could not save the generated audio.", code: "upload_failed" });
         return;
       }
-      const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+      const variantUrl = r2PublicUrl(r2Key);
       variantsOut.push({
-        url: data.publicUrl,
+        url: variantUrl,
         storagePath: path,
         label: variantCount > 1 ? (v === 0 ? "A" : "B") : "A",
       });
@@ -387,21 +386,21 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     const joined = await crossfadeJoin(original, segment);
 
     // 3. Upload.
-    const sb = req.userSupabase!;
     const path = `${req.userId}/generated/${Date.now()}-music-extended.mp3`;
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, joined, {
-      contentType: "audio/mpeg",
-      upsert: true,
-    });
-    if (upErr) throw new Error("Could not save the extended audio.");
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+    const r2Key = `audio-stems/${path}`;
+    try {
+      await r2Upload(r2Key, joined, "audio/mpeg");
+    } catch (upErr) {
+      throw new Error("Could not save the extended audio.");
+    }
+    const extendedUrl = r2PublicUrl(r2Key);
 
     // 4. History + charge (same pattern as the main endpoint).
     const genHistoryId = await recordGenerationHistory({
       userId: req.userId!,
       generationType: "Extend Audio",
       prompt: segPrompt.slice(0, 500),
-      content: data.publicUrl,
+      content: extendedUrl,
       artistName: artistName || undefined,
       songTitle: songTitle ? `${songTitle} (Extended)` : undefined,
       creditsUsed: creditCost,
@@ -424,7 +423,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({
-      url: data.publicUrl,
+      url: extendedUrl,
       storagePath: path,
       creditsRemaining: creditsAfter,
       genHistoryId,

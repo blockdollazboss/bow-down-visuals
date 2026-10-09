@@ -12,6 +12,7 @@ import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import { saveGeneration } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
 import {
   GEN4_IMAGE_CREDIT_COST,
   GEN4_IMAGE_TURBO_CREDIT_COST,
@@ -89,13 +90,7 @@ async function chargeForImage(req: {
 /** Uploads a buffer to the artist-references bucket; returns public URL + path. */
 async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ url: string; path: string | null }> {
   const filePath = `${userId}/generated/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(ARTIST_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(ARTIST_BUCKET)
-    .getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buffer, "image/png");
   return { url: publicUrl, path: filePath };
 }
 
@@ -325,13 +320,7 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
       try {
         await downloadToFile(runwayUrl, tmpFile);
         const filePath = `${req.userId}/generated/${randomUUID()}.jpg`;
-        const { error: upErr } = await getSupabaseAdmin().storage
-          .from(ARTIST_BUCKET)
-          .upload(filePath, readFileSync(tmpFile), { contentType: "image/jpeg", upsert: false });
-        if (upErr) throw upErr;
-        const { data: { publicUrl } } = getSupabaseAdmin().storage
-          .from(ARTIST_BUCKET)
-          .getPublicUrl(filePath);
+        const publicUrl = await r2Upload(filePath, readFileSync(tmpFile), "image/jpeg");
         /* Auto-save to generation history */
         if (pending) {
           saveGeneration({

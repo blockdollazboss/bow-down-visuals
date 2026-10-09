@@ -11,7 +11,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 
 const execFileAsync = promisify(execFile);
 
@@ -181,14 +181,11 @@ router.post("/cover-in-motion/animate", publicApiLimiter, requireAuth, async (re
     }
 
     const videoPath = `${req.userId}/cover-in-motion/${Date.now()}-${randomUUID()}.mp4`;
-    const { error: upErr } = await getSupabaseAdmin().storage
-      .from(BUCKET)
-      .upload(videoPath, videoBuffer, { contentType: "video/mp4", upsert: false });
-    if (upErr) throw new Error("Could not save the animated cover.");
-    const { data } = getSupabaseAdmin().storage.from(BUCKET).getPublicUrl(videoPath);
+    // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+    const publicUrl = await uploadPublicMediaToR2(BUCKET, videoPath, videoBuffer, "video/mp4");
 
     res.json({
-      videoUrl: data.publicUrl,
+      videoUrl: publicUrl,
       creditsUsed: MOTION_CREDIT_COST,
       creditsRemaining,
     });

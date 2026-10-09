@@ -14,6 +14,7 @@ import {
   type ExportStemEffects,
   type MasterBusSettings,
 } from "../lib/audioExport";
+import { r2Upload, r2PublicUrl } from "../lib/r2-client";
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -255,21 +256,20 @@ async function processMixExportJob(
     });
 
     const path = `${params.userId}/exports/${Date.now()}-${params.kind}.${ext}`;
-    const { error: upErr } = await params.sb.storage.from(BUCKET).upload(path, buffer, {
-      contentType,
-      upsert: true,
-    });
-    if (upErr) {
+    const r2Key = `audio-stems/${path}`;
+    try {
+      await r2Upload(r2Key, buffer, contentType);
+    } catch (upErr) {
       params.log.error({ err: upErr }, "Audio export upload failed");
       update({ status: "failed", error: "Could not save the exported file.", code: "export_failed" });
       return;
     }
-    const { data } = params.sb.storage.from(BUCKET).getPublicUrl(path);
+    const exportUrl = r2PublicUrl(r2Key);
 
     update({
       status: "done",
       result: {
-        url: data.publicUrl,
+        url: exportUrl,
         format: params.format,
         kind: params.kind,
         exportType: params.exportType,

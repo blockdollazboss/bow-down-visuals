@@ -9,6 +9,7 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { r2Upload } from "../lib/r2-client";
 
 /* ─── AI Page Designer ────────────────────────────────────────────────────
    The flagship of creator profiles — and the DEFAULT setup path (manual
@@ -544,13 +545,7 @@ router.post("/banner", publicApiLimiter, requireAuth, async (req, res) => {
     let stored: { url: string; path: string };
     try {
       const filePath = `${req.userId}/profile-banner/${randomUUID()}.png`;
-      const { error: upErr } = await getSupabaseAdmin().storage
-        .from(BANNER_BUCKET)
-        .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-      if (upErr) throw upErr;
-      const {
-        data: { publicUrl },
-      } = getSupabaseAdmin().storage.from(BANNER_BUCKET).getPublicUrl(filePath);
+      const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
       stored = { url: publicUrl, path: filePath };
     } catch (upErr) {
       await refundAndFail(502, "Could not save your banner — Visual Bucs refunded.");
@@ -602,13 +597,7 @@ router.post("/upload", publicApiLimiter, requireAuth, (req, res) => {
     try {
       const ext = file.mimetype === "image/png" ? "png" : file.mimetype === "image/webp" ? "webp" : "jpg";
       const filePath = `${req.userId}/profile-uploads/${kind}-${randomUUID()}.${ext}`;
-      const { error: upErr } = await getSupabaseAdmin().storage
-        .from(BANNER_BUCKET)
-        .upload(filePath, file.buffer, { contentType: file.mimetype, upsert: false });
-      if (upErr) throw upErr;
-      const {
-        data: { publicUrl },
-      } = getSupabaseAdmin().storage.from(BANNER_BUCKET).getPublicUrl(filePath);
+      const publicUrl = await r2Upload(filePath, file.buffer, file.mimetype);
       res.json({ url: publicUrl, path: filePath });
     } catch (upErr) {
       logger.error({ err: upErr, userId: req.userId }, "[ai-page-designer] upload failed");

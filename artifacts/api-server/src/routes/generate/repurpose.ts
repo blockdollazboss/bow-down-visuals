@@ -22,7 +22,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
 import {
   attributionOptIn,
   resolveAttributionFont,
@@ -526,13 +526,7 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
       const b64 = imageResp.data?.[0]?.b64_json;
       if (!b64) throw new Error("Image generation returned no image data");
       const filePath = `${job.userId}/repurpose/${job.id}-thumb-${i}.png`;
-      const { error: upErr } = await getSupabaseAdmin()
-        .storage.from(REPURPOSE_BUCKET)
-        .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = getSupabaseAdmin()
-        .storage.from(REPURPOSE_BUCKET)
-        .getPublicUrl(filePath);
+      const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
       thumb.imageRef = filePath;
       thumb.imageUrl = publicUrl;
     }
@@ -573,16 +567,19 @@ router.post(
       videoBuffer = req.file.buffer;
       originalName = req.file.originalname || originalName;
     } else if (videoUrl) {
-      // SSRF guard — only our own Supabase storage.
+      // SSRF guard — only our own storage (Supabase or R2).
       const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
+      const r2PublicUrl = process.env["R2_PUBLIC_URL"] ?? "";
       try {
         const parsedUrl = new URL(videoUrl);
-        if (supabaseUrl) {
-          const allowed = new URL(supabaseUrl).hostname;
-          if (parsedUrl.hostname !== allowed) {
-            res.status(400).json({ error: "videoUrl must be from your project storage." });
-            return;
-          }
+        const allowedHostnames = new Set<string>();
+        if (supabaseUrl) allowedHostnames.add(new URL(supabaseUrl).hostname);
+        if (r2PublicUrl) allowedHostnames.add(new URL(r2PublicUrl).hostname);
+        // R2 public dev URL host is stable; also allow it when configured via bucket name
+        if (parsedUrl.hostname.endsWith(".r2.dev")) allowedHostnames.add(parsedUrl.hostname);
+        if (allowedHostnames.size > 0 && !allowedHostnames.has(parsedUrl.hostname)) {
+          res.status(400).json({ error: "videoUrl must be from your project storage." });
+          return;
         }
       } catch {
         res.status(400).json({ error: "Invalid videoUrl." });
@@ -1041,13 +1038,7 @@ router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async 
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) throw new Error("Image generation returned no image data");
     const filePath = `${req.userId}/repurpose/reroll-${randomUUID()}.png`;
-    const { error: upErr } = await getSupabaseAdmin()
-      .storage.from(REPURPOSE_BUCKET)
-      .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-    if (upErr) throw upErr;
-    const { data: { publicUrl } } = getSupabaseAdmin()
-      .storage.from(REPURPOSE_BUCKET)
-      .getPublicUrl(filePath);
+    const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
     res.json({
       imageUrl: publicUrl,
       imageRef: filePath,

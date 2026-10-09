@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile } from "@/lib/r2-storage";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   ArrowLeft,
@@ -224,15 +224,10 @@ export default function SplitScreenPanel({
 
   /* ── Cell media ── */
   async function uploadFile(file: File): Promise<string> {
-    const sb = getSupabase();
+    const token = await getAccessToken().catch(() => null);
     const ext = (file.name.split(".").pop() ?? "mp4").toLowerCase().slice(0, 8);
     const path = `${user?.id ?? "anon"}/split-screen/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await sb.storage
-      .from("artist-references")
-      .upload(path, file, { upsert: true, contentType: file.type || "video/mp4" });
-    if (error) throw error;
-    const { data } = sb.storage.from("artist-references").getPublicUrl(path);
-    return data.publicUrl;
+    return r2UploadFile(path, file, file.type || "video/mp4", token);
   }
 
   async function handleCellFile(cell: number, file: File) {

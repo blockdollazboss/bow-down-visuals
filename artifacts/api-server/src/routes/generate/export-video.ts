@@ -8,7 +8,7 @@ import { randomUUID, createHash } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
-import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, VIDEO_EXPORTS_BUCKET, SUPABASE_SIGNED_URL_TTL_SEC } from "../../lib/objectStorage";
+import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, refreshSupabaseStorageUrl, VIDEO_EXPORTS_BUCKET } from "../../lib/objectStorage";
 import { recordCreditUsageStrict } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
@@ -2607,31 +2607,25 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
      * free tier) rejects oversized uploads with a cryptic 413. The bitrate
      * budget above should keep us under it — this is the backstop with a
      * clear, actionable message. */
-    const EXPORT_SUPABASE_MAX_BYTES = 48 * 1024 * 1024;
-    if (outInfo.fileSize > EXPORT_SUPABASE_MAX_BYTES) {
-      throw new Error(
-        `Final export is ${(outInfo.fileSize / 1048576).toFixed(1)} MB — above Supabase's per-file upload limit. ` +
-        `Try a shorter range or fewer scenes.`,
-      );
-    }
-
-    /* ── 8: Upload final MP4 to Supabase Storage (private video-exports bucket) ──
-     * Fail fast here: ensureVideoExportsBucket verifies the bucket exists
-     * after creating it, so a throw names the true root cause instead of
-     * letting the upload below die with a confusing NoSuchBucket. */
+    /* ── 8: Upload final MP4 to storage (R2, zero egress; private video-exports
+     * "bucket" = `video-exports/` prefix in the single R2 bucket) ──
+     * Fail fast here: ensureVideoExportsBucket is a no-op under R2 and
+     * verifies the bucket when on the legacy Supabase path, so a throw names
+     * the true root cause instead of letting the upload below die with a
+     * confusing NoSuchBucket. */
     await ensureVideoExportsBucket();
-    
 
     const objectName = `exports/${exportId}.${outExt}`;
     // Stream the upload — readFileSync on a multi-hundred-MB final MP4 OOMs
     // small instances. The file stays on disk; only small chunks are in RAM.
+    // NOTE: the old 48 MB Supabase per-file cap is gone — R2 has no such
+    // limit, so exports of any length can upload.
     const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, outputPath, outContentType);
-    const { data: signData, error: signErr } = await getSupabaseAdmin().storage.from(VIDEO_EXPORTS_BUCKET).createSignedUrl(objectName, SUPABASE_SIGNED_URL_TTL_SEC);
-    if (signErr || !signData?.signedUrl) throw new Error(`Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}`);
-    ctx.log.info({ objectName, storageRef }, "[export] uploaded to Supabase storage");
-
-    /* ── 9: Sign URL (fresh signed URL for the response; stable ref persisted) ── */
-    const signedUrl = signData.signedUrl;
+    // storageRef is `r2://video-exports/<name>` under R2 → mints an R2
+    // presigned URL; legacy `supabase://` refs still re-sign from Supabase.
+    const signedUrl = await refreshSupabaseStorageUrl(storageRef);
+    if (!signedUrl || signedUrl === storageRef) throw new Error("Storage signed URL failed: no URL returned");
+    ctx.log.info({ objectName, storageRef }, "[export] uploaded to storage");
     const objectPath = `/objects/exports/${exportId}.${outExt}`;
 
     /* ── 10: Save to project ── */

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -133,25 +134,23 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
       return;
     }
 
-    const sb = req.userSupabase!;
     const path = `${req.userId}/generated/${Date.now()}-beat.mp3`;
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, buffer, {
-      contentType: "audio/mpeg",
-      upsert: true,
-    });
-    if (upErr) {
+    const r2Key = `audio-stems/${path}`;
+    try {
+      await r2Upload(r2Key, buffer, "audio/mpeg");
+    } catch (upErr) {
       req.log.error({ err: upErr }, "beat/generate: upload failed");
       res.status(500).json({ error: "Could not save the generated beat.", code: "upload_failed" });
       return;
     }
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+    const beatUrl = r2PublicUrl(r2Key);
 
     // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Generate Beat",
       prompt:         prompt.slice(0, 500),
-      content:        data.publicUrl,
+      content:        beatUrl,
       songTitle:      beatTitle?.trim() || undefined,
       creditsUsed:    CREDIT_COST,
     });
@@ -179,7 +178,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({
-      url: data.publicUrl,
+      url: beatUrl,
       storagePath: path,
       durationMs: musicLengthMs,
       creditsRemaining: creditsAfter,

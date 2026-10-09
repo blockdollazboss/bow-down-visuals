@@ -28,7 +28,7 @@ import { chargeCredits, refundCredits, deductCredits, OutOfCreditsError, LedgerW
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
-import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrl, isStorageRef } from "../lib/objectStorage";
 import {
   buildAuthUrl,
   buildFacebookAuthUrl,
@@ -405,9 +405,9 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
   const { accountId, caption, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; Meta needs a real
-     URL, so resolve to a fresh signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); Meta needs
+     a real URL, so resolve to a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     videoUrl = await refreshSupabaseStorageUrl(videoUrl);
   }
   if (!/^https:\/\//.test(videoUrl)) {
@@ -685,13 +685,13 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
   const { accountId, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; resolve to a fresh
-     signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); resolve to
+     a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     try {
       videoUrl = await refreshSupabaseStorageUrl(videoUrl);
     } catch (err) {
-      logger.warn({ err }, "[social] tiktok publish: supabase url refresh failed, using raw url");
+      logger.warn({ err }, "[social] tiktok publish: storage url refresh failed, using raw url");
     }
   }
   if (!/^https:\/\//.test(videoUrl)) {
@@ -915,9 +915,9 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
   const { accountId, caption, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; Meta needs a real
-     URL, so resolve to a fresh signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); Meta needs
+     a real URL, so resolve to a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     videoUrl = await refreshSupabaseStorageUrl(videoUrl);
   }
   if (!/^https:\/\//.test(videoUrl)) {

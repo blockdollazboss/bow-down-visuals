@@ -20,7 +20,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   JEWELRY_PREVIEW_CREDIT_COST,
   JEWELRY_STL_CREDIT_COST,
@@ -89,14 +89,9 @@ async function uploadJewelryFile(
   contentType: string,
 ): Promise<{ url: string; path: string }> {
   const filePath = `jewelry/${userId}/${randomUUID()}.${ext}`;
-  const { error: upErr } = await getSupabaseAdmin()
-    .storage.from(JEWELRY_BUCKET)
-    .upload(filePath, buffer, { contentType, upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(JEWELRY_BUCKET).getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(JEWELRY_BUCKET, filePath, buffer, contentType);
+  return { url, path: filePath };
 }
 
 function outOfCredits(res: any) {

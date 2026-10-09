@@ -8,7 +8,7 @@ import {
   refundCredits,
   OutOfCreditsError,
 } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
 import { logger } from "../../lib/logger";
 import { attributionOptIn, burnAttributionIntoImage } from "../../lib/attribution";
 
@@ -225,26 +225,14 @@ export async function storeGeneratedArtwork(
   prefix = "cover-art",
 ): Promise<{ url: string; path: string }> {
   const filePath = `${userId}/${prefix}/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(COVER_ART_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(COVER_ART_BUCKET).getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buffer, "image/png");
   return { url: publicUrl, path: filePath };
 }
 
 /* ─── Storage ─────────────────────────────────────────────────────────────── */
 async function uploadCoverArt(userId: string, buffer: Buffer): Promise<{ url: string; path: string }> {
   const filePath = `${userId}/cover-art/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(COVER_ART_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(COVER_ART_BUCKET).getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buffer, "image/png");
   return { url: publicUrl, path: filePath };
 }
 

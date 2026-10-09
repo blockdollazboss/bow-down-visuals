@@ -6,6 +6,7 @@ import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db"
 import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 import { randomUUID } from "crypto";
@@ -600,13 +601,7 @@ async function runRefVideoLoop(taskId: string, videoUrl: string) {
     workDir = wd;
     const fileBytes = await readFile(outPath);
     const filePath = `${task.userId}/reference-videos/${randomUUID()}-loop.mp4`;
-    const { error: upErr } = await getSupabaseAdmin()
-      .storage.from("artist-references")
-      .upload(filePath, fileBytes, { contentType: "video/mp4", upsert: false });
-    if (upErr) throw new VideoLoopError(upErr.message);
-    const {
-      data: { publicUrl },
-    } = getSupabaseAdmin().storage.from("artist-references").getPublicUrl(filePath);
+    const publicUrl = await r2Upload(filePath, fileBytes, "video/mp4");
     task.status = "done";
     task.url = publicUrl;
     task.path = filePath;
