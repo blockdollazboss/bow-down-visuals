@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, type LucideIcon } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { CreateRedirect } from "@/components/create-redirect";
 import { MakeSongModule } from "./make-song";
 import { MakeVideoModule } from "./make-video";
+import CartoonStudio from "@/pages/cartoon-studio";
+import CoverArt from "@/pages/cover-art";
 import { SongAndVideoModule } from "./song-and-video";
 import { HubModule } from "./hub";
 
@@ -30,17 +32,19 @@ export { CreateRedirect };
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */
 
-export type CreatePanel = "song-video" | "song" | "video" | "hub";
+export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart";
 
 const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = [
   { key: "song-video", labelKey: "songVideo", icon: Mic2 },
   { key: "song", labelKey: "song", icon: Music },
   { key: "video", labelKey: "video", icon: Video },
+  { key: "cartoon", labelKey: "cartoon", icon: Clapperboard },
+  { key: "coverart", labelKey: "coverArt", icon: Disc3 },
   { key: "hub", labelKey: "hub", icon: Layers },
 ];
 
 function isPanel(p: string | null): p is CreatePanel {
-  return p === "song-video" || p === "song" || p === "video" || p === "hub";
+  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart";
 }
 
 function panelFromSearch(search: string): CreatePanel {
@@ -141,6 +145,8 @@ export default function Create() {
           {panel === "song-video" && <SongAndVideoModule />}
           {panel === "song" && <MakeSongModule />}
           {panel === "video" && <MakeVideoModule />}
+          {panel === "cartoon" && <CartoonStudio initialTab="video" />}
+          {panel === "coverart" && <CoverArt />}
           {panel === "hub" && <HubModule />}
         </div>
       </div>

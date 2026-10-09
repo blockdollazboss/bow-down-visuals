@@ -153,7 +153,6 @@ const ReviewPage = lazyWithRetry(() => import("@/pages/review"));
 const SyncOneSheetPublic = lazyWithRetry(() => import("@/pages/sync-one-sheet-public"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailStudio = lazyWithRetry(() => import("@/pages/thumbnail-studio"));
-const CartoonStudio = lazyWithRetry(() => import("@/pages/cartoon-studio"));
 const LabelPitch = lazyWithRetry(() => import("@/pages/label-pitch"));
 const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
 const Movies = lazyWithRetry(() => import("@/pages/movies"));
@@ -168,7 +167,6 @@ const EventDetailPage = lazyWithRetry(() => import("@/pages/event-detail"));
 const Messages = lazyWithRetry(() => import("@/pages/messages"));
 const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
-const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
 const Translate = lazyWithRetry(() => import("@/pages/translate"));
 const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
@@ -566,7 +564,7 @@ function AppShell() {
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>
-                <Route path="/cartoon-studio"><ProtectedRoute><CartoonStudio /></ProtectedRoute></Route>
+                <Route path="/cartoon-studio"><Redirect to="/create?panel=cartoon" /></Route>
                 <Route path="/merch"><Redirect to="/branding-shop?tab=merch" /></Route>
                 <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists" /></Route>
                 <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>
@@ -584,7 +582,7 @@ function AppShell() {
                 <Route path="/gamers"><Redirect to="/go-live?tab=gamers" /></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
                 <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
-                <Route path="/cover-art"><ProtectedRoute><CoverArt /></ProtectedRoute></Route>
+                <Route path="/cover-art"><Redirect to="/create?panel=coverart" /></Route>
                 <Route path="/lyric-video"><ProtectedRoute><LyricVideo /></ProtectedRoute></Route>
                 <Route path="/translate"><ProtectedRoute><Translate /></ProtectedRoute></Route>
                 <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>

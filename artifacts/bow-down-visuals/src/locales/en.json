@@ -2700,7 +2700,9 @@
       "songVideo": "Song + Video",
       "song": "Song",
       "video": "Video",
-      "hub": "Creation Hub"
+      "hub": "Creation Hub",
+      "cartoon": "Cartoon",
+      "coverArt": "Cover Art"
     }
   },
   "credit-history": {
