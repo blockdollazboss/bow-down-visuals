@@ -53,20 +53,15 @@ export default function WittyLoader({ message }: { message?: string }) {
   const promo = FEATURE_PROMOS[promoIdx % FEATURE_PROMOS.length]!;
 
   return (
-    <div className="fixed inset-0 z-[20000] flex items-center justify-center bg-background overflow-hidden">
-      {/* Promo background - Shark King with Visual Bucs */}
+    <div className="fixed inset-0 z-[20000] bg-background overflow-hidden">
+      {/* Single promo background - Shark King with Visual Bucs */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-cover bg-center opacity-40"
+        className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
       />
-      {/* Dark overlay for text readability */}
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
-      {/* ambient gold glow - the throne room is never dark */}
-      <div
-        aria-hidden
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[560px] rounded-full bg-primary/[0.07] blur-[130px] pointer-events-none"
-      />
+      {/* One uniform dark veil - no banding, no double-background */}
+      <div aria-hidden className="absolute inset-0 bg-black/55" />
       {/* Shark King logo — top-left brand mark, clean, no border */}
       <div className="absolute top-6 left-6 z-10">
         <img
@@ -75,29 +70,93 @@ export default function WittyLoader({ message }: { message?: string }) {
           className="h-14 w-14 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.35)]"
         />
       </div>
-      <div className="relative flex flex-col items-center gap-5 px-6 text-center">
+      {/* ── Cinematic asymmetric layout ── */}
+      {/* Bottom-left: the show title */}
+      <div className="absolute bottom-24 left-6 md:left-10 z-10 max-w-md">
         <p
           key={line}
-          className="text-white/80 text-base font-semibold animate-in fade-in duration-500 max-w-xs"
+          className="text-white text-3xl md:text-5xl font-black leading-tight animate-in fade-in duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
         >
           {line}
         </p>
-        <p className="text-white/30 text-xs">
+        <p className="text-white/50 text-sm mt-2">
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
-        {/* Rotating feature promo */}
-        <div key={promoIdx} className="mt-4 max-w-xs animate-in fade-in duration-500">
-          <p className="text-primary font-black text-sm uppercase tracking-wider">{promo.title}</p>
-          <p className="text-white/50 text-xs mt-1">{promo.desc}</p>
+      </div>
+
+      {/* Right edge: vertical promo card */}
+      <div
+        key={promoIdx}
+        className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 hidden sm:block max-w-[220px] animate-in fade-in duration-500"
+      >
+        <div className="border-l-2 border-primary/60 pl-4">
+          <p className="text-primary font-black text-sm uppercase tracking-[0.2em]">{promo.title}</p>
+          <p className="text-white/60 text-xs mt-2 leading-relaxed">{promo.desc}</p>
         </div>
-        {/* Barcode-style loading bar */}
-        <BarcodeLoader />
+      </div>
+
+      {/* Bottom edge: full-width barcode film strip */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <BarcodeStrip />
       </div>
     </div>
   );
 }
 
-/* Barcode loading bar - vertical bars of varying widths that fill with gold */
+/* BarcodeStrip — full-width film-leader progress strip along the bottom edge */
+function BarcodeStrip() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) return 0;
+        return p + Math.random() * 8 + 2;
+      });
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const bars = [3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 2, 4,
+                2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1];
+  const totalWidth = bars.reduce((a, b) => a + b, 0) + bars.length * 2;
+  let filled = 0;
+
+  return (
+    <div className="relative">
+      <div className="flex items-end gap-[2px] h-12 px-6">
+        {bars.map((w, i) => {
+          const barStart = (filled / totalWidth) * 100;
+          filled += w + 2;
+          const barEnd = (filled / totalWidth) * 100;
+          const isLit = progress >= barEnd;
+          const isPartial = progress > barStart && progress < barEnd;
+          return (
+            <div
+              key={i}
+              className="transition-colors duration-200 flex-1"
+              style={{
+                minWidth: `${w}px`,
+                height: "100%",
+                backgroundColor: isLit
+                  ? "#d4af37"
+                  : isPartial
+                    ? "rgba(212,175,55,0.5)"
+                    : "rgba(255,255,255,0.08)",
+                boxShadow: isLit ? "0 0 8px rgba(212,175,55,0.6)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+      <p className="absolute right-6 -top-6 text-white/50 text-xs font-mono">
+        {Math.min(100, Math.floor(progress))}%
+      </p>
+    </div>
+  );
+}
+
+/* Legacy centered barcode loader — kept for inline use elsewhere */
 function BarcodeLoader() {
   const [progress, setProgress] = useState(0);
 
