@@ -137,7 +137,7 @@ export default function LinkToHitPanel() {
           <Link2 className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("linkToHit.title", { defaultValue: "Link-to-Hit" })}</h3>
           <span className="ml-auto rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
-            {t("linkToHit.cost", { defaultValue: "3 VB" })}
+            {t("linkToHit.cost", { defaultValue: "300 VB" })}
           </span>
         </div>
         <p className="text-sm text-white/50 mb-6">

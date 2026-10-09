@@ -2547,8 +2547,8 @@ function MixPanel() {
 }
 
 /* ── Express Master panel (merged from /mastering) ───────────────────
-   The 4-credit one-tap master: POST /api/mastering (registry:
-   "/api/mastering" = 400 = 4 Visual Bucs). Real DSP mastering chain
+   The one-tap master: POST /api/mastering (registry:
+   "/api/mastering" = 400 Visual Bucs). Real DSP mastering chain
    (ffmpeg): subsonic cleanup → glue compression → sweetening EQ → stereo
    widening → two-pass EBU R128 loudness normalization with true-peak
    limiting. Outputs 24-bit WAV + 320kbps MP3. Server-owned background job:
@@ -3016,7 +3016,7 @@ function MixMasterPanel() {
           {tab === "master"
             ? "Upload one finished stereo mix — choose a genre sound, intensity and loudness target, get back a release-ready master."
             : tab === "quick"
-              ? t("mixMaster.tabQuickDesc", { defaultValue: "Upload one finished stereo mix — pick a preset, get a radio-ready master for 4 Visual Bucs. Fast, no knobs." })
+              ? t("mixMaster.tabQuickDesc", { defaultValue: "Upload one finished stereo mix — pick a preset, get a radio-ready master for 400 Visual Bucs. Fast, no knobs." })
               : "Upload up to 12 stems — the engine detects each one, balances levels, EQs, compresses, pans and masters the full mixdown."}
         </p>
 
