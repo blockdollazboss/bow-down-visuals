@@ -54,54 +54,69 @@ export default function WittyLoader({ message }: { message?: string }) {
 
   return (
     <div className="fixed inset-0 z-[20000] bg-background overflow-hidden">
-      {/* Single promo background - Shark King with Visual Bucs */}
+      {/* Throne room backdrop */}
       <div
         aria-hidden
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
       />
-      {/* One uniform dark veil - no banding, no double-background */}
-      <div aria-hidden className="absolute inset-0 bg-black/55" />
-      {/* Shark King logo — levitating hero with pulsing aura + shine sweep */}
-      <CrownedLogo />
-      {/* ── Premium asymmetric layout ── */}
-      {/* Center-top: the show title, under the logo */}
-      <div className="absolute top-40 md:top-44 left-1/2 -translate-x-1/2 z-10 text-center max-w-lg px-6">
-        <p
+      {/* Cinematic left gradient — the poster reads left to right */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(100deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
+      />
+      {/* Vignette — theater darkness at the edges */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
+      />
+
+      {/* ── LEFT: the title treatment ── */}
+      <div className="absolute left-6 md:left-14 top-1/2 -translate-y-1/2 z-10 max-w-md">
+        {/* Brand mark */}
+        <CrownedLogo />
+        {/* Eyebrow */}
+        <p className="text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] mt-8">
+          Bow Down Visuals presents
+        </p>
+        {/* The headline */}
+        <h1
           key={line}
-          className="text-white text-xl md:text-2xl font-bold leading-snug animate-in fade-in duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
+          className="text-white text-4xl md:text-6xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-left duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
         >
           {line}
-        </p>
-        <p className="text-white/50 text-xs mt-1">
+        </h1>
+        <p className="text-white/50 text-sm mt-3">
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
-      </div>
-
-      {/* Bottom-left: promo card */}
-      <div
-        key={promoIdx}
-        className="absolute bottom-8 left-6 md:left-10 z-10 max-w-xs animate-in fade-in duration-500"
-      >
-        <div className="border-l-2 border-primary/60 pl-5">
-          <p className="text-primary font-black text-xl uppercase tracking-[0.2em]">{promo.title}</p>
-          <p className="text-white/70 text-sm mt-3 leading-relaxed">{promo.desc}</p>
+        {/* Ticket-stub barcode */}
+        <div className="mt-8">
+          <BarcodeStrip />
         </div>
       </div>
 
-      {/* Bottom-right: true-scale barcode */}
-      <div className="absolute bottom-8 right-6 md:right-10 z-10">
-        <BarcodeStrip />
+      {/* ── TOP-RIGHT: now featuring ── */}
+      <div
+        key={promoIdx}
+        className="absolute top-8 right-6 md:right-10 z-10 max-w-[280px] animate-in fade-in slide-in-from-right duration-700"
+      >
+        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
+        <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
+          <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
+          <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
+        </div>
       </div>
     </div>
   );
 }
 
 /* CrownedLogo — the Shark King levitates with a breathing gold aura,
-   a slow-orbiting light ring, and a periodic shine sweep. No mouse needed. */
+   a slow-orbiting light ring, and a periodic shine sweep. */
 function CrownedLogo() {
   return (
-    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
+    <div className="relative w-fit">
       <div className="relative animate-[float_4s_ease-in-out_infinite]">
         {/* Breathing aura */}
         <div
