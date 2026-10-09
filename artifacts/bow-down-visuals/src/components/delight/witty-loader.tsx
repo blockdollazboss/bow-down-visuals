@@ -95,10 +95,11 @@ export default function WittyLoader({ message }: { message?: string }) {
 
       {/* ── TOP-RIGHT: the title treatment ── */}
       <div className="absolute top-8 right-6 md:right-14 z-10 max-w-md text-right">
-        {/* The headline */}
+        {/* The headline — gold luxury */}
         <h1
-          key={line}
-          className="text-white text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-left duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          key={slideIdx}
+          className="text-transparent bg-clip-text bg-gradient-to-b from-[#f5e6b8] via-[#d4af37] to-[#8a6d1f] text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-right duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.02em" }}
         >
           {line}
         </h1>
@@ -184,8 +185,9 @@ function CrownedLogo() {
   );
 }
 
-/* BarcodeStrip — a real barcode label. White sticker, black bars,
-   percentage as the printed numbers below. Bars fill left to right. */
+/* BarcodeStrip — a real UPC-A barcode label in the Bow Down theme.
+   Black sticker, gold bars, 12 typewriter digits below that count
+   from 000000000000 to 999999999999 with progress. */
 function BarcodeStrip() {
   const [progress, setProgress] = useState(0);
 
@@ -199,25 +201,27 @@ function BarcodeStrip() {
     return () => window.clearInterval(id);
   }, []);
 
-  // UPC-style pattern: guard | data | middle guard | data | guard
+  // UPC-A: 12 digits, guard | 6 left | middle guard | 6 right | guard
   const MODULE = 2;
   const bars: number[] = [
     1, 1, 1,
-    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4,
+    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 1,
     1, 1, 1, 1, 1,
-    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1,
+    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1,
     1, 1, 1,
   ];
   const totalModules = bars.reduce((a, b) => a + b, 0);
   let filled = 0;
-  const pct = Math.min(100, Math.floor(progress));
+  // 12-digit counter scaled by progress
+  const counter = Math.floor((Math.min(100, progress) / 100) * 999999999999);
+  const digits = String(counter).padStart(12, "0");
 
   return (
     <div
-      className="bg-white rounded-md px-4 pt-3 pb-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+      className="bg-black border border-primary/40 rounded-md px-4 pt-3 pb-2 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_20px_rgba(212,175,55,0.15)]"
       style={{ transform: "rotate(-1.5deg)" }}
     >
-      {/* Quiet zone + bars */}
+      {/* Quiet zone + gold bars */}
       <div className="flex items-stretch" style={{ height: "48px" }}>
         {bars.map((w, i) => {
           const barStart = (filled / totalModules) * 100;
@@ -232,18 +236,19 @@ function BarcodeStrip() {
               style={{
                 width: `${w * MODULE}px`,
                 height: "100%",
-                backgroundColor: !isBar ? "transparent" : isLit ? "#111111" : "#e5e5e5",
+                backgroundColor: !isBar ? "transparent" : isLit ? "#d4af37" : "#2a2a2a",
+                boxShadow: isBar && isLit ? "0 0 4px rgba(212,175,55,0.5)" : "none",
               }}
             />
           );
         })}
       </div>
-      {/* Printed numbers — the percentage */}
+      {/* 12 typewriter digits */}
       <p
-        className="text-center text-black font-mono font-bold tracking-[0.3em] mt-1"
-        style={{ fontSize: "13px" }}
+        className="text-center text-primary font-mono font-bold mt-1"
+        style={{ fontSize: "13px", letterSpacing: "0.18em" }}
       >
-        {String(pct).padStart(3, "0")}%
+        {digits.slice(0, 6)} {digits.slice(6)}%
       </p>
     </div>
   );
