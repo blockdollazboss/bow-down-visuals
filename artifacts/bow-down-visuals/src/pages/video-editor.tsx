@@ -2056,7 +2056,7 @@ export default function VideoEditor() {
                     Sticky + solid background so it stays fixed in view while the
                     panels below scroll; it never drifts or pops out while editing. ── */}
                 <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center px-2 py-2">
-                  <div className="w-full max-w-6xl">
+                  <div className="w-full max-w-[1440px]">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
                       eng={previewEngineState}
