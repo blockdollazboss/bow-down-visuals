@@ -58,7 +58,7 @@ const thumbnailTemplates: LibraryTemplate[] = THUMBNAIL_TEMPLATES.map((t, i) => 
 }));
 
 /* ─── Carousels — 20 templates (deep-link into the carousel maker) ─── */
-const CAROUSEL_DEEP_LINK = "/carousel-studio";
+const CAROUSEL_DEEP_LINK = "/carousel-maker";
 
 interface CarouselSeed { slug: string; title: string; blurb: string; niche: string; emoji: string; gradient: string; }
 

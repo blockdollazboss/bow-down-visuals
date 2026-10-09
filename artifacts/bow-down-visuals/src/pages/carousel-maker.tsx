@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -42,6 +42,28 @@ export default function CarouselMaker() {
   usePageTitle(t("carouselMaker.pageTitle"), t("carouselMaker.pageDescription"));
 
   const [templateId, setTemplateId] = useState(CAROUSEL_TEMPLATES[0].id);
+
+  /* Deep link from Thy Library: ?template=<slug> pre-selects the template. */
+  useEffect(() => {
+    try {
+      const slug = new URLSearchParams(window.location.search).get("template");
+      if (!slug) return;
+      // Library slugs are prefixed (e.g. "carousel-bold-statement"); strip prefix and fuzzy-match
+      const needle = slug.replace(/^carousel-/, "").toLowerCase();
+      const match =
+        CAROUSEL_TEMPLATES.find((x) => x.id === slug) ??
+        CAROUSEL_TEMPLATES.find((x) => x.id.toLowerCase() === needle) ??
+        CAROUSEL_TEMPLATES.find((x) => x.id.toLowerCase().startsWith(needle.split("-")[0])) ??
+        CAROUSEL_TEMPLATES.find((x) => needle.startsWith(x.id.toLowerCase().split("-")[0]));
+      if (match) {
+        setTemplateId(match.id);
+        setStep("edit");
+      }
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [slides, setSlides] = useState<CarouselSlide[]>([newSlide(1), newSlide(2), newSlide(3)]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [format, setFormat] = useState<CarouselFormat>("square");
