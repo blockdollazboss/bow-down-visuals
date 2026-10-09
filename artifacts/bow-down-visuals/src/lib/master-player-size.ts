@@ -77,9 +77,9 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
     input.columnWidth > 0 ? input.columnWidth : Infinity
   );
 
-  /* Hard fit: video height must fit the band → width ≤ bandH * aspect.
-   * This is the constraint the old code broke with its MIN_WIDTH floor. */
-  const fitW = Math.min(maxW, bandH * aspect);
+  /* Fill 100% of the available width. The height follows the aspect ratio —
+   * the user wants the player to take the full space. */
+  const fitW = maxW;
 
   /* Grow landscape-ish formats so 16:9 never renders as a thin strip —
    * but never beyond what actually fits. */
