@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useSearch } from "wouter";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
+import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { TeamSeats } from "@/components/TeamSeats";
@@ -102,6 +103,8 @@ export default function Settings() {
         </div>
 
         <ConnectedAccounts />
+
+        <PasskeyManager />
 
         <RetentionPrefsSettings />
 

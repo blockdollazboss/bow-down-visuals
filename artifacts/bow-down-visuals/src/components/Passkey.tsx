@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Fingerprint, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Fingerprint, Loader2, Trash2 } from "lucide-react";
+import { getSupabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 function base64urlToBuffer(s: string): ArrayBuffer {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -9,22 +11,49 @@ function base64urlToBuffer(s: string): ArrayBuffer {
   return bytes.buffer as ArrayBuffer;
 }
 
-function bufferToBase64url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
+function bufferToBase64url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let bin = "";
   bytes.forEach((b) => (bin += String.fromCharCode(b)));
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-/* Passkey login button - uses WebAuthn for biometric login */
+/** Convert a PublicKeyCredential to the JSON format SimpleWebAuthn expects. */
+function credentialToJSON(credential: PublicKeyCredential): any {
+  const response = credential.response as AuthenticatorAttestationResponse | AuthenticatorAssertionResponse;
+  const json: any = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+    },
+  };
+  if ("attestationObject" in response) {
+    json.response.attestationObject = bufferToBase64url(response.attestationObject);
+    // transports is optional; include when available
+    const transports = (response as AuthenticatorAttestationResponse).getTransports?.();
+    if (transports) json.response.transports = transports;
+  }
+  if ("authenticatorData" in response) {
+    const r = response as AuthenticatorAssertionResponse;
+    json.response.authenticatorData = bufferToBase64url(r.authenticatorData);
+    json.response.signature = bufferToBase64url(r.signature);
+    if (r.userHandle) json.response.userHandle = bufferToBase64url(r.userHandle);
+  }
+  return json;
+}
+
+const supported =
+  typeof window !== "undefined" &&
+  "credentials" in navigator &&
+  "create" in navigator.credentials;
+
+/* Passkey login button — full WebAuthn assertion, then establishes a real
+   Supabase session via the magic-link action URL (same pattern as QR login). */
 export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const supported =
-    typeof window !== "undefined" &&
-    "credentials" in navigator &&
-    "create" in navigator.credentials;
 
   if (!supported) return null;
 
@@ -32,7 +61,6 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      // Get challenge from server
       const optRes = await fetch("/api/auth/webauthn/login-options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -41,7 +69,6 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
       const options = await optRes.json();
       if (!optRes.ok) throw new Error(options.error ?? "Failed to start");
 
-      // Ask the authenticator
       const credential = (await navigator.credentials.get({
         publicKey: {
           challenge: base64urlToBuffer(options.challenge),
@@ -57,23 +84,25 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
 
       if (!credential) throw new Error("No credential returned");
 
-      const response = credential.response as AuthenticatorAssertionResponse;
-
-      // Verify with server
       const verifyRes = await fetch("/api/auth/webauthn/login-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credentialId: credential.id,
-          authenticatorData: bufferToBase64url(response.authenticatorData),
-          clientDataJSON: bufferToBase64url(response.clientDataJSON),
-          signature: bufferToBase64url(response.signature),
-        }),
+        body: JSON.stringify({ credential: credentialToJSON(credential) }),
       });
       const result = await verifyRes.json();
-      if (!verifyRes.ok || !result.success) {
+      if (!verifyRes.ok || !result.success || !result.actionLink) {
         throw new Error(result.error ?? "Verification failed");
       }
+
+      // Establish a real Supabase session from the magic-link action URL.
+      const actionUrl = new URL(result.actionLink);
+      const tokenHash = actionUrl.searchParams.get("token");
+      if (!tokenHash) throw new Error("Invalid sign-in link");
+      const { error: otpError } = await getSupabase().auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "email",
+      });
+      if (otpError) throw new Error("Could not establish session");
 
       onSuccess();
     } catch (err) {
@@ -98,16 +127,12 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-/* Register a passkey for the logged-in user */
+/* Register a passkey for the logged-in user. Requires a Supabase JWT. */
 export function PasskeyRegisterButton({ userId, email }: { userId: string; email: string }) {
+  const { getAccessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const supported =
-    typeof window !== "undefined" &&
-    "credentials" in navigator &&
-    "create" in navigator.credentials;
 
   if (!supported) return null;
 
@@ -115,10 +140,16 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
     setLoading(true);
     setError(null);
     try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You must be signed in");
+
       const optRes = await fetch("/api/auth/webauthn/register-options", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, email }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email }),
       });
       const options = await optRes.json();
       if (!optRes.ok) throw new Error(options.error ?? "Failed to start");
@@ -144,17 +175,19 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
 
       if (!credential) throw new Error("No credential created");
 
-      const response = credential.response as AuthenticatorAttestationResponse;
-
       const verifyRes = await fetch("/api/auth/webauthn/register-verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          userId,
-          credentialId: credential.id,
-          attestationObject: bufferToBase64url(response.attestationObject),
-          clientDataJSON: bufferToBase64url(response.clientDataJSON),
-          deviceName: navigator.userAgent.includes("iPhone") ? "iPhone" : "Device",
+          credential: credentialToJSON(credential),
+          deviceName: navigator.userAgent.includes("iPhone")
+            ? "iPhone"
+            : navigator.userAgent.includes("Android")
+              ? "Android"
+              : "Device",
         }),
       });
       const result = await verifyRes.json();
@@ -171,7 +204,7 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
   };
 
   if (done) {
-    return <p className="text-green-500 text-sm text-center">Passkey registered!</p>;
+    return <p className="text-green-500 text-sm">Passkey registered!</p>;
   }
 
   return (
@@ -185,6 +218,133 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
         <span>{loading ? "Registering..." : "Add Passkey"}</span>
       </button>
       {error && <p className="text-destructive text-xs mt-2">{error}</p>}
+    </div>
+  );
+}
+
+export interface PasskeyInfo {
+  credential_id: string;
+  device_name: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+/* Full passkey manager for the Settings page: list, register, delete. */
+export function PasskeyManager() {
+  const { user, getAccessToken } = useAuth();
+  const [keys, setKeys] = useState<PasskeyInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const res = await fetch("/api/auth/webauthn/credentials", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!cancelled && res.ok) setKeys(data.credentials ?? []);
+      } catch {
+        if (!cancelled) setKeys([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshNonce]);
+
+  const remove = async (credentialId: string) => {
+    setDeleting(credentialId);
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await fetch("/api/auth/webauthn/credentials", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ credentialId }),
+      });
+      setRefreshNonce((n) => n + 1);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  if (!supported) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <div className="flex items-center gap-3 mb-1">
+        <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+          <Fingerprint className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold">Passkeys</h2>
+          <p className="text-white/50 text-sm">
+            Sign in with your fingerprint or face — no password needed.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {loading ? (
+          <p className="text-white/40 text-sm flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading passkeys...
+          </p>
+        ) : keys.length === 0 ? (
+          <p className="text-white/40 text-sm">No passkeys yet. Add one below.</p>
+        ) : (
+          keys.map((k) => (
+            <div
+              key={k.credential_id}
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-4 py-3"
+            >
+              <div>
+                <p className="text-sm font-medium">{k.device_name || "Passkey"}</p>
+                <p className="text-white/40 text-xs">
+                  Added {new Date(k.created_at).toLocaleDateString()}
+                  {k.last_used_at
+                    ? ` · Last used ${new Date(k.last_used_at).toLocaleDateString()}`
+                    : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => remove(k.credential_id)}
+                disabled={deleting === k.credential_id}
+                className="p-2 rounded-lg text-white/40 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                title="Remove passkey"
+              >
+                {deleting === k.credential_id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {user && (
+        <div className="mt-4">
+          <PasskeyRegisterButton
+            key={refreshNonce}
+            userId={user.id}
+            email={user.email ?? ""}
+          />
+        </div>
+      )}
     </div>
   );
 }
