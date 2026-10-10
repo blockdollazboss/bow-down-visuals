@@ -102,7 +102,11 @@ export function MysteryCrate() {
   }
 
   async function handleOpen() {
-    if (phase !== "closed" || cooldown > 0) return;
+    if (cooldown > 0) return;
+    // From "revealed", a tap on "Open Another Crate" means "try again":
+    // reset the crate visual first. The server still enforces the hourly
+    // cap, and the 429 path below surfaces it as an "already claimed" note.
+    if (phase !== "closed" && phase !== "revealed") return;
     setPhase("shaking");
     setResult(null);
     setClaimedMessage(null);

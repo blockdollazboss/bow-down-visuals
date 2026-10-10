@@ -173,7 +173,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
           <label className="block">
             <span className="text-xs text-white/50">{t("admin.jackpot.prizeLabel")}</span>
             <input
-              type="number" min={1} max={10000}
+              type="number" min={100} max={1000000}
               value={prize}
               onChange={(e) => setPrize(e.target.value)}
               disabled={saving}
@@ -748,7 +748,7 @@ export default function AdminPage() {
                 <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">
                   {t("admin.winHistory")}
                 </p>
-                <div className="overflow-hidden rounded-xl border border-white/[0.06]">
+                <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-white/[0.03] text-left text-xs text-white/40">

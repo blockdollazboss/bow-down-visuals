@@ -178,8 +178,8 @@ function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData;
             { v: pad(h), l: t("referrals.contest.hours") },
             { v: pad(m), l: t("referrals.contest.mins") },
             { v: pad(s), l: t("referrals.contest.secs") },
-          ].map((u) => (
-            <div key={u.l} className="rounded-lg bg-black/50 border border-primary/25 px-3 py-2 text-center min-w-[56px]">
+          ].map((u, i) => (
+            <div key={i} className="rounded-lg bg-black/50 border border-primary/25 px-3 py-2 text-center min-w-[56px]">
               <p className="text-xl font-black text-primary tabular-nums">{u.v}</p>
               <p className="text-[10px] text-white/40 uppercase">{u.l}</p>
             </div>
@@ -490,7 +490,7 @@ export default function Referrals() {
     } catch { /* clipboard unavailable */ }
   };
 
-  const shareText = t("referrals.shareText", { reward: info?.refereeReward ?? 10 });
+  const shareText = t("referrals.shareText", { reward: info?.refereeReward ?? 1000 });
   const shareLinks = [
     { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}` },
     { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}` },
@@ -517,7 +517,7 @@ export default function Referrals() {
           </h1>
           <p className="mt-3 text-white/55 max-w-md mx-auto">
             {t("referrals.hero.p1")}{" "}
-            <span className="text-primary font-semibold">{t("referrals.hero.reward", { num: info?.refereeReward ?? 10 })}</span>
+            <span className="text-primary font-semibold">{t("referrals.hero.reward", { num: info?.refereeReward ?? 1000 })}</span>
             {t("referrals.hero.p2")}{" "}
             <span className="text-primary font-semibold">{t("referrals.hero.cut")}</span>{" "}
             {t("referrals.hero.p3")}{" "}

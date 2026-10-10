@@ -539,7 +539,9 @@ export default function Dashboard() {
                     <Zap className="h-3.5 w-3.5 text-primary/70" />
                   </div>
                   <p className="flex-1 min-w-0 text-xs font-bold text-white/70 truncate">{u.action}</p>
-                  <span className="text-[11px] font-mono text-white/30 shrink-0">-{formatVB(u.creditsUsed)}</span>
+                  <span className={`text-[11px] font-mono shrink-0 ${u.creditsUsed < 0 ? "text-green-400" : "text-white/30"}`}>
+                    {u.creditsUsed < 0 ? `+${formatVB(Math.abs(u.creditsUsed))}` : `-${formatVB(u.creditsUsed)}`}
+                  </span>
                   <span className="text-[10px] text-white/20 shrink-0 hidden sm:block">{formatDate(u.createdAt)}</span>
                 </div>
               ))}
