@@ -16,8 +16,8 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
-import { db, artistVaultsTable } from "@workspace/db";
-import { eq, isNull, and, sql } from "drizzle-orm";
+import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable } from "@workspace/db";
+import { eq, isNull, and, sql, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -356,6 +356,276 @@ router.post("/admin/remove-duplicate-shark", requireAuth, requireAdmin, async (r
   } catch (err) {
     req.log.error({ err }, "admin: remove duplicate shark failed");
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : "Unknown" });
+  }
+});
+
+/**
+ * GET /api/admin/spotlight-inquiries
+ * Owner inbox for Spotlight Takeover leads — newest first.
+ */
+router.get("/admin/spotlight-inquiries", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const inquiries = await db
+      .select({
+        id: spotlightInquiriesTable.id,
+        name: spotlightInquiriesTable.name,
+        email: spotlightInquiriesTable.email,
+        videoUrl: spotlightInquiriesTable.videoUrl,
+        targetUrl: spotlightInquiriesTable.targetUrl,
+        status: spotlightInquiriesTable.status,
+        createdAt: spotlightInquiriesTable.createdAt,
+      })
+      .from(spotlightInquiriesTable)
+      .orderBy(desc(spotlightInquiriesTable.createdAt));
+    res.json({ inquiries });
+  } catch (err) {
+    req.log.error({ err }, "admin: list spotlight inquiries failed");
+    res.status(500).json({ error: "Could not load Spotlight inquiries." });
+  }
+});
+
+const SpotlightStatusSchema = z.object({
+  status: z.enum(["new", "contacted", "approved", "rejected"]),
+});
+
+const IdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
+ * PATCH /api/admin/spotlight-inquiries/:id
+ * Move a lead through the pipeline: new → contacted → approved / rejected.
+ */
+router.patch("/admin/spotlight-inquiries/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = SpotlightStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid status. Must be one of: new, contacted, approved, rejected." });
+    return;
+  }
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid inquiry id." });
+    return;
+  }
+  try {
+    const [inquiry] = await db
+      .update(spotlightInquiriesTable)
+      .set({ status: parsed.data.status })
+      .where(eq(spotlightInquiriesTable.id, parsedParams.data.id))
+      .returning({
+        id: spotlightInquiriesTable.id,
+        name: spotlightInquiriesTable.name,
+        email: spotlightInquiriesTable.email,
+        videoUrl: spotlightInquiriesTable.videoUrl,
+        targetUrl: spotlightInquiriesTable.targetUrl,
+        status: spotlightInquiriesTable.status,
+        createdAt: spotlightInquiriesTable.createdAt,
+      });
+    if (!inquiry) {
+      res.status(404).json({ error: "Inquiry not found." });
+      return;
+    }
+    req.log.info(
+      { admin: req.userEmail, inquiryId: inquiry.id, status: inquiry.status },
+      "admin: spotlight inquiry status updated",
+    );
+    res.json({ inquiry });
+  } catch (err) {
+    req.log.error({ err }, "admin: update spotlight inquiry failed");
+    res.status(500).json({ error: "Could not update the inquiry." });
+  }
+});
+
+/**
+ * GET /api/admin/contact-messages
+ * Owner inbox for contact-form messages — newest first.
+ */
+router.get("/admin/contact-messages", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const messages = await db
+      .select({
+        id: contactMessagesTable.id,
+        name: contactMessagesTable.name,
+        email: contactMessagesTable.email,
+        message: contactMessagesTable.message,
+        read: contactMessagesTable.read,
+        createdAt: contactMessagesTable.createdAt,
+      })
+      .from(contactMessagesTable)
+      .orderBy(desc(contactMessagesTable.createdAt));
+    res.json({ messages });
+  } catch (err) {
+    req.log.error({ err }, "admin: list contact messages failed");
+    res.status(500).json({ error: "Could not load contact messages." });
+  }
+});
+
+const ContactReadSchema = z.object({
+  read: z.boolean(),
+});
+
+/**
+ * PATCH /api/admin/contact-messages/:id
+ * Mark a contact message read/unread.
+ */
+router.patch("/admin/contact-messages/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = ContactReadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request. Body must be { read: boolean }." });
+    return;
+  }
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid message id." });
+    return;
+  }
+  try {
+    const [message] = await db
+      .update(contactMessagesTable)
+      .set({ read: parsed.data.read })
+      .where(eq(contactMessagesTable.id, parsedParams.data.id))
+      .returning({
+        id: contactMessagesTable.id,
+        name: contactMessagesTable.name,
+        email: contactMessagesTable.email,
+        message: contactMessagesTable.message,
+        read: contactMessagesTable.read,
+        createdAt: contactMessagesTable.createdAt,
+      });
+    if (!message) {
+      res.status(404).json({ error: "Message not found." });
+      return;
+    }
+    res.json({ message });
+  } catch (err) {
+    req.log.error({ err }, "admin: update contact message failed");
+    res.status(500).json({ error: "Could not update the message." });
+  }
+});
+
+/**
+ * GET /api/admin/users/lookup?email=
+ * Look up a user by email — auth record + profile row. Returns { user: null }
+ * when nobody matches.
+ */
+router.get("/admin/users/lookup", requireAuth, requireAdmin, async (req, res) => {
+  const email = String(req.query["email"] ?? "").trim();
+  if (!email) {
+    res.status(400).json({ error: "Missing ?email= query parameter." });
+    return;
+  }
+  try {
+    const supabase = getSupabaseAdmin();
+    // Resolve via profiles (case-insensitive), like the credit-grant route.
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("id, email, display_name, credits, plan, created_at")
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+    if (profileErr) throw profileErr;
+    if (!profile) {
+      res.json({ user: null });
+      return;
+    }
+    // Auth record for ban state + authoritative email/created_at.
+    const { data: authData, error: authErr } = await supabase.auth.admin.getUserById(profile.id);
+    if (authErr) throw authErr;
+    const authUser = authData.user;
+    const bannedUntil = authUser?.banned_until ? new Date(authUser.banned_until).getTime() : NaN;
+    const banned = Number.isFinite(bannedUntil) && bannedUntil > Date.now();
+    res.json({
+      user: {
+        id: profile.id,
+        email: authUser?.email ?? profile.email,
+        displayName: (profile.display_name as string | null) ?? null,
+        credits: (profile.credits as number | null) ?? 0,
+        plan: (profile.plan as string | null) ?? "free",
+        banned,
+        createdAt: authUser?.created_at ?? profile.created_at ?? null,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin: user lookup failed");
+    res.status(500).json({ error: "Could not look up the user." });
+  }
+});
+
+const UserIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/** Refuse to ban/unban the requesting admin or any admin account. */
+async function banTargetForbidden(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  targetUserId: string,
+  requesterUserId: string,
+): Promise<string | null> {
+  if (targetUserId === requesterUserId) return "You cannot change your own ban state.";
+  const { data: authData, error } = await supabase.auth.admin.getUserById(targetUserId);
+  if (error || !authData.user) return "User not found.";
+  const targetEmail = (authData.user.email ?? "").toLowerCase();
+  if (targetEmail && adminEmails().includes(targetEmail)) {
+    return "Admin accounts cannot be banned or unbanned here.";
+  }
+  return null;
+}
+
+/**
+ * POST /api/admin/users/:id/ban — ban for ~100 years (effectively permanent).
+ */
+router.post("/admin/users/:id/ban", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = UserIdParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid user id." });
+    return;
+  }
+  try {
+    const supabase = getSupabaseAdmin();
+    const forbidden = await banTargetForbidden(supabase, parsed.data.id, req.userId!);
+    if (forbidden) {
+      const status = forbidden === "User not found." ? 404 : 403;
+      res.status(status).json({ error: forbidden });
+      return;
+    }
+    const { error } = await supabase.auth.admin.updateUserById(parsed.data.id, {
+      ban_duration: "876000h",
+    });
+    if (error) throw error;
+    req.log.info({ admin: req.userEmail, targetUserId: parsed.data.id }, "admin: user banned");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "admin: ban user failed");
+    res.status(500).json({ error: "Could not ban the user." });
+  }
+});
+
+/**
+ * POST /api/admin/users/:id/unban — lift a ban.
+ */
+router.post("/admin/users/:id/unban", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = UserIdParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid user id." });
+    return;
+  }
+  try {
+    const supabase = getSupabaseAdmin();
+    const forbidden = await banTargetForbidden(supabase, parsed.data.id, req.userId!);
+    if (forbidden) {
+      const status = forbidden === "User not found." ? 404 : 403;
+      res.status(status).json({ error: forbidden });
+      return;
+    }
+    const { error } = await supabase.auth.admin.updateUserById(parsed.data.id, {
+      ban_duration: "none",
+    });
+    if (error) throw error;
+    req.log.info({ admin: req.userEmail, targetUserId: parsed.data.id }, "admin: user unbanned");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "admin: unban user failed");
+    res.status(500).json({ error: "Could not unban the user." });
   }
 });
 
