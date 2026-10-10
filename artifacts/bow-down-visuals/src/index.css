@@ -272,7 +272,9 @@ html, body {
 }
 /* Auth pages keep their video — no palace behind it */
 .light .no-throne-bg[class*="min-h-screen"] {
-  background-image: none;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,168,76,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 20%, rgba(201,168,76,0.06) 0%, transparent 50%);
   background-color: #FAF7F0;
 }
 
