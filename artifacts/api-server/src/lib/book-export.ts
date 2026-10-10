@@ -3,7 +3,7 @@
    print-ready interior PDF. */
 
 import PDFDocument from "pdfkit";
-import * as archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { PassThrough } from "stream";
 
 export interface BookExportData {
@@ -159,7 +159,7 @@ export async function generateEpub(data: BookExportData): Promise<Buffer> {
   const chapterIds = ["title", ...sorted.map((_, i) => `chapter-${i + 1}`)];
 
   return new Promise((resolve, reject) => {
-    const archive = new archiver.ZipArchive({ zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     const chunks: Buffer[] = [];
     const out = new PassThrough();
     out.on("data", (c: Buffer) => chunks.push(c));
