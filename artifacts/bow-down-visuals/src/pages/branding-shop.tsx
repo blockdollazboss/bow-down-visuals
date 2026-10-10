@@ -30,7 +30,7 @@ import {
    v1 HONESTY CONTRACT: order statuses are only "received" /
    "pending_fulfillment". No shipped/delivered/tracking fiction — the UI says
    "dropship partner integration coming soon". Browsing + ordering is FREE;
-   only the AI brand-kit design costs credits (2 per set). */
+   only the AI brand-kit design costs credits (200 Visual Bucs per set). */
 
 type TabKey = "shop" | "studio" | "orders" | "merch";
 
@@ -1126,7 +1126,7 @@ export default function BrandingShop() {
 /* ════════════════════════════════════════════════════════════════════════
    MERCH TAB — the full /merch page (AI Merch Designer), absorbed as a tab.
    AI-designed merch for creators (dropship model): describe a design or
-   pick a style → 3-credit batch (registry: /api/merch/design) generates 2
+   pick a style → 300-Visual-Buc batch (registry: /api/merch/design) generates 2
    real product mockups → save to store, set your price, see your profit
    margin. Checkout is honestly "coming soon" — manufacturers ship directly
    when it goes live. The → /my-shop handoff is preserved. */

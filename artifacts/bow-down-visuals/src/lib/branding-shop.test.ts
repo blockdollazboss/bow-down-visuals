@@ -36,8 +36,8 @@ describe("branding shop catalog", () => {
     );
   });
 
-  it("charges 2 credits per AI design set, max 3 mockup products", () => {
-    expect(BRANDING_DESIGN_COST).toBe(2);
+  it("charges 200 Visual Bucs per AI design set, max 3 mockup products", () => {
+    expect(BRANDING_DESIGN_COST).toBe(200);
     expect(MAX_DESIGN_PRODUCTS).toBe(3);
   });
 });

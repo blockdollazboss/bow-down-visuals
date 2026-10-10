@@ -36,7 +36,7 @@ export const BRANDING_STYLES: Array<{ key: BrandStyle; label: string; blurb: str
   { key: "bold", label: "Bold", blurb: "Loud, maximal, unmissable" },
 ];
 
-export const BRANDING_DESIGN_COST = 2;
+export const BRANDING_DESIGN_COST = 200;
 export const MAX_DESIGN_PRODUCTS = 3;
 
 export function formatMoney(cents: number): string {
