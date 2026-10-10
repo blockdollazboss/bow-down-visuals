@@ -5,6 +5,10 @@ import { eq, asc, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { deductCredits } from "../lib/credits.js";
+import { generateEpub, generatePdf, bookFilename, type BookExportData } from "../lib/book-export";
+import { r2Upload, r2PublicUrl } from "../lib/r2-client";
+
+const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5-sunburst";
 
 const router = Router();
 
@@ -383,6 +387,135 @@ router.post("/api/books/ai/assist", requireAuth, async (req, res) => {
     res.json({ ok: true, action, result });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "AI assist failed" });
+  }
+});
+
+/* ── Export helpers ── */
+
+async function getBookExportData(bookId: string, userId: string): Promise<BookExportData | null> {
+  const book = await getOwnedBook(bookId, userId);
+  if (!book) return null;
+  const chapters = await db
+    .select()
+    .from(bookChaptersTable)
+    .where(and(eq(bookChaptersTable.book_id, bookId), eq(bookChaptersTable.user_id, userId)))
+    .orderBy(asc(bookChaptersTable.position));
+  return {
+    title: book.title,
+    subtitle: book.subtitle,
+    author_name: book.author_name,
+    genre: book.genre,
+    description: book.description,
+    cover_url: book.cover_url,
+    chapters: chapters.map((c) => ({ title: c.title, content: c.content, position: c.position })),
+  };
+}
+
+/* ── EPUB export ── */
+
+router.get("/api/books/:id/export/epub", requireAuth, async (req, res) => {
+  try {
+    const bookId = param(req, "id");
+    const data = await getBookExportData(bookId, req.userId!);
+    if (!data) {
+      res.status(404).json({ error: "Book not found" });
+      return;
+    }
+    if (data.chapters.length === 0) {
+      res.status(400).json({ error: "Add at least one chapter before exporting." });
+      return;
+    }
+    const epub = await generateEpub(data);
+    res.setHeader("Content-Type", "application/epub+zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${bookFilename(data.title, "epub")}"`);
+    res.setHeader("Content-Length", String(epub.length));
+    res.send(epub);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "EPUB export failed" });
+  }
+});
+
+/* ── PDF export (print-ready interior) ── */
+
+router.get("/api/books/:id/export/pdf", requireAuth, async (req, res) => {
+  try {
+    const bookId = param(req, "id");
+    const data = await getBookExportData(bookId, req.userId!);
+    if (!data) {
+      res.status(404).json({ error: "Book not found" });
+      return;
+    }
+    if (data.chapters.length === 0) {
+      res.status(400).json({ error: "Add at least one chapter before exporting." });
+      return;
+    }
+    const pdf = await generatePdf(data);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${bookFilename(data.title, "pdf")}"`);
+    res.setHeader("Content-Length", String(pdf.length));
+    res.send(pdf);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "PDF export failed" });
+  }
+});
+
+/* ── Cover generation ── */
+
+const CoverGenerateSchema = z.object({
+  style: z.string().trim().max(200).optional().default(""),
+});
+
+router.post("/api/books/:id/cover/generate", requireAuth, async (req, res) => {
+  const parsed = CoverGenerateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  try {
+    const bookId = param(req, "id");
+    const book = await getOwnedBook(bookId, req.userId!);
+    if (!book) {
+      res.status(404).json({ error: "Book not found" });
+      return;
+    }
+    /* Charge 2 credits (200 Visual Bucs) for cover generation. */
+    try {
+      await deductCredits(req.userId!, 200);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Insufficient credits";
+      res.status(402).json({ error: message });
+      return;
+    }
+
+    const styleHint = parsed.data.style ? ` in ${parsed.data.style} style` : "";
+    const prompt = `Professional book cover art for "${book.title}"${book.subtitle ? `: ${book.subtitle}` : ""} by ${book.author_name || "Unknown Author"}. Genre: ${book.genre || "general fiction"}. ${book.description ? `About the book: ${book.description.slice(0, 500)}. ` : ""}Striking, marketable cover design${styleHint}. No text on the cover — pure artwork, the title will be added separately. Vertical 2:3 book cover composition.`;
+
+    const imageResp = await getOpenAI().images.generate({
+      model: IMAGE_MODEL,
+      prompt: prompt.slice(0, 4000),
+      size: "1024x1536",
+      quality: "high",
+      n: 1,
+    });
+    const b64 = imageResp.data?.[0]?.b64_json;
+    if (!b64) {
+      res.status(500).json({ error: "Cover generation returned no image." });
+      return;
+    }
+
+    /* Upload to R2 under the book's namespace. */
+    const key = `book-covers/${req.userId}/${bookId}/${Date.now()}.png`;
+    const coverUrl = await r2Upload(key, Buffer.from(b64, "base64"), "image/png");
+    const publicUrl = r2PublicUrl(key);
+
+    await db
+      .update(booksTable)
+      .set({ cover_url: publicUrl || coverUrl, updated_at: new Date() })
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.user_id, req.userId!)));
+
+    res.json({ ok: true, cover_url: publicUrl || coverUrl });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Cover generation failed" });
   }
 });
 

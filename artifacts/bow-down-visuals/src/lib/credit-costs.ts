@@ -55,6 +55,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/export": { cost: 400, feature: "Export Clip" },
   "/api/carousel/export": { cost: 100, feature: "Carousel Export" },
   "/api/books/ai/assist": { cost: 100, feature: "Thy Books AI Writing Assist" },
+  "/api/books/cover/generate": { cost: 200, feature: "Thy Books AI Cover Generation" },
   "/api/export-doctor/export-audio": { cost: 200, feature: "Export Audio" },
   "/api/export-doctor/export-all": { cost: 400, feature: "Export All Clips" },
   "/api/export-doctor/export-all-audio": { cost: 200, feature: "Export All Audio" },

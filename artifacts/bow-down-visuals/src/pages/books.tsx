@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   BookOpen, Plus, Trash2, ChevronLeft, Sparkles, Loader2,
   FileText, PenLine, X, Check, Lightbulb, RefreshCw, Expand, ListOrdered, Type, Megaphone,
+  Download, Image as ImageIcon,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -276,6 +277,8 @@ function BookEditor({
   const [saving, setSaving] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
   const [addingChapter, setAddingChapter] = useState(false);
+  const [exporting, setExporting] = useState<"epub" | "pdf" | null>(null);
+  const [generatingCover, setGeneratingCover] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeChapter = chapters.find((c) => c.id === activeChapterId) ?? null;
@@ -362,6 +365,53 @@ function BookEditor({
     toast({ title: "Chapter deleted" });
   };
 
+  /* Export the book as EPUB or PDF — downloads directly. */
+  const exportBook = async (format: "epub" | "pdf") => {
+    setExporting(format);
+    try {
+      const res = await fetch(`/api/books/${book.id}/export/${format}`, { credentials: "include" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${book.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: `${format.toUpperCase()} exported` });
+    } catch (err) {
+      toast({ title: "Export failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /* Generate an AI cover for the book. */
+  const generateCover = async () => {
+    setGeneratingCover(true);
+    try {
+      const res = await confirmedFetch(`/api/books/${book.id}/cover/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res) return; // user cancelled the confirmation
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Cover generation failed");
+      onBookUpdate({ ...book, coverUrl: data.cover_url });
+      toast({ title: "Cover generated" });
+    } catch (err) {
+      toast({ title: "Cover failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setGeneratingCover(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
@@ -373,9 +423,39 @@ function BookEditor({
             <p className="text-white/40 text-xs">{chapters.length} chapters · {totalWords.toLocaleString()} words {saving && "· saving…"}</p>
           </div>
         </div>
-        <Button onClick={() => saveChapter()} disabled={saving} variant="outline" className="border-[#C9A84C]/40 text-[#C9A84C]">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />} Save
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={generateCover}
+            disabled={generatingCover}
+            variant="outline"
+            className="border-[#C9A84C]/40 text-[#C9A84C]"
+            title="Generate AI cover (200 Visual Bucs)"
+          >
+            {generatingCover ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
+            Cover
+          </Button>
+          <Button
+            onClick={() => exportBook("epub")}
+            disabled={exporting !== null}
+            variant="outline"
+            className="border-white/20 text-white/70"
+          >
+            {exporting === "epub" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+            EPUB
+          </Button>
+          <Button
+            onClick={() => exportBook("pdf")}
+            disabled={exporting !== null}
+            variant="outline"
+            className="border-white/20 text-white/70"
+          >
+            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+            PDF
+          </Button>
+          <Button onClick={() => saveChapter()} disabled={saving} variant="outline" className="border-[#C9A84C]/40 text-[#C9A84C]">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />} Save
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0">
