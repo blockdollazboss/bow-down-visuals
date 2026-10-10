@@ -15,6 +15,11 @@ import { getWaitlistInvitePublic } from "./routes/waitlist";
 
 const app: Express = express();
 
+// Render runs behind a reverse proxy that sets X-Forwarded-For.
+// Trust the first proxy hop so req.ip reflects the real client IP,
+// which express-rate-limit uses for per-IP rate-limit buckets.
+app.set("trust proxy", 1);
+
 /* Security headers (manual implementation — no helmet dependency).
    CSP is permissive for the Vite SPA bundle while blocking common injection vectors. */
 app.use((_req, res, next) => {

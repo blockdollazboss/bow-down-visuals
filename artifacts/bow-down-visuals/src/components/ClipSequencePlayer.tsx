@@ -243,6 +243,7 @@ export function ClipSequencePlayer({
       {/* Video player */}
       <div
         className="relative aspect-video bg-black cursor-pointer group"
+        data-dark-lock
         onClick={togglePlay}
         onMouseMove={revealControls}
         data-testid="preview-player"

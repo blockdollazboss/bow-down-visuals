@@ -226,6 +226,16 @@ html, body {
    experience, etc.) keep their dark styling via the restore rules below.
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Arbitrary dark hex values → light surfaces ── */
+.light .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 92%);
+}
+.light .bg-\[\#1a1a1a\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 85%);
+}
+
 /* ── Page backgrounds: remove dark throne, use light gray ── */
 .light body,
 .light html {

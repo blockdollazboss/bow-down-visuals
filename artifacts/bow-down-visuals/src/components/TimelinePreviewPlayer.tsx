@@ -633,6 +633,7 @@ function TimelinePreviewPlayer({
            audio engine + controls, not a second preview area here.          */}
       {!externalVideoRef && <div
         className={`relative bg-black ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}
+        data-dark-lock
       >
         {hasClip ? (
           <video

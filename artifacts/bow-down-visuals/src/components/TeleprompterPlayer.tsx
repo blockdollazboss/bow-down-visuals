@@ -163,6 +163,7 @@ export function TeleprompterPlayer({ script, onClose }: TeleprompterPlayerProps)
     <div
       ref={overlayRef}
       className="fixed inset-0 z-[100] bg-black text-white flex flex-col"
+      data-dark-lock
       role="dialog"
       aria-modal="true"
       aria-label={t("scriptWriter.teleprompterTitle")}
