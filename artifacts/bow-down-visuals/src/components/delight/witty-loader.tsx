@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /* ─── Shared loader timing — every loading screen matches ──
-   The loader dismisses when the barcode first fills up (~3.5s),
-   not on a fixed timer. Change the slide speed here, applies everywhere. */
-export const LOADER_SLIDE_MS = 2500;
+   The barcode is the single source of truth: it drives the progress,
+   the headline/promo slides, and the dismissal. */
 
 /* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
    Rotating mascot-voiced status lines in Thy Cheat Code's voice: royal,
@@ -45,18 +44,32 @@ export function useWittyLine(intervalMs = 2200): string {
   return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
 }
 
-export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS, onComplete }: { message?: string; slideMs?: number; onComplete?: () => void }) {
+export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
   const { t } = useTranslation();
 
-  // Single synced rotation — headline and promo switch together
-  const [slideIdx, setSlideIdx] = useState(0);
+  // Barcode is the single source of truth — progress drives everything.
+  // Slide changes at the halfway mark, so each headline/promo gets ~half the fill.
+  const [progress, setProgress] = useState(0);
+  const completedRef = useRef(false);
   useEffect(() => {
-    const id = window.setInterval(() => setSlideIdx((i) => i + 1), slideMs);
+    const id = window.setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) return 0;
+        const next = p + Math.random() * 8 + 2;
+        if (next >= 100 && !completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
+        return next;
+      });
+    }, 200);
     return () => window.clearInterval(id);
-  }, [slideMs]);
+  }, [onComplete]);
 
   const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
   const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
+  // Slide flips at the halfway mark of the barcode fill
+  const slideIdx = progress >= 50 ? 1 : 0;
   const line = message ?? safe[slideIdx % safe.length] ?? FALLBACK_LINES[0]!;
   const promo = FEATURE_PROMOS[slideIdx % FEATURE_PROMOS.length]!;
 
@@ -120,7 +133,7 @@ export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS, onComp
 
       {/* ── BOTTOM-RIGHT: ticket-stub barcode ── */}
       <div className="absolute bottom-8 right-6 md:right-10 z-10">
-        <BarcodeStrip onComplete={onComplete} />
+        <BarcodeStrip progress={progress} />
       </div>
 
     </div>
@@ -193,24 +206,7 @@ function CrownedLogo() {
 /* BarcodeStrip — a real UPC-A barcode label in the Bow Down theme.
    Black sticker, gold bars, 12 typewriter digits below that count
    from 000000000000 to 999999999999 with progress. */
-function BarcodeStrip({ onComplete }: { onComplete?: () => void }) {
-  const [progress, setProgress] = useState(0);
-  const completedRef = useRef(false);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) return 0;
-        const next = p + Math.random() * 8 + 2;
-        if (next >= 100 && !completedRef.current) {
-          completedRef.current = true;
-          onComplete?.();
-        }
-        return next;
-      });
-    }, 200);
-    return () => window.clearInterval(id);
-  }, [onComplete]);
+function BarcodeStrip({ progress }: { progress: number }) {
 
   // UPC-A: 12 digits, guard | 6 left | middle guard | 6 right | guard
   const MODULE = 2;
