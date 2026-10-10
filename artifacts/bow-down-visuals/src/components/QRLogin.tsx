@@ -90,6 +90,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         title="Sign in with QR Code"
         aria-label="Sign in with QR Code"
@@ -138,6 +139,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
               <div className="py-12">
                 <p className="font-semibold mb-2">Code expired</p>
                 <button
+                  type="button"
                   onClick={() => setGenNonce((n) => n + 1)}
                   className="px-4 py-2 rounded-lg bg-primary text-black font-semibold"
                 >
@@ -150,6 +152,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
               <div className="py-12">
                 <p className="text-destructive">Failed to generate code. Try again.</p>
                 <button
+                  type="button"
                   onClick={() => setGenNonce((n) => n + 1)}
                   className="mt-4 px-4 py-2 rounded-lg bg-primary text-black font-semibold"
                 >

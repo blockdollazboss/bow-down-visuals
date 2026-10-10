@@ -120,6 +120,7 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="shrink-0">
       <button
+        type="button"
         onClick={login}
         disabled={loading}
         title="Sign in with Passkey"
@@ -217,6 +218,7 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
   return (
     <div>
       <button
+        type="button"
         onClick={register}
         disabled={loading}
         className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
@@ -332,6 +334,7 @@ export function PasskeyManager() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => remove(k.credential_id)}
                 disabled={deleting === k.credential_id}
                 className="p-2 rounded-lg text-white/40 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
