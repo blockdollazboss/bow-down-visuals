@@ -9,6 +9,11 @@ import {
   type PrintfulOrderItem,
   type PrintfulRecipient,
 } from "./printful";
+import {
+  printkkConfigured,
+  fulfillRugOrder,
+  PRINTKK_RUG_PRODUCTS,
+} from "./printkk";
 
 interface OrderRow {
   id: string;
@@ -71,6 +76,75 @@ export async function fulfillBrandingOrder(orderId: string): Promise<{
     zip: order.zip,
     countryCode: "US",
   };
+
+  /* Route rug items to PrintKK (POD rugs), everything else to Printful.
+     For MVP: if order is rug-only, use PrintKK exclusively. */
+  const rugItems = order.items.filter((i) => i.product === "rug");
+  const otherItems = order.items.filter((i) => i.product !== "rug");
+
+  if (rugItems.length > 0 && otherItems.length === 0 && printkkConfigured()) {
+    // Rug-only order → PrintKK
+    // For MVP, fulfill the first rug item (multi-rug orders: fulfill each)
+    let lastOrderId = "";
+    let lastDesignCode = "";
+    for (const rug of rugItems) {
+      if (!rug.designUrl) {
+        throw new Error(`Rug item missing designUrl (logo) for order ${orderId}`);
+      }
+      // Download logo from R2/URL
+      const logoRes = await fetch(rug.designUrl);
+      if (!logoRes.ok) throw new Error(`Failed to download rug logo: ${rug.designUrl}`);
+      const logoBuffer = Buffer.from(await logoRes.arrayBuffer());
+      const fileName = `rug-logo-${orderId}.png`;
+
+      // Map size to PrintKK product (default to rectangle)
+      const rugProduct = PRINTKK_RUG_PRODUCTS.rectangle;
+
+      const [firstName, ...lastNameParts] = order.name.split(" ");
+      const result = await fulfillRugOrder(
+        logoBuffer,
+        fileName,
+        rugProduct.code,
+        rugProduct.printAreaCode,
+        rug.qty,
+        {
+          firstName: firstName || "Customer",
+          lastName: lastNameParts.join(" ") || "Customer",
+          phone: "",
+          email: order.email,
+          address1: order.address,
+          city: order.city,
+          state: order.state,
+          zip: order.zip,
+          country: "US",
+        }
+      );
+      lastOrderId = result.orderId;
+      lastDesignCode = result.designCode;
+    }
+
+    await db.execute(sql`
+      UPDATE branding_orders
+      SET provider = 'printkk',
+          provider_order_id = ${lastOrderId},
+          status = 'waitingForFulfillment',
+          tracking_number = NULL,
+          tracking_url = NULL
+      WHERE id = ${orderId}
+    `);
+
+    logger.info(
+      { orderId, provider: "printkk", providerOrderId: lastOrderId, designCode: lastDesignCode },
+      "[branding] rug order submitted to PrintKK"
+    );
+
+    return {
+      provider: "printkk",
+      providerOrderId: lastOrderId,
+      status: "waitingForFulfillment",
+    };
+  }
+
   const items: PrintfulOrderItem[] = order.items.map((i) => ({
     product: i.product,
     size: i.size,
