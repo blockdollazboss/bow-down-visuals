@@ -183,15 +183,8 @@ export default function Waitlist() {
             {t("waitlist.heroSub")}
           </p>
 
-          {/* social proof counter */}
-          <div className="flex items-center justify-center gap-2 mt-8">
-            <div className="flex -space-x-2">
-              {["LN", "YB", "SK", "MK", "DV"].map((initials) => (
-                <div key={initials} className="h-7 w-7 rounded-full bg-primary border-2 border-black flex items-center justify-center text-[9px] font-black text-white">
-                  {initials}
-                </div>
-              ))}
-            </div>
+          {/* social proof */}
+          <div className="flex items-center justify-center mt-8">
             <span className="text-sm text-white/40">{t("waitlist.socialProof")}</span>
           </div>
         </section>
