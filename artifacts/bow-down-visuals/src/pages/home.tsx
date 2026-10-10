@@ -1664,25 +1664,30 @@ export default function Home() {
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>
-    {/* Curtain overlay — the stage curtains cut out. Lives OUTSIDE the page
-          root's isolated z-[1] stacking context on purpose: the footer sits
-          at z-[2] (above the page, so the opaque stage backdrop can't swallow
-          it), and the drapes must hang OVER the foot of the page — so the
-          overlay sits at z-[3], above the footer. Same cover/center-top
-          geometry as the backdrop so the curtains align pixel-perfect.
-          Transparent center: the footer shows through between the drapes,
-          and the hero copy (centered) never sits under an opaque fold.
-          pointer-events-none: never blocks clicks. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[3]"
-        style={{
-          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
+    {/* Curtain overlay — dark theme gets the theatrical stage curtains.
+          Light theme gets golden sunbeams instead (creative direction:
+          light = sunrise, dark = stage). */}
+      {isLight ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-[3]"
+          style={{
+            background:
+              "radial-gradient(ellipse 60% 40% at 15% 0%, rgba(255, 215, 130, 0.25) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 85% 0%, rgba(255, 215, 130, 0.25) 0%, transparent 70%), linear-gradient(to bottom, rgba(255, 240, 200, 0.15) 0%, transparent 30%)",
+          }}
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-[3]"
+          style={{
+            backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      )}
     </>
   );
 }
