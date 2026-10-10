@@ -695,6 +695,89 @@ html, body {
     0 24px 60px -24px rgb(138 107 31 / 0.15);
 }
 
+/* ── 18. Comprehensive dark-to-light sweep: every remaining dark utility ──
+   Systematic audit found these dark patterns not yet covered. Each gets
+   an Ivory Palace light version. Nothing dark survives in light mode. */
+
+/* Additional dark hex backgrounds → marble white */
+.light .bg-\[\#111\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0a02\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#14100a\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#080808\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#141414\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0c0c0c\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#14110b\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0b06\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0c0a06\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0c0c0e\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0b0b0c\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0a0a0c\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#070707\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#161616\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#1a1408\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#1a1405\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#141004\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: #FFFFFF;
+}
+/* Dark hex with opacity → frosted ivory */
+.light .bg-\[\#0a0a0a\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#0d0b08\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#0c0a06\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#161616\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#0d0d0d\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
+
+/* Missing text-white opacity variants → readable warm grays */
+.light .text-white\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.88); }
+.light .text-white\/75:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.82); }
+.light .text-white\/65:not([data-dark-lock]):not([data-dark-lock] *) { color: #575046; }
+.light .text-white\/55:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .text-white\/45:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .text-white\/35:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A7266; }
+
+/* Missing bg-black opacity variant */
+.light .bg-black\/92:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.94); }
+
+/* Missing to-black gradient opacity variants → fade to ivory */
+.light .to-black\/80:not([data-dark-lock]):not([data-dark-lock] *),
+.light .to-black\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .to-black\/40:not([data-dark-lock]):not([data-dark-lock] *),
+.light .to-black\/20:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-to: rgb(250 247 240 / 0.9) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+/* Missing from-black gradient opacity variants → ivory scrims */
+.light .from-black\/90:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-black\/80:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-black\/70:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-black\/60:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-from: rgb(250 247 240 / 0.85) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(250 247 240 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+/* Missing via-black gradient opacity variants */
+.light .via-black\/70:not([data-dark-lock]):not([data-dark-lock] *),
+.light .via-black\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .via-black\/10:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-via: rgb(250 247 240 / 0.5) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
+}
+/* Dark hex gradients → ivory/champagne scrims */
+.light .from-\[\#14100a\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-\[\#1a1408\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-\[\#141004\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-\[\#171208\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-\[\#171204\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .from-\[\#2a2118\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-from: rgb(250 247 240 / 0.95) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(250 247 240 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+.light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-to: rgb(250 247 240 / 0.95) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
    (WittyLoader, video players, teleprompter — excluded above via :not) */
 .light [data-dark-lock].bg-background,
