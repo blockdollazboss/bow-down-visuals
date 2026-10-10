@@ -313,7 +313,7 @@ function PlaylistTracks() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+      <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">
         Playlist
         {loaded && tracks.length > 0 && (
           <span className="text-yellow-400/60"> · {tracks.length}</span>
@@ -478,7 +478,7 @@ function ThemePlayerRow() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-1.5">
+      <p className="text-[10px] font-black text-white/60 uppercase tracking-widest flex items-center gap-1.5">
         <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : unavailable ? "bg-red-400/60" : "bg-yellow-400/60"}`} />
         Theme Song
         {unavailable && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— not found</span>}
