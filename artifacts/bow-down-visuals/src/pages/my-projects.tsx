@@ -881,9 +881,11 @@ export default function MyProjects() {
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
-                <FolderOpen className="h-8 w-8 text-primary/60" />
-              </div>
+              <img
+                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
+                alt="Thy Cheat Code"
+                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
+              />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noProjects")}</h2>
                 <p className="text-white/45 max-w-xs">{t("myProjects.noProjectsHint")}</p>
@@ -915,9 +917,11 @@ export default function MyProjects() {
             </div>
           ) : drafts.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
-                <FileEdit className="h-8 w-8 text-primary/60" />
-              </div>
+              <img
+                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
+                alt="Thy Cheat Code"
+                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
+              />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noDrafts")}</h2>
                 <p className="text-white/45 max-w-xs">
@@ -954,9 +958,11 @@ export default function MyProjects() {
             </div>
           ) : clips.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
-                <Video className="h-8 w-8 text-primary/60" />
-              </div>
+              <img
+                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
+                alt="Thy Cheat Code"
+                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
+              />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noClips")}</h2>
                 <p className="text-white/45 max-w-xs">

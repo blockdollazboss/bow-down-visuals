@@ -50,9 +50,11 @@ export default function Contact() {
 
           {/* Header */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
-              <Mail className="h-6 w-6 text-primary" />
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
+              alt="Thy Cheat Code"
+              className="h-28 w-28 rounded-3xl object-cover mx-auto mb-5 border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
+            />
             <h1 className="text-3xl font-bold text-white mb-2">{t("contact.get_in_touch")}</h1>
             <p className="text-white/40 text-sm leading-relaxed">{t("contact.questions_feedback_or_partnershi")}</p>
             <a

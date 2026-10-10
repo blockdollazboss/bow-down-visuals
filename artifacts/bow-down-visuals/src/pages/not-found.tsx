@@ -20,9 +20,9 @@ export default function NotFound() {
       <div className="relative z-10 text-center max-w-md mx-auto">
         <img
           ref={logoTilt}
-          src={`${import.meta.env.BASE_URL}logo-static.webp`}
-          alt="Bow Down Visuals"
-          className="h-24 w-auto mx-auto mb-8"
+          src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
+          alt="Thy Cheat Code - Lost?"
+          className="h-48 w-48 rounded-3xl object-cover mx-auto mb-8 border-2 border-primary/30 shadow-[0_0_60px_rgba(201,168,76,0.3)]"
         />
         <p className="text-primary text-sm font-bold tracking-[0.3em] uppercase mb-4">404</p>
         <h1 className="text-4xl font-black text-white mb-3">{t("notFound.heading")}</h1>
