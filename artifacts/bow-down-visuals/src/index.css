@@ -1517,6 +1517,10 @@ html {
   pointer-events: none;
   background: radial-gradient(ellipse 90% 75% at 50% 45%, transparent 55%, hsl(0 0% 0% / 0.5) 100%);
 }
+/* Light mode: dark vignette becomes a soft warm champagne edge glow */
+.light .lux-vignette {
+  background: radial-gradient(ellipse 90% 75% at 50% 45%, transparent 60%, rgb(138 107 31 / 0.14) 100%) !important;
+}
 
 /* ─── Scroll reveal — slow, soft, confident ─── */
 .lux-reveal {
@@ -1716,6 +1720,20 @@ html {
   /* hard pixel offsets: black base, then a gold echo */
   filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.95))
     drop-shadow(6px 6px 0 rgba(201, 168, 76, 0.22));
+}
+/* Light mode: deep bronze-gold gradient so the headline reads on ivory */
+.light .pixel-gold-text {
+  background: linear-gradient(
+    180deg,
+    #8A6B1F 0%,
+    #7A5F1D 30%,
+    #6B4E12 60%,
+    #5C4310 100%
+  ) !important;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(2px 2px 0 rgba(255, 255, 255, 0.7))
+    drop-shadow(4px 4px 0 rgba(138, 107, 31, 0.18)) !important;
 }
 
 /* Plain white pixel text variant (for dark-on-gold or secondary lines) */
