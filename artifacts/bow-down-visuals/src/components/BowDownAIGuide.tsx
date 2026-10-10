@@ -792,7 +792,7 @@ export function BowDownAIGuide() {
         {/* ── Expanded panel ── */}
         {open && (
           <div
-            className="flex flex-col rounded-2xl border shadow-2xl overflow-hidden"
+            className="flex flex-col rounded-2xl border shadow-2xl overflow-hidden bdv-playlist-widget"
             style={{
               background:     "rgba(6,6,6,0.96)",
               backdropFilter: "blur(20px)",
