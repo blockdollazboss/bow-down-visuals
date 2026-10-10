@@ -1470,7 +1470,7 @@ function PromoStrip() {
             </p>
             <a
               href="/referrals"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-5 py-2.5 text-black font-bold text-sm hover:brightness-110 transition w-fit"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary/15 border border-primary/40 px-5 py-2.5 text-primary font-bold hover:bg-primary/25 transition text-sm w-fit"
             >
               <Gift className="h-4 w-4" /> {t("home.referCta")}
             </a>
