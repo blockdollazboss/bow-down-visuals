@@ -21,7 +21,7 @@
     "@types/pg": "^8.23.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
-    "archiver": "^7.0.1",
+    "archiver": "8.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
