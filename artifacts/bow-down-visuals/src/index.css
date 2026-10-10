@@ -813,16 +813,17 @@ html, body {
   color: #1C1712;
 }
 
-/* Sunlit stage: the palace image carries its own natural warmth — no extra
-   gold filter on top. A whisper of light lift keeps it airy, never yellow. */
+/* Sunlit stage: DARK smoke for light mode — creates contrast so text stands out.
+   White wash was killing readability. This is a warm dark veil that lets
+   the palace show through while making text pop. */
 .light .homepage-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 35% at 50% 28%, rgba(255,255,255,0.10) 0%, transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 35%, rgba(255,255,255,0.04) 100%);
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(28,23,18,0.28) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(28,23,18,0.18) 0%, transparent 30%, rgba(28,23,18,0.12) 100%);
 }
 
 /* Curtain overlay in light mode: lift the shadows so the gold drapes
@@ -855,17 +856,16 @@ html, body {
   color: #6E6046 !important;
 }
 
-/* ── Gold headline accent: RICH gold, readable on ivory ──
-   Pale champagne was invisible. This is a deeper, richer gold with
-   enough contrast to read on light backgrounds while staying luxurious. */
+/* ── Gold headline accent: DARK BRONZE, maximum readability on ivory ──
+   Pale gold was invisible on light. This is dark bronze — readable AND royal. */
 .light .no-throne-bg .gold-text-shine {
-  background: linear-gradient(100deg, #7A5A12 0%, #A67C1A 30%, #C9A84C 50%, #A67C1A 70%, #7A5A12 100%);
+  background: linear-gradient(100deg, #4A3508 0%, #6B4E12 30%, #8A6B1F 50%, #6B4E12 70%, #4A3508 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 1px 1px rgba(255,255,255,0.8));
+  filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9));
 }
 /* Positioning whisper + slogans: deep bronze gold */
 .light .no-throne-bg .text-primary\/90,
