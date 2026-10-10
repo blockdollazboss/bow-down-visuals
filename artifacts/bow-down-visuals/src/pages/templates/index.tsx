@@ -28,7 +28,7 @@ const GALLERIES = [
     title: "Thumbnail Templates",
     blurb:
       "High-CTR YouTube thumbnail styles for fitness, gaming, podcasts, finance and more.",
-    count: "12 templates",
+    count: "30 templates",
     live: true,
   },
   {
@@ -38,7 +38,7 @@ const GALLERIES = [
     title: "Hook Templates",
     blurb:
       "Scroll-stopping video hooks for Shorts, TikTok, and Reels — plug into Hook Studio.",
-    count: "12 templates",
+    count: "30 templates",
     live: true,
   },
   {
@@ -48,7 +48,7 @@ const GALLERIES = [
     title: "Caption Packs",
     blurb:
       "Done-for-you caption packs for launches, promos, and everyday posts.",
-    count: "12 packs",
+    count: "30 packs",
     live: true,
   },
 ];

@@ -176,8 +176,8 @@ export default function Waitlist() {
             {t("waitlist.kicker")}
           </MarketingBadge>
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight mb-6 leading-[0.92]">
-            Join the Bow Down<br />
-            <span className="text-primary">Visuals Waitlist</span>
+            {t("waitlist.heroTitleA")}<br />
+            <span className="text-primary">{t("waitlist.heroTitleB")}</span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
             {t("waitlist.heroSub")}

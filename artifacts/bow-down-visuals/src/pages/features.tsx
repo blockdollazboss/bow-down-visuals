@@ -56,7 +56,7 @@ export default function Features() {
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Crown className="h-3.5 w-3.5" />{t("features.the_arsenal")}</div>
           <h1 className="mt-6 text-4xl md:text-6xl font-extrabold tracking-tight">
-            The Content Creator{" "}
+            {t("features.the_creator")}{" "}
             <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">{t("features.cheat_code")}</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-white/60 text-base md:text-lg">{t("features.every_ai_tool_a_creator_needs_ma")}</p>
@@ -112,7 +112,7 @@ export default function Features() {
       <section className="mx-auto max-w-7xl px-5 md:px-8 pb-20">
         {results.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-16 text-center">
-            <p className="text-lg font-semibold text-white/80">Nothing matches “{query}”</p>
+            <p className="text-lg font-semibold text-white/80">{t("features.noMatches", { query })}</p>
             <p className="mt-2 text-sm text-white/40">
               Try a different search — or{" "}
               <button onClick={() => { setQuery(""); setFilter("all"); }} className="text-primary underline underline-offset-4">{t("features.reset_the_filters")}</button>
