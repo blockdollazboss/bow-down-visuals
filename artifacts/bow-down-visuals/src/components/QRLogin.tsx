@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { QrCode, X, Loader2, CheckCircle } from "lucide-react";
 import { QRCodeImage } from "./QRCode";
 import { getSupabase } from "@/lib/supabase";
@@ -9,6 +10,7 @@ import { getSupabase } from "@/lib/supabase";
    exchanges the one-time exchange code for a Supabase magic link and
    establishes its own real Supabase session via verifyOtp. */
 export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
         <div className="fixed inset-0 z-[10000] flex items-start justify-center bg-black/80 p-4 pt-[12vh] overflow-y-auto" onClick={() => setOpen(false)}>
           <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center my-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">Scan to Sign In</h3>
+              <h3 className="font-bold text-lg">{t("qrLogin.title")}</h3>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-accent/10 rounded">
                 <X className="h-5 w-5" />
               </button>
@@ -112,7 +114,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
             {status === "loading" && (
               <div className="py-12 flex flex-col items-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                <p className="text-sm text-muted-foreground">{t("qrLogin.generating")}</p>
               </div>
             )}
 
@@ -122,41 +124,41 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
                   <QRCodeImage data={qrUrl} size={220} />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Scan with your phone's camera. You must be logged in on your phone to approve.
+                  {t("qrLogin.scanInstructions")}
                 </p>
-                <p className="text-xs text-muted-foreground/60 mt-2">Code expires in 5 minutes</p>
+                <p className="text-xs text-muted-foreground/60 mt-2">{t("qrLogin.expiresIn")}</p>
               </>
             )}
 
             {status === "approved" && (
               <div className="py-12 flex flex-col items-center gap-3">
                 <CheckCircle className="h-12 w-12 text-green-500" />
-                <p className="font-semibold">Approved! Signing you in...</p>
+                <p className="font-semibold">{t("qrLogin.approved")}</p>
               </div>
             )}
 
             {status === "expired" && (
               <div className="py-12">
-                <p className="font-semibold mb-2">Code expired</p>
+                <p className="font-semibold mb-2">{t("qrLogin.expired")}</p>
                 <button
                   type="button"
                   onClick={() => setGenNonce((n) => n + 1)}
                   className="px-4 py-2 rounded-lg bg-primary text-black font-semibold"
                 >
-                  Generate New Code
+                  {t("qrLogin.generateNew")}
                 </button>
               </div>
             )}
 
             {status === "error" && (
               <div className="py-12">
-                <p className="text-destructive">Failed to generate code. Try again.</p>
+                <p className="text-destructive">{t("qrLogin.failed")}</p>
                 <button
                   type="button"
                   onClick={() => setGenNonce((n) => n + 1)}
                   className="mt-4 px-4 py-2 rounded-lg bg-primary text-black font-semibold"
                 >
-                  Retry
+                  {t("qrLogin.retry")}
                 </button>
               </div>
             )}

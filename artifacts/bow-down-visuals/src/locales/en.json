@@ -566,7 +566,8 @@
     "academyTitleB": "comes with a manual.",
     "academySub": "A free catalog of masterclasses in video, music, and branding — the same playbook the tools run on, taught straight. AI lessons from 100 Visual Bucs each.",
     "academyCta": "Explore the Academy",
-    "newBadge": "NEW"
+    "newBadge": "NEW",
+    "zeroSkillsBadge": "Zero creator skills required"
   },
   "language": {
     "current": "Language",
@@ -9249,6 +9250,17 @@
       "promoCopy": "Promo Copy",
       "linkInBio": "Link in Bio"
     }
+  },
+  "qrLogin": {
+    "title": "Scan to Sign In",
+    "generating": "Generating QR code...",
+    "scanInstructions": "Scan with your phone's camera. You must be logged in on your phone to approve.",
+    "expiresIn": "Code expires in 5 minutes",
+    "approved": "Approved! Signing you in...",
+    "expired": "Code expired",
+    "generateNew": "Generate New Code",
+    "failed": "Failed to generate code. Try again.",
+    "retry": "Retry"
   },
   "scheduler": {
     "titlePrefix": "Thy",
