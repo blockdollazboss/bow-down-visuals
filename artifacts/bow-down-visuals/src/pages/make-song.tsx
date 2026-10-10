@@ -438,7 +438,7 @@ export function MakeSongModule() {
             }`}
           >
             <Mic className="h-4 w-4" />
-            Hum it
+            {t("mashup.tabHum")}
           </button>
         </div>
 
@@ -527,7 +527,7 @@ export function MakeSongModule() {
                 <textarea
                   value={simplePrompt}
                   onChange={(e) => setSimplePrompt(e.target.value)}
-                  placeholder="A upbeat pop song about summer love, catchy chorus..."
+                  placeholder="An upbeat pop song about summer love, catchy chorus..."
                   rows={4}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 resize-none"
                 />

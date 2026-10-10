@@ -89,6 +89,9 @@ export default function CoverArt() {
       const res = await confirmedFetch("/api/cover-art", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        /* Confirm the selected tier's charge (registry is the standard tier's flat 200). */
+        overrideCost: tierInfo.credits,
+        overrideFeature: t("cover-art.confirmFeature", { defaultValue: "Cover Art" }),
         body: JSON.stringify({
           songTitle: songTitle.trim(),
           artistName: artistName.trim(),

@@ -68,7 +68,8 @@ const TONES: Array<{ id: Tone; labelKey: string; blurbKey: string }> = [
   { id: "controversial", labelKey: "scriptWriter.toneControversial", blurbKey: "scriptWriter.toneControversialBlurb" },
 ];
 
-const CREDIT_COST = 2;
+/* x100 Visual Bucs — matches the /api/script-writer charge + registry. */
+const CREDIT_COST = 200;
 const PICK =
   "rounded-xl border px-4 py-3 text-left transition-all cursor-pointer";
 const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(251,191,36,0.15)]";
@@ -145,7 +146,7 @@ export default function ScriptWriter() {
       const res = await confirmedFetch("/api/script-writer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideCost: CREDIT_COST, // matches backend + registry (200 VB)
         overrideFeature: "Script Writer",
         body: JSON.stringify({
           platform,

@@ -17,8 +17,8 @@ export interface LyricVideoLine {
   matched: boolean;
 }
 
-export const ALIGN_CREDITS = 2;
-export const RENDER_CREDITS = 5;
+export const ALIGN_CREDITS = 200;
+export const RENDER_CREDITS = 500;
 
 export type LyricVideoStyleKey =
   | "gold-luxury"

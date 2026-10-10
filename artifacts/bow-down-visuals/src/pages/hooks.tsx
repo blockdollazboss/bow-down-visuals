@@ -71,7 +71,8 @@ const VIDEO_TYPES: VideoType[] = [
  { key: "announcement", icon: Clapperboard },
 ];
 
-const CREDIT_COST = 1;
+/* x100 Visual Bucs — matches the /api/hook-studio charge + registry. */
+const CREDIT_COST = 100;
 
 interface HooksResponse {
  hooks?: string[];
@@ -158,7 +159,7 @@ const TITLE_TONES: TitleToneOpt[] = [
  { key: "funny", labelKey: "titles.toneFunny", icon: Laugh, blurbKey: "titles.toneFunnyBlurb" },
 ];
 
-const TITLE_CREDIT_COST = 1;
+const TITLE_CREDIT_COST = 100;
 
 interface TitleStudioResponse {
  titles?: RankedTitle[];
@@ -719,7 +720,7 @@ const CATEGORIES: Category[] = [
  },
 ];
 
-const AI_CREDIT_COST = 1;
+const AI_CREDIT_COST = 100;
 
 interface RandomizerResponse {
  ideas?: string[];

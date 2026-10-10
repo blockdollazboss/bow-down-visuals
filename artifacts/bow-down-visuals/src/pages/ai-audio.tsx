@@ -1269,7 +1269,7 @@ const CATEGORIES: SfxCategory[] = [
   { key: "foley", labelKey: "sfx.categoryFoley", icon: Footprints, blurbKey: "sfx.categoryFoleyBlurb" },
 ];
 
-const SFX_CREDIT_COST = 1;
+const SFX_CREDIT_COST = 100;
 const MIN_DURATION = 1;
 const MAX_DURATION = 10;
 

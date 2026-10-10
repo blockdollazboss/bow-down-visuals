@@ -17,7 +17,8 @@ import { useHubProject } from "@/lib/hub-project";
    automatically if the job fails. Server-owned background job: safe to
    close the tab while it runs. */
 
-const CREDIT_COST = 3;
+/* x100 Visual Bucs — matches the /api/caption-styler charge + registry. */
+const CREDIT_COST = 300;
 
 type StyleKey = "hormozi" | "minimal" | "karaoke" | "neon" | "luxury-gold";
 type PositionKey = "top" | "middle" | "bottom";
@@ -176,7 +177,7 @@ export default function CaptionStyler() {
       const res = await confirmedFetch("/api/caption-styler", {
         method: "POST",
         body: form,
-        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideCost: CREDIT_COST, // matches backend + registry (300 VB)
         overrideFeature: "Caption Styler",
       });
       if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation

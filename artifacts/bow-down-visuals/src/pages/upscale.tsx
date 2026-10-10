@@ -40,7 +40,7 @@ const TABS: Array<{ key: TabKey; labelKey: string; shortKey: string; icon: typeo
 
 /* ─── Tab 1: Video Upscaler (existing tool, unchanged behavior) ────────── */
 
-const VIDEO_CREDIT_COST = 3;
+const VIDEO_CREDIT_COST = 300;
 
 type TargetKey = "1080p" | "4k";
 
@@ -317,7 +317,7 @@ function VideoUpscaleTool() {
 
 /* ─── Tab 2: Image Upscaler (new) ─────────────────────────────────────── */
 
-const IMAGE_CREDIT_COST = 3;
+const IMAGE_CREDIT_COST = 300;
 const IMAGE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 type ImageScaleKey = "2x" | "4x";
@@ -642,7 +642,7 @@ function ImageUpscaleTool() {
    job fails. Server-owned background job: safe to close the tab while it
    runs. Finished outputs hand off to the video editor (→ /video-editor). */
 
-const ENHANCE_CREDIT_COST = 2;
+const ENHANCE_CREDIT_COST = 200;
 
 type EnhancePresetKey = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
 
@@ -705,7 +705,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: ENHANCE_CREDIT_COST * 100 }));
+          setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: ENHANCE_CREDIT_COST }));
         } else {
           setStatus(data.status as EnhanceJobStatus);
         }

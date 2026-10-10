@@ -9,9 +9,9 @@ import {
 
 describe("sample pack pricing helpers", () => {
   it("matches the server credit contract", () => {
-    expect(creditsForSize(10)).toBe(5);
-    expect(creditsForSize(25)).toBe(12);
-    expect(creditsForSize(50)).toBe(20);
+    expect(creditsForSize(10)).toBe(500);
+    expect(creditsForSize(25)).toBe(1200);
+    expect(creditsForSize(50)).toBe(2000);
   });
 
   it("throws on unknown sizes", () => {
@@ -23,8 +23,8 @@ describe("sample pack pricing helpers", () => {
   });
 
   it("computes per-sample cost for display", () => {
-    expect(perSampleCredits(10)).toBe("0.5");
-    expect(perSampleCredits(50)).toBe("0.4");
+    expect(perSampleCredits(10)).toBe("50");
+    expect(perSampleCredits(50)).toBe("40");
   });
 });
 

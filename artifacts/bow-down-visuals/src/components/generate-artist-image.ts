@@ -20,9 +20,9 @@ export interface ArtistProfileFormLike {
 }
 
 export const ARTIST_IMAGE_MODELS: { id: ArtistImageModel; label: string; credits: number; hint: string }[] = [
-  { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5", credits: 2, hint: "Best quality · hyper-realistic" },
-  { id: "gen4_image", label: "Gen4 Image", credits: 3, hint: "Alternative" },
-  { id: "gen4_image_turbo", label: "Turbo", credits: 2, hint: "Fast · needs photo" },
+  { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5", credits: 100, hint: "Best quality · hyper-realistic" },
+  { id: "gen4_image", label: "Gen4 Image", credits: 200, hint: "Alternative" },
+  { id: "gen4_image_turbo", label: "Turbo", credits: 100, hint: "Fast · needs photo" },
 ];
 
 export const ARTIST_IMAGE_RATIOS: { id: ArtistImageRatio; label: string }[] = [

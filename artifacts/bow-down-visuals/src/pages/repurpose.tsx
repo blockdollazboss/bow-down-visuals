@@ -140,8 +140,8 @@ interface StreamVibe {
 }
 
 const CLIP_LENGTHS = [15, 30, 60];
-const ANALYZE_COST = 3;
-const CUT_COST_PER_CLIP = 2;
+const ANALYZE_COST = 300;
+const CUT_COST_PER_CLIP = 200;
 
 interface StreamHighlight {
   id: string;
@@ -1051,7 +1051,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
               {analyzing ? t("repurpose.building") : t("repurpose.repurposeButton", { credits: PACK_CREDITS })}
             </button>
             <p className="text-xs text-white/40">
-              {t("repurpose.costNote", { pack: PACK_CREDITS * 100, reroll: REROLL_CREDITS })}
+              {t("repurpose.costNote", { pack: PACK_CREDITS, reroll: REROLL_CREDITS })}
             </p>
           </div>
         </section>

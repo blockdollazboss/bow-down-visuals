@@ -28,8 +28,8 @@ const STYLES: Array<{ key: LogoStyleKey; labelKey: string; blurbKey: string; swa
 ];
 
 const MODELS: Array<{ key: LogoModel; labelKey: string; cost: number; blurbKey: string }> = [
-  { key: "premium", labelKey: "logoMaker.modelPremium", cost: 2, blurbKey: "logoMaker.modelPremiumBlurb" },
-  { key: "standard", labelKey: "logoMaker.modelStandard", cost: 1, blurbKey: "logoMaker.modelStandardBlurb" },
+  { key: "premium", labelKey: "logoMaker.modelPremium", cost: 200, blurbKey: "logoMaker.modelPremiumBlurb" },
+  { key: "standard", labelKey: "logoMaker.modelStandard", cost: 100, blurbKey: "logoMaker.modelStandardBlurb" },
 ];
 
 type JobStatus = "idle" | "working" | "processing" | "done" | "failed";
@@ -122,6 +122,8 @@ export function LogoMakerTool() {
       const res = await confirmedFetch("/api/generate-logo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        overrideCost: cost,
+        overrideFeature: "Logo Generator",
         body: JSON.stringify({ brandName: brandName.trim(), style, tagline: tagline.trim() || undefined, model }),
       });
       if (!res) {
@@ -171,7 +173,7 @@ export function LogoMakerTool() {
   }
 
   const busy = status === "working" || status === "processing";
-  const cost = MODELS.find((m) => m.key === model)?.cost ?? 2;
+  const cost = MODELS.find((m) => m.key === model)?.cost ?? 200;
   const canGenerate = brandName.trim().length > 0 && !!user && !busy;
 
   return (

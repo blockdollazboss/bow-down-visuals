@@ -25,8 +25,10 @@ const TYPES: Array<{ key: StingType; labelKey: string; blurbKey: string }> = [
 ];
 
 const DURATION_SEC = 5;
-const CREDITS_PER_SEC = 1.5;
-const CREDIT_COST = Math.ceil(DURATION_SEC * CREDITS_PER_SEC); // 8
+/* x100 Visual Bucs/sec — mirrors the Seedance site rate on the backend
+   (backend charges 5s × 150 = 750 VB per intro/outro). */
+const CREDITS_PER_SEC = 150;
+const CREDIT_COST = Math.ceil(DURATION_SEC * CREDITS_PER_SEC); // 750
 
 type JobStatus = "idle" | "working" | "processing" | "done" | "failed";
 

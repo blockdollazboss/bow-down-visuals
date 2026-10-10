@@ -2,8 +2,8 @@
    Pure functions used by the /repurpose page. Kept in lib/ so they are
    unit-testable without rendering the page. */
 
-export const PACK_CREDITS = 5;
-export const REROLL_CREDITS = 1;
+export const PACK_CREDITS = 500;
+export const REROLL_CREDITS = 100;
 
 /** Format seconds as mm:ss for timestamp display. */
 export function formatRepurposeTimestamp(sec: number): string {
