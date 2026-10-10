@@ -31,6 +31,30 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/* ─── Zombie-session guard ────────────────────────────────────────────────
+   A Supabase session can die server-side (revoked sign-out elsewhere, pruned
+   session) while localStorage still holds a token that looks valid. Without
+   this guard the app kept showing the user as signed in while every
+   authenticated API call failed ("Failed to load projects", etc.).
+   getAccessToken validates with the server at most once a minute; a dead
+   token triggers one refresh attempt, then a clean sign-out. */
+
+let lastServerCheck = 0;
+const SERVER_CHECK_TTL_MS = 60_000;
+
+/** True when the JWT is expired or unparseable (30s clock-skew grace). */
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+    );
+    const exp = typeof payload.exp === "number" ? payload.exp : 0;
+    return exp * 1000 <= Date.now() + 30_000;
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -149,7 +173,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const client = getSupabase();
       const { data: { session } } = await client.auth.getSession();
-      return session?.access_token ?? null;
+      if (!session?.access_token) return null;
+
+      /* Fast path: recently validated, unexpired token — no network call. */
+      if (!isJwtExpired(session.access_token) && Date.now() - lastServerCheck < SERVER_CHECK_TTL_MS) {
+        return session.access_token;
+      }
+
+      /* Slow path (at most once a minute): validate with the server. This
+       * catches sessions that look fine locally but are dead server-side
+       * (revoked sign-out, pruned session) — the "zombie session" that used
+       * to leave users staring at "Failed to load" errors while appearing
+       * signed in. */
+      const { data: { user }, error } = await client.auth.getUser();
+      if (!error && user) {
+        lastServerCheck = Date.now();
+        const { data: { session: fresh } } = await client.auth.getSession();
+        return fresh?.access_token ?? session.access_token;
+      }
+
+      /* Server rejected the token — try one refresh (covers expired tokens). */
+      const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
+      if (!refreshError && refreshed.session?.access_token) {
+        lastServerCheck = Date.now();
+        return refreshed.session.access_token;
+      }
+
+      /* Dead session: clear it so the UI signs out cleanly instead of
+       * showing a broken signed-in state. */
+      await signOut();
+      return null;
     } catch {
       return null;
     }
