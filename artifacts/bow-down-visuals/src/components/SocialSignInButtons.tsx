@@ -37,7 +37,12 @@ export function AppleMark({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-export type SocialProvider = "google" | "apple" | "instagram" | "facebook" | "tiktok";
+/* Supabase OAuth only supports these providers. Instagram and TikTok are NOT
+   valid Supabase OAuth providers — wiring a button to signInWithOAuth with
+   them errors out ("Unsupported provider"), so they are intentionally
+   absent here. If Instagram/TikTok login is ever wanted, it needs a
+   custom server-side OAuth implementation first. */
+export type SocialProvider = "google" | "apple" | "facebook";
 
 const PROVIDER_META: Record<
   SocialProvider,
@@ -45,36 +50,14 @@ const PROVIDER_META: Record<
 > = {
   google: { label: "Google", mark: GoogleGMark },
   apple: { label: "Apple", mark: AppleMark },
-  instagram: {
-    label: "Instagram",
-    mark: ({ className = "h-5 w-5" }) => (
-      <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85 0 3.2-.01 3.58-.07 4.85-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07-3.2 0-3.58-.01-4.85-.07-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85 0-3.2.01-3.58.07-4.85.15-3.23 1.66-4.77 4.92-4.92 1.27-.06 1.65-.07 4.85-.07M12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0Zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84ZM12 16a4 4 0 1 1 4-4 4 4 0 0 1-4 4Zm6.41-11.85a1.44 1.44 0 1 0 1.43 1.44 1.44 1.44 0 0 0-1.43-1.44Z"
-        />
-      </svg>
-    ),
-  },
   facebook: { label: "Facebook", mark: FacebookMark },
-  tiktok: {
-    label: "TikTok",
-    mark: ({ className = "h-5 w-5" }) => (
-      <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1Z"
-        />
-      </svg>
-    ),
-  },
 };
 
 interface SocialSignInButtonsProps {
   onSignIn: (provider: SocialProvider) => void;
   loadingProvider: SocialProvider | null;
   mode: "signin" | "signup";
-  /** Providers to show. Discord login is wired by the discord-bot build; include it and it will work once enabled. */
+  /** Providers to show. Only providers enabled in the Supabase dashboard work. */
   providers?: SocialProvider[];
 }
 
@@ -87,7 +70,7 @@ export function SocialSignInButtons({
   onSignIn,
   loadingProvider,
   mode,
-  providers = ["google", "apple", "instagram", "facebook", "tiktok"],
+  providers = ["google", "apple", "facebook"],
 }: SocialSignInButtonsProps) {
   return (
     <div className="flex items-center justify-center gap-3">

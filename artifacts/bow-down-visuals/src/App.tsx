@@ -98,6 +98,7 @@ const Contact       = lazyWithRetry(() => import("@/pages/contact"));
 const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
 const QRLoginApprove = lazyWithRetry(() => import("@/pages/qr-login"));
+const ResetPassword  = lazyWithRetry(() => import("@/pages/reset-password"));
 const LoadingDemo = lazyWithRetry(() => import("@/pages/loading-demo"));
 const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
@@ -285,6 +286,23 @@ function RouteFallback() {
  * equivalent). The video editor keeps its full-viewport studio surface and
  * stays outside this layout.
  */
+/* Query-preserving redirect — wouter's <Redirect> drops the incoming query
+   string, which breaks deep-links like /thumbnail-maker?template=<slug>
+   (used by the public /templates/thumbnails gallery). Merges the target's
+   own params with any incoming ones (incoming wins). */
+function QueryPreservingRedirect({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    const [base, existing] = to.split("?");
+    const merged = new URLSearchParams(existing ?? "");
+    const incoming = new URLSearchParams(window.location.search);
+    incoming.forEach((value, key) => merged.set(key, value));
+    const qs = merged.toString();
+    navigate(qs ? `${base}?${qs}` : base, { replace: true });
+  }, [to, navigate]);
+  return null;
+}
+
 function AuthedLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   const userTouchedSidebar = useRef(false);
@@ -398,6 +416,7 @@ function AppShell() {
           <Route path="/login"><Login /></Route>
           <Route path="/signup"><Signup /></Route>
           <Route path="/qr-login"><QRLoginApprove /></Route>
+          <Route path="/reset-password"><ResetPassword /></Route>
           <Route path="/loading-demo"><LoadingDemo /></Route>
 
           {/* Marketing (home lives inside the sidebar layout below) */}
@@ -553,15 +572,15 @@ function AppShell() {
                 <Route path="/song-and-video"><CreateRedirect to="/create?panel=song-video" /></Route>
                 <Route path="/create"><ProtectedRoute><Create /></ProtectedRoute></Route>
                 <Route path="/promo-clip"><Redirect to="/video-editor?tab=promo-clips" /></Route>
-                <Route path="/thumbnail"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
-                <Route path="/thumbnails"><Redirect to="/thumbnail-studio?tab=library" /></Route>
+                <Route path="/thumbnail"><QueryPreservingRedirect to="/thumbnail-studio?tab=generate" /></Route>
+                <Route path="/thumbnails"><QueryPreservingRedirect to="/thumbnail-studio?tab=library" /></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
                 <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
                 <Route path="/my-clips"><Redirect to="/my-projects?tab=myclips" /></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><Redirect to="/my-projects?tab=songs" /></Route>
                 <Route path="/locations"><Redirect to="/video-editor?tab=locations" /></Route>
-                <Route path="/thumbnail-maker"><Redirect to="/thumbnail-studio?tab=generate" /></Route>
+                <Route path="/thumbnail-maker"><QueryPreservingRedirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>
                 <Route path="/carousel-maker"><ProtectedRoute><CarouselMaker /></ProtectedRoute></Route>
                 <Route path="/books"><ProtectedRoute><Books /></ProtectedRoute></Route>

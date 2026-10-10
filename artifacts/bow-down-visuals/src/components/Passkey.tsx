@@ -5,7 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 function base64urlToBuffer(s: string): ArrayBuffer {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
-  const bin = atob(b64);
+  // atob tolerates missing padding in most browsers, but restore it to be safe.
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  const bin = atob(padded);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes.buffer as ArrayBuffer;
@@ -55,8 +57,6 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!supported) return null;
-
   const login = async () => {
     setLoading(true);
     setError(null);
@@ -100,7 +100,9 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
       if (!tokenHash) throw new Error("Invalid sign-in link");
       const { error: otpError } = await getSupabase().auth.verifyOtp({
         token_hash: tokenHash,
-        type: "email",
+        /* The server mints a MAGIC LINK via admin.generateLink({ type: "magiclink" }).
+         * The verify type must match, or GoTrue rejects the token. */
+        type: "magiclink",
       });
       if (otpError) throw new Error("Could not establish session");
 
@@ -111,6 +113,9 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
       setLoading(false);
     }
   };
+
+  /* Hooks must all run before any conditional return (Rules of Hooks). */
+  if (!supported) return null;
 
   return (
     <div className="shrink-0">
@@ -134,8 +139,6 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!supported) return null;
 
   const register = async () => {
     setLoading(true);
@@ -208,6 +211,9 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
     return <p className="text-green-500 text-sm">Passkey registered!</p>;
   }
 
+  /* Hooks must all run before any conditional return (Rules of Hooks). */
+  if (!supported) return null;
+
   return (
     <div>
       <button
@@ -241,6 +247,10 @@ export function PasskeyManager() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (!supported) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const token = await getAccessToken();
@@ -282,6 +292,7 @@ export function PasskeyManager() {
     }
   };
 
+  /* Hooks must all run before any conditional return (Rules of Hooks). */
   if (!supported) return null;
 
   return (

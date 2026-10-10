@@ -82,7 +82,12 @@ export default function Login() {
     setResetError(null);
     try {
       const client = getSupabase();
-      const { error } = await client.auth.resetPasswordForEmail(email);
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        /* Land on our reset page so the user can actually set the new
+         * password — without this the recovery link drops them on the site
+         * root with no way to finish the reset. */
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       if (error) {
         setResetError(error.message);
       } else {
@@ -188,7 +193,7 @@ export default function Login() {
             )
           ) : (
             <>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap md:flex-nowrap">
                 {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
                 <div className="relative h-11 w-28 shrink-0">
                   <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">

@@ -65,12 +65,12 @@ export default function QRLoginApprove() {
         {!user ? (
           <>
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h1 className="text-xl font-bold mb-2">Please Log In First</h1>
+            <h1 className="text-xl font-bold mb-2">Please Sign In First</h1>
             <p className="text-muted-foreground mb-6 text-sm">
               You need to be logged in on this device to approve the QR sign-in.
             </p>
             <Button onClick={() => setLocation("/login")} className="w-full">
-              Go to Login
+              Go to Sign In
             </Button>
           </>
         ) : status === "loading" ? (

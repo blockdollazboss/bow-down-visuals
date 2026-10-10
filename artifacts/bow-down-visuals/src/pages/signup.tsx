@@ -35,7 +35,7 @@ const schema = (t: (key: string) => string) =>
 export default function Signup() {
   const { t } = useTranslation();
   usePageTitle(t("signup.pageTitle"), t("signup.pageDescription"));
-  const { signUp, signInWithProvider, getAccessToken } = useAuth();
+  const { signUp, signInWithProvider, getAccessToken, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,6 +47,13 @@ export default function Signup() {
     resolver: zodResolver(schema(t)),
     defaultValues: { displayName: "", email: "", password: "", confirmPassword: "", agreeToTerms: false },
   });
+
+  // Already signed in? Don't show the form — same as the login page.
+  useEffect(() => {
+    if (!authLoading && user) {
+      setLocation("/choose-artist");
+    }
+  }, [authLoading, user, setLocation]);
 
   async function onSubmit(values: z.infer<FormSchema>) {
     setLoading(true);
@@ -222,7 +229,7 @@ export default function Signup() {
               {firstError}
             </p>
           )}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap md:flex-nowrap">
             {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
             <div className="relative h-11 w-28 shrink-0">
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">

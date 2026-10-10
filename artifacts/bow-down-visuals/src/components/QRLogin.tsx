@@ -64,7 +64,9 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
           }
           const { error } = await getSupabase().auth.verifyOtp({
             token_hash: tokenHash,
-            type: "email",
+            /* The server mints a MAGIC LINK via admin.generateLink({ type: "magiclink" }).
+             * The verify type must match, or GoTrue rejects the token. */
+            type: "magiclink",
           });
           if (error) {
             setStatus("error");
@@ -119,7 +121,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
                   <QRCodeImage data={qrUrl} size={220} />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Scan with your phone's camera while logged in on your phone
+                  Scan with your phone's camera. You must be logged in on your phone to approve.
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-2">Code expires in 5 minutes</p>
               </>

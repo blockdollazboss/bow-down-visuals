@@ -22,7 +22,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithProvider: (
-    provider: "google" | "apple" | "instagram" | "facebook" | "tiktok",
+    provider: "google" | "apple" | "facebook",
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -160,7 +160,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await client.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        // After email verification, land somewhere useful instead of the site root.
+        emailRedirectTo: `${window.location.origin}/choose-artist`,
+      },
     });
     return { error: error?.message ?? null };
   }
@@ -189,14 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * to the provider, so this only returns when something goes wrong
    * before the redirect. */
   async function signInWithProvider(
-    provider: "google" | "apple" | "instagram" | "facebook" | "tiktok",
+    provider: "google" | "apple" | "facebook",
   ) {
     const pretty = provider[0].toUpperCase() + provider.slice(1);
     try {
       const client = getSupabase();
       const { error } = await client.auth.signInWithOAuth({
-        // Supabase Provider type lags behind; instagram/tiktok are configured server-side
-        provider: provider as "google",
+        provider,
         options: { redirectTo: `${window.location.origin}/choose-artist` },
       });
       return { error: error?.message ?? null };
@@ -211,6 +214,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    /* Revoke the session server-side FIRST. Clearing localStorage alone
+     * leaves the refresh token valid until it expires — a signed-out
+     * session could still be revived. */
+    try {
+      await getSupabase().auth.signOut();
+    } catch {
+      /* fall through to the manual storage cleanup below */
+    }
+
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 
     try {
