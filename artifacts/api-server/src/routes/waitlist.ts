@@ -275,26 +275,22 @@ router.get("/waitlist/status", publicApiLimiter, async (req, res) => {
     const supabase = getSupabaseAdmin();
     const { data: row } = await supabase
       .from("waitlist")
-      .select("email, name, created_at, invite_code, invites_count, jump_spots, early_access_unlocked, launch_bonus_bucs")
+      .select("email, name, created_at, invites_count, jump_spots, early_access_unlocked, launch_bonus_bucs")
       .eq("email", email)
       .maybeSingle();
     if (!row) {
       res.status(404).json({ error: "not_found", message: "This email is not on the waitlist yet." });
       return;
     }
-    // Backfill: older rows may lack an invite code
-    let code = row.invite_code as string | null;
-    if (!code) {
-      code = generateCode();
-      await supabase.from("waitlist").update({ invite_code: code }).eq("email", email);
-    }
     const { position, total } = await computePosition(supabase, row as WaitlistRow);
     const invitesCount = row.invites_count ?? 0;
+    // Privacy: never expose the invite code on this unauthenticated endpoint.
+    // The code is returned only at signup (POST /api/waitlist) and on the
+    // invite page itself. Position/milestones are safe to share.
     res.json({
       position,
       total,
       invitesCount,
-      inviteCode: code,
       jumpSpots: row.jump_spots ?? 0,
       earlyAccessUnlocked: row.early_access_unlocked ?? false,
       launchBonusBucs: row.launch_bonus_bucs ?? 0,

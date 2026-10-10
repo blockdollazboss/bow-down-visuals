@@ -72,9 +72,33 @@ const regenerateBioSchema = z.object({
   tone: z.enum(["professional", "bold", "playful", "luxury"]).optional().default("professional"),
 });
 
+/* Allowlist: explicitly pick the fields safe for public consumption.
+   Anything added to the table later is private by default — a denylist
+   would silently leak new columns. */
 function toPublicKit(row: typeof pressKitsTable.$inferSelect) {
-  const { user_id: _userId, ...publicKit } = row;
-  return publicKit;
+  return {
+    id: row.id,
+    handle: row.handle,
+    artist_name: row.artist_name,
+    tagline: row.tagline,
+    bio: row.bio,
+    genre: row.genre,
+    location: row.location,
+    booking_email: row.booking_email,
+    website: row.website,
+    instagram_url: row.instagram_url,
+    tiktok_url: row.tiktok_url,
+    youtube_url: row.youtube_url,
+    spotify_url: row.spotify_url,
+    achievements: row.achievements,
+    press_quotes: row.press_quotes,
+    photo_urls: row.photo_urls,
+    top_tracks: row.top_tracks,
+    press_releases: row.press_releases,
+    is_public: row.is_public,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
 }
 
 /** Exported for tests: the public kit shape never leaks user_id. */

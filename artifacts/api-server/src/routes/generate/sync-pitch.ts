@@ -346,7 +346,9 @@ router.delete("/sync-pitch/one-sheets/:id", requireAuth, async (req, res) => {
 
 /* GET /api/sync-pitch/public/:token — PUBLIC one-sheet page for the
    shareable link (?ref=CODE rides along for the referral loop). No auth.
-   Only safe-for-public fields are exposed. */
+   Contact name/email are intentionally public here: this is a pitch sheet,
+   its whole purpose is letting sync supervisors reach the artist. Everything
+   else is limited to the song's pitch fields — no internal IDs or user data. */
 router.get("/sync-pitch/public/:token", async (req, res) => {
   const [row] = await db
     .select()

@@ -143,6 +143,9 @@ router.get("/teams/:id", requireAuth, async (req, res) => {
       return;
     }
     const members = await db.select().from(teamMembersTable).where(eq(teamMembersTable.teamId, teamId));
+    // Privacy note (intentional): team members can see each other's emails,
+    // like Slack/Discord workspaces. Membership is consensual — you only see
+    // emails of teams you joined or were invited to.
     res.json({ team, members, myRole: membership.role });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: detail failed");

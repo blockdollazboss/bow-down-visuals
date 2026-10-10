@@ -983,7 +983,9 @@ router.get("/explore", async (req, res) => {
    GET /api/profiles/resolve?slug= — maps a creator slug to its user_id so
    any surface (groups, events, explore, profiles) can deep-link
    "Message" -> /messages?to=<user_id>. Kept here (not in creator-platform)
-   so all cross-surface wiring lives in one contract. */
+   so all cross-surface wiring lives in one contract.
+   Privacy: only resolves PUBLIC profiles. Private profiles return 404 so
+   their user_id can't be enumerated via slug guessing. */
 router.get("/profiles/resolve", async (req, res) => {
   try {
     const slug = typeof req.query["slug"] === "string" ? req.query["slug"].trim().toLowerCase() : "";
@@ -994,7 +996,12 @@ router.get("/profiles/resolve", async (req, res) => {
       displayName: creatorProfilesTable.displayName,
       avatarUrl: creatorProfilesTable.avatarUrl,
     })
-      .from(creatorProfilesTable).where(eq(creatorProfilesTable.slug, slug)).limit(1);
+      .from(creatorProfilesTable)
+      .where(and(
+        eq(creatorProfilesTable.slug, slug),
+        eq(creatorProfilesTable.isPublic, true),
+      ))
+      .limit(1);
     const p = rows[0];
     if (!p) { res.status(404).json({ error: "Creator not found." }); return; }
     res.json({ user_id: p.userId, slug: p.slug, display_name: p.displayName, avatar_url: p.avatarUrl });
