@@ -248,7 +248,7 @@ function BarcodeStrip() {
         className="text-center text-primary font-mono font-bold mt-1"
         style={{ fontSize: "13px", letterSpacing: "0.18em" }}
       >
-        {digits.slice(0, 6)} {digits.slice(6)}%
+        {digits.slice(0, 6)} {digits.slice(6)}
       </p>
     </div>
   );
