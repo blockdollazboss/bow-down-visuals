@@ -821,9 +821,16 @@ html, body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
   background:
-    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(28,23,18,0.28) 0%, transparent 65%),
-    linear-gradient(180deg, rgba(28,23,18,0.18) 0%, transparent 30%, rgba(28,23,18,0.12) 100%);
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(28,23,18,0.32) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(28,23,18,0.22) 0%, transparent 30%, rgba(28,23,18,0.15) 100%);
+}
+
+/* Light mode: ALL content sits ABOVE background layers. Text never buries. */
+.light .no-throne-bg > *:not(.homepage-stage):not([aria-hidden="true"]) {
+  position: relative;
+  z-index: 1;
 }
 
 /* Curtain overlay in light mode: lift the shadows so the gold drapes
