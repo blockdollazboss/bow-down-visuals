@@ -1,6 +1,7 @@
 import { useState, useRef, forwardRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
@@ -1287,6 +1288,10 @@ function MusicVideoTeaser() {
             playsInline
             preload="auto"
             aria-label={t("home.teaserVideoAria")}
+            onError={(e) => {
+              // Hide broken video, show poster fallback instead
+              (e.target as HTMLVideoElement).style.display = "none";
+            }}
           />
           {/* Cinematic letterbox melt — top and bottom dissolve into the page */}
           <div
@@ -1562,6 +1567,7 @@ export default function Home() {
   );
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
+  const { activeArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
 
   /* Theme state — homepage owns its light/dark toggle. Synced with
@@ -1605,13 +1611,14 @@ export default function Home() {
     return () => obs.disconnect();
   }, []);
 
-  /* Signed-in users go straight to artist selection — the first thing
-     after sign-in is picking who they're creating for. */
+  /* Signed-in users without an artist go to selection — but if they've
+     already picked one, let them see the homepage. Fixes the endless
+     choose-artist loop. */
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && !activeArtist) {
       setLocation("/choose-artist");
     }
-  }, [authLoading, user, setLocation]);
+  }, [authLoading, user, activeArtist, setLocation]);
 
   /* Don't flash the marketing page while the redirect fires. */
   if (authLoading || user) return null;
