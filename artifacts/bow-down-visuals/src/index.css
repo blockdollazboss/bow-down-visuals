@@ -833,6 +833,15 @@ html, body {
   z-index: 1;
 }
 
+/* Light mode auth pages (login/signup): dark smoke for contrast.
+   The white wash was making forms unreadable. */
+.light [class*="auth"] .homepage-stage::after,
+.light main .homepage-stage::after {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(28,23,18,0.25) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(28,23,18,0.15) 0%, transparent 30%, rgba(28,23,18,0.10) 100%);
+}
+
 /* Curtain overlay in light mode: lift the shadows so the gold drapes
    read as sunlit velvet, not a dark frame on a light stage. */
 .light .no-throne-bg ~ div[style*="home-curtains-overlay"] {
