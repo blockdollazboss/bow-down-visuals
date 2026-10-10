@@ -811,16 +811,16 @@ html, body {
   color: #1C1712;
 }
 
-/* Sunlit stage: whisper of golden-hour warmth OVER the palace.
-   Kept faint on purpose — the palace must show through. */
+/* Sunlit stage: the palace image carries its own natural warmth — no extra
+   gold filter on top. A whisper of light lift keeps it airy, never yellow. */
 .light .homepage-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 35% at 50% 28%, rgba(201,168,76,0.10) 0%, transparent 60%),
-    linear-gradient(180deg, rgba(253,251,247,0.12) 0%, transparent 35%, rgba(244,234,213,0.20) 100%);
+    radial-gradient(ellipse 60% 35% at 50% 28%, rgba(255,255,255,0.10) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 35%, rgba(255,255,255,0.04) 100%);
 }
 
 /* Curtain overlay in light mode: lift the shadows so the gold drapes
@@ -1471,9 +1471,14 @@ html {
   pointer-events: none;
   background: radial-gradient(ellipse 90% 75% at 50% 45%, transparent 55%, hsl(0 0% 0% / 0.5) 100%);
 }
-/* Light mode: dark vignette becomes a soft warm champagne edge glow */
+/* Light mode: no gold frame — a faint neutral shadow for depth, invisible color */
 .light .lux-vignette {
-  background: radial-gradient(ellipse 90% 75% at 50% 45%, transparent 60%, rgb(138 107 31 / 0.14) 100%) !important;
+  background: radial-gradient(ellipse 90% 75% at 50% 45%, transparent 62%, rgb(60 50 35 / 0.10) 100%) !important;
+}
+
+/* Light mode: hero gold glows go quiet — the sunlit palace needs no help */
+.light .hero-glows {
+  opacity: 0.3;
 }
 
 /* ─── Scroll reveal — slow, soft, confident ─── */
