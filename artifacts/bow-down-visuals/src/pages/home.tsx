@@ -1623,7 +1623,6 @@ export default function Home() {
 
   return (
     <>
-    <HomepageThemeToggle isLight={isLight} onToggle={toggleTheme} />
     <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Page backdrop — gold-curtain stage (dark) or sunlit ivory palace
           (light), fixed full-viewport. INSIDE the isolated page root so the
