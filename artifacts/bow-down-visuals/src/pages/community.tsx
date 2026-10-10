@@ -99,7 +99,7 @@ interface RepliesTone {
   blurb: string;
 }
 
-const REPLY_CREDIT_COST = 1;
+const REPLY_CREDIT_COST = 100;
 
 interface RepliesResponse {
   replies?: string[];

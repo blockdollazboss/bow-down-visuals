@@ -30,7 +30,7 @@ import {
    (opener → peaks → closer → encore). Building the setlist is pure UI and
    free — only the AI flow suggestion costs 1 credit (POST /api/setlist/flow). */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";

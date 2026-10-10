@@ -47,7 +47,7 @@ interface PlatformOpt {
  blurb: string;
 }
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 interface EligibilityItem {
  platform: string;

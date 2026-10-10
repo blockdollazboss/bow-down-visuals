@@ -23,7 +23,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
    "Ask about LLCs" Q&A chat + personalized AI filing plan generator.
    POSTs to /api/llc-guide/ask and /api/llc-guide/plan. */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 const PROGRESS_KEY = "llc-guide-progress-v1";
 
 type CreatorType = "musician" | "streamer" | "youtuber" | "podcaster" | "designer" | "other";

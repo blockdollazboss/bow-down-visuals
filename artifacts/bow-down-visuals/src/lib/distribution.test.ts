@@ -39,8 +39,8 @@ describe("platformLabel", () => {
 });
 
 describe("pricing", () => {
-  it("prices AI generations at 1 credit", () => {
-    expect(DISTRIBUTION_AI_CREDIT_COST).toBe(1);
+  it("prices AI generations at 100 credits", () => {
+    expect(DISTRIBUTION_AI_CREDIT_COST).toBe(100);
   });
 
   it("prices release packaging at 10 credits", () => {

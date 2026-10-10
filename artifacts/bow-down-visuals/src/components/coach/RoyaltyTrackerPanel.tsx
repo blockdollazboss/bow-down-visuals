@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
    v1 honesty: CSV import is the universal path (every distributor exports
    CSVs). Platform auto-sync is "coming soon" except manual — never faked. */
 
-const INSIGHTS_CREDIT_COST = 1;
+const INSIGHTS_CREDIT_COST = 100;
 
 interface SummaryData {
   total: string;

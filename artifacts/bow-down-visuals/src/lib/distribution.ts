@@ -18,7 +18,7 @@ export const DISTRIBUTION_PLATFORMS = [
 export type DistributionPlatformKey = (typeof DISTRIBUTION_PLATFORMS)[number]["key"];
 
 /** Pricing shown in the UI — mirrors the backend env-overridable defaults. */
-export const DISTRIBUTION_AI_CREDIT_COST = 1;
+export const DISTRIBUTION_AI_CREDIT_COST = 100;
 export const DISTRIBUTION_PACKAGING_CREDITS = 10;
 
 export function platformLabel(key: string): string {

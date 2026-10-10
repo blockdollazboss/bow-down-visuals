@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
    pre-filled with a game and shows a labeled sample output on first load,
    the ticker/setup/playbook are curated editorial — zero empty states. */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 type ContentTypeKey = "stream" | "video" | "shorts";
 

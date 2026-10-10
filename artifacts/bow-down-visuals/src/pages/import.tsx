@@ -20,7 +20,7 @@ import { useHubProject } from "@/lib/hub-project";
    markets it as a piracy downloader, and the user must actively confirm
    they have the rights before every import. */
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 type ImportFormat = "video" | "audio";
 

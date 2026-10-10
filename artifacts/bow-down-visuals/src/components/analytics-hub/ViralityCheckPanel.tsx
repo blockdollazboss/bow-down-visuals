@@ -26,7 +26,7 @@ const PLATFORMS: { key: PlatformKey; labelKey: string }[] = [
  { key: "x", labelKey: "viralityCheck.platformX" },
 ];
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 interface ScoreBlock {
  score: number;

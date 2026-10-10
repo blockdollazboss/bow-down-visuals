@@ -56,7 +56,7 @@ const NICHE_DEFS: { value: string; labelKey: string }[] = [
   { value: "Lifestyle", labelKey: "lifestyle" },
 ];
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 interface RateBreakdownItem {
   deliverable: string;

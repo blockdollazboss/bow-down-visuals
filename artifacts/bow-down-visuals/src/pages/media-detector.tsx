@@ -18,7 +18,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    audio is assessed from technical metadata. Framed honestly: AI-assisted
    assessment, not a definitive forensic verdict. */
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const FRAME_COUNT = 3;
 

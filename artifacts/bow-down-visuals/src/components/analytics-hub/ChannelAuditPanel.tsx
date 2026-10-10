@@ -17,7 +17,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    auto-refund on failure. Honest framing: best-practices scoring, never a
    growth guarantee. */
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 
 const PLATFORMS = [
   { key: "tiktok", labelKey: "audit.platformTikTok" },
@@ -137,7 +137,7 @@ export default function ChannelAuditPanel() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideCost: CREDIT_COST, // matches backend CHANNEL_AUDIT_CREDITS (300)
         overrideFeature: t("audit.featureName"),
         body: JSON.stringify({
           niche: niche.trim(),

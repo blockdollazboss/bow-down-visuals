@@ -2482,7 +2482,7 @@ const RELEASE_PLAN_TYPE_OPTS: ReleasePlanTypeOpt[] = [
   { key: "album", icon: Album },
 ];
 
-const RELEASE_PLAN_CREDIT_COST = 2;
+const RELEASE_PLAN_CREDIT_COST = 200;
 
 interface PlanTask {
   title: string;
@@ -2646,7 +2646,7 @@ function ReleasePlanTab() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: RELEASE_PLAN_CREDIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideCost: RELEASE_PLAN_CREDIT_COST, // matches backend RELEASE_PLAN_CREDITS (200)
         overrideFeature: "Release Checklist AI",
         body: JSON.stringify({
           releaseType,

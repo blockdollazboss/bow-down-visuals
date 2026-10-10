@@ -31,7 +31,7 @@ type AcademyTab = "academy" | "guides" | "copyright" | "llc" | "community";
  - "Ask the coach" Q&A per course (1 credit/answer)
  Progress is tracked in localStorage for v1. */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 const PROGRESS_KEY = "academy-progress-v1";
 const LESSON_CACHE_KEY = "academy-lessons-v1";
 

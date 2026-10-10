@@ -21,7 +21,7 @@ import SyncTab from "@/components/sync-pitch/SyncTab";
    Honesty: labels rarely sign from cold demos. The disclaimer is shown
    with every kit — relationships, buzz, and timing matter most. */
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 
 type Tab = "kit" | "labels" | "tracker";
 

@@ -43,7 +43,7 @@ const PLATFORM_DEFS = [
   { key: "youtube", labelKey: "platformShorts" },
 ] as const;
 
-const MATCH_CREDIT_COST = 1;
+const MATCH_CREDIT_COST = 100;
 const FAVORITES_KEY = "bdv-sound-favorites";
 
 interface TrendingSound {

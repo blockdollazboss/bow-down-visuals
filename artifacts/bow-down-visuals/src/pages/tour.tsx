@@ -33,7 +33,7 @@ import { useTranslation } from "react-i18next";
    Honest framing throughout: routing and budget are AI estimates, not
    guarantees. */
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 
 const STATUS_LABELS: Record<TourDate["status"], string> = {
   upcoming: "tour.statusUpcoming",
