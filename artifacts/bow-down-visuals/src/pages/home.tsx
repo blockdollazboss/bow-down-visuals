@@ -444,7 +444,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </Link>
         {/* Refer & Earn badge — gentle attention nudge, links to /referrals */}
         <Link href="/referrals">
-          <div className="refer-nudge inline-flex items-center gap-2 bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] rounded-full px-4 py-1.5 text-sm font-bold text-black hover:brightness-110 transition cursor-pointer">
+          <div className="refer-nudge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold text-primary border border-primary/40 bg-primary/10 hover:bg-primary/20 transition cursor-pointer">
             <Gift className="h-3.5 w-3.5" />
             {t("home.referEarnBadge")}
           </div>
