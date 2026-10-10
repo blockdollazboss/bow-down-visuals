@@ -1570,20 +1570,28 @@ export default function Home() {
   const [isLight, setIsLight] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     if (document.documentElement.classList.contains("light")) return true;
-    return localStorage.getItem("bdv-theme") === "light";
+    try {
+      return localStorage.getItem("bdv-theme") === "light";
+    } catch {
+      return false;
+    }
   });
 
   const toggleTheme = () => {
     const next = !isLight;
     setIsLight(next);
-    if (next) {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("bdv-theme", "light");
-    } else {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-      localStorage.setItem("bdv-theme", "dark");
+    try {
+      if (next) {
+        document.documentElement.classList.add("light");
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("bdv-theme", "light");
+      } else {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        localStorage.setItem("bdv-theme", "dark");
+      }
+    } catch {
+      /* storage unavailable (private mode) — theme still applies for this session */
     }
   };
 

@@ -229,9 +229,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
       localStorage.removeItem(`sb-${projectRef}-auth-token`);
     } catch {
-      Object.keys(localStorage)
-        .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
-        .forEach((key) => localStorage.removeItem(key));
+      try {
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+          .forEach((key) => localStorage.removeItem(key));
+      } catch {
+        /* storage unavailable — session already cleared server-side above */
+      }
     }
 
     setUser(null);
