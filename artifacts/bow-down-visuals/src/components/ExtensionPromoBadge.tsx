@@ -27,7 +27,7 @@ export default function ExtensionPromoBadge() {
   if (!promoVisible || dismissed) return null;
 
   return (
-    <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 rounded-full border border-[#c9a84c]/50 bg-black/55 backdrop-blur-md px-4 py-2 text-sm font-medium text-[#e8c86a] shadow-[0_0_18px_rgba(201,168,76,0.25)] transition hover:bg-black/75">
+    <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 rounded-full border border-[#c9a84c]/50 bg-black/55 backdrop-blur-md px-4 py-2 text-sm font-medium text-[#e8c86a] shadow-[0_0_18px_rgba(201,168,76,0.25)] transition hover:bg-black/75 light:bg-white/90 light:text-[#7A5A12] light:border-[#c9a84c]/40">
       <Puzzle className="h-4 w-4" />
       <Link href="/extension" className="hover:underline">
         Get the Chrome extension
@@ -36,7 +36,7 @@ export default function ExtensionPromoBadge() {
         role="button"
         tabIndex={0}
         aria-label="Dismiss"
-        className="ml-1 rounded-full p-0.5 text-white/40 hover:text-white cursor-pointer"
+        className="ml-1 rounded-full p-0.5 text-white/40 hover:text-white cursor-pointer light:text-[#7A5A12]/60 light:hover:text-[#7A5A12]"
         onClick={(e) => { e.stopPropagation(); dismiss(); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); dismiss(); } }}
       >
