@@ -52,6 +52,7 @@ const ICONS: Record<ProductKey, LucideIcon> = {
   phonecase: Smartphone,
   tote: ShoppingBag,
   rug: Package,
+  "rug-premium": Gem,
 };
 
 /* Catalog lives in @/lib/branding-shop (testable); icons stay page-local. */

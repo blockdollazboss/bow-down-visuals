@@ -1,7 +1,7 @@
 /* Branding shop catalog — keep in sync with the backend route's PRODUCTS.
    Pure data + helpers, safe to import in tests. */
 
-export type ProductKey = "tshirt" | "hoodie" | "mug" | "snapback" | "poster" | "phonecase" | "tote" | "rug";
+export type ProductKey = "tshirt" | "hoodie" | "mug" | "snapback" | "poster" | "phonecase" | "tote" | "rug" | "rug-premium";
 export type BrandStyle = "luxury-gold" | "streetwear" | "minimal" | "bold";
 export type ColorKey = "black" | "gold" | "white";
 
@@ -22,6 +22,7 @@ export const BRANDING_PRODUCTS: CatalogProduct[] = [
   { key: "phonecase", label: "Phone Case", priceCents: 2299, sizes: ["iPhone", "Samsung"], blurb: "Tough protective case with your brand mark" },
   { key: "tote", label: "Canvas Tote", priceCents: 1899, sizes: ["One size"], blurb: "Heavy canvas tote, everyday brand billboard" },
   { key: "rug", label: "Custom Logo Rug", priceCents: 4999, sizes: ['2x3 ft', '3x5 ft', '4x6 ft'], blurb: "Your logo printed on a premium area rug — upload your brand mark" },
+  { key: "rug-premium", label: "Premium Die-Cut Rug", priceCents: 14999, sizes: ['Custom shape'], blurb: "Your logo cut to shape — hand-tufted, any silhouette. Contact for quote." },
 ];
 
 export const BRANDING_COLORS: Array<{ key: ColorKey; label: string }> = [
