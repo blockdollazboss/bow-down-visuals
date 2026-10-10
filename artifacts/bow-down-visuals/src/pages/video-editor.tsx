@@ -2498,7 +2498,7 @@ export default function VideoEditor() {
                   </div>
                 </div>
                 {/* ── Panel size sync: 5 presets set BOTH sides to the same width ── */}
-                <div className="shrink-0 flex items-center justify-center gap-1.5 py-2">
+                <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
                   <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider mr-1">Panels:</span>
                   {PANEL_SNAPS.map((s, i) => {
                     const synced = panelWidth === s && rightPanelWidth === s;
