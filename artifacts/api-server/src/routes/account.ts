@@ -44,7 +44,7 @@ async function fetchUserRows(
  * Download everything the account owns: profile, projects, drafts,
  * generated clips, songs. Service-role read, filtered to the requester.
  */
-router.get("/api/account/export", requireAuth, async (req: Request, res: Response) => {
+router.get("/account/export", requireAuth, async (req: Request, res: Response) => {
   try {
     const supabase = getSupabaseAdmin();
     const userId = req.userId!;
@@ -86,7 +86,7 @@ const DeleteAccountSchema = z.object({
  * Permanently deletes the requesting user's auth account and profile row.
  * Body must be exactly { confirm: "DELETE" }. Admin accounts are protected.
  */
-router.delete("/api/account", requireAuth, async (req: Request, res: Response) => {
+router.delete("/account", requireAuth, async (req: Request, res: Response) => {
   const parsed = DeleteAccountSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Confirmation required: body must be { confirm: "DELETE" }.' });
