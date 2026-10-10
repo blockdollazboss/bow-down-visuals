@@ -290,6 +290,12 @@ export default function VideoEditor() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // 5s minimum loader — enough time to read the screen
+  const [minTimeDone, setMinTimeDone] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setMinTimeDone(true), 5000);
+    return () => window.clearTimeout(id);
+  }, []);
   const [project, setProject] = useState<LoadedProject | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [scenes, setScenesState] = useState<SceneData[]>([]);
@@ -1624,7 +1630,7 @@ export default function VideoEditor() {
 
         {!projectId ? (
           <NoProject />
-        ) : loading ? (
+        ) : (loading || !minTimeDone) ? (
           <WittyLoader />
         ) : loadError ? (
           <div className="py-20 text-center space-y-3">
