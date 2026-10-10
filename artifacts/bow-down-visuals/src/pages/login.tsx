@@ -21,6 +21,15 @@ import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 export default function Login() {
   const { t } = useTranslation();
+  // Theme-aware video: light theme gets the sunrise video, dark gets the drone video
+  const [isLight, setIsLight] = useState(false);
+  useEffect(() => {
+    const check = () => setIsLight(document.documentElement.classList.contains("light"));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
   const schema = z.object({
     email: z.string().email(t("auth.invalidEmail")),
     password: z.string().min(6, t("auth.passwordMinLength")),
@@ -135,10 +144,12 @@ export default function Login() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Drone video background — scrub through with your mouse, full brightness */}
+      {/* Drone video background — scrub through with your mouse, full brightness.
+          Theme-aware: light gets sunrise, dark gets the drone footage. */}
       <video
         ref={bgVideoRef}
-        src={mediaUrl("videos/signin-drone-bg.mp4")}
+        key={isLight ? "light" : "dark"}
+        src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"

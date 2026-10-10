@@ -34,6 +34,15 @@ const schema = (t: (key: string) => string) =>
 
 export default function Signup() {
   const { t } = useTranslation();
+  // Theme-aware video: light theme gets the sunrise video, dark gets the drone video
+  const [isLight, setIsLight] = useState(false);
+  useEffect(() => {
+    const check = () => setIsLight(document.documentElement.classList.contains("light"));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
   usePageTitle(t("signup.pageTitle"), t("signup.pageDescription"));
   const { signUp, signInWithProvider, getAccessToken, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -156,10 +165,11 @@ export default function Signup() {
       <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
         onMouseMove={handleMouseScrub}
       >
-        {/* Drone video background — scrub through with your mouse, full brightness */}
+        {/* Video background — theme-aware: light gets sunrise, dark gets drone */}
         <video
           ref={bgVideoRef}
-          src={mediaUrl("videos/signin-drone-bg.mp4")}
+          key={isLight ? "light" : "dark"}
+          src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
           muted
           playsInline
           preload="auto"
@@ -199,10 +209,11 @@ export default function Signup() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Drone video background — scrub through with your mouse, full brightness */}
+      {/* Video background — theme-aware: light gets sunrise, dark gets drone */}
       <video
         ref={bgVideoRef}
-        src={mediaUrl("videos/signin-drone-bg.mp4")}
+        key={isLight ? "light" : "dark"}
+        src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"

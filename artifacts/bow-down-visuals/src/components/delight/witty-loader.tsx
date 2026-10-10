@@ -53,6 +53,15 @@ export function useWittyLine(intervalMs = 2200): string {
 export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
   const { t } = useTranslation();
   const [inquireModal, setInquireModal] = useState<"spotlight" | "loading-screen" | null>(null);
+  // Theme-aware background: light theme gets the ivory throne, dark gets the dark throne
+  const [isLight, setIsLight] = useState(false);
+  useEffect(() => {
+    const check = () => setIsLight(document.documentElement.classList.contains("light"));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
 
   // Barcode is the single source of truth — progress drives everything.
   // Slide changes at the halfway mark, so each headline/promo gets ~half the fill.
@@ -82,23 +91,29 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
 
   return (
     <div className="fixed inset-0 z-[20000] bg-background overflow-hidden dark-lock" data-dark-lock>
-      {/* Throne room backdrop */}
+      {/* Throne room backdrop — theme-aware */}
       <div
         aria-hidden
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
+        style={{ backgroundImage: isLight
+          ? "url(/images/loading-bg-light-throne.webp)"
+          : "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
       />
-      {/* Cinematic right gradient — the poster reads right side */}
+      {/* Cinematic gradient — dark in dark theme, light in light theme */}
       <div
         aria-hidden
         className="absolute inset-0"
-        style={{ background: "linear-gradient(260deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
+        style={{ background: isLight
+          ? "linear-gradient(260deg, rgba(255,252,245,0.9) 0%, rgba(255,252,245,0.6) 38%, rgba(255,252,245,0.2) 65%, rgba(255,252,245,0.4) 100%)"
+          : "linear-gradient(260deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
       />
-      {/* Vignette — theater darkness at the edges */}
+      {/* Vignette — theater darkness at the edges (dark) or soft light glow (light) */}
       <div
         aria-hidden
         className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
+        style={{ background: isLight
+          ? "radial-gradient(ellipse at center, transparent 45%, rgba(201,168,76,0.15) 100%)"
+          : "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
       />
 
       {/* Bottom-center: brand eyebrow */}
