@@ -5941,7 +5941,7 @@
     "verified_2": "검증됨",
     "entries_the_draw_is_seeded_and_l": "개의 응모. 추첨은 시드 기반으로 기록됩니다 —\n                        감사를 공개해 팬들이 공정했는지 검증할 수 있게 하세요.",
     "verify_at_least_one_entry_first": "먼저 응모를 하나 이상 검증하세요.",
-    "ai_generated_gold_black_announce": "당첨자 핸들이 포함된 AI 생성 골드/블랙 발표 그래픽 — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "당첨자 핸들이 포함된 AI 생성 골드/블랙 발표 그래픽 — 100 Visual Bucs.",
     "download": "다운로드"
   },
   "commentReplies": {
@@ -5992,7 +5992,7 @@
     "applySuggestions": "제안 적용하기 · {{cost}} 크레딧",
     "backToDashboard": "대시보드로 돌아가기",
     "confidence": "신뢰도 {{confidence}}%",
-    "costNote": "테스트당 2 Visual Bucs · 개선 렌더당 2 Visual Bucs · AI 실패 시 자동 환불. 점수는 AI 예측일 뿐 보장이 아닙니다 — 제목, 오디언스, 타이밍도 중요합니다.",
+    "costNote": "테스트당 200 Visual Bucs · 개선 렌더당 200 Visual Bucs · AI 실패 시 자동 환불. 점수는 AI 예측일 뿐 보장이 아닙니다 — 제목, 오디언스, 타이밍도 중요합니다.",
     "downloadLink": "다운로드",
     "fixesLabel": "수정 사항",
     "generating": "생성 중…",

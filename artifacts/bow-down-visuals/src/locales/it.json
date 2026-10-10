@@ -561,7 +561,7 @@
     "academyKicker": "Creator Academy",
     "academyTitleA": "Il cheat code",
     "academyTitleB": "ha un manuale.",
-    "academySub": "Un catalogo gratuito di masterclass in video, musica e branding — lo stesso playbook su cui girano gli strumenti, insegnato senza giri. Lezioni AI da 1 Visual Buc l'una.",
+    "academySub": "Un catalogo gratuito di masterclass in video, musica e branding — lo stesso playbook su cui girano gli strumenti, insegnato senza giri. Lezioni AI da 100 Visual Bucs l'una.",
     "academyCta": "Esplora l'Academy"
   },
   "language": {
@@ -791,7 +791,7 @@
     "topPrioritiesTitle": "Le tue 3 priorità principali",
     "fixItNowTitle": "Risolvi ora",
     "fixItNowSubtitle": "Passa subito agli strumenti che risolvono ciò che l'analisi ha trovato.",
-    "hookStudioNote": "Vuoi che i tuoi hook vengano riscritti? L'Hook Studio crea 5 fermascroll per Visual Buc."
+    "hookStudioNote": "Vuoi che i tuoi hook vengano riscritti? L'Hook Studio crea 5 fermascroll per 100 Visual Bucs."
   },
   "brandingKit": {
     "eyebrow": "Identità del marchio",
@@ -3426,7 +3426,7 @@
     "applySuggestions": "Applica suggerimenti · {{cost}} crediti",
     "backToDashboard": "Torna alla dashboard",
     "confidence": "{{confidence}}% di confidenza",
-    "costNote": "2 Visual Bucs per test · 2 Visual Bucs per render migliorato · rimborso automatico se l'AI fallisce. I punteggi sono previsioni AI, non garanzie — contano anche titolo, pubblico e tempistica.",
+    "costNote": "200 Visual Bucs per test · 200 Visual Bucs per render migliorato · rimborso automatico se l'AI fallisce. I punteggi sono previsioni AI, non garanzie — contano anche titolo, pubblico e tempistica.",
     "downloadLink": "Scarica",
     "fixesLabel": "Correzioni",
     "generating": "Generazione in corso…",
@@ -5439,7 +5439,7 @@
     "yourNiche": "La tua nicchia"
   },
   "contests": {
-    "ai_generated_gold_black_announce": "Grafica d'annuncio oro/nera generata dall'AI con l'handle del vincitore — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "Grafica d'annuncio oro/nera generata dall'AI con l'handle del vincitore — 100 Visual Bucs.",
     "algorithm": "Algoritmo:",
     "all_contests": "Tutti i contest",
     "anyone_can_verify_sort_the_entry": "Chiunque può verificare: ordina gli ID delle iscrizioni, ricalcola sha256(contestId | entryIds | drawnAt),\n                            e riesegui l'estrazione — lo stesso seed sceglie sempre lo stesso vincitore.",

@@ -87,7 +87,7 @@
     "heroTitle": "O Código Secreto da Criação de Conteúdo",
     "academyCta": "Explorar a Academia",
     "academyKicker": "Academia do Criador",
-    "academySub": "Um catálogo gratuito de masterclasses de vídeo, música e branding — o mesmo manual que as ferramentas executam, ensinado direto. Aulas de IA a partir de 1 Visual Buc cada.",
+    "academySub": "Um catálogo gratuito de masterclasses de vídeo, música e branding — o mesmo manual que as ferramentas executam, ensinado direto. Aulas de IA a partir de 100 Visual Bucs cada.",
     "academyTitleA": "O código secreto",
     "academyTitleB": "vem com manual.",
     "alreadyHaveAccount": "Já tem uma conta? ",
@@ -2253,7 +2253,7 @@
     "verified_2": "verificadas",
     "entries_the_draw_is_seeded_and_l": "inscrições. O sorteio tem seed e é registrado —\n                        publique a auditoria para que seus fãs possam verificar que foi justo.",
     "verify_at_least_one_entry_first": "Verifique pelo menos uma inscrição primeiro.",
-    "ai_generated_gold_black_announce": "Gráfico de anúncio dourado/preto gerado por IA com o @ do vencedor — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "Gráfico de anúncio dourado/preto gerado por IA com o @ do vencedor — 100 Visual Bucs.",
     "download": "Baixar"
   },
   "contracts": {
@@ -5313,7 +5313,7 @@
     "applySuggestions": "Aplicar sugestões · {{cost}} créditos",
     "backToDashboard": "Voltar ao Painel",
     "confidence": "{{confidence}}% de confiança",
-    "costNote": "2 Visual Bucs por teste · 2 Visual Bucs por renderização melhorada · reembolso automático se a IA falhar. As notas são previsões da IA, não garantias — seu título, audiência e timing também contam.",
+    "costNote": "200 Visual Bucs por teste · 200 Visual Bucs por renderização melhorada · reembolso automático se a IA falhar. As notas são previsões da IA, não garantias — seu título, audiência e timing também contam.",
     "downloadLink": "Baixar",
     "fixesLabel": "Correções",
     "generating": "Gerando…",

@@ -564,7 +564,7 @@
     "academyKicker": "Creator Academy",
     "academyTitleA": "The cheat code",
     "academyTitleB": "comes with a manual.",
-    "academySub": "A free catalog of masterclasses in video, music, and branding — the same playbook the tools run on, taught straight. AI lessons from 1 Visual Buc each.",
+    "academySub": "A free catalog of masterclasses in video, music, and branding — the same playbook the tools run on, taught straight. AI lessons from 100 Visual Bucs each.",
     "academyCta": "Explore the Academy",
     "newBadge": "NEW"
   },
@@ -1481,7 +1481,7 @@
     "topPrioritiesTitle": "Your Top 3 Priorities",
     "fixItNowTitle": "Fix It Now",
     "fixItNowSubtitle": "Jump straight into the tools that fix what the audit found.",
-    "hookStudioNote": "Want hooks rewritten for you? The Hook Studio does 5 scroll-stoppers per Visual Buc."
+    "hookStudioNote": "Want hooks rewritten for you? The Hook Studio does 5 scroll-stoppers per 100 Visual Bucs."
   },
   "beatMaker": {
     "title": "Beat Maker",
@@ -2564,7 +2564,7 @@
     "verified_2": "verified",
     "entries_the_draw_is_seeded_and_l": "entries. The draw is seeded and logged —\n                        publish the audit so your fans can verify it was fair.",
     "verify_at_least_one_entry_first": "Verify at least one entry first.",
-    "ai_generated_gold_black_announce": "AI-generated gold/black announcement graphic with the winner's handle — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "AI-generated gold/black announcement graphic with the winner's handle — 100 Visual Bucs.",
     "download": "Download",
     "share": "Share"
   },
@@ -5997,7 +5997,7 @@
     "applySuggestions": "Apply suggestions · {{cost}} Visual Bucs",
     "backToDashboard": "Back to dashboard",
     "confidence": "{{confidence}}% confidence",
-    "costNote": "2 Visual Bucs per test · 2 Visual Bucs per improved render · refunded automatically if the AI fails. Scores are AI predictions, not guarantees — your title, audience, and timing matter too.",
+    "costNote": "200 Visual Bucs per test · 200 Visual Bucs per improved render · refunded automatically if the AI fails. Scores are AI predictions, not guarantees — your title, audience, and timing matter too.",
     "downloadLink": "Download",
     "fixesLabel": "Fixes",
     "generating": "Generating…",
@@ -9700,7 +9700,7 @@
     "vocalLevel": "Vocal level",
     "vocalUpfront": "Upfront",
     "tabQuick": "Express Master",
-    "tabQuickDesc": "Upload one finished stereo mix — pick a preset, get a radio-ready master for 4 Visual Bucs. Fast, no knobs."
+    "tabQuickDesc": "Upload one finished stereo mix — pick a preset, get a radio-ready master for 400 Visual Bucs. Fast, no knobs."
   },
   "movies": {
     "badge": "Movies & Web Series",
@@ -11230,16 +11230,16 @@
       "ratemix": "Rate My Mix"
     },
     "desc": {
-      "cleanup": "Remove background noise and room hiss from any recording — 3 Visual Bucs.",
-      "stems": "Split any song into vocals, drums, bass, and melody — 4 Visual Bucs.",
+      "cleanup": "Remove background noise and room hiss from any recording — 300 Visual Bucs.",
+      "stems": "Split any song into vocals, drums, bass, and melody — 400 Visual Bucs.",
       "master": "Radio-ready masters and full stem mixdowns — 4 to 15 Visual Bucs.",
       "aiaudio": "Make beats, build sample packs, and generate sound effects.",
       "voiceover": "Studio-quality AI narration for your videos.",
       "podcast": "Record, edit, and produce your podcast.",
       "sounds": "Find viral sounds trending right now.",
       "hum": "Hum a melody — get a full song built around it (500 Visual Bucs on generate, analysis free).",
-      "finish": "Upload your unfinished demo — AI writes what's missing and produces the finished song (4 Visual Bucs).",
-      "ratemix": "Upload your mix — real measurements + AI fix-it coaching. Coaching only, your audio stays untouched (1 Visual Buc)."
+      "finish": "Upload your unfinished demo — AI writes what's missing and produces the finished song (400 Visual Bucs).",
+      "ratemix": "Upload your mix — real measurements + AI fix-it coaching. Coaching only, your audio stays untouched (100 Visual Bucs)."
     }
   },
   "aiAudio": {

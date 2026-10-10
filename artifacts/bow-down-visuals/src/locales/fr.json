@@ -561,7 +561,7 @@
     "academyKicker": "Académie des créateurs",
     "academyTitleA": "Le code de triche",
     "academyTitleB": "est livré avec un manuel.",
-    "academySub": "Un catalogue gratuit de masterclasses en vidéo, musique et image de marque – le même manuel sur lequel les outils fonctionnent, enseigné directement. Cours d'IA à partir de 1 Visual Buc chacun.",
+    "academySub": "Un catalogue gratuit de masterclasses en vidéo, musique et image de marque – le même manuel sur lequel les outils fonctionnent, enseigné directement. Cours d'IA à partir de 100 Visual Bucs chacun.",
     "academyCta": "Explore l'Académie"
   },
   "language": {
@@ -2253,7 +2253,7 @@
     "verified_2": "vérifiées",
     "entries_the_draw_is_seeded_and_l": "Le tirage est amorcé et journalisé — publie l'audit pour que tes fans puissent vérifier son équité.",
     "verify_at_least_one_entry_first": "Vérifie d'abord au moins une participation.",
-    "ai_generated_gold_black_announce": "Visuel d'annonce or/noir généré par IA avec le pseudo du gagnant — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "Visuel d'annonce or/noir généré par IA avec le pseudo du gagnant — 100 Visual Bucs.",
     "download": "Télécharger"
   },
   "contracts": {
@@ -5313,7 +5313,7 @@
     "applySuggestions": "Appliquer les suggestions ·{{cost}} crédits",
     "backToDashboard": "Retour au tableau de bord",
     "confidence": "{{confidence}}% confiance",
-    "costNote": "2 Visual Bucs par essai · 2 Visual Bucs par rendu amélioré · remboursé automatiquement si l'IA échoue. Les scores sont des prédictions de l'IA, pas des garanties : ton titre, ton audience et ton timing comptent également.",
+    "costNote": "200 Visual Bucs par essai · 200 Visual Bucs par rendu amélioré · remboursé automatiquement si l'IA échoue. Les scores sont des prédictions de l'IA, pas des garanties : ton titre, ton audience et ton timing comptent également.",
     "downloadLink": "Télécharger",
     "fixesLabel": "Correctifs",
     "generating": "Générateur…",

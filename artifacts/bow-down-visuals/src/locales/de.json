@@ -561,7 +561,7 @@
     "academyKicker": "Creator Academy",
     "academyTitleA": "Der Cheat-Code",
     "academyTitleB": "kommt mit Anleitung.",
-    "academySub": "Ein kostenloser Katalog an Masterclasses zu Video, Musik und Branding — dasselbe Playbook, nach dem die Tools laufen, direkt gelehrt. KI-Lektionen ab 1 Visual Buc.",
+    "academySub": "Ein kostenloser Katalog an Masterclasses zu Video, Musik und Branding — dasselbe Playbook, nach dem die Tools laufen, direkt gelehrt. KI-Lektionen ab 100 Visual Bucs.",
     "academyCta": "Academy entdecken"
   },
   "language": {
@@ -2212,7 +2212,7 @@
     "your_niche": "Deine Nische"
   },
   "contests": {
-    "ai_generated_gold_black_announce": "KI-generierte Gold/Schwarz-Ankündigungsgrafik mit dem Handle des Gewinners — 1 Visual Buc.",
+    "ai_generated_gold_black_announce": "KI-generierte Gold/Schwarz-Ankündigungsgrafik mit dem Handle des Gewinners — 100 Visual Bucs.",
     "algorithm": "Algorithmus:",
     "all_contests": "Alle Contests",
     "anyone_can_verify_sort_the_entry": "Jeder kann verifizieren: Sortiere die Entry-IDs, berechne sha256(contestId | entryIds | drawnAt) neu,\n                            und führe die Ziehung erneut aus — derselbe Seed wählt immer denselben Gewinner.",
@@ -5313,7 +5313,7 @@
     "applySuggestions": "Vorschläge anwenden · {{cost}} Visual Bucs",
     "backToDashboard": "Zurück zum Dashboard",
     "confidence": "{{confidence}} % Konfidenz",
-    "costNote": "2 Visual Bucs pro Test · 2 Visual Bucs pro verbessertem Render · wird automatisch erstattet, wenn die KI fehlschlägt. Scores sind KI-Prognosen, keine Garantien — Titel, Zielgruppe und Timing zählen auch.",
+    "costNote": "200 Visual Bucs pro Test · 200 Visual Bucs pro verbessertem Render · wird automatisch erstattet, wenn die KI fehlschlägt. Scores sind KI-Prognosen, keine Garantien — Titel, Zielgruppe und Timing zählen auch.",
     "downloadLink": "Herunterladen",
     "fixesLabel": "Fixes",
     "generating": "Wird generiert…",
