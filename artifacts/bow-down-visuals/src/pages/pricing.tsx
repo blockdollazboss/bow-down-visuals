@@ -9,6 +9,7 @@ import {
   Sparkles, AlertCircle, CreditCard, Lock, Loader2, Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ExpressPayButton } from "@/components/ExpressPayButton";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { mediaUrl } from "@/lib/media-cdn";
@@ -36,6 +37,7 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
   const { user, getAccessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   async function handleBuy() {
     if (!user) {
@@ -79,6 +81,9 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       {errorMsg && (
         <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
       )}
+      {successMsg && (
+        <p className="text-[11px] text-green-400 leading-snug text-center px-1">{successMsg}</p>
+      )}
       <Button
         size="sm"
         onClick={handleBuy}
@@ -92,6 +97,24 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
           <><CreditCard className="h-3.5 w-3.5" /> {t("pricing.creditPacks.buyButton")}</>
         )}
       </Button>
+      {user && (
+        <div className="w-full">
+          <div className="flex items-center gap-3 my-1">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-[10px] uppercase tracking-widest text-white/30">or</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+          <ExpressPayButton
+            packKey={pack.packKey}
+            onSuccess={(result) => {
+              setSuccessMsg(
+                `+${result.added.toLocaleString()} Visual Bucs added!`
+              );
+            }}
+            onError={(msg) => setErrorMsg(msg)}
+          />
+        </div>
+      )}
     </div>
   );
 }
