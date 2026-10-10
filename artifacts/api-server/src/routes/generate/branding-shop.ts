@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import multer from "multer";
 import OpenAI from "openai";
 import RunwayML from "@runwayml/sdk";
 import Stripe from "stripe";
@@ -517,6 +518,41 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
 });
 
 /* ── GET /api/branding-shop/orders — my orders (FREE) ───────────────────── */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files allowed"));
+  },
+});
+
+/* ── POST /api/branding-shop/upload-logo — upload custom logo for rugs ────
+   Returns a URL for the uploaded logo. Used for custom logo rug orders. */
+router.post(
+  "/branding-shop/upload-logo",
+  publicApiLimiter,
+  requireAuth,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ error: "No file uploaded" });
+        return;
+      }
+
+      const key = `branding-logos/${req.userId!}/${randomUUID()}-${file.originalname}`;
+      const url = await r2Upload(key, file.buffer, file.mimetype);
+
+      res.json({ url });
+    } catch (err) {
+      logger.error({ err }, "Logo upload failed");
+      res.status(500).json({ error: "Upload failed" });
+    }
+  }
+);
+
 router.get("/branding-shop/orders", requireAuth, async (req, res) => {
   const result = await db.execute(sql`
     SELECT id, items, total_cents, status, provider, provider_order_id,
