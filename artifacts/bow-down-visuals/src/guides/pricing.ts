@@ -10,7 +10,7 @@ export const pricingGuide: PageGuide = {
       target: "main h1",
       title: "Fuel for the machine",
       body: "Everything AI on this site runs on Visual Bucs — songs, videos, clips, thumbnails. Your plan is your monthly fuel tank. Pick the one that matches how much you create.",
-      tip: "Math it out: a song is 4 Visual Bucs, a video clip is 4. Count your monthly output, then pick the tank that fits.",
+      tip: "Math it out: a song is 400 Visual Bucs, a video clip is 400. Count your monthly output, then pick the tank that fits.",
       askPrompt: "Which pricing plan is right for me?",
     },
     {

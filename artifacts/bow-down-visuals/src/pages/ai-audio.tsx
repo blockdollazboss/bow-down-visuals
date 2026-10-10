@@ -32,7 +32,7 @@ import {
 /* ─── Beat Maker ────────────────────────────────────────────────────────────
    The first module of the One Unified Creation Hub.
    AI Beat (default, dead simple): describe the vibe, get a studio instrumental
-   (3 Visual Bucs, ElevenLabs Music, instrumental-only prompt). Hands off to
+   (300 Visual Bucs, ElevenLabs Music, instrumental-only prompt). Hands off to
    the Stem Splitter and the Beats Marketplace.
    Step Sequencer (Advanced mode — Creator Level 6): 16-step drum machine,
    100% client-side Web Audio synthesis (zero provider cost → free). Presets,
