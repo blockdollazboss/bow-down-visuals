@@ -333,7 +333,7 @@ function KonamiEgg() {
 
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
-function HeroSection() {
+function HeroSection({ isLight }: { isLight: boolean }) {
   const { t } = useTranslation();
   function scrollToDemo() {
     document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
@@ -521,16 +521,14 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Ground fog — the fog-lab particle canvas: ~220 smoke-textured
-          particles the cursor genuinely stirs like a fluid, so whipping
-          the mouse tears the layer open and it re-settles after. Tuned to
-          stay low: gentle buoyancy plus a hard ceiling at 55% of this band,
-          so it pools at the King's feet/ankles and can never reach his
-          hips. The copy's scrim keeps the hero text readable over it. */}
+      {/* Ground fog — dark theme: smoke. Light theme: water mist.
+          The fog-lab particle canvas: ~220 particles the cursor genuinely
+          stirs like a fluid. */}
       <FogCanvas
         className="inset-x-0 bottom-0 z-[4] h-[46%]"
         ceilingFrac={0.55}
         buoyancy={-10}
+        waterMode={isLight}
       />
 
       {/* Scroll hint */}
@@ -1646,7 +1644,7 @@ export default function Home() {
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
-      <HeroSection />
+      <HeroSection isLight={isLight} />
       <SocialProofBand />
       <ProofBand />
       <CheatCodeDemo />
