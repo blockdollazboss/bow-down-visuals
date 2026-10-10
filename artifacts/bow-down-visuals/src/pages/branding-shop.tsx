@@ -5,7 +5,7 @@ import {
   Shirt, Loader2, Sparkles, ShoppingCart, Trash2, Plus, Minus,
   CheckCircle2, Package, Palette, Tag, Truck, X, ChevronRight,
   Smartphone, ShoppingBag, RefreshCw, CreditCard, ExternalLink, BadgeCheck,
-  Nfc, Gem, Store, AlertTriangle, Download, Info, Pencil,
+  Nfc, Gem, Store, AlertTriangle, Download, Info, Pencil, Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +51,7 @@ const ICONS: Record<ProductKey, LucideIcon> = {
   poster: Palette,
   phonecase: Smartphone,
   tote: ShoppingBag,
+  rug: Package,
 };
 
 /* Catalog lives in @/lib/branding-shop (testable); icons stay page-local. */
@@ -72,6 +73,7 @@ interface CartItem {
   color: ColorKey;
   size: string;
   qty: number;
+  logoUrl?: string; // For custom logo rugs — customer-uploaded logo
 }
 
 interface Mockup {
@@ -157,6 +159,10 @@ export default function BrandingShop() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
+  /* rug logo uploads: productKey -> { url, fileName } */
+  const [rugLogos, setRugLogos] = useState<Record<string, { url: string; fileName: string }>>({});
+  const [rugUploading, setRugUploading] = useState(false);
+
   /* studio state */
   const [brandName, setBrandName] = useState("");
   const [niche, setNiche] = useState("");
@@ -206,6 +212,12 @@ export default function BrandingShop() {
 
   function addToCart(product: ProductKey) {
     const s = sel[product];
+    // Rugs require a logo upload first
+    if (product === "rug" && !rugLogos["rug"]) {
+      setError("Please upload your logo first");
+      return;
+    }
+    const logoUrl = product === "rug" ? rugLogos["rug"]?.url : undefined;
     setCart((prev) => {
       const idx = prev.findIndex(
         (i) => i.product === product && i.color === s.color && i.size === s.size
@@ -215,9 +227,47 @@ export default function BrandingShop() {
         next[idx] = { ...next[idx], qty: Math.min(99, next[idx].qty + s.qty) };
         return next;
       }
-      return [...prev, { product, color: s.color, size: s.size, qty: s.qty }];
+      return [...prev, { product, color: s.color, size: s.size, qty: s.qty, logoUrl }];
     });
     setCartOpen(true);
+  }
+
+  /* Upload logo for custom rug — stores URL for checkout */
+  async function handleRugLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file (PNG, JPG)");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image must be under 10MB");
+      return;
+    }
+    setRugUploading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/branding-shop/upload-logo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Upload failed");
+      }
+      setRugLogos((prev) => ({
+        ...prev,
+        rug: { url: data.url!, fileName: file.name },
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setRugUploading(false);
+    }
   }
 
   function updateQty(idx: number, delta: number) {
@@ -693,6 +743,50 @@ export default function BrandingShop() {
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
+                      {/* Rug logo upload — required before adding to cart */}
+                      {p.key === "rug" && (
+                        <div className="mt-3">
+                          {rugLogos["rug"] ? (
+                            <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                              <img
+                                src={rugLogos["rug"].url}
+                                alt="Uploaded logo"
+                                className="h-12 w-12 rounded object-contain bg-white/10"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-primary truncate">
+                                  {rugLogos["rug"].fileName}
+                                </p>
+                                <p className="text-[11px] text-white/40">Logo ready</p>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  setRugLogos((prev) => {
+                                    const next = { ...prev };
+                                    delete next["rug"];
+                                    return next;
+                                  })
+                                }
+                                className="text-xs text-white/40 hover:text-white"
+                              >
+                                Change
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-3 text-sm font-bold text-primary hover:border-primary/60 hover:bg-primary/10 transition">
+                              <Upload className="h-4 w-4" />
+                              {rugUploading ? "Uploading..." : "Upload your logo"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={rugUploading}
+                                onChange={handleRugLogoUpload}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      )}
                       <button onClick={() => addToCart(p.key)} className={`${goldBtn} flex-1 !px-4 !py-2.5`}>
                         <ShoppingCart className="h-4 w-4" /> {t("brandingShop.addToCart")}
                       </button>
