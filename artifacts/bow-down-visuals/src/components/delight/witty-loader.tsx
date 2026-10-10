@@ -2,20 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /* ─── Shared loader timing — every loading screen matches ──
-   5s minimum display, 2.5s per headline/promo slide. Change here,
-   applies everywhere. */
-export const LOADER_MIN_MS = 5000;
+   The loader dismisses when the barcode first fills up (~3.5s),
+   not on a fixed timer. Change the slide speed here, applies everywhere. */
 export const LOADER_SLIDE_MS = 2500;
-
-/** Returns true once the minimum loader display time has elapsed. */
-export function useMinLoadTime(ms: number = LOADER_MIN_MS): boolean {
-  const [done, setDone] = useState(false);
-  useEffect(() => {
-    const t = window.setTimeout(() => setDone(true), ms);
-    return () => window.clearTimeout(t);
-  }, [ms]);
-  return done;
-}
 
 /* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
    Rotating mascot-voiced status lines in Thy Cheat Code's voice: royal,
@@ -56,7 +45,7 @@ export function useWittyLine(intervalMs = 2200): string {
   return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
 }
 
-export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS }: { message?: string; slideMs?: number }) {
+export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS, onComplete }: { message?: string; slideMs?: number; onComplete?: () => void }) {
   const { t } = useTranslation();
 
   // Single synced rotation — headline and promo switch together
@@ -131,7 +120,7 @@ export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS }: { me
 
       {/* ── BOTTOM-RIGHT: ticket-stub barcode ── */}
       <div className="absolute bottom-8 right-6 md:right-10 z-10">
-        <BarcodeStrip />
+        <BarcodeStrip onComplete={onComplete} />
       </div>
 
     </div>
@@ -204,18 +193,24 @@ function CrownedLogo() {
 /* BarcodeStrip — a real UPC-A barcode label in the Bow Down theme.
    Black sticker, gold bars, 12 typewriter digits below that count
    from 000000000000 to 999999999999 with progress. */
-function BarcodeStrip() {
+function BarcodeStrip({ onComplete }: { onComplete?: () => void }) {
   const [progress, setProgress] = useState(0);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
       setProgress((p) => {
         if (p >= 100) return 0;
-        return p + Math.random() * 8 + 2;
+        const next = p + Math.random() * 8 + 2;
+        if (next >= 100 && !completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
+        return next;
       });
     }, 200);
     return () => window.clearInterval(id);
-  }, []);
+  }, [onComplete]);
 
   // UPC-A: 12 digits, guard | 6 left | middle guard | 6 right | guard
   const MODULE = 2;

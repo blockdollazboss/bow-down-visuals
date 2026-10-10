@@ -1,14 +1,14 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import WittyLoader, { useMinLoadTime } from "@/components/delight/witty-loader";
+import WittyLoader from "@/components/delight/witty-loader";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  const minTimeDone = useMinLoadTime();
+  const [barcodeDone, setBarcodeDone] = useState(false);
 
-  if (loading || !minTimeDone) {
-    return <WittyLoader />;
+  if (loading || !barcodeDone) {
+    return <WittyLoader onComplete={() => setBarcodeDone(true)} />;
   }
 
   if (!user) {
