@@ -382,7 +382,14 @@ export default function BrandingShop() {
       const res = await authed("/api/branding-shop/orders", {
         method: "POST",
         body: JSON.stringify({
-          items: cart,
+          items: cart.map((item) => ({
+            product: item.product,
+            color: item.color,
+            size: item.size,
+            qty: item.qty,
+            // Map rug logoUrl to backend's designUrl field
+            ...(item.logoUrl ? { designUrl: item.logoUrl } : {}),
+          })),
           name: name.trim(),
           email: email.trim(),
           address: address.trim(),
