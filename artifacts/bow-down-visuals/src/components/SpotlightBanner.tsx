@@ -33,7 +33,7 @@ export default function SpotlightBanner() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-white">
-            Your video on our front door <span className="text-[#e8c86a]">· $1,000/7 days</span>
+            Your video on our front door <span className="text-[#e8c86a]">· $2,500/7 days</span>
           </p>
           <p className="text-xs text-white/45 mt-0.5 truncate">
             Spotlight Takeover — your video as the background on the sign-in &amp; sign-up screens.
