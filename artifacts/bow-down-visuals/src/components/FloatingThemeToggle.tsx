@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
+import { useLocation } from "wouter";
 
 /* Floating theme toggle — always visible on every page, top-right.
-   User directive 2026-10-10: theme switch must never be hidden. */
+   User directive 2026-10-10: theme switch must never be hidden.
+   Hidden on homepage (has its own toggle) to avoid overlap. */
 export function FloatingThemeToggle() {
   const [isLight, setIsLight] = useState(false);
+  const [location] = useLocation();
 
   useEffect(() => {
     const saved = localStorage.getItem("bdv-theme");
@@ -33,6 +36,9 @@ export function FloatingThemeToggle() {
     document.documentElement.classList.toggle("dark", !next);
     localStorage.setItem("bdv-theme", next ? "light" : "dark");
   };
+
+  // Don't show on homepage — it has its own theme toggle (avoids overlap)
+  if (location === "/") return null;
 
   return (
     <button
