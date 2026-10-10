@@ -38,6 +38,7 @@ export function MysteryCrate() {
   const [result, setResult] = useState<{ prize: number; isJackpot: boolean } | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [loadError, setLoadError] = useState(false);
+  const [claimedMessage, setClaimedMessage] = useState<string | null>(null);
 
   const hidden = !user || location.startsWith("/login") || location.startsWith("/signup") || location.startsWith("/video-editor");
 
@@ -104,6 +105,7 @@ export function MysteryCrate() {
     if (phase !== "closed" || cooldown > 0) return;
     setPhase("shaking");
     setResult(null);
+    setClaimedMessage(null);
     try {
       const r = await api("/api/bonus/spin-wheel", { method: "POST" });
       if (r.spun) {
@@ -116,10 +118,14 @@ export function MysteryCrate() {
         }, 2200);
       } else {
         setPhase("closed");
+        // Someone else claimed this hour's crate — tell the user instead of silently doing nothing
+        setClaimedMessage("Someone beat you to this hour's crate! Try again next hour.");
         if (r.cooldownSeconds) setCooldown(r.cooldownSeconds);
+        else setCooldown(3600);
       }
     } catch {
       setPhase("closed");
+      setClaimedMessage("Couldn't open the crate. Check your connection and try again.");
     }
   }
 
@@ -309,6 +315,12 @@ export function MysteryCrate() {
             {phase === "revealed" && result && !result.isJackpot && (
               <div className="mb-4 p-3 rounded-lg bg-[#c9a84c]/10 border border-[#c9a84c]/40">
                 <p className="text-xl font-bold text-[#c9a84c]">+{result.prize.toLocaleString()} Visual Bucs!</p>
+              </div>
+            )}
+
+            {claimedMessage && (
+              <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/40">
+                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{claimedMessage}</p>
               </div>
             )}
 

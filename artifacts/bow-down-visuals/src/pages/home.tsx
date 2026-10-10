@@ -55,6 +55,8 @@ import {
   Store,
   Flame,
   TrendingUp,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -1533,6 +1535,25 @@ function AcademySection() {
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
+/* ── Homepage theme toggle: light/dark switch right on the page ── */
+function HomepageThemeToggle({ isLight, onToggle }: { isLight: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
+      title={isLight ? "Switch to dark theme" : "Switch to light theme"}
+      className={`fixed top-20 right-4 z-[9500] flex items-center gap-2 rounded-full pl-3 pr-4 py-2.5 text-sm font-bold shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 ${
+        isLight
+          ? "bg-[#1C1712]/90 text-[#E8C86A] border border-[#C9A84C]/40 shadow-[0_8px_30px_rgba(28,23,18,0.25)]"
+          : "bg-white/10 text-[#E8C86A] border border-[#C9A84C]/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
+      }`}
+    >
+      {isLight ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      <span>{isLight ? "Dark" : "Light"}</span>
+    </button>
+  );
+}
+
 export default function Home() {
   const { t } = useTranslation();
   usePageTitle(
@@ -1542,6 +1563,39 @@ export default function Home() {
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+
+  /* Theme state — homepage owns its light/dark toggle. Synced with
+     documentElement class + localStorage so it persists across visits
+     and stays in sync with the sidebar toggle on other pages. */
+  const [isLight, setIsLight] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    if (document.documentElement.classList.contains("light")) return true;
+    return localStorage.getItem("bdv-theme") === "light";
+  });
+
+  const toggleTheme = () => {
+    const next = !isLight;
+    setIsLight(next);
+    if (next) {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("bdv-theme", "light");
+    } else {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      localStorage.setItem("bdv-theme", "dark");
+    }
+  };
+
+  /* Keep in sync if theme changes elsewhere (e.g. sidebar toggle). */
+  useEffect(() => {
+    const sync = () => {
+      setIsLight(document.documentElement.classList.contains("light"));
+    };
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
 
   /* Signed-in users go straight to artist selection — the first thing
      after sign-in is picking who they're creating for. */
@@ -1556,16 +1610,19 @@ export default function Home() {
 
   return (
     <>
+    <HomepageThemeToggle isLight={isLight} onToggle={toggleTheme} />
     <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
-      {/* Page backdrop — gold-curtain stage, fixed full-viewport. INSIDE the
-          isolated page root so the body's dark background can't cover it:
-          at z-0 it stays behind the content but above the page root's
-          (transparent) background. */}
+      {/* Page backdrop — gold-curtain stage (dark) or sunlit ivory palace
+          (light), fixed full-viewport. INSIDE the isolated page root so the
+          body's background can't cover it: at z-0 it stays behind the
+          content but above the page root's (transparent) background. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0"
+        className="pointer-events-none fixed inset-0 z-0 homepage-stage"
         style={{
-          backgroundImage: "url(/images/home-bg-gold-curtain-stage.webp)",
+          backgroundImage: isLight
+            ? "url(/images/subpage-bg-ivory-palace-v1.webp)"
+            : "url(/images/home-bg-gold-curtain-stage.webp)",
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat",

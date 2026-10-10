@@ -606,9 +606,16 @@ html, body {
 .light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-y-0"][class*="right-0"] {
   background: linear-gradient(to left, #FAF7F0 0%, transparent 100%) !important;
 }
-/* Wordmark halo: dark radial becomes soft champagne glow */
-.light .bdv-banner:not([data-dark-lock]) div[aria-hidden] > div[aria-hidden].absolute {
-  background: radial-gradient(ellipse at center, rgb(250 247 240 / 0.85) 0%, rgb(250 247 240 / 0.4) 55%, transparent 75%) !important;
+/* ── Spotlight artist cards (choose-artist): dark card → ivory ── */
+.light [data-spot-slot]:not([data-dark-lock]) {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F4EFE3 100%) !important;
+  border-color: #E7D9BC !important;
+  box-shadow: 0 8px 32px rgb(138 107 31 / 0.10) !important;
+}
+
+/* ── Wordmark halo: dark radial becomes soft champagne glow ── */
+.light .bdv-banner:not([data-dark-lock]) .absolute.h-16[aria-hidden] {
+  background: radial-gradient(ellipse at center, rgb(250 247 240 / 0.9) 0%, rgb(250 247 240 / 0.5) 55%, transparent 75%) !important;
 }
 
 /* Missing bg-black opacity variants */
@@ -776,6 +783,167 @@ html, body {
 .light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *) {
   --tw-gradient-to: rgb(250 247 240 / 0.95) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
+   A million times better than flat white. This is not an inversion —
+   it's a bespoke sunlit palace: warm ivory halls, honey-gold sunlight,
+   deep espresso ink. Luxury, not laundry.
+
+   Design tokens:
+   - Ink: deep espresso #1A1410 (headings), warm bronze #4A3F2F (body)
+   - Gold: honey #B8860B, antique #8A6B1F, champagne #E8C86A
+   - Surfaces: warm ivory #FDFBF7, champagne mist #F7F0DE
+   - Light: golden sunbeams, soft warm shadows (never flat)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Page root: warm ivory, never stark white */
+.light .no-throne-bg {
+  background-color: #FAF6ED;
+  color: #1C1712;
+}
+
+/* Sunlit stage: golden-hour wash over the ivory palace backdrop.
+   The React layer swaps the bg image; this adds the sunlight. */
+.light .homepage-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 22%, rgba(201,168,76,0.22) 0%, rgba(201,168,76,0.08) 45%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 85%, rgba(232,200,106,0.14) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(253,251,247,0.35) 0%, transparent 35%, rgba(244,234,213,0.45) 100%);
+}
+
+/* Curtain overlay in light mode: lift the shadows so the gold drapes
+   read as sunlit velvet, not a dark frame on a light stage. */
+.light .no-throne-bg ~ div[style*="home-curtains-overlay"] {
+  filter: brightness(1.12) saturate(1.08);
+  opacity: 0.94;
+}
+
+/* ── Typography: deep espresso ink, never washed gray ── */
+.light .no-throne-bg h1 {
+  color: #14100B;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.55), 0 2px 24px rgba(201,168,76,0.18);
+}
+.light .no-throne-bg h2 {
+  color: #1A1410;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+/* Body copy: warm bronze — readable and rich, not cold gray */
+.light .no-throne-bg .text-white\/55 {
+  color: #4E4232 !important;
+}
+.light .no-throne-bg .text-white\/50 {
+  color: #5A4C38 !important;
+}
+.light .no-throne-bg .text-white\/40 {
+  color: #6B5D45 !important;
+}
+.light .no-throne-bg .text-white\/35 {
+  color: #6E6046 !important;
+}
+
+/* ── Gold: honey-rich, never pale ── */
+.light .no-throne-bg .gold-text-shine {
+  background: linear-gradient(100deg, #8A6B1F 0%, #B8860B 25%, #E8C86A 50%, #B8860B 75%, #8A6B1F 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.5));
+}
+/* Positioning whisper + slogans: deep bronze gold */
+.light .no-throne-bg .text-primary\/90,
+.light .no-throne-bg .text-primary\/80 {
+  color: #8A6B1F !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ── Hero readability: warm golden halo (replaces the dark scrim) ── */
+.light .no-throne-bg [style*="radial-gradient(ellipse at 50% 62%, rgba(0,0,0,0.52)"] {
+  background: radial-gradient(ellipse at 50% 62%, rgba(253,251,247,0.72) 0%, rgba(253,251,247,0.38) 52%, transparent 76%) !important;
+}
+
+/* ── Spotlight beams in light mode: honey sunlight shafts ── */
+.light .no-throne-bg [class*="spotlight-beam"],
+.light .no-throne-bg [data-beam] {
+  filter: saturate(1.35) brightness(0.92);
+  opacity: 0.85;
+}
+
+/* ── Shark King: warm pedestal glow so he pops on ivory ── */
+.light .no-throne-bg section:first-of-type .relative.z-\[4\]::before {
+  content: "";
+  position: absolute;
+  inset: -8% -18%;
+  z-index: -1;
+  background: radial-gradient(ellipse 55% 62% at 50% 55%, rgba(201,168,76,0.28) 0%, rgba(232,200,106,0.12) 55%, transparent 75%);
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+/* ── Badges & pills: champagne glass, bronze-gold text ── */
+.light .no-throne-bg .bg-primary\/10 {
+  background-color: rgba(201,168,76,0.14) !important;
+  border-color: rgba(138,107,31,0.35) !important;
+}
+.light .no-throne-bg .text-primary {
+  color: #7A5F1D !important;
+}
+
+/* ── CTA buttons: rich gold that sings on ivory ── */
+.light .no-throne-bg a[href="/signup"] .bg-gradient-to-r,
+.light .no-throne-bg .from-\[\#C9A84C\] {
+  box-shadow: 0 10px 34px -8px rgba(138,107,31,0.5), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+/* Ghost button: bronze outline on champagne */
+.light .no-throne-bg button[class*="border-primary"] {
+  background-color: rgba(253,251,247,0.6) !important;
+  border-color: rgba(138,107,31,0.45) !important;
+  color: #7A5F1D !important;
+  box-shadow: 0 6px 22px -10px rgba(138,107,31,0.35);
+}
+
+/* ── Cards & panels on homepage: champagne glass, gold leaf borders ── */
+.light .no-throne-bg .lux-panel,
+.light .no-throne-bg .lux-card,
+.light .no-throne-bg [class*="rounded-3xl"][class*="border"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(247,240,222,0.65) 100%) !important;
+  border-color: rgba(201,168,76,0.4) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -1px 0 rgba(201,168,76,0.15),
+    0 24px 60px -28px rgba(138,107,31,0.35) !important;
+}
+.light .no-throne-bg .bg-white\/\[0\.03\],
+.light .no-throne-bg .bg-white\/\[0\.04\] {
+  background-color: rgba(255,255,255,0.55) !important;
+  border-color: rgba(201,168,76,0.3) !important;
+}
+
+/* ── Section dividers & hairlines: champagne gold ── */
+.light .no-throne-bg .divide-white\/10 > * + *,
+.light .no-throne-bg .border-white\/\[0\.08\],
+.light .no-throne-bg .border-white\/\[0\.07\] {
+  border-color: rgba(201,168,76,0.28) !important;
+}
+
+/* ── Teaser video letterbox: warm dissolve, not black crush ── */
+.light .no-throne-bg .from-black.via-transparent.to-black,
+.light .no-throne-bg [class*="from-black"][class*="to-black"] {
+  --tw-gradient-from: rgba(250,246,237,0.95) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgba(250,246,237,0.95) var(--tw-gradient-to-position);
+}
+
+/* ── Fog canvas in light mode: golden dust, not gray smoke ── */
+.light .no-throne-bg canvas[class*="fog"],
+.light .no-throne-bg [class*="FogCanvas"] {
+  filter: sepia(0.45) saturate(1.4) brightness(1.06);
+  opacity: 0.7;
 }
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
