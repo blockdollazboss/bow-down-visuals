@@ -244,11 +244,14 @@ export function ThyCheatCodeChat() {
 
   return (
     <>
-      {/* Small floating popup — no screen-blurring backdrop */}
+      {/* Small floating popup — no screen-blurring backdrop.
+          Raised well above the bottom edge (was bottom-24, sat too low)
+          with safe-area clearance for mobile home indicators. */}
       <div
         role="dialog"
         aria-label="Chat with Thy Cheat Code"
-        className="animate-tcc-drawer-in fixed bottom-24 right-5 z-[9995] h-[min(520px,70vh)] w-[min(340px,90vw)]"
+        className="animate-tcc-drawer-in fixed right-5 z-[9995] h-[min(520px,70vh)] w-[min(340px,90vw)]"
+        style={{ bottom: "max(7rem, calc(env(safe-area-inset-bottom, 0px) + 6rem))" }}
       >
         <div
           className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-4 border-[#C9A84C] bg-black"

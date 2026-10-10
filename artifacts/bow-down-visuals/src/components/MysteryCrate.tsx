@@ -107,8 +107,15 @@ export function MysteryCrate() {
     setResult(null);
     setClaimedMessage(null);
     try {
-      const r = await api("/api/bonus/spin-wheel", { method: "POST" });
-      if (r.spun) {
+      // Fetch directly (not via api()) so a 429 "already claimed" still
+      // yields its JSON body — api() throws on !ok before we can read it.
+      const token = await getAccessToken();
+      const res = await fetch("/api/bonus/spin-wheel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const r = await res.json().catch(() => ({}));
+      if (res.ok && r.spun) {
         // Shake for suspense, then burst open
         setTimeout(() => setPhase("opening"), 1200);
         setTimeout(() => {
@@ -116,12 +123,17 @@ export function MysteryCrate() {
           setPhase("revealed");
           loadStatus();
         }, 2200);
-      } else {
+      } else if (r.spun === false || res.status === 429) {
         setPhase("closed");
         // Someone else claimed this hour's crate — tell the user instead of silently doing nothing
         setClaimedMessage("Someone beat you to this hour's crate! Try again next hour.");
-        if (r.cooldownSeconds) setCooldown(r.cooldownSeconds);
-        else setCooldown(3600);
+        // Backend sends nextHourIn (seconds until next UTC hour); fall back to cooldownSeconds, then 1h
+        const wait = typeof r.nextHourIn === "number" ? r.nextHourIn
+          : typeof r.cooldownSeconds === "number" ? r.cooldownSeconds
+          : 3600;
+        setCooldown(wait);
+      } else {
+        throw new Error(`spin failed: ${res.status}`);
       }
     } catch {
       setPhase("closed");

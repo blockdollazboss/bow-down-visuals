@@ -89,10 +89,11 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+        title="Sign in with QR Code"
+        aria-label="Sign in with QR Code"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary shrink-0"
       >
-        <QrCode className="h-4 w-4" />
-        <span>Sign in with QR Code</span>
+        <QrCode className="h-5 w-5" strokeWidth={1.8} />
       </button>
 
       {open && typeof document !== "undefined" && createPortal(

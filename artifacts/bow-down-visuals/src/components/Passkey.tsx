@@ -113,16 +113,17 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <div className="w-full">
+    <div className="shrink-0">
       <button
         onClick={login}
         disabled={loading}
-        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+        title="Sign in with Passkey"
+        aria-label="Sign in with Passkey"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary disabled:opacity-50"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
-        <span>{loading ? "Verifying..." : "Sign in with Passkey"}</span>
+        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" strokeWidth={1.8} />}
       </button>
-      {error && <p className="text-destructive text-xs mt-2 text-center">{error}</p>}
+      {error && <p className="text-destructive text-xs mt-2 text-center max-w-[76px]">{error}</p>}
     </div>
   );
 }

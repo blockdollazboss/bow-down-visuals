@@ -606,11 +606,18 @@ html, body {
 .light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-y-0"][class*="right-0"] {
   background: linear-gradient(to left, #FAF7F0 0%, transparent 100%) !important;
 }
-/* ── Spotlight artist cards (choose-artist): dark card → ivory ── */
-.light [data-spot-slot]:not([data-dark-lock]) {
+/* ── Spotlight artist cards (choose-artist): dark card → ivory ──
+   Guarded by :not([style*="url("]) so cards WITH an artist reference
+   image keep their photo — only empty slots get the ivory fill.
+   Image cards just get an ivory-appropriate border + shadow. */
+.light [data-spot-slot]:not([style*="url("]):not([data-dark-lock]) {
   background: linear-gradient(135deg, #FFFFFF 0%, #F4EFE3 100%) !important;
   border-color: #E7D9BC !important;
   box-shadow: 0 8px 32px rgb(138 107 31 / 0.10) !important;
+}
+.light [data-spot-slot][style*="url("]:not([data-dark-lock]) {
+  border-color: #E7D9BC !important;
+  box-shadow: 0 8px 32px rgb(138 107 31 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.4) !important;
 }
 
 /* ── Wordmark halo: dark radial becomes soft champagne glow ── */
@@ -981,6 +988,22 @@ html, body {
 .light .text-\[\#E8C96A\],
 .light .text-\[\#E8C86A\] {
   color: #7A5F1D !important;
+}
+
+/* ── Thy Cheat Code chat panel: ivory in light mode ──
+   The panel is a dark card (bg-black, dark header gradient). Generic
+   rules handle .bg-black → white, but the arbitrary header gradient
+   and gold-on-dark text need explicit ivory versions. */
+.light [role="dialog"][aria-label="Chat with Thy Cheat Code"] .from-\[\#1a1405\] {
+  --tw-gradient-from: #F7F0DE var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(253 251 247 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.light [role="dialog"][aria-label="Chat with Thy Cheat Code"] .to-black {
+  --tw-gradient-to: #EDE3CB var(--tw-gradient-to-position);
+}
+.light [role="dialog"][aria-label="Chat with Thy Cheat Code"] {
+  filter: drop-shadow(0 12px 32px rgb(138 107 31 / 0.18));
 }
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
