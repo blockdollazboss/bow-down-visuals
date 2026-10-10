@@ -96,3 +96,4 @@ export * from "./wave8";
 export * from "./wave9";
 export * from "./wave9a";
 export * from "./retention";
+export * from "./thy-books";

@@ -31,7 +31,8 @@ import {
   OutOfCreditsError,
 } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { ensureShopProductsBucket, SHOP_PRODUCTS_BUCKET } from "../../lib/objectStorage";
+import { SHOP_PRODUCTS_BUCKET } from "../../lib/objectStorage";
+import { r2Upload, r2PublicUrl, isR2Configured } from "../../lib/r2-client";
 import { db } from "@workspace/db";
 import { requireProTier } from "./storefronts";
 import { sql } from "drizzle-orm";
@@ -604,18 +605,26 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) throw new Error("Image generation returned no image data.");
 
-    /* Self-healing bucket: verify/create BEFORE the upload, never assume it
-       exists. Throws loudly on failure → credit is refunded by the catch. */
-    await ensureShopProductsBucket();
-
+    /* R2 upload with namespaced key (shop-products/<userId>/products/<uuid>.png).
+       Falls back to Supabase only when R2 is not configured. */
     const filePath = `${req.userId!}/products/${randomUUID()}.png`;
-    const { error: upErr } = await getSupabaseAdmin().storage
-      .from(SHOP_PRODUCTS_BUCKET)
-      .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-    if (upErr) throw upErr;
-    const { data: { publicUrl } } = getSupabaseAdmin().storage
-      .from(SHOP_PRODUCTS_BUCKET)
-      .getPublicUrl(filePath);
+    const r2Key = `${SHOP_PRODUCTS_BUCKET}/${filePath}`;
+    let publicUrl: string;
+    if (isR2Configured()) {
+      publicUrl = await r2Upload(r2Key, Buffer.from(b64, "base64"), "image/png");
+    } else {
+      /* Self-healing bucket: verify/create BEFORE the upload, never assume it
+         exists. Throws loudly on failure → credit is refunded by the catch. */
+      const { ensureShopProductsBucket } = await import("../../lib/objectStorage");
+      await ensureShopProductsBucket();
+      const { error: upErr } = await getSupabaseAdmin().storage
+        .from(SHOP_PRODUCTS_BUCKET)
+        .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
+      if (upErr) throw upErr;
+      publicUrl = getSupabaseAdmin().storage
+        .from(SHOP_PRODUCTS_BUCKET)
+        .getPublicUrl(filePath).data.publicUrl;
+    }
 
     res.json({
       url: publicUrl,

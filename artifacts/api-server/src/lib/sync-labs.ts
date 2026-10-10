@@ -7,6 +7,7 @@ import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { logger } from "./logger";
+import { r2Upload, r2GetSignedUrl, isR2Configured } from "./r2-client";
 
 const execFileAsync = promisify(execFile);
 
@@ -347,6 +348,15 @@ export async function uploadAudioToSupabase(
   objectName: string,
   contentType = "audio/mpeg",
 ): Promise<string> {
+  /* R2 first with namespaced key (lip-sync-temp/<objectName>), signed URL
+     with the same 2-hour TTL the sync.so provider expects. Supabase is the
+     fallback only when R2 is not configured. */
+  const r2Key = `${LIP_SYNC_AUDIO_BUCKET}/${objectName}`;
+  if (isR2Configured()) {
+    await r2Upload(r2Key, buffer, contentType);
+    return r2GetSignedUrl(r2Key, 7200);
+  }
+
   // Fail fast here: ensureSupabaseBucket verifies the bucket exists after
   // creation and throws loudly if it is still missing — never silently
   // march into a doomed upload.
