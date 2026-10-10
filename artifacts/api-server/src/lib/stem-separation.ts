@@ -377,13 +377,8 @@ export async function trimSongToBestWindow(
 
 /**
  * Backwards-compatible alias: trims to the loudest window.
- * Prefer trimSongToBestWindow for new callers.
- */
-export const trimSongToLoudestWindow = (
-  inputPath: string,
-  workdir: string,
-  windowSeconds: number,
-): Promise<string> => trimSongToBestWindow(inputPath, workdir, windowSeconds, "loudest");
+/* Removed 2026-10-10: trimSongToLoudestWindow was dead (zero imports).
+ * Prefer trimSongToBestWindow for new callers. */
 
 function runDemucs(songPath: string, outDir: string, model: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {

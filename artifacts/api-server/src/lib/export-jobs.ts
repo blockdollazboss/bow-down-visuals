@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -382,6 +381,4 @@ function humanizeStage(stage: string): string {
 }
 
 /** Kept for tests/callers that need a job id without a DB round-trip. */
-export function newJobId(): string {
-  return randomUUID();
-}
+/* Removed 2026-10-10: newJobId was dead (zero imports). */

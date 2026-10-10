@@ -107,15 +107,7 @@ interface PrintfulApiOrder {
   shipments?: Array<{ tracking_number?: string; tracking_url?: string }>;
 }
 
-/** Live: list the store's sync products (for the ops product-sync view). */
-export async function listSyncProducts(): Promise<
-  Array<{ id: number; name: string; thumbnailUrl?: string }>
-> {
-  const result = await printfulFetch<
-    Array<{ id: number; name: string; thumbnail_url?: string }>
-  >("/store/products");
-  return result.map((p) => ({ id: p.id, name: p.name, thumbnailUrl: p.thumbnail_url }));
-}
+/* Removed 2026-10-10: listSyncProducts was dead (zero imports). */
 
 /** Live: submit an order to Printful as a DRAFT (confirm: false) so ops can
  *  review in the Printful dashboard before money moves. Returns the provider

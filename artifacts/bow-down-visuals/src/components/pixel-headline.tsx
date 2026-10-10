@@ -167,56 +167,9 @@ export function PixelDivider({
   );
 }
 
-/* ─── The headline itself ─── */
-
-type PixelHeadlineSize = "hero" | "page" | "section";
-
-const SIZE_CLASSES: Record<PixelHeadlineSize, string> = {
-  // Homepage hero — biggest moment on the site
-  hero: "text-xl sm:text-2xl lg:text-[1.9rem] leading-[1.75]",
-  // Major page heroes (pricing, choose-artist, hooks, coach)
-  page: "text-base sm:text-lg lg:text-xl leading-[1.8]",
-  // Tool page headers (make-song, make-video, promo-clip)
-  section: "text-sm sm:text-base lg:text-lg leading-[1.8]",
-};
-
-export function PixelHeadline({
-  as: Tag = "h1",
-  size = "page",
-  align = "left",
-  cursor = false,
-  className,
-  style,
-  children,
-}: {
-  as?: "h1" | "h2";
-  size?: PixelHeadlineSize;
-  align?: "left" | "center" | "right";
-  cursor?: boolean;
-  className?: string;
-  style?: CSSProperties;
-  children: ReactNode;
-}) {
-  return (
-    <Tag
-      className={cn(
-        "pixel-display pixel-gold-text",
-        SIZE_CLASSES[size],
-        align === "center" && "text-center",
-        align === "right" && "text-right",
-        className,
-      )}
-      style={style}
-    >
-      {children}
-      {cursor && (
-        <span aria-hidden="true" className="pixel-blink">
-          {"\u25ae"}
-        </span>
-      )}
-    </Tag>
-  );
-}
+/* ─── The headline itself ───
+   Removed 2026-10-10: PixelHeadline was dead (zero imports). The size
+   scale is documented here for reference if a pixel headline returns. */
 
 /* ─── Thy Cheat Code — the name, always in 8-bit pixel style ───
  * Em-scaled so it sits naturally inside any surrounding text size.
@@ -244,24 +197,5 @@ export function CheatCodeName({
   );
 }
 
-/* ─── Pixel kicker — tiny arcade label for eyebrows/badges ─── */
-
-export function PixelKicker({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "pixel-display text-[9px] sm:text-[10px] tracking-[0.25em] uppercase text-[#C9A84C]",
-        className,
-      )}
-      style={{ textShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
-    >
-      {children}
-    </span>
-  );
-}
+/* ─── Pixel kicker — tiny arcade label for eyebrows/badges ───
+   Removed 2026-10-10: PixelKicker was dead (zero imports). */

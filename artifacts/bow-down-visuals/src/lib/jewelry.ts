@@ -71,6 +71,4 @@ export function formatMoney(cents: number): string {
 
 /* Premium line: prices are TBD from supplier quotes, so a zero priceCents
    renders as "Pricing soon" instead of a dollar amount anywhere. */
-export function formatJewelryPrice(cents: number): string {
-  return cents > 0 ? formatMoney(cents) : "Pricing soon";
-}
+/* Removed 2026-10-10: formatJewelryPrice was dead (zero imports). */

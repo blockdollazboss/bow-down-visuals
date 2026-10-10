@@ -1,7 +1,8 @@
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+/** Google "G" mark module — only export is GoogleGMark. */
 
-/** Multicolor Google "G" mark (inline SVG, no asset dependency). */
+/** Multicolor Google "G" mark (inline SVG, no asset dependency).
+    NOTE: this file also used to export GoogleSignInButton + OrDivider;
+    both were dead (no imports anywhere) and were removed 2026-10-10. */
 export function GoogleGMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -25,44 +26,5 @@ export function GoogleGMark({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-interface GoogleSignInButtonProps {
-  onClick: () => void;
-  loading: boolean;
-  label: string;
-  testId?: string;
-}
-
-export function GoogleSignInButton({ onClick, loading, label, testId }: GoogleSignInButtonProps) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="lg"
-      className="w-full"
-      onClick={onClick}
-      disabled={loading}
-      data-testid={testId ?? "btn-google-signin"}
-    >
-      {loading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <GoogleGMark className="mr-2 h-5 w-5" />
-      )}
-      {label}
-    </Button>
-  );
-}
-
-/** "or" divider used between the Google button and the email form. */
-export function OrDivider({ text = "or continue with email" }: { text?: string }) {
-  return (
-    <div className="relative my-6">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t border-card-border" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-card px-2 text-muted-foreground">{text}</span>
-      </div>
-    </div>
-  );
-}
+/* ── Removed 2026-10-10: GoogleSignInButton + OrDivider were dead code ──
+   (zero imports anywhere; only GoogleGMark is used, via SocialSignInButtons) */

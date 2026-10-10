@@ -418,6 +418,4 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
 }
 
 /** Kept for callers that need a job id without a DB round-trip. */
-export function newLipSyncJobId(): string {
-  return randomUUID();
-}
+/* Removed 2026-10-10: newLipSyncJobId was dead (zero imports). */

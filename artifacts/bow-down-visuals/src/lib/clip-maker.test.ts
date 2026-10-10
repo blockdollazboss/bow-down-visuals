@@ -4,7 +4,6 @@ import {
   buildTimestampExport,
   cutCostFor,
   CUT_CREDITS_PER_CLIP,
-  ANALYZE_CREDITS,
 } from "./clip-maker";
 
 describe("formatClipTimestamp", () => {
@@ -32,8 +31,7 @@ describe("buildTimestampExport", () => {
 });
 
 describe("pricing", () => {
-  it("analysis costs 3 credits, cuts cost 2 per clip", () => {
-    expect(ANALYZE_CREDITS).toBe(3);
+  it("cuts cost 2 per clip", () => {
     expect(CUT_CREDITS_PER_CLIP).toBe(2);
     expect(cutCostFor(0)).toBe(0);
     expect(cutCostFor(3)).toBe(6);

@@ -227,9 +227,7 @@ function filterOrAll<T>(subset: T[], all: readonly T[]): T[] {
   return subset.length > 0 ? subset : [...all];
 }
 
-export function templateCaptionPresets(t: VideoTemplate): CaptionStylePreset[] {
-  return t.captionPresets.length > 0 ? [...t.captionPresets] : [];
-}
+/* Removed 2026-10-10: templateCaptionPresets was dead (zero imports). */
 
 export function templateEffects(t: VideoTemplate, all: readonly string[]): string[] {
   return filterOrAll(t.effects, all);

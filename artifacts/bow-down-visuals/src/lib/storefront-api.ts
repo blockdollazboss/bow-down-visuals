@@ -46,11 +46,7 @@ export interface StoreProductDTO {
   links: ProductLinks;
 }
 
-export interface FeeSplit {
-  priceCents: number; price: string;
-  platformFeeCents: number; platformFee: string; platformFeePct: number;
-  creatorCents: number; creatorAmount: string;
-}
+/* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
 
 export interface StoreOrderDTO {
   id: string;
@@ -139,8 +135,7 @@ export const listProducts = (slug: string) =>
     `/products?slug=${encodeURIComponent(slug)}`
   );
 
-export const getProduct = (id: string) =>
-  get<{ product: StoreProductDTO; feeSplit: FeeSplit; note: string }>(`/product/${id}`);
+/* Removed 2026-10-10: getProduct was dead (zero imports). */
 
 export const validateDiscount = (profileId: string, code: string) =>
   get<{ valid: boolean; code?: string; percentOff?: number; reason?: string }>(
@@ -157,23 +152,7 @@ export const checkoutProduct = (
     totals: { unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string; percentOff: number; discountCode: string | null; platformFeeCents: number; creatorCents: number };
   }>("/checkout", input, token);
 
-export const verifyPurchase = (token: string, sessionId: string) =>
-  post<{
-    success: boolean; duplicate: boolean;
-    order: {
-      id: string; productKind: string; quantity: number;
-      amountCents: number; amount: string;
-      platformFeeCents: number; platformFee: string; platformFeePct: number;
-      creatorAmountCents: number; creatorAmount: string;
-      discountCode: string | null; fulfillmentNote: string | null;
-    };
-    delivery: { url: string; expiresAt: string; maxUses: number } | null;
-    links: { productUrl: string | null; creatorUrl: string | null; eventUrl: string | null; orderHistoryUrl: string };
-    note: string;
-  }>("/verify", { sessionId }, token);
-
-export const myPurchases = (token: string) =>
-  get<{ purchases: (StoreOrderDTO & { artistName: string; artistSlug: string })[] }>("/orders/purchases", token);
+/* Removed 2026-10-10: verifyPurchase + myPurchases were dead (zero imports). */
 
 /* ── Seller ─────────────────────────────────────────────────────────── */
 export const createProduct = (token: string, input: CreateProductInput) =>

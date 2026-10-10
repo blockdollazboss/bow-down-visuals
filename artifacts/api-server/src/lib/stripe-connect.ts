@@ -161,13 +161,9 @@ export async function getConnectStatus(accountId: string): Promise<ConnectFields
   };
 }
 
-/* Dashboard login link: the v2 API has no login-link endpoint, so creators
+/* Removed 2026-10-10: createLoginLink was a dead stub (zero imports).
+ * Dashboard login link: the v2 API has no login-link endpoint, so creators
  * manage their account in the Stripe Express dashboard directly. */
-export async function createLoginLink(_accountId: string): Promise<never> {
-  throw new Error(
-    "Express dashboard login links aren't available on Stripe Accounts v2 — sign in at the Stripe Express dashboard directly.",
-  );
-}
 
 /* Transfer creator earnings to their connected account. TEST MODE only moves
  * test funds. Idempotency key prevents double-payouts on retry. */

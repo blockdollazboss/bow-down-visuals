@@ -22,13 +22,9 @@ export const attributionOptIn = () =>
     .preprocess(coerceAttributionFlag, z.boolean().optional().default(false))
     .describe("Opt-in: burn the gold \"Made with Bow Down Visuals\" credit into the export.");
 
-/** zod field for free/bonus exports: default ON, removable only via the watermark-removal upsell. */
-export const attributionDefaultOn = () =>
-  z
-    .preprocess(coerceAttributionFlag, z.boolean().optional().default(true))
-    .describe(
-      "Free exports carry the \"Made with Bow Down Visuals\" credit by default; remove it via the watermark-removal upsell.",
-    );
+/* Removed 2026-10-10: attributionDefaultOn was dead (zero imports).
+   NOTE: this was the zod field for free-export attribution ("Made with
+   Bow Down Visuals" default-on); if that feature is built, re-add it. */
 
 const FONT_CANDIDATES = [
   "/usr/share/fonts/bdv/Poppins-Bold.ttf",

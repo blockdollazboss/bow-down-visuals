@@ -194,10 +194,7 @@ async function findAutotalentPlugin(): Promise<string | null> {
   return null;
 }
 
-/** Exposed for callers (e.g. a health check) that want to know before rendering. */
-export async function isAutotuneAvailable(): Promise<boolean> {
-  return (await findAutotalentPlugin()) !== null;
-}
+/* Removed 2026-10-10: isAutotuneAvailable was dead (zero imports). */
 
 const AUTOTUNE_LEVELS: Record<string, { strength: number; smoothness: number } | undefined> = {
   /* Light touch — corrects obvious pitch drift but keeps natural inflection. */
