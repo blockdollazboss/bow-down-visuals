@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Star, Sparkles, Download, Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -138,7 +139,7 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
     a.click();
   }, [clamped, info]);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-4 overflow-y-auto"
       role="dialog"
@@ -240,6 +241,7 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
