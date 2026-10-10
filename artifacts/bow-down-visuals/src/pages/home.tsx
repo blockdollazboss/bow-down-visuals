@@ -876,7 +876,7 @@ function StudioShowcase() {
   return (
     <section
       id="tools"
-      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent"
+      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-white/5 to-transparent"
     >
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
@@ -1076,7 +1076,7 @@ function FAQSection() {
   return (
     <section
       id="faq"
-      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent"
+      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-white/5 to-transparent"
     >
       <LuxReveal className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
