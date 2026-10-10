@@ -858,7 +858,50 @@
     "bowRaceLoadError": "Could not load bow race data: {{reason}}",
     "networkError": "network error",
     "errorSaveFailed": "Save failed.",
-    "bowRaceUpdated": "Bow race updated."
+    "bowRaceUpdated": "Bow race updated.",
+    "spotlight": {
+      "title": "Spotlight Inbox",
+      "description": "Takeover ad leads — review and move each inquiry through the pipeline.",
+      "empty": "No spotlight inquiries yet.",
+      "loadError": "Could not load spotlight inquiries.",
+      "statusError": "Could not update the inquiry status.",
+      "videoLink": "Watch video",
+      "targetLink": "Target link",
+      "status": {
+        "new": "New",
+        "contacted": "Contacted",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      }
+    },
+    "contact": {
+      "title": "Contact Inbox",
+      "description": "Messages from the contact form — newest first.",
+      "empty": "No contact messages yet.",
+      "loadError": "Could not load contact messages.",
+      "statusError": "Could not update the message.",
+      "markRead": "Mark read",
+      "markUnread": "Mark unread"
+    },
+    "users": {
+      "title": "User Management",
+      "description": "Look up a customer by email. Ban blocks them from the site.",
+      "emailPlaceholder": "customer@email.com",
+      "lookupButton": "Lookup",
+      "lookupError": "Lookup failed. Try again.",
+      "notFound": "No user found with that email.",
+      "plan": "Plan",
+      "credits": "Visual Bucs",
+      "since": "Customer since",
+      "userId": "User ID",
+      "banned": "Banned",
+      "active": "Active",
+      "ban": "Ban user",
+      "unban": "Unban user",
+      "banConfirm": "Ban {email}? They will be blocked from signing in.",
+      "unbanConfirm": "Unban {email}?",
+      "banError": "Could not update the ban status."
+    }
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Cross-Platform Dashboard",
@@ -5280,7 +5323,18 @@
     "teamStatusInvited": "Invite pending",
     "teamSubtitle": "Roles for collaborators & managers",
     "teamTitle": "Team Seats",
-    "title": "Settings"
+    "title": "Settings",
+    "dangerTitle": "Danger Zone",
+    "dangerDescription": "Export a copy of your data, or permanently delete your account. Deletion cannot be undone.",
+    "exportButton": "Export my data",
+    "exporting": "Preparing export…",
+    "exportError": "Export failed. Try again.",
+    "deleteTitle": "Delete my account",
+    "deleteDescription": "Type DELETE below to confirm. This permanently deletes your account, projects, and data.",
+    "deletePlaceholder": "Type DELETE to confirm",
+    "deleteButton": "Delete my account",
+    "deleting": "Deleting…",
+    "deleteError": "Deletion failed. Try again."
   },
   "sfx": {
     "categoryAmbient": "Ambient",

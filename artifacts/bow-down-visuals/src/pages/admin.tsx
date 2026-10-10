@@ -319,6 +319,366 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   );
 }
 
+/* ─── Spotlight Inbox — $99 takeover leads ─────────────────────────────── */
+interface SpotlightInquiry {
+  id: string;
+  name: string;
+  email: string;
+  videoUrl: string | null;
+  targetUrl: string | null;
+  status: string;
+  createdAt: string | null;
+}
+
+const SPOTLIGHT_STATUSES = ["new", "contacted", "approved", "rejected"] as const;
+
+const SPOTLIGHT_STATUS_CLS: Record<string, string> = {
+  new: "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#e8c86a]",
+  contacted: "border-sky-400/40 bg-sky-400/10 text-sky-300",
+  approved: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+  rejected: "border-red-400/40 bg-red-400/10 text-red-300",
+};
+
+function SpotlightInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const { t } = useTranslation();
+  const [inquiries, setInquiries] = useState<SpotlightInquiry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/spotlight-inquiries", { headers: await authHeaders() });
+      const data = (await res.json()) as { inquiries?: SpotlightInquiry[] };
+      if (res.ok) setInquiries(data.inquiries ?? []);
+      else setError(t("admin.spotlight.loadError"));
+    } catch {
+      setError(t("admin.spotlight.loadError"));
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function setStatus(id: string, status: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/spotlight-inquiries/${id}`, {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((list) => list.map((q) => (q.id === id ? { ...q, status } : q)));
+    } catch {
+      setError(t("admin.spotlight.statusError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Star className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.spotlight.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">
+        {t("admin.spotlight.description")}
+      </p>
+      {loading ? (
+        <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : inquiries.length === 0 ? (
+        <p className="text-sm text-white/40">{t("admin.spotlight.empty")}</p>
+      ) : (
+        <div className="space-y-3">
+          {inquiries.map((q) => (
+            <div key={q.id} className="rounded-xl border border-white/[0.08] bg-black/30 p-4">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{q.name}</p>
+                  <p className="text-xs text-white/50 truncate">{q.email}</p>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${SPOTLIGHT_STATUS_CLS[q.status] ?? SPOTLIGHT_STATUS_CLS.new}`}>
+                  {t(`admin.spotlight.status.${q.status}`, { defaultValue: q.status })}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                {q.videoUrl && (
+                  <a href={q.videoUrl} target="_blank" rel="noreferrer" className="text-[#e8c86a] underline hover:text-white">
+                    {t("admin.spotlight.videoLink")}
+                  </a>
+                )}
+                {q.targetUrl && (
+                  <a href={q.targetUrl} target="_blank" rel="noreferrer" className="text-[#e8c86a] underline hover:text-white">
+                    {t("admin.spotlight.targetLink")}
+                  </a>
+                )}
+                <span className="text-white/30">
+                  {q.createdAt ? new Date(q.createdAt).toLocaleString() : "—"}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SPOTLIGHT_STATUSES.map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={q.status === s ? "default" : "outline"}
+                    disabled={busyId === q.id || q.status === s}
+                    onClick={() => { void setStatus(q.id, s); }}
+                    className="rounded-xl text-xs"
+                  >
+                    {busyId === q.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t(`admin.spotlight.status.${s}`)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+/* ─── Contact Inbox — contact form messages ─────────────────────────────── */
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  read: boolean;
+  createdAt: string | null;
+}
+
+function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const { t } = useTranslation();
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/contact-messages", { headers: await authHeaders() });
+      const data = (await res.json()) as { messages?: ContactMessage[] };
+      if (res.ok) setMessages(data.messages ?? []);
+      else setError(t("admin.contact.loadError"));
+    } catch {
+      setError(t("admin.contact.loadError"));
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function setRead(id: string, read: boolean) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/contact-messages/${id}`, {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ read }),
+      });
+      if (!res.ok) throw new Error();
+      setMessages((list) => list.map((m) => (m.id === id ? { ...m, read } : m)));
+    } catch {
+      setError(t("admin.contact.statusError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Users className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.contact.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">
+        {t("admin.contact.description")}
+      </p>
+      {loading ? (
+        <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : messages.length === 0 ? (
+        <p className="text-sm text-white/40">{t("admin.contact.empty")}</p>
+      ) : (
+        <div className="space-y-3">
+          {messages.map((m) => (
+            <div key={m.id} className={`rounded-xl border p-4 ${m.read ? "border-white/[0.06] bg-black/20" : "border-[#C9A84C]/40 bg-[#C9A84C]/[0.05]"}`}>
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {m.name} <span className="font-normal text-white/50">· {m.email}</span>
+                  </p>
+                </div>
+                <span className="text-[11px] text-white/30">
+                  {m.createdAt ? new Date(m.createdAt).toLocaleString() : "—"}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-white/75 whitespace-pre-wrap">{m.message}</p>
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busyId === m.id}
+                  onClick={() => { void setRead(m.id, !m.read); }}
+                  className="rounded-xl text-xs"
+                >
+                  {busyId === m.id ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : m.read ? t("admin.contact.markUnread") : t("admin.contact.markRead")}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+/* ─── User Management — lookup, ban, unban ──────────────────────────────── */
+interface AdminUserLookup {
+  id: string;
+  email: string;
+  displayName: string | null;
+  credits: number;
+  plan: string | null;
+  banned: boolean;
+  createdAt: string | null;
+}
+
+function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promise<HeadersInit>; adminEmail: string | null }) {
+  const { t } = useTranslation();
+  const [email, setEmail] = useState("");
+  const [looking, setLooking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [found, setFound] = useState<AdminUserLookup | null>(null);
+  const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function lookup() {
+    const q = email.trim();
+    if (!q) return;
+    setLooking(true);
+    setError(null);
+    setSearched(false);
+    try {
+      const res = await fetch(`/api/admin/users/lookup?email=${encodeURIComponent(q)}`, {
+        headers: await authHeaders(),
+      });
+      const data = (await res.json()) as { user?: AdminUserLookup | null };
+      if (!res.ok) throw new Error();
+      setFound(data.user ?? null);
+      setSearched(true);
+    } catch {
+      setError(t("admin.users.lookupError"));
+    } finally {
+      setLooking(false);
+    }
+  }
+
+  async function setBan(ban: boolean) {
+    if (!found) return;
+    const label = ban ? t("admin.users.banConfirm", { email: found.email }) : t("admin.users.unbanConfirm", { email: found.email });
+    if (!window.confirm(label)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${found.id}/${ban ? "ban" : "unban"}`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      setFound({ ...found, banned: ban });
+    } catch {
+      setError(t("admin.users.banError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isSelf = found != null && adminEmail != null && found.email.toLowerCase() === adminEmail.toLowerCase();
+
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.users.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">
+        {t("admin.users.description")}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="email"
+          placeholder={t("admin.users.emailPlaceholder")}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
+          disabled={looking}
+          className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+        />
+        <Button onClick={() => { void lookup(); }} disabled={looking || !email.trim()} className="rounded-xl">
+          {looking ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {t("admin.users.lookupButton")}
+        </Button>
+      </div>
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {searched && !found && !error && (
+        <p className="mt-3 text-sm text-white/50">{t("admin.users.notFound")}</p>
+      )}
+      {found && (
+        <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">
+                {found.displayName ?? found.email}
+              </p>
+              <p className="text-xs text-white/50 truncate">{found.email}</p>
+            </div>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${found.banned ? "border-red-400/40 bg-red-400/10 text-red-300" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}>
+              {found.banned ? t("admin.users.banned") : t("admin.users.active")}
+            </span>
+          </div>
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+            <div><dt className="text-white/35">{t("admin.users.plan")}</dt><dd className="text-white/80">{found.plan ?? "—"}</dd></div>
+            <div><dt className="text-white/35">{t("admin.users.credits")}</dt><dd className="text-white/80">{Number(found.credits).toLocaleString("en-US")}</dd></div>
+            <div><dt className="text-white/35">{t("admin.users.since")}</dt><dd className="text-white/80">{found.createdAt ? new Date(found.createdAt).toLocaleDateString() : "—"}</dd></div>
+            <div><dt className="text-white/35">{t("admin.users.userId")}</dt><dd className="text-white/80 truncate" title={found.id}>{found.id.slice(0, 8)}…</dd></div>
+          </dl>
+          {!isSelf && (
+            <div className="mt-3">
+              {found.banned ? (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => { void setBan(false); }} className="rounded-xl text-xs">
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : t("admin.users.unban")}
+                </Button>
+              ) : (
+                <Button size="sm" disabled={busy} onClick={() => { void setBan(true); }} className="rounded-xl text-xs bg-red-600 hover:bg-red-500 text-white">
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : t("admin.users.ban")}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { t } = useTranslation();
   usePageTitle(t("admin.pageTitle"), t("admin.pageDescription"));
@@ -784,6 +1144,9 @@ export default function AdminPage() {
             )}
           </div>
           <JackpotAdmin authHeaders={authHeaders} />
+          <SpotlightInbox authHeaders={authHeaders} />
+          <ContactInbox authHeaders={authHeaders} />
+          <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
           <JewelryOrdersAdmin authHeaders={authHeaders} />
         </>
