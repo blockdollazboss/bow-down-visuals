@@ -1631,7 +1631,7 @@ export default function VideoEditor() {
         {!projectId ? (
           <NoProject />
         ) : (loading || !minTimeDone) ? (
-          <WittyLoader />
+          <WittyLoader slideMs={2500} />
         ) : loadError ? (
           <div className="py-20 text-center space-y-3">
             <p className="text-red-400 font-semibold">{loadError}</p>

@@ -188,8 +188,9 @@ export async function generateEpub(data: BookExportData): Promise<Buffer> {
 /* ── PDF ── */
 
 /* Generate a print-ready interior PDF as a Buffer.
-   6" x 9" trim size, generous margins, page numbers, chapter breaks. */
-export async function generatePdf(data: BookExportData): Promise<Buffer> {
+   6" x 9" trim size, generous margins, page numbers, chapter breaks.
+   Returns the PDF plus the page count (needed for Lulu spine math). */
+export async function generatePdf(data: BookExportData): Promise<{ pdf: Buffer; pageCount: number }> {
   return new Promise((resolve, reject) => {
     /* 6x9 inches at 72pt = 432 x 648 */
     const doc = new PDFDocument({
@@ -205,7 +206,9 @@ export async function generatePdf(data: BookExportData): Promise<Buffer> {
 
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    let pageCount = 1;
+    doc.on("pageAdded", () => { pageCount++; });
+    doc.on("end", () => resolve({ pdf: Buffer.concat(chunks), pageCount }));
     doc.on("error", reject);
 
     const sorted = [...data.chapters].sort((a, b) => a.position - b.position);
@@ -279,4 +282,117 @@ export function bookFilename(title: string, ext: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "book";
   return `${safe}.${ext}`;
+}
+
+/* ── Print-ready cover PDF ── */
+
+export interface CoverPdfData {
+  title: string;
+  subtitle?: string | null;
+  author_name?: string | null;
+  description?: string | null; // back-cover blurb
+  /* Spine width in inches — from Lulu /cover-dimensions/. */
+  spineWidthInches: number;
+  /* Optional cover art image (Buffer of PNG/JPEG). Placed on the front cover. */
+  coverArt?: Buffer | null;
+}
+
+/* Generate a one-piece cover spread PDF: back cover + spine + front cover.
+   6x9 trim, 0.125" bleed on all outer edges. All measurements in points. */
+export async function generateCoverPdf(data: CoverPdfData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const PT = 72; // points per inch
+    const TRIM_W = 6 * PT;
+    const TRIM_H = 9 * PT;
+    const BLEED = 0.125 * PT;
+    const spine = Math.max(0.1, data.spineWidthInches) * PT;
+
+    const pageW = TRIM_W * 2 + spine + BLEED * 2;
+    const pageH = TRIM_H + BLEED * 2;
+
+    const doc = new PDFDocument({
+      size: [pageW, pageH],
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      info: {
+        Title: `${data.title} — Cover`,
+        Author: data.author_name || "Unknown Author",
+      },
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on("data", (c: Buffer) => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    /* X coordinates of each panel (including bleed offset) */
+    const backX = BLEED;
+    const spineX = BLEED + TRIM_W;
+    const frontX = BLEED + TRIM_W + spine;
+    const panelY = BLEED;
+
+    /* ── Back cover: dark luxury background + blurb ── */
+    doc.rect(backX, panelY, TRIM_W, TRIM_H).fill("#0d0d0d");
+    const backInnerX = backX + 36;
+    const backInnerW = TRIM_W - 72;
+    let by = panelY + 60;
+    doc.fillColor("#d4af37").font("Helvetica-Bold").fontSize(11).text("ABOUT THIS BOOK", backInnerX, by, { width: backInnerW });
+    by += 28;
+    if (data.description) {
+      doc.fillColor("#e8e8e8").font("Helvetica").fontSize(10).text(data.description.slice(0, 1200), backInnerX, by, {
+        width: backInnerW,
+        lineGap: 4,
+      });
+      by = doc.y + 24;
+    }
+    /* Publisher mark at bottom of back cover */
+    doc.fillColor("#d4af37").font("Helvetica-Bold").fontSize(9).text("BOW DOWN VISUALS", backInnerX, panelY + TRIM_H - 60, { width: backInnerW, align: "left" });
+
+    /* ── Spine: title + author, rotated ── */
+    doc.rect(spineX, panelY, spine, TRIM_H).fill("#111111");
+    doc.save();
+    /* Rotate so text reads top-to-bottom down the spine */
+    doc.translate(spineX + spine / 2, panelY + TRIM_H / 2).rotate(90);
+    const spineText = `${data.title}${data.author_name ? `  •  ${data.author_name}` : ""}`;
+    doc.fillColor("#d4af37").font("Helvetica-Bold").fontSize(Math.min(14, spine * 0.55)).text(spineText, -TRIM_H / 2 + 36, -7, {
+      width: TRIM_H - 72,
+      align: "center",
+    });
+    doc.restore();
+
+    /* ── Front cover ── */
+    if (data.coverArt) {
+      try {
+        doc.image(data.coverArt, frontX, panelY, { width: TRIM_W, height: TRIM_H });
+      } catch {
+        doc.rect(frontX, panelY, TRIM_W, TRIM_H).fill("#0d0d0d");
+      }
+    } else {
+      /* No art — elegant typographic cover */
+      doc.rect(frontX, panelY, TRIM_W, TRIM_H).fill("#0d0d0d");
+      /* Gold rule accents */
+      doc.rect(frontX + 36, panelY + 48, TRIM_W - 72, 2).fill("#d4af37");
+      doc.rect(frontX + 36, panelY + TRIM_H - 50, TRIM_W - 72, 2).fill("#d4af37");
+    }
+    /* Title block overlaid at top of front cover */
+    const fx = frontX + 36;
+    const fw = TRIM_W - 72;
+    /* Subtle scrim for readability when art is present */
+    if (data.coverArt) {
+      doc.rect(frontX, panelY, TRIM_W, 190).fillOpacity(0.55).fill("#000000").fillOpacity(1);
+    }
+    doc.fillColor(data.coverArt ? "#ffffff" : "#d4af37").font("Helvetica-Bold").fontSize(26).text(data.title, fx, panelY + 56, {
+      width: fw,
+      align: "center",
+    });
+    let fy = doc.y + 10;
+    if (data.subtitle) {
+      doc.fillColor(data.coverArt ? "#e8e8e8" : "#a8a8a8").font("Helvetica").fontSize(13).text(data.subtitle, fx, fy, { width: fw, align: "center" });
+      fy = doc.y + 8;
+    }
+    if (data.author_name) {
+      doc.fillColor("#d4af37").font("Helvetica-Bold").fontSize(12).text(data.author_name.toUpperCase(), fx, fy, { width: fw, align: "center" });
+    }
+
+    doc.end();
+  });
 }

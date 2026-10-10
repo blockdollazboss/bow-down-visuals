@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   BookOpen, Plus, Trash2, ChevronLeft, Sparkles, Loader2,
   FileText, PenLine, X, Check, Lightbulb, RefreshCw, Expand, ListOrdered, Type, Megaphone,
-  Download, Image as ImageIcon,
+  Download, Image as ImageIcon, Printer, Package,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -279,6 +279,7 @@ function BookEditor({
   const [addingChapter, setAddingChapter] = useState(false);
   const [exporting, setExporting] = useState<"epub" | "pdf" | null>(null);
   const [generatingCover, setGeneratingCover] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeChapter = chapters.find((c) => c.id === activeChapterId) ?? null;
@@ -452,6 +453,15 @@ function BookEditor({
             {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
             PDF
           </Button>
+          <Button
+            onClick={() => setShowPrint(true)}
+            variant="outline"
+            className="border-[#C9A84C]/40 text-[#C9A84C]"
+            title="Print a physical copy via Lulu"
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Print Book
+          </Button>
           <Button onClick={() => saveChapter()} disabled={saving} variant="outline" className="border-[#C9A84C]/40 text-[#C9A84C]">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />} Save
           </Button>
@@ -541,6 +551,230 @@ function BookEditor({
           chapterContent={content}
           onInsert={(text) => handleContentChange(content ? `${content}\n\n${text}` : text)}
         />
+      </div>
+
+      {showPrint && (
+        <PrintBookModal book={book} onClose={() => setShowPrint(false)} />
+      )}
+    </div>
+  );
+}
+
+/* ── AI writing assistance panel ── */
+
+interface ShippingForm {
+  name: string;
+  street1: string;
+  street2: string;
+  city: string;
+  state_code: string;
+  country_code: string;
+  postcode: string;
+  phone_number: string;
+  contactEmail: string;
+}
+
+interface QuoteResult {
+  podPackageId: string;
+  pageCount: number;
+  quantity: number;
+  printCostUsd: number;
+  currency: string;
+  shippingOptions: Array<{ id: string; label: string; costUsd: number; currency: string; deliveryEstimate: string | null }>;
+  priceVb: number;
+  markup: number;
+}
+
+function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) {
+  const { confirmedFetch } = useConfirmedApi();
+  const { toast } = useToast();
+  const [step, setStep] = useState<"form" | "quote" | "done">("form");
+  const [quoting, setQuoting] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const [quote, setQuote] = useState<QuoteResult | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [color, setColor] = useState<"bw" | "color">("bw");
+  const [shippingLevel, setShippingLevel] = useState("MAIL");
+  const [orderResult, setOrderResult] = useState<{ orderId: string; priceVb: number; totalUsd: number } | null>(null);
+  const [form, setForm] = useState<ShippingForm>({
+    name: "", street1: "", street2: "", city: "", state_code: "",
+    country_code: "US", postcode: "", phone_number: "", contactEmail: "",
+  });
+
+  const set = (k: keyof ShippingForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const getQuote = async () => {
+    if (!form.name || !form.street1 || !form.city || !form.postcode || !form.phone_number || !form.contactEmail) {
+      toast({ title: "Fill in the shipping details first", variant: "destructive" });
+      return;
+    }
+    setQuoting(true);
+    try {
+      const res = await confirmedFetch(`/api/books/${book.id}/print/quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          countryCode: form.country_code || "US",
+          stateCode: form.state_code || undefined,
+          postcode: form.postcode,
+          quantity,
+          color,
+        }),
+      });
+      if (!res) { setQuoting(false); return; } // user cancelled
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Quote failed");
+      setQuote(data);
+      if (data.shippingOptions?.length > 0 && !data.shippingOptions.some((s: any) => s.id === shippingLevel)) {
+        setShippingLevel(data.shippingOptions[0].id);
+      }
+      setStep("quote");
+    } catch (err) {
+      toast({ title: "Quote failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setQuoting(false);
+    }
+  };
+
+  const placeOrder = async () => {
+    setOrdering(true);
+    try {
+      const res = await confirmedFetch(`/api/books/${book.id}/print/order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shippingAddress: {
+            name: form.name,
+            street1: form.street1,
+            ...(form.street2 ? { street2: form.street2 } : {}),
+            city: form.city,
+            ...(form.state_code ? { state_code: form.state_code } : {}),
+            country_code: form.country_code || "US",
+            postcode: form.postcode,
+            phone_number: form.phone_number,
+          },
+          shippingLevel,
+          quantity,
+          color,
+          contactEmail: form.contactEmail,
+        }),
+      });
+      if (!res) { setOrdering(false); return; } // user cancelled
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Order failed");
+      setOrderResult(data);
+      setStep("done");
+      toast({ title: "Print order placed!" });
+    } catch (err) {
+      toast({ title: "Order failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setOrdering(false);
+    }
+  };
+
+  const chosenShipping = quote?.shippingOptions.find((s) => s.id === shippingLevel);
+  const totalUsd = (quote?.printCostUsd ?? 0) + (chosenShipping?.costUsd ?? 0);
+  const totalVb = Math.ceil(totalUsd * 100 * 2 * (quote?.markup ?? 1.5));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-[#C9A84C]/30 bg-[#141414] p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-[#C9A84C]" style={{ fontFamily: "Georgia, serif" }}>
+            <Printer className="inline h-5 w-5 mr-2 -mt-1" />
+            Print "{book.title}"
+          </h2>
+          <button onClick={onClose} className="text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
+        </div>
+
+        {step === "form" && (
+          <div className="space-y-3">
+            <p className="text-white/60 text-sm">6"×9" paperback, printed on demand by Lulu and shipped to you.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-white/60 text-xs">Copies</Label>
+                <Input type="number" min={1} max={100} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))} className="bg-black/40 border-white/10" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Interior</Label>
+                <div className="flex gap-2 mt-1">
+                  {(["bw", "color"] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`px-3 py-1.5 rounded-lg text-sm border ${color === c ? "border-[#C9A84C] text-[#C9A84C]" : "border-white/10 text-white/50"}`}
+                    >
+                      {c === "bw" ? "B&W" : "Color"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2"><Label className="text-white/60 text-xs">Full name</Label><Input value={form.name} onChange={set("name")} className="bg-black/40 border-white/10" /></div>
+              <div className="col-span-2"><Label className="text-white/60 text-xs">Street address</Label><Input value={form.street1} onChange={set("street1")} className="bg-black/40 border-white/10" /></div>
+              <div className="col-span-2"><Label className="text-white/60 text-xs">Apt / suite (optional)</Label><Input value={form.street2} onChange={set("street2")} className="bg-black/40 border-white/10" /></div>
+              <div><Label className="text-white/60 text-xs">City</Label><Input value={form.city} onChange={set("city")} className="bg-black/40 border-white/10" /></div>
+              <div><Label className="text-white/60 text-xs">State</Label><Input value={form.state_code} onChange={set("state_code")} className="bg-black/40 border-white/10" /></div>
+              <div><Label className="text-white/60 text-xs">Postal code</Label><Input value={form.postcode} onChange={set("postcode")} className="bg-black/40 border-white/10" /></div>
+              <div><Label className="text-white/60 text-xs">Country</Label><Input value={form.country_code} onChange={set("country_code")} maxLength={2} className="bg-black/40 border-white/10" /></div>
+              <div className="col-span-2"><Label className="text-white/60 text-xs">Phone</Label><Input value={form.phone_number} onChange={set("phone_number")} className="bg-black/40 border-white/10" /></div>
+              <div className="col-span-2"><Label className="text-white/60 text-xs">Email (order updates)</Label><Input type="email" value={form.contactEmail} onChange={set("contactEmail")} className="bg-black/40 border-white/10" /></div>
+            </div>
+            <Button onClick={getQuote} disabled={quoting} className="w-full bg-[#C9A84C] text-black hover:bg-[#b8963e] font-bold">
+              {quoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Get print quote
+            </Button>
+          </div>
+        )}
+
+        {step === "quote" && quote && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-white/10 bg-black/40 p-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-white/60">{quote.quantity} × 6"×9" paperback ({quote.pageCount} pages)</span><span className="text-white font-bold">${quote.printCostUsd.toFixed(2)}</span></div>
+              <div>
+                <Label className="text-white/60 text-xs">Shipping</Label>
+                <div className="space-y-1 mt-1">
+                  {quote.shippingOptions.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setShippingLevel(s.id)}
+                      className={`w-full flex justify-between px-3 py-2 rounded-lg text-sm border ${shippingLevel === s.id ? "border-[#C9A84C] text-white" : "border-white/10 text-white/60"}`}
+                    >
+                      <span>{s.label}{s.deliveryEstimate ? ` · ${s.deliveryEstimate}` : ""}</span>
+                      <span className="font-bold">${s.costUsd.toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-white/10">
+                <span className="text-white/60">Total</span>
+                <span className="text-[#C9A84C] font-black text-lg">{totalVb.toLocaleString()} VB <span className="text-white/40 text-xs font-normal">(${totalUsd.toFixed(2)})</span></span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setStep("form")} variant="outline" className="border-white/20 text-white/70">Back</Button>
+              <Button onClick={placeOrder} disabled={ordering} className="flex-1 bg-[#C9A84C] text-black hover:bg-[#b8963e] font-bold">
+                {ordering ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
+                Confirm order — {totalVb.toLocaleString()} VB
+              </Button>
+            </div>
+            <p className="text-white/40 text-xs">Charged in Visual Bucs now. Lulu prints and ships directly to the address above.</p>
+          </div>
+        )}
+
+        {step === "done" && orderResult && (
+          <div className="text-center space-y-3 py-4">
+            <Check className="h-12 w-12 mx-auto text-[#C9A84C]" />
+            <h3 className="text-white font-bold text-lg">Order placed!</h3>
+            <p className="text-white/60 text-sm">Your book is heading to the printer. Track it any time from your orders.</p>
+            <Button onClick={onClose} className="bg-[#C9A84C] text-black hover:bg-[#b8963e] font-bold">Done</Button>
+          </div>
+        )}
       </div>
     </div>
   );

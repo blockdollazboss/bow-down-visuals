@@ -38,3 +38,30 @@ export const bookChaptersTable = pgTable("book_chapters", {
 
 export type BookRow = typeof booksTable.$inferSelect;
 export type BookChapterRow = typeof bookChaptersTable.$inferSelect;
+
+/* Print-on-demand orders via Lulu. */
+export const bookPrintOrdersTable = pgTable("book_print_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  book_id: uuid("book_id").notNull().references(() => booksTable.id, { onDelete: "cascade" }),
+  user_id: uuid("user_id").notNull(),
+  lulu_print_job_id: text("lulu_print_job_id"),
+  external_id: text("external_id").notNull().unique(),
+  status: text("status").notNull().default("quoted"),
+  pod_package_id: text("pod_package_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  page_count: integer("page_count"),
+  quote: jsonb("quote").$type<Record<string, unknown>>().default({}),
+  shipping_address: jsonb("shipping_address").$type<Record<string, unknown>>().default({}),
+  shipping_level: text("shipping_level"),
+  contact_email: text("contact_email"),
+  interior_pdf_url: text("interior_pdf_url"),
+  cover_pdf_url: text("cover_pdf_url"),
+  tracking: jsonb("tracking").$type<Record<string, unknown>>().default({}),
+  amount_cents: integer("amount_cents"),
+  payment_method: text("payment_method"),
+  error: text("error"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BookPrintOrderRow = typeof bookPrintOrdersTable.$inferSelect;

@@ -1,14 +1,32 @@
 import { Router, json } from "express";
 import { requireAuth } from "../middlewares/require-auth";
-import { db, booksTable, bookChaptersTable } from "@workspace/db";
+import { db, booksTable, bookChaptersTable, bookPrintOrdersTable } from "@workspace/db";
 import { eq, asc, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { deductCredits } from "../lib/credits.js";
-import { generateEpub, generatePdf, bookFilename, type BookExportData } from "../lib/book-export";
+import { generateEpub, generatePdf, generateCoverPdf, bookFilename, type BookExportData } from "../lib/book-export";
 import { r2Upload, r2PublicUrl } from "../lib/r2-client";
+import {
+  isLuluConfigured,
+  getCoverDimensions,
+  getPrintQuote,
+  getShippingOptions,
+  validateInterior,
+  validateCover,
+  createPrintOrder,
+  getOrderStatus,
+  getPrintJob,
+  LULU_SKU_6X9_BW_PAPERBACK,
+  LULU_SKU_6X9_COLOR_PAPERBACK,
+  type ShippingAddressInput,
+} from "../lib/lulu-print";
 
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5-sunburst";
+
+/* $1 USD = 200 Visual Bucs. Markup on Lulu cost — configurable. */
+const USD_CENTS_TO_VB = 2;
+const LULU_MARKUP = Number(process.env["LULU_MARKUP_MULTIPLIER"] ?? "1.5");
 
 const router = Router();
 
@@ -449,7 +467,7 @@ router.get("/api/books/:id/export/pdf", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Add at least one chapter before exporting." });
       return;
     }
-    const pdf = await generatePdf(data);
+    const { pdf } = await generatePdf(data);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${bookFilename(data.title, "pdf")}"`);
     res.setHeader("Content-Length", String(pdf.length));
@@ -516,6 +534,400 @@ router.post("/api/books/:id/cover/generate", requireAuth, async (req, res) => {
     res.json({ ok: true, cover_url: publicUrl || coverUrl });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Cover generation failed" });
+  }
+});
+
+/* ── Print on demand (Lulu) ── */
+
+const QuoteSchema = z.object({
+  countryCode: z.string().trim().length(2).default("US"),
+  stateCode: z.string().trim().max(10).optional(),
+  postcode: z.string().trim().max(20).optional(),
+  quantity: z.number().int().min(1).max(100).default(1),
+  color: z.enum(["bw", "color"]).default("bw"),
+});
+
+const ShippingAddressSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  street1: z.string().trim().min(1).max(200),
+  street2: z.string().trim().max(200).optional(),
+  city: z.string().trim().min(1).max(100),
+  state_code: z.string().trim().max(10).optional(),
+  country_code: z.string().trim().length(2),
+  postcode: z.string().trim().min(1).max(20),
+  phone_number: z.string().trim().min(1).max(30),
+});
+
+const OrderSchema = z.object({
+  shippingAddress: ShippingAddressSchema,
+  shippingLevel: z.enum(["MAIL", "PRIORITY_MAIL", "GROUND", "EXPEDITED", "EXPRESS"]).default("MAIL"),
+  quantity: z.number().int().min(1).max(100).default(1),
+  color: z.enum(["bw", "color"]).default("bw"),
+  contactEmail: z.string().trim().email(),
+});
+
+/* Build the print-ready PDFs and upload to R2. Returns URLs + page count. */
+async function buildPrintFiles(
+  bookId: string,
+  userId: string,
+  data: BookExportData,
+  podPackageId: string
+): Promise<{ interiorUrl: string; coverUrl: string; pageCount: number; spineWidthInches: number }> {
+  const { pdf: interiorPdf, pageCount } = await generatePdf(data);
+  /* Lulu needs a minimum page count for perfect binding — pad if needed. */
+  const effectivePages = Math.max(32, pageCount);
+
+  const dims = await getCoverDimensions(podPackageId, effectivePages);
+  const spineWidthInches =
+    typeof dims.spineWidth === "number" ? dims.spineWidth : typeof (dims as any)["spine_width"] === "number" ? (dims as any)["spine_width"] : 0.5;
+
+  /* Fetch cover art if the book has one. */
+  let coverArt: Buffer | null = null;
+  if (data.cover_url) {
+    try {
+      const artRes = await fetch(data.cover_url);
+      if (artRes.ok) coverArt = Buffer.from(await artRes.arrayBuffer());
+    } catch {
+      coverArt = null;
+    }
+  }
+
+  const coverPdf = await generateCoverPdf({
+    title: data.title,
+    subtitle: data.subtitle,
+    author_name: data.author_name,
+    description: data.description,
+    spineWidthInches,
+    coverArt,
+  });
+
+  const ts = Date.now();
+  const interiorKey = `book-print/${userId}/${bookId}/${ts}-interior.pdf`;
+  const coverKey = `book-print/${userId}/${bookId}/${ts}-cover.pdf`;
+  await r2Upload(interiorKey, interiorPdf, "application/pdf");
+  await r2Upload(coverKey, coverPdf, "application/pdf");
+
+  return {
+    interiorUrl: r2PublicUrl(interiorKey),
+    coverUrl: r2PublicUrl(coverKey),
+    pageCount: effectivePages,
+    spineWidthInches,
+  };
+}
+
+/* POST /api/books/:id/print/quote — print cost + shipping estimate. */
+router.post("/api/books/:id/print/quote", requireAuth, async (req, res) => {
+  const parsed = QuoteSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  if (!isLuluConfigured()) {
+    res.status(501).json({ error: "Print-on-demand is not configured yet." });
+    return;
+  }
+  try {
+    const bookId = param(req, "id");
+    const data = await getBookExportData(bookId, req.userId!);
+    if (!data || data.chapters.length === 0) {
+      res.status(400).json({ error: "Add at least one chapter before printing." });
+      return;
+    }
+    const podPackageId = parsed.data.color === "color" ? LULU_SKU_6X9_COLOR_PAPERBACK : LULU_SKU_6X9_BW_PAPERBACK;
+
+    /* Page count from the real interior PDF. */
+    const { pageCount } = await generatePdf(data);
+    const effectivePages = Math.max(32, pageCount);
+
+    const [quote, shippingOptions, dims] = await Promise.all([
+      getPrintQuote([{ pod_package_id: podPackageId, page_count: effectivePages, quantity: parsed.data.quantity }]),
+      getShippingOptions({
+        countryCode: parsed.data.countryCode,
+        stateCode: parsed.data.stateCode,
+        postcode: parsed.data.postcode,
+      }),
+      getCoverDimensions(podPackageId, effectivePages),
+    ]);
+
+    /* Normalize the quote into something the frontend can display. */
+    const lineItem = quote?.line_items?.[0] ?? quote?.[0] ?? {};
+    const printCostUsd = Number(lineItem.total_cost_excl_tax ?? lineItem.cost_excl_tax ?? 0);
+
+    res.json({
+      ok: true,
+      podPackageId,
+      pageCount: effectivePages,
+      quantity: parsed.data.quantity,
+      printCostUsd,
+      currency: lineItem.currency ?? "USD",
+      shippingOptions: (shippingOptions as any[]).map((s: any) => ({
+        id: s.id ?? s.level ?? s.shipping_level,
+        label: s.label ?? s.description ?? s.id,
+        costUsd: Number(s.cost_excl_tax ?? s.cost ?? 0),
+        currency: s.currency ?? "USD",
+        deliveryEstimate: s.delivery_time ?? s.estimated_delivery ?? null,
+      })),
+      coverDimensions: dims,
+      /* Visual Bucs price (print cost × markup). Shipping added at order time. */
+      priceVb: Math.ceil(printCostUsd * 100 * USD_CENTS_TO_VB * LULU_MARKUP),
+      markup: LULU_MARKUP,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Quote failed" });
+  }
+});
+
+/* POST /api/books/:id/print/order — charge VB, submit the print job to Lulu. */
+router.post("/api/books/:id/print/order", requireAuth, async (req, res) => {
+  const parsed = OrderSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request — check the shipping address." });
+    return;
+  }
+  if (!isLuluConfigured()) {
+    res.status(501).json({ error: "Print-on-demand is not configured yet." });
+    return;
+  }
+  try {
+    const bookId = param(req, "id");
+    const data = await getBookExportData(bookId, req.userId!);
+    if (!data || data.chapters.length === 0) {
+      res.status(400).json({ error: "Add at least one chapter before printing." });
+      return;
+    }
+    const podPackageId = parsed.data.color === "color" ? LULU_SKU_6X9_COLOR_PAPERBACK : LULU_SKU_6X9_BW_PAPERBACK;
+    const { quantity, shippingLevel, contactEmail } = parsed.data;
+    const shippingAddress = parsed.data.shippingAddress as ShippingAddressInput;
+
+    /* Build + upload the print files. */
+    const files = await buildPrintFiles(bookId, req.userId!, data, podPackageId);
+
+    /* Validate with Lulu before charging. */
+    try {
+      await validateInterior(files.interiorUrl);
+      await validateCover(files.coverUrl, files.pageCount);
+    } catch (vErr) {
+      res.status(400).json({
+        error: `Print file validation failed: ${vErr instanceof Error ? vErr.message : "unknown"}`,
+      });
+      return;
+    }
+
+    /* Fresh quote for the final charge. */
+    const quote = await getPrintQuote([
+      { pod_package_id: podPackageId, page_count: files.pageCount, quantity },
+    ]);
+    const lineItem = quote?.line_items?.[0] ?? quote?.[0] ?? {};
+    const printCostUsd = Number(lineItem.total_cost_excl_tax ?? lineItem.cost_excl_tax ?? 0);
+
+    const shippingOptions = await getShippingOptions({
+      countryCode: shippingAddress.country_code,
+      stateCode: shippingAddress.state_code,
+      postcode: shippingAddress.postcode,
+    });
+    const chosenShipping = (shippingOptions as any[]).find(
+      (s: any) => (s.id ?? s.level ?? s.shipping_level) === shippingLevel
+    );
+    const shippingUsd = chosenShipping ? Number(chosenShipping.cost_excl_tax ?? chosenShipping.cost ?? 0) : 0;
+
+    const totalUsd = printCostUsd + shippingUsd;
+    const priceVb = Math.ceil(totalUsd * 100 * USD_CENTS_TO_VB * LULU_MARKUP);
+
+    /* Charge Visual Bucs. */
+    try {
+      await deductCredits(req.userId!, priceVb);
+    } catch (err) {
+      res.status(402).json({ error: err instanceof Error ? err.message : "Insufficient Visual Bucs" });
+      return;
+    }
+
+    /* Submit to Lulu. */
+    const externalId = `bdv-book-${bookId}-${Date.now()}`;
+    let luluJob: any;
+    try {
+      luluJob = await createPrintOrder({
+        contactEmail,
+        externalId,
+        title: data.title,
+        quantity,
+        podPackageId,
+        coverUrl: files.coverUrl,
+        interiorUrl: files.interiorUrl,
+        shippingAddress,
+        shippingLevel,
+      });
+    } catch (orderErr) {
+      /* Lulu rejected it — refund the VB. */
+      const { refundCredits } = await import("../lib/credits.js").catch(() => ({ refundCredits: null as any }));
+      if (refundCredits) {
+        try { await refundCredits(req.userId!, priceVb); } catch { /* best effort */ }
+      }
+      res.status(502).json({
+        error: `Lulu rejected the print order: ${orderErr instanceof Error ? orderErr.message : "unknown"}`,
+      });
+      return;
+    }
+
+    /* Record the order. */
+    const [order] = await db
+      .insert(bookPrintOrdersTable)
+      .values({
+        book_id: bookId,
+        user_id: req.userId!,
+        lulu_print_job_id: String(luluJob.id ?? luluJob.print_job_id ?? ""),
+        external_id: externalId,
+        status: "submitted",
+        pod_package_id: podPackageId,
+        quantity,
+        page_count: files.pageCount,
+        quote: { printCostUsd, shippingUsd, totalUsd, priceVb, markup: LULU_MARKUP },
+        shipping_address: shippingAddress as unknown as Record<string, unknown>,
+        shipping_level: shippingLevel,
+        contact_email: contactEmail,
+        interior_pdf_url: files.interiorUrl,
+        cover_pdf_url: files.coverUrl,
+        amount_cents: Math.round(totalUsd * 100),
+        payment_method: "visual_bucs",
+      })
+      .returning();
+
+    res.json({
+      ok: true,
+      orderId: order.id,
+      luluPrintJobId: order.lulu_print_job_id,
+      status: order.status,
+      priceVb,
+      totalUsd,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Print order failed" });
+  }
+});
+
+/* GET /api/books/print/orders — list the user's print orders. */
+router.get("/api/books/print/orders", requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(bookPrintOrdersTable)
+      .where(eq(bookPrintOrdersTable.user_id, req.userId!))
+      .orderBy(desc(bookPrintOrdersTable.created_at));
+    res.json({
+      orders: rows.map((o) => ({
+        id: o.id,
+        bookId: o.book_id,
+        luluPrintJobId: o.lulu_print_job_id,
+        status: o.status,
+        quantity: o.quantity,
+        pageCount: o.page_count,
+        amountCents: o.amount_cents,
+        tracking: o.tracking ?? {},
+        error: o.error,
+        createdAt: o.created_at,
+        updatedAt: o.updated_at,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to list print orders" });
+  }
+});
+
+/* GET /api/books/print/orders/:orderId/status — refresh from Lulu. */
+router.get("/api/books/print/orders/:orderId/status", requireAuth, async (req, res) => {
+  try {
+    const orderId = param(req, "orderId");
+    const rows = await db
+      .select()
+      .from(bookPrintOrdersTable)
+      .where(and(eq(bookPrintOrdersTable.id, orderId), eq(bookPrintOrdersTable.user_id, req.userId!)))
+      .limit(1);
+    const order = rows[0];
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+    if (!order.lulu_print_job_id || !isLuluConfigured()) {
+      res.json({ ok: true, status: order.status, tracking: order.tracking ?? {} });
+      return;
+    }
+    const status = await getOrderStatus(order.lulu_print_job_id);
+    const jobStatus = status?.status ?? status?.name ?? order.status;
+    const tracking = {
+      status: jobStatus,
+      trackingId: status?.tracking_id ?? status?.trackingId ?? null,
+      trackingUrl: status?.tracking_url ?? status?.trackingUrl ?? null,
+      estimatedDelivery: status?.estimated_delivery ?? null,
+      raw: status,
+    };
+    await db
+      .update(bookPrintOrdersTable)
+      .set({ status: String(jobStatus).toLowerCase(), tracking: tracking as unknown as Record<string, unknown>, updated_at: new Date() })
+      .where(eq(bookPrintOrdersTable.id, orderId));
+    res.json({ ok: true, status: jobStatus, tracking });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Status check failed" });
+  }
+});
+
+/* POST /api/books/print/orders/:orderId/cancel — cancel before production. */
+router.post("/api/books/print/orders/:orderId/cancel", requireAuth, async (req, res) => {
+  try {
+    const orderId = param(req, "orderId");
+    const rows = await db
+      .select()
+      .from(bookPrintOrdersTable)
+      .where(and(eq(bookPrintOrdersTable.id, orderId), eq(bookPrintOrdersTable.user_id, req.userId!)))
+      .limit(1);
+    const order = rows[0];
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+    if (!order.lulu_print_job_id || !isLuluConfigured()) {
+      res.status(400).json({ error: "Nothing to cancel." });
+      return;
+    }
+    const { cancelPrintOrder } = await import("../lib/lulu-print");
+    await cancelPrintOrder(order.lulu_print_job_id);
+    await db
+      .update(bookPrintOrdersTable)
+      .set({ status: "canceled", updated_at: new Date() })
+      .where(eq(bookPrintOrdersTable.id, orderId));
+    res.json({ ok: true, status: "canceled" });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Cancel failed" });
+  }
+});
+
+/* POST /api/books/print/webhook — Lulu status webhooks (no auth; Lulu calls this). */
+router.post("/api/books/print/webhook", async (req, res) => {
+  try {
+    const body = req.body as any;
+    /* Lulu posts { print_job_id, status, ... } — shapes vary, be lenient. */
+    const luluJobId = String(body?.print_job_id ?? body?.printJobId ?? body?.id ?? "");
+    const status = String(body?.status ?? body?.name ?? "").toLowerCase();
+    if (!luluJobId) {
+      res.status(400).json({ error: "Missing print_job_id" });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(bookPrintOrdersTable)
+      .where(eq(bookPrintOrdersTable.lulu_print_job_id, luluJobId))
+      .limit(1);
+    if (rows[0]) {
+      await db
+        .update(bookPrintOrdersTable)
+        .set({
+          status: status || rows[0].status,
+          tracking: { ...(rows[0].tracking as object ?? {}), lastWebhook: body },
+          updated_at: new Date(),
+        })
+        .where(eq(bookPrintOrdersTable.id, rows[0].id));
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Webhook failed" });
   }
 });
 

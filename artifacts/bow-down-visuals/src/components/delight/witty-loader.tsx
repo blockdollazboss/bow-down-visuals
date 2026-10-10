@@ -40,15 +40,15 @@ export function useWittyLine(intervalMs = 2200): string {
   return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
 }
 
-export default function WittyLoader({ message }: { message?: string }) {
+export default function WittyLoader({ message, slideMs = 4000 }: { message?: string; slideMs?: number }) {
   const { t } = useTranslation();
 
   // Single synced rotation — headline and promo switch together
   const [slideIdx, setSlideIdx] = useState(0);
   useEffect(() => {
-    const id = window.setInterval(() => setSlideIdx((i) => i + 1), 4000);
+    const id = window.setInterval(() => setSlideIdx((i) => i + 1), slideMs);
     return () => window.clearInterval(id);
-  }, []);
+  }, [slideMs]);
 
   const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
   const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
