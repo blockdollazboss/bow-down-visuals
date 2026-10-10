@@ -11,7 +11,7 @@ import { mediaUrl } from "@/lib/media-cdn";
    what to do here step by step. Dismiss him and he collapses to a slim
    in-flow chip (per route, remembered in localStorage).
 
-   Never rendered on auth pages, the full-viewport video editor studio, or
+   Never rendered on auth pages, the full-viewport video editor studio (it has its own Ask Thy button in the top bar), or
    legal/fan-facing pages where he'd clutter. He IS on the home screen too. Full 8-bit pixel styling —
    he communicates in 8-bit everywhere. */
 

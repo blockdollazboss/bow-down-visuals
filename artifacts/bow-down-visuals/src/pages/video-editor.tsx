@@ -9,7 +9,7 @@ import {
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, AlertTriangle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
-  SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText,
+  SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText, MessageCircle,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
   Fingerprint, Laugh, Timer,
 } from "lucide-react";
@@ -19,6 +19,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
+import { openThyChat } from "@/components/ThyCheatCodeChat";
 import { useCollaboration, CollaboratorCursors } from "@/components/LiveCollaboration";
 import WittyLoader from "@/components/delight/witty-loader";
 import { Button } from "@/components/ui/button";
@@ -1705,6 +1706,9 @@ export default function VideoEditor() {
                 />
                 <span className="text-xs text-white/50 hidden lg:inline">{t("videoEditor.autosave")}</span>
               </label>
+              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-8" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
+                <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
+              </Button>
               <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
