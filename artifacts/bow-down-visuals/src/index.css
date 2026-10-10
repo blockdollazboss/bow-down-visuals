@@ -664,16 +664,16 @@ html, body {
   border-color: rgb(231 217 188 / 0.9);
 }
 
-/* Login page: ivory veil over the drone video, light sign-in bar */
+/* Login page: video shows through in light mode, subtle warm veil for form readability */
 .light .no-throne-bg video[class*="object-cover"] {
-  opacity: 0.35;
+  opacity: 0.85;
 }
 .light .no-throne-bg::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgb(250 247 240 / 0.75) 0%, rgb(250 247 240 / 0.55) 50%, rgb(250 247 240 / 0.85) 100%);
+  background: linear-gradient(180deg, rgb(250 247 240 / 0.25) 0%, rgb(250 247 240 / 0.15) 50%, rgb(250 247 240 / 0.35) 100%);
 }
 
 /* Collapsed sidebar rail + expand button: ivory */
