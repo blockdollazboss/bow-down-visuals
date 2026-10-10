@@ -2221,3 +2221,18 @@ html[data-star-level="5"] [data-min-stars="6"] {
 .light section[aria-label*="Thy Cheat Code"] .text-\[#E8C96A\] {
   color: #7A5A12 !important;
 }
+
+/* Light mode: ProofBand stats section — ivory background, not black overlay */
+.light section[aria-label="By the numbers"] {
+  background-color: rgba(250, 246, 237, 0.85) !important;
+  border-color: rgba(122, 90, 18, 0.15) !important;
+}
+.light section[aria-label="By the numbers"] .text-white\/45 {
+  color: rgba(28, 23, 18, 0.6) !important;
+}
+
+/* Light mode: SocialProofBand — ivory, not black gradient */
+.light .social-proof-band,
+.light section[class*="from-black"] {
+  background: linear-gradient(to bottom, rgba(250,246,237,0.9), rgba(245,238,220,0.9)) !important;
+}
