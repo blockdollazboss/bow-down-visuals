@@ -14,6 +14,16 @@ export function ThemeToggle() {
       document.documentElement.classList.add("dark");
       document.documentElement.classList.remove("light");
     }
+
+    // Sync with other toggles (floating, homepage) via class observer
+    const observer = new MutationObserver(() => {
+      setIsLight(document.documentElement.classList.contains("light"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
   }, []);
 
   const toggle = () => {
