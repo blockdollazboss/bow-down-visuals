@@ -2204,3 +2204,20 @@ html[data-star-level="5"] [data-min-stars="6"] {
   opacity: 1 !important;
   visibility: visible !important;
 }
+
+/* Light mode: Thy Cheat Code coach card — solid ivory background, dark text */
+.light section[aria-label*="Thy Cheat Code"] {
+  background: linear-gradient(to bottom right, #FAF6ED, #F5EEDC) !important;
+  border-color: rgba(201, 168, 76, 0.6) !important;
+}
+.light section[aria-label*="Thy Cheat Code"] .text-neutral-100,
+.light section[aria-label*="Thy Cheat Code"] .text-neutral-300 {
+  color: #1C1712 !important;
+}
+.light section[aria-label*="Thy Cheat Code"] .text-neutral-400,
+.light section[aria-label*="Thy Cheat Code"] .text-neutral-500 {
+  color: rgba(28, 23, 18, 0.6) !important;
+}
+.light section[aria-label*="Thy Cheat Code"] .text-\[#E8C96A\] {
+  color: #7A5A12 !important;
+}
