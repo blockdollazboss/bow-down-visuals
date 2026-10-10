@@ -95,7 +95,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center bg-black/80 p-4 pt-[12vh]" onClick={() => setOpen(false)}>
           <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Scan to Sign In</h3>

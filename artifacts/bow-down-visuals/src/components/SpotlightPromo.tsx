@@ -35,7 +35,7 @@ export default function SpotlightPromo() {
         aria-label="Advertise on this screen"
       >
         <Sparkles className="h-4 w-4" />
-        <span>Your video here · $99/7 days</span>
+        <span>Your video here · $1,000/7 days</span>
         <span
           role="button"
           tabIndex={0}
