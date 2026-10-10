@@ -74,7 +74,7 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
   const promo = FEATURE_PROMOS[slideIdx % FEATURE_PROMOS.length]!;
 
   return (
-    <div className="fixed inset-0 z-[20000] bg-background overflow-hidden">
+    <div className="fixed inset-0 z-[20000] bg-background overflow-hidden dark-lock" data-dark-lock>
       {/* Throne room backdrop */}
       <div
         aria-hidden

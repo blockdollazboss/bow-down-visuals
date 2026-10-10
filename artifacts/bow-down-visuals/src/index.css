@@ -215,6 +215,134 @@ html, body {
   --chart-5: 220 10% 60%;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME — hardcoded dark utility remaps
+   The site was built with hardcoded dark Tailwind colors (bg-black,
+   text-white, etc.) that ignore CSS variables. These overrides remap
+   them to the soft-gray light palette while keeping gold luxury accents.
+   Soft gray, not stark white — still feels like Bow Down Visuals.
+
+   EXCLUSIONS: elements inside [data-dark-lock] (WittyLoader cinematic
+   experience, etc.) keep their dark styling via the restore rules below.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Page backgrounds: remove dark throne, use light gray ── */
+.light body,
+.light html {
+  background-color: hsl(220 10% 88%);
+}
+.light .bg-background:not([data-dark-lock]):not([data-dark-lock] *),
+.light [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 88%);
+  background-image: none;
+}
+
+/* ── Solid dark surfaces → light card/surface ── */
+.light .bg-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 92%);
+}
+.light .bg-zinc-950:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-neutral-950:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 90%);
+}
+.light .bg-zinc-900:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-neutral-900:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-stone-900:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-gray-900:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 93%);
+}
+.light .bg-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(220 10% 85%);
+}
+
+/* ── Translucent dark surfaces → translucent light surfaces ── */
+.light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.9); }
+.light .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.8); }
+.light .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.7); }
+.light .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.6); }
+.light .bg-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.5); }
+.light .bg-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.4); }
+.light .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.3); }
+.light .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.2); }
+.light .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.1); }
+.light .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.8); }
+.light .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.6); }
+.light .bg-zinc-900\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.5); }
+.light .bg-zinc-900\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.4); }
+
+/* ── White text → dark foreground text ── */
+.light .text-white:not([data-dark-lock]):not([data-dark-lock] *) {
+  color: hsl(222 18% 12%);
+}
+.light .text-white\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.9); }
+.light .text-white\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.8); }
+.light .text-white\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.7); }
+.light .text-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.6); }
+.light .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.5); }
+.light .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40%); }
+.light .text-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.75); }
+.light .text-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.65); }
+.light .text-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.55); }
+
+/* ── Zinc/gray text → appropriate gray text ── */
+.light .text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-400:not([data-dark-lock]):not([data-dark-lock] *) {
+  color: hsl(220 10% 40%);
+}
+.light .text-zinc-500:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-500:not([data-dark-lock]):not([data-dark-lock] *) {
+  color: hsl(220 10% 45%);
+}
+.light .text-zinc-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-300:not([data-dark-lock]):not([data-dark-lock] *) {
+  color: hsl(222 18% 25%);
+}
+
+/* ── White borders → light gray borders ── */
+.light .border-white:not([data-dark-lock]):not([data-dark-lock] *) {
+  border-color: hsl(220 10% 75%);
+}
+.light .border-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.4); }
+.light .border-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.3); }
+.light .border-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.25); }
+.light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.2); }
+.light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.15); }
+.light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 70%); }
+.light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.5); }
+
+/* ── Placeholder text ── */
+.light .placeholder\:text-white\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
+  color: hsl(220 10% 40% / 0.6);
+}
+.light .placeholder\:text-white\/40:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
+  color: hsl(220 10% 40% / 0.7);
+}
+
+/* ── Divide and ring colors ── */
+.light .divide-white\/10:not([data-dark-lock]):not([data-dark-lock] *) > * + * {
+  border-color: hsl(220 10% 70%);
+}
+.light .divide-white\/5:not([data-dark-lock]):not([data-dark-lock] *) > * + * {
+  border-color: hsl(220 10% 75% / 0.5);
+}
+
+/* ── Dark-locked areas: restore dark styling (WittyLoader, etc.) ──
+   Higher specificity than the remaps above, so dark-locked
+   containers and their children keep the cinematic dark look. */
+.light [data-dark-lock].bg-background,
+.light [data-dark-lock] .bg-background {
+  background-color: hsl(222 18% 5%);
+}
+.light [data-dark-lock].bg-black,
+.light [data-dark-lock] .bg-black {
+  background-color: #000;
+}
+.light [data-dark-lock].text-white,
+.light [data-dark-lock] .text-white {
+  color: #fff;
+}
+
 @layer base {
   * {
     @apply border-border;
