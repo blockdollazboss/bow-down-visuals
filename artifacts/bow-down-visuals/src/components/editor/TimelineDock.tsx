@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, SkipBack, ZoomIn, ZoomOut, Scissors, Film, Music2,
-  AlertTriangle, RotateCcw, PlusSquare, RefreshCw, LayoutList, Waves, ChevronDown, ChevronUp,
+  AlertTriangle, RotateCcw, PlusSquare, RefreshCw, Repeat, LayoutList, Waves, ChevronDown, ChevronUp,
   Snowflake, Loader2, X, Share2, Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -124,6 +124,8 @@ export function TimelineDock({
   const fadeDragRef = useRef<{ side: "in" | "out"; startX: number; startVal: number } | null>(null);
   const rangeDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const rangeCreateRef = useRef<{ startX: number; startTime: number; moved: boolean } | null>(null);
+  const loopCreateRef = useRef<{ startX: number; startTime: number; moved: boolean } | null>(null);
+  const loopDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const cropDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const moveDragRef = useRef<{ sceneId: string; startX: number; startVal: number } | null>(null);
   const resizeDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -156,6 +158,17 @@ export function TimelineDock({
   const exportRange = settings.export.exportRange ?? { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 };
   const songCrop = settings.musicStudio.songCrop ?? { enabled: false, startSec: 0, endSec: 0 };
   const cropEndResolved = songCrop.endSec > songCrop.startSec ? songCrop.endSec : (audioDuration ?? totalDur);
+  /* ── Loop-playback region (Shift+drag on waveform; toggle in transport) ── */
+  const loop = settings.timelineLoop ?? { enabled: false, startSec: 0, endSec: 0 };
+  const loopValid = loop.endSec > loop.startSec + 0.2 && loop.startSec >= 0;
+
+  /* ── Loop playback: when the playhead reaches the loop end, wrap to the loop start ── */
+  useEffect(() => {
+    if (!isPlaying || !loop.enabled || !loopValid) return;
+    if (currentTime >= loop.endSec) {
+      onSeek(Math.max(0, loop.startSec));
+    }
+  }, [currentTime, isPlaying, loop.enabled, loopValid, loop.startSec, loop.endSec, onSeek]);
 
   /* ── Audio/video sync status — migrated from the removed VideoTimeline component ── */
   const syncMode = va.syncMode ?? "keep-as-is";
@@ -294,6 +307,31 @@ export function TimelineDock({
       setSettings({ ...settings, export: { ...settings.export, exportRange: next } });
       return;
     }
+    /* ── Loop region edge-handle drag ── */
+    if (loopDragRef.current) {
+      const rect = el.getBoundingClientRect();
+      const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
+      const next = loopDragRef.current.side === "start"
+        ? { ...loop, startSec: Math.min(t, loop.endSec - 0.3) }
+        : { ...loop, endSec: Math.max(t, loop.startSec + 0.3) };
+      setSettings({ ...settings, timelineLoop: next });
+      return;
+    }
+    /* ── Loop region drag-create (Shift+drag) ── */
+    if (loopCreateRef.current) {
+      const rect = el.getBoundingClientRect();
+      const create = loopCreateRef.current;
+      if (!create.moved && Math.abs(e.clientX - create.startX) < 4) return;
+      create.moved = true;
+      const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
+      const lo = Math.min(create.startTime, t);
+      const hi = Math.max(create.startTime, t);
+      setSettings({
+        ...settings,
+        timelineLoop: { enabled: true, startSec: lo, endSec: Math.max(hi, lo + 0.3) },
+      });
+      return;
+    }
     if (rangeCreateRef.current) {
       const rect = el.getBoundingClientRect();
       const create = rangeCreateRef.current;
@@ -334,6 +372,7 @@ export function TimelineDock({
 
   const onPointerUp = useCallback(() => {
     if (rangeCreateRef.current?.moved) suppressNextClickRef.current = true;
+    if (loopCreateRef.current?.moved) suppressNextClickRef.current = true;
     if (moveDragRef.current && isManual) {
       const sceneId = moveDragRef.current.sceneId;
       const result = computeManualTimings(scenes, audioDuration, clipEdits);
@@ -359,22 +398,58 @@ export function TimelineDock({
     fadeDragRef.current = null;
     rangeDragRef.current = null;
     rangeCreateRef.current = null;
+    loopDragRef.current = null;
+    loopCreateRef.current = null;
     cropDragRef.current = null;
     moveDragRef.current = null;
     resizeDragRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isManual, scenes, audioDuration, clipEdits, settings, setSettings]);
 
-  /* ── Drag-select export range directly on the waveform (works from "full" mode too) ── */
+  /* ── Drag-select export range directly on the waveform (works from "full" mode too).
+        Shift+drag instead creates the loop-playback region. ── */
   const startRangeCreate = useCallback((e: React.PointerEvent) => {
     const el = timelineRef.current;
     if (!el || totalDur <= 0) return;
     const rect = el.getBoundingClientRect();
     const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (e.shiftKey) {
+      loopCreateRef.current = { startX: e.clientX, startTime: t, moved: false };
+      return;
+    }
     rangeCreateRef.current = { startX: e.clientX, startTime: t, moved: false };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDur, snapEnabled, beatGrid]);
+
+  /* ── Loop region edge-handle drag starter ── */
+  const startLoopDrag = useCallback((e: React.PointerEvent, side: "start" | "end") => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    loopDragRef.current = { side };
+  }, []);
+
+  /* ── Loop toggle: enabling with no region defaults to the full timeline ── */
+  const toggleLoop = useCallback(() => {
+    if (!loop.enabled) {
+      const valid = loop.endSec > loop.startSec + 0.2;
+      setSettings({
+        ...settings,
+        timelineLoop: {
+          enabled: true,
+          startSec: valid ? loop.startSec : 0,
+          endSec: valid ? loop.endSec : totalDur,
+        },
+      });
+    } else {
+      setSettings({ ...settings, timelineLoop: { ...loop, enabled: false } });
+    }
+  }, [loop, totalDur, settings, setSettings]);
+
+  /* ── Clear the loop region entirely ── */
+  const clearLoopRegion = useCallback(() => {
+    setSettings({ ...settings, timelineLoop: { enabled: false, startSec: 0, endSec: 0 } });
+  }, [settings, setSettings]);
 
   /* ── Drag-to-reorder (back-to-back only — flex layout structurally enforces no gaps) ── */
   function onDragEnd(event: DragEndEvent) {
@@ -681,6 +756,18 @@ export function TimelineDock({
           {beatLoading ? "Beat…" : beatGrid ? `${beatGrid.bpm.toFixed(0)} BPM` : "Beat snap"}
         </button>
 
+        <button type="button" onClick={toggleLoop}
+          data-testid="timeline-dock-loop-toggle"
+          title={loop.enabled
+            ? `Loop ON — ${fmt(loop.startSec)} to ${fmt(loop.endSec)}. Click to turn off. Shift+drag on the waveform to re-set the region.`
+            : "Loop playback: Shift+drag on the waveform to pick any region, then toggle this on. Playback wraps from the region end back to its start."}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+            loop.enabled ? "text-violet-300 border-violet-400/40 bg-violet-400/15" : "text-muted-foreground/70 border-border hover:text-foreground"
+          }`}>
+          <Repeat className="h-3 w-3" />
+          Loop{loop.enabled && loopValid ? ` ${fmt(loop.startSec)}–${fmt(loop.endSec)}` : ""}
+        </button>
+
         <button type="button"
           onClick={() => setSettings({ ...settings, timelineLayout: isManual ? "auto" : "manual" })}
           data-testid="timeline-dock-layout-toggle"
@@ -826,7 +913,7 @@ export function TimelineDock({
           {/* Waveform + fade handles + export range overlay — grows/shrinks with the dock height */}
           <div ref={timelineRef} className="relative cursor-crosshair rounded bg-black overflow-hidden border border-white/5"
             style={{ flexGrow: 36, flexShrink: 1, flexBasis: 0, minHeight: 24 }}
-            onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range">
+            onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range · Shift+drag to set loop region">
             {audioUrl ? (
               <RealWaveform audioUrl={audioUrl} progress={totalDur > 0 ? currentTime / totalDur : 0} />
             ) : (
@@ -850,6 +937,30 @@ export function TimelineDock({
                   <div onPointerDown={(e) => startRangeDrag(e, "end")}
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-red-400/70 cursor-ew-resize z-20 hover:bg-red-300"
                     style={{ left: `${endPct}%` }} title="Export range end" />
+                </>
+              );
+            })()}
+
+            {/* Loop region — violet band with draggable edge handles; double-click clears */}
+            {totalDur > 0 && loopValid && (() => {
+              const startPct = (loop.startSec / totalDur) * 100;
+              const endPct = (loop.endSec / totalDur) * 100;
+              return (
+                <>
+                  <div className="absolute inset-y-0 bg-violet-500/15 border-x border-violet-400/40 pointer-events-none z-10"
+                    style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
+                  <div onPointerDown={(e) => startLoopDrag(e, "start")}
+                    onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
+                    style={{ left: `${startPct}%` }} title={`Loop start: ${fmt(loop.startSec)} — drag to adjust, double-click to clear`}>
+                    <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
+                  </div>
+                  <div onPointerDown={(e) => startLoopDrag(e, "end")}
+                    onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
+                    style={{ left: `${endPct}%` }} title={`Loop end: ${fmt(loop.endSec)} — drag to adjust, double-click to clear`}>
+                    <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
+                  </div>
                 </>
               );
             })()}

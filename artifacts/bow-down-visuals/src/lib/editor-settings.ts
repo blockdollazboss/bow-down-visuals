@@ -1402,6 +1402,9 @@ export interface EditorSettings {
    * any point on the timeline via ClipEdit.manualStartSec.
    */
   timelineLayout: "auto" | "manual";
+  /** Timeline loop-playback region: when enabled, playback wraps from endSec back to startSec.
+   *  Set via Shift+drag on the waveform track; edge handles adjust, double-click clears. */
+  timelineLoop: { enabled: boolean; startSec: number; endSec: number };
   /** Last snapped position of the floating master player — one of 12 fixed screen anchors. There is no docked/inline mode; the player always floats. */
   masterPlayerSnapPosition: MasterPlayerSnapPosition;
   /** Current width (px) of the floating master player; height is derived from the export aspect ratio. */
@@ -1602,6 +1605,7 @@ export function defaultEditorSettings(): EditorSettings {
   return {
     mode: "auto",
     timelineLayout: "auto",
+    timelineLoop: { enabled: false, startSec: 0, endSec: 0 },
     masterPlayerSnapPosition: "bottom-left",
     masterPlayerSize: MASTER_PLAYER_DEFAULT_WIDTH,
     masterPlayerMinimized: false,
@@ -1939,6 +1943,13 @@ export function normalizeEditorSettings(
     ...base,
     ...stored,
     timelineLayout: stored.timelineLayout === "manual" ? "manual" : "auto",
+    timelineLoop: (() => {
+      const l = stored.timelineLoop as { enabled?: boolean; startSec?: number; endSec?: number } | undefined;
+      if (!l || typeof l.startSec !== "number" || typeof l.endSec !== "number" || l.endSec <= l.startSec) {
+        return { enabled: false, startSec: 0, endSec: 0 };
+      }
+      return { enabled: l.enabled === true, startSec: Math.max(0, l.startSec), endSec: Math.max(0, l.endSec) };
+    })(),
     /* No more docked mode — every project (including old ones with masterPlayerFloating: false)
        now opens with the player floating, snapped to its saved (or default) corner. */
     masterPlayerSnapPosition: MASTER_PLAYER_SNAP_POSITIONS.includes(stored.masterPlayerSnapPosition as MasterPlayerSnapPosition)
