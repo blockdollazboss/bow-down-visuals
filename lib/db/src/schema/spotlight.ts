@@ -27,7 +27,7 @@ export type SpotlightInquiry = typeof spotlightInquiriesTable.$inferSelect;
 /* Public offer details — shared by the promo overlay and the inquiry modal. */
 export const SPOTLIGHT_OFFER = {
   name: "Spotlight Takeover",
-  priceDollars: 99,
+  priceDollars: 1000,
   durationDays: 7,
   surfaces: ["Sign-in screen", "Sign-up screen"],
   specs: [

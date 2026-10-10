@@ -59,7 +59,7 @@ export default function SpotlightModal({ open, onClose }: { open: boolean; onClo
   };
 
   if (!open) return null;
-  const price = offer?.priceDollars ?? 2500;
+  const price = offer?.priceDollars ?? 1000;
   const days = offer?.durationDays ?? 7;
 
   return (

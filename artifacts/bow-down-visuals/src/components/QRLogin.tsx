@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { QrCode, X, Loader2, CheckCircle } from "lucide-react";
 import { QRCodeImage } from "./QRCode";
 import { getSupabase } from "@/lib/supabase";
@@ -94,9 +95,9 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
         <span>Sign in with QR Code</span>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center bg-black/80 p-4 pt-[12vh]" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center bg-black/80 p-4 pt-[12vh] overflow-y-auto" onClick={() => setOpen(false)}>
+          <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center my-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Scan to Sign In</h3>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-accent/10 rounded">
@@ -145,10 +146,17 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
             {status === "error" && (
               <div className="py-12">
                 <p className="text-destructive">Failed to generate code. Try again.</p>
+                <button
+                  onClick={() => setGenNonce((n) => n + 1)}
+                  className="mt-4 px-4 py-2 rounded-lg bg-primary text-black font-semibold"
+                >
+                  Retry
+                </button>
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

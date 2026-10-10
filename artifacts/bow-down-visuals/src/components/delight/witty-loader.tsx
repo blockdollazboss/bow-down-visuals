@@ -22,7 +22,8 @@ const FALLBACK_LINES = [
 
 /* Rotating feature highlight promos - shown below the status line */
 const FEATURE_PROMOS = [
-  { title: "Spotlight Takeover — $2,500", desc: "Your brand over the drone video for 7 days. Prime placement." },
+  { title: "Spotlight Takeover — $1,000", desc: "Your brand over the drone video for 7 days. Prime placement." },
+  { title: "Loading Screen Takeover — $2,500", desc: "Your brand on every loading screen for 7 days. Unmissable." },
   { title: "Refer & Earn", desc: "Invite creators, earn 25% of their credit purchases for 90 days." },
   { title: "AI Music Videos", desc: "Turn your songs into cinematic music videos in minutes." },
   { title: "Viral Thumbnails", desc: "Scroll-stopping thumbnails with AI A/B testing." },
