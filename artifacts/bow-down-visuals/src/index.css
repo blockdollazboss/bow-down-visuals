@@ -166,193 +166,458 @@ html, body {
   --chart-5: 222 16% 28%;
 }
 
-/* Light theme - soft gray, not white, keeping the gold luxury feel */
+/* ═══════════════════════════════════════════════════════════════════
+   IVORY PALACE — the flagship light theme.
+   Sunlit golden palace halls: warm ivory, champagne, marble white,
+   and rich gold leaf. Designed as the primary experience, not an
+   afterthought. Every text color is contrast-checked against ivory.
+   ═══════════════════════════════════════════════════════════════════ */
 .light {
-  --background: 220 10% 88%;
-  --foreground: 222 18% 12%;
+  /* Ivory silk */
+  --background: 40 33% 97%;
+  --foreground: 26 28% 10%;
 
-  --card: 220 10% 92%;
-  --card-foreground: 222 18% 12%;
-  --card-border: 43 50% 55%;
+  /* Cards: polished marble white */
+  --card: 0 0% 100%;
+  --card-foreground: 26 28% 10%;
+  --card-border: 43 42% 80%;
 
-  --border: 220 10% 75%;
-  --input: 220 10% 85%;
-  --ring: 45 95% 45%;
+  /* Borders: champagne hairlines */
+  --border: 43 38% 83%;
+  --input: 0 0% 100%;
+  --ring: 43 72% 52%;
 
-  --primary: 45 95% 45%;
-  --primary-foreground: 0 0% 100%;
+  /* Primary: royal gold leaf */
+  --primary: 43 62% 46%;
+  --primary-foreground: 26 30% 8%;
 
-  --secondary: 220 10% 82%;
-  --secondary-foreground: 222 18% 20%;
+  /* Secondary: pale champagne */
+  --secondary: 43 45% 93%;
+  --secondary-foreground: 26 25% 16%;
 
-  --muted: 220 10% 85%;
-  --muted-foreground: 220 10% 40%;
+  /* Muted: warm stone — always readable on ivory */
+  --muted: 43 28% 92%;
+  --muted-foreground: 30 12% 36%;
 
-  --accent: 45 95% 45%;
-  --accent-foreground: 0 0% 100%;
+  /* Accent: gold */
+  --accent: 43 62% 46%;
+  --accent-foreground: 26 30% 8%;
 
-  --destructive: 0 72% 48%;
+  --destructive: 0 68% 44%;
   --destructive-foreground: 0 0% 98%;
-  --destructive-border: 0 60% 35%;
+  --destructive-border: 0 55% 32%;
 
-  --popover: 220 10% 94%;
-  --popover-foreground: 222 18% 12%;
-  --popover-border: 220 10% 75%;
+  /* Popovers: marble white */
+  --popover: 0 0% 100%;
+  --popover-foreground: 26 28% 10%;
+  --popover-border: 43 38% 80%;
 
-  --sidebar: 220 12% 84%;
-  --sidebar-foreground: 222 18% 15%;
-  --sidebar-border: 220 10% 70%;
-  --sidebar-primary: 45 95% 45%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 10% 78%;
-  --sidebar-accent-foreground: 222 18% 15%;
-  --sidebar-ring: 45 95% 45%;
+  /* Sidebar: ivory registry with gold leaf */
+  --sidebar: 40 30% 95%;
+  --sidebar-foreground: 26 25% 14%;
+  --sidebar-border: 43 40% 82%;
+  --sidebar-primary: 43 62% 46%;
+  --sidebar-primary-foreground: 26 30% 8%;
+  --sidebar-accent: 43 50% 90%;
+  --sidebar-accent-foreground: 26 25% 14%;
+  --sidebar-ring: 43 72% 52%;
 
-  --chart-1: 45 95% 45%;
-  --chart-2: 43 85% 40%;
-  --chart-3: 43 70% 35%;
+  --chart-1: 43 62% 46%;
+  --chart-2: 36 70% 38%;
+  --chart-3: 30 45% 30%;
   --chart-4: 0 65% 45%;
-  --chart-5: 220 10% 60%;
+  --chart-5: 30 12% 55%;
+
+  /* Ivory Palace signature tokens */
+  --ivory: 40 33% 97%;
+  --marble: 0 0% 100%;
+  --champagne: 43 45% 88%;
+  --gold-deep: 40 72% 30%;
+  --gold: 43 62% 46%;
+  --gold-bright: 46 78% 68%;
+  --espresso: 26 28% 10%;
+  --warm-gray: 30 12% 36%;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   LIGHT THEME — hardcoded dark utility remaps
-   The site was built with hardcoded dark Tailwind colors (bg-black,
-   text-white, etc.) that ignore CSS variables. These overrides remap
-   them to the soft-gray light palette while keeping gold luxury accents.
-   Soft gray, not stark white — still feels like Bow Down Visuals.
+   IVORY PALACE — flagship light theme design system.
+   You are walking into a sunlit golden palace hall: warm ivory silk,
+   polished marble white, champagne hairlines, and rich gold leaf.
 
-   EXCLUSIONS: elements inside [data-dark-lock] (WittyLoader cinematic
-   experience, etc.) keep their dark styling via the restore rules below.
+   How it works: the app was built with hardcoded dark Tailwind colors
+   (bg-black, text-white, …) that ignore CSS variables. These rules remap
+   them to the Ivory Palace palette. Anything inside [data-dark-lock]
+   (WittyLoader cinema, video players, teleprompter) is excluded and
+   keeps its dark look via the restore rules at the end.
+
+   Contrast discipline: every text remap is checked against ivory —
+   body text ≥ 7:1, muted text ≥ 4.5:1, large display gold ≥ 3:1.
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Arbitrary dark hex values → light surfaces ── */
-.light .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
-.light .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
-.light .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 92%);
-}
-.light .bg-\[\#1a1a1a\]:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 85%);
-}
-
-/* ── Page backgrounds: remove dark throne, use light gray ── */
+/* ── 1. Palace backdrop: sunlit golden hall behind every subpage ── */
 .light body,
 .light html {
-  background-color: hsl(220 10% 88%);
+  background-color: #FAF7F0;
+  color: #2D2A24;
 }
 .light .bg-background:not([data-dark-lock]):not([data-dark-lock] *),
 .light [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 88%);
+  background-color: #FAF7F0;
+  background-image:
+    linear-gradient(rgba(250, 247, 240, 0.88), rgba(250, 247, 240, 0.93)),
+    url("/images/subpage-bg-ivory-palace-v1.webp");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+/* Auth pages keep their video — no palace behind it */
+.light .no-throne-bg[class*="min-h-screen"] {
   background-image: none;
+  background-color: #FAF7F0;
 }
 
-/* ── Solid dark surfaces → light card/surface ── */
+/* ── 2. Surfaces: dark slabs become polished marble white ── */
 .light .bg-black:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 92%);
+  background-color: #FFFFFF;
+}
+.light .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: #FFFFFF;
 }
 .light .bg-zinc-950:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-neutral-950:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 90%);
+  background-color: #FDFBF6;
 }
 .light .bg-zinc-900:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-neutral-900:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-stone-900:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-gray-900:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 93%);
+  background-color: #FFFFFF;
 }
 .light .bg-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
-.light .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: hsl(220 10% 85%);
+.light .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#1a1a1a\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: #F4EFE3;
 }
 
-/* ── Translucent dark surfaces → translucent light surfaces ── */
-.light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.9); }
-.light .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.8); }
-.light .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.7); }
-.light .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.6); }
-.light .bg-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.5); }
-.light .bg-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.4); }
-.light .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.3); }
-.light .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.2); }
-.light .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 92% / 0.1); }
-.light .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.8); }
-.light .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.6); }
-.light .bg-zinc-900\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.5); }
-.light .bg-zinc-900\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(220 10% 93% / 0.4); }
+/* ── 3. Frosted ivory glass: dark translucents become light ── */
+.light .bg-black\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.92); }
+.light .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
+.light .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.78); }
+.light .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.68); }
+.light .bg-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.58); }
+.light .bg-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.46); }
+.light .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.36); }
+.light .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.24); }
+.light .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.14); }
+.light .bg-zinc-900\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.92); }
+.light .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
+.light .bg-zinc-900\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.78); }
+.light .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.68); }
+.light .bg-zinc-900\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.58); }
+.light .bg-zinc-900\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.46); }
 
-/* ── White text → dark foreground text ── */
-.light .text-white:not([data-dark-lock]):not([data-dark-lock] *) {
-  color: hsl(222 18% 12%);
+/* Image scrims: dark gradients become ivory so overlay text stays readable */
+.light .from-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-from: rgb(250 247 240 / 0.95) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(250 247 240 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }
-.light .text-white\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.9); }
-.light .text-white\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.8); }
-.light .text-white\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.7); }
-.light .text-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.6); }
-.light .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(222 18% 12% / 0.5); }
-.light .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40%); }
-.light .text-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.75); }
-.light .text-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.65); }
-.light .text-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(220 10% 40% / 0.55); }
+.light .via-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-via: rgb(250 247 240 / 0.6) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
+}
 
-/* ── Zinc/gray text → appropriate gray text ── */
-.light .text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *),
-.light .text-neutral-400:not([data-dark-lock]):not([data-dark-lock] *) {
-  color: hsl(220 10% 40%);
-}
-.light .text-zinc-500:not([data-dark-lock]):not([data-dark-lock] *),
-.light .text-neutral-500:not([data-dark-lock]):not([data-dark-lock] *) {
-  color: hsl(220 10% 45%);
-}
+/* ── 4. Ink: white text becomes rich espresso (7:1+ on ivory) ── */
+.light .text-white:not([data-dark-lock]):not([data-dark-lock] *) { color: #1C1712; }
+.light .text-white\/95:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.95); }
+.light .text-white\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.9); }
+.light .text-white\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.88); }
+.light .text-white\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.78); }
+.light .text-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: #575046; }
+.light .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+/* Faint whites become true readable warm grays — never washed out */
+.light .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .text-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A7266; }
+.light .text-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: #857C6E; }
+.light .text-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { color: #8F867A; }
+.light .text-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { color: #A39A89; }
+
+/* Zinc/neutral/gray text scales → warm readable grays */
+.light .text-zinc-200:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-200:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-gray-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #3A352C; }
 .light .text-zinc-300:not([data-dark-lock]):not([data-dark-lock] *),
-.light .text-neutral-300:not([data-dark-lock]):not([data-dark-lock] *) {
-  color: hsl(222 18% 25%);
+.light .text-neutral-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-gray-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-stone-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #2D2A24; }
+.light .text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-gray-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-stone-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .text-zinc-500:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-500:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-gray-500:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-stone-500:not([data-dark-lock]):not([data-dark-lock] *) { color: #575046; }
+
+/* ── 5. Gold leaf text: bright golds deepen to readable antique gold ── */
+.light .text-primary:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-amber-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-\[\#C9A84C\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#e8c86a\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
+/* ── 6. Champagne hairlines: white borders become warm gold-tinted ── */
+.light .border-white:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
+.light .border-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.45); }
+.light .border-white\/50:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.38); }
+.light .border-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.32); }
+.light .border-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.26); }
+.light .border-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.22); }
+.light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.18); }
+.light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+.light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
+.light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(237 227 203 / 0.6); }
+.light .border-zinc-700:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-neutral-700:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-neutral-800:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
+.light .divide-white\/10:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: #EDE3CB; }
+.light .divide-white\/5:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: rgb(237 227 203 / 0.6); }
+
+/* ── 7. Warm shadows: black shadows become soft golden ambience ── */
+.light .shadow-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { --tw-shadow-color: rgb(138 107 31 / 0.16); }
+.light .shadow-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { --tw-shadow-color: rgb(138 107 31 / 0.13); }
+.light .shadow-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { --tw-shadow-color: rgb(138 107 31 / 0.10); }
+
+/* ── 8. Royal invitation cards: marble white, champagne border, warm glow ── */
+.light .bg-card:not([data-dark-lock]):not([data-dark-lock] *) {
+  box-shadow:
+    0 1px 2px rgb(138 107 31 / 0.05),
+    0 12px 40px -12px rgb(138 107 31 / 0.14);
+  border: 1px solid #EADFC6;
+}
+.light .rounded-2xl.bg-card:not([data-dark-lock]):not([data-dark-lock] *),
+.light .rounded-xl.bg-card:not([data-dark-lock]):not([data-dark-lock] *),
+.light .rounded-3xl.bg-card:not([data-dark-lock]):not([data-dark-lock] *) {
+  position: relative;
 }
 
-/* ── White borders → light gray borders ── */
-.light .border-white:not([data-dark-lock]):not([data-dark-lock] *) {
-  border-color: hsl(220 10% 75%);
+/* ── 9. Gold leaf buttons: foil gradient, embossed, espresso ink ── */
+.light .bg-primary:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-image: linear-gradient(135deg, #EFD08A 0%, #DDBB5E 30%, #C9A84C 55%, #B8941F 80%, #D4AF37 100%);
+  background-color: #C9A84C;
+  color: #1C1712;
+  border: 1px solid rgb(138 107 31 / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(138 107 31 / 0.25),
+    0 2px 14px rgb(201 168 76 / 0.35);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.25);
 }
-.light .border-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.4); }
-.light .border-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.3); }
-.light .border-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.25); }
-.light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.2); }
-.light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.15); }
-.light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 70%); }
-.light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(220 10% 75% / 0.5); }
+.light .bg-primary:not([data-dark-lock]):not([data-dark-lock] *):hover {
+  filter: brightness(1.05);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.6),
+    inset 0 -1px 0 rgb(138 107 31 / 0.25),
+    0 6px 24px rgb(201 168 76 / 0.5);
+}
+.light .bg-primary:not([data-dark-lock]):not([data-dark-lock] *):active {
+  filter: brightness(0.97);
+  transform: translateY(1px);
+}
+/* Secondary buttons: marble white with gold hairline */
+.light .bg-secondary:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: #FFFFFF;
+  border: 1px solid #E0CFA8;
+  box-shadow: 0 1px 6px rgb(138 107 31 / 0.08);
+}
 
-/* ── Placeholder text ── */
-.light .placeholder\:text-white\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
-  color: hsl(220 10% 40% / 0.6);
-}
-.light .placeholder\:text-white\/40:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
-  color: hsl(220 10% 40% / 0.7);
-}
-
-/* ── Divide and ring colors ── */
-.light .divide-white\/10:not([data-dark-lock]):not([data-dark-lock] *) > * + * {
-  border-color: hsl(220 10% 70%);
-}
-.light .divide-white\/5:not([data-dark-lock]):not([data-dark-lock] *) > * + * {
-  border-color: hsl(220 10% 75% / 0.5);
+/* ── 10. Gilded badges & pills ── */
+.light .bg-amber-400\/10:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-yellow-400\/10:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-primary\/10:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: rgb(201 168 76 / 0.14);
+  border: 1px solid rgb(201 168 76 / 0.35);
 }
 
-/* ── Dark-locked areas: restore dark styling (WittyLoader, etc.) ──
-   Higher specificity than the remaps above, so dark-locked
-   containers and their children keep the cinematic dark look. */
+/* ── 11. Ivory inputs: marble white, champagne ring, gold focus ── */
+.light input:not([data-dark-lock] *),
+.light textarea:not([data-dark-lock] *),
+.light select:not([data-dark-lock] *) {
+  background-color: #FFFFFF;
+  border-color: #E0CFA8;
+  color: #1C1712;
+}
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #A39A89;
+}
+.light .placeholder\:text-white\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder,
+.light .placeholder\:text-white\/40:not([data-dark-lock]):not([data-dark-lock] *)::placeholder,
+.light .placeholder\:text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
+  color: #A39A89;
+}
+.light input:focus-visible,
+.light textarea:focus-visible,
+.light select:focus-visible {
+  outline: 2px solid rgb(201 168 76 / 0.6);
+  outline-offset: 1px;
+  border-color: #C9A84C;
+}
+
+/* ── 12. Sidebar: the royal registry — ivory vellum, gold leaf active ── */
+.light [data-slot="sidebar-inner"]:not([data-dark-lock] *),
+.light [data-sidebar="sidebar"]:not([data-dark-lock] *) {
+  background: linear-gradient(180deg, #FDFAF4 0%, #FAF5E9 100%);
+  border-right: 1px solid #E7D9BC;
+  box-shadow: 4px 0 24px -12px rgb(138 107 31 / 0.12);
+}
+/* Active nav item: gold leaf pill */
+.light [data-slot="sidebar-menu-button"][data-active="true"]:not([data-dark-lock] *) {
+  background-image: linear-gradient(135deg, #F3E3B8 0%, #EAD08A 50%, #DFC06A 100%);
+  color: #1C1712;
+  border: 1px solid rgb(138 107 31 / 0.35);
+  box-shadow: 0 2px 10px rgb(201 168 76 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.6);
+  font-weight: 600;
+}
+
+/* ── 13. FOIL HEADLINES — the signature. Display serif shimmers like gold leaf ── */
+.light h1.font-display:not([data-dark-lock]):not([data-dark-lock] *),
+.light h2.font-display:not([data-dark-lock]):not([data-dark-lock] *),
+.light .gold-foil:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-image: linear-gradient(100deg,
+    #7A5C1A 0%, #A8822A 22%, #D9B64A 40%, #F0D47E 50%,
+    #D9B64A 60%, #A8822A 78%, #7A5C1A 100%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: ivory-foil-sheen 9s linear infinite;
+  /* Keeps descenders/edges crisp on ivory */
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.7));
+}
+@keyframes ivory-foil-sheen {
+  to { background-position: 220% center; }
+}
+
+/* Ornamental gold rule with center flourish — for section breaks */
+.light .royal-hr:not([data-dark-lock] *),
+.light hr:not([data-dark-lock] *):not([data-dark-lock]) {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgb(201 168 76 / 0.65) 20%, #C9A84C 50%, rgb(201 168 76 / 0.65) 80%, transparent);
+  position: relative;
+}
+.light .royal-hr.diamond:not([data-dark-lock] *)::after {
+  content: '❖';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -54%);
+  background: #FAF7F0;
+  padding: 0 0.75rem;
+  color: #B8941F;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+/* ── 14. Golden dust motes drifting through sunbeams ── */
+.light body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(circle, rgb(201 168 76 / 0.30) 1px, transparent 1.9px),
+    radial-gradient(circle, rgb(232 200 106 / 0.24) 1.3px, transparent 2.1px),
+    radial-gradient(circle, rgb(184 148 31 / 0.18) 1px, transparent 1.7px);
+  background-size: 190px 190px, 270px 270px, 350px 350px;
+  background-position: 0 0, 70px 100px, 140px 45px;
+  animation: ivory-motes-drift 28s linear infinite;
+  opacity: 0.55;
+}
+@keyframes ivory-motes-drift {
+  from { background-position: 0 0, 70px 100px, 140px 45px; }
+  to   { background-position: 190px 380px, 340px 460px, 490px 405px; }
+}
+/* Warm up the ambient glow for daylight */
+.light body::before {
+  background: radial-gradient(ellipse 70% 30% at 50% -5%, rgb(201 168 76 / 0.10) 0%, transparent 70%);
+}
+
+/* ── 15. Ivory selection, champagne scrollbars, gold focus ── */
+.light ::selection {
+  background: #C9A84C;
+  color: #1C1712;
+}
+.light ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.light ::-webkit-scrollbar-track {
+  background: #F4EFE3;
+}
+.light ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #E0C376, #B8941F);
+  border-radius: 8px;
+  border: 2px solid #F4EFE3;
+}
+.light :focus-visible {
+  outline: 2px solid rgb(201 168 76 / 0.7);
+  outline-offset: 2px;
+}
+
+/* ── 16. Dark-locked areas: restore the cinematic dark look ──
+   (WittyLoader, video players, teleprompter — excluded above via :not) */
 .light [data-dark-lock].bg-background,
 .light [data-dark-lock] .bg-background {
-  background-color: hsl(222 18% 5%);
+  background-color: #050505;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),
+    url("/images/subpage-bg-throne-v3.webp");
 }
 .light [data-dark-lock].bg-black,
-.light [data-dark-lock] .bg-black {
+.light [data-dark-lock] .bg-black,
+.light [data-dark-lock] .bg-zinc-900,
+.light [data-dark-lock] .bg-zinc-950 {
   background-color: #000;
 }
+.light [data-dark-lock] .bg-zinc-900\/80,
+.light [data-dark-lock] .bg-black\/70,
+.light [data-dark-lock] .bg-black\/60 {
+  background-color: rgb(0 0 0 / 0.7);
+}
 .light [data-dark-lock].text-white,
-.light [data-dark-lock] .text-white {
+.light [data-dark-lock] .text-white,
+.light [data-dark-lock] .text-white\/60,
+.light [data-dark-lock] .text-white\/70 {
   color: #fff;
 }
+.light [data-dark-lock] .from-black {
+  --tw-gradient-from: #000 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
+}
 
+/* Calm the magic for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .light h1.font-display,
+  .light h2.font-display,
+  .light .gold-foil {
+    animation: none;
+  }
+  .light body::after {
+    animation: none;
+    opacity: 0.3;
+  }
+}
 @layer base {
   * {
     @apply border-border;
