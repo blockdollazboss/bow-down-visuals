@@ -3,7 +3,6 @@ import { VoiceInputButton } from "@/components/VoiceInput";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
-import { DraggableWidget } from "@/components/draggable-widget";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   hasDownloadedExtension,
@@ -219,27 +218,9 @@ export function ThyCheatCodeChat() {
   }, []);
 
   if (!open) {
-    return (
-      <DraggableWidget id="chat-button" defaultAnchor={{ x: 0.94, y: 0.92 }}>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Chat with Thy Cheat Code"
-          title="Chat with Thy Cheat Code"
-          className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
-        >
-          <video
-            src={mediaUrl("thy-cheat-code-idle-8bit.mp4")}
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-hidden="true"
-            className="h-full w-full object-cover"
-          />
-        </button>
-      </DraggableWidget>
-    );
+    /* No floating launcher — the in-page ThyCheatCodeHost (slim chip and
+       "CHAT WITH ME" / "ASK ABOUT THIS" buttons) opens the drawer. */
+    return null;
   }
 
   return (
