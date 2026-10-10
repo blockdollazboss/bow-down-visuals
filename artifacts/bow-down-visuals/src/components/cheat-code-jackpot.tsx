@@ -149,6 +149,8 @@ export function CheatCodeJackpot() {
  /* The video editor is a focused studio surface — the jackpot promo banner
   * and D-pad FAB don't belong there. */
  const inEditor = location.startsWith("/video-editor");
+ /* D-pad hidden on auth pages — user directive 2026-10-10 */
+ const onAuthPage = location.startsWith("/login") || location.startsWith("/signup");
  const [status, setStatus] = useState<JackpotStatus | null>(null);
  const [dismissed, setDismissed] = useState(
  () =>
@@ -460,7 +462,7 @@ export function CheatCodeJackpot() {
  )}
 
  {/* ── D-pad FAB (mobile / touch entry) — draggable, snaps to grid ── */}
- {phase === "live" && !inEditor && (
+ {phase === "live" && !inEditor && !onAuthPage && (
  <DraggableWidget id="jackpot-dpad" defaultAnchor={{ x: 0.94, y: 0.08 }}>
  <button
  type="button"
