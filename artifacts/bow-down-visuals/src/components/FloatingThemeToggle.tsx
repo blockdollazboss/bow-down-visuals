@@ -37,8 +37,8 @@ export function FloatingThemeToggle() {
     localStorage.setItem("bdv-theme", next ? "light" : "dark");
   };
 
-  // Don't show on homepage — it has its own theme toggle (avoids overlap)
-  if (location === "/") return null;
+  // Don't show on auth pages — they have their own theme toggle (avoids covering the spotlight pricing)
+  if (location === "/login" || location === "/signup") return null;
 
   return (
     <button
