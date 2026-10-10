@@ -455,6 +455,9 @@ export function AppSidebar() {
             )}
           </div>
           {user && <div className="pointer-events-auto"><ModeToggle /></div>}
+          <div className="pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
+            <ThemeToggle />
+          </div>
         </SidebarHeader>
 
       <SidebarContent className="gap-1 px-2">
@@ -469,11 +472,6 @@ export function AppSidebar() {
         ).map((section) => (
           <SidebarSection key={section.titleKey} section={section} location={location} isAdmin={isAdmin} />
         ))}
-
-        {/* Theme toggle */}
-        <SidebarGroup className="p-0 mt-2 border-t border-white/[0.06] pt-2">
-          <ThemeToggle />
-        </SidebarGroup>
 
         {/* Footer links: pricing, account, admin — always visible */}
         <SidebarGroup className="p-0 mt-2 border-t border-white/[0.06] pt-2">
