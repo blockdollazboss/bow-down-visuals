@@ -1,11 +1,12 @@
-import { useEffect } from "react";
-import { Link, useSearch } from "wouter";
-import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { AlertTriangle, ArrowLeft, Download, Loader2, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { TeamSeats } from "@/components/TeamSeats";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -46,6 +47,120 @@ const SOCIAL_MESSAGE_KEYS: Record<string, { titleKey: string; descKey: string; d
     destructive: true,
   },
 };
+
+/* ─── Danger Zone: export data / delete account ─────────────────────────── */
+function DangerZone() {
+  const { t } = useTranslation();
+  const { getAccessToken, signOut } = useAuth();
+  const [, setLocation] = useLocation();
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function exportData() {
+    setExporting(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/account/export", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "bow-down-visuals-export.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(t("settings.exportError"));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (confirm !== "DELETE" || deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      if (!res.ok) throw new Error();
+      await signOut();
+      setLocation("/");
+    } catch {
+      setError(t("settings.deleteError"));
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border-2 border-red-500/40 bg-red-950/20 p-6">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10">
+          <AlertTriangle className="h-4 w-4 text-red-400" />
+        </span>
+        <div>
+          <h2 className="text-lg font-black tracking-tight text-red-300">
+            {t("settings.dangerTitle")}
+          </h2>
+          <p className="text-xs text-white/50">{t("settings.dangerDescription")}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-5">
+        <div>
+          <button
+            type="button"
+            onClick={() => { void exportData(); }}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? t("settings.exporting") : t("settings.exportButton")}
+          </button>
+        </div>
+
+        <div className="border-t border-red-500/20 pt-5">
+          <p className="text-sm font-bold text-red-300">{t("settings.deleteTitle")}</p>
+          <p className="mt-1 text-xs text-white/50">{t("settings.deleteDescription")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder={t("settings.deletePlaceholder")}
+              disabled={deleting}
+              className="w-56 rounded-xl bg-black/50 border border-red-500/40 px-3 py-2 text-sm text-white outline-none focus:border-red-400 placeholder:text-white/25"
+            />
+            <button
+              type="button"
+              onClick={() => { void deleteAccount(); }}
+              disabled={confirm !== "DELETE" || deleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deleting ? t("settings.deleting") : t("settings.deleteButton")}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+    </section>
+  );
+}
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -111,6 +226,8 @@ export default function Settings() {
         <DiscordWebhookSettings />
 
         <TeamSeats />
+
+        <DangerZone />
       </div>
     </div>
   );
