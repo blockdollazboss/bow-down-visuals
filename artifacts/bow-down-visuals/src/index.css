@@ -855,17 +855,17 @@ html, body {
   color: #6E6046 !important;
 }
 
-/* ── Gold headline accent: DEEP bronze-gold, readable on ivory ──
-   The old pale champagne (#E8C86A center) was invisible. This is
-   honey-bronze: luxurious AND legible. */
+/* ── Gold headline accent: RICH gold, readable on ivory ──
+   Pale champagne was invisible. This is a deeper, richer gold with
+   enough contrast to read on light backgrounds while staying luxurious. */
 .light .no-throne-bg .gold-text-shine {
-  background: linear-gradient(100deg, #5C430E 0%, #8A6B1F 30%, #A67C1A 50%, #8A6B1F 70%, #5C430E 100%);
+  background: linear-gradient(100deg, #7A5A12 0%, #A67C1A 30%, #C9A84C 50%, #A67C1A 70%, #7A5A12 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.65));
+  filter: drop-shadow(0 1px 1px rgba(255,255,255,0.8));
 }
 /* Positioning whisper + slogans: deep bronze gold */
 .light .no-throne-bg .text-primary\/90,
