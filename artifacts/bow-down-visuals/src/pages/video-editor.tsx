@@ -20,7 +20,7 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { useCollaboration, CollaboratorCursors } from "@/components/LiveCollaboration";
-import WittyLoader from "@/components/delight/witty-loader";
+import WittyLoader, { useMinLoadTime } from "@/components/delight/witty-loader";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -290,12 +290,8 @@ export default function VideoEditor() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // 5s minimum loader — enough time to read the screen
-  const [minTimeDone, setMinTimeDone] = useState(false);
-  useEffect(() => {
-    const id = window.setTimeout(() => setMinTimeDone(true), 5000);
-    return () => window.clearTimeout(id);
-  }, []);
+  // 5s minimum loader — shared timing via useMinLoadTime
+  const minTimeDone = useMinLoadTime();
   const [project, setProject] = useState<LoadedProject | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [scenes, setScenesState] = useState<SceneData[]>([]);
@@ -1631,7 +1627,7 @@ export default function VideoEditor() {
         {!projectId ? (
           <NoProject />
         ) : (loading || !minTimeDone) ? (
-          <WittyLoader slideMs={2500} />
+          <WittyLoader />
         ) : loadError ? (
           <div className="py-20 text-center space-y-3">
             <p className="text-red-400 font-semibold">{loadError}</p>

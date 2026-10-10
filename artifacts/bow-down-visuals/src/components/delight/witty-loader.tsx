@@ -1,6 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+/* ─── Shared loader timing — every loading screen matches ──
+   5s minimum display, 2.5s per headline/promo slide. Change here,
+   applies everywhere. */
+export const LOADER_MIN_MS = 5000;
+export const LOADER_SLIDE_MS = 2500;
+
+/** Returns true once the minimum loader display time has elapsed. */
+export function useMinLoadTime(ms: number = LOADER_MIN_MS): boolean {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDone(true), ms);
+    return () => window.clearTimeout(t);
+  }, [ms]);
+  return done;
+}
+
 /* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
    Rotating mascot-voiced status lines in Thy Cheat Code's voice: royal,
    playful, confident. Used on every protected page load (ProtectedRoute)
@@ -40,7 +56,7 @@ export function useWittyLine(intervalMs = 2200): string {
   return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
 }
 
-export default function WittyLoader({ message, slideMs = 4000 }: { message?: string; slideMs?: number }) {
+export default function WittyLoader({ message, slideMs = LOADER_SLIDE_MS }: { message?: string; slideMs?: number }) {
   const { t } = useTranslation();
 
   // Single synced rotation — headline and promo switch together
