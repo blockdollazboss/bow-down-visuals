@@ -57,7 +57,7 @@ const STYLE_PRESETS = [
   },
 ] as const;
 
-const VIDEO_COST = 400;
+const SEEDANCE_VB_PER_SEC = 300; // must match backend clip-pricing.ts SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT
 const IMAGE_COST = 200;
 
 interface PollResult {
@@ -168,11 +168,12 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
     refreshProfile();
   }
 
-  // ── Tab 1: cartoon video (existing Runway pipeline, 400 VB) ──
+  // ── Tab 1: cartoon video (Seedance pipeline, 300 VB/sec — matches backend) ──
   async function generateVideo() {
     if (!prompt.trim() || busy) return;
     resetResult();
     setBusy(true);
+    const videoCost = duration * SEEDANCE_VB_PER_SEC;
     try {
       const token = await getAccessToken();
       const fullPrompt = `${prompt.trim()}, ${style.direction}`;
@@ -185,7 +186,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
           ratio: aspect === "9:16" ? "720:1280" : "1280:720",
           durationSec: duration,
         }),
-        overrideCost: VIDEO_COST,
+        overrideCost: videoCost,
         overrideFeature: t("cartoonStudio.videoFeatureName"),
       });
       if (!res) {
@@ -450,7 +451,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
               {busy
                 ? t("cartoonStudio.generating")
-                : t("cartoonStudio.generateVideo", { cost: VIDEO_COST })}
+                : t("cartoonStudio.generateVideo", { cost: duration * SEEDANCE_VB_PER_SEC })}
             </button>
 
             {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
