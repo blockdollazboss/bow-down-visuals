@@ -18,8 +18,30 @@ import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
+import { r2Upload, r2GetSignedUrl, isR2Configured } from "../../lib/r2-client";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
+
+/* Upload an export-doctor diagnostic file and return a signed URL.
+   R2 first (works on Render); legacy Replit GCS sidecar as fallback. */
+async function uploadExportDoctorFile(
+  objectName: string,
+  filePath: string,
+  contentType: string,
+): Promise<string> {
+  if (isR2Configured()) {
+    await r2Upload(objectName, readFileSync(filePath), contentType);
+    return r2GetSignedUrl(objectName, 7 * 24 * 3600);
+  }
+  const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+  if (!bucketId)
+    throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set and R2 not configured");
+  await objectStorageClient
+    .bucket(bucketId)
+    .file(objectName)
+    .save(readFileSync(filePath), { contentType, resumable: false });
+  return signGetUrl(bucketId, objectName);
+}
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -1677,17 +1699,8 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
     }
 
     const probe = await probeMedia(outputPath);
-    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
     const objectName = `export-doctor/${doctorId}-scene1.mp4`;
-    await objectStorageClient
-      .bucket(bucketId)
-      .file(objectName)
-      .save(readFileSync(outputPath), {
-        contentType: "video/mp4",
-        resumable: false,
-      });
-    const signedUrl = await signGetUrl(bucketId, objectName);
+    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
     res.json({
       success: true,
@@ -1925,17 +1938,8 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
     }
 
     const probe = await probeMedia(outputPath);
-    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
     const objectName = `export-doctor/${doctorId}-scene1-audio.mp4`;
-    await objectStorageClient
-      .bucket(bucketId)
-      .file(objectName)
-      .save(readFileSync(outputPath), {
-        contentType: "video/mp4",
-        resumable: false,
-      });
-    const signedUrl = await signGetUrl(bucketId, objectName);
+    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
     res.json({
       success: true,
@@ -2694,17 +2698,8 @@ router.post("/export-doctor/export-all", requireAuth, async (req, res) => {
     }
 
     const probe = await probeMedia(outputPath);
-    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
     const objectName = `export-doctor/${multiId}-all-clips.mp4`;
-    await objectStorageClient
-      .bucket(bucketId)
-      .file(objectName)
-      .save(readFileSync(outputPath), {
-        contentType: "video/mp4",
-        resumable: false,
-      });
-    const signedUrl = await signGetUrl(bucketId, objectName);
+    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
     res.json({
       success: true,
@@ -2902,18 +2897,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-all-clips-audio.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -3090,18 +3075,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-sync-diag.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       const hasLipSync = session.clips.some(
         (_, i) => clipEdits?.[`scene-${i + 1}`]?.useLipSync || false,
@@ -3450,23 +3425,14 @@ router.post(
 
       // ── Step: upload to object storage ───────────────────────────────────────
       lastStep = "uploading result";
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-${shortTestFileName}`;
       req.log.info(
         { multiId, objectName, fileSize: statSync(outputPath).size },
         "EXPORT SHORT TEST: uploading",
       );
 
-      await Promise.race([
-        objectStorageClient
-          .bucket(bucketId)
-          .file(objectName)
-          .save(readFileSync(outputPath), {
-            contentType: "video/mp4",
-            resumable: false,
-          }),
+      const signedUrl = await Promise.race([
+        uploadExportDoctorFile(objectName, outputPath, "video/mp4"),
         new Promise<never>((_, reject) =>
           setTimeout(
             () =>
@@ -3477,7 +3443,6 @@ router.post(
       ]);
 
       lastStep = "generating signed URL";
-      const signedUrl = await signGetUrl(bucketId, objectName);
       req.log.info(
         { multiId, elapsed: Date.now() - routeStart },
         "EXPORT SHORT TEST: done",
@@ -3796,18 +3761,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-all-clips-audio-captions.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -4138,18 +4093,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-all-clips-audio-captions-effects.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -4466,18 +4411,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-all-clips-overlays-watermark.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -4711,18 +4646,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-effect-match-test.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -5045,18 +4970,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-overlay-match-test.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
@@ -5259,18 +5174,8 @@ router.post(
       }
 
       const probe = await probeMedia(outputPath);
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId)
-        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
       const objectName = `export-doctor/${multiId}-transitions-test.mp4`;
-      await objectStorageClient
-        .bucket(bucketId)
-        .file(objectName)
-        .save(readFileSync(outputPath), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
-      const signedUrl = await signGetUrl(bucketId, objectName);
+      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
       res.json({
         success: true,
