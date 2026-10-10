@@ -732,7 +732,7 @@ const PROOF_STATS = [
 function ProofBand() {
   const { t } = useTranslation();
   return (
-    <section aria-label="By the numbers" className="py-14 px-5 border-y border-white/[0.06] bg-black/40">
+    <section aria-label="By the numbers" className="proof-band py-14 px-5 border-y border-white/[0.06] bg-black/40">
       <LuxReveal className="max-w-6xl mx-auto">
         <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-8">
           {t("home.proofKicker")}
