@@ -149,7 +149,7 @@ export function FogCanvas({
       // Water mode: aqua tint for a misty water look (light theme).
       ctx.globalCompositeOperation = "screen";
       if (waterMode) {
-        ctx.filter = "hue-rotate(180deg) saturate(1.5) brightness(1.1)";
+        ctx.filter = "hue-rotate(190deg) saturate(2) brightness(1.2)";
       } else {
         ctx.filter = "none";
       }
