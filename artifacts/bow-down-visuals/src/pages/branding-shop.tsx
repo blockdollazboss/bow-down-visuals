@@ -1144,8 +1144,12 @@ export default function BrandingShop() {
                     const p = productByKey(item.product);
                     return (
                       <div key={idx} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                          <p.icon className="h-6 w-6 text-primary" />
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
+                          {item.logoUrl ? (
+                            <img src={item.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                          ) : (
+                            <p.icon className="h-6 w-6 text-primary" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-bold">{p.label}</div>
