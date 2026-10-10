@@ -46,6 +46,7 @@ export * from "./nfc-cards";
 export * from "./bio-pages";
 export * from "./jewelry";
 export * from "./spotlight";
+export * from "./loading-screen";
 export * from "./customer-shops";
 export * from "./beats";
 export * from "./invoices";

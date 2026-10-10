@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import SpotlightModal from "@/components/SpotlightModal";
+import LoadingScreenModal from "@/components/LoadingScreenModal";
 
 /* ─── Shared loader timing — every loading screen matches ──
    The barcode is the single source of truth: it drives the progress,
@@ -20,10 +22,12 @@ const FALLBACK_LINES = [
   "Lighting the throne room…",
 ];
 
-/* Rotating feature highlight promos - shown below the status line */
+/* Rotating feature highlight promos - shown below the status line.
+   Ad spots carry an `inquire` key so the card opens the matching
+   inquiry modal when tapped. */
 const FEATURE_PROMOS = [
-  { title: "Spotlight Takeover — $1,000", desc: "Your brand over the drone video for 7 days. Prime placement." },
-  { title: "Loading Screen Takeover — $2,500", desc: "Your brand on every loading screen for 7 days. Unmissable." },
+  { title: "Spotlight Takeover — $1,000", desc: "Your brand over the drone video for 7 days. Prime placement.", inquire: "spotlight" as const },
+  { title: "Loading Screen Takeover — $2,500", desc: "Your brand on every loading screen for 7 days. Unmissable.", inquire: "loading-screen" as const },
   { title: "Refer & Earn", desc: "Invite creators, earn 25% of their credit purchases for 90 days." },
   { title: "AI Music Videos", desc: "Turn your songs into cinematic music videos in minutes." },
   { title: "Viral Thumbnails", desc: "Scroll-stopping thumbnails with AI A/B testing." },
@@ -48,6 +52,7 @@ export function useWittyLine(intervalMs = 2200): string {
 
 export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
   const { t } = useTranslation();
+  const [inquireModal, setInquireModal] = useState<"spotlight" | "loading-screen" | null>(null);
 
   // Barcode is the single source of truth — progress drives everything.
   // Slide changes at the halfway mark, so each headline/promo gets ~half the fill.
@@ -107,10 +112,21 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
         className="absolute top-6 left-6 md:left-14 z-10 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
       >
           <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
-          <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
-            <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
-            <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
-          </div>
+          {"inquire" in promo && promo.inquire ? (
+            <button
+              onClick={() => setInquireModal(promo.inquire)}
+              className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5 text-left w-full hover:border-primary/60 hover:bg-black/60 transition-colors cursor-pointer"
+            >
+              <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
+              <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
+              <p className="text-primary/80 text-xs font-bold mt-3 uppercase tracking-widest">Request this spot →</p>
+            </button>
+          ) : (
+            <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
+              <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
+              <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
+            </div>
+          )}
       </div>
 
       {/* ── TOP-RIGHT: the title treatment ── */}
@@ -137,6 +153,10 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
       <div className="absolute bottom-8 right-6 md:right-10 z-10">
         <BarcodeStrip progress={progress} />
       </div>
+
+      {/* Ad inquiry modals — above the loader overlay */}
+      <SpotlightModal open={inquireModal === "spotlight"} onClose={() => setInquireModal(null)} />
+      <LoadingScreenModal open={inquireModal === "loading-screen"} onClose={() => setInquireModal(null)} />
 
     </div>
   );
