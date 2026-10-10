@@ -289,6 +289,8 @@ export default function ChooseArtist() {
                     <div style={{
                       position: "absolute", inset: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
+                      background: `url(${import.meta.env.BASE_URL}images/shark-king-clean-authority.png) center/cover no-repeat`,
+                      opacity: 0.3,
                     }}>
                       <div style={{
                         width: 72, height: 72, borderRadius: "50%",
