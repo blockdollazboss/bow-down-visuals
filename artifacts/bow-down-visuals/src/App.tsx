@@ -16,6 +16,7 @@ import { StreamingPlayerProvider } from "@/contexts/StreamingPlayerContext";
 import { StreamingPlayerBar } from "@/components/player/StreamingPlayerBar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
+import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
 import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
 import { ThyCheatCodeHost } from "@/components/ThyCheatCodeHost";
 import { GuideMe } from "@/components/GuideMe";
@@ -398,6 +399,7 @@ function AppShell() {
   return (
     <>
       <ScrollToTop />
+      {typeof window !== "undefined" && <FloatingThemeToggle />}
       {typeof window !== "undefined" && !location.startsWith("/video-editor") && <BowDownAIGuide />}
       {typeof window !== "undefined" && <ThyCheatCodeChat />}
       {typeof window !== "undefined" && <GuideMe />}
