@@ -863,7 +863,7 @@ export function BowDownAIGuide() {
 
             <button
               onClick={toggleOpen}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl bdv-mini-player"
               style={{
                 background:     "rgba(6,6,6,0.92)",
                 border:         "1px solid rgba(218,165,32,0.28)",

@@ -2449,3 +2449,10 @@ html[data-star-level="5"] [data-min-stars="6"] {
 .light .my-projects-empty .text-white\/45 {
   color: #6B6257;
 }
+
+/* Light mode: Mini playlist player pill — ivory theme */
+.light .bdv-mini-player {
+  background: rgba(250, 246, 237, 0.95) !important;
+  border-color: rgba(201, 168, 76, 0.4) !important;
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.15), 0 4px 24px rgba(0,0,0,0.1) !important;
+}
