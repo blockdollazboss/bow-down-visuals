@@ -10,7 +10,7 @@ const router = Router();
  * rendering is client-side (canvas → PNG); this endpoint records the
  * spend so the ledger stays honest.
  */
-router.post("/api/carousel/export", requireAuth, async (req, res) => {
+router.post("/carousel/export", requireAuth, async (req, res) => {
   try {
     const userId = (req as unknown as { userId: string }).userId;
     const slideCount = Math.min(Math.max(Number(req.body?.slideCount) || 1, 1), 10);

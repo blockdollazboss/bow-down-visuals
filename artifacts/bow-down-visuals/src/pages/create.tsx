@@ -3,6 +3,7 @@ import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, type LucideIcon } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
 import { CreateRedirect } from "@/components/create-redirect";
 import { MakeSongModule } from "./make-song";
@@ -38,16 +39,16 @@ export { CreateRedirect };
 
 export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion";
 
-const PANELS: Array<{ key: CreatePanel; labelKey: string; icon: LucideIcon }> = [
-  { key: "song-video", labelKey: "songVideo", icon: Mic2 },
-  { key: "song", labelKey: "song", icon: Music },
-  { key: "video", labelKey: "video", icon: Video },
-  { key: "cartoon", labelKey: "cartoon", icon: Clapperboard },
-  { key: "coverart", labelKey: "coverArt", icon: Disc3 },
-  { key: "dream-collab", labelKey: "dreamCollab", icon: Users },
-  { key: "link-to-hit", labelKey: "linkToHit", icon: Link2 },
-  { key: "cover-motion", labelKey: "coverMotion", icon: Play },
-  { key: "hub", labelKey: "hub", icon: Layers },
+const PANELS: Array<{ key: CreatePanel; labelKey: string; blurbKey: string; icon: LucideIcon }> = [
+  { key: "song-video", labelKey: "songVideo", blurbKey: "songVideoBlurb", icon: Mic2 },
+  { key: "song", labelKey: "song", blurbKey: "songBlurb", icon: Music },
+  { key: "video", labelKey: "video", blurbKey: "videoBlurb", icon: Video },
+  { key: "cartoon", labelKey: "cartoon", blurbKey: "cartoonBlurb", icon: Clapperboard },
+  { key: "coverart", labelKey: "coverArt", blurbKey: "coverArtBlurb", icon: Disc3 },
+  { key: "dream-collab", labelKey: "dreamCollab", blurbKey: "dreamCollabBlurb", icon: Users },
+  { key: "link-to-hit", labelKey: "linkToHit", blurbKey: "linkToHitBlurb", icon: Link2 },
+  { key: "cover-motion", labelKey: "coverMotion", blurbKey: "coverMotionBlurb", icon: Play },
+  { key: "hub", labelKey: "hub", blurbKey: "hubBlurb", icon: Layers },
 ];
 
 function isPanel(p: string | null): p is CreatePanel {
@@ -66,6 +67,7 @@ function panelFromSearch(search: string): CreatePanel {
 
 export default function Create() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   /* wouter's useSearch is SSR-safe here (entry-server passes ssrPath) and
      re-renders on every history change, including same-path ?panel= swaps. */
   const search = useSearch();
@@ -176,23 +178,46 @@ export default function Create() {
           </div>
         )}
 
-        {/* Mode tabs — branding-shop pattern */}
-        <div className="mb-10 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 max-w-3xl">
-          {PANELS.map(({ key, labelKey, icon: Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => switchPanel(key)}
-              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2 ${
-                panel === key
-                  ? "bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-black shadow-[0_0_20px_rgba(212,160,23,0.35)]"
-                  : "text-white/50 hover:text-white"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t(`create.modes.${labelKey}`)}
-            </button>
-          ))}
+        {/* Lane picker — responsive card grid (9 lanes need room; the old
+            tab strip crushed labels and overflowed its pill) */}
+        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-3 max-w-4xl" role="tablist" aria-label={t("create.title")}>
+          {PANELS.map(({ key, labelKey, blurbKey, icon: Icon }) => {
+            const active = panel === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => switchPanel(key)}
+                className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left transition ${
+                  active
+                    ? "border-transparent bg-gradient-to-br from-[#fbbf24] to-[#d4a017] text-black shadow-[0_0_24px_rgba(212,160,23,0.35)]"
+                    : isLight
+                      ? "border-stone-200 bg-white text-stone-800 shadow-sm hover:border-[#d4a017]/60 hover:shadow"
+                      : "border-white/10 bg-white/[0.04] text-white hover:border-white/25 hover:bg-white/[0.08]"
+                }`}
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  active
+                    ? "bg-black/15 text-black"
+                    : "bg-[#d4a017]/15 text-[#fbbf24]"
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold">
+                    {t(`create.modes.${labelKey}`)}
+                  </span>
+                  <span className={`block truncate text-xs ${
+                    active ? "text-black/70" : isLight ? "text-stone-500" : "text-white/45"
+                  }`}>
+                    {t(`create.modes.${blurbKey}`)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Mode panel — original max-widths preserved per craft */}

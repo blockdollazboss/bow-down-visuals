@@ -329,7 +329,9 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
   const useImageRef = !!refImage;
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
-  if (!apiKey) {
+  // Veo 3.1 runs on Gemini, never touches Runway — don't block it on the
+  // Runway key.
+  if (!apiKey && !useVeo) {
     res.status(500).json({ error: "Runway API key is not configured on the server" });
     return;
   }

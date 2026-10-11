@@ -93,7 +93,7 @@ function param(req: { params: Record<string, string | string[]> }, name: string)
 /* ── Book CRUD ── */
 
 /* List the user's books. */
-router.get("/api/books", requireAuth, async (req, res) => {
+router.get("/books", requireAuth, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -120,7 +120,7 @@ router.get("/api/books", requireAuth, async (req, res) => {
 });
 
 /* Create a book project. */
-router.post("/api/books", requireAuth, async (req, res) => {
+router.post("/books", requireAuth, async (req, res) => {
   const parsed = CreateBookSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid book data" });
@@ -146,7 +146,7 @@ router.post("/api/books", requireAuth, async (req, res) => {
 });
 
 /* Get a book with its chapters. */
-router.get("/api/books/:id", requireAuth, async (req, res) => {
+router.get("/books/:id", requireAuth, async (req, res) => {
   try {
     const book = await getOwnedBook(param(req, "id"), req.userId!);
     if (!book) {
@@ -187,7 +187,7 @@ router.get("/api/books/:id", requireAuth, async (req, res) => {
 });
 
 /* Update a book. */
-router.put("/api/books/:id", requireAuth, async (req, res) => {
+router.put("/books/:id", requireAuth, async (req, res) => {
   const parsed = UpdateBookSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid book data" });
@@ -214,7 +214,7 @@ router.put("/api/books/:id", requireAuth, async (req, res) => {
 });
 
 /* Delete a book (chapters cascade). */
-router.delete("/api/books/:id", requireAuth, async (req, res) => {
+router.delete("/books/:id", requireAuth, async (req, res) => {
   try {
     const book = await getOwnedBook(param(req, "id"), req.userId!);
     if (!book) {
@@ -231,7 +231,7 @@ router.delete("/api/books/:id", requireAuth, async (req, res) => {
 /* ── Chapter CRUD ── */
 
 /* Add a chapter. */
-router.post("/api/books/:id/chapters", requireAuth, async (req, res) => {
+router.post("/books/:id/chapters", requireAuth, async (req, res) => {
   const parsed = CreateChapterSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid chapter data" });
@@ -269,7 +269,7 @@ router.post("/api/books/:id/chapters", requireAuth, async (req, res) => {
 });
 
 /* Update a chapter. */
-router.put("/api/books/:id/chapters/:chapterId", requireAuth, async (req, res) => {
+router.put("/books/:id/chapters/:chapterId", requireAuth, async (req, res) => {
   const parsed = UpdateChapterSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid chapter data" });
@@ -312,7 +312,7 @@ router.put("/api/books/:id/chapters/:chapterId", requireAuth, async (req, res) =
 });
 
 /* Delete a chapter. */
-router.delete("/api/books/:id/chapters/:chapterId", requireAuth, async (req, res) => {
+router.delete("/books/:id/chapters/:chapterId", requireAuth, async (req, res) => {
   try {
     const book = await getOwnedBook(param(req, "id"), req.userId!);
     if (!book) {
@@ -366,7 +366,7 @@ function buildAssistPrompt(
   }
 }
 
-router.post("/api/books/ai/assist", requireAuth, async (req, res) => {
+router.post("/books/ai/assist", requireAuth, async (req, res) => {
   const parsed = AiAssistSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -431,7 +431,7 @@ async function getBookExportData(bookId: string, userId: string): Promise<BookEx
 
 /* ── EPUB export ── */
 
-router.get("/api/books/:id/export/epub", requireAuth, async (req, res) => {
+router.get("/books/:id/export/epub", requireAuth, async (req, res) => {
   try {
     const bookId = param(req, "id");
     const data = await getBookExportData(bookId, req.userId!);
@@ -455,7 +455,7 @@ router.get("/api/books/:id/export/epub", requireAuth, async (req, res) => {
 
 /* ── PDF export (print-ready interior) ── */
 
-router.get("/api/books/:id/export/pdf", requireAuth, async (req, res) => {
+router.get("/books/:id/export/pdf", requireAuth, async (req, res) => {
   try {
     const bookId = param(req, "id");
     const data = await getBookExportData(bookId, req.userId!);
@@ -483,7 +483,7 @@ const CoverGenerateSchema = z.object({
   style: z.string().trim().max(200).optional().default(""),
 });
 
-router.post("/api/books/:id/cover/generate", requireAuth, async (req, res) => {
+router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
   const parsed = CoverGenerateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -616,7 +616,7 @@ async function buildPrintFiles(
 }
 
 /* POST /api/books/:id/print/quote — print cost + shipping estimate. */
-router.post("/api/books/:id/print/quote", requireAuth, async (req, res) => {
+router.post("/books/:id/print/quote", requireAuth, async (req, res) => {
   const parsed = QuoteSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -678,7 +678,7 @@ router.post("/api/books/:id/print/quote", requireAuth, async (req, res) => {
 });
 
 /* POST /api/books/:id/print/order — charge VB, submit the print job to Lulu. */
-router.post("/api/books/:id/print/order", requireAuth, async (req, res) => {
+router.post("/books/:id/print/order", requireAuth, async (req, res) => {
   const parsed = OrderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request — check the shipping address." });
@@ -805,7 +805,7 @@ router.post("/api/books/:id/print/order", requireAuth, async (req, res) => {
 });
 
 /* GET /api/books/print/orders — list the user's print orders. */
-router.get("/api/books/print/orders", requireAuth, async (req, res) => {
+router.get("/books/print/orders", requireAuth, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -833,7 +833,7 @@ router.get("/api/books/print/orders", requireAuth, async (req, res) => {
 });
 
 /* GET /api/books/print/orders/:orderId/status — refresh from Lulu. */
-router.get("/api/books/print/orders/:orderId/status", requireAuth, async (req, res) => {
+router.get("/books/print/orders/:orderId/status", requireAuth, async (req, res) => {
   try {
     const orderId = param(req, "orderId");
     const rows = await db
@@ -870,7 +870,7 @@ router.get("/api/books/print/orders/:orderId/status", requireAuth, async (req, r
 });
 
 /* POST /api/books/print/orders/:orderId/cancel — cancel before production. */
-router.post("/api/books/print/orders/:orderId/cancel", requireAuth, async (req, res) => {
+router.post("/books/print/orders/:orderId/cancel", requireAuth, async (req, res) => {
   try {
     const orderId = param(req, "orderId");
     const rows = await db
@@ -900,7 +900,7 @@ router.post("/api/books/print/orders/:orderId/cancel", requireAuth, async (req, 
 });
 
 /* POST /api/books/print/webhook — Lulu status webhooks (no auth; Lulu calls this). */
-router.post("/api/books/print/webhook", async (req, res) => {
+router.post("/books/print/webhook", async (req, res) => {
   try {
     const body = req.body as any;
     /* Lulu posts { print_job_id, status, ... } — shapes vary, be lenient. */

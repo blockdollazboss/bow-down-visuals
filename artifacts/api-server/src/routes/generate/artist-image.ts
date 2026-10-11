@@ -52,6 +52,13 @@ const NANO_ASPECT: Record<string, "9:16" | "1:1" | "16:9"> = {
   "1920:1080": "16:9",
 };
 
+/** Maps the site's ratio picker to Ideogram v4 aspect_ratio values. */
+const IDEOGRAM_ASPECT: Record<string, "9x16" | "1x1" | "16x9"> = {
+  "1080:1920": "9x16",
+  "1080:1080": "1x1",
+  "1920:1080": "16x9",
+};
+
 /** Supabase Storage bucket the Artist Profiles page already uses for photos. */
 const ARTIST_BUCKET = "artist-references";
 
@@ -190,7 +197,7 @@ async function generateWithNanoBanana(opts: {
 
 /** Calls Ideogram 4.0 (best in-image text rendering). Returns the PNG buffer.
  *  Ideogram URLs are ephemeral, so the image is downloaded immediately. */
-async function generateWithIdeogram(prompt: string): Promise<Buffer> {
+async function generateWithIdeogram(prompt: string, ratio?: string): Promise<Buffer> {
   const apiKey = process.env["IDEOGRAM_API_KEY"];
   if (!apiKey) throw new Error("IDEOGRAM_API_KEY is not configured on the server");
 
@@ -199,6 +206,9 @@ async function generateWithIdeogram(prompt: string): Promise<Buffer> {
   /* magic-prompt auto-enables with text_prompt and improves text layout;
      rendering_speed FLASH is not yet supported (API returns 400). */
   form.append("rendering_speed", "DEFAULT");
+  /* Honor the UI's aspect-ratio picker — without this Ideogram falls back
+     to its server default regardless of what the user chose. */
+  form.append("aspect_ratio", IDEOGRAM_ASPECT[ratio ?? ""] ?? "1x1");
 
   const res = await fetch("https://api.ideogram.ai/v1/ideogram-v4/generate", {
     method: "POST",
@@ -310,7 +320,7 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
         { userId: req.userId, ratio: plan.ratio, vaultId: vaultId ?? null },
         "[artist-image] Ideogram 4.0 generation started",
       );
-      const buffer = await generateWithIdeogram(promptText.trim());
+      const buffer = await generateWithIdeogram(promptText.trim(), plan.ratio);
       await chargeForImage(req, creditCost, "Artist Image (Ideogram 4.0)");
       const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, buffer);
       res.json({

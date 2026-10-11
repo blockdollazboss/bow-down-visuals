@@ -2767,18 +2767,27 @@
     "pageTitle": "Create",
     "pageDescription": "Start anything: a song + video, a song, a video, or the guided Creation Hub.",
     "title": "Thy Lab",
-    "subtitle": "One studio, four ways to start. Pick a lane — every finished piece flows into its natural next step.",
+    "subtitle": "One studio, nine ways to start. Pick a lane — every finished piece flows into its natural next step.",
     "backToDashboard": "Back to Dashboard",
     "modes": {
       "songVideo": "Song + Video",
+      "songVideoBlurb": "Track plus visuals, one flow",
       "song": "Song",
+      "songBlurb": "AI song from a prompt",
       "video": "Video",
+      "videoBlurb": "Clips built for your sound",
       "hub": "Creation Hub",
+      "hubBlurb": "Every tool, one dashboard",
       "cartoon": "Cartoon",
+      "cartoonBlurb": "Animated cartoon studio",
       "coverArt": "Cover Art",
+      "coverArtBlurb": "Cover art that pops",
       "dreamCollab": "Dream Collab",
+      "dreamCollabBlurb": "Create with AI artists",
       "linkToHit": "Link-to-Hit",
-      "coverMotion": "Cover in Motion"
+      "linkToHitBlurb": "Turn any link into a hit",
+      "coverMotion": "Cover in Motion",
+      "coverMotionBlurb": "Bring cover art to life"
     }
   },
   "credit-history": {
