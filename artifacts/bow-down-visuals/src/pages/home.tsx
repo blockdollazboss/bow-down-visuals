@@ -354,7 +354,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         {/* Hero banner video — top of page, theme-aware */}
         <video
           className="absolute inset-0 h-full w-full object-cover"
-          src={isLight ? "/videos/banner-light-temp.mp4" : "/videos/official-teaser.mp4"}
+          src={isLight ? "/videos/banner-light-temp.mp4" : "/official-teaser.mp4"}
           muted
           loop
           autoPlay
@@ -1291,7 +1291,7 @@ function MusicVideoTeaser({ isLight }: { isLight: boolean }) {
           <video
             ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
-            src={mediaUrl(isLight ? "banner-light-temp.mp4" : "official-teaser.mp4")}
+            src={mediaUrl(isLight ? "videos/banner-light-temp.mp4" : "official-teaser.mp4")}
             muted
             loop
             playsInline
