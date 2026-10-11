@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImageIcon, Loader2, AlertTriangle, Sparkles, Download, Upload } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
@@ -21,8 +21,15 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * Honest limits: needs a CORS-readable clip URL (crossOrigin="anonymous");
  * if the host blocks it we say so plainly. Quality depends on the device —
  * we cap processing at 720p for speed. "Custom" = upload your own
- * background image (no AI background generation — that would need a
- * provider and we don't fake it).
+ * background image.
+ *
+ * AI Generate tab: server-side background-plate generation via
+ * POST /api/bg-generate, gated on GET /api/bg-generate/status. No image
+ * provider key is configured yet, so the Generate button stays disabled with
+ * a clear "isn't connected yet" message — uploads and presets keep working
+ * and nothing charges. When a plate lands, it is loaded as an HTMLImage and
+ * drawn by drawBackground inside the SAME on-device composite pipeline
+ * below — no duplicated segmentation/composite code.
  *
  * NOT a duplicate of Pro Tools Chroma Key: chroma key needs actual
  * green-screen footage; this is for plain backgrounds (bedroom, office,
@@ -111,6 +118,24 @@ const BG_PRESETS: BgPreset[] = [  {
   },
 ];
 
+/** AI background style presets — the id is sent to POST /api/bg-generate
+ *  (must stay in sync with BG_GENERATE_STYLES server-side). */
+const AI_STYLE_PRESETS = [
+  { id: "studio", nameKey: "wave9.bgReplace.ai.styleStudio", defaultName: "Studio" },
+  { id: "neon-city", nameKey: "wave9.bgReplace.ai.styleNeonCity", defaultName: "Neon City" },
+  { id: "golden-palace", nameKey: "wave9.bgReplace.ai.styleGoldenPalace", defaultName: "Golden Palace" },
+  { id: "beach-sunset", nameKey: "wave9.bgReplace.ai.styleBeachSunset", defaultName: "Beach Sunset" },
+] as const;
+
+/** Display-only fallback for the AI generate cost until /bg-generate/status loads. */
+const AI_GENERATE_COST_FALLBACK = 200;
+
+interface BgGenerateStatus {
+  configured: boolean;
+  creditCost: number;
+  pricePlaceholder: boolean;
+}
+
 interface BackgroundReplaceSectionProps {
   scene: SceneData | null;
   settings: EditorSettings;
@@ -142,6 +167,16 @@ export function BackgroundReplaceSection({
   const pendingBlob = useRef<Blob | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  /* ── AI Generate tab state ─────────────────────────────────────────── */
+  const [bgTab, setBgTab] = useState<"presets" | "ai">("presets");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiStyle, setAiStyle] = useState<string>("studio");
+  const [aiStatus, setAiStatus] = useState<BgGenerateStatus | null>(null);
+  const [aiStatusLoading, setAiStatusLoading] = useState(true);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  /** The AI-generated plate (HTMLImage) feeding the existing composite pipeline. */
+  const [aiBg, setAiBg] = useState<HTMLImageElement | null>(null);
+
   void _setSettings;
   void settings;
 
@@ -161,19 +196,164 @@ export function BackgroundReplaceSection({
     img.src = url;
   }
 
+  /* ── AI background generation (gated) ────────────────────────────────
+   * GET /api/bg-generate/status decides whether the Generate button is
+   * enabled. No provider key is configured yet, so this stays closed: the
+   * button is disabled and a clear "isn't connected yet" notice shows.
+   * The plate returned by POST /api/bg-generate feeds the SAME on-device
+   * composite pipeline (drawBackground) as uploads/presets.
+   */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await confirmedFetch("/api/bg-generate/status", { skipConfirm: true });
+        if (res?.ok && alive) {
+          const data = (await res.json()) as {
+            configured?: boolean;
+            creditCost?: number;
+            pricePlaceholder?: boolean;
+          };
+          setAiStatus({
+            configured: data.configured === true,
+            creditCost: typeof data.creditCost === "number" ? data.creditCost : AI_GENERATE_COST_FALLBACK,
+            pricePlaceholder: data.pricePlaceholder === true,
+          });
+        }
+      } catch {
+        /* gate stays closed on network error — presets/uploads keep working */
+      } finally {
+        if (alive) setAiStatusLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [confirmedFetch]);
+
+  const aiConfigured = aiStatus?.configured === true;
+  const aiCost = aiStatus?.creditCost ?? AI_GENERATE_COST_FALLBACK;
+  const aiGateMessage = t(`${ns}.ai.notConfigured`, {
+    defaultValue:
+      "AI background generation isn't connected yet — the site owner needs to add an image-generation API key before AI backgrounds can generate. Presets and uploads keep working.",
+  });
+
+  /** Load a generated plate URL into an HTMLImage. CORS-clean first so the
+   *  composite canvas stays untainted; falls back to a plain load (a tainted
+   *  canvas still records via captureStream). */
+  function loadPlateImage(url: string): Promise<HTMLImageElement> {
+    const attempt = (crossOrigin: string | null) =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        if (crossOrigin) img.crossOrigin = crossOrigin;
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("plate load failed"));
+        img.src = url;
+      });
+    return attempt("anonymous").catch(() => attempt(null)).catch(() => {
+      throw new Error(
+        t(`${ns}.ai.loadError`, { defaultValue: "Couldn't load the generated background image." }),
+      );
+    });
+  }
+
+  async function generateAiBackground() {
+    if (aiGenerating || !aiConfigured) return;
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      setMessage(t(`${ns}.ai.needPrompt`, { defaultValue: "Describe the background you want first." }));
+      return;
+    }
+    setAiGenerating(true);
+    setMessage(null);
+    try {
+      // PLACEHOLDER price path: cost comes from the status endpoint (server
+      // BG_GENERATE_CREDIT_COST, NOT user-approved yet). Do not add to
+      // credit-costs.ts — the coordinator wires the real price on approval.
+      const res = await confirmedFetch("/api/bg-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, style: aiStyle }),
+        overrideCost: aiStatus?.creditCost,
+        overrideFeature: t(`${ns}.ai.confirmFeature`, { defaultValue: "AI background plate" }),
+      });
+      if (!res) {
+        // User cancelled the credit confirmation — nothing generated, no charge.
+        setAiGenerating(false);
+        return;
+      }
+      if (res.status === 503) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (data?.error === "BG_IMAGE_PROVIDER_NOT_CONFIGURED") {
+          // Gate self-heals: server lost the key (or never had it) — close the UI gate.
+          setAiStatus((s) => (s ? { ...s, configured: false } : s));
+        }
+        setMessage(aiGateMessage);
+        setAiGenerating(false);
+        return;
+      }
+      if (res.status === 402) {
+        setOutOfCredits(true);
+        setMessage(t(`${ns}.topUpToKeep`));
+        setAiGenerating(false);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(
+          t(`${ns}.ai.generateError`, { defaultValue: "Couldn't generate that background — try again." }),
+        );
+      }
+      const data = (await res.json()) as { imageUrl?: string };
+      if (!data?.imageUrl) {
+        throw new Error(
+          t(`${ns}.ai.generateError`, { defaultValue: "Couldn't generate that background — try again." }),
+        );
+      }
+      const img = await loadPlateImage(data.imageUrl);
+      setAiBg(img);
+      setMessage(null);
+      toast({
+        title: t(`${ns}.ai.generatedTitle`, { defaultValue: "Background generated" }),
+        description: t(`${ns}.ai.readyNote`, {
+          defaultValue: "AI background ready — hit Replace background below to swap it in.",
+        }),
+      });
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
+  /** Cover-fit an image plate onto the canvas (shared by custom + AI plates). */
+  function drawCoverFit(
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    w: number,
+    h: number,
+  ) {
+    const ir = img.width / img.height;
+    const cr = w / h;
+    let dw = w, dh = h, dx = 0, dy = 0;
+    if (ir > cr) { dw = h * ir; dx = (w - dw) / 2; }
+    else { dh = w / ir; dy = (h - dh) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+
   function drawBackground(
     ctx: CanvasRenderingContext2D,
     w: number,
     h: number,
   ) {
     if (presetId === "custom" && customBg) {
-      // cover-fit the uploaded image
-      const ir = customBg.width / customBg.height;
-      const cr = w / h;
-      let dw = w, dh = h, dx = 0, dy = 0;
-      if (ir > cr) { dw = h * ir; dx = (w - dw) / 2; }
-      else { dh = w / ir; dy = (h - dh) / 2; }
-      ctx.drawImage(customBg, dx, dy, dw, dh);
+      drawCoverFit(ctx, customBg, w, h);
+      return;
+    }
+    if (bgTab === "ai" && aiBg) {
+      // The AI-generated plate becomes the composite background here — the
+      // rest of the pipeline (segmentation → composite → MediaRecorder) is
+      // untouched.
+      drawCoverFit(ctx, aiBg, w, h);
       return;
     }
     const stops = PRESET_GRADIENTS[presetId] ?? PRESET_GRADIENTS.studio!;
@@ -189,6 +369,10 @@ export function BackgroundReplaceSection({
     if (!mediaUrl || phase === "working" || phase === "confirming") return;
     if (presetId === "custom" && !customBg) {
       setMessage(t(`${ns}.customNeeded`));
+      return;
+    }
+    if (bgTab === "ai" && !aiBg) {
+      setMessage(t(`${ns}.ai.generateFirst`, { defaultValue: "Generate an AI background first — or switch back to Presets." }));
       return;
     }
     setMessage(null);
@@ -243,9 +427,13 @@ export function BackgroundReplaceSection({
       setPhase("done");
       setOutOfCredits(false);
       onReplaceClipVideo?.(scene!.id, url);
+      const bgLabel =
+        bgTab === "ai"
+          ? t(`${ns}.ai.tab`, { defaultValue: "AI background" })
+          : t(preset.nameKey);
       toast({
         title: t(`${ns}.replacedTitle`),
-        description: t(`${ns}.doneToast`, { preset: t(preset.nameKey) }),
+        description: t(`${ns}.doneToast`, { preset: bgLabel }),
       });
     } catch (err) {
       setPhase("error");
@@ -401,6 +589,139 @@ export function BackgroundReplaceSection({
           <p className="text-sm text-white/40">{t(`${ns}.noClip`)}</p>
         ) : (
           <>
+            {/* ── Background source tabs: presets vs AI generation ── */}
+            <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-black w-fit" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bgTab === "presets"}
+                onClick={() => {
+                  setBgTab("presets");
+                  setPhase("idle");
+                  setMessage(null);
+                }}
+                className={`px-4 py-2 transition-colors ${bgTab === "presets" ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}
+                data-testid="wave9b-bg-tab-presets"
+              >
+                {t(`${ns}.ai.presetsTab`, { defaultValue: "Presets" })}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bgTab === "ai"}
+                onClick={() => {
+                  setBgTab("ai");
+                  setPhase("idle");
+                  setMessage(null);
+                }}
+                className={`px-4 py-2 inline-flex items-center gap-1.5 transition-colors ${bgTab === "ai" ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}
+                data-testid="wave9b-bg-tab-ai"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {t(`${ns}.ai.tab`, { defaultValue: "AI Generate" })}
+              </button>
+            </div>
+
+            {bgTab === "ai" ? (
+              /* ── AI Generate panel (gated on /api/bg-generate/status) ── */
+              <div
+                className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-3"
+                data-testid="wave9b-bg-ai-panel"
+              >
+                {aiStatusLoading ? (
+                  <p className="text-xs text-white/40 flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t(`${ns}.ai.checking`, { defaultValue: "Checking AI status…" })}
+                  </p>
+                ) : !aiConfigured ? (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-300/80 shrink-0 mt-0.5" />
+                    <p className="text-xs text-white/60 leading-relaxed">{aiGateMessage}</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1.5">
+                        {t(`${ns}.ai.promptLabel`, { defaultValue: "Describe your background" })}
+                      </p>
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        rows={2}
+                        maxLength={500}
+                        placeholder={t(`${ns}.ai.promptPlaceholder`, {
+                          defaultValue: "e.g. a moody jazz club with gold stage lights…",
+                        })}
+                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-[#C9A84C]/50 focus:outline-none resize-none"
+                        data-testid="wave9b-bg-ai-prompt"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1.5">
+                        {t(`${ns}.ai.styleLabel`, { defaultValue: "Style" })}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {AI_STYLE_PRESETS.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setAiStyle(s.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              aiStyle === s.id
+                                ? "border-[#C9A84C]/60 bg-[#C9A84C]/15 text-[#e8c96a]"
+                                : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/25 hover:text-white/80"
+                            }`}
+                            data-testid={`wave9b-bg-ai-style-${s.id}`}
+                          >
+                            {t(s.nameKey, { defaultValue: s.defaultName })}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {aiBg && (
+                      <div className="rounded-xl overflow-hidden border border-[#C9A84C]/30 max-w-xs">
+                        <img src={aiBg.src} alt="" className="w-full h-24 object-cover" />
+                        <p className="px-3 py-1.5 text-[11px] text-[#e8c96a]/80 bg-black/40">
+                          {t(`${ns}.ai.readyNote`, {
+                            defaultValue: "AI background ready — hit Replace background below to swap it in.",
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div>
+                  <button
+                    type="button"
+                    onClick={generateAiBackground}
+                    disabled={!aiConfigured || aiGenerating || aiStatusLoading}
+                    title={!aiConfigured && !aiStatusLoading ? aiGateMessage : undefined}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm
+                      bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black
+                      hover:from-[#e0bc58] hover:to-[#a5853a] transition-all shadow-lg shadow-[#C9A84C]/20
+                      disabled:opacity-40 disabled:cursor-not-allowed"
+                    data-testid="wave9b-bg-ai-generate"
+                  >
+                    {aiGenerating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    {aiGenerating
+                      ? t(`${ns}.ai.generating`, { defaultValue: "Generating…" })
+                      : t(`${ns}.ai.generate`, { defaultValue: "Generate background ({{cost}} VB)", cost: aiCost })}
+                  </button>
+                  {aiConfigured && aiStatus?.pricePlaceholder && (
+                    <p className="text-[11px] text-white/35 mt-1.5">
+                      {t(`${ns}.ai.priceNote`, {
+                        defaultValue: "Price not final — AI background pricing hasn't been set yet.",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+            <>
             {/* ── Preset gallery ── */}
             <div>
               <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-2">
@@ -457,6 +778,8 @@ export function BackgroundReplaceSection({
                   </div>
                 )}
               </div>
+            )}
+            </>
             )}
 
             {/* ── Before/after preview ── */}
