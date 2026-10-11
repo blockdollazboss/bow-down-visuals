@@ -174,7 +174,7 @@ export default function Signup() {
           playsInline
           preload="auto"
           disablePictureInPicture
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
         />
         <main className="flex-1 relative z-10 flex items-center justify-center px-4">
           <div className="w-full max-w-md text-center space-y-6 bg-black/65 backdrop-blur-xl border border-[#c9a84c]/25 rounded-2xl p-8">
@@ -218,7 +218,7 @@ export default function Signup() {
         playsInline
         preload="auto"
         disablePictureInPicture
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />
@@ -286,7 +286,7 @@ export default function Signup() {
               aria-label={t("signup.confirmPasswordField")}
               placeholder={t("signup.confirmPasswordField")}
               autoComplete="new-password"
-              className="h-9 w-28 md:w-32 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className="h-9 w-28 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
               {...form.register("confirmPassword")}
             />
             <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>

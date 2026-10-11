@@ -154,7 +154,7 @@ export default function Login() {
         playsInline
         preload="auto"
         disablePictureInPicture
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />

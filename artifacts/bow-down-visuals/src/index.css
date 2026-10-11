@@ -2556,7 +2556,7 @@ html[data-star-level="5"] [data-min-stars="6"] {
    object-cover on landscape screens — bias the crop upward so the crown
    stays in frame instead of the feet. */
 .light .auth-video {
-  object-position: center 18%;
+  object-position: center 8%;
 }
 .light .auth-footer input {
   background: rgba(255, 255, 255, 0.8) !important;
