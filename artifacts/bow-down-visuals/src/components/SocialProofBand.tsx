@@ -146,7 +146,7 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
         <p className="text-center text-sm font-semibold text-white/60">
           {t("socialProof.joinCta")}{" "}
           <span className="text-primary font-black tabular-nums">{formatInt(creators)}</span>{" "}
-          {t("socialProof.creatorsWord")}
+          {creators === 1 ? t("socialProof.creatorWord") : t("socialProof.creatorsWord")}
           <span className="mx-2 text-white/20" aria-hidden>·</span>
           <span className="text-white/45 font-medium">
             <span className="text-primary/90 font-bold tabular-nums">{formatInt(media)}</span>{" "}
