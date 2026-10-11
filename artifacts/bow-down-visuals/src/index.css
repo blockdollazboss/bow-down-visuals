@@ -2516,3 +2516,22 @@ html[data-star-level="5"] [data-min-stars="6"] {
 .light .social-proof-box .text-white\/25 {
   color: rgba(28, 23, 18, 0.35) !important;
 }
+
+/* Light mode: Login/signup form — ivory theme */
+.light .auth-footer {
+  background: rgba(250, 246, 237, 0.92) !important;
+  border-color: rgba(201, 168, 76, 0.3) !important;
+}
+.light .auth-footer input {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(201, 168, 76, 0.3) !important;
+  color: #1C1712 !important;
+}
+.light .auth-footer input::placeholder {
+  color: rgba(28, 23, 18, 0.4) !important;
+}
+.light .auth-footer .text-white\/80,
+.light .auth-footer .text-white\/50,
+.light .auth-footer .text-white\/45 {
+  color: rgba(28, 23, 18, 0.7) !important;
+}

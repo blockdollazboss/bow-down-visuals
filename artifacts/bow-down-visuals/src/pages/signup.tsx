@@ -233,7 +233,7 @@ export default function Signup() {
       />
 
       {/* Bottom sign-up toolbar */}
-      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-5xl">
           {firstError && (
             <p className="mb-2 text-center text-xs text-destructive">

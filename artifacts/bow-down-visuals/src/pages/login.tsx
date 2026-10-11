@@ -163,7 +163,7 @@ export default function Login() {
       <main className="flex-1 relative z-10" aria-hidden />
 
       {/* Bottom sign-in toolbar */}
-      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-4xl">
           {(error || form.formState.errors.email || form.formState.errors.password) && !resetMode && (
             <p className="mb-2 text-center text-xs text-destructive">
