@@ -261,6 +261,7 @@ const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
   { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
+  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
@@ -609,9 +610,9 @@ function HorizontalSidebarNav() {
     { titleKey: "nav.create", href: "/create", icon: Layers },
     { titleKey: "nav.aiStudio", href: "/hooks", icon: Sparkles },
     { titleKey: "nav.grow", href: "/scheduler", icon: TrendingUp },
-    { titleKey: "nav.monetize", href: "/pricing", icon: DollarSign },
+    { titleKey: "nav.monetize", href: "/coach", icon: DollarSign },
     { titleKey: "nav.learn", href: "/academy", icon: GraduationCap },
-    { titleKey: "nav.tools", href: "/settings", icon: Settings },
+    { titleKey: "nav.tools", href: "/tools", icon: Settings },
   ];
   return (
     <>
