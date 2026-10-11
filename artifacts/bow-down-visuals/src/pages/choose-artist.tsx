@@ -17,6 +17,8 @@ export default function ChooseArtist() {
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
+  const isLight = typeof document !== "undefined" && document.documentElement.classList.contains("light");
+  const placeholderShark = `${import.meta.env.BASE_URL}images/${isLight ? "shark-king-light-authority.png" : "shark-king-clean-authority.png"}`;
 
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,7 +291,7 @@ export default function ChooseArtist() {
                     <div style={{
                       position: "absolute", inset: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: `url(${import.meta.env.BASE_URL}images/shark-king-clean-authority.png) center/cover no-repeat`,
+                      background: `url(${placeholderShark}) center/cover no-repeat`,
                       opacity: 0.3,
                     }}>
                       <div style={{
