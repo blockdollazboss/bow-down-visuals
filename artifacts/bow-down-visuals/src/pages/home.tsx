@@ -1236,7 +1236,7 @@ WaitlistSection.displayName = "WaitlistSection";
 
 /* ───── Official music video teaser — cinematic full-bleed placeholder ───── */
 
-function MusicVideoTeaser() {
+function MusicVideoTeaser({ isLight }: { isLight: boolean }) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -1280,7 +1280,7 @@ function MusicVideoTeaser() {
           <video
             ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
-            src={mediaUrl("official-teaser.mp4")}
+            src={mediaUrl(isLight ? "teaser-light-219.mp4" : "official-teaser.mp4")}
             muted
             loop
             playsInline
@@ -1648,7 +1648,7 @@ export default function Home() {
       <ProofBand />
       <CheatCodeDemo />
       <CreatorVaultSection />
-      <MusicVideoTeaser />
+      <MusicVideoTeaser isLight={isLight} />
       <HowItWorks />
       <SectionDivider />
       <BuiltForCreators />

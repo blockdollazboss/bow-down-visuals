@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { mediaUrl } from "@/lib/media-cdn";
 import SpotlightModal from "@/components/SpotlightModal";
 import LoadingScreenModal from "@/components/LoadingScreenModal";
 
@@ -91,14 +92,27 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
 
   return (
     <div className="fixed inset-0 z-[20000] bg-background overflow-hidden dark-lock" data-dark-lock>
-      {/* Throne room backdrop — theme-aware */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: isLight
-          ? "url(/images/loading-bg-light-throne.webp)"
-          : "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
-      />
+      {/* Throne room backdrop — theme-aware: light gets the shark action
+          video, dark keeps the dark throne image */}
+      {isLight ? (
+        <video
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover"
+          src={mediaUrl("videos/loading-light-shark.mp4")}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/images/loading-bg-light-throne.webp"
+        />
+      ) : (
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
+        />
+      )}
       {/* Cinematic gradient — dark in dark theme, light in light theme */}
       <div
         aria-hidden
@@ -116,8 +130,8 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
           : "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
       />
 
-      {/* Bottom-center: brand eyebrow */}
-      <p className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-primary/90 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap">
+      {/* Bottom-center: brand eyebrow — deep bronze-gold on ivory */}
+      <p className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap ${isLight ? "text-[#7A5A12]" : "text-primary/90"}`}>
         Bow Down Visuals presents
       </p>
 
@@ -126,20 +140,26 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
         key={slideIdx}
         className="absolute top-6 left-6 md:left-14 z-10 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
       >
-          <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Now featuring</p>
+          <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${isLight ? "text-[#8a6d1f]" : "text-white/40"}`}>Now featuring</p>
           {"inquire" in promo && promo.inquire ? (
             <button
               onClick={() => setInquireModal(promo.inquire)}
-              className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5 text-left w-full hover:border-primary/60 hover:bg-black/60 transition-colors cursor-pointer"
+              className={`mt-2 border rounded-xl backdrop-blur-sm p-5 text-left w-full transition-colors cursor-pointer ${
+                isLight
+                  ? "border-[#c9a84c]/40 bg-white/85 hover:border-[#c9a84c]/70 hover:bg-white"
+                  : "border-primary/25 bg-black/40 hover:border-primary/60 hover:bg-black/60"
+              }`}
             >
-              <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
-              <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
-              <p className="text-primary/80 text-xs font-bold mt-3 uppercase tracking-widest">Request this spot →</p>
+              <p className={`font-black text-lg uppercase tracking-wider ${isLight ? "text-[#8a6d1f]" : "text-primary"}`}>{promo.title}</p>
+              <p className={`text-[13px] mt-2 leading-relaxed ${isLight ? "text-stone-700" : "text-white/65"}`}>{promo.desc}</p>
+              <p className={`text-xs font-bold mt-3 uppercase tracking-widest ${isLight ? "text-[#8a6d1f]" : "text-primary/80"}`}>Request this spot →</p>
             </button>
           ) : (
-            <div className="mt-2 border border-primary/25 rounded-xl bg-black/40 backdrop-blur-sm p-5">
-              <p className="text-primary font-black text-lg uppercase tracking-wider">{promo.title}</p>
-              <p className="text-white/65 text-[13px] mt-2 leading-relaxed">{promo.desc}</p>
+            <div className={`mt-2 border rounded-xl backdrop-blur-sm p-5 ${
+              isLight ? "border-[#c9a84c]/40 bg-white/85" : "border-primary/25 bg-black/40"
+            }`}>
+              <p className={`font-black text-lg uppercase tracking-wider ${isLight ? "text-[#8a6d1f]" : "text-primary"}`}>{promo.title}</p>
+              <p className={`text-[13px] mt-2 leading-relaxed ${isLight ? "text-stone-700" : "text-white/65"}`}>{promo.desc}</p>
             </div>
           )}
       </div>
@@ -149,12 +169,16 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
         {/* The headline — gold luxury */}
         <h1
           key={slideIdx}
-          className="text-transparent bg-clip-text bg-gradient-to-b from-[#f5e6b8] via-[#d4af37] to-[#8a6d1f] text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-right duration-700 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          className={`text-transparent bg-clip-text bg-gradient-to-b text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-right duration-700 ${
+            isLight
+              ? "from-[#8a6d1f] via-[#a8842e] to-[#5c4a12] drop-shadow-[0_2px_12px_rgba(255,255,255,0.9)]"
+              : "from-[#f5e6b8] via-[#d4af37] to-[#8a6d1f] drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          }`}
           style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.02em" }}
         >
           {line}
         </h1>
-        <p className="text-white/50 text-sm mt-3">
+        <p className={`text-sm mt-3 ${isLight ? "text-stone-600" : "text-white/50"}`}>
           {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
         </p>
       </div>

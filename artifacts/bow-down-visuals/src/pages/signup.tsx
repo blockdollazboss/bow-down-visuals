@@ -34,7 +34,7 @@ const schema = (t: (key: string) => string) =>
 
 export default function Signup() {
   const { t } = useTranslation();
-  // Theme-aware video: light theme gets the sunrise video, dark gets the drone video
+  // Theme-aware video: light theme gets the signup action video, dark gets the drone video
   const [isLight, setIsLight] = useState(false);
   useEffect(() => {
     const check = () => setIsLight(document.documentElement.classList.contains("light"));
@@ -165,11 +165,11 @@ export default function Signup() {
       <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
         onMouseMove={handleMouseScrub}
       >
-        {/* Video background — theme-aware: light gets sunrise, dark gets drone */}
+        {/* Video background — theme-aware: light gets the signup action video, dark gets drone */}
         <video
           ref={bgVideoRef}
           key={isLight ? "light" : "dark"}
-          src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
+          src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
           muted
           playsInline
           preload="auto"
@@ -209,11 +209,11 @@ export default function Signup() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Video background — theme-aware: light gets sunrise, dark gets drone */}
+      {/* Video background — theme-aware: light gets the signup action video, dark gets drone */}
       <video
         ref={bgVideoRef}
         key={isLight ? "light" : "dark"}
-        src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
+        src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"

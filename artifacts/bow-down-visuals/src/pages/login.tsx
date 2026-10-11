@@ -21,7 +21,7 @@ import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 export default function Login() {
   const { t } = useTranslation();
-  // Theme-aware video: light theme gets the sunrise video, dark gets the drone video
+  // Theme-aware video: light theme gets the sign-in action video, dark gets the drone video
   const [isLight, setIsLight] = useState(false);
   useEffect(() => {
     const check = () => setIsLight(document.documentElement.classList.contains("light"));
@@ -145,11 +145,11 @@ export default function Login() {
       onMouseMove={handleMouseScrub}
     >
       {/* Drone video background — scrub through with your mouse, full brightness.
-          Theme-aware: light gets sunrise, dark gets the drone footage. */}
+          Theme-aware: light gets the sign-in action video, dark gets the drone footage. */}
       <video
         ref={bgVideoRef}
         key={isLight ? "light" : "dark"}
-        src={mediaUrl(isLight ? "videos/signin-light-bg.mp4" : "videos/signin-drone-bg.mp4")}
+        src={mediaUrl(isLight ? "videos/signin-light-action.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"
