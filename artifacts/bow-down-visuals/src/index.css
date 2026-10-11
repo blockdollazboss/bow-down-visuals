@@ -806,6 +806,111 @@ html, body {
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }
 
+/* ── 19. QA gap coverage (audit 2026-10-10): missing rungs, bracket forms,
+   semantic colors, hover states, lowercase gold.
+   NOTE: the audit's other asks were already covered and are NOT duplicated:
+   text-white/35 /45 /55 /75 /85 (§4 + §18), bg-[#0c0a06] (§18 hex list),
+   from-[#1a1408] / from-[#14100a] (§18 dark-hex gradients),
+   text-amber-300 / text-yellow-300/400 (§5 gold). */
+
+/* Missing text-white rung: /15 sits between /20 (#8F867A) and /10 (#A39A89) */
+.light .text-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { color: #9B9181; }
+
+/* Bracket-opacity text forms: [0.08]≈/8, [0.13]≈/13 → faint warm grays */
+.light .text-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #A39A89; }
+.light .text-white\/\[0\.13\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #9D9383; }
+
+/* Bracket-opacity ghost cards: join the §17 ghost-card values (marble fill + champagne border) */
+.light .bg-white\/\[0\.04\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-white\/\[0\.15\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: rgb(255 255 255 / 0.85);
+  border-color: rgb(231 217 188 / 0.9);
+}
+/* Bracket-opacity champagne hairlines: join the §17 border group */
+.light .border-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  border-color: rgb(231 217 188 / 0.9);
+}
+
+/* Lowercase gold: auth pages use text-[#c9a84c] (uppercase mapped in §5) → antique gold */
+.light .text-\[\#c9a84c\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
+/* ── Semantic colors: dark-mode pastels become darker readable tones on ivory.
+   Base + the /50–/90 alpha rungs seen in the codebase. */
+
+/* Green: success / healthy states */
+.light .text-green-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #16A34A; }
+.light .text-green-300\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(22 163 74 / 0.9); }
+.light .text-green-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(22 163 74 / 0.8); }
+.light .text-green-300\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(22 163 74 / 0.7); }
+.light .text-green-300\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(22 163 74 / 0.6); }
+.light .text-green-300\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(22 163 74 / 0.5); }
+.light .text-green-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #15803D; }
+.light .text-green-400\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.9); }
+.light .text-green-400\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.8); }
+.light .text-green-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.7); }
+.light .text-green-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.6); }
+.light .text-green-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.5); }
+
+/* Red: errors / destructive states */
+.light .text-red-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #DC2626; }
+.light .text-red-300\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(220 38 38 / 0.9); }
+.light .text-red-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(220 38 38 / 0.8); }
+.light .text-red-300\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(220 38 38 / 0.7); }
+.light .text-red-300\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(220 38 38 / 0.6); }
+.light .text-red-300\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(220 38 38 / 0.5); }
+.light .text-red-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #B91C1C; }
+.light .text-red-400\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.9); }
+.light .text-red-400\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.8); }
+.light .text-red-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.7); }
+.light .text-red-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.6); }
+.light .text-red-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.5); }
+
+/* Blue: info / links */
+.light .text-blue-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #2563EB; }
+.light .text-blue-300\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(37 99 235 / 0.9); }
+.light .text-blue-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(37 99 235 / 0.8); }
+.light .text-blue-300\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(37 99 235 / 0.7); }
+.light .text-blue-300\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(37 99 235 / 0.6); }
+.light .text-blue-300\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(37 99 235 / 0.5); }
+.light .text-blue-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #1D4ED8; }
+.light .text-blue-400\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.9); }
+.light .text-blue-400\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.8); }
+.light .text-blue-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.7); }
+.light .text-blue-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.6); }
+.light .text-blue-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.5); }
+
+/* Pink: accents / badges */
+.light .text-pink-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #DB2777; }
+.light .text-pink-300\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(219 39 119 / 0.9); }
+.light .text-pink-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(219 39 119 / 0.8); }
+.light .text-pink-300\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(219 39 119 / 0.7); }
+.light .text-pink-300\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(219 39 119 / 0.6); }
+.light .text-pink-300\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(219 39 119 / 0.5); }
+.light .text-pink-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #BE185D; }
+.light .text-pink-400\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(190 24 93 / 0.9); }
+.light .text-pink-400\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(190 24 93 / 0.8); }
+.light .text-pink-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(190 24 93 / 0.7); }
+.light .text-pink-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(190 24 93 / 0.6); }
+.light .text-pink-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(190 24 93 / 0.5); }
+
+/* ── hover:text-white (+ alpha rungs): never flash invisible white text.
+   :hover pseudo-class outranks the base §4 remaps, so hover ink always wins.
+   Rung values mirror the §4 text-white/NN remaps. */
+.light .hover\:text-white:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #1C1712; }
+.light .hover\:text-white\/90:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.9); }
+.light .hover\:text-white\/85:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.88); }
+.light .hover\:text-white\/80:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.88); }
+.light .hover\:text-white\/75:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.82); }
+.light .hover\:text-white\/70:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(45 42 36 / 0.78); }
+.light .hover\:text-white\/65:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #575046; }
+.light .hover\:text-white\/60:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #575046; }
+.light .hover\:text-white\/55:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .hover\:text-white\/50:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .hover\:text-white\/45:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+.light .hover\:text-white\/40:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
@@ -1035,6 +1140,18 @@ html, body {
 .light [role="dialog"][aria-label="Chat with Thy Cheat Code"] {
   filter: drop-shadow(0 12px 32px rgb(138 107 31 / 0.18));
 }
+
+/* ── Contact page light gaps (QA audit 2026-10-10) ──
+   These contact.tsx utilities have no generic .light mapping: arbitrary-value
+   white hairlines stay invisible on ivory, text-red-400 sits ~3.5:1 on ivory,
+   and the mailto gold / ghost-button hover go unreadable. Explicit ivory
+   versions keep the form usable in light mode; dark mode is untouched. */
+.light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
+.light .border-white\/\[0\.1\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
+.light .text-red-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #B91C1C; }
+.light .text-primary\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+.light .hover\:text-primary:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+.light .hover\:text-white:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #1C1712; }
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
    (WittyLoader, video players, teleprompter — excluded above via :not) */
