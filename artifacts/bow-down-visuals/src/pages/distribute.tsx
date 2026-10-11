@@ -3083,7 +3083,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <Disc3 className="h-3 w-3" aria-hidden="true" />{t("distribute.thy_cheat_code_s_distribution_hu")}</p>
-          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">{t("distribute.music")}<span className="text-primary">{t("distribute.distribution")}</span>
+          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">{t("distribute.music")}{" "}<span className="text-primary">{t("distribute.distribution")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("distribute.get_your_music_on_spotify_apple")}</p>
           {pricing?.annualPlan?.comingSoon && (

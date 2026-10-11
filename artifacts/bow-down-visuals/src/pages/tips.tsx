@@ -148,11 +148,19 @@ export default function Tips() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <style>{`
+        /* POLISH 2026-10-11: the "Tip Jar" gold gradient washes out on the
+           ivory light background — deepen it to a dark bronze gradient in
+           light theme. Dark theme keeps the original bright gold. */
+        .light .tip-jar-title {
+          background-image: linear-gradient(to right, #b45309, #7a5a12, #b45309);
+        }
+      `}</style>
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
           <HandCoins className="h-4 w-4" />{t("tips.kicker")}</div>
         <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
-          {t("tips.titlePrefix")} <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">{t("tips.titleHighlight")}</span>
+          {t("tips.titlePrefix")} <span className="tip-jar-title bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">{t("tips.titleHighlight")}</span>
         </h1>
         <p className="mt-3 max-w-2xl text-white/55">{t("tips.subtitle")}</p>
 
