@@ -378,6 +378,10 @@ html, body {
 .light .branding-kit-title:not([data-dark-lock]) {
   background-image: linear-gradient(to right, #8A6B1F, #6B5214, #8A6B1F);
 }
+/* Branding Shop hero accent: pale amber-to-yellow gradient washes out on ivory */
+.light .branding-shop-title:not([data-dark-lock]) {
+  background-image: linear-gradient(to right, #8A6B1F, #6B5214);
+}
 
 /* ── 6. Champagne hairlines: white borders become warm gold-tinted ── */
 .light .border-white:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }

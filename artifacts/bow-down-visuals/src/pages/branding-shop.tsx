@@ -527,7 +527,7 @@ export default function BrandingShop() {
               <Sparkles className="h-3.5 w-3.5" /> {t("brandingShop.heroBadge")}
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-              {t("brandingShop.title")} <span className="bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">{t("brandingShop.titleAccent")}</span>
+              {t("brandingShop.title")} <span className="branding-shop-title bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">{t("brandingShop.titleAccent")}</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/50">
               {t("brandingShop.subtitle")}

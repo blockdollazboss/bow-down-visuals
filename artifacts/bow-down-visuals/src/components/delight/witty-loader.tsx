@@ -250,7 +250,7 @@ function CrownedLogo({ isLight }: { isLight: boolean }) {
         </div>
         {/* Bare mark — no box, no container. Light theme gets the ivory-ribbon logo. */}
         <img
-          src={isLight ? "/logo-light.png" : "/logo-static.webp"}
+          src={isLight ? "/logo-light.webp" : "/logo-static.webp"}
           alt="Bow Down Visuals"
           className="relative h-28 w-28 object-contain"
           style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}

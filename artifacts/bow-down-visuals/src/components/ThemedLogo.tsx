@@ -7,7 +7,7 @@ export function ThemedLogo({ className = "h-8 w-auto" }: { className?: string })
   const base = import.meta.env.BASE_URL;
   return (
     <img
-      src={isLight ? `${base}logo-light.png` : `${base}logo-static.webp`}
+      src={isLight ? `${base}logo-light.webp` : `${base}logo-static.webp`}
       alt="Bow Down Visuals"
       className={className}
       draggable={false}
