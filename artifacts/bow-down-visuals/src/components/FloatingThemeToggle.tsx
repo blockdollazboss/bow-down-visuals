@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Sun, Moon } from "lucide-react";
-import { useLocation } from "wouter";
 
 /* Floating theme toggle — always visible on every page, draggable.
    User directive 2026-10-10: theme switch must never be hidden.
    User directive 2026-10-10: make floating elements draggable to avoid overlaps.
-   Hidden on homepage (has its own toggle) to avoid overlap. */
+   User directive 2026-10-10: toggle must appear on EVERY single page, no exceptions. */
 export function FloatingThemeToggle() {
   const [isLight, setIsLight] = useState(false);
-  const [location] = useLocation();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
@@ -49,8 +47,9 @@ export function FloatingThemeToggle() {
     }
   }, []);
 
-  // Don't show on auth pages — they have their own theme toggle (avoids covering the spotlight pricing)
-  if (location === "/login" || location === "/signup") return null;
+  // User directive 2026-10-10: toggle appears on EVERY page, no exceptions.
+  // Auth pages and homepage have their own toggles too — the floating one is always available as well.
+  // (Removed the location-based hiding.)
 
   const onPointerDown = (e: React.PointerEvent) => {
     const x = pos?.x ?? window.innerWidth - 60;

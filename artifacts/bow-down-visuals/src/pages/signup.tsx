@@ -223,25 +223,6 @@ export default function Signup() {
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />
       <ExtensionPromoBadge />
-      {/* Theme toggle — top-left (spotlight pricing is top-right) */}
-      <button
-        onClick={() => {
-          const next = !isLight;
-          setIsLight(next);
-          document.documentElement.classList.toggle("light", next);
-          document.documentElement.classList.toggle("dark", !next);
-          try { localStorage.setItem("bdv-theme", next ? "light" : "dark"); } catch {}
-        }}
-        aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
-        title={isLight ? "Switch to dark theme" : "Switch to light theme"}
-        className="absolute top-4 left-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-[#c9a84c]/50 bg-black/55 text-[#e8c86a] backdrop-blur-md transition hover:bg-black/75 light:bg-white/90 light:text-[#7A5A12]"
-      >
-        {isLight ? (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        )}
-      </button>
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
 

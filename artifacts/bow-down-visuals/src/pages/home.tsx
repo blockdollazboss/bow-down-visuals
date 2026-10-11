@@ -1538,25 +1538,6 @@ function AcademySection() {
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
-/* ── Homepage theme toggle: light/dark switch right on the page ── */
-function HomepageThemeToggle({ isLight, onToggle }: { isLight: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
-      title={isLight ? "Switch to dark theme" : "Switch to light theme"}
-      className={`fixed top-20 right-4 z-[9500] flex items-center gap-2 rounded-full pl-3 pr-4 py-2.5 text-sm font-bold shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 ${
-        isLight
-          ? "bg-[#1C1712]/90 text-[#E8C86A] border border-[#C9A84C]/40 shadow-[0_8px_30px_rgba(28,23,18,0.25)]"
-          : "bg-white/10 text-[#E8C86A] border border-[#C9A84C]/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
-      }`}
-    >
-      {isLight ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      <span>{isLight ? "Dark" : "Light"}</span>
-    </button>
-  );
-}
-
 export default function Home() {
   const { t } = useTranslation();
   usePageTitle(
