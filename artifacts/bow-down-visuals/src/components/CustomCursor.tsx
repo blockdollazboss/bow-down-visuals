@@ -24,15 +24,71 @@ function useCursorState() {
   return { cursor, isTouch };
 }
 
+/* Smooth-follow cursor positioning: the cursor eases toward the pointer on
+   every animation frame instead of snapping 1:1, giving a buttery glide.
+   Respects prefers-reduced-motion (snaps directly, no easing). */
 function useMousePosition(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target = { x: 0, y: 0 };
+    const current = { x: 0, y: 0 };
+    let raf = 0;
+    let hasPosition = false;
+    let settled = true;
+
     const move = (e: MouseEvent) => {
-      if (ref.current) {
-        ref.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      target.x = e.clientX;
+      target.y = e.clientY;
+      if (!hasPosition) {
+        // Snap on first move so the cursor never glides in from a corner.
+        current.x = target.x;
+        current.y = target.y;
+        hasPosition = true;
+        if (ref.current) {
+          ref.current.style.transform = `translate(${target.x}px, ${target.y}px)`;
+        }
+        settled = true;
+        return;
       }
+      if (reduceMotion) {
+        current.x = target.x;
+        current.y = target.y;
+        if (ref.current) {
+          ref.current.style.transform = `translate(${target.x}px, ${target.y}px)`;
+        }
+        settled = true;
+        return;
+      }
+      settled = false;
     };
+
+    const tick = () => {
+      if (!settled) {
+        const dx = target.x - current.x;
+        const dy = target.y - current.y;
+        if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+          current.x = target.x;
+          current.y = target.y;
+          settled = true;
+        } else {
+          current.x += dx * 0.22;
+          current.y += dy * 0.22;
+        }
+        if (ref.current) {
+          ref.current.style.transform = `translate(${current.x}px, ${current.y}px)`;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
     window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
+    raf = requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      cancelAnimationFrame(raf);
+    };
   }, [ref]);
 }
 
@@ -131,10 +187,11 @@ function GoldTrail() {
   const dotRef = useRef<HTMLDivElement>(null);
   const [trail, setTrail] = useState<{ x: number; y: number; id: number }[]>([]);
   const idRef = useRef(0);
+  // Main dot glides via the shared smooth-follow hook; this listener only samples trail points.
+  useMousePosition(dotRef);
   useEffect(() => {
     let last = 0;
     const move = (e: MouseEvent) => {
-      if (dotRef.current) dotRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
       const now = Date.now();
       if (now - last > 30) {
         last = now;
