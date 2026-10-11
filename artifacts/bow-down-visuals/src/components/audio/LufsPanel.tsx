@@ -813,7 +813,7 @@ export function LufsPanel() {
                 disabled={!file || !user || busy}
                 className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {t("lufs.normalizeButton", { defaultValue: "Normalize", target: targetLufs, cost: LUFS_NORMALIZE_CREDIT_COST })}
+                {t("lufs.normalizeButton", { defaultValue: "Normalize to {target} LUFS · {cost} VB", target: targetLufs, cost: LUFS_NORMALIZE_CREDIT_COST })}
               </button>
               {creditsRemaining != null && (
                 <p className="text-center text-xs text-white/35">
@@ -834,7 +834,7 @@ export function LufsPanel() {
               ? t("lufs.statusUploading", { defaultValue: "Uploading…" })
               : status === "queued"
                 ? t("lufs.statusQueued", { defaultValue: "Queued — the job runs on the server, safe to leave this tab." })
-                : t("lufs.statusProcessing", { defaultValue: "Normalizing…", target: targetLufs })}
+                : t("lufs.statusProcessing", { defaultValue: "Normalizing to {target} LUFS…", target: targetLufs })}
           </p>
           <p className="text-sm text-white/40 mt-1">
             {t("lufs.progressNote", { defaultValue: "Two-pass loudnorm: measure, correct, then re-measure the output." })}
@@ -854,7 +854,7 @@ export function LufsPanel() {
           <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
             <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
             <p className="text-sm font-semibold text-white/80">
-              {t("lufs.normalizeComplete", { defaultValue: "Normalized", target: targetLufs })}
+              {t("lufs.normalizeComplete", { defaultValue: "Normalized to {target} LUFS", target: targetLufs })}
               {delta != null && (
                 <span className="text-primary"> · {delta >= 0 ? "+" : ""}{delta.toFixed(1)} LU</span>
               )}
