@@ -1604,7 +1604,7 @@ const MASTER_MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MASTER_MAX_STEMS = 12;
 const MASTER_AUDIO_ACCEPT = "audio/*,.wav,.mp3,.aiff,.aif,.flac,.m4a,.ogg";
 
-type MasterGenreKey = "hip-hop" | "pop" | "rnb" | "edm" | "rock" | "lofi" | "afrobeat" | "gospel";
+type MasterGenreKey = "hip-hop" | "pop" | "rnb" | "edm" | "rock" | "lofi" | "afrobeat" | "gospel" | "trap" | "podcast";
 type MasterIntensityKey = "subtle" | "balanced" | "aggressive";
 type MasterLoudnessKey = "streaming" | "club" | "radio";
 type MasterStemType = "vocals" | "drums" | "bass" | "keys" | "guitar" | "strings" | "fx" | "beat" | "other";
@@ -1613,7 +1613,23 @@ type MasterJobStatus = "idle" | "uploading" | "queued" | "processing" | "done" |
 const MASTER_GENRES: Array<{ key: MasterGenreKey }> = [
   { key: "hip-hop" }, { key: "pop" }, { key: "rnb" }, { key: "edm" },
   { key: "rock" }, { key: "lofi" }, { key: "afrobeat" }, { key: "gospel" },
+  { key: "trap" }, { key: "podcast" },
 ];
+
+/** English fallback labels so new genre cards still read well before their
+    mixMaster.genres.* locale keys land in en.json. Ignored once the keys exist. */
+const GENRE_LABEL_FALLBACK: Record<MasterGenreKey, string> = {
+  "hip-hop": "Hip-Hop",
+  pop: "Pop",
+  rnb: "R&B",
+  edm: "EDM",
+  rock: "Rock",
+  lofi: "Lo-Fi",
+  afrobeat: "Afrobeat",
+  gospel: "Gospel",
+  trap: "Trap",
+  podcast: "Podcast",
+};
 
 const MASTER_INTENSITIES: Array<{ key: MasterIntensityKey }> = [
   { key: "subtle" }, { key: "balanced" }, { key: "aggressive" },
@@ -1709,7 +1725,7 @@ function GenreGrid({ value, onChange }: { value: MasterGenreKey; onChange: (g: M
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === g.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.genres.${g.key}.label`)}</p>
+            <p className={`font-bold text-sm ${value === g.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.genres.${g.key}.label`, { defaultValue: GENRE_LABEL_FALLBACK[g.key] })}</p>
             <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.genres.${g.key}.blurb`)}</p>
           </button>
         ))}

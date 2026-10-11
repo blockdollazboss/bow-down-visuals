@@ -23,7 +23,9 @@ export type MixMasterGenre =
   | "rock"
   | "lofi"
   | "afrobeat"
-  | "gospel";
+  | "gospel"
+  | "trap"
+  | "podcast";
 
 export type MixMasterIntensity = "subtle" | "balanced" | "aggressive";
 
@@ -112,6 +114,13 @@ export interface GenrePresetDef {
   stemGainsDb: Record<StemType, number>;
   /** Per-stem pan position (0 = hard left, 0.5 = center, 1 = hard right). */
   stemPan: Record<StemType, number>;
+  /**
+   * Genre-level loudness target override (LUFS). When set, the render pass
+   * targets this instead of the user-picked loudness target — e.g. the
+   * spoken-word podcast standard (-16 LUFS). Undefined = use the loudness
+   * picker's target as usual.
+   */
+  targetLufsOverride?: number;
 }
 
 const PAN_CENTER: Record<StemType, number> = {
@@ -258,6 +267,37 @@ export const GENRE_PRESETS: Record<MixMasterGenre, GenrePresetDef> = {
     drumHpHz: 40, drumCompThresholdDb: -16, drumCompRatio: 3,
     stemGainsDb: { ...GAINS_FLAT, vocals: 2, keys: 0, strings: -1 },
     stemPan: { ...PAN_CENTER, keys: 0.6, strings: 0.68, guitar: 0.4 },
+  },
+  trap: {
+    key: "trap",
+    label: "Trap",
+    blurb: "Hard-hitting 808s — heavy low-end weight, aggressive limiting.",
+    subsonicHz: 28,
+    glueThresholdDb: -12, glueRatio: 3.5, glueAttackMs: 8, glueReleaseMs: 140, glueMakeupDb: 3.5,
+    bassFreqHz: 55, bassGainDb: 3.0,
+    presenceFreqHz: 3000, presenceGainDb: 1.0,
+    airFreqHz: 12000, airGainDb: 1.0,
+    stereoWidth: 1.3, topRolloffHz: 0,
+    vocalHpHz: 80, vocalPresenceDb: 1.5, vocalCompThresholdDb: -16, vocalCompRatio: 3.5,
+    drumHpHz: 40, drumCompThresholdDb: -10, drumCompRatio: 5,
+    stemGainsDb: { ...GAINS_FLAT, vocals: 1, drums: 1, bass: 2 },
+    stemPan: { ...PAN_CENTER, keys: 0.62, guitar: 0.38, fx: 0.55, strings: 0.66 },
+  },
+  podcast: {
+    key: "podcast",
+    label: "Podcast",
+    blurb: "Spoken-word clarity — gentle dynamics, presence lift, -16 LUFS.",
+    targetLufsOverride: -16,
+    subsonicHz: 60,
+    glueThresholdDb: -18, glueRatio: 1.6, glueAttackMs: 20, glueReleaseMs: 220, glueMakeupDb: 1.5,
+    bassFreqHz: 100, bassGainDb: -0.5,
+    presenceFreqHz: 3000, presenceGainDb: 2.0,
+    airFreqHz: 11000, airGainDb: 0.5,
+    stereoWidth: 1.0, topRolloffHz: 0,
+    vocalHpHz: 80, vocalPresenceDb: 2, vocalCompThresholdDb: -20, vocalCompRatio: 2,
+    drumHpHz: 40, drumCompThresholdDb: -18, drumCompRatio: 2,
+    stemGainsDb: { ...GAINS_FLAT, vocals: 1.5 },
+    stemPan: { ...PAN_CENTER },
   },
 };
 
