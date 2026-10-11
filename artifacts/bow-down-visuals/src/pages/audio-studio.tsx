@@ -5,7 +5,7 @@ import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2, ArrowLeft,
   AudioWaveform, AudioLines, Info, RefreshCw, Mic, Music4, Sparkles,
   Play, Pause, Volume2, VolumeX, SlidersHorizontal, Mic2, MicOff,
-  Music2, FileAudio, X, Gauge, Disc3,
+  Music2, FileAudio, X, Gauge, Disc3, Rocket,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -3021,6 +3021,17 @@ function MixMasterPanel() {
         </p>
 
         {tab === "master" ? <MasterPanel /> : tab === "quick" ? <QuickMasterPanel /> : <MixPanel />}
+
+        {/* Handoff: a finished master goes straight to distribution. */}
+        <div className="mt-6">
+          <Link
+            href="/distribute"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-5 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+          >
+            <Rocket className="h-4 w-4" />
+            {t("mixMaster.distributeCta", { defaultValue: "Mastered? Distribute it →" })}
+          </Link>
+        </div>
     </>
   );
 }

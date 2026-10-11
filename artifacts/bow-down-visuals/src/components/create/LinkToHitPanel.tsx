@@ -288,6 +288,14 @@ export default function LinkToHitPanel() {
             <p className="mt-4 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-[11px] text-white/50 leading-relaxed">
               <span className="text-white/70 font-bold">{t("linkToHit.musicPrompt", { defaultValue: "Music prompt:" })}</span> {pkg.musicPrompt}
             </p>
+            {/* Handoff: carry the lyrics into the song flow (no more copy-paste). */}
+            <a
+              href={`/create?panel=song&concept=${encodeURIComponent(`${pkg.songTitle}\n\nHOOK:\n${pkg.hook}\n\n${pkg.songLyrics}\n\nGenre: ${finalGenre}\nMusic prompt: ${pkg.musicPrompt}`)}`}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-6 py-3 text-sm font-black text-black transition hover:brightness-110"
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("linkToHit.makeThisSong", { defaultValue: "Make this song →" })}
+            </a>
           </div>
         </div>
       )}

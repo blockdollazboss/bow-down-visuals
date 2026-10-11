@@ -686,6 +686,18 @@ export function HumToSong() {
                 <Share2 className="h-5 w-5 text-primary" />
                 <span className="text-sm font-bold">{shared ? "Link ready to share" : "Share it"}</span>
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto py-3.5 border-white/15 text-white/80 hover:text-white hover:border-primary/40 flex-col gap-1.5"
+                onClick={() => {
+                  const concept = [songTitle.trim(), lyrics.trim()].filter(Boolean).join("\n\n");
+                  setLocation(`/create?panel=song${concept ? `&concept=${encodeURIComponent(concept)}` : ""}`);
+                }}
+              >
+                <Music2 className="h-5 w-5 text-primary" />
+                <span className="text-sm font-bold">Make it a song →</span>
+              </Button>
             </div>
             <p className="text-xs text-white/30 mt-2">
               Shared links carry your referral code — every friend who joins earns you 25% of their credit buys.

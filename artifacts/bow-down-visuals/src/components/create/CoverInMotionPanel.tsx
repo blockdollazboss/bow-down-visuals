@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Loader2, Sparkles, Upload, Check } from "lucide-react";
+import { Play, Loader2, Sparkles, Upload, Check, Download, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -118,6 +118,23 @@ export default function CoverInMotionPanel() {
             {t("coverInMotion.result", { defaultValue: "Your looping visualizer" })}
           </p>
           <video src={videoUrl} controls loop muted playsInline className="mx-auto aspect-square max-h-[420px] rounded-2xl border border-white/10" />
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href={videoUrl}
+              download="cover-in-motion.mp4"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-5 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <Download className="h-4 w-4" />
+              {t("coverInMotion.download", { defaultValue: "Download" })}
+            </a>
+            <a
+              href={`/scheduler?schedule=1&media=${encodeURIComponent(videoUrl)}&caption=${encodeURIComponent(t("coverInMotion.scheduleCaption", { defaultValue: "My cover visualizer" }))}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
+            >
+              <CalendarClock className="h-4 w-4" />
+              {t("coverInMotion.schedule", { defaultValue: "Post it →" })}
+            </a>
+          </div>
         </div>
       )}
     </div>

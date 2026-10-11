@@ -1738,7 +1738,7 @@ export default function VideoEditor() {
                     { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
                     { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
                     // ── 3. STYLE & POLISH ──
-                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
+                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
                     { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
                     { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
                     { id: "upscale", label: t("videoEditor.railUpscale", { defaultValue: "Upscale" }), icon: <Maximize className="h-5 w-5" />, testId: "rail-upscale" },
@@ -1805,7 +1805,7 @@ export default function VideoEditor() {
                       upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
                       cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
                       thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
-                      vibes: t("videoEditor.railVibes", { defaultValue: "Vibes" }),
+                      vibes: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }),
                       locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
                       "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
                       "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
@@ -2352,12 +2352,43 @@ export default function VideoEditor() {
                   {leftTab === "vibes" && (
                     <ToolPanelShell
                       tool="vibes"
-                      kicker={t("videoEditor.railVibes", { defaultValue: "Vibes" })}
-                      title={t("videoEditor.vibesTitle", { defaultValue: "Vibes" })}
+                      kicker={t("videoEditor.railVibes", { defaultValue: "Visual Vibes" })}
+                      title={t("videoEditor.vibesTitle", { defaultValue: "Visual Vibes" })}
                       subtitle={t("videoEditor.vibesDesc", {
                         defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no credits.",
                       })}
                     >
+                      {/* Dock-in map: one-tap jumps to the finishing tools that
+                          live inside Visual Vibes — labeling only, no behavior change. */}
+                      <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                        <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-3">
+                          {t("videoEditor.vibesDockTitle", { defaultValue: "Finish inside Visual Vibes" })}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(
+                            [
+                              { id: "thumbnails", labelKey: "videoEditor.railThumbnails", fallback: "Thumbnails" },
+                              { id: "cartoonize", labelKey: "videoEditor.railCartoonize", fallback: "Cartoonize" },
+                              { id: "lyric-video", labelKey: "videoEditor.railLyricVideo", fallback: "Lyric Video" },
+                              { id: "promo-clips", labelKey: "videoEditor.railPromoClips", fallback: "Promo Clips" },
+                              { id: "upscale", labelKey: "videoEditor.railUpscale", fallback: "Upscale" },
+                              { id: "style-stealer", labelKey: "videoEditor.railStyleStealer", fallback: "Style Stealer" },
+                              { id: "locations", labelKey: "videoEditor.railLocations", fallback: "Locations" },
+                              { id: "branding", labelKey: "videoEditor.railBrand", fallback: "Branding" },
+                              { id: "export", labelKey: "videoEditor.railExport", fallback: "Export" },
+                            ] as const
+                          ).map((d) => (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() => setLeftTab(d.id)}
+                              className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/70 hover:border-primary/50 hover:text-white transition-colors"
+                            >
+                              {t(d.labelKey, { defaultValue: d.fallback })}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <VisualVibesSection settings={settings} setSettings={setSettings} bare />
                     </ToolPanelShell>
                   )}

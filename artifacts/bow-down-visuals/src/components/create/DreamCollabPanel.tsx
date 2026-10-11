@@ -162,6 +162,14 @@ export default function DreamCollabPanel() {
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">{t("dreamCollab.songConcept", { defaultValue: "Song concept" })}</p>
             <p className="text-sm text-white/70 whitespace-pre-wrap">{concept.songConcept}</p>
           </div>
+          {/* Handoff: carry the concept into the song flow (no more copy-paste). */}
+          <a
+            href={`/create?panel=song&concept=${encodeURIComponent(`${concept.logline}\n\n${concept.songConcept}\n\nStyle blend: ${concept.styleBlend}`)}`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-6 py-3 text-sm font-black text-black transition hover:brightness-110"
+          >
+            <Sparkles className="h-4 w-4" />
+            {t("dreamCollab.makeThisSong", { defaultValue: "Make this song →" })}
+          </a>
         </div>
       )}
     </div>

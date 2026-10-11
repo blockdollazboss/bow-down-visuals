@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
@@ -1016,6 +1016,31 @@ export function ExportSection({
           fromLabel="Visual Vibes"
         />
       )}
+
+      {/* ── Post-export handoffs: carry the project into Promote + Money ── */}
+      {finalVideoUrl && (() => {
+        // Scheduler deep-link protocol: ?schedule=1&media=…&caption=… opens the
+        // composer prefilled. project= is carried for project-scoped views.
+        const schedulerHref = `/scheduler?schedule=1&project=${encodeURIComponent(projectId)}&media=${encodeURIComponent(finalVideoUrl)}&caption=${encodeURIComponent(topic || "My video")}`;
+        const coverUrl = scenes.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? "";
+        const distributeHref = `/distribute?title=${encodeURIComponent(topic || "My video")}${coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : ""}`;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href={schedulerHref}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-5 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <CalendarClock className="h-4 w-4" /> Post it — schedule this video
+            </a>
+            <a
+              href={distributeHref}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-5 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <Rocket className="h-4 w-4" /> Distribute — release this video
+            </a>
+          </div>
+        );
+      })()}
 
       {/* ── Extract audio from the finished video ── */}
       <ExtractAudioCard videoUrl={finalVideoUrl} />
