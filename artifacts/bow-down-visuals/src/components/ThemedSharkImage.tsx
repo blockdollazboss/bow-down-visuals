@@ -9,7 +9,7 @@ export function ThemedSharkImage({ className = "" }: { className?: string }) {
     <img
       src={
         isLight
-          ? `${base}images/shark-king-light-authority.png`
+          ? `${base}images/shark-king-light-bowing.png`
           : `${base}images/shark-king-clean-authority.png`
       }
       alt="Thy Cheat Code, the Shark King"
