@@ -52,7 +52,7 @@ export function FloatingThemeToggle() {
   // (Removed the location-based hiding.)
 
   const onPointerDown = (e: React.PointerEvent) => {
-    const x = pos?.x ?? window.innerWidth - 60;
+    const x = pos?.x ?? 16;
     const y = pos?.y ?? 16;
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: x, origY: y, moved: false };
     setDragging(true);
@@ -81,7 +81,7 @@ export function FloatingThemeToggle() {
 
   const style: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: "auto" }
-    : { top: 16, right: 16 };
+    : { top: 16, left: 16 };
 
   return (
     <button
