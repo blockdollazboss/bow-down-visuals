@@ -1142,16 +1142,13 @@ html, body {
 }
 
 /* ── Contact page light gaps (QA audit 2026-10-10) ──
-   These contact.tsx utilities have no generic .light mapping: arbitrary-value
-   white hairlines stay invisible on ivory, text-red-400 sits ~3.5:1 on ivory,
-   and the mailto gold / ghost-button hover go unreadable. Explicit ivory
-   versions keep the form usable in light mode; dark mode is untouched. */
+   contact.tsx utilities with no generic .light mapping: arbitrary-value
+   white hairlines stay invisible on ivory, and the mailto gold goes
+   unreadable. (text-red-400 and hover:text-white are covered by §19.) */
 .light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/\[0\.1\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
-.light .text-red-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #B91C1C; }
 .light .text-primary\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
 .light .hover\:text-primary:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
-.light .hover\:text-white:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #1C1712; }
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
    (WittyLoader, video players, teleprompter — excluded above via :not) */
@@ -2384,4 +2381,71 @@ html[data-star-level="5"] [data-min-stars="6"] {
 .light .bdv-playlist-widget .bg-white\/\[0\.03\],
 .light .bdv-playlist-widget .bg-white\/\[0\.04\] {
   background-color: rgba(122, 90, 18, 0.06) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TARGETED LIGHT-THEME FIXES — 2026-10-10 modal/widget readability audit
+   Self-contained scoped overrides: each rule is keyed to a semantic class
+   on the component, so these fixes hold regardless of the systemic
+   .light remap sweep. Dark theme is untouched (all rules are .light-only).
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 1. Thy Cheat Code chat — assistant bubble (bg-[#14100a], text-neutral-100).
+   The bubble background is swept to white but text-neutral-100 has no
+   systemic remap, so the message was near-white on white. Ivory bubble,
+   espresso ink. */
+.light .tcc-assistant-bubble {
+  background-color: #FFFFFF;
+  color: #1C1712;
+}
+
+/* 2. Shark Drop celebration modal — keep the light remap (consistent with
+   SecretChallengePopup / LevelUpModal, which share the same gradient),
+   but the gold eyebrow (text-[#C9A84C]/80) has no systemic remap and sat
+   ~2:1 on ivory. Antique gold restores readability. */
+.light .shark-drop-modal {
+  background-image: linear-gradient(to bottom, #FFFFFF, #F6EFDD);
+}
+.light .shark-drop-modal .text-\[\#C9A84C\]\/80 {
+  color: #8A6B1F;
+}
+
+/* 3. Away Digest modal — panel + sticky header/footer explicitly ivory in
+   light mode. Title and drop titles are text-white → core remap handles
+   the espresso ink. */
+.light .away-digest-modal {
+  background-color: #FFFFFF;
+}
+.light .away-digest-modal .bg-\[\#0c0a06\]\/95 {
+  background-color: rgb(255 255 255 / 0.96);
+}
+
+/* 4. Share-for-review modal — the sticky header (bg-[#0d0d0d]/95) stayed
+   dark while the body went light, so the header title was dark-on-dark.
+   Frosted ivory header matches the body. */
+.light .review-modal {
+  background-color: #FFFFFF;
+}
+.light .review-modal-header {
+  background-color: rgb(255 255 255 / 0.95);
+}
+
+/* 5. Leaderboard widget — settings toggle header (text-white/75, /35) and
+   score (text-white/85) had no systemic remap → white on ivory. */
+.light .bdv-leaderboard-widget .text-white\/85 {
+  color: rgb(28 23 18 / 0.88);
+}
+.light .bdv-leaderboard-widget .text-white\/75 {
+  color: rgb(45 42 36 / 0.82);
+}
+.light .bdv-leaderboard-widget .text-white\/35 {
+  color: #7A7266;
+}
+
+/* 6. My Projects — empty-state hint paragraphs (text-white/45) in all four
+   tabs (projects, drafts, clips, history). Scoped to the empty-state
+   containers so card text elsewhere (e.g. clip prompts over thumbnails)
+   is not affected. */
+.light .my-projects-empty .text-white\/45 {
+  color: #6B6257;
 }
