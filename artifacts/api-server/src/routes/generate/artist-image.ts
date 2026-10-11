@@ -17,6 +17,7 @@ import {
   GEN4_IMAGE_CREDIT_COST,
   GEN4_IMAGE_TURBO_CREDIT_COST,
   GPT_IMAGE_25_SUNBURST_CREDIT_COST,
+  NANO_BANANA_21_CREDIT_COST,
   resolveArtistImagePlan,
 } from "./artist-image-pricing";
 
@@ -26,15 +27,27 @@ const router = Router();
 const PRO_CREDITS = Number(process.env["ARTIST_IMAGE_CREDITS"]) || GEN4_IMAGE_CREDIT_COST;
 const TURBO_CREDITS = Number(process.env["ARTIST_IMAGE_TURBO_CREDITS"]) || GEN4_IMAGE_TURBO_CREDIT_COST;
 const SUNBURST_CREDITS = Number(process.env["ARTIST_IMAGE_SUNBURST_CREDITS"]) || GPT_IMAGE_25_SUNBURST_CREDIT_COST;
+const NANO_CREDITS = Number(process.env["ARTIST_IMAGE_NANO_CREDITS"]) || NANO_BANANA_21_CREDIT_COST;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const SUNBURST_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
+
+/** Google Gemini image model (Nano Banana 2.1) — env-overridable. Requires GEMINI_API_KEY. */
+const NANO_MODEL = process.env["GEMINI_IMAGE_MODEL"] || "gemini-nano-banana-2.1";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${NANO_MODEL}:generateContent`;
 
 /** Maps the site's ratio picker to OpenAI image sizes. */
 const SUNBURST_SIZES: Record<string, "1024x1024" | "1024x1536" | "1536x1024"> = {
   "1080:1920": "1024x1536",
   "1080:1080": "1024x1024",
   "1920:1080": "1536x1024",
+};
+
+/** Maps the site's ratio picker to Gemini aspect ratios. */
+const NANO_ASPECT: Record<string, "9:16" | "1:1" | "16:9"> = {
+  "1080:1920": "9:16",
+  "1080:1080": "1:1",
+  "1920:1080": "16:9",
 };
 
 /** Supabase Storage bucket the Artist Profiles page already uses for photos. */
@@ -65,7 +78,7 @@ async function chargeForImage(req: {
   userId?: string;
   userSupabase?: ReturnType<typeof getSupabaseAdmin>;
   log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void; warn: (...a: unknown[]) => void };
-}, credits: number): Promise<void> {
+}, credits: number, action = "Artist Image"): Promise<void> {
   // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The image
   // was already delivered, so on ledger failure the deduction stands (rollback
   // disabled) and the gap is logged CRITICAL for manual reconciliation —
@@ -74,10 +87,10 @@ async function chargeForImage(req: {
     const creditsAfter = await chargeCreditsAtomic(
       req.userId!,
       credits,
-      { action: "Artist Image (GPT Image 2.5)" },
+      { action },
       { rollbackOnLedgerFailure: false },
     );
-    req.log.info({ userId: req.userId, creditsAfter, deducted: credits }, "[artist-image] credits deducted (OpenAI)");
+    req.log.info({ userId: req.userId, creditsAfter, deducted: credits }, `[artist-image] credits deducted (${action})`);
   } catch (err) {
     if (err instanceof LedgerWriteError) {
       req.log.error({ err }, "[artist-image] CRITICAL: ledger write failed after deduction — image delivered, charge has no ledger trace");
@@ -101,6 +114,78 @@ async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ u
    3. Track task — credits NOT yet charged.
    4. Return { taskId, creditCost, model }.
 ───────────────────────────────────────────────────────────────────────────── */
+/** Fetches a reference image URL and returns it as base64 + mime type.
+ *  Used to give Nano Banana a face/identity reference (character lock).
+ *  Returns null when the fetch fails — generation proceeds without it. */
+async function fetchReferenceAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0 || buf.length > 8 * 1024 * 1024) return null;
+    const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+    return { data: buf.toString("base64"), mimeType };
+  } catch {
+    return null;
+  }
+}
+
+interface GeminiPart { inlineData?: { data?: string }; text?: string }
+interface GeminiResponse {
+  candidates?: { content?: { parts?: GeminiPart[] } }[];
+  promptFeedback?: { blockReason?: string };
+}
+
+/** Calls Nano Banana 2.1 via the Gemini API. Returns the generated PNG buffer. */
+async function generateWithNanoBanana(opts: {
+  prompt: string;
+  aspectRatio: "9:16" | "1:1" | "16:9";
+  referenceImageUrl?: string | null;
+  log: { warn: (...a: unknown[]) => void };
+}): Promise<Buffer> {
+  const apiKey = process.env["GEMINI_API_KEY"];
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured on the server");
+
+  const parts: Record<string, unknown>[] = [{ text: opts.prompt }];
+  const refUrl = opts.referenceImageUrl?.trim();
+  if (refUrl && /^https:\/\//i.test(refUrl)) {
+    const ref = await fetchReferenceAsBase64(refUrl);
+    if (ref) {
+      parts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data } });
+    } else {
+      opts.log.warn("[artist-image] Nano Banana reference image fetch failed — generating without it");
+    }
+  }
+
+  const res = await fetch(GEMINI_URL, {
+    method: "POST",
+    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        imageConfig: { aspectRatio: opts.aspectRatio, imageSize: "2K" },
+      },
+    }),
+    signal: AbortSignal.timeout(180_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Gemini API error (${res.status}): ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as GeminiResponse;
+  const b64 = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
+  if (!b64) {
+    const blockReason = json.promptFeedback?.blockReason;
+    throw new Error(
+      blockReason
+        ? `Nano Banana blocked this image (${blockReason}). Try a different description.`
+        : "Nano Banana returned no image data.",
+    );
+  }
+  return Buffer.from(b64, "base64");
+}
+
 /* ── Request validation ── */
 const artistImageSchema = z.object({
   promptText: z.string().min(1, "promptText is required").max(5000),
@@ -134,6 +219,7 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
     proCredits: PRO_CREDITS,
     turboCredits: TURBO_CREDITS,
     sunburstCredits: SUNBURST_CREDITS,
+    nanoCredits: NANO_CREDITS,
   });
   const creditCost = plan.creditCost;
 
@@ -166,7 +252,7 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
         res.status(500).json({ error: "Image generation returned no image data." });
         return;
       }
-      await chargeForImage(req, creditCost);
+      await chargeForImage(req, creditCost, "Artist Image (GPT Image 2.5)");
       const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, Buffer.from(b64, "base64"));
       res.json({
         taskId: `oai-${randomUUID()}`,
@@ -179,6 +265,42 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "OpenAI image generation failed";
       req.log.error({ err: msg }, "[artist-image] GPT Image 2.5 generation failed — no credits charged");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
+
+  /* ── Nano Banana 2.1 path: synchronous, fast, character-locked ── */
+  if (plan.model === "nano-banana-2.1") {
+    try {
+      const refUrl = referenceImageUrl?.trim();
+      const useRefImage = !!refUrl && /^https:\/\//i.test(refUrl);
+      const prompt = useRefImage
+        ? `Use the provided reference photo as the exact face, identity, and likeness reference for the person in this image. Preserve their facial features, skin tone, and identity precisely. ${promptText.trim()}`.slice(0, 4000)
+        : promptText.trim().slice(0, 4000);
+      req.log.info(
+        { userId: req.userId, ratio: plan.ratio, identityRef: useRefImage, vaultId: vaultId ?? null },
+        "[artist-image] Nano Banana 2.1 generation started",
+      );
+      const buffer = await generateWithNanoBanana({
+        prompt,
+        aspectRatio: NANO_ASPECT[plan.ratio] ?? "9:16",
+        referenceImageUrl: useRefImage ? refUrl : null,
+        log: req.log,
+      });
+      await chargeForImage(req, creditCost, "Artist Image (Nano Banana 2.1)");
+      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, buffer);
+      res.json({
+        taskId: `nano-${randomUUID()}`,
+        status: "succeeded",
+        url,
+        path: storagePath,
+        creditCost,
+        model: plan.model,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Nano Banana image generation failed";
+      req.log.error({ err: msg }, "[artist-image] Nano Banana 2.1 generation failed — no credits charged");
       res.status(500).json({ error: msg });
     }
     return;

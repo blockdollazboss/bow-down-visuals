@@ -54,11 +54,12 @@ describe("buildArtistImagePrompt", () => {
 });
 
 describe("artist image model catalog", () => {
-  it("offers GPT Image 2.5 as the best-quality default, gen4 as alternative, turbo as the cheap option", () => {
-    expect(ARTIST_IMAGE_MODELS[0].id).toBe("gpt-image-2.5-sunburst");
-    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gpt-image-2.5-sunburst")!.credits).toBe(2);
-    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gen4_image")!.credits).toBe(3);
-    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gen4_image_turbo")!.credits).toBe(2);
+  it("offers Nano Banana as the fast default, GPT Image 2.5 for best quality, gen4 as alternative, turbo as the cheap option", () => {
+    expect(ARTIST_IMAGE_MODELS[0].id).toBe("nano-banana-2.1");
+    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "nano-banana-2.1")!.credits).toBe(100);
+    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gpt-image-2.5-sunburst")!.credits).toBe(100);
+    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gen4_image")!.credits).toBe(200);
+    expect(ARTIST_IMAGE_MODELS.find((m) => m.id === "gen4_image_turbo")!.credits).toBe(100);
   });
 
   it("offers portrait, square, and landscape ratios with portrait first", () => {

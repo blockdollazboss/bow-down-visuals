@@ -3,7 +3,7 @@
  * so they can be unit-tested under the repo's node-environment vitest config.
  */
 
-export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.5-sunburst";
+export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.5-sunburst" | "nano-banana-2.1";
 export type ArtistImageRatio = "1080:1920" | "1080:1080" | "1920:1080";
 
 export interface ArtistProfileFormLike {
@@ -20,6 +20,7 @@ export interface ArtistProfileFormLike {
 }
 
 export const ARTIST_IMAGE_MODELS: { id: ArtistImageModel; label: string; credits: number; hint: string }[] = [
+  { id: "nano-banana-2.1", label: "Nano Banana", credits: 100, hint: "Fast · character lock" },
   { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5", credits: 100, hint: "Best quality · hyper-realistic" },
   { id: "gen4_image", label: "Gen4 Image", credits: 200, hint: "Alternative" },
   { id: "gen4_image_turbo", label: "Turbo", credits: 100, hint: "Fast · needs photo" },

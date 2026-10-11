@@ -35,7 +35,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   const { confirmedFetch } = useConfirmedApi();
   const isShoot = mode === "photoshoot";
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [model, setModel] = useState<ArtistImageModel>("gpt-image-2.5-sunburst");
+  const [model, setModel] = useState<ArtistImageModel>("nano-banana-2.1");
   const [ratio, setRatio] = useState<ArtistImageRatio>("1080:1920");
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
