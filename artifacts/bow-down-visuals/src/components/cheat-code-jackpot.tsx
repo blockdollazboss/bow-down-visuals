@@ -410,13 +410,20 @@ export function CheatCodeJackpot() {
  <div
  role="status"
  className={cn(
- "sticky top-0 z-[60] border-b",
+ "sticky top-0 z-[60] border-b overflow-hidden",
  bannerBody.accent
  ? "border-[#C9A84C]/60 bg-black/95"
  : "border-white/10 bg-[#0a0a0a]/95",
  )}
  >
- <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+ {/* Banner video background */}
+ <video
+   className="absolute inset-0 h-full w-full object-cover opacity-40"
+   src="/videos/banner-light-temp.mp4"
+   muted loop autoPlay playsInline preload="auto"
+   aria-hidden="true"
+ />
+ <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
  <span aria-hidden="true" className="shrink-0 leading-none">
  <img
  src="/thy-cheat-code-8bit.webp"
