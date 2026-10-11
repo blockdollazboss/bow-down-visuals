@@ -75,7 +75,7 @@ export default function FogLab() {
     }`;
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black text-white">
+    <div className="relative h-screen w-full overflow-hidden bg-black text-white dark-lock" data-dark-lock>
       <StageBackdrop />
 
       {/* Fog under test — same footprint as the homepage hero fog. */}

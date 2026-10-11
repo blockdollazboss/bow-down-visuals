@@ -297,8 +297,10 @@ export default function CarouselMaker() {
                 </div>
               </div>
 
-              {/* swipeable preview */}
+              {/* swipeable preview — the slide artwork itself; dark-locked so
+                  templates preview exactly as designed in both themes */}
               <div
+                data-dark-lock
                 className={`relative rounded-2xl overflow-hidden border border-white/10 bg-[#0a0a0a] mx-auto ${
                   format === "square" ? "aspect-square max-w-[420px]" : "aspect-[9/16] max-w-[300px]"
                 }`}
