@@ -33,7 +33,11 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/mix-master/master": { cost: 800, feature: "AI Master (Mix & Master)" },
   "/api/mix-master/mix": { cost: 1500, feature: "AI Mix — Stems (Mix & Master)" },
   "/api/stems": { cost: 400, feature: "Stem Separation" },
+  "/api/stems?mode=instrumental": { cost: 300, feature: "Stem Separation — Instrumental" },
   "/api/vocal-polish": { cost: 200, feature: "AI Vocal Polish" },
+  "/api/vocal-tune": { cost: 200, feature: "Vocal Tuning" }, // PLACEHOLDER — NOT USER-APPROVED
+  "/api/lufs/normalize": { cost: 100, feature: "LUFS Loudness Normalize" }, // PLACEHOLDER — NOT USER-APPROVED
+  "/api/deverb": { cost: 1000, feature: "AI De-Reverb" }, // PLACEHOLDER — NOT USER-APPROVED
   "/api/vocal-removal": { cost: 300, feature: "Vocal Removal" },
   "/api/mashup": { cost: 400, feature: "Song Mashup" },
   "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
@@ -64,6 +68,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/export-all-overlays": { cost: 200, feature: "Export Overlays" },
   "/api/export-doctor/export-overlays-range": { cost: 200, feature: "Export Overlays Range" },
   "/api/export-doctor/export-effects-range": { cost: 200, feature: "Export Effects Range" },
+  // ── Video processing (editor tools) ──────────────────────────
+  "/api/stabilize": { cost: 300, feature: "Video Stabilization" },
+  "/api/apply-speed": { cost: 150, feature: "Speed Preset" },
+  "/api/color-grade": { cost: 150, feature: "Color Grade" },
+  // PLACEHOLDER — NOT USER-APPROVED: AI background plate generation (gated, no key yet)
+  "/api/bg-generate": { cost: 200, feature: "AI Background Plate (price TBD)" },
   "/api/export-doctor/export-effects-transitions": { cost: 200, feature: "Export Transitions" },
   "/api/video-template/apply": { cost: 250, feature: "Apply Video Template" },
   "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },

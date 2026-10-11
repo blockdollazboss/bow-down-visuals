@@ -88,6 +88,9 @@ import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDir
 import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
 import { TimelineTemplatesSection } from "@/components/editor/sections/TimelineTemplatesSection";
 import { BackgroundReplaceSection } from "@/components/editor/sections/BackgroundReplaceSection";
+import { StabilizeSection } from "@/components/editor/sections/StabilizeSection";
+import { SpeedRampSection } from "@/components/editor/sections/SpeedRampSection";
+import { CaptionTemplatesSection } from "@/components/editor/sections/CaptionTemplatesSection";
 import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
 import { CanvasGeneratorSection } from "@/components/editor/sections/CanvasGeneratorSection";
 import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
@@ -2181,6 +2184,16 @@ export default function VideoEditor() {
                       getAccessToken={getAccessToken}
                       visiblePresetIds={template.captionPresets}
                     />
+                      {/* Animated caption templates — word-by-word FX gallery */}
+                      <div className="mt-6">
+                        <CaptionTemplatesSection
+                          scenes={scenes}
+                          settings={settings}
+                          setSettings={setSettings}
+                          onGoToExport={() => setTab("export")}
+                          onGoToPromoClips={() => setTab("promo-clips")}
+                        />
+                      </div>
                     </ToolPanelShell>
                   )}
 
@@ -2926,6 +2939,36 @@ export default function VideoEditor() {
                               prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
                             )
                           }
+                        />
+                      </div>
+                      {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
+                      <div className="mt-6">
+                        <StabilizeSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
+                        />
+                      </div>
+                      {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
+                      <div className="mt-6">
+                        <SpeedRampSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
                         />
                       </div>
                     </>

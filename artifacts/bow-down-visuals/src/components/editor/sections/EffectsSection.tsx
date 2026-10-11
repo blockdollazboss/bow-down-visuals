@@ -14,6 +14,7 @@ import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
 import { CinematicFxCard } from "@/components/editor/sections/CinematicFxCard";
 import { LutImportSection } from "@/components/editor/sections/LutImportSection";
+import { ColorGradeSection } from "@/components/editor/sections/ColorGradeSection";
 import { BrowseLibraryButton } from "@/pages/library";
 
 interface EffectsSectionProps {
@@ -120,6 +121,8 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
   }
   const [showLutImport, setShowLutImport] = useState(false);
   const lutRef = useRef<HTMLDivElement>(null);
+  const [showColorGrade, setShowColorGrade] = useState(false);
+  const gradeRef = useRef<HTMLDivElement>(null);
   /* Template-curated galleries (empty/undefined = show all) */
   const shownEffects = visibleEffects && visibleEffects.length > 0
     ? (EFFECTS as readonly string[]).filter((fx) => visibleEffects.includes(fx))
@@ -260,6 +263,28 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             scenes={scenes}
             onReplaceClipVideo={onReplaceClipVideo}
             onGoToCaptions={onGoToCaptions}
+            onGoToExport={onGoToExport}
+          />
+        </div>
+      )}
+
+      {/* ── Pro color grade — one-tap AI presets, auto-grade, manual wheels ── */}
+      <button
+        type="button"
+        onClick={() => {
+          setShowColorGrade((v) => !v);
+          requestAnimationFrame(() => gradeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }}
+        className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:text-[#d9b95c] transition-colors"
+      >
+        <Wand2 className="h-3.5 w-3.5" />
+        …or burn a real grade into a clip (AI presets · auto-grade · wheels)
+      </button>
+      {showColorGrade && (
+        <div ref={gradeRef} className="scroll-mt-4">
+          <ColorGradeSection
+            scenes={scenes}
+            onReplaceClipVideo={onReplaceClipVideo}
             onGoToExport={onGoToExport}
           />
         </div>
