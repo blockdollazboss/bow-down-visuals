@@ -21,6 +21,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import MyClips from "@/pages/my-clips";
 import SongsPage from "@/pages/songs";
+import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -881,11 +882,7 @@ export default function MyProjects() {
             </div>
           ) : projects.length === 0 ? (
             <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <img
-                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
-                alt="Thy Cheat Code"
-                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
-              />
+              <ThemedSharkImage className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]" />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noProjects")}</h2>
                 <p className="text-white/45 max-w-xs">{t("myProjects.noProjectsHint")}</p>
@@ -917,11 +914,7 @@ export default function MyProjects() {
             </div>
           ) : drafts.length === 0 ? (
             <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <img
-                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
-                alt="Thy Cheat Code"
-                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
-              />
+              <ThemedSharkImage className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]" />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noDrafts")}</h2>
                 <p className="text-white/45 max-w-xs">
@@ -958,11 +951,7 @@ export default function MyProjects() {
             </div>
           ) : clips.length === 0 ? (
             <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
-              <img
-                src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
-                alt="Thy Cheat Code"
-                className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
-              />
+              <ThemedSharkImage className="h-36 w-36 rounded-3xl object-cover border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]" />
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">{t("myProjects.noClips")}</h2>
                 <p className="text-white/45 max-w-xs">

@@ -108,6 +108,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { BowTestLogo } from "@/components/BowTestLogo";
+import { ThemedLogo } from "@/components/ThemedLogo";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -397,11 +398,7 @@ export function AppSidebar() {
         >
           <div className="h-full w-full flex items-center px-4 gap-2 overflow-x-auto">
             <Link href="/" className="flex items-center gap-2 mr-4 shrink-0 pointer-events-none">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.webp`}
-                alt="Bow Down Visuals"
-                className="h-8 w-auto"
-              />
+              <ThemedLogo className="h-8 w-auto" />
             </Link>
             <HorizontalSidebarNav />
           </div>
@@ -424,11 +421,7 @@ export function AppSidebar() {
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 rounded-lg">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.webp`}
-                alt="Bow Down Visuals"
-                className="h-14 w-auto"
-              />
+              <ThemedLogo className="h-14 w-auto" />
             </div>
             <button type="button" onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} title="Hide sidebar" aria-label="Hide sidebar" data-testid="btn-collapse-sidebar" className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black">
               <ChevronsLeft className={`h-4 w-4 ${docked === "right" ? "rotate-180" : ""}`} />

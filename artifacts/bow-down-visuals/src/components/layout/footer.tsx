@@ -3,6 +3,7 @@ import { Mail, Sparkles } from "lucide-react";
 import { JsonLd, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from "@/components/seo/json-ld";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { InstagramIcon, TikTokIcon, YouTubeIcon, SOCIAL_HANDLE } from "@/components/social-icons";
+import { ThemedLogo } from "@/components/ThemedLogo";
 
 const NAVIGATE = [
   { label: "Home",        href: "/" },
@@ -126,11 +127,7 @@ export function SiteFooter() {
           {/* Brand — right side */}
           <div className="sm:col-span-2 md:col-span-2">
             <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.webp`}
-                alt="Bow Down Visuals"
-                className="h-40 w-auto"
-              />
+              <ThemedLogo className="h-40 w-auto" />
             </Link>
             <p className="font-display italic text-primary/85 text-[15px] mt-4">
               The content creator&rsquo;s cheat code.

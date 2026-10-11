@@ -1,15 +1,14 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, FolderOpen } from "lucide-react";
-import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
   const { t } = useTranslation();
   usePageTitle(t("notFound.pageTitle"), t("notFound.pageDescription"));
-  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
-  const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
+  /* Shark portrait is theme-aware via ThemedSharkImage. */
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-black text-white px-5">
       {/* Ambient gold glow */}
@@ -18,12 +17,7 @@ export default function NotFound() {
       </div>
 
       <div className="relative z-10 text-center max-w-md mx-auto">
-        <img
-          ref={logoTilt}
-          src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
-          alt="Thy Cheat Code - Lost?"
-          className="h-48 w-48 rounded-3xl object-cover mx-auto mb-8 border-2 border-primary/30 shadow-[0_0_60px_rgba(201,168,76,0.3)]"
-        />
+        <ThemedSharkImage className="h-48 w-48 rounded-3xl object-cover mx-auto mb-8 border-2 border-primary/30 shadow-[0_0_60px_rgba(201,168,76,0.3)]" />
         <p className="text-primary text-sm font-bold tracking-[0.3em] uppercase mb-4">404</p>
         <h1 className="text-4xl font-black text-white mb-3">{t("notFound.heading")}</h1>
         <p className="text-white/50 leading-relaxed mb-8">

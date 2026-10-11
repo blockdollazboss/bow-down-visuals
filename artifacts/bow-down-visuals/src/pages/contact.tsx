@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 import { useTranslation } from "react-i18next";
 
 export default function Contact() {
@@ -50,11 +51,7 @@ export default function Contact() {
 
           {/* Header */}
           <div className="text-center mb-10">
-            <img
-              src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
-              alt="Thy Cheat Code"
-              className="h-28 w-28 rounded-3xl object-cover mx-auto mb-5 border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]"
-            />
+            <ThemedSharkImage className="h-28 w-28 rounded-3xl object-cover mx-auto mb-5 border-2 border-primary/30 shadow-[0_0_40px_rgba(201,168,76,0.25)]" />
             <h1 className="text-3xl font-bold text-white mb-2">{t("contact.get_in_touch")}</h1>
             <p className="text-white/40 text-sm leading-relaxed">{t("contact.questions_feedback_or_partnershi")}</p>
           </div>
