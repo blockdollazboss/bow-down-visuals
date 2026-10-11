@@ -98,7 +98,7 @@ export function AwayDigestModal() {
   return (
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-6">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      <div className="relative w-full sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-primary/25 bg-[#0c0a06] shadow-[0_0_80px_rgba(218,165,32,0.20)]">
+      <div className="away-digest-modal relative w-full sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-primary/25 bg-[#0c0a06] shadow-[0_0_80px_rgba(218,165,32,0.20)]">
         <div className="sticky top-0 z-10 bg-[#0c0a06]/95 backdrop-blur px-5 pt-5 pb-4 border-b border-white/[0.06]">
           <div className="flex items-start gap-3">
             <div className="h-11 w-11 rounded-2xl bg-primary text-black flex items-center justify-center shrink-0 shadow-[0_0_24px_rgba(218,165,32,0.45)]">

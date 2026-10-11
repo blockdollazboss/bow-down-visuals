@@ -102,7 +102,7 @@ export default function SharkDropModal({
       onClick={onDismiss}
     >
       <div
-        className="relative w-[min(94vw,420px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+        className="shark-drop-modal relative w-[min(94vw,420px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
         onClick={(e) => e.stopPropagation()}
       >
         <button

@@ -880,7 +880,7 @@ export default function MyProjects() {
                 className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+            <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
               <img
                 src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
                 alt="Thy Cheat Code"
@@ -916,7 +916,7 @@ export default function MyProjects() {
                 className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : drafts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+            <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
               <img
                 src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
                 alt="Thy Cheat Code"
@@ -957,7 +957,7 @@ export default function MyProjects() {
                 className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : clips.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+            <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
               <img
                 src={`${import.meta.env.BASE_URL}images/shark-king-clean-authority.png`}
                 alt="Thy Cheat Code"
@@ -1000,7 +1000,7 @@ export default function MyProjects() {
                 className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
             </div>
           ) : history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+            <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
               <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
                 <History className="h-8 w-8 text-primary/60" />
               </div>

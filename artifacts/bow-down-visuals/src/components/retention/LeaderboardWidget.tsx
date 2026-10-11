@@ -140,7 +140,7 @@ export default function LeaderboardWidget() {
   );
 
   return (
-    <section aria-label={t("retentionDelight.board_title")}>
+    <section aria-label={t("retentionDelight.board_title")} className="bdv-leaderboard-widget">
       <div className="flex items-center justify-between mb-3">
         <h2 className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-white/40 uppercase">
           <Trophy className="h-3.5 w-3.5 text-primary/70" />

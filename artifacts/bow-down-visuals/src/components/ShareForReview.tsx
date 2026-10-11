@@ -318,9 +318,9 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
       {modalLink && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={() => setModalLink(null)} />
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] shadow-[0_0_60px_rgba(232,200,106,0.12)]">
+          <div className="review-modal relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] shadow-[0_0_60px_rgba(232,200,106,0.12)]">
             {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-white/[0.07] bg-[#0d0d0d]/95 backdrop-blur">
+            <div className="review-modal-header sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-white/[0.07] bg-[#0d0d0d]/95 backdrop-blur">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#e8c86a]">{t("review.clientFeedback")}</p>
                 <h3 className="text-base font-black text-white truncate">{modalLink.title}</h3>

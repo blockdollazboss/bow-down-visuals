@@ -328,7 +328,7 @@ export function ThyCheatCodeChat() {
                   className={
                     m.role === "user"
                       ? "max-w-[85%] border-2 border-[#8A6B1F] bg-[#C9A84C] px-3.5 py-2.5 text-sm font-medium text-black"
-                      : "tcc-chat max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-lg leading-snug text-neutral-100"
+                      : "tcc-assistant-bubble tcc-chat max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-lg leading-snug text-neutral-100"
                   }
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
                 >
