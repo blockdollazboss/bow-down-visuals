@@ -97,9 +97,7 @@ export default function Terms() {
             <h2 className="text-white font-bold text-lg mb-3">{t("terms.section12Title")}</h2>
             <p>
               {t("terms.contactIntro")}{" "}
-              <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
-                support@bowdownvisuals.com
-              </a>{" "}
+              {" "}
               {t("terms.contactOr")} <Link href="/contact" className="text-primary hover:underline">{t("terms.contactPageLink")}</Link>
             </p>
           </section>

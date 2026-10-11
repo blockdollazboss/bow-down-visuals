@@ -91,9 +91,7 @@ export default function RefundPolicy() {
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>
                 {t("refundPolicy.howTo.email")}{" "}
-                <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
-                  support@bowdownvisuals.com
-                </a>
+                
               </li>
               <li>{t("refundPolicy.howTo.subject1")}<em>{t("refundPolicy.howTo.subject2")}</em></li>
               <li>{t("refundPolicy.howTo.include")}</li>
@@ -109,9 +107,7 @@ export default function RefundPolicy() {
               {t("refundPolicy.questions.p1")}{" "}
               <Link href="/contact" className="text-primary hover:underline">{t("refundPolicy.questions.contactLink")}</Link>{" "}
               {t("refundPolicy.questions.p2")}{" "}
-              <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
-                support@bowdownvisuals.com
-              </a>.
+              .
             </p>
           </section>
         </div>

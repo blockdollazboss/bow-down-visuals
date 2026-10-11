@@ -57,12 +57,6 @@ export default function Contact() {
             />
             <h1 className="text-3xl font-bold text-white mb-2">{t("contact.get_in_touch")}</h1>
             <p className="text-white/40 text-sm leading-relaxed">{t("contact.questions_feedback_or_partnershi")}</p>
-            <a
-              href="mailto:support@bowdownvisuals.com"
-              className="inline-block mt-3 text-xs text-primary/70 hover:text-primary transition-colors"
-            >
-              support@bowdownvisuals.com
-            </a>
           </div>
 
           {/* Card */}

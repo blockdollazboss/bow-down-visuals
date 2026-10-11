@@ -59,10 +59,8 @@ const WAITLIST_CONTACT_JSON_LD = {
   "@type": "Organization",
   name: "Bow Down Visuals",
   url: "https://bowdownvisuals.com",
-  email: "support@bowdownvisuals.com",
   contactPoint: {
     "@type": "ContactPoint",
-    email: "support@bowdownvisuals.com",
     contactType: "customer support",
   },
 };
@@ -404,13 +402,7 @@ export default function Waitlist() {
             <p className="text-white/50 text-base leading-relaxed mb-5">
               {t("waitlist.contactDesc")}
             </p>
-            <a
-              href="mailto:support@bowdownvisuals.com"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-primary/25 bg-primary/5 text-primary font-semibold text-sm hover:bg-primary/10 transition-colors"
-            >
-              <Mail className="h-4 w-4" />
-              support@bowdownvisuals.com
-            </a>
+            
           </div>
         </section>
 

@@ -92,9 +92,7 @@ export default function Privacy() {
             <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section7Title")}</h2>
             <p>
               {t("privacy.section7Intro")}{" "}
-              <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
-                support@bowdownvisuals.com
-              </a>.
+              .
             </p>
           </section>
 
@@ -116,9 +114,7 @@ export default function Privacy() {
             <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section10Title")}</h2>
             <p>
               {t("privacy.section10Intro")}{" "}
-              <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
-                support@bowdownvisuals.com
-              </a>{" "}
+              {" "}
               {t("privacy.section10Middle")} <Link href="/contact" className="text-primary hover:underline">{t("privacy.section10ContactLink")}</Link>.
             </p>
           </section>
