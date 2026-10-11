@@ -2487,3 +2487,9 @@ html[data-star-level="5"] [data-min-stars="6"] {
 .light .bdv-extension-badge-dismiss:hover {
   color: #7A5A12 !important;
 }
+
+/* Light mode: Promo strip cards — solid ivory for readability */
+.light .promo-strip-card {
+  background: rgba(250, 246, 237, 0.92) !important;
+  border-color: rgba(201, 168, 76, 0.35) !important;
+}

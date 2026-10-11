@@ -1458,7 +1458,7 @@ function PromoStrip() {
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Jackpot */}
-          <div className="flex flex-col p-6 rounded-2xl border border-primary/25 bg-primary/[0.06] hover:border-primary/40 transition-colors">
+          <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-primary/25 bg-primary/[0.06] hover:border-primary/40 transition-colors">
             <Trophy className="h-7 w-7 text-primary mb-4" />
             <h3 className="font-bold text-white text-lg mb-2">{t("home.jackpotBold")}</h3>
             <p className="text-white/55 text-sm leading-relaxed flex-1">{t("home.jackpotBody")}</p>
@@ -1470,7 +1470,7 @@ function PromoStrip() {
             </Link>
           </div>
           {/* Referral */}
-          <div className="flex flex-col p-6 rounded-2xl border border-[#C9A84C]/25 bg-gradient-to-br from-[#C9A84C]/[0.07] to-transparent hover:border-[#C9A84C]/40 transition-colors">
+          <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-[#C9A84C]/25 bg-gradient-to-br from-[#C9A84C]/[0.07] to-transparent hover:border-[#C9A84C]/40 transition-colors">
             <Gift className="h-7 w-7 text-[#e8c86a] mb-4" />
             <h3 className="font-bold text-white text-lg mb-2">
               {t("home.referTitleA")} <span className="text-[#e8c86a]">{t("home.referTitleB")}</span>
@@ -1488,7 +1488,7 @@ function PromoStrip() {
           </div>
           {/* Extension */}
           {showExtensionPromo && (
-            <div className="flex flex-col p-6 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-primary/30 transition-colors">
+            <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-primary/30 transition-colors">
               <Download className="h-7 w-7 text-primary mb-4" />
               <h3 className="font-bold text-white text-lg mb-2">
                 {t("home.extTitleA")} <span className="text-[#e8c86a]">{t("home.extTitleB")}</span>
