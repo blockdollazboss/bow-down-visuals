@@ -274,7 +274,7 @@ export function CaptionTemplatesSection({
       subtitle={t("captionTemplates.subtitle")}
       icon={<Captions className="h-4 w-4" />}
       right={
-        <span className="text-[10px] font-black uppercase tracking-widest text-[#E8C468] border border-[#E8C468]/30 bg-[#E8C468]/10 rounded-full px-2.5 py-1">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[#e8c86a] border border-[#E8C468]/30 bg-[#E8C468]/10 rounded-full px-2.5 py-1">
           {t("captionTemplates.badge")}
         </span>
       }
@@ -283,7 +283,7 @@ export function CaptionTemplatesSection({
       <div className="space-y-5">
         {/* Timing source note */}
         <p className="text-[11px] text-white/35 flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#E8C468]/70" />
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#e8c86a]" />
           {demo.live ? t("captionTemplates.demoTimingLive") : t("captionTemplates.demoTimingSynth")}
         </p>
 
@@ -312,8 +312,10 @@ export function CaptionTemplatesSection({
                   )}
                 </div>
 
-                {/* Live animated word-by-word demo */}
-                <div className="mt-3 rounded-lg bg-black/60 border border-white/10 px-3 py-4 overflow-hidden">
+                {/* Live animated word-by-word demo — a video-frame simulation:
+                    stays dark in both themes (data-dark-lock) so the burned-in
+                    caption styling previews exactly as it exports. */}
+                <div className="mt-3 rounded-lg bg-black/60 border border-white/10 px-3 py-4 overflow-hidden" data-dark-lock>
                   <p className={`ct-demo-line ct-fx-${tpl.wordFx}`} aria-hidden>
                     {demo.words.map((w, i) => (
                       <span key={`${loopIdx}-${i}`} className={`ct-w ct-${wordState(w)}`}>
@@ -334,7 +336,7 @@ export function CaptionTemplatesSection({
                     size="sm"
                     onClick={() => applyTemplate(tpl)}
                     data-testid={`caption-template-apply-${tpl.id}`}
-                    className={applied ? "bg-white/10 text-white hover:bg-white/15" : "bg-[#E8C468] text-black font-black hover:bg-[#f0d47e]"}
+                    className={applied ? "bg-white/10 text-white hover:bg-white/10" : "bg-[#E8C468] text-black font-black hover:bg-[#f0d47e]"}
                   >
                     <Zap className="h-3.5 w-3.5 mr-1.5" />
                     {applied ? t("captionTemplates.applied") : t("captionTemplates.apply")}

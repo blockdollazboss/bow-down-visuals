@@ -93,7 +93,7 @@ export function TimelineSection({
   }
 
   const transportButton =
-    "flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30";
+    "flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/5 transition-colors shrink-0 disabled:opacity-30";
 
   return (
     <div className="space-y-5">
@@ -139,7 +139,7 @@ export function TimelineSection({
         {approvedScenes.length === 0 ? (
           <div className="py-8 text-center space-y-3">
             <div className="flex justify-center">
-              <Film className="h-8 w-8 text-white/15" />
+              <Film className="h-8 w-8 text-white/10" />
             </div>
             <p className="text-sm text-white/40">No approved clips yet.</p>
             <p className="text-[11px] text-white/25">Approve clips in the Clips tab to build your timeline.</p>
@@ -166,7 +166,7 @@ export function TimelineSection({
                   </span>
                 </div>
                 <div
-                  className="relative h-2 rounded-full bg-white/[0.08] cursor-pointer group"
+                  className="relative h-2 rounded-full bg-white/10 cursor-pointer group"
                   onClick={(e) => {
                     if (!onSeek || totalDuration <= 0) return;
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -210,7 +210,7 @@ export function TimelineSection({
                     className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-xl border transition-colors text-left ${
                       isActive
                         ? "border-primary/40 bg-primary/[0.08]"
-                        : "border-white/[0.06] bg-white/[0.025] hover:border-white/[0.14] hover:bg-white/[0.05]"
+                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/5"
                     } ${onSeek ? "cursor-pointer" : "cursor-default"}`}
                   >
                     <span className={`text-[10px] font-black font-mono w-5 shrink-0 text-center ${isActive ? "text-primary" : "text-primary/60"}`}>
@@ -241,7 +241,7 @@ export function TimelineSection({
                   {/* Transition connector between clips */}
                   {!isLast && (
                     <div className="flex items-center gap-2 py-2 pl-8 pr-3">
-                      <div className="h-px flex-1 bg-white/[0.06]" />
+                      <div className="h-px flex-1 bg-white/5" />
 
                       {isSimple ? (
                         /* Simple mode: read-only summary — AI already picked
@@ -258,7 +258,7 @@ export function TimelineSection({
                             value={transition}
                             onChange={e => setClipTransition(scene.id, e.target.value)}
                             onClick={e => e.stopPropagation()}
-                            className="text-[10px] text-white/60 bg-black/50 border border-white/[0.10] rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
+                            className="text-[10px] text-white/60 bg-black/50 border border-white/10 rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
                           >
                             {TRANSITION_OPTIONS.map(t => (
                               <option key={t} value={t}>{t}</option>
@@ -291,7 +291,7 @@ export function TimelineSection({
                         </div>
                       )}
 
-                      <div className="h-px flex-1 bg-white/[0.06]" />
+                      <div className="h-px flex-1 bg-white/5" />
                     </div>
                   )}
                 </div>

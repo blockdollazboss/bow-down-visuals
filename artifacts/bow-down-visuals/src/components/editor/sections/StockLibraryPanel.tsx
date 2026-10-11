@@ -118,7 +118,7 @@ function StockCard({
             href={item.photographerUrl}
             target="_blank"
             rel="noreferrer noopener"
-            className="shrink-0 text-primary/80 hover:text-primary underline underline-offset-2"
+            className="shrink-0 text-primary/70 hover:text-primary underline underline-offset-2"
           >
             Pexels
           </a>
@@ -362,8 +362,8 @@ export function StockLibraryPanel({
         {!searched && !loading && !notConfigured && !error && (
           <div className="flex flex-col items-center gap-2 py-6 text-center">
             {type === "video"
-              ? <Film className="h-8 w-8 text-white/15" />
-              : <ImageIcon className="h-8 w-8 text-white/15" />}
+              ? <Film className="h-8 w-8 text-white/10" />
+              : <ImageIcon className="h-8 w-8 text-white/10" />}
             <p className="text-[11px] text-white/35 max-w-[260px] leading-relaxed">{tr("idleHint")}</p>
           </div>
         )}
@@ -379,7 +379,7 @@ export function StockLibraryPanel({
         {/* empty */}
         {searched && !loading && !error && !notConfigured && items.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Search className="h-8 w-8 text-white/15" />
+            <Search className="h-8 w-8 text-white/10" />
             <p className="text-xs font-bold text-white/50">{tr("emptyTitle")}</p>
             <p className="text-[11px] text-white/35 max-w-[260px] leading-relaxed">{tr("emptyDesc")}</p>
           </div>

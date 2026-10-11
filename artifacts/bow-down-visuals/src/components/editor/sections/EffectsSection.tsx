@@ -249,7 +249,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             setShowLutImport(true);
             requestAnimationFrame(() => lutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
           }}
-          className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:text-[#d9b95c] transition-colors"
+          className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:brightness-125 transition-colors"
         >
           <Palette className="h-3.5 w-3.5" />
           …or import your own LUT (.cube / .3dl)
@@ -275,7 +275,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           setShowColorGrade((v) => !v);
           requestAnimationFrame(() => gradeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
         }}
-        className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:text-[#d9b95c] transition-colors"
+        className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:brightness-125 transition-colors"
       >
         <Wand2 className="h-3.5 w-3.5" />
         …or burn a real grade into a clip (AI presets · auto-grade · wheels)
@@ -342,7 +342,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
               >
                 {ov}
                 {previewOnly && (
-                  <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wide text-white/40 bg-white/[0.06] rounded px-1 py-0.5">
+                  <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wide text-white/40 bg-white/5 rounded px-1 py-0.5">
                     Preview
                   </span>
                 )}
@@ -468,7 +468,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                   value={settings.watermarkText ?? "Bow Down Visuals"}
                   onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
                   placeholder="Bow Down Visuals"
-                  className="w-full bg-white/[0.04] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
                 />
               </div>
             )}
@@ -526,7 +526,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button type="button"
                   onClick={() => setSettings({ ...settings, watermarkShowOnPreview: !(settings.watermarkShowOnPreview ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.watermarkShowOnPreview ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.watermarkShowOnPreview ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.watermarkShowOnPreview ?? true) ? "On" : "Off"}
                 </button>
@@ -536,7 +536,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button type="button"
                   onClick={() => setSettings({ ...settings, watermarkIncludeInExport: !(settings.watermarkIncludeInExport ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.watermarkIncludeInExport ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.watermarkIncludeInExport ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.watermarkIncludeInExport ?? true) ? "On" : "Off"}
                 </button>
@@ -589,31 +589,31 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/22 mt-1">Sets intensity of all active visual overlays instantly.</p>
+            <p className="text-[10px] text-white/25 mt-1">Sets intensity of all active visual overlays instantly.</p>
           </div>
         )}
 
         {/* ── Safe areas ── */}
         {settings.overlays.length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/[0.06]">
-            <p className="text-[10px] font-black text-white/28 uppercase tracking-wide mb-2">Safe Areas</p>
+            <p className="text-[10px] font-black text-white/30 uppercase tracking-wide mb-2">Safe Areas</p>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/42">Protect captions area</span>
+                <span className="text-[10px] text-white/40">Protect captions area</span>
                 <button type="button"
                   onClick={() => setSettings({ ...settings, overlayProtectCaptions: !(settings.overlayProtectCaptions ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.overlayProtectCaptions ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.overlayProtectCaptions ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.overlayProtectCaptions ?? true) ? "On" : "Off"}
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/42">Protect face / center</span>
+                <span className="text-[10px] text-white/40">Protect face / center</span>
                 <button type="button"
                   onClick={() => setSettings({ ...settings, overlayProtectFace: !(settings.overlayProtectFace ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.overlayProtectFace ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.overlayProtectFace ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.overlayProtectFace ?? true) ? "On" : "Off"}
                 </button>
@@ -734,7 +734,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             {onTestTransition && (
               <button
                 onClick={onTestTransition}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 bg-white/5 hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
                 data-testid="btn-test-transition"
               >
                 Test Transition

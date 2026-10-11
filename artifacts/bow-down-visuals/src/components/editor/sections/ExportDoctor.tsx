@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import type { SceneData } from "@/lib/scene-parser";
 import type {
   CaptionSettings,
@@ -431,6 +432,7 @@ export function ExportDoctor({
 }: ExportDoctorProps) {
   const { confirmedFetch } = useConfirmedApi();
   const { getAccessToken } = useAuth();
+  const isLight = useIsLightTheme();
 
   // Deduplicate the scenes array by scene id.
   // The timeline can produce duplicate entries (same id appearing twice) if the
@@ -2177,7 +2179,7 @@ export function ExportDoctor({
 
               {/* No lip sync clips warning */}
               {!hasLipSync && (
-                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/70 text-[10px]">
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px]">
                   <span className="shrink-0 mt-px">⚠</span>
                   No lip synced clips with useLipSync=true. Enable lip sync in
                   the Lip Sync tab, then click "Use in Player".
@@ -2211,7 +2213,7 @@ export function ExportDoctor({
                 )}
               </Button>
               {!masterAudioUrl && hasLipSync && (
-                <p className="text-[10px] text-amber-400/70 text-center">
+                <p className="text-[10px] text-amber-400 text-center">
                   Project audio required — add audio in Music Mixer.
                 </p>
               )}
@@ -2256,14 +2258,14 @@ export function ExportDoctor({
             Export Doctor Status
           </p>
           {downloadStale && (
-            <p className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
+            <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
               Scene 1's clip URL changed since these checks ran — the results
               below are stale and the export buttons are locked until you
               re-run "Test URL" and "Download Scene 1 Only".
             </p>
           )}
           {audioStale && (
-            <p className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
+            <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
               The selected audio changed since the audio export check ran —
               re-run "Export Scene 1 + Audio Only" to re-verify.
             </p>
@@ -2440,7 +2442,7 @@ export function ExportDoctor({
                     <span className="shrink-0 w-[180px] text-white/40">
                       First 100 chars
                     </span>
-                    <span className="break-all leading-tight text-amber-400/80">
+                    <span className="break-all leading-tight text-amber-400">
                       {urlResult.snippet.slice(0, 100)}
                     </span>
                   </div>
@@ -2922,7 +2924,7 @@ export function ExportDoctor({
               })()}
 
               {!hasLipSync && (
-                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/70 text-[10px] mb-3">
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] mb-3">
                   <span className="shrink-0 mt-px">⚠</span>
                   No lip synced clips with useLipSync=true. Enable lip sync in
                   the Lip Sync tab, then click "Use in Player".
@@ -2956,7 +2958,7 @@ export function ExportDoctor({
                 )}
               </Button>
               {!masterAudioUrl && hasLipSync && (
-                <p className="mt-1.5 text-[10px] text-amber-400/70 text-center">
+                <p className="mt-1.5 text-[10px] text-amber-400 text-center">
                   Project audio required — add audio in Music Mixer.
                 </p>
               )}
@@ -3009,7 +3011,7 @@ export function ExportDoctor({
               Saved timeline order missing. Using original order.
             </div>
           ) : (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5 mb-3">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
               <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">
                 Export Order
               </p>
@@ -3143,7 +3145,7 @@ export function ExportDoctor({
                   onClick={checkAllClipUrls}
                   disabled={busy !== null || multiClipsWithUrl.length === 0}
                   variant="outline"
-                  className="w-full gap-2 border-cyan-500/30 bg-cyan-500/[0.04] text-cyan-300 hover:bg-cyan-500/[0.10] text-xs"
+                  className={`w-full gap-2 border-cyan-500/30 bg-cyan-500/[0.04] ${isLight ? "text-cyan-800" : "text-cyan-300"} hover:bg-cyan-500/[0.10] text-xs`}
                   data-testid="btn-doctor-check-clip-urls"
                 >
                   {busy === "check-all-urls" ? (
@@ -3184,7 +3186,7 @@ export function ExportDoctor({
                         {urlDoctorResult!.total} passed
                       </p>
                     </div>
-                    <div className="divide-y divide-white/[0.04]">
+                    <div className="divide-y divide-white/5">
                       {urlDoctorResult!.clips.map((c) => (
                         <div
                           key={c.sceneNumber}
@@ -3202,7 +3204,7 @@ export function ExportDoctor({
                               className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                 c.sourceType === "lip-sync"
                                   ? "bg-primary/15 text-primary"
-                                  : "bg-white/[0.06] text-white/40"
+                                  : "bg-white/5 text-white/40"
                               }`}
                             >
                               {c.sourceType === "lip-sync"
@@ -3313,7 +3315,7 @@ export function ExportDoctor({
             {/* ── Export Timeline Source Status ── */}
             {downloadAllResult && (
               <div className="rounded-xl border border-slate-500/20 bg-slate-500/[0.03] px-3 py-3 space-y-1">
-                <p className="text-[10px] font-black text-slate-300/60 uppercase tracking-widest mb-2">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">
                   Export Timeline Source
                 </p>
                 {((): [string, string, boolean | null][] => {
@@ -3397,7 +3399,7 @@ export function ExportDoctor({
                   <div
                     className={`px-3 py-2 border-b ${hasMismatch ? "bg-red-500/[0.04] border-red-500/[0.12]" : masterDurInvalid ? "bg-amber-500/[0.03] border-amber-500/[0.12]" : "bg-slate-500/[0.04] border-slate-500/[0.10]"}`}
                   >
-                    <p className="text-[10px] font-black text-slate-300/60 uppercase tracking-widest">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
                       Master Player vs Export Timeline
                       {hasMismatch && (
                         <span className="ml-2 font-bold text-red-400 normal-case">
@@ -3433,7 +3435,7 @@ export function ExportDoctor({
                     <span className="text-right">Export</span>
                     <span className="text-center">≈?</span>
                   </div>
-                  <div className="divide-y divide-white/[0.03] max-h-56 overflow-y-auto">
+                  <div className="divide-y divide-white/5 max-h-56 overflow-y-auto">
                     {clipAudioMap.map((c) => {
                       const masterDur = c.masterDuration;
                       const exportDur = c.clipDuration;
@@ -3466,11 +3468,11 @@ export function ExportDoctor({
                             {fmtSec(c.masterEnd)}
                           </span>
                           <span
-                            className={`text-right font-bold ${invalid ? "text-amber-400" : masterDur > 0 ? "text-sky-300" : "text-white/20"}`}
+                            className={`text-right font-bold ${invalid ? "text-amber-400" : masterDur > 0 ? (isLight ? "text-sky-800" : "text-sky-300") : "text-white/20"}`}
                           >
                             {masterDur > 0 ? `${masterDur.toFixed(1)}s` : "—"}
                             {invalid && (
-                              <span className="ml-0.5 text-[7px] text-amber-400/60">
+                              <span className="ml-0.5 text-[7px] text-amber-400">
                                 !
                               </span>
                             )}
@@ -3495,18 +3497,18 @@ export function ExportDoctor({
                       );
                     })}
                   </div>
-                  <div className="px-3 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-3 gap-y-0.5">
+                  <div className="px-3 py-1.5 border-t border-white/5 flex flex-wrap gap-x-3 gap-y-0.5">
                     <span className="text-[8px] text-white/20">
                       Start/End = master player video timeline
                     </span>
-                    <span className="text-[8px] text-sky-300/50">
+                    <span className={`text-[8px] ${isLight ? "text-sky-800" : "text-sky-300/50"}`}>
                       Master = clip end−start ({masterDurSource})
                     </span>
                     <span className="text-[8px] text-white/20">
                       Export fills in after Download All Clips
                     </span>
                     {masterDurInvalid && (
-                      <span className="text-[8px] text-amber-400/70 font-bold">
+                      <span className="text-[8px] text-amber-400 font-bold">
                         ⚠ &gt;30s = invalid — fix scene timestamps
                       </span>
                     )}
@@ -3520,7 +3522,7 @@ export function ExportDoctor({
                     </div>
                   )}
                   {!hasMismatch && !masterDurInvalid && downloadAllResult && (
-                    <p className="px-3 py-1.5 text-[9px] text-green-400/60 border-t border-white/[0.04]">
+                    <p className="px-3 py-1.5 text-[9px] text-green-400/60 border-t border-white/5">
                       ✓ All export clips match master player timeline durations.
                     </p>
                   )}
@@ -3571,7 +3573,7 @@ export function ExportDoctor({
                 <div
                   className={`rounded-xl border px-3 py-2.5 space-y-1 ${masterDurInvalid ? "border-amber-500/25 bg-amber-500/[0.03]" : "border-slate-500/15 bg-slate-500/[0.02]"}`}
                 >
-                  <p className="text-[9px] font-black text-slate-300/40 uppercase tracking-widest mb-1.5">
+                  <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">
                     Master Duration Calculation
                   </p>
                   {rows.map(([label, value, ok]) => (
@@ -3611,11 +3613,11 @@ export function ExportDoctor({
               return (
                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] overflow-hidden">
                   <div className="px-3 py-2 border-b border-amber-500/[0.12] bg-amber-500/[0.03]">
-                    <p className="text-[10px] font-black text-amber-400/80 uppercase tracking-widest">
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
                       Short Source Clips — Freeze-Last-Frame Padding Active
                     </p>
                   </div>
-                  <div className="divide-y divide-white/[0.04]">
+                  <div className="divide-y divide-white/5">
                     {shortClips.map((c) => {
                       const masterC = clipAudioMap.find(
                         (m) => m.sceneNumber === c.sceneNumber,
@@ -3783,7 +3785,7 @@ export function ExportDoctor({
                                   disabled={busy !== null || !multiId}
                                   variant="outline"
                                   size="sm"
-                                  className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.05] text-amber-300/70 hover:bg-amber-500/[0.12] text-[9px] disabled:opacity-40"
+                                  className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.05] text-amber-300 hover:bg-amber-500/[0.12] text-[9px] disabled:opacity-40"
                                 >
                                   {isRepairing ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -3890,7 +3892,7 @@ export function ExportDoctor({
                       );
                     })}
                   </div>
-                  <div className="px-3 py-1.5 border-t border-white/[0.04]">
+                  <div className="px-3 py-1.5 border-t border-white/5">
                     <p className="text-[8px] text-white/25">
                       Freeze-last-frame pad is applied automatically during
                       normalization. Repair button clears stale cache and
@@ -3907,7 +3909,7 @@ export function ExportDoctor({
                 <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">
                   Cannot Rebuild Export Timeline
                 </p>
-                <p className="text-[10px] text-amber-300/80 leading-snug">
+                <p className="text-[10px] text-amber-300 leading-snug">
                   Master duration source is invalid — durations are &gt;30s
                   which means song timestamps are being used instead of real
                   clip durations. Add range timestamps (&quot;0:05 - 0:10&quot;
@@ -3926,7 +3928,7 @@ export function ExportDoctor({
                 masterDurInvalid
               }
               variant="outline"
-              className="w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] text-violet-300 hover:bg-violet-500/[0.10] text-xs disabled:opacity-40"
+              className={`w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] ${isLight ? "text-violet-800" : "text-violet-300"} hover:bg-violet-500/[0.10] text-xs disabled:opacity-40`}
               data-testid="btn-doctor-rebuild-timeline"
             >
               {busy === "download-all" ? (
@@ -4054,7 +4056,7 @@ export function ExportDoctor({
               <Button
                 onClick={() => setShowAudioMap((v) => !v)}
                 variant="outline"
-                className="w-full gap-2 border-indigo-500/30 bg-indigo-500/[0.04] text-indigo-300 hover:bg-indigo-500/[0.10] text-xs"
+                className={`w-full gap-2 border-indigo-500/30 bg-indigo-500/[0.04] ${isLight ? "text-indigo-800" : "text-indigo-300"} hover:bg-indigo-500/[0.10] text-xs`}
                 data-testid="btn-doctor-capture-audio-map"
               >
                 <Music2 className="h-3.5 w-3.5" />
@@ -4064,7 +4066,7 @@ export function ExportDoctor({
               {showAudioMap && (
                 <div className="rounded-xl border border-indigo-500/20 overflow-hidden">
                   <div className="px-3 py-2 bg-indigo-500/[0.05] border-b border-indigo-500/[0.12]">
-                    <p className="text-[10px] font-black text-indigo-300/70 uppercase tracking-widest">
+                    <p className={`text-[10px] font-black ${isLight ? "text-indigo-800" : "text-indigo-300/70"} uppercase tracking-widest`}>
                       Export Audio Map
                       <span className="ml-2 font-normal text-white/30 normal-case">
                         — audio starts at 0:00.0 (song beginning)
@@ -4078,7 +4080,7 @@ export function ExportDoctor({
                     <span className="text-right">Vid pos</span>
                     <span className="text-right">Audio pos</span>
                   </div>
-                  <div className="divide-y divide-white/[0.03] max-h-64 overflow-y-auto">
+                  <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
                     {clipAudioMap.map((c) => (
                       <div
                         key={c.sceneNumber}
@@ -4096,14 +4098,14 @@ export function ExportDoctor({
                         <span className="text-right text-white/40">
                           {c.clipDuration > 0 ? fmtSec(c.videoStart) : "—"}
                         </span>
-                        <span className="text-right text-indigo-300/80 font-bold">
+                        <span className={`text-right ${isLight ? "text-indigo-800" : "text-indigo-300/80"} font-bold`}>
                           {c.clipDuration > 0 ? fmtSec(c.audioStart) : "—"}
                         </span>
                       </div>
                     ))}
                   </div>
                   {clipAudioMap.some((c) => c.clipDuration === 0) && (
-                    <p className="px-3 py-2 text-[9px] text-white/30 border-t border-white/[0.04]">
+                    <p className="px-3 py-2 text-[9px] text-white/30 border-t border-white/5">
                       Durations fill in after "Download All Clips" completes.
                     </p>
                   )}
@@ -4193,7 +4195,7 @@ export function ExportDoctor({
                       timelineMismatch
                     }
                     variant="outline"
-                    className="gap-2 border-sky-500/30 bg-sky-500/[0.04] text-sky-300 hover:bg-sky-500/[0.10] text-xs disabled:opacity-40"
+                    className={`gap-2 border-sky-500/30 bg-sky-500/[0.04] ${isLight ? "text-sky-800" : "text-sky-300"} hover:bg-sky-500/[0.10] text-xs disabled:opacity-40`}
                     data-testid="btn-doctor-audio-sync-short"
                   >
                     {busy === "export-audio-sync-short" ? (
@@ -4218,7 +4220,7 @@ export function ExportDoctor({
               const totalOffset = (n: number) => Math.round(n * 100) / 100; // round to 2dp
               return (
                 <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] px-3 py-3 space-y-2.5">
-                  <p className="text-[10px] font-black text-violet-300/70 uppercase tracking-widest">
+                  <p className={`text-[10px] font-black ${isLight ? "text-violet-800" : "text-violet-300/70"} uppercase tracking-widest`}>
                     Lip Sync Export Offset Check
                   </p>
 
@@ -4231,7 +4233,7 @@ export function ExportDoctor({
                         a saved master offset. These will be applied
                         automatically in all exports.
                       </p>
-                      <div className="divide-y divide-white/[0.04] max-h-36 overflow-y-auto rounded-lg border border-white/[0.06]">
+                      <div className="divide-y divide-white/5 max-h-36 overflow-y-auto rounded-lg border border-white/[0.06]">
                         {lipSyncClips.map((c) => (
                           <div
                             key={c.sceneNumber}
@@ -4240,10 +4242,10 @@ export function ExportDoctor({
                             <span className="text-white/50 truncate">
                               {c.title}
                             </span>
-                            <span className="text-right text-violet-300/70">
+                            <span className={`text-right ${isLight ? "text-violet-800" : "text-violet-300/70"}`}>
                               master: +{(c.clipVideoOffsetSec ?? 0).toFixed(2)}s
                             </span>
-                            <span className="text-right text-amber-300/70">
+                            <span className="text-right text-amber-300">
                               fine: {exportLipSyncFineTune >= 0 ? "+" : ""}
                               {exportLipSyncFineTune.toFixed(2)}s
                             </span>
@@ -4275,7 +4277,7 @@ export function ExportDoctor({
                             )
                           }
                           disabled={busy !== null}
-                          className="px-2 py-1 text-[10px] font-mono font-bold text-amber-300 hover:bg-white/[0.06] rounded disabled:opacity-30 transition-colors"
+                          className="px-2 py-1 text-[10px] font-mono font-bold text-amber-300 hover:bg-white/5 rounded disabled:opacity-30 transition-colors"
                         >
                           −0.10s
                         </button>
@@ -4290,7 +4292,7 @@ export function ExportDoctor({
                             )
                           }
                           disabled={busy !== null}
-                          className="px-2 py-1 text-[10px] font-mono font-bold text-violet-300 hover:bg-white/[0.06] rounded disabled:opacity-30 transition-colors"
+                          className={`px-2 py-1 text-[10px] font-mono font-bold ${isLight ? "text-violet-800" : "text-violet-300"} hover:bg-white/5 rounded disabled:opacity-30 transition-colors`}
                         >
                           +0.10s
                         </button>
@@ -4320,7 +4322,7 @@ export function ExportDoctor({
                       !hasSavedOffsets
                     }
                     variant="outline"
-                    className="w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] text-violet-300 hover:bg-violet-500/[0.10] text-xs disabled:opacity-40"
+                    className={`w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] ${isLight ? "text-violet-800" : "text-violet-300"} hover:bg-violet-500/[0.10] text-xs disabled:opacity-40`}
                   >
                     {busy === "export-audio-sync-short-lipsync" ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -4332,7 +4334,7 @@ export function ExportDoctor({
 
                   {/* Running indicator */}
                   {busy === "export-audio-sync-short-lipsync" && (
-                    <div className="flex items-center gap-2 text-[10px] text-violet-300/60">
+                    <div className={`flex items-center gap-2 text-[10px] ${isLight ? "text-violet-800" : "text-violet-300/60"}`}>
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Normalizing lip sync clips with offset — this may take
                       30–90s…
@@ -4351,7 +4353,7 @@ export function ExportDoctor({
                           {audioSyncShortLipSyncResult.url && (
                               <div className="space-y-2 rounded-xl border border-violet-400/25 bg-black/40 p-3">
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-200">
+                                  <div className={`text-[10px] font-bold uppercase tracking-[0.16em] ${isLight ? "text-violet-800" : "text-violet-200"}`}>
                                     Lip Sync Offset Test Preview
                                   </div>
                                   <div className="text-[9px] text-white/40">
@@ -4384,7 +4386,7 @@ export function ExportDoctor({
                                   No lip sync clips in the first 20s.
                                 </p>
                               ) : (
-                                <div className="divide-y divide-white/[0.04] rounded-lg border border-white/[0.06]">
+                                <div className="divide-y divide-white/5 rounded-lg border border-white/[0.06]">
                                   {audioSyncShortLipSyncResult.lipSyncOffsetInfo.scenesWithOffset.map(
                                     (s) => (
                                       <div
@@ -4394,10 +4396,10 @@ export function ExportDoctor({
                                         <span className="text-white/50 truncate">
                                           {s.sceneTitle}
                                         </span>
-                                        <span className="text-right text-violet-300/70">
+                                        <span className={`text-right ${isLight ? "text-violet-800" : "text-violet-300/70"}`}>
                                           +{s.masterOffsetSec.toFixed(2)}s
                                         </span>
-                                        <span className="text-right text-amber-300/70">
+                                        <span className="text-right text-amber-300">
                                           {s.fineTuneOffsetSec >= 0 ? "+" : ""}
                                           {s.fineTuneOffsetSec.toFixed(2)}s
                                         </span>
@@ -4435,7 +4437,7 @@ export function ExportDoctor({
             {busy === "export-audio-sync-short" && (
               <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.03] px-3 py-3 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-sky-300/60 uppercase tracking-widest flex items-center gap-1.5">
+                  <p className={`text-[10px] font-black ${isLight ? "text-sky-800" : "text-sky-300/60"} uppercase tracking-widest flex items-center gap-1.5`}>
                     <Loader2 className="h-3 w-3 animate-spin text-sky-400" />
                     Running
                   </p>
@@ -4444,9 +4446,9 @@ export function ExportDoctor({
                     {shortTestElapsed >= 90 && " · slow network?"}
                   </span>
                 </div>
-                <p className="text-[10px] font-mono text-sky-200/70">
+                <p className={`text-[10px] font-mono ${isLight ? "text-sky-800" : "text-sky-200/70"}`}>
                   step:{" "}
-                  <span className="text-sky-300">
+                  <span className={isLight ? "text-sky-800" : "text-sky-300"}>
                     {shortTestStep ?? "preparing…"}
                   </span>
                 </p>
@@ -4486,7 +4488,7 @@ export function ExportDoctor({
             {/* ── First 20s Export Debug panel ── */}
             {shortTestDebug.buttonClicked && (
               <div className="rounded-xl border border-slate-500/15 bg-slate-500/[0.02] px-3 py-2.5 space-y-0.5">
-                <p className="text-[9px] font-black text-slate-300/40 uppercase tracking-widest mb-1.5">
+                <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">
                   First 20s Export Debug
                 </p>
                 {(
@@ -4836,7 +4838,7 @@ export function ExportDoctor({
                         : "border-amber-500/25 bg-amber-500/[0.03]"
                     }`}
                   >
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-2 text-sky-300/60">
+                    <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isLight ? "text-sky-800" : "text-sky-300/60"}`}>
                       First 20s Sync Check
                     </p>
                     {checks.map(([label, value, ok]) => (
@@ -4861,7 +4863,7 @@ export function ExportDoctor({
                       </div>
                     ))}
                     {!durationsMatch && (
-                      <p className="text-[9px] text-amber-400/70 leading-snug pt-1 border-t border-white/[0.05]">
+                      <p className="text-[9px] text-amber-400 leading-snug pt-1 border-t border-white/[0.05]">
                         To fix: click &ldquo;Rebuild Export Timeline From Master
                         Player&rdquo; and re-run this test.
                       </p>
@@ -4904,7 +4906,7 @@ export function ExportDoctor({
                 onClick={runEffectMatchTest}
                 disabled={busy !== null || !allClipsValid || !fcEffectsFound}
                 variant="outline"
-                className="gap-2 border-cyan-500/30 bg-cyan-500/5 text-cyan-300 hover:bg-cyan-500/10 text-xs disabled:opacity-40"
+                className={`gap-2 border-cyan-500/30 bg-cyan-500/5 ${isLight ? "text-cyan-800" : "text-cyan-300"} hover:bg-cyan-500/10 text-xs disabled:opacity-40`}
                 data-testid="btn-doctor-effect-match-test"
               >
                 {busy === "effect-match-test" ? (
@@ -4918,7 +4920,7 @@ export function ExportDoctor({
                 onClick={connectTransitions}
                 disabled={busy !== null || !allClipsValid}
                 variant="outline"
-                className="gap-2 border-violet-500/30 bg-violet-500/5 text-violet-300 hover:bg-violet-500/10 text-xs disabled:opacity-40"
+                className={`gap-2 border-violet-500/30 bg-violet-500/5 ${isLight ? "text-violet-800" : "text-violet-300"} hover:bg-violet-500/10 text-xs disabled:opacity-40`}
                 data-testid="btn-doctor-connect-transitions"
               >
                 {busy === "export-transitions" ? (
@@ -4988,7 +4990,7 @@ export function ExportDoctor({
                     {downloadAllResult.clips.map((c) => (
                       <tr
                         key={c.sceneNumber}
-                        className="border-b border-white/[0.04] last:border-0"
+                        className="border-b border-white/5 last:border-0"
                       >
                         <td className="px-2 py-1.5 text-white/55 whitespace-nowrap">
                           {c.sceneNumber}
@@ -5092,7 +5094,7 @@ export function ExportDoctor({
 
           {/* ── Caption Export Doctor status block ── */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
-            <p className="text-[10px] font-black text-amber-400/70 uppercase tracking-widest mb-1">
+            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">
               Caption Export Doctor
             </p>
             {captionStatusRows.map(([label, val, ok]) => (
@@ -5246,7 +5248,7 @@ export function ExportDoctor({
                     className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold leading-tight transition-colors disabled:opacity-40 ${
                       conflictMode === mode
                         ? "border-orange-400/60 bg-orange-400/15 text-orange-200"
-                        : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:bg-white/[0.05]"
+                        : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:bg-white/5"
                     }`}
                   >
                     {label}
@@ -5291,7 +5293,7 @@ export function ExportDoctor({
                     stack.map((e, i) => (
                       <div
                         key={`${e.name}-${i}`}
-                        className="rounded-md border border-white/[0.05] bg-white/[0.015] px-1.5 py-1 text-[9px] font-mono leading-tight"
+                        className="rounded-md border border-white/[0.05] bg-white/[0.02] px-1.5 py-1 text-[9px] font-mono leading-tight"
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-white/70 font-bold truncate">
@@ -5325,7 +5327,7 @@ export function ExportDoctor({
 
           {/* ── 3-Second Effect Match Test status ── */}
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
-            <p className="text-[10px] font-black text-cyan-300/70 uppercase tracking-widest mb-1">
+            <p className={`text-[10px] font-black ${isLight ? "text-cyan-800" : "text-cyan-300/70"} uppercase tracking-widest mb-1`}>
               Effect Match Test
             </p>
             {matchStatusRows.map(([label, val, ok]) => (
@@ -5385,7 +5387,7 @@ export function ExportDoctor({
 
           {/* ── Transitions Export Doctor status block ── */}
           <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
-            <p className="text-[10px] font-black text-violet-300/70 uppercase tracking-widest mb-1">
+            <p className={`text-[10px] font-black ${isLight ? "text-violet-800" : "text-violet-300/70"} uppercase tracking-widest mb-1`}>
               Transitions In Export
             </p>
             <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
@@ -5443,7 +5445,7 @@ export function ExportDoctor({
                           </span>
                         </div>
                         {p.reason && (
-                          <div className="text-amber-400/70 break-words">
+                          <div className="text-amber-400 break-words">
                             {p.reason}
                           </div>
                         )}
@@ -5480,7 +5482,7 @@ export function ExportDoctor({
           {/* ── Transitions test export result video ── */}
           {tx?.success && tx.url && (
             <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] px-3 py-3 space-y-2 mt-3">
-              <div className="flex items-center gap-2 text-[11px] text-violet-200 font-bold">
+              <div className={`flex items-center gap-2 text-[11px] ${isLight ? "text-violet-800" : "text-violet-200"} font-bold`}>
                 <CheckCircle2 className="h-4 w-4" /> Transitions burned ·{" "}
                 {tx.clipCount ?? "?"} clips · {tx.duration?.toFixed(1)}s ·{" "}
                 {txSupported.length} supported · {txUnsupported.length} fallback

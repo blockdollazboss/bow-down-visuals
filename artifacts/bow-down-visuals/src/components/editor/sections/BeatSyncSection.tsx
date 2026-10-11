@@ -320,7 +320,7 @@ export function BeatSyncSection({
             </div>
 
             {/* ── Marker list (editable) ── */}
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/[0.05]">
+            <div className="max-h-56 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/5">
               {markers.map((m) => (
                 <div
                   key={m.id}

@@ -383,7 +383,7 @@ export function VoiceDirectedEditsSection({
       subtitle={t("wave9.directEdit.subtitle")}
       icon={<Wand2 className="h-3.5 w-3.5" />}
       right={
-        <span className="text-[10px] font-bold text-primary/80 border border-primary/30 bg-primary/10 rounded-full px-2 py-0.5">
+        <span className="text-[10px] font-bold text-primary/70 border border-primary/30 bg-primary/10 rounded-full px-2 py-0.5">
           150 VB
         </span>
       }
@@ -467,7 +467,7 @@ export function VoiceDirectedEditsSection({
                     }`}>
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-primary/80 mt-0.5 shrink-0">{OP_ICONS[op.op]}</span>
+                    <span className="text-primary/70 mt-0.5 shrink-0">{OP_ICONS[op.op]}</span>
                     <span className="min-w-0">
                       <span className="block text-[13px] font-bold text-white">{opLabel(op, clipLabel, t)}</span>
                       <span className="block text-[11px] text-white/45 leading-relaxed">{op.reason}</span>

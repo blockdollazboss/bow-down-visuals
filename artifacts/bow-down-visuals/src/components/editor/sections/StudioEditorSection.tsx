@@ -682,7 +682,7 @@ export function StudioEditorSection({
       )}
 
       {/* ── Readiness status ── */}
-      <div className={`rounded-xl border px-3 py-2.5 ${isStable ? "border-green-500/20 bg-green-500/[0.03]" : "border-white/[0.06] bg-white/[0.015]"}`}>
+      <div className={`rounded-xl border px-3 py-2.5 ${isStable ? "border-green-500/20 bg-green-500/[0.03]" : "border-white/[0.06] bg-white/[0.02]"}`}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-[9px] font-black text-white/35 uppercase tracking-widest">Master Player Stable</p>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${isStable ? "bg-green-500/15 text-green-400 border-green-500/20" : "bg-amber-500/15 text-amber-400 border-amber-500/20"}`}>
@@ -694,13 +694,13 @@ export function StudioEditorSection({
             <div key={c.label} className="flex items-start gap-2 text-[9px]">
               <span className={`shrink-0 mt-0.5 ${c.ok ? "text-green-400" : "text-white/25"}`}>{c.ok ? "✓" : "○"}</span>
               <span className={`flex-1 ${c.ok ? "text-white/50" : "text-white/30"}`}>{c.label}</span>
-              <span className={`font-mono text-right max-w-[200px] ${c.ok ? "text-white/20" : "text-amber-400/70"}`}>{c.detail}</span>
+              <span className={`font-mono text-right max-w-[200px] ${c.ok ? "text-white/20" : "text-amber-400"}`}>{c.detail}</span>
             </div>
           ))}
         </div>
         {isStable && !lockedTimeline && (
           <p className="text-[9px] text-primary/50 mt-2">
-            Everything ready — click <strong className="text-primary/80">Lock Timeline</strong> above to generate the export blueprint.
+            Everything ready — click <strong className="text-primary/70">Lock Timeline</strong> above to generate the export blueprint.
           </p>
         )}
       </div>
@@ -765,13 +765,13 @@ export function StudioEditorSection({
                 <p className="text-[8px] text-white/25 uppercase tracking-wider mb-1">Clip List</p>
                 {lockedTimeline.clips.map((c) => (
                   <div key={c.sceneIdx}
-                    className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4rem] gap-1 px-1.5 py-1 rounded text-[8px] font-mono border border-white/[0.04] bg-white/[0.01]">
+                    className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4rem] gap-1 px-1.5 py-1 rounded text-[8px] font-mono border border-white/5 bg-white/[0.02]">
                     <span className="text-white/25">{c.sceneIdx + 1}</span>
                     <span className="text-white/50 truncate">{c.title}</span>
                     <span className="text-white/35 text-right">{fmt(c.startSec)}</span>
                     <span className="text-white/35 text-right">{c.dur.toFixed(1)}s</span>
                     <span className="text-right">
-                      {c.url ? <span className="text-green-400/60">✓ url</span> : <span className="text-amber-400/60">no url</span>}
+                      {c.url ? <span className="text-green-400/60">✓ url</span> : <span className="text-amber-400">no url</span>}
                     </span>
                   </div>
                 ))}
@@ -788,14 +788,14 @@ export function StudioEditorSection({
       )}
 
       {/* ── Debug panel ── */}
-      <div className="rounded-xl border border-white/[0.05] bg-white/[0.01] overflow-hidden">
+      <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] overflow-hidden">
         <button type="button" onClick={() => setDebugOpen(o => !o)}
           className="w-full flex items-center justify-between px-3 py-2 text-[8px] font-black text-white/25 uppercase tracking-widest hover:text-white/40 transition-colors">
           <span>Studio Editor Readiness — Debug</span>
           {debugOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
         {debugOpen && (
-          <div className="border-t border-white/[0.04] px-3 py-2.5 grid grid-cols-2 gap-x-6 gap-y-1">
+          <div className="border-t border-white/5 px-3 py-2.5 grid grid-cols-2 gap-x-6 gap-y-1">
             {([
               ["audio loaded",         !!audioUrl ? "yes" : "no",                      !!audioUrl],
               ["clip count",           String(scenes.length),                           true],

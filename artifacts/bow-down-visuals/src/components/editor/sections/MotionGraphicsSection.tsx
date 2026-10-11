@@ -390,7 +390,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
                     className={`rounded-xl border p-3 text-left transition-all ${
                       active
                         ? "border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(212,175,55,0.25)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]"
+                        : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/5"
                     }`}
                   >
                     <Icon className={`h-4 w-4 mb-1.5 ${active ? "text-primary" : "text-white/50"}`} />

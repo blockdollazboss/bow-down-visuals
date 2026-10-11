@@ -612,7 +612,7 @@ export function ScreenRecorderPanel({
                     className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-[11px] font-bold transition-colors ${
                       sourceHint === o.id
                         ? "border-primary/50 bg-primary/10 text-primary"
-                        : "border-white/10 bg-white/[0.02] text-white/50 hover:text-white hover:bg-white/[0.05]"
+                        : "border-white/10 bg-white/[0.02] text-white/50 hover:text-white hover:bg-white/5"
                     }`}
                   >
                     {o.icon}
@@ -650,7 +650,7 @@ export function ScreenRecorderPanel({
               </button>
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.015] p-3 space-y-2">
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                 <p className="text-[11px] font-black text-white/50 uppercase tracking-widest">{tr("brandTitle")}</p>
@@ -917,7 +917,7 @@ export function ScreenRecorderPanel({
               <button
                 type="button"
                 onClick={() => onGoToTab("captions")}
-                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/[0.05] hover:border-white/20 transition-colors"
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/5 hover:border-white/20 transition-colors"
               >
                 <Captions className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-xs font-bold text-white">{tr("goCaptions")}</span>
@@ -925,14 +925,14 @@ export function ScreenRecorderPanel({
               <button
                 type="button"
                 onClick={() => onGoToTab("export")}
-                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/[0.05] hover:border-white/20 transition-colors"
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/5 hover:border-white/20 transition-colors"
               >
                 <Scissors className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-xs font-bold text-white">{tr("goSmartClips")}</span>
               </button>
               <Link
                 href="/scheduler"
-                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/[0.05] hover:border-white/20 transition-colors"
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left hover:bg-white/5 hover:border-white/20 transition-colors"
               >
                 <CalendarClock className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-xs font-bold text-white">{tr("goScheduler")}</span>

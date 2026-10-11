@@ -325,7 +325,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             className="w-full flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.04] transition-colors px-3 py-2.5 text-left"
             data-testid="toggle-auto-apply-transitions"
           >
-            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${aiEdit.autoApplyTransitions ? "bg-primary" : "bg-white/15"}`}>
+            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${aiEdit.autoApplyTransitions ? "bg-primary" : "bg-white/10"}`}>
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${aiEdit.autoApplyTransitions ? "left-[18px]" : "left-0.5"}`} />
             </span>
             <span className="flex-1 min-w-0">
@@ -435,7 +435,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             <div className="pt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 {plan.effectsPlan?.map((fx) => (
-                  <span key={fx} className="text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary/80 px-2 py-0.5 rounded-full">{fx}</span>
+                  <span key={fx} className="text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary/70 px-2 py-0.5 rounded-full">{fx}</span>
                 ))}
               </div>
               {plan.colorGrade && plan.colorGrade !== "None" && (
@@ -446,7 +446,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
 
           <PlanCard icon={<Type className="h-3.5 w-3.5" />} title="Caption Style">
             <div className="pt-2">
-              <span className="text-[11px] font-bold text-primary/80">{plan.captionStylePreset}</span>
+              <span className="text-[11px] font-bold text-primary/70">{plan.captionStylePreset}</span>
               <p className="text-[10px] text-white/35 mt-1">Applied to all caption lines in the final export</p>
             </div>
           </PlanCard>
@@ -505,7 +505,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">AI Edit Status</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {statusRows.map(([label, ok, val]) => (
             <DebugRow key={label} label={label} ok={ok} value={val} />
           ))}
@@ -517,7 +517,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">AI Edit Debug</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {debugRows.map(([label, val]) => (
             <DebugRow key={label} label={label} value={val} />
           ))}
@@ -529,7 +529,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Transition Render Debug</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {transitionDebugRows.map(([label, ok, val]) => (
             <DebugRow key={label} label={label} ok={ok} value={val} />
           ))}

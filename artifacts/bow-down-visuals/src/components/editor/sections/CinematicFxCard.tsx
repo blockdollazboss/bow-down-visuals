@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { EditorCard, Chip } from "@/components/editor/controls";
 
@@ -72,6 +73,7 @@ export function CinematicFxCard({
 }) {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>(["True Letterbox Cinematic Bars"]);
   const [intensity, setIntensity] = useState(60);
@@ -188,7 +190,7 @@ export function CinematicFxCard({
           onChange={(e) => setSceneId(e.target.value)}
           data-testid="cinematic-fx-scene-picker"
           className="flex-1 min-w-0 bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors"
-          style={{ colorScheme: "dark" }}
+          style={{ colorScheme: isLight ? "light" : "dark" }}
         >
           {clips.map((s, i) => (
             <option key={s.id} value={s.id}>
@@ -219,7 +221,7 @@ export function CinematicFxCard({
             <p key={name} className="text-[10px] leading-snug text-white/35">
               <span className="font-bold text-white/55">{fx.name.replace("True ", "")}:</span>{" "}
               {fx.desc}{" "}
-              <span className={fx.noteExact ? "text-green-400/80 font-semibold" : "text-amber-400/80 font-semibold"}>
+              <span className={fx.noteExact ? "text-green-400/80 font-semibold" : "text-amber-400 font-semibold"}>
                 {fx.noteExact ? "✓ " : "⚠ "}{fx.note}.
               </span>
             </p>
@@ -250,7 +252,7 @@ export function CinematicFxCard({
         className={`w-full mb-3 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-colors ${
           attribution
             ? "border-[#C9A84C]/40 bg-[#C9A84C]/[0.08]"
-            : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]"
+            : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
         }`}
       >
         <span className="text-left">
@@ -262,7 +264,7 @@ export function CinematicFxCard({
           </span>
         </span>
         <span className={`shrink-0 px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-          attribution ? "bg-[#C9A84C]/25 text-[#C9A84C]" : "bg-white/[0.06] text-white/30"
+          attribution ? "bg-[#C9A84C]/25 text-[#C9A84C]" : "bg-white/5 text-white/30"
         }`}>
           {attribution ? "On" : "Off"}
         </span>

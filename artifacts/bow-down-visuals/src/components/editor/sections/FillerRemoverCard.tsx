@@ -500,7 +500,7 @@ export function FillerRemoverCard({
                 <p className="text-xs text-white/40 mt-1">{t("fillerRemover.noCutsDesc")}</p>
               </div>
             ) : (
-              <div className="max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/[0.05]">
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/5">
                 {cuts.map((c) => {
                   const on = cutOn[c.id] !== false;
                   return (

@@ -146,7 +146,7 @@ const PREVIEW_STYLE_CLASS: Record<string, string> = {
   "minimal": "font-medium text-white/90 text-lg md:text-xl [text-shadow:1px_1px_2px_rgba(0,0,0,0.8)]",
   "karaoke": "font-black text-[#FFD700] text-2xl md:text-3xl [text-shadow:2px_2px_0_#000]",
   "neon": "font-black text-cyan-300 text-2xl md:text-3xl [text-shadow:0_0_12px_rgba(0,255,255,0.9),2px_2px_0_#000]",
-  "luxury-gold": "font-black text-[#E8C468] text-2xl md:text-3xl [text-shadow:2px_2px_0_#000]",
+  "luxury-gold": "font-black text-[#e8c86a] text-2xl md:text-3xl [text-shadow:2px_2px_0_#000]",
   "word-by-word": "font-black text-white text-xl md:text-2xl bg-black/80 px-3 py-1 rounded-lg",
   "bold-outline": "font-black text-white text-2xl md:text-3xl [text-shadow:3px_3px_0_#000,-3px_3px_0_#000,3px_-3px_0_#000,-3px_-3px_0_#000]",
 };
@@ -598,7 +598,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
       subtitle={t("captionSuite.subtitle")}
       icon={<Captions className="h-4 w-4" />}
       right={
-        <span className="text-[10px] font-black uppercase tracking-widest text-[#E8C468] border border-[#E8C468]/30 bg-[#E8C468]/10 rounded-full px-2.5 py-1">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[#e8c86a] border border-[#E8C468]/30 bg-[#E8C468]/10 rounded-full px-2.5 py-1">
           {t("captionSuite.allInOne")}
         </span>
       }
@@ -615,10 +615,10 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
               data-testid={`caption-suite-step-${s.n}`}
               className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
                 step === s.n
-                  ? "border-[#E8C468] bg-[#E8C468]/15 text-[#E8C468]"
+                  ? "border-[#E8C468] bg-[#E8C468]/15 text-[#e8c86a]"
                   : s.unlocked
                     ? "border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25"
-                    : "border-white/[0.06] bg-white/[0.01] text-white/25 cursor-not-allowed"
+                    : "border-white/[0.06] bg-white/[0.02] text-white/25 cursor-not-allowed"
               }`}
             >
               <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
@@ -671,7 +671,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         : "border-white/10 bg-white/[0.02] hover:border-white/25"
                     }`}
                   >
-                    <Film className={`h-5 w-5 shrink-0 ${timelineId === v.id ? "text-[#E8C468]" : "text-white/40"}`} />
+                    <Film className={`h-5 w-5 shrink-0 ${timelineId === v.id ? "text-[#e8c86a]" : "text-white/40"}`} />
                     <span className="text-xs font-bold text-white/80 truncate">{v.label}</span>
                   </button>
                 ))}
@@ -701,7 +701,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                 }}
                 className="w-full rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center hover:border-[#E8C468]/50 transition-colors"
               >
-                <Upload className="h-6 w-6 text-[#E8C468] mx-auto mb-2" />
+                <Upload className="h-6 w-6 text-[#e8c86a] mx-auto mb-2" />
                 <p className="text-sm font-bold text-white/80">
                   {file ? file.name : t("captionSuite.dropHint")}
                 </p>
@@ -806,7 +806,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                       </span>
                     )}
                     {l.words.length > 0 && (
-                      <span className="hidden sm:inline text-[10px] text-[#E8C468]/70 font-bold shrink-0" title={t("captionSuite.wordTimedTitle")}>
+                      <span className="hidden sm:inline text-[10px] text-[#e8c86a] font-bold shrink-0" title={t("captionSuite.wordTimedTitle")}>
                         {l.words.length}w
                       </span>
                     )}
@@ -853,11 +853,11 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                     }`}
                   >
                     <p className="text-sm font-black text-white flex items-center gap-2">
-                      <Sparkles className={`h-4 w-4 ${burnMode === "wordsync" ? "text-[#E8C468]" : "text-white/40"}`} />
+                      <Sparkles className={`h-4 w-4 ${burnMode === "wordsync" ? "text-[#e8c86a]" : "text-white/40"}`} />
                       {t("captionSuite.modeWordsync")}
                     </p>
                     <p className="text-[11px] text-white/45 mt-1">{t("captionSuite.modeWordsyncDesc")}</p>
-                    <p className="text-[11px] font-bold text-[#E8C468] mt-1.5">300 {t("captionSuite.credits")}</p>
+                    <p className="text-[11px] font-bold text-[#e8c86a] mt-1.5">300 {t("captionSuite.credits")}</p>
                   </button>
                   <button
                     type="button"
@@ -868,11 +868,11 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                     }`}
                   >
                     <p className="text-sm font-black text-white flex items-center gap-2">
-                      <Type className={`h-4 w-4 ${burnMode === "transcript" ? "text-[#E8C468]" : "text-white/40"}`} />
+                      <Type className={`h-4 w-4 ${burnMode === "transcript" ? "text-[#e8c86a]" : "text-white/40"}`} />
                       {t("captionSuite.modeTranscript")}
                     </p>
                     <p className="text-[11px] text-white/45 mt-1">{t("captionSuite.modeTranscriptDesc")}</p>
-                    <p className="text-[11px] font-bold text-[#E8C468] mt-1.5">200 {t("captionSuite.credits")}</p>
+                    <p className="text-[11px] font-bold text-[#e8c86a] mt-1.5">200 {t("captionSuite.credits")}</p>
                   </button>
                 </div>
               </Field>
@@ -890,7 +890,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         styleKey === s.key ? "border-[#E8C468] bg-[#E8C468]/10" : "border-white/10 bg-white/[0.02] hover:border-white/25"
                       }`}
                     >
-                      <p className={`text-xs font-black ${styleKey === s.key ? "text-[#E8C468]" : "text-white/80"}`}>{s.label}</p>
+                      <p className={`text-xs font-black ${styleKey === s.key ? "text-[#e8c86a]" : "text-white/80"}`}>{s.label}</p>
                       <p className="text-[10px] text-white/40 mt-1 leading-snug">{s.blurb}</p>
                     </button>
                   ))}
@@ -938,7 +938,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   <p className="text-sm font-bold text-white">{t("captionSuite.endCardLabel")}</p>
                   <p className="text-[11px] text-white/45 mt-0.5">{t("captionSuite.endCardDesc")}</p>
                   {burnMode === "wordsync" && endCard && (
-                    <p className="text-[11px] text-[#E8C468]/80 mt-1">{t("captionSuite.endCardWordsyncNote")}</p>
+                    <p className="text-[11px] text-[#e8c86a] mt-1">{t("captionSuite.endCardWordsyncNote")}</p>
                   )}
                 </div>
               </div>
@@ -989,7 +989,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   )}
                 </Button>
                 {burnMode === "wordsync" && burnJobStatus && burnStatus === "working" && (
-                  <span className="text-xs font-bold text-[#E8C468] uppercase tracking-wider flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#e8c86a] uppercase tracking-wider flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     {t(`captionSuite.job_${burnJobStatus}`, { defaultValue: burnJobStatus })}
                   </span>
@@ -1141,7 +1141,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         onClick={() => setActiveLang(code)}
                         className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
                           activeLang === code
-                            ? "border-[#E8C468] bg-[#E8C468]/15 text-[#E8C468]"
+                            ? "border-[#E8C468] bg-[#E8C468]/15 text-[#e8c86a]"
                             : "border-white/10 text-white/50 hover:text-white"
                         }`}
                       >

@@ -29,6 +29,7 @@ import {
   Download,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ── Per-tool thematic identity. All inside the gold-black luxury family,
    each tool gets a signature accent so its panel feels designed for it. ── */
@@ -111,6 +112,19 @@ export function toolTheme(tool: VisualVibesTool): ToolTheme {
   return TOOL_THEMES[tool];
 }
 
+/** Darken a #rrggbb accent so it stays readable on the ivory light theme.
+ *  Only applied to text — glows, borders and tinted backgrounds keep the
+ *  original accent so the panel's thematic identity survives. */
+function darkenHex(hex: string, factor = 0.62): string {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = Math.round(((n >> 16) & 255) * factor);
+  const g = Math.round(((n >> 8) & 255) * factor);
+  const b = Math.round((n & 255) * factor);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 interface ToolPanelShellProps {
   tool: VisualVibesTool;
   /** Small uppercase kicker shown in the badge pill. */
@@ -133,8 +147,12 @@ interface ToolPanelShellProps {
  */
 export function ToolPanelShell({ tool, kicker, title, subtitle, price, children }: ToolPanelShellProps) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const theme = TOOL_THEMES[tool];
   const Watermark = theme.icon;
+  /* Light accents (lip-sync pink, export gold, pro-tools slate…) wash out
+     on ivory — darken them for text, keep the soft thematic tints as-is. */
+  const accentText = isLight ? darkenHex(theme.accent) : theme.accent;
 
   return (
     <div className="relative min-h-full text-white overflow-hidden">
@@ -174,7 +192,7 @@ export function ToolPanelShell({ tool, kicker, title, subtitle, price, children 
       <div className="relative px-4 pt-5 pb-1 sm:px-5">
         <div
           className="mb-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]"
-          style={{ borderColor: `${theme.accent}55`, background: theme.accentSoft, color: theme.accent }}
+          style={{ borderColor: `${theme.accent}55`, background: theme.accentSoft, color: accentText }}
         >
           <Watermark className="h-3 w-3" />
           {kicker}
@@ -188,7 +206,7 @@ export function ToolPanelShell({ tool, kicker, title, subtitle, price, children 
         {price ? (
           <div
             className="mt-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black"
-            style={{ borderColor: `${theme.accent}44`, background: "rgba(0,0,0,0.45)", color: theme.accent }}
+            style={{ borderColor: `${theme.accent}44`, background: isLight ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.45)", color: accentText }}
           >
             {price}
           </div>

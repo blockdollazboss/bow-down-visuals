@@ -356,7 +356,7 @@ export function MaskCard({
             </div>
 
             {/* ── Fine controls ── */}
-            <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.015] p-3">
+            <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0">{t("videoEditor.mask.feather")}</span>
                 <input

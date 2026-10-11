@@ -358,7 +358,7 @@ export function TimelineTemplatesSection({
                 ? t(`${ns}.previewHeadingOne`, { name: recipeName })
                 : t(`${ns}.previewHeading`, { name: recipeName, n: ops.length })}
             </p>
-            <div className="max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/[0.05]">
+            <div className="max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] divide-y divide-white/5">
               {ops.map((op, i) => (
                 <div key={i} className="flex items-start gap-3 px-3.5 py-2.5">
                   <span className="text-[10px] font-mono text-[#C9A84C]/70 w-6 shrink-0 pt-0.5">

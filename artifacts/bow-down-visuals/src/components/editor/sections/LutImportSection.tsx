@@ -518,14 +518,14 @@ export function LutImportSection({
               </span>
               <button
                 onClick={() => void handleNativeShare()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/15 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/10 transition-colors"
               >
                 {shared ? <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> : <Share2 className="h-3.5 w-3.5" />}
                 {shared ? "Link copied" : "Share"}
               </button>
               <button
                 onClick={async () => { await navigator.clipboard.writeText(result.url); setShared(true); setTimeout(() => setShared(false), 2000); }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/15 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/10 transition-colors"
               >
                 <Copy className="h-3.5 w-3.5" /> Copy link
               </button>
@@ -535,7 +535,7 @@ export function LutImportSection({
                   href={socialShareHref(n)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/15 transition-colors capitalize"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white hover:bg-white/10 transition-colors capitalize"
                 >
                   {n === "x" ? "X" : n}
                 </a>

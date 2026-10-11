@@ -21,6 +21,7 @@ import {
   type AudioVideoSyncMode,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   hasRenderedVideoAudioExport,
@@ -150,12 +151,12 @@ function RangeSlider({
       />
       {/* start thumb */}
       <div
-        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/60 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
         style={{ left: `${startPct}%` }}
       />
       {/* end thumb */}
       <div
-        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/60 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
         style={{ left: `${endPct}%` }}
       />
     </div>
@@ -226,6 +227,7 @@ export function ExportSection({
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
   const { getAccessToken, profile } = useAuth();
+  const isLight = useIsLightTheme();
 
   /* ── Watermark gate: only monthly subscribers can remove it.
      Free users always export with the watermark.
@@ -413,7 +415,7 @@ export function ExportSection({
                       ? "border-primary/50 bg-primary/10"
                       : avail
                       ? "border-white/10 bg-white/[0.03] hover:border-white/20"
-                      : "border-white/[0.12] bg-white/[0.02] opacity-60 hover:border-white/12"
+                      : "border-white/10 bg-white/[0.02] opacity-60 hover:border-white/10"
                   }`}
                 >
                   <span className={`shrink-0 ${active ? "text-primary" : avail ? "text-white/50" : "text-white/45"}`}>
@@ -527,7 +529,7 @@ export function ExportSection({
           </p>
 
           {/* Song start point — nudges where in the track playback begins */}
-          <div className="mt-4 pt-3 border-t border-white/[0.12] space-y-2">
+          <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
             <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">
               Song start point
             </label>
@@ -545,7 +547,7 @@ export function ExportSection({
                   setStartSecInput(fmtTimecode(v));
                 }}
                 placeholder="00:00.000"
-                className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
               />
               <button
                 type="button"
@@ -567,14 +569,14 @@ export function ExportSection({
                     setVideoAudio({ startSec: 0 });
                     setStartSecInput(fmtTimecode(0));
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-white/50 text-[10px] font-bold transition-colors shrink-0"
+                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/50 text-[10px] font-bold transition-colors shrink-0"
                 >
                   Reset
                 </button>
               )}
             </div>
             {va.startSec > 0 && (
-              <p className="text-[11px] text-cyan-300/80 leading-relaxed">
+              <p className={`text-[11px] leading-relaxed ${isLight ? "text-cyan-800" : "text-cyan-300/80"}`}>
                 Playback (preview + export) will begin {fmtTimecode(va.startSec)} into the track.
               </p>
             )}
@@ -701,7 +703,7 @@ export function ExportSection({
                   type="button"
                   onClick={() => wmInputRef.current?.click()}
                   disabled={wmUploading}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06] text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/5 text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
                 >
                   {wmUploading
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -745,13 +747,13 @@ export function ExportSection({
           ] as [string, boolean, string][]).map(([label, ok, value]) => (
             <div key={label} className="flex items-center justify-between gap-2 text-[11px]">
               <span className="text-white/50 font-mono">{label}:</span>
-              <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400/70" : "text-white/45"}`}>
+              <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400" : "text-white/45"}`}>
                 {value}
               </span>
             </div>
           ))}
           {!resolvedAudioUrl && (
-            <p className="text-[11px] text-amber-400/70 pt-1 border-t border-white/[0.12] leading-relaxed">
+            <p className="text-[11px] text-amber-400 pt-1 border-t border-white/10 leading-relaxed">
               {!rawProjectAudioUrl && ms.stems.length === 0
                 ? "No audio saved to project. Upload your song in the Music tab, then return here."
                 : !rawProjectAudioUrl && ms.stems.length > 0
@@ -806,7 +808,7 @@ export function ExportSection({
                       setCustomStartInput(fmtTimecode(v));
                     }}
                     placeholder="00:00.000"
-                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
                   />
                   <button
                     type="button"
@@ -837,7 +839,7 @@ export function ExportSection({
                       setCustomEndInput(fmtTimecode(v));
                     }}
                     placeholder="00:10.000"
-                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
                   />
                   <button
                     type="button"
@@ -908,10 +910,10 @@ export function ExportSection({
 
           {/* Range status debug */}
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-white/[0.12] bg-white/[0.03]">
+            <div className="px-3 py-1.5 border-b border-white/10 bg-white/[0.03]">
               <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Range Status</p>
             </div>
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-white/5">
               {([
                 ["export range mode",         null,          rangeMode],
                 ["start time",               startValid,     fmtTimecode(resolved.startSec)],
@@ -1157,7 +1159,7 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
                   <span className={`text-sm font-bold block ${active ? "text-primary" : "text-white/80"}`}>
                     {opt.label}
                     {opt.comingSoon && (
-                      <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-amber-400/80 border border-amber-400/30 px-1.5 py-0.5 rounded-full align-middle">
+                      <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-400/30 px-1.5 py-0.5 rounded-full align-middle">
                         coming soon
                       </span>
                     )}

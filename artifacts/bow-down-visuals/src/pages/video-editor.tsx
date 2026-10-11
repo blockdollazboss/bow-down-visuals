@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useRemixDeeplink } from "@/hooks/use-remix-deeplink";
 import { useToast } from "@/hooks/use-toast";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
@@ -258,6 +259,8 @@ function canAutoPiP(v: HTMLVideoElement | null | undefined): v is HTMLVideoEleme
 
 export default function VideoEditor() {
   const { t } = useTranslation();
+  /* Light-theme aware accents for hardcoded highlight colors. */
+  const isLight = useIsLightTheme();
   usePageTitle(t("videoEditor.pageTitle"), t("videoEditor.pageDescription"));
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
@@ -2457,7 +2460,7 @@ export default function VideoEditor() {
                     className={`rounded-full transition-all ${
                       panelWidth === s
                         ? "h-2 w-2 bg-primary shadow-[0_0_8px_rgba(201,168,76,0.8)]"
-                        : "h-1.5 w-1.5 bg-white/20 hover:bg-white/50"
+                        : "h-1.5 w-1.5 bg-primary/30 hover:bg-primary/50"
                     }`}
                   />
                 ))}
@@ -2595,12 +2598,14 @@ export default function VideoEditor() {
                           position: "absolute", left: 0, top: 0, bottom: 0, width: 2,
                           background: "#C9A84C", borderRadius: "2px 0 0 2px",
                         }} />
-                        <div style={{
+                        <div
+                          className="text-[#C9A84C]"
+                          style={{
                           width: 38, height: 38, borderRadius: 11, flexShrink: 0,
                           background: "rgba(201,168,76,0.18)",
                           border: "1.5px solid rgba(201,168,76,0.4)",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 13, fontWeight: 900, color: "#C9A84C",
+                          fontSize: 13, fontWeight: 900,
                           fontFamily: "Georgia, serif",
                           boxShadow: "0 0 14px rgba(201,168,76,0.25)",
                           overflow: "hidden",
@@ -2610,11 +2615,11 @@ export default function VideoEditor() {
                           ) : initials}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 11, fontWeight: 800, color: "#C9A84C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <p className="text-[11px] font-extrabold text-[#C9A84C] whitespace-nowrap overflow-hidden text-ellipsis">
                             {activeArtist.artist_name}
                           </p>
                           {(activeArtist.artist_type || activeArtist.genre) && (
-                            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                            <p className="text-[9px] text-white/30 mt-[1px]">
                               {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
                             </p>
                           )}
@@ -2715,7 +2720,7 @@ export default function VideoEditor() {
                     className={`rounded-full transition-all ${
                       rightPanelWidth === s
                         ? "h-2 w-2 bg-primary shadow-[0_0_8px_rgba(201,168,76,0.8)]"
-                        : "h-1.5 w-1.5 bg-white/20 hover:bg-white/50"
+                        : "h-1.5 w-1.5 bg-primary/30 hover:bg-primary/50"
                     }`}
                   />
                 ))}
@@ -2776,7 +2781,7 @@ export default function VideoEditor() {
                     <ToolPanelShell
                       tool="lyric-video"
                       kicker={t("lyricVideo.badge")}
-                      title={<>{t("lyricVideo.titlePrefix")}<span className="text-violet-300">{t("lyricVideo.titleHighlight")}</span></>}
+                      title={<>{t("lyricVideo.titlePrefix")}<span className={isLight ? "text-violet-700" : "text-violet-300"}>{t("lyricVideo.titleHighlight")}</span></>}
                       subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
                     >
                       <LyricVideo embedded />
@@ -2838,7 +2843,7 @@ export default function VideoEditor() {
                     <ToolPanelShell
                       tool="repurpose"
                       kicker={t("repurpose.badge")}
-                      title={<>{t("repurpose.titlePrefix")} <span className="text-teal-300">{t("repurpose.titleSuffix")}</span></>}
+                      title={<>{t("repurpose.titlePrefix")} <span className={isLight ? "text-teal-700" : "text-teal-300"}>{t("repurpose.titleSuffix")}</span></>}
                       subtitle={t("repurpose.hero")}
                     >
                       <Repurpose embedded />
@@ -3071,7 +3076,7 @@ export default function VideoEditor() {
                 <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10">
                   <h2 className="text-xs font-black text-white uppercase tracking-widest flex-1">{t("videoEditor.inspector")}</h2>
                   <button type="button" onClick={() => setSelectedIdx(null)}
-                    className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+                    className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                     title={t("videoEditor.hideInspector")} aria-label={t("videoEditor.hideInspector")}>
                     <PanelRightClose className="h-3.5 w-3.5" />
                   </button>
@@ -4244,7 +4249,7 @@ function MasterPreviewPlayer({
   }, [showCompareToggle, compareOn]);
 
   /* ── Cinema transport button styles ── */
-  const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0";
+  const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
   return (
     <>
@@ -4329,7 +4334,7 @@ function MasterPreviewPlayer({
                 className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                   compareOn
                     ? "text-[#f7dd7f] bg-[#C9A84C]/20"
-                    : "text-white/50 hover:text-white hover:bg-white/[0.1]"
+                    : "text-white/50 hover:text-white hover:bg-white/10"
                 }`}
               >
                 <Columns2 className="h-3 w-3" />
@@ -4344,7 +4349,7 @@ function MasterPreviewPlayer({
               className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                 theaterOn
                   ? "text-[#f7dd7f] bg-[#C9A84C]/20"
-                  : "text-white/50 hover:text-white hover:bg-white/[0.1]"
+                  : "text-white/50 hover:text-white hover:bg-white/10"
               }`}
             >
               <Theater className="h-3 w-3" />
@@ -4355,7 +4360,7 @@ function MasterPreviewPlayer({
               onClick={toggleHidden}
               data-testid="master-player-hide-toggle"
               title={t("videoEditor.hidePlayer")}
-              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
+              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
             >
               <EyeOff className="h-3 w-3" />
             </button>
@@ -4689,7 +4694,7 @@ function MasterPreviewPlayer({
         {/* Scene badge — top-left, slim and on-brand */}
         {displayScene && displaySceneIdx >= 0 && (
           <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/55 border border-[#C9A84C]/25 backdrop-blur-sm pointer-events-none">
-            <Film className="h-2.5 w-2.5 text-[#C9A84C]/80" />
+            <Film className="h-2.5 w-2.5 text-[#C9A84C]" />
             <span className="text-[9px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
               Scene {displaySceneIdx + 1}/{scenes.length}
               {displayScene.section ? ` · ${displayScene.section}` : ""}
@@ -4788,7 +4793,7 @@ function MasterPreviewPlayer({
             className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
               loop
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
-                : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30"
+                : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30"
             }`}
             title={loop ? t("videoEditor.loopOnTitle") : t("videoEditor.loopOffTitle")}>
             <Repeat className="h-3 w-3" />
@@ -4818,7 +4823,7 @@ function MasterPreviewPlayer({
             className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
               pipActive
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
-                : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/[0.08]"
+                : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/10"
             }`}
             title={pipActive ? t("videoEditor.exitPipTitle") : t("videoEditor.pipTitle")}>
             <PictureInPicture2 className="h-3 w-3" />
@@ -4836,7 +4841,7 @@ function MasterPreviewPlayer({
           {/* Scrubable progress bar — flexible width */}
           <div
             ref={scrubRef}
-            className="relative flex-1 min-w-[40px] h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
+            className="relative flex-1 min-w-[40px] h-3 rounded-full cursor-pointer bg-white/10 group select-none"
             onPointerDown={handleScrubDown}
             onPointerMove={handleScrubMove}
             onPointerUp={handleScrubUp}
@@ -4869,7 +4874,7 @@ function MasterPreviewPlayer({
             className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
               isFullscreen
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
-                : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08]"
+                : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10"
             }`}
             title={isFullscreen ? t("videoEditor.exitFullscreen") : t("videoEditor.fullscreen")}>
             {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
@@ -4907,7 +4912,7 @@ function MasterPreviewPlayer({
 
       {/* Scene jump + PiP debug status — dev-only diagnostics, hidden in fullscreen / while minimized */}
       {import.meta.env.DEV && !isFullscreen && !isMinimized && (
-        <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
+        <div className="px-4 py-1 border-t border-white/5 bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           {([
             ["scenes",        `${sceneOffsets.length} pts`],
             ["scene",         `${activeSceneIdx + 1}/${sceneOffsets.length}`],
@@ -4935,7 +4940,7 @@ function MasterPreviewPlayer({
 
       {/* Playback Animation Debug — dev-only diagnostics, hidden in fullscreen / while minimized */}
       {import.meta.env.DEV && !isFullscreen && !isMinimized && (
-        <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
+        <div className="px-4 py-1 border-t border-white/5 bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
           {([
             ["isPlaying",    (eng?.isPlaying ?? false) ? "yes OK" : "no"],
@@ -4953,7 +4958,7 @@ function MasterPreviewPlayer({
               <span className={`text-[8px] font-bold ${
                 v.includes("OK") ? "text-green-400/50"
                 : v === "no" || v === "paused" ? "text-white/20"
-                : v === "yes" ? "text-yellow-400/50"
+                : v === "yes" ? "text-yellow-400"
                 : "text-[#C9A84C]/50"
               }`}>{v}</span>
             </span>
@@ -4995,7 +5000,7 @@ function SaveIndicator({ state }: { state: SaveState }) {
   const { t } = useTranslation();
   if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.saving")}</span>;
   if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> {t("videoEditor.saved")}</span>;
-  if (state === "unsaved") return <span className="flex items-center gap-1.5 text-xs text-amber-400/90" data-testid="unsaved-indicator"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> {t("videoEditor.unsavedChanges")}</span>;
+  if (state === "unsaved") return <span className="flex items-center gap-1.5 text-xs text-amber-400" data-testid="unsaved-indicator"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> {t("videoEditor.unsavedChanges")}</span>;
   if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> {t("videoEditor.saveFailed")}</span>;
   return null;
 }

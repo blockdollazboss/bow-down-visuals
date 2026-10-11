@@ -477,7 +477,7 @@ export function MotionTrackCard({
           </div>
           {tracking && (
             <div className="mt-3">
-              <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-[#C9A84C] to-[#F5D576] transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(3, trackProgress))}%` }}
@@ -511,7 +511,7 @@ export function MotionTrackCard({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {anchors.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-white/[0.05] border border-white/10 text-white/60">
+                  <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-white/60">
                     {a.t.toFixed(1)}s
                     <button type="button" onClick={() => setAnchors((p) => p.filter((_, k) => k !== i))} className="text-white/30 hover:text-red-400">
                       <Trash2 className="h-3 w-3" />
@@ -548,7 +548,7 @@ export function MotionTrackCard({
             ))}
           </div>
           {mode === "blur" && (
-            <p className="mt-2 text-[11px] text-[#C9A84C]/80 font-bold flex items-center gap-1.5">
+            <p className="mt-2 text-[11px] text-[#C9A84C] font-bold flex items-center gap-1.5">
               <Shield className="h-3.5 w-3.5" /> {t("videoEditor.motionTrack.blurPrivacyNote")}
             </p>
           )}

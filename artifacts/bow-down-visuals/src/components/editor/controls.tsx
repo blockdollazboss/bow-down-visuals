@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /** A titled panel block used throughout the editor. */
 export function EditorCard({
@@ -50,7 +51,7 @@ export function Collapsible({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -189,13 +190,14 @@ export function Dropdown({
   onChange: (v: string) => void;
   testId?: string;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={testId}
       className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors"
-      style={{ colorScheme: "dark" }}
+      style={{ colorScheme: isLight ? "light" : "dark" }}
     >
       {options.map((o) => (
         <option key={o} value={o} className="bg-[#0d0d0d]">

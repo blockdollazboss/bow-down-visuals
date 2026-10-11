@@ -372,7 +372,7 @@ export function MultiRatioExportCard({
                   <p className="mt-0.5 text-[10px] font-mono text-white/40">
                     {cfg.width} × {cfg.height}
                   </p>
-                  <p className="text-[10px] text-primary/80 font-semibold">{cfg.platformLabel}</p>
+                  <p className="text-[10px] text-primary/70 font-semibold">{cfg.platformLabel}</p>
                 </button>
               );
             })}
@@ -475,7 +475,7 @@ export function MultiRatioExportCard({
               </div>
             )}
             {job.refunded > 0 && (
-              <p className="flex items-center gap-1.5 text-[11px] text-amber-300/90">
+              <p className="flex items-center gap-1.5 text-[11px] text-amber-300">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 {t("videoEditor.multiRatio.refunded", { amount: job.refunded })}
               </p>

@@ -882,7 +882,7 @@ export function TimelineDock({
           </div>
 
           <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
-            <span className="text-primary/80 font-bold">{selectedSyncMode.label}:</span>{" "}
+            <span className="text-primary/70 font-bold">{selectedSyncMode.label}:</span>{" "}
             {selectedSyncMode.desc}
           </p>
         </div>
@@ -918,8 +918,8 @@ export function TimelineDock({
               <RealWaveform audioUrl={audioUrl} progress={totalDur > 0 ? currentTime / totalDur : 0} />
             ) : (
               <div className="w-full h-full flex items-center justify-center gap-2">
-                <Music2 className="h-3 w-3 text-amber-400/40" />
-                <span className="text-[10px] text-amber-400/75">Add a song to see the waveform</span>
+                <Music2 className="h-3 w-3 text-amber-400" />
+                <span className="text-[10px] text-amber-400">Add a song to see the waveform</span>
               </div>
             )}
 
@@ -1079,13 +1079,13 @@ export function TimelineDock({
                         {hasOverlap && <span className="text-[8px] text-pink-300 mr-1 shrink-0 font-bold pointer-events-none" title={`Overlap: ${timing.overlapWithPrevSec.toFixed(1)}s → transition`}>⇄{timing.overlapWithPrevSec.toFixed(1)}s</span>}
                         {selected && (
                           <>
-                            <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
+                            <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                               title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
                               <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                             </div>
-                            <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
+                            <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                               title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
@@ -1157,13 +1157,13 @@ export function TimelineDock({
                               {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
                               {selected && (
                                 <>
-                                  <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
+                                  <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                                     title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
                                     <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                                   </div>
-                                  <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
+                                  <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                                     title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>

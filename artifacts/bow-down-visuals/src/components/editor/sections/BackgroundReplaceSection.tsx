@@ -635,7 +635,7 @@ export function BackgroundReplaceSection({
                   </p>
                 ) : !aiConfigured ? (
                   <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3">
-                    <AlertTriangle className="h-4 w-4 text-amber-300/80 shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0 mt-0.5" />
                     <p className="text-xs text-white/60 leading-relaxed">{aiGateMessage}</p>
                   </div>
                 ) : (
@@ -828,7 +828,7 @@ export function BackgroundReplaceSection({
             {/* ── Progress ── */}
             {phase === "working" && (
               <div className="space-y-1.5">
-                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="h-2 rounded-full bg-white/5 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-[#C9A84C] to-[#e8c96a] transition-[width]"
                     style={{ width: `${Math.round(progress * 100)}%` }}

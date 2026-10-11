@@ -28,6 +28,7 @@ import {
   samplePixelHex,
 } from "@/lib/pro-tools-preview";
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { MotionTrackCard } from "./MotionTrackCard";
 import { MaskCard } from "./MaskCard";
 import { FillerRemoverCard } from "./FillerRemoverCard";
@@ -116,6 +117,7 @@ export function ProToolsSection({
 }) {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [grading, setGrading] = useState(false);
   const [keying, setKeying] = useState(false);
@@ -312,7 +314,7 @@ export function ProToolsSection({
           onChange={(e) => setSceneId(e.target.value)}
           data-testid="pro-tools-scene-picker"
           className="bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors"
-          style={{ colorScheme: "dark" }}
+          style={{ colorScheme: isLight ? "light" : "dark" }}
         >
           {clips.map((s, i) => (
             <option key={s.id} value={s.id}>Scene {i + 1}</option>
