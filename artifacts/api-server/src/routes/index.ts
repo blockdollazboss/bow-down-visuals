@@ -220,6 +220,7 @@ import competitorTrackerRouter from "./generate/competitor-tracker";
 import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
 import retentionDelightRouter from "./retention-delight";
+import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
 import llcGuideRouter from "./generate/llc-guide";
 import tourPlannerRouter from "./generate/tour-planner";
@@ -521,6 +522,7 @@ router.use(competitorTrackerRouter);
 router.use(retentionDoctorRouter);
 router.use(retentionRouter);
 router.use(retentionDelightRouter);
+router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
 router.use(introOutroRouter);
 router.use(introOutroFfmpegRouter);

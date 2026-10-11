@@ -19,6 +19,7 @@ import LevelUpModal from "@/components/retention/LevelUpModal";
 import LeaderboardWidget from "@/components/retention/LeaderboardWidget";
 import CreationStreakWidget from "@/components/CreationStreakWidget";
 import QuestsWidget from "@/components/QuestsWidget";
+import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
@@ -365,6 +366,9 @@ export default function Dashboard() {
           <CreationStreakWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
           <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
         </div>
+
+        {/* ── LIVE FOMO FEED (real anonymized activity; renders nothing when fomo_feed_enabled is off) ── */}
+        <FomoFeed getToken={getAccessToken} />
 
         {/* ── THY DAILY DROP ── */}
         <DailyDropCard />
