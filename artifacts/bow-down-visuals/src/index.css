@@ -2493,3 +2493,9 @@ html[data-star-level="5"] [data-min-stars="6"] {
   background: rgba(250, 246, 237, 0.92) !important;
   border-color: rgba(201, 168, 76, 0.35) !important;
 }
+
+/* Light mode: Social proof band — ivory box */
+.light .social-proof-box {
+  background: rgba(250, 246, 237, 0.92) !important;
+  border-color: rgba(201, 168, 76, 0.35) !important;
+}

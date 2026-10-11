@@ -168,9 +168,9 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
     <section
       ref={bandRef as never}
       aria-label={t("socialProof.ariaLabel")}
-      className={`relative border-y border-primary/15 bg-gradient-to-b from-black via-[#0d0a04] to-black px-5 py-12 md:py-14 ${className}`}
+      className={`relative px-5 py-12 md:py-14 ${className}`}
     >
-      <div className="mx-auto max-w-6xl text-center">
+      <div className="social-proof-box mx-auto max-w-6xl text-center rounded-2xl border border-primary/15 bg-gradient-to-b from-black via-[#0d0a04] to-black px-6 py-10">
         <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80">
           {t("socialProof.kicker")}
         </p>
