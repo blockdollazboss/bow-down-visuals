@@ -8504,7 +8504,9 @@
       "topicBlurb": "AI writes the script, then voices it.",
       "topicLabel": "Topic",
       "videoBlurb": "Extract your video's audio as the episode.",
-      "videoLabel": "Video"
+      "videoLabel": "Video",
+      "dialogueLabel": "Dialogue",
+      "dialogueBlurb": "Multi-speaker conversation — one AI voice per character."
     },
     "result": {
       "apple": "Apple Podcasts Connect",
@@ -8616,6 +8618,25 @@
         "introNameRequired": "Add your podcast and host names first.",
         "notesInputRequired": "Add an episode title and a transcript or audio URL.",
         "audiogramInputRequired": "Add an audio URL and a cover art URL."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "Voices per speaker",
+      "scriptPlaceholder": "ALEX: Welcome back to the show.\nJORDAN: Thanks for having me!\n\nTag every line with a speaker name — each speaker gets their own AI voice.",
+      "scriptHint": "Tag each line like  NAME: your line here.  Lines without a tag are skipped.",
+      "loadSample": "Load sample dialogue",
+      "noSpeakersYet": "Tag at least two speakers in your script (NAME: line) to assign voices.",
+      "statsSpeakers": "{{count}} speakers",
+      "untaggedWarning": "{{count}} untagged line(s) will be skipped — tag them like  NAME: text.",
+      "disabledTitle": "Multi-speaker dialogue is coming soon.",
+      "disabledPricing": "It's built, but the price isn't approved yet — it unlocks here once pricing is confirmed. Nothing is charged.",
+      "disabledKey": "The voice service isn't connected on this server yet — dialogue unlocks automatically once it is.",
+      "resultSpeakers": "{{count}} speakers",
+      "generateFeature": "Generate Dialogue",
+      "errors": {
+        "twoSpeakers": "Dialogue needs at least 2 tagged speakers — tag lines like  ALEX: your line here.",
+        "tooManySpeakers": "Dialogue supports up to {{max}} speakers.",
+        "voiceFor": "Pick a voice for \"{{name}}\" first."
       }
     }
   },

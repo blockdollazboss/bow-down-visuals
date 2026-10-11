@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Podcast as PodcastIcon, Loader2, Play, Pause, Download, Rss,
   AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
-  Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare,
+  Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare, Drama,
 } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,12 +15,19 @@ import GuestQuestions from "@/components/GuestQuestions";
 import {
   estimatePodcastCost,
   estimateTopicModeCost,
+  estimateDialogueCost,
+  parseDialogueSpeakers,
+  countUntaggedDialogueLines,
   formatDuration,
   formatTimestamp,
   MAX_SCRIPT_CHARS,
+  SAMPLE_DIALOGUE,
+  DIALOGUE_CREDITS_PER_10MIN,
+  MAX_DIALOGUE_SPEAKERS,
   type PodcastMode,
   type PodcastFormat,
   type PodcastChapter,
+  type DialogueEstimate,
 } from "@/lib/podcast";
 
 /* ─── AI Podcast Studio ─────────────────────────────────────────────────
@@ -43,6 +50,7 @@ interface GenerateResponse {
   title?: string;
   mode?: string;
   format?: string;
+  speakerCount?: number;
   musicBed?: boolean;
   chapters?: PodcastChapter[];
   rssXml?: string;
@@ -69,6 +77,7 @@ const MODES: { key: PodcastMode; labelKey: string; icon: typeof PenLine; blurbKe
   { key: "script", labelKey: "podcast.modes.scriptLabel", icon: PenLine, blurbKey: "podcast.modes.scriptBlurb" },
   { key: "topic", labelKey: "podcast.modes.topicLabel", icon: Lightbulb, blurbKey: "podcast.modes.topicBlurb" },
   { key: "video", labelKey: "podcast.modes.videoLabel", icon: Video, blurbKey: "podcast.modes.videoBlurb" },
+  { key: "dialogue", labelKey: "podcast.modes.dialogueLabel", icon: Drama, blurbKey: "podcast.modes.dialogueBlurb" },
 ];
 
 function VoicePicker({
@@ -163,6 +172,19 @@ export default function PodcastStudio() {
   const [coHostVoiceId, setCoHostVoiceId] = useState("");
   const [musicBed, setMusicBed] = useState(true);
 
+  /* ── multi-speaker dialogue (ElevenLabs text-to-dialogue) ── */
+  const [dialogueScript, setDialogueScript] = useState(SAMPLE_DIALOGUE);
+  const [dialogueVoices, setDialogueVoices] = useState<Record<string, string>>({});
+  const [dialogueStatus, setDialogueStatus] = useState<{
+    enabled: boolean;
+    reason: string;
+    creditsPer10Min: number;
+  } | null>(null);
+  const dialogueSpeakers = parseDialogueSpeakers(dialogueScript);
+  const dialogueEstimate: DialogueEstimate = estimateDialogueCost(dialogueScript);
+  const dialogueUntagged = countUntaggedDialogueLines(dialogueScript);
+  const dialogueDisabled = dialogueStatus !== null && !dialogueStatus.enabled;
+
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -199,7 +221,69 @@ export default function PodcastStudio() {
   }, []);
 
   const estimate =
-    mode === "script" ? estimatePodcastCost(script) : estimateTopicModeCost();
+    mode === "script"
+      ? estimatePodcastCost(script)
+      : mode === "dialogue"
+        ? dialogueEstimate
+        : estimateTopicModeCost();
+
+  /* Dialogue gate: is the multi-speaker feature enabled on this server? */
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/podcast/dialogue/status")
+      .then((r) => r.json().catch(() => ({})))
+      .then((d: { enabled?: boolean; reason?: string; creditsPer10Min?: number }) => {
+        if (cancelled || typeof d.enabled !== "boolean") return;
+        setDialogueStatus({
+          enabled: d.enabled,
+          reason: typeof d.reason === "string" ? d.reason : "key_missing",
+          creditsPer10Min:
+            typeof d.creditsPer10Min === "number" ? d.creditsPer10Min : DIALOGUE_CREDITS_PER_10MIN,
+        });
+      })
+      .catch(() => {
+        /* status unreachable — the POST will surface the real error */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Auto-assign a distinct voice to each newly detected dialogue speaker. */
+  useEffect(() => {
+    if (voices.length === 0) return;
+    setDialogueVoices((prev) => {
+      const next: Record<string, string> = { ...prev };
+      let changed = false;
+      const used = new Set(Object.values(next));
+      let vi = 0;
+      for (const name of dialogueSpeakers) {
+        if (!next[name]) {
+          let pick: string | undefined;
+          for (let tries = 0; tries < voices.length; tries++) {
+            const cand = voices[(vi + tries) % voices.length]!.voice_id;
+            if (!used.has(cand)) {
+              pick = cand;
+              break;
+            }
+          }
+          pick = pick ?? voices[vi % voices.length]!.voice_id;
+          next[name] = pick;
+          used.add(pick);
+          changed = true;
+        }
+        vi++;
+      }
+      for (const name of Object.keys(next)) {
+        if (!dialogueSpeakers.includes(name)) {
+          delete next[name];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogueSpeakers.join("|"), voices]);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,10 +320,22 @@ export default function PodcastStudio() {
     if (mode === "script" && !script.trim()) return t("podcast.errors.scriptRequired");
     if (mode === "topic" && !topic.trim()) return t("podcast.errors.topicRequired");
     if (mode === "video" && !videoUrl.trim()) return t("podcast.errors.videoRequired");
-    if (mode !== "video" && !hostVoiceId) return t("podcast.errors.hostVoiceRequired");
-    if (mode !== "video" && format === "dual" && !coHostVoiceId) return t("podcast.errors.coHostVoiceRequired");
-    if (mode !== "video" && format === "dual" && coHostVoiceId === hostVoiceId)
+    if (mode !== "video" && mode !== "dialogue" && !hostVoiceId) return t("podcast.errors.hostVoiceRequired");
+    if (mode !== "video" && mode !== "dialogue" && format === "dual" && !coHostVoiceId)
+      return t("podcast.errors.coHostVoiceRequired");
+    if (mode !== "video" && mode !== "dialogue" && format === "dual" && coHostVoiceId === hostVoiceId)
       return t("podcast.errors.voicesDifferent");
+    if (mode === "dialogue") {
+      if (!dialogueScript.trim()) return t("podcast.errors.scriptRequired");
+      if (dialogueSpeakers.length < 2) return t("podcast.dialogue.errors.twoSpeakers");
+      if (dialogueSpeakers.length > MAX_DIALOGUE_SPEAKERS)
+        return t("podcast.dialogue.errors.tooManySpeakers", { max: MAX_DIALOGUE_SPEAKERS });
+      for (const s of dialogueSpeakers) {
+        if (!dialogueVoices[s]) return t("podcast.dialogue.errors.voiceFor", { name: s });
+      }
+      const ids = dialogueSpeakers.map((s) => dialogueVoices[s]!);
+      if (new Set(ids).size !== ids.length) return t("podcast.errors.voicesDifferent");
+    }
     return null;
   }
 
@@ -256,26 +352,42 @@ export default function PodcastStudio() {
     setResult(null);
     try {
       const token = await getAccessToken();
-      const res = await confirmedFetch("/api/podcast/generate", {
+      const isDialogue = mode === "dialogue";
+      const endpoint = isDialogue ? "/api/podcast/dialogue" : "/api/podcast/generate";
+      const payload = isDialogue
+        ? {
+            title: title.trim(),
+            description: description.trim(),
+            script: dialogueScript.trim(),
+            speakers: dialogueSpeakers.map((name) => ({
+              name,
+              voiceId: dialogueVoices[name],
+            })),
+            musicBed,
+          }
+        : {
+            mode,
+            script: script.trim(),
+            topic: topic.trim(),
+            videoUrl: videoUrl.trim() || undefined,
+            title: title.trim(),
+            description: description.trim(),
+            hostVoiceId: hostVoiceId || undefined,
+            format,
+            coHostVoiceId: coHostVoiceId || undefined,
+            musicBed,
+          };
+      const res = await confirmedFetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          mode,
-          script: script.trim(),
-          topic: topic.trim(),
-          videoUrl: videoUrl.trim() || undefined,
-          title: title.trim(),
-          description: description.trim(),
-          hostVoiceId: hostVoiceId || undefined,
-          format,
-          coHostVoiceId: coHostVoiceId || undefined,
-          musicBed,
-        }),
+        body: JSON.stringify(payload),
         overrideCost: estimate.credits,
-        overrideFeature: t("podcast.generate.featureName"),
+        overrideFeature: isDialogue
+          ? t("podcast.dialogue.generateFeature")
+          : t("podcast.generate.featureName"),
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
@@ -475,10 +587,65 @@ export default function PodcastStudio() {
                   </p>
                 </>
               )}
+
+              {mode === "dialogue" &&
+                (dialogueDisabled ? (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-100/90">
+                    <span className="font-semibold">
+                      {t("podcast.dialogue.disabledTitle")}
+                    </span>{" "}
+                    {t(
+                      dialogueStatus?.reason === "pricing_pending"
+                        ? "podcast.dialogue.disabledPricing"
+                        : "podcast.dialogue.disabledKey",
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-2 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs text-white/45">
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {t("podcast.script.wordsCount", { count: dialogueEstimate.wordCount })}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Timer className="h-3.5 w-3.5" />
+                        {t("podcast.script.durationApprox", { duration: formatDuration(dialogueEstimate.estimatedSeconds) })}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5" />
+                        {t("podcast.dialogue.statsSpeakers", { count: dialogueEstimate.speakerCount })}
+                      </span>
+                      <span className="flex items-center gap-1 text-primary">
+                        <VisualBucsIcon className="h-3.5 w-3.5" />
+                        {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits })}
+                      </span>
+                    </div>
+                    <textarea
+                      value={dialogueScript}
+                      onChange={(e) => setDialogueScript(e.target.value)}
+                      rows={10}
+                      maxLength={MAX_SCRIPT_CHARS}
+                      placeholder={t("podcast.dialogue.scriptPlaceholder")}
+                      className={`${inputClass} resize-y leading-relaxed`}
+                    />
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-white/35">
+                        {t("podcast.dialogue.scriptHint")}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDialogueScript(SAMPLE_DIALOGUE)}
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:border-primary/50 hover:text-primary"
+                      >
+                        {t("podcast.dialogue.loadSample")}
+                      </button>
+                    </div>
+                  </>
+                ))}
             </section>
 
             {/* hosts — not needed for video mode */}
-            {mode !== "video" && (
+            {mode !== "video" && mode !== "dialogue" && (
               <section className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
@@ -531,6 +698,42 @@ export default function PodcastStudio() {
               </section>
             )}
 
+            {/* dialogue speakers — one voice per tagged speaker */}
+            {mode === "dialogue" && !dialogueDisabled && (
+              <section className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
+                  <Drama className="h-4 w-4 text-primary" />
+                  {t("podcast.dialogue.speakersTitle")}
+                </h2>
+                {!user ? (
+                  <p className="text-sm text-white/40">
+                    <Link href="/login" className="text-primary underline">{t("podcast.hosts.signIn")}</Link>{" "}{t("podcast.hosts.signInPrompt")}
+                  </p>
+                ) : dialogueSpeakers.length === 0 ? (
+                  <p className="text-sm text-white/40">{t("podcast.dialogue.noSpeakersYet")}</p>
+                ) : (
+                  <>
+                    {dialogueSpeakers.map((name) => (
+                      <VoicePicker
+                        key={name}
+                        voices={voices}
+                        loading={voicesLoading}
+                        value={dialogueVoices[name] ?? ""}
+                        onChange={(id) => setDialogueVoices((p) => ({ ...p, [name]: id }))}
+                        label={name}
+                      />
+                    ))}
+                    {dialogueUntagged > 0 && (
+                      <p className="flex items-start gap-2 text-xs text-amber-200/70">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {t("podcast.dialogue.untaggedWarning", { count: dialogueUntagged })}
+                      </p>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
+
             {/* finishing touches */}
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
@@ -556,7 +759,7 @@ export default function PodcastStudio() {
             {/* generate */}
             <button
               onClick={generate}
-              disabled={generating || !user}
+              disabled={generating || !user || (mode === "dialogue" && dialogueDisabled)}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {generating ? (
@@ -596,8 +799,15 @@ export default function PodcastStudio() {
                   <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3 text-xs text-white/60">
                     <div className="font-medium text-white">{result.title}</div>
                     <div className="mt-1 capitalize">
-                      {t(`podcast.modes.${result.mode}Label`)} · {result.format === "dual" ? t("podcast.hosts.duo") : t("podcast.hosts.solo")}{" "}
-                      {t("podcast.result.hostWord", { count: result.format === "dual" ? 2 : 1 })}
+                      {t(`podcast.modes.${result.mode}Label`)} ·{" "}
+                      {result.mode === "dialogue" ? (
+                        <>{t("podcast.dialogue.resultSpeakers", { count: result.speakerCount ?? 0 })}</>
+                      ) : (
+                        <>
+                          {result.format === "dual" ? t("podcast.hosts.duo") : t("podcast.hosts.solo")}{" "}
+                          {t("podcast.result.hostWord", { count: result.format === "dual" ? 2 : 1 })}
+                        </>
+                      )}
                       {result.musicBed ? ` ${t("podcast.result.musicBedTag")}` : ""}
                     </div>
                     <div className="mt-1">{t("podcast.result.durationApprox", { duration: formatDuration(result.durationSeconds ?? 0) })}</div>
