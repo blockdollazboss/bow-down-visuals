@@ -21,6 +21,9 @@ import ViralSoundFinder from "@/pages/sounds";
 import { HumToSong } from "@/components/HumToSong";
 import { FinishMySong } from "@/components/audio-studio/FinishMySong";
 import { RateMyMix } from "@/components/audio-studio/RateMyMix";
+import { LufsPanel } from "@/components/audio/LufsPanel";
+import { DeverbPanel } from "@/components/audio/DeverbPanel";
+import { VocalTunePanel } from "@/components/audio/VocalTunePanel";
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
    Server-side background-noise removal for creator audio: podcasts,
    voiceovers, stream clips, live recordings. Real DSP denoising via
@@ -528,6 +531,7 @@ function CleanupPanel() {
    job: safe to close the tab while it runs. */
 
 const STEMS_CREDIT_COST = 4;
+const STEMS_INSTRUMENTAL_CREDIT_COST = 3;
 const STEMS_MAX_BYTES = 25 * 1024 * 1024;
 
 type StemKey = "vocals" | "drums" | "bass" | "other";
@@ -985,6 +989,238 @@ function VocalOnlyPreset() {
   );
 }
 
+/* ─── Instrumental preset (drums+bass+other, vocals removed) ───────────
+   Upload any song → true Demucs stem separation → cheap ffmpeg mix of
+   drums+bass+other into one karaoke-ready WAV. 3 credits (300 VB), refunded
+   automatically if the job fails. Backend: POST /api/stems?mode=instrumental,
+   poll GET /api/stems/:jobId, deliverable arrives as `instrumental`. */
+
+function InstrumentalPreset() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { addAsset } = useHubProject();
+  const { confirmedFetch } = useConfirmedApi();
+  const [file, setFile] = useState<File | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "uploading" | "queued" | "processing" | "done" | "failed">("idle");
+  const [instrumentalUrl, setInstrumentalUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [sourceName, setSourceName] = useState<string>("");
+  const pollRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Poll the server-owned job until it completes. */
+  useEffect(() => {
+    if (!jobId || (status !== "queued" && status !== "processing")) return;
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/stems/${jobId}`);
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus("failed");
+          setError(data.error || t("stems.errorJobNotFound"));
+          return;
+        }
+        if (data.status === "done") {
+          setStatus("done");
+          setInstrumentalUrl(data.instrumental ?? null);
+          if (data.instrumental) {
+            addAsset({
+              kind: "song",
+              url: data.instrumental,
+              label: t("stems.instrumentalHubAssetLabel", { name: sourceName || t("stems.hubAssetDefaultName") }),
+              detail: t("stems.instrumentalHubAssetDetail"),
+            });
+          }
+        } else if (data.status === "failed") {
+          setStatus("failed");
+          setError(data.error || t("stems.jobFailedRefund", { credits: STEMS_INSTRUMENTAL_CREDIT_COST * 100 }));
+        } else {
+          setStatus(data.status);
+        }
+      } catch {
+        /* keep polling on transient network errors */
+      }
+    }, 4000);
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [jobId, status]);
+
+  function pickFile(f: File | undefined) {
+    if (!f) return;
+    if (!f.type.startsWith("audio/")) {
+      setError(t("stems.errorAudioFile"));
+      return;
+    }
+    if (f.size > STEMS_MAX_BYTES) {
+      setError(t("stems.errorFileTooLarge"));
+      return;
+    }
+    setFile(f);
+    setError(null);
+    setInstrumentalUrl(null);
+    setJobId(null);
+    setStatus("idle");
+  }
+
+  async function startSplit() {
+    if (!file || !user) return;
+    setStatus("uploading");
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const form = new FormData();
+      form.append("audio", file);
+      const res = await confirmedFetch("/api/stems?mode=instrumental", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
+      const data = await res.json();
+      if (res.status === 402) {
+        setOutOfCredits(true);
+        setStatus("idle");
+        return;
+      }
+      if (!res.ok || !data.jobId) {
+        setStatus("failed");
+        setError(data.message || data.error || t("stems.errorStartSplit"));
+        return;
+      }
+      setJobId(data.jobId);
+      setStatus("queued");
+      setSourceName(file.name);
+      if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
+    } catch {
+      setStatus("failed");
+      setError(t("stems.errorNetwork"));
+    }
+  }
+
+  function reset() {
+    setFile(null);
+    setJobId(null);
+    setStatus("idle");
+    setInstrumentalUrl(null);
+    setError(null);
+    setOutOfCredits(false);
+    setSourceName("");
+  }
+
+  const busy = status === "uploading" || status === "queued" || status === "processing";
+
+  return (
+    <>
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
+        <p className="text-xs text-white/55 leading-relaxed">
+          {t("stems.instrumentalInfoBox", { credits: STEMS_INSTRUMENTAL_CREDIT_COST * 100 })}
+        </p>
+      </div>
+
+      {outOfCredits && (
+        <div className="mt-4"><OutOfCredits /></div>
+      )}
+
+      {error && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-200/80">{error}</p>
+        </div>
+      )}
+
+      {/* Upload zone */}
+      {(status === "idle" || status === "failed") && (
+        <div className="mt-6 space-y-5">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
+            className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+            }`}
+          >
+            <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
+            {file ? (
+              <div>
+                <p className="font-semibold text-white">{file.name}</p>
+                <p className="text-xs text-white/40 mt-1">{t("stems.fileSelected", { mb: (file.size / 1024 / 1024).toFixed(1) })}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold text-white/70">{t("stems.dropHint")}</p>
+                <p className="text-xs text-white/35 mt-1">{t("stems.dropFormats")}</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+          </div>
+
+          <button
+            onClick={startSplit}
+            disabled={!file || !user}
+            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {t("stems.instrumentalSplitButton", { cost: STEMS_INSTRUMENTAL_CREDIT_COST })}
+          </button>
+          {creditsRemaining != null && (
+            <p className="text-center text-xs text-white/35">{t("stems.creditsRemaining", { count: creditsRemaining })}</p>
+          )}
+        </div>
+      )}
+
+      {/* Progress */}
+      {busy && (
+        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
+          <p className="font-bold text-white">
+            {status === "uploading" ? t("stems.statusUploading") : status === "queued" ? t("stems.statusQueued") : t("stems.statusProcessing")}
+          </p>
+          <p className="text-sm text-white/40 mt-1">
+            {t("stems.instrumentalProgressHint")}
+          </p>
+          {sourceName && <p className="text-xs text-white/30 mt-2">{sourceName}</p>}
+        </div>
+      )}
+
+      {/* Result — instrumental player */}
+      {status === "done" && instrumentalUrl && (
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
+            <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+            <p className="text-sm font-semibold text-white/80">{t("stems.instrumentalSplitComplete")}</p>
+          </div>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4 space-y-3">
+            <audio src={instrumentalUrl} controls className="w-full" />
+            <div className="flex items-center justify-between">
+              <a
+                href={instrumentalUrl}
+                download="instrumental.wav"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
+              >
+                <Download className="h-4 w-4" /> {t("stems.instrumentalDownload")}
+              </a>
+              <button
+                onClick={reset}
+                className="text-sm font-bold text-white/50 hover:text-white transition"
+              >
+                {t("stems.splitAnother")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function StemsPanel() {
   const { t } = useTranslation();
   /* Translated stem labels/blurbs for display; keys stay stable. */
@@ -1000,14 +1236,16 @@ function StemsPanel() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<StemsJobStatus>("idle");
   const [stems, setStems] = useState<Record<StemKey, string> | null>(null);
-  /* Mode: full 4-stem split vs the merged vocals-only preset. */
-  const [stemMode, setStemMode] = useState<"full" | "vocals">("full");
+  /* Mode: full 4-stem split vs the vocals-only preset vs the instrumental preset. */
+  const [stemMode, setStemMode] = useState<"full" | "vocals" | "instrumental">("full");
 
-  /* Deep-link: /stems?mode=vocals opens the vocals-only preset. */
+  /* Deep-link: /stems?mode=vocals opens the vocals-only preset,
+     /stems?mode=instrumental opens the instrumental preset. */
   useEffect(() => {
     try {
-      if (new URLSearchParams(window.location.search).get("mode") === "vocals") {
-        setStemMode("vocals");
+      const m = new URLSearchParams(window.location.search).get("mode");
+      if (m === "vocals" || m === "instrumental") {
+        setStemMode(m);
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -1280,11 +1518,24 @@ function StemsPanel() {
               <Mic2 className="h-4 w-4" />
               {t("stems.modeVocalsOnly", { defaultValue: "Vocals only · 3cr" })}
             </button>
+            <button
+              role="tab"
+              aria-selected={stemMode === "instrumental"}
+              onClick={() => setStemMode("instrumental")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                stemMode === "instrumental" ? "bg-primary text-black" : "text-white/55 hover:text-white"
+              }`}
+            >
+              <MicOff className="h-4 w-4" />
+              {t("stems.modeInstrumental", { defaultValue: "Instrumental · 3cr" })}
+            </button>
           </div>
         </div>
 
         {stemMode === "vocals" ? (
           <VocalOnlyPreset />
+        ) : stemMode === "instrumental" ? (
+          <InstrumentalPreset />
         ) : (
         <>
         {outOfCredits && (
@@ -3056,12 +3307,15 @@ function MixMasterPanel() {
    One page, three tools. Each tab keeps its own paid endpoint, credit cost,
    and charge-then-refund discipline — only the page chrome is shared. */
 
-type StudioTab = "cleanup" | "stems" | "master" | "aiaudio" | "voiceover" | "podcast" | "sounds" | "hum" | "finish" | "ratemix";
+type StudioTab = "cleanup" | "deverb" | "loudness" | "stems" | "master" | "tune" | "aiaudio" | "voiceover" | "podcast" | "sounds" | "hum" | "finish" | "ratemix";
 
 const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> = [
   { id: "cleanup", labelKey: "audioStudio.tabs.cleanup", descKey: "audioStudio.desc.cleanup" },
+  { id: "deverb", labelKey: "audioStudio.tabs.deverb", descKey: "audioStudio.desc.deverb" },
+  { id: "loudness", labelKey: "audioStudio.tabs.loudness", descKey: "audioStudio.desc.loudness" },
   { id: "stems", labelKey: "audioStudio.tabs.stems", descKey: "audioStudio.desc.stems" },
   { id: "master", labelKey: "audioStudio.tabs.master", descKey: "audioStudio.desc.master" },
+  { id: "tune", labelKey: "audioStudio.tabs.tune", descKey: "audioStudio.desc.tune" },
   { id: "aiaudio", labelKey: "audioStudio.tabs.aiaudio", descKey: "audioStudio.desc.aiaudio" },
   { id: "voiceover", labelKey: "audioStudio.tabs.voiceover", descKey: "audioStudio.desc.voiceover" },
   { id: "podcast", labelKey: "audioStudio.tabs.podcast", descKey: "audioStudio.desc.podcast" },
@@ -3076,7 +3330,7 @@ export default function AudioStudio() {
   const [tab, setTab] = useState<StudioTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds" || q === "hum" || q === "finish" || q === "ratemix") return q;
+      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds" || q === "hum" || q === "finish" || q === "ratemix" || q === "deverb" || q === "loudness" || q === "tune") return q;
       return "cleanup";
     } catch {
       return "cleanup";
@@ -3153,7 +3407,7 @@ export default function AudioStudio() {
         </p>
 
         <div className="mt-2">
-          {tab === "cleanup" ? <CleanupPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
+          {tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
         </div>
       </main>
     </div>
