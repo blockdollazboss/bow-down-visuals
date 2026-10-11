@@ -2615,6 +2615,33 @@
     "download": "Download",
     "share": "Share"
   },
+  "weekly_contest": {
+    "aria": "Weekly creator contest",
+    "label": "Weekly creator contest",
+    "drops_in": "Drops in",
+    "ends_in": "Ends in",
+    "entries": "{{count}} entries",
+    "enter_now": "Enter now",
+    "view_entries": "View entries",
+    "enter_hint": "Post your video and it's auto-entered — winners are paid in Visual Bucs from this week's {{cap}} prize pool.",
+    "judging_title": "Judging is on — every vote moves the crown",
+    "judging_sub": "Entries are closed for \"{{title}}\". Rally votes on your favorites — the community crown decides.",
+    "winners_in": "Winners in",
+    "vote_now": "Vote for the crown",
+    "winners_dropped": "Winners just dropped",
+    "winners_sub": "\"{{title}}\" is crowned — prizes paid in Visual Bucs.",
+    "a_creator": "a creator",
+    "see_winners": "See the winners' circle",
+    "hall_of_fame": "Hall of fame",
+    "next_drop": "The next contest drops Monday",
+    "next_drop_sub": "One theme. One week. {{cap}} in Visual Bucs on the line. Next up: \"{{theme}}\" (#{{hashtag}}).",
+    "admin_nudge": "Admin: this week's contest isn't live yet. One tap launches \"{{theme}}\" with the {{cap}} prize pool.",
+    "launching": "Launching…",
+    "launch_week": "Launch this week's contest",
+    "while_you_wait": "While you wait: browse the hall of fame",
+    "last_week": "Last week's crowns",
+    "see_all": "See all"
+  },
   "contracts": {
     "paste_the_full_contract_here_cop": "Paste the full contract here — copy it from the PDF or document they sent you. The more complete, the better the analysis.",
     "e_g_they_re_offering_5k_advance": "e.g. They're offering $5k advance, I'm an independent artist with 50k followers…",
@@ -11938,6 +11965,8 @@
     "quest_generate_song_desc": "Create one song",
     "quest_export_video_title": "Export a video",
     "quest_export_video_desc": "Finish one video export",
+  "quest_viral_sharer_title": "Viral Sharer",
+  "quest_viral_sharer_desc": "Share 3 creations anywhere this week",
     "claim_success": "+{{reward}} Visual Bucs added",
     "claim_failed": "Claim failed. Try again.",
     "toggle_streaks": "Creation streaks",
@@ -12844,5 +12873,17 @@
     "title": "De-Reverb / Dialogue Isolate",
     "waveformUnavailable": "Waveform unavailable",
     "whyNoDsp": "Why no instant free version? Removing room echo is AI work — ordinary noise filters only cut hiss and rumble, they can't un-bounce sound off walls. Rather than ship a fake, this tool waits for the real AI de-reverb provider."
+  },
+  "share": {
+    "title": "Share",
+    "earn_hint": "Share to earn — every share counts toward your Viral Sharer quest",
+    "native": "Share",
+    "shared": "Shared",
+    "x": "Post to X",
+    "x_short": "Post",
+    "whatsapp": "WhatsApp",
+    "copy": "Copy link",
+    "copied": "Copied!",
+    "reward_tbd": "Reward TBD"
   }
 }

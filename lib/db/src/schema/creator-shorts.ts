@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, boolean, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable, profileVideosTable } from "./creator-platform";
@@ -31,6 +31,12 @@ export const challengesTable = pgTable("challenges", {
   judgingEndsAt:    timestamp("judging_ends_at", { withTimezone: true }),
   /** Sum of the configured prize pool, Visual Bucs (x100 convention). */
   prizePoolCredits: integer("prize_pool_credits").notNull().default(0),
+  /* Weekly creator contest ritual (migration 0118): flags for contests
+     created by the weekly rotation. */
+  /** True for contests launched via POST /api/admin/challenges/weekly-launch. */
+  isWeekly:         boolean("is_weekly").notNull().default(false),
+  /** ISO week key ("2026-W41") the contest belongs to. */
+  weekKey:          text("week_key"),
   createdAt:        timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

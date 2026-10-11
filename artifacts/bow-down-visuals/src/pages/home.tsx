@@ -63,6 +63,7 @@ import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -1627,6 +1628,12 @@ export default function Home() {
       <HeroSection isLight={isLight} />
       <SocialProofBand />
       <ProofBand />
+      {/* ── Weekly creator contest ritual — the can't-miss heartbeat ── */}
+      <section className="px-5 py-10 md:py-14">
+        <div className="mx-auto max-w-6xl">
+          <ContestHubWidget />
+        </div>
+      </section>
       <CheatCodeDemo />
       <CreatorVaultSection />
       <MusicVideoTeaser isLight={isLight} />

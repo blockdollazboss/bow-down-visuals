@@ -37,6 +37,15 @@ import { recordCreditUsageStrict } from "../lib/payment-record";
      double-pay. A prize pool cannot be edited after winners are announced.
    - Every grant goes through the strict credit ledger (negative creditsUsed)
      with rollback, same as admin credit grants.
+   WEEKLY RITUAL (2026-10-11): the weekly creator contest heartbeat.
+     GET  /api/challenges/weekly               public: this week's contest + last week's winners
+     POST /api/admin/challenges/weekly-launch  admin one-click launch from the seeded theme rotation
+   Budget law (HARD): contest prizes come from the shark-drop budget and
+   NEVER exceed 1,000 Visual Bucs per week. Enforced in two places:
+     (1) the prize-pool config endpoint rejects any pool totaling > 1,000 VB;
+     (2) the judge payout caps the trailing-7-day payout total at 1,000 VB —
+         prizes beyond the cap are skipped (reported in `budget_capped`) and
+         can be re-judged once the window clears.
    NOTE: the GET /challenges/:slug detail endpoint in shorts.ts is extended
    in place (lifecycle fields, prize list, vote counts, viewer votes).
 */
@@ -63,6 +72,18 @@ const adminWriteLimiter = rateLimit({
 
 type Lifecycle = "upcoming" | "live" | "judging" | "winners";
 const LIFECYCLES: Lifecycle[] = ["upcoming", "live", "judging", "winners"];
+
+/* ── Weekly budget law (HARD): contest prizes ≤ 1,000 VB / week, from the
+   shark-drop budget. Prize totals across ALL challenges paid within a
+   trailing 7-day window can never exceed this. */
+const WEEKLY_PRIZE_CAP_VB = 1000;
+
+/** Standard weekly prize split: 1st 500 + 2nd 300 + 3rd 200 = 1,000 VB. */
+const WEEKLY_PRIZE_SPLIT: Array<{ place: number; prize_credits: number; description: string }> = [
+  { place: 1, prize_credits: 500, description: "Weekly Creator Contest — Champion" },
+  { place: 2, prize_credits: 300, description: "Weekly Creator Contest — Runner-up" },
+  { place: 3, prize_credits: 200, description: "Weekly Creator Contest — 3rd place" },
+];
 
 /** Derived lifecycle: dates auto-advance upcoming→live→judging; 'winners' sticks. */
 export function effectiveStatus(ch: {
@@ -485,6 +506,13 @@ router.post("/admin/challenges/:slug/prizes", requireAuth, requireAdmin, adminWr
     }
     const prizes = [...parsed.data.prizes].sort((a, b) => a.place - b.place);
     const total = prizes.reduce((s, p) => s + p.prize_credits, 0);
+    /* Weekly budget law: no challenge pool may exceed 1,000 VB. */
+    if (total > WEEKLY_PRIZE_CAP_VB) {
+      res.status(400).json({
+        error: `Weekly prize pools cap at ${WEEKLY_PRIZE_CAP_VB.toLocaleString("en-US")} Visual Bucs — the shark-drop budget. Trim the pool to fit.`,
+      });
+      return;
+    }
     await db.transaction(async (tx) => {
       await tx.delete(challengePrizesTable).where(eq(challengePrizesTable.challengeId, ch.id));
       await tx.insert(challengePrizesTable).values(
@@ -685,11 +713,30 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
     const unpaid = await db
       .select()
       .from(challengeWinnersTable)
-      .where(and(eq(challengeWinnersTable.challengeId, ch.id), sql`${challengeWinnersTable.paidAt} IS NULL`));
+      .where(and(eq(challengeWinnersTable.challengeId, ch.id), sql`${challengeWinnersTable.paidAt} IS NULL`))
+      .orderBy(challengeWinnersTable.place); // champion gets paid first under the cap
+    /* Weekly budget law: contest payouts across ALL challenges in a trailing
+       7-day window can never exceed 1,000 VB. Prizes that don't fit are
+       skipped (reported in budget_capped) — the row stays claimable so a
+       later re-judge can pay it once the window clears. */
+    const paid7dRes = await db.execute(sql`
+      SELECT COALESCE(SUM(prize_credits), 0)::int AS s
+      FROM challenge_winners
+      WHERE paid_at IS NOT NULL
+        AND paid_at > now() - interval '7 days'
+        AND challenge_id <> ${ch.id}
+    `);
+    let weeklyPaid = Number(((paid7dRes.rows as Record<string, unknown>[])[0]?.["s"] as number | undefined) ?? 0);
     let paid = 0;
     let alreadyPaid = 0;
     const payoutErrors: string[] = [];
+    const budgetCapped: string[] = [];
     for (const w of unpaid) {
+      if (!w.userId || w.prizeCredits <= 0) continue; // no prize configured for this place
+      if (weeklyPaid + w.prizeCredits > WEEKLY_PRIZE_CAP_VB) {
+        budgetCapped.push(`${ordinal(w.place)} — ${w.prizeCredits.toLocaleString("en-US")} VB`);
+        continue; // leave unclaimed; a later re-judge can pay it once the window clears
+      }
       const claimed = await db.execute(sql`
         UPDATE challenge_winners SET paid_at = now()
         WHERE id = ${w.id} AND paid_at IS NULL
@@ -699,9 +746,9 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
         alreadyPaid++;
         continue; // another judge claimed it concurrently
       }
-      if (!w.userId || w.prizeCredits <= 0) continue; // no prize configured for this place
       try {
         await grantVisualBucs(req, w.userId, w.prizeCredits, `Challenge prize — ${ch.title} (${ordinal(w.place)} place)`);
+        weeklyPaid += w.prizeCredits;
         paid++;
       } catch (e) {
         // Roll the claim back so a retry can pay it.
@@ -751,7 +798,7 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
     await notifyMany(notes);
 
     req.log.info(
-      { admin: req.userEmail, slug: ch.slug, paid, alreadyPaid, errors: payoutErrors.length },
+      { admin: req.userEmail, slug: ch.slug, paid, alreadyPaid, errors: payoutErrors.length, budgetCapped: budgetCapped.length },
       "admin: challenge judged",
     );
     const finalWinners = await db
@@ -765,6 +812,9 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
       paid,
       already_paid: alreadyPaid,
       payout_errors: payoutErrors,
+      budget_capped: budgetCapped,
+      weekly_cap_vb: WEEKLY_PRIZE_CAP_VB,
+      weekly_paid_vb: weeklyPaid,
       notified: notes.length,
       winners: finalWinners.map((w) => ({
         place: w.place,
@@ -777,6 +827,266 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
   } catch (err) {
     req.log.error({ err }, "challenge judge error");
     res.status(500).json({ error: "Judging failed. The crown waits." });
+  }
+});
+
+/* ── WEEKLY RITUAL — the can't-miss heartbeat ─────────────────────────────
+   Theme rotation is a seeded 12-week list (deterministic by ISO week), but
+   creation stays admin-triggered via one-click weekly-launch — the admin
+   judge flow is untouched. The weekly endpoint powers the Contest Hub
+   widget (dashboard + homepage): this week's contest, live countdown,
+   entry count, prize pool, and last week's winners. */
+
+/** Seeded weekly theme rotation — 12 weeks, creator-focused, deterministic. */
+const WEEKLY_THEMES: Array<{ title: string; hashtag: string; description: string }> = [
+  { title: "Golden Hour Glow", hashtag: "goldenhourglow", description: "Shoot it in golden light — sunrise, sunset, or faked with a lamp. The glow sells the shot." },
+  { title: "One Light, One Take", hashtag: "onelightonetak", description: "No cuts, no edits, one light. Raw talent, one continuous take — the hardest flex on the internet." },
+  { title: "15-Second Hook", hashtag: "15secondhook", description: "The first 15 seconds decide everything. Hook us, hold us, drop the mic." },
+  { title: "Bars Over Beats", hashtag: "barsoverbeats", description: "Spit your hardest verse over any beat — or none at all. Lyrics win crowns." },
+  { title: "Hometown Hero", hashtag: "hometownhero", description: "Rep where you're from. Your block, your city, your sound — put it on the map." },
+  { title: "Night Drive", hashtag: "nightdrive", description: "After-dark energy: dashboard lights, city streets, midnight thoughts. Keep it cinematic." },
+  { title: "Before & After", hashtag: "beforeandafter", description: "Show the transformation — the rough draft to the final cut, the idea to the drop." },
+  { title: "The Flip", hashtag: "theflip", description: "Take anything — a song, a clip, a trend — and flip it into something only you could make." },
+  { title: "Acapella Alchemy", hashtag: "acapellaalchemy", description: "Voice only. No beat, no backing track — turn raw vocals into gold." },
+  { title: "Street Performance", hashtag: "streetperformance", description: "Take it outside. Sidewalk, rooftop, parking lot — the street is the stage." },
+  { title: "Crowd Control", hashtag: "crowdcontrol", description: "Get people moving. Reactions, dances, sing-alongs — the crowd decides." },
+  { title: "The Remix", hashtag: "theremix", description: "Remix the week: take any Bow Down creation and make it yours. Best flip takes the crown." },
+];
+
+/** ISO week parts (UTC) — the rotation's source of truth. */
+function isoWeekParts(d: Date): { year: number; week: number } {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = (t.getUTCDay() + 6) % 7; // Monday = 0
+  t.setUTCDate(t.getUTCDate() - day + 3); // Thursday of this ISO week
+  const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const fday = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - fday + 3);
+  return { year: t.getUTCFullYear(), week: 1 + Math.round((t.getTime() - firstThu.getTime()) / (7 * 86_400_000)) };
+}
+
+/** "2026-W41" */
+function weekKeyOf(d: Date): string {
+  const { year, week } = isoWeekParts(d);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Monday 00:00 UTC of the week containing d. */
+function mondayOfWeek(d: Date): Date {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
+  return t;
+}
+
+/** Next Sunday 23:59:59 UTC — the default weekly deadline. */
+function nextSundayEnd(d: Date): Date {
+  const t = new Date(d);
+  t.setUTCDate(t.getUTCDate() + ((7 - t.getUTCDay()) % 7));
+  t.setUTCHours(23, 59, 59, 0);
+  return t;
+}
+
+/** Deterministic theme for an ISO week number. */
+function themeForWeek(week: number, override?: number) {
+  const idx = override ?? (week % WEEKLY_THEMES.length);
+  return { ...WEEKLY_THEMES[idx % WEEKLY_THEMES.length]!, index: idx % WEEKLY_THEMES.length };
+}
+
+function shapeWeeklyChallenge(ch: typeof challengesTable.$inferSelect, prizes: Array<typeof challengePrizesTable.$inferSelect>) {
+  const eff = effectiveStatus(ch);
+  return {
+    slug: ch.slug, title: ch.title, hashtag: ch.hashtag, description: ch.description,
+    cover_url: ch.coverUrl, status: eff, week_key: ch.weekKey,
+    starts_at: ch.startsAt, ends_at: ch.endsAt, judging_ends_at: ch.judgingEndsAt,
+    entry_count: ch.entryCount, prize_pool_credits: ch.prizePoolCredits,
+    prizes: prizes.map(shapePrize),
+  };
+}
+
+interface WeeklyWinner {
+  place: number; prize_credits: number; announced_at: unknown;
+  creator: { slug: unknown; display_name: unknown; avatar_url: unknown };
+  video: { id: unknown; title: unknown; thumbnail_url: unknown };
+}
+
+/** Compact winners for a challenge — shared by the weekly endpoint. */
+async function getWeeklyWinners(challengeId: string): Promise<WeeklyWinner[]> {
+  const rows = await db.execute(sql`
+    SELECT w.place, w.prize_credits, w.announced_at,
+           pv.id AS video_id, pv.title AS video_title, pv.thumbnail_url,
+           cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar
+    FROM challenge_winners w
+    JOIN profile_videos pv ON pv.id = w.video_id
+    LEFT JOIN creator_profiles cp ON cp.id = w.profile_id
+    WHERE w.challenge_id = ${challengeId}
+    ORDER BY w.place ASC
+    LIMIT 10
+  `);
+  return (rows.rows as Record<string, unknown>[]).map((r) => ({
+    place: Number(r["place"]),
+    prize_credits: Number(r["prize_credits"] ?? 0),
+    announced_at: r["announced_at"],
+    creator: { slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
+    video: { id: r["video_id"], title: r["video_title"], thumbnail_url: r["thumbnail_url"] },
+  }));
+}
+
+/* ── GET /api/challenges/weekly — this week's ritual state (public) ─────── */
+router.get("/challenges/weekly", async (req, res) => {
+  try {
+    const now = new Date();
+    const weekKey = weekKeyOf(now);
+    const { week } = isoWeekParts(now);
+    const monday = mondayOfWeek(now);
+    const nextMonday = new Date(monday);
+    nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
+
+    const [wk] = await db
+      .select()
+      .from(challengesTable)
+      .where(and(eq(challengesTable.isWeekly, true), eq(challengesTable.weekKey, weekKey)))
+      .limit(1);
+
+    let challenge: (ReturnType<typeof shapeWeeklyChallenge> & { winners: WeeklyWinner[] }) | null = null;
+    if (wk) {
+      const prizes = await db
+        .select()
+        .from(challengePrizesTable)
+        .where(eq(challengePrizesTable.challengeId, wk.id))
+        .orderBy(challengePrizesTable.place);
+      challenge = {
+        ...shapeWeeklyChallenge(wk, prizes),
+        winners: wk.status === "winners" ? await getWeeklyWinners(wk.id) : [],
+      };
+    }
+
+    // Last week's crowned winners — the celebration surface.
+    const lastWkRes = await db.execute(sql`
+      SELECT id, slug, title, hashtag, week_key
+      FROM challenges
+      WHERE is_weekly = true AND status = 'winners' AND week_key < ${weekKey}
+      ORDER BY week_key DESC
+      LIMIT 1
+    `);
+    const lastWk = (lastWkRes.rows as Record<string, unknown>[])[0] ?? null;
+    let lastWeek: {
+      week_key: string; challenge_slug: string; challenge_title: string; hashtag: string;
+      winners: WeeklyWinner[];
+    } | null = null;
+    if (lastWk) {
+      lastWeek = {
+        week_key: String(lastWk["week_key"]),
+        challenge_slug: String(lastWk["slug"]),
+        challenge_title: String(lastWk["title"]),
+        hashtag: String(lastWk["hashtag"]),
+        winners: await getWeeklyWinners(String(lastWk["id"])),
+      };
+    }
+
+    res.json({
+      week_key: weekKey,
+      week_starts_at: monday.toISOString(),
+      next_launch_at: nextMonday.toISOString(),
+      challenge,
+      last_week: lastWeek,
+      week_available: !wk, // no weekly contest yet → admin nudge surface
+      suggested_theme: themeForWeek(week),
+      weekly_cap_vb: WEEKLY_PRIZE_CAP_VB,
+    });
+  } catch (err) {
+    req.log.error({ err }, "weekly challenge error");
+    res.status(500).json({ error: "Couldn't load this week's contest." });
+  }
+});
+
+/* ── Admin: one-click weekly launch ───────────────────────────────────────
+   Creates this week's contest from the seeded theme rotation with the
+   standard 500/300/200 VB prize pool (1,000 total — the weekly budget law).
+   Idempotent per week_key: a week can only be launched once. The admin
+   judge flow is untouched — judging/payout still happen via /judge. */
+const weeklyLaunchSchema = z.object({
+  week_key: z.string().regex(/^\d{4}-W\d{2}$/).optional(),
+  theme_index: z.number().int().min(0).max(WEEKLY_THEMES.length - 1).optional(),
+  starts_at: z.string().datetime({ offset: true }).nullable().optional(),
+  ends_at: z.string().datetime({ offset: true }).nullable().optional(),
+});
+
+router.post("/admin/challenges/weekly-launch", requireAuth, requireAdmin, adminWriteLimiter, async (req, res) => {
+  try {
+    const parsed = weeklyLaunchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Bad launch payload.", details: parsed.error.issues.map((i) => i.message) });
+      return;
+    }
+    const now = new Date();
+    const weekKey = parsed.data.week_key ?? weekKeyOf(now);
+    const weekNum = parseInt(weekKey.slice(6), 10) || isoWeekParts(now).week;
+    const theme = themeForWeek(weekNum, parsed.data.theme_index);
+
+    const [existing] = await db
+      .select({ id: challengesTable.id })
+      .from(challengesTable)
+      .where(and(eq(challengesTable.isWeekly, true), eq(challengesTable.weekKey, weekKey)))
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: `Week ${weekKey} already has its contest — the ritual is on. 🦈` });
+      return;
+    }
+
+    const slug = `weekly-contest-${weekKey.toLowerCase()}`;
+    if (await getChallenge(slug)) {
+      res.status(409).json({ error: `A challenge with slug "${slug}" already exists.` });
+      return;
+    }
+
+    const startsAt = parsed.data.starts_at ? new Date(parsed.data.starts_at) : now;
+    const endsAt = parsed.data.ends_at ? new Date(parsed.data.ends_at) : nextSundayEnd(now);
+    if (endsAt <= startsAt) {
+      res.status(400).json({ error: "ends_at must be after starts_at." });
+      return;
+    }
+    const judgingEndsAt = new Date(endsAt.getTime() + 2 * 86_400_000);
+
+    const created = await db.transaction(async (tx) => {
+      const [ch] = await tx
+        .insert(challengesTable)
+        .values({
+          slug,
+          title: `${theme.title} — Weekly Creator Contest`,
+          description: theme.description,
+          hashtag: theme.hashtag,
+          status: "live",
+          startsAt,
+          endsAt,
+          judgingEndsAt,
+          isWeekly: true,
+          weekKey,
+          prizePoolCredits: WEEKLY_PRIZE_SPLIT.reduce((s, p) => s + p.prize_credits, 0),
+        })
+        .returning();
+      await tx.insert(challengePrizesTable).values(
+        WEEKLY_PRIZE_SPLIT.map((p) => ({
+          challengeId: ch!.id,
+          place: p.place,
+          prizeCredits: p.prize_credits,
+          description: p.description,
+        })),
+      );
+      return ch!;
+    });
+
+    const prizes = await db
+      .select()
+      .from(challengePrizesTable)
+      .where(eq(challengePrizesTable.challengeId, created.id))
+      .orderBy(challengePrizesTable.place);
+    req.log.info({ admin: req.userEmail, slug, weekKey }, "admin: weekly contest launched");
+    res.json({
+      ok: true,
+      challenge: { ...shapeWeeklyChallenge(created, prizes), winners: [] },
+    });
+  } catch (err) {
+    req.log.error({ err }, "weekly launch error");
+    res.status(500).json({ error: "Couldn't launch this week's contest." });
   }
 });
 

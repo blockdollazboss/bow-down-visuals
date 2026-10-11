@@ -21,6 +21,7 @@ import CreationStreakWidget from "@/components/CreationStreakWidget";
 import QuestsWidget from "@/components/QuestsWidget";
 import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
+import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
 
@@ -372,6 +373,9 @@ export default function Dashboard() {
 
         {/* ── THY DAILY DROP ── */}
         <DailyDropCard />
+
+        {/* ── WEEKLY CREATOR CONTEST — the addictive heartbeat ── */}
+        <ContestHubWidget />
 
         {/* ── ACTIVE ARTIST STRIP (compact) ── */}
         {activeArtist ? (() => {
