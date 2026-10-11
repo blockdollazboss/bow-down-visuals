@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { r2List } from "@/lib/r2-storage";
 
 /* ─── Product Photo Studio ────────────────────────────────────────────────
@@ -71,6 +72,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
 
   /* tr() keeps every string keyed for i18n (productPhotoStudio.*) while
      rendering English via defaultValue until en.json is merged. */
@@ -197,7 +199,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
   const stepLabel = "mb-2 block text-xs font-bold uppercase tracking-widest text-white/40";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+    <div className={`overflow-hidden rounded-2xl border border-primary/25 ${isLight ? "bg-white shadow-[0_8px_32px_rgba(138,107,31,0.10)]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
       <div className="p-6 md:p-8">
         {/* header */}
         <div className="flex items-center gap-3">
@@ -219,7 +221,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
                 <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <img src={productUrl} alt={tr("productAlt", "Product photo")} className="h-16 w-16 rounded-lg border border-white/10 object-cover" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-green-400">
                       <Check className="h-3.5 w-3.5" /> {tr("productReady", "Product photo ready")}
                     </div>
                     <button onClick={() => setProductUrl("")} className="mt-1 text-xs text-white/40 underline hover:text-white">

@@ -11,6 +11,7 @@ import {
   ImagePlus,
   RotateCcw,
   Check,
+  ChevronsLeftRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -214,7 +215,7 @@ export function PhotoEnhance() {
           className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.03] px-6 py-16 transition hover:border-[#fbbf24]/60 hover:bg-white/[0.05] disabled:opacity-50"
         >
           {uploading ? (
-            <Loader2 className="h-10 w-10 animate-spin text-[#fbbf24]" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#fbbf24] to-[#d4a017] shadow-[0_0_28px_rgba(251,191,36,0.35)]">
               <ImagePlus className="h-8 w-8 text-black" />
@@ -262,6 +263,9 @@ export function PhotoEnhance() {
                   </div>
                   <div className="absolute inset-y-0" style={{ left: `${comparePos}%` }}>
                     <div className="h-full w-0.5 -translate-x-1/2 bg-[#fbbf24] shadow-[0_0_12px_rgba(251,191,36,0.8)]" />
+                    <div className="pointer-events-none absolute top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-br from-[#fbbf24] to-[#d4a017] shadow-[0_0_16px_rgba(251,191,36,0.6)]">
+                      <ChevronsLeftRight className="h-5 w-5 text-black" />
+                    </div>
                   </div>
                   <input
                     type="range"
@@ -284,7 +288,7 @@ export function PhotoEnhance() {
               )}
               {enhancing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-sm">
-                  <Loader2 className="h-10 w-10 animate-spin text-[#fbbf24]" />
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
                   <div className="text-sm font-semibold text-white/80">
                     {t("photoEnhance.enhancing", { defaultValue: "Enhancing your photo…" })}
                   </div>
@@ -294,7 +298,7 @@ export function PhotoEnhance() {
             {result && (
               <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
                 <div className="flex items-center gap-1.5 text-xs text-white/50">
-                  <Check className="h-4 w-4 text-emerald-400" />
+                  <Check className="h-4 w-4 text-green-400" />
                   {t("photoEnhance.applied", {
                     defaultValue: "Applied: {{ops}}",
                     ops: result.operations
@@ -318,7 +322,7 @@ export function PhotoEnhance() {
             {/* Autopilot */}
             <div className="rounded-2xl border border-[#fbbf24]/30 bg-gradient-to-b from-[#fbbf24]/10 to-transparent p-5">
               <div className="mb-1 flex items-center gap-2 text-base font-bold">
-                <Sparkles className="h-5 w-5 text-[#fbbf24]" />
+                <Sparkles className="h-5 w-5 text-primary" />
                 {t("photoEnhance.autopilotTitle", { defaultValue: "Enhance everything" })}
               </div>
               <p className="mb-4 text-sm text-white/50">
@@ -363,7 +367,7 @@ export function PhotoEnhance() {
                     >
                       <span aria-hidden>{OP_META[op].icon}</span>
                       {t(`photoEnhance.ops.${op}`, { defaultValue: op })}
-                      {active && <Check className="ml-auto h-4 w-4 text-[#fbbf24]" />}
+                      {active && <Check className="ml-auto h-4 w-4 text-primary" />}
                     </button>
                   );
                 })}
@@ -412,7 +416,7 @@ export function PhotoEnhance() {
               <button
                 onClick={() => void runEnhance(selectedOps, showAdvanced ? strengths : null)}
                 disabled={busy || selectedOps.length === 0}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#fbbf24]/50 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fbbf24] transition hover:bg-[#fbbf24]/20 disabled:opacity-50"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#fbbf24]/50 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-primary transition hover:bg-[#fbbf24]/20 disabled:opacity-50"
               >
                 {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 rotate-90" />}
                 {t("photoEnhance.runSelected", { defaultValue: "Enhance with selected" })}
@@ -420,7 +424,7 @@ export function PhotoEnhance() {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>

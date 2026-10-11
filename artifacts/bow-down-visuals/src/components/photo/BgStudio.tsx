@@ -303,7 +303,7 @@ export function BgStudio() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
         </div>
       )}
@@ -397,7 +397,7 @@ export function BgStudio() {
                 src={cutoutUrl}
                 alt="cutout"
                 className="w-full rounded-xl border border-white/15 object-contain"
-                style={{ backgroundImage: "conic-gradient(#2a2a2a 25%, #1a1a1a 0 50%, #2a2a2a 0 75%, #1a1a1a 0)", backgroundSize: "16px 16px" }}
+                style={{ backgroundImage: "conic-gradient(#b9b9b9 25%, #dcdcdc 0 50%, #b9b9b9 0 75%, #dcdcdc 0)", backgroundSize: "16px 16px" }}
               />
             </div>
           </div>
@@ -414,15 +414,15 @@ export function BgStudio() {
           <h3 className="font-bold text-white">{t("bgStudio.step3", { defaultValue: "Replace the background" })}</h3>
         </div>
 
-        <div className="mb-5 flex gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-1" role="tablist">
+        <div className="mb-5 flex gap-2 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.02] p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
           {(["color", "gradient", "ai"] as ReplaceKind[]).map((kind) => (
             <button
               key={kind}
               role="tab"
               aria-selected={replaceKind === kind}
               onClick={() => setReplaceKind(kind)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                replaceKind === kind ? "bg-amber-400/20 text-amber-200" : "text-white/50 hover:text-white"
+              className={`flex flex-none whitespace-nowrap sm:flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                replaceKind === kind ? "bg-amber-400/20 text-amber-300" : "text-white/50 hover:text-white"
               }`}
             >
               {kind === "color" && <Palette className="h-4 w-4" />}
@@ -473,7 +473,7 @@ export function BgStudio() {
           <div>
             {statusLoading && <p className="text-sm text-white/50">{t("bgStudio.checkingAi", { defaultValue: "Checking AI availability…" })}</p>}
             {!statusLoading && !aiEnabled && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
                 {t("bgStudio.aiNotConnected", { defaultValue: "AI backdrops are not connected on this server yet. Pick a solid color or preset scene instead." })}
               </div>
             )}
@@ -508,14 +508,14 @@ export function BgStudio() {
                     <button
                       onClick={() => setProvider("nano-banana-2.1")}
                       disabled={!backdropStatus?.nanoConfigured}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "nano-banana-2.1" ? "border-amber-300 bg-amber-400/15 text-amber-200" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "nano-banana-2.1" ? "border-amber-300 bg-amber-400/15 text-amber-300" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
                     >
                       Nano Banana 2.1
                     </button>
                     <button
                       onClick={() => setProvider("ideogram-4.0")}
                       disabled={!backdropStatus?.ideogramConfigured}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "ideogram-4.0" ? "border-amber-300 bg-amber-400/15 text-amber-200" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "ideogram-4.0" ? "border-amber-300 bg-amber-400/15 text-amber-300" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
                     >
                       Ideogram 4.0
                     </button>

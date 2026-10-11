@@ -150,12 +150,13 @@ function SSStyledSelect({ name, placeholder, options, value, onChange }: {
   name: string; placeholder: string; options: { value: string; labelKey: string }[]; value: string; onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
-        className={ssSelectClass} style={{ colorScheme: "dark" }}>
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
-        {options.map((o) => <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>)}
+        className={ssSelectClass} style={{ colorScheme: isLight ? "light" : "dark" }}>
+        <option value="" disabled>{placeholder}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
     </div>
@@ -627,7 +628,7 @@ export function ThumbnailMakerModule() {
       <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8 space-y-8">
           {/* Video reference badge (?video= deep-link from caption suite) */}
           {videoRef && (
-            <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+            <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
               <span aria-hidden>🎬</span>
               <span className="flex-1 truncate">
                 {t("thumbnailMaker.videoReferenceAttached")} — {videoRef}
@@ -635,7 +636,7 @@ export function ThumbnailMakerModule() {
               <button
                 type="button"
                 onClick={() => setVideoRef(null)}
-                className="shrink-0 rounded-lg px-2 py-1 text-amber-300/70 hover:text-amber-200 hover:bg-white/10"
+                className="shrink-0 rounded-lg px-2 py-1 text-amber-300 hover:text-amber-400 hover:bg-white/10"
                 aria-label={t("thumbnailMaker.removeVideoReference")}
               >
                 ✕
@@ -1079,6 +1080,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BrowseLibraryButton } from "@/pages/library";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
 import { PhotoEnhance } from "@/components/photo/PhotoEnhance";
@@ -1150,6 +1152,7 @@ function ThumbnailAbTester() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
+  const isLight = useIsLightTheme();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [title, setTitle] = useState("");
@@ -1258,7 +1261,7 @@ function ThumbnailAbTester() {
     <div>
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="w-7 h-7 text-amber-400" />
-          <h2 className="text-2xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">{t("thumbnailTest.pageTitle")}</h2>
+          <h2 className={`text-2xl font-black ${isLight ? "gold-foil" : "bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent"}`}>{t("thumbnailTest.pageTitle")}</h2>
         </div>
         <p className="text-white/55 max-w-2xl mb-8">{t("thumbnailTest.pageSubtitle")}<span className="text-white/35">{t("thumbnailTest.subtitleNote")}</span>
         </p>
@@ -1349,7 +1352,7 @@ function ThumbnailAbTester() {
             <div className="rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/10 to-transparent p-6 mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <Trophy className="w-6 h-6 text-amber-400" />
-                <h2 className="text-xl font-bold text-amber-200">
+                <h2 className="text-xl font-bold text-amber-300">
                   {t("thumbnailTest.predictedWinner", { n: result.winnerIndex + 1 })}
                 </h2>
                 <span className="text-xs font-semibold bg-amber-400/20 text-amber-300 px-2 py-1 rounded-full">
@@ -1394,7 +1397,7 @@ function ThumbnailAbTester() {
                     </div>
                     {a.strengths.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-xs font-semibold text-emerald-300 mb-1">{t("thumbnailTest.strengthsLabel")}</p>
+                        <p className="text-xs font-semibold text-green-400 mb-1">{t("thumbnailTest.strengthsLabel")}</p>
                         <ul className="text-xs text-white/50 list-disc list-inside space-y-0.5">
                           {a.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
@@ -1418,7 +1421,7 @@ function ThumbnailAbTester() {
                     )}
                     {improvedUrls[a.index] ? (
                       <div>
-                        <p className="text-xs font-semibold text-emerald-300 mb-2">{t("thumbnailTest.improvedHeading")}</p>
+                        <p className="text-xs font-semibold text-green-400 mb-2">{t("thumbnailTest.improvedHeading")}</p>
                         <img
                           src={improvedUrls[a.index]}
                           alt={t("thumbnailTest.improvedAlt")}
@@ -1427,7 +1430,7 @@ function ThumbnailAbTester() {
                         <a
                           href={improvedUrls[a.index]}
                           download={`thumbnail-${a.index + 1}-improved.png`}
-                          className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200"
+                          className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-400"
                         >{t("thumbnailTest.downloadLink")}</a>
                       </div>
                     ) : (
@@ -1805,15 +1808,15 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
         </>
         )}
 
-        {/* tabs */}
-        <div className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5" role="tablist" aria-label={t("thumbnailStudio.tabs.aria", { defaultValue: "Thumbnail studio sections" })}>
+        {/* tabs — scrolls horizontally on phones so no tab is ever clipped */}
+        <div className="mb-8 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={t("thumbnailStudio.tabs.aria", { defaultValue: "Thumbnail studio sections" })}>
           {STUDIO_TABS.map((key) => (
             <button
               key={key}
               role="tab"
               aria-selected={tab === key}
               onClick={() => switchTab(key)}
-              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              className={`flex-none whitespace-nowrap sm:flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                 tab === key
                   ? "bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black shadow-[0_0_18px_rgba(251,191,36,0.35)]"
                   : "text-white/50 hover:text-white"

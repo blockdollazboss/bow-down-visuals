@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /**
  * AI Headshots — creator profile-pic generator.
@@ -63,6 +64,7 @@ export function HeadshotStudio() {
   const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
 
   const [flow, setFlow] = useState<FlowMode>("autopilot");
   const [preset, setPreset] = useState<PresetId>("studio");
@@ -143,7 +145,7 @@ export function HeadshotStudio() {
           {t("headshotStudio.eyebrow", { defaultValue: "Profile pics" })}
         </p>
         <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-          <span className="bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent">
+          <span className={isLight ? "gold-foil" : "bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent"}>
             {t("headshotStudio.title", { defaultValue: "AI Headshots" })}
           </span>
         </h2>

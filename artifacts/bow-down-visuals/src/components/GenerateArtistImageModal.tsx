@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { r2List } from "@/lib/r2-storage";
@@ -32,6 +33,7 @@ interface Props {
 interface RecentImage { name: string; url: string; path: string }
 
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const isShoot = mode === "photoshoot";
@@ -243,11 +245,11 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
                   key={pack.id}
                   type="button"
                   disabled={generating}
-                  title={pack.blurb}
+                  title={t(pack.blurbKey, { defaultValue: pack.blurb })}
                   onClick={() => applyShootChange({ poseId: pack.poseId, outfit: pack.outfit, background: pack.background })}
                   className={chipClass(poseId === pack.poseId && outfit === pack.outfit && background === pack.background)}
                 >
-                  {pack.name}
+                  {t(pack.nameKey, { defaultValue: pack.name })}
                 </button>
               ))}
             </div>
