@@ -13,6 +13,7 @@ import {
 } from "@/components/cheat-code-jackpot-logic";
 import { DraggableWidget } from "@/components/draggable-widget";
 import { useLocation } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /**
  * Cheat Code Jackpot — the site-wide monthly prize event.
@@ -146,6 +147,7 @@ async function fetchStatus(): Promise<JackpotStatus> {
 export function CheatCodeJackpot() {
  const { user, getAccessToken, refreshProfile } = useAuth();
  const [location] = useLocation();
+ const isLight = useIsLightTheme();
  /* The video editor is a focused studio surface — the jackpot promo banner
   * and D-pad FAB don't belong there. */
  const inEditor = location.startsWith("/video-editor");
@@ -436,7 +438,7 @@ export function CheatCodeJackpot() {
  />
  </span>
  <div className="min-w-0 flex-1">
- <p className="pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] text-[#F5DE8E] uppercase">
+ <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#F5DE8E]"}`}>
  {bannerBody.title}
  </p>
  <p className="truncate text-[11px] sm:text-xs text-white/50">

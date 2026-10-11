@@ -25,7 +25,12 @@ import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
-  return projectType === "Make a Music Video" || projectType === "Make Song + Video";
+  return (
+    projectType === "Make a Music Video" ||
+    projectType === "Make Song + Video" ||
+    projectType === "Promo Clip Maker" ||
+    projectType === "MUSIC_VIDEO"
+  );
 }
 
 /* Display names for project types — stored values stay stable so old
@@ -375,37 +380,35 @@ function ProjectCard({
         deleting ? "opacity-40 pointer-events-none" : ""
       }`}
     >
-      {/* ── Visual header: filmstrip when scene clips exist, else type-tinted banner ── */}
-      {clipUrls.length > 0 ? (
-        <div className="relative h-28 md:h-32 flex overflow-hidden bg-black">
-          {clipUrls.map((url) => (
-            <video
-              key={url}
-              src={url}
-              muted
-              playsInline
-              preload="metadata"
-              className="flex-1 min-w-0 h-full object-cover"
-            />
-          ))}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
-          <span className={`absolute left-3 bottom-2.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${iconColor}`}>
-            {icon}
-            {displayProjectType(project.project_type, t)}
-          </span>
-        </div>
-      ) : (
-        <div className={`relative h-24 md:h-28 overflow-hidden bg-gradient-to-br ${headerGradient}`}>
-          <div className="absolute -right-4 -bottom-7 text-white/[0.08] [&>svg]:h-24 [&>svg]:w-24 md:[&>svg]:h-28 md:[&>svg]:w-28">
+      {/* ── Visual header: type-tinted banner always; filmstrip videos overlay it
+           when scene clips exist (if the videos fail to load, the colored band
+           still shows instead of an empty strip) ── */}
+      <div className={`relative overflow-hidden bg-gradient-to-br ${headerGradient} ${clipUrls.length > 0 ? "h-28 md:h-32" : "h-24 md:h-28"}`}>
+        {clipUrls.length > 0 && (
+          <div className="absolute inset-0 flex bg-black" data-dark-lock>
+            {clipUrls.map((url) => (
+              <video
+                key={url}
+                src={url}
+                muted
+                playsInline
+                preload="metadata"
+                className="flex-1 min-w-0 h-full object-cover"
+              />
+            ))}
+          </div>
+        )}
+        {clipUrls.length === 0 && (
+          <div className="absolute right-3 bottom-3 text-white opacity-[0.12] [&>svg]:h-12 [&>svg]:w-12">
             {icon}
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-          <span className={`absolute left-4 bottom-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${iconColor}`}>
-            {icon}
-            {displayProjectType(project.project_type, t)}
-          </span>
-        </div>
-      )}
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+        <span className={`absolute left-4 bottom-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${iconColor}`}>
+          {icon}
+          {displayProjectType(project.project_type, t)}
+        </span>
+      </div>
       <div className="p-4 md:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
