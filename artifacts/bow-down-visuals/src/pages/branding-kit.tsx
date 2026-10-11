@@ -52,7 +52,7 @@ export default function BrandingKit() {
           {t("brandingKit.eyebrow")}
         </p>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-          <span className="bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent">
+          <span className="branding-kit-title bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent">
             {t("brandingKit.title")}
           </span>
         </h1>
@@ -88,7 +88,7 @@ export default function BrandingKit() {
       </div>
 
       {/* Active tool */}
-      <div className="flex justify-end mb-4">
+      <div className="mx-auto max-w-5xl px-4 mb-4 flex justify-end">
         <BrowseLibraryButton tab="templates" category="Intros & Outros" tool="brand" />
       </div>
       {/* Handoff: brand assets belong in videos — one tap into the editor */}

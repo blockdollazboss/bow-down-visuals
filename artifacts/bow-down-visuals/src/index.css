@@ -373,6 +373,11 @@ html, body {
 .light .text-\[\#C9A84C\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#e8c86a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+/* Branding Kit hero title: the pale #f7e9b8 middle stop washes out on ivory —
+   deepen to an antique-bronze gradient in light mode (dark theme untouched) */
+.light .branding-kit-title:not([data-dark-lock]) {
+  background-image: linear-gradient(to right, #8A6B1F, #6B5214, #8A6B1F);
+}
 
 /* ── 6. Champagne hairlines: white borders become warm gold-tinted ── */
 .light .border-white:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
