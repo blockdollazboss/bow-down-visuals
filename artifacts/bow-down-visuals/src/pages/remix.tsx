@@ -7,10 +7,12 @@ import { TRENDING_PRESETS, type TrendingPreset } from "@/data/trending-presets";
 const CATEGORIES = ["All", "Motion", "Style", "Transition", "Effect"] as const;
 
 const CATEGORY_ACCENT: Record<string, string> = {
-  Motion: "border-sky-400/30 bg-sky-400/10 text-sky-300",
-  Style: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-300",
-  Transition: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-  Effect: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  /* -600 text shades read on both dark cards and the ivory light theme
+     (the old -300 shades vanished on ivory). */
+  Motion: "border-sky-400/30 bg-sky-400/10 text-sky-600",
+  Style: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-600",
+  Transition: "border-emerald-400/30 bg-emerald-400/10 text-emerald-600",
+  Effect: "border-amber-400/30 bg-amber-400/10 text-amber-600",
 };
 
 /* ─── /remix — Trending Remix Feed ──────────────────────────────────────────

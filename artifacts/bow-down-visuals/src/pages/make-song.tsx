@@ -25,6 +25,7 @@ import { LrcExportModal } from "@/components/song/LrcExportModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
 import { pushSongPackageToProject, extractSongPackage } from "@/lib/hub-song";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationResult } from "@/components/GenerationResult";
 import { CostBadge } from "@/components/CostBadge";
@@ -122,6 +123,9 @@ function StyledSelect({
   onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  /* Light theme: native dropdown chrome follows colorScheme; option rows
+     need an explicit light background or they'd render dark-on-dark. */
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select
@@ -129,13 +133,13 @@ function StyledSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={selectClass}
-        style={{ colorScheme: "dark" }}
+        style={{ colorScheme: isLight ? "light" : "dark" }}
       >
-        <option value="" disabled style={{ background: "#111" }}>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>
           {placeholder}
         </option>
         {options.map((o) => (
-          <option key={o.value} value={o.value} style={{ background: "#111" }}>
+          <option key={o.value} value={o.value} style={{ background: isLight ? "#FAF6ED" : "#111" }}>
             {t(o.labelKey)}
           </option>
         ))}

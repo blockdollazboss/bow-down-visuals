@@ -16,6 +16,7 @@ import {
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SceneStudio } from "@/components/SceneStudio";
@@ -158,6 +159,9 @@ function StyledSelect({
   value: string; onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  /* Light theme: native dropdown chrome follows colorScheme; option rows
+     need an explicit light background or they'd render dark-on-dark. */
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select
@@ -165,11 +169,11 @@ function StyledSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={selectClass}
-        style={{ colorScheme: "dark" }}
+        style={{ colorScheme: isLight ? "light" : "dark" }}
       >
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => (
-          <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>
+          <option key={o.value} value={o.value} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{t(o.labelKey)}</option>
         ))}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
@@ -873,7 +877,7 @@ export function MakeVideoModule() {
               {draftState === "found" && (
                 <div className="p-6 space-y-5">
                   <div>
-                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">{t("makeVideo.draftFoundTitle")}</p>
+                    <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest mb-2">{t("makeVideo.draftFoundTitle")}</p>
                     <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? t("makeVideo.previousSession")}</p>
                     {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
                   </div>

@@ -162,7 +162,7 @@ export default function CoverArt() {
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200/80">{error}</p>
+            <p className="text-sm text-red-300/80">{error}</p>
           </div>
         )}
 
@@ -178,7 +178,7 @@ export default function CoverArt() {
                   mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                Simple
+                {t("cover-art.simple", { defaultValue: "Simple" })}
               </button>
               <button
                 type="button"
@@ -187,13 +187,13 @@ export default function CoverArt() {
                   mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                Custom
+                {t("cover-art.custom", { defaultValue: "Custom" })}
               </button>
             </div>
 
             {mode === "simple" && (
               <div className="space-y-4">
-                <p className="text-sm text-white/60">Pick a vibe — one tap, done.</p>
+                <p className="text-sm text-white/60">{t("cover-art.pickVibe", { defaultValue: "Pick a vibe — one tap, done." })}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {COVER_PRESETS.map((preset) => (
                     <button
@@ -322,7 +322,7 @@ export default function CoverArt() {
                   <Loader2 className="h-4 w-4 animate-spin" />{t("cover-art.art_directing_your_cover")}</>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate cover · {tierInfo.credits} Visual Bucs
+                  <Sparkles className="h-4 w-4" /> {t("cover-art.generateBtn", { defaultValue: "Generate cover · {{credits}} Visual Bucs", credits: tierInfo.credits })}
                 </>
               )}
             </button>
@@ -383,7 +383,7 @@ export default function CoverArt() {
                     ) : (
                       <RefreshCw className="h-4 w-4" />
                     )}
-                    Variation
+                    {t("cover-art.variation", { defaultValue: "Variation" })}
                   </button>
                 </div>
                 {result.typography && (

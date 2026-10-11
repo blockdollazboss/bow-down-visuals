@@ -139,7 +139,7 @@ export default function Create() {
 
         {/* Header */}
         <div className="mb-10">
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#fbbf24]">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
             <Sparkles className="h-3 w-3" />
             {t("create.kicker", { defaultValue: "Thy Lab" })}
           </div>

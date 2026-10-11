@@ -24,6 +24,7 @@ import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
@@ -178,12 +179,15 @@ function Sel({ name, placeholder, options, value, onChange }: {
   name: string; placeholder: string; options: Array<{ value: string; labelKey: string }>; value: string; onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  /* Light theme: native dropdown chrome follows colorScheme; option rows
+     need an explicit light background or they'd render dark-on-dark. */
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
-        className={selCls} style={{ colorScheme: "dark" }}>
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
-        {options.map((o) => <option key={o.value} value={o.value} style={{ background: "#111" }}>{t(o.labelKey)}</option>)}
+        className={selCls} style={{ colorScheme: isLight ? "light" : "dark" }}>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
+        {options.map((o) => <option key={o.value} value={o.value} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{t(o.labelKey)}</option>)}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
     </div>
@@ -1140,7 +1144,7 @@ export function SongAndVideoModule() {
               {draftState === "found" && (
                 <div className="p-6 space-y-5">
                   <div>
-                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">{t("songAndVideo.draftFoundTitle")}</p>
+                    <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest mb-2">{t("songAndVideo.draftFoundTitle")}</p>
                     <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? t("songAndVideo.draftPreviousSession")}</p>
                     {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">{t("songAndVideo.draftLastSaved", { updated: draftInfo.updated })}</p>}
                   </div>
