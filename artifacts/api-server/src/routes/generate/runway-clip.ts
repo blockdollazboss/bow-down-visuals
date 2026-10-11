@@ -22,8 +22,12 @@ import {
   SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT,
   SEEDANCE_PRICING_APPROVED,
   SEEDANCE_PRICING_VERSION,
+  VEO_CREDITS_PER_SEC_DEFAULT,
+  VEO_PRICING_APPROVED,
+  VEO_PRICING_VERSION,
   resolveClipPlan,
 } from "./clip-pricing";
+import { submitVeoVideo, pollVeoOperation, downloadVeoVideo } from "../../lib/veo-client";
 import { getLockedPack } from "./pre-production";
 import type { PackIngredients } from "@workspace/db";
 
@@ -43,15 +47,19 @@ const SEEDANCE_CREDITS_PER_SEC_1080P =
 const SEEDANCE_CREDITS_PER_SEC_DRAFT =
   Number(process.env["SEEDANCE_CREDITS_PER_SEC_DRAFT"]) ||
   SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT;
+/* Veo 3.1 (Google) credits/sec at 720p. Env-overridable without a deploy. */
+const VEO_CREDITS_PER_SEC =
+  Number(process.env["VEO_CREDITS_PER_SEC"]) ||
+  VEO_CREDITS_PER_SEC_DEFAULT;
 
 /**
  * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
- * Key: Runway taskId  Value: { userId, projectId, credits }
+ * Key: Runway taskId (or veo-<uuid> for Veo)  Value: { userId, projectId, credits, veoOperation? }
  * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
  * In-memory only — a server restart before polling completes means credits
  * won't be charged for that clip (acceptable; user gets a free clip, not a spurious charge).
  */
-const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number }>();
+const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string }>();
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund
@@ -235,8 +243,10 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     creditsPerSec720p: SEEDANCE_CREDITS_PER_SEC_720P,
     creditsPerSec1080p: SEEDANCE_CREDITS_PER_SEC_1080P,
     creditsPerSecDraft: SEEDANCE_CREDITS_PER_SEC_DRAFT,
+    creditsPerSecVeo: VEO_CREDITS_PER_SEC,
   });
   const useSeedance = plan.useSeedance;
+  const useVeo = plan.useVeo;
   const isDraft = plan.isDraft;
   const resolvedDurationSec = plan.durationSec;
   /* Duration-proportional pricing for the premium model; flat 5 for gen4.5. */
@@ -259,6 +269,22 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
       message:
         "Seedance 2.5 scene pricing is pending approval, so generations are paused. No Visual Bucs were charged and no video was generated.",
       pricingVersion: SEEDANCE_PRICING_VERSION,
+    });
+    return;
+  }
+
+  /* ── Veo 3.1 pricing approval gate (same pattern as Seedance) ────────────
+     Refuse BEFORE any Gemini call, credit check, or pending-task tracking. */
+  if (useVeo && !VEO_PRICING_APPROVED) {
+    req.log.warn(
+      { userId: req.userId, pricingVersion: VEO_PRICING_VERSION },
+      "[runway-clip] Veo 3.1 submission BLOCKED — pricing pending user approval",
+    );
+    res.status(402).json({
+      error: "veo_pricing_pending_approval",
+      message:
+        "Veo 3.1 scene pricing is pending approval, so generations are paused. No Visual Bucs were charged and no video was generated.",
+      pricingVersion: VEO_PRICING_VERSION,
     });
     return;
   }
@@ -311,7 +337,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
   req.log.info(
-    { userId: req.userId, currentCredits, requiredCredits: creditCost, model: useSeedance ? "seedance2_5" : "gen4.5" },
+    { userId: req.userId, currentCredits, requiredCredits: creditCost, model: plan.model },
     "[runway-clip] credit check started",
   );
 
@@ -378,6 +404,62 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
   /* gen4.5 image-to-video caps promptText at 1000 UTF-16 code units; text-to-video allows more. */
   const promptCap = useImageRef ? 1000 : 1400;
   const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, promptCap);
+
+  /* ── Veo 3.1 (Google) path: cinematic clips with native audio ────────────
+     Async like Runway: submit the long-running operation, track it in
+     pendingTasks under a veo-<uuid> id, and let the GET poller below drive
+     it to completion. Credits are only charged on success. Positioned after
+     the credit pre-check above — no free generations. */
+  if (useVeo) {
+    try {
+      let imageBase64: string | undefined;
+      let imageMimeType: string | undefined;
+      if (useImageRef) {
+        try {
+          const imgRes = await fetch(refImage!, { signal: AbortSignal.timeout(60_000) });
+          if (imgRes.ok) {
+            const buf = Buffer.from(await imgRes.arrayBuffer());
+            if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
+              imageBase64 = buf.toString("base64");
+              imageMimeType = imgRes.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+            }
+          }
+        } catch {
+          req.log.warn("[runway-clip] Veo reference image fetch failed — text-to-video fallback");
+        }
+      }
+      /* Veo generates its own audio natively (dialogue/SFX/ambience) — that
+         is its signature strength, so unlike Seedance we leave it on. */
+      const veoPrompt = `${content} ${PERFORMANCE_DIRECTIVE}`.slice(0, 4000);
+      const operation = await submitVeoVideo({
+        prompt: veoPrompt,
+        aspectRatio: effectiveRatio === "720:1280" ? "9:16" : "16:9",
+        imageBase64,
+        imageMimeType,
+        resolution: "720p",
+      });
+      const veoTaskId = `veo-${randomUUID()}`;
+      pendingTasks.set(veoTaskId, {
+        userId: req.userId!,
+        projectId: projectId ?? null,
+        credits: creditCost,
+        veoOperation: operation,
+      });
+      req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
+      res.json({
+        taskId: veoTaskId,
+        referenceSource,
+        creditCost,
+        model: "veo3_1",
+        durationSec: resolvedDurationSec,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
+      req.log.error({ err: msg }, "[runway-clip] Veo 3.1 submission failed — no credits charged");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
 
   const client = new RunwayML({ apiKey });
   const resolvedRatio = effectiveRatio;
@@ -469,6 +551,80 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
 ───────────────────────────────────────────────────────────────────────────── */
 router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
   const { taskId } = req.params as { taskId: string };
+
+  /* ── Veo 3.1 poll branch ─────────────────────────────────────────────────
+     Veo tasks are tracked under veo-<uuid> ids with the Gemini operation
+     name in pendingTasks. Same money rules as Runway: charge only on
+     success, once, guarded by pendingTasks presence. */
+  if (taskId.startsWith("veo-")) {
+    const pending = pendingTasks.get(taskId);
+    if (!pending?.veoOperation) {
+      res.json({ status: "failed", error: "Unknown or expired Veo task." });
+      return;
+    }
+    try {
+      const poll = await pollVeoOperation(pending.veoOperation);
+      if (!poll.done) {
+        res.json({ status: "processing", progress: null });
+        return;
+      }
+      if (poll.error || !poll.videoUri) {
+        pendingTasks.delete(taskId);
+        req.log.info({ taskId, error: poll.error }, "[runway-clip] Veo 3.1 task failed — no credits charged");
+        res.json({ status: "failed", error: poll.error ?? "Veo 3.1 generation failed." });
+        return;
+      }
+      /* ── Download from Google, persist to Supabase Storage ──
+         Charge happens ONLY after the clip is safely stored: if the
+         download/upload fails, no credits move and the user can retry. */
+      const tmpFile = path.join(os.tmpdir(), `veo-${randomUUID()}.mp4`);
+      try {
+        req.log.info({ taskId }, "[runway-clip] downloading clip from Veo");
+        const buffer = await downloadVeoVideo(poll.videoUri);
+        const objectName = `clips/${randomUUID()}.mp4`;
+        const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
+        const previewUrl = await refreshSupabaseStorageUrl(storageRef);
+
+        /* ── Charge once, guarded by pendingTasks presence ── */
+        if (pending.userId === req.userId) {
+          const cost = pending.credits;
+          try {
+            const creditsAfter = await chargeCreditsAtomic(
+              req.userId!,
+              cost,
+              { action: "Veo Video Clip", projectId: pending.projectId ?? null },
+              { rollbackOnLedgerFailure: false },
+            );
+            req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: cost }, "[runway-clip] Veo 3.1 credits deducted");
+            chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
+            setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000);
+          } catch (err) {
+            if (err instanceof LedgerWriteError) {
+              req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after Veo deduction");
+            } else {
+              req.log.error({ err, taskId }, "[runway-clip] Veo credit deduction FAILED — clip delivered without charge");
+            }
+          }
+        } else {
+          req.log.warn({ taskId }, "[runway-clip] Veo userId mismatch on poll — skipping charge");
+        }
+        pendingTasks.delete(taskId);
+
+        req.log.info({ objectName, taskId }, "[runway-clip] Veo clip saved — returning storage ref + preview URL");
+        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef });
+      } catch (uploadErr: unknown) {
+        req.log.error({ err: uploadErr }, "[runway-clip] Veo clip download/upload failed — no credits charged");
+        res.json({ status: "failed", error: "Veo generated the clip but saving it failed. No Visual Bucs were charged — please try again." });
+      } finally {
+        cleanup(tmpFile);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Veo poll failed";
+      req.log.error({ err: msg, taskId }, "[runway-clip] Veo poll error");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {

@@ -217,7 +217,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
   /* Video model selection — Seedance 2.5 is the premium option with longer
      scenes and higher resolution, priced per second. */
-  const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5">("gen4.5");
+  const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5" | "veo3_1">("gen4.5");
   const [clipDuration, setClipDuration] = useState(5);
   const [clipRes, setClipRes]         = useState<"720p" | "1080p">("720p");
   /* Draft mode (Seedance only): cheap 480p preview for iterating on the shot.
@@ -514,7 +514,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           referenceImageUrl,
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
-          durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
+          durationSec: clipModel === "veo3_1" ? 8 : clipModel === "seedance2_5" ? clipDuration : 5,
           resolution: isEnhance ? "1080p" : clipRes,
           draft: clipModel === "seedance2_5" && draftMode && !isEnhance,
           seed: isEnhance ? draftSeed : undefined,
@@ -574,13 +574,18 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 300;
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 600;
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 200;
+  /* Veo 3.1: fixed 8s clips at 400/sec (must match server VEO_CREDITS_PER_SEC_DEFAULT). */
+  const VEO_CREDITS_PER_SEC_CLIENT = 400;
+  const VEO_CLIP_DURATION_CLIENT = 8;
   const isDraftRequest = clipModel === "seedance2_5" && draftMode;
-  const clipCost = clipModel === "seedance2_5"
-    ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
-    : 5;
+  const clipCost = clipModel === "veo3_1"
+    ? VEO_CLIP_DURATION_CLIENT * VEO_CREDITS_PER_SEC_CLIENT
+    : clipModel === "seedance2_5"
+      ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
+      : 5;
   /* Enhance cost: re-render the draft's keeper at 1080p. */
   const enhanceCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : 0;
-  const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
+  const genTimeHint = clipModel === "veo3_1" ? "Usually takes 1–2 minutes" : clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 
   /* Human-readable label for whichever reference the last/next generation used or will use. */
   function referenceLabel(source: "previous_scene" | "vault_photo" | "none" | null): string | null {
@@ -838,6 +843,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           {([
             { id: "gen4.5", label: "Standard" },
             { id: "seedance2_5", label: "Premium" },
+            { id: "veo3_1", label: "Veo 3.1" },
           ] as const).map((m) => (
             <button
               key={m.id}

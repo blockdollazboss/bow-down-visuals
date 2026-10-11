@@ -3,7 +3,7 @@
  * Kept dependency-free so it can be unit-tested without the server.
  */
 
-export type ClipModel = "gen4.5" | "seedance2_5";
+export type ClipModel = "gen4.5" | "seedance2_5" | "veo3_1";
 export type ClipResolution = "720p" | "1080p";
 /** The six Seedance 2.5 ratios this route ever requests (incl. 480p drafts). */
 export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920" | "854:480" | "480:854";
@@ -42,12 +42,27 @@ export const SEEDANCE_PRICING_APPROVED = true; // flipped 2026-09-25 after expli
 /** Bump when the proposed rates change, so an approval is tied to a version. */
 export const SEEDANCE_PRICING_VERSION = "2026-09-25-resolution-aware";
 
+/* ── Veo 3.1 (Google) — cinematic clips with native audio ───────────────────
+   Provider cost is $0.40/sec at 720p (Standard). At ~$0.50 per site credit,
+   400/sec retails $2.00/sec = 5.0x margin. Clips are fixed 8s (Veo's max and
+   the only length allowed with reference images), so one clip = 3200 credits.
+   Same GEMINI_API_KEY as Nano Banana — no separate credential. */
+export const VEO_CREDITS_PER_SEC_DEFAULT = 400;
+export const VEO_CLIP_DURATION_SEC = 8;
+/* Explicit approval gate (same pattern as Seedance): the Veo price is a
+   PROPOSAL until the user approves it. Flip to true only after explicit user
+   approval, in a reviewed commit — never as a drive-by. */
+export const VEO_PRICING_APPROVED = false;
+export const VEO_PRICING_VERSION = "2026-10-11-veo3_1";
+
 export interface ClipPlan {
   model: ClipModel;
   useSeedance: boolean;
+  /** True for the Google Veo 3.1 path. */
+  useVeo: boolean;
   /** True when this plan is a cheap 480p draft preview. */
   isDraft: boolean;
-  /** Resolved clip length in seconds (5 for gen4.5, clamped 3–30 for seedance). */
+  /** Resolved clip length in seconds (5 for gen4.5, clamped 3–30 for seedance, fixed 8 for Veo). */
   durationSec: number;
   /** Site credits charged on success. */
   creditCost: number;
@@ -55,6 +70,8 @@ export interface ClipPlan {
   seedanceRatio: SeedanceRatio;
   /** False until the user approves the Seedance price (explicit gate). */
   pricingApproved: boolean;
+  /** False until the user approves the Veo price (explicit gate). */
+  veoPricingApproved: boolean;
 }
 
 export function resolveClipPlan(opts: {
@@ -65,35 +82,43 @@ export function resolveClipPlan(opts: {
   creditsPerSec720p?: number;
   creditsPerSec1080p?: number;
   creditsPerSecDraft?: number;
+  creditsPerSecVeo?: number;
   /** Draft mode: cheap 480p preview. Only valid for seedance2_5. */
   draft?: boolean;
 }): ClipPlan {
   const useSeedance = opts.model === "seedance2_5";
+  const useVeo = opts.model === "veo3_1";
   const isDraft = useSeedance && opts.draft === true;
   const landscape = opts.ratio === "1280:720";
   const hiRes = opts.resolution === "1080p" && !isDraft;
-  const creditsPerSec = isDraft
+  const creditsPerSec = useVeo
+    ? Number(opts.creditsPerSecVeo) || VEO_CREDITS_PER_SEC_DEFAULT
+    : isDraft
     ? Number(opts.creditsPerSecDraft) || SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT
     : hiRes
     ? Number(opts.creditsPerSec1080p) || SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT
     : Number(opts.creditsPerSec720p) || SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT;
-  const durationSec = useSeedance
+  const durationSec = useVeo
+    ? VEO_CLIP_DURATION_SEC
+    : useSeedance
     ? Math.min(
         SEEDANCE_MAX_DURATION_SEC,
         Math.max(SEEDANCE_MIN_DURATION_SEC, Math.round(Number(opts.durationSec) || 5)),
       )
     : 5;
-  const creditCost = useSeedance ? Math.ceil(durationSec * creditsPerSec) : GEN45_CREDIT_COST;
+  const creditCost = useVeo || useSeedance ? Math.ceil(durationSec * creditsPerSec) : GEN45_CREDIT_COST;
   const seedanceRatio: SeedanceRatio = landscape
     ? isDraft ? "854:480" : hiRes ? "1920:1080" : "1280:720"
     : isDraft ? "480:854" : hiRes ? "1080:1920" : "720:1280";
   return {
-    model: useSeedance ? "seedance2_5" : "gen4.5",
+    model: useVeo ? "veo3_1" : useSeedance ? "seedance2_5" : "gen4.5",
     useSeedance,
+    useVeo,
     isDraft,
     durationSec,
     creditCost,
     seedanceRatio,
     pricingApproved: SEEDANCE_PRICING_APPROVED,
+    veoPricingApproved: VEO_PRICING_APPROVED,
   };
 }
