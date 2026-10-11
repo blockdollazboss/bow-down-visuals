@@ -228,7 +228,7 @@ export default function VoiceoverStudio() {
       wordCount: result.wordCount ?? 0,
       createdAt: Date.now(),
     });
-    window.location.href = "/video-editor";
+    window.location.href = "/video-editor?tab=lip-sync";
   }
 
   const selectedVoice = voices.find((v) => v.voice_id === voiceId);
