@@ -2456,3 +2456,18 @@ html[data-star-level="5"] [data-min-stars="6"] {
   border-color: rgba(201, 168, 76, 0.4) !important;
   box-shadow: 0 0 20px rgba(201, 168, 76, 0.15), 0 4px 24px rgba(0,0,0,0.1) !important;
 }
+
+/* Light mode: Hero headline gold text — darker for readability on marble */
+.light .gold-text-shine {
+  background: linear-gradient(90deg,
+    #8a5f00 0%,
+    #b8860b 30%,
+    #d4a017 50%,
+    #b8860b 70%,
+    #8a5f00 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
