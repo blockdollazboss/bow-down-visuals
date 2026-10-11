@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Palette, Clapperboard, Tv, Store, Gem } from "lucide-react";
+import { Link } from "wouter";
+import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
@@ -88,6 +89,25 @@ export default function BrandingKit() {
       <div className="flex justify-end mb-4">
         <BrowseLibraryButton tab="templates" category="Intros & Outros" tool="brand" />
       </div>
+      {/* Handoff: brand assets belong in videos — one tap into the editor */}
+      {(tab === "logo" || tab === "intros") && (
+        <div className="mx-auto max-w-5xl px-4 mb-4">
+          <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.10]">
+              <Clapperboard className="h-5 w-5 text-primary" aria-hidden="true" />
+            </div>
+            <p className="min-w-[200px] flex-1 text-sm text-white/70">
+              <span className="font-black text-white">{t("brandingKit.useInEditorTitle", { defaultValue: "Made your brand? Put it in motion." })}</span>{" "}
+              <span className="text-white/50">{t("brandingKit.useInEditorSub", { defaultValue: "Drop this straight into the video editor." })}</span>
+            </p>
+            <Link href="/video-editor">
+              <span className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110">
+                {t("brandingKit.useInEditor", { defaultValue: "Use in editor" })}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="pb-10">
         {tab === "logo" && <LogoMakerTool key="logo" />}
         {tab === "intros" && <IntrosOutrosTool key="intros" />}

@@ -4048,7 +4048,9 @@
     "typeMajor": "Major Label",
     "typeMajors": "Majors",
     "untitledSong": "Untitled song",
-    "yourSong": "Your song"
+    "yourSong": "Your song",
+    "distributeThisSong": "Distribute this song",
+    "scheduleAnnouncement": "Schedule announcement"
   },
   "liveShopping": {
     "addProduct": "Add product",

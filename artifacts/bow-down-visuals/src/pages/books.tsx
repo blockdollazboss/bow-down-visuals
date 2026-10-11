@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import {
   BookOpen, Plus, Trash2, ChevronLeft, Sparkles, Loader2,
   FileText, PenLine, X, Check, Lightbulb, RefreshCw, Expand, ListOrdered, Type, Megaphone,
-  Download, Image as ImageIcon, Printer, Package,
+  Download, Image as ImageIcon, Printer, Package, Store,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 /* ── Types ── */
 
@@ -272,6 +273,8 @@ function BookEditor({
 }) {
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const [activeChapterId, setActiveChapterId] = useState<string | null>(chapters[0]?.id ?? null);
   const [content, setContent] = useState(chapters[0]?.content ?? "");
   const [saving, setSaving] = useState(false);
@@ -461,6 +464,14 @@ function BookEditor({
           >
             <Printer className="h-4 w-4 mr-2" />
             Print Book
+          </Button>
+          <Button
+            onClick={() => setLocation(`/coach?tab=storefronts&title=${encodeURIComponent(book.title)}`)}
+            className="bg-[#C9A84C] text-black font-bold hover:brightness-110"
+            title={t("books.publishSellTitle", { defaultValue: "Publish & sell your book" })}
+          >
+            <Store className="h-4 w-4 mr-2" />
+            {t("books.publishSell", { defaultValue: "Publish & Sell" })}
           </Button>
           <Button onClick={() => saveChapter()} disabled={saving} variant="outline" className="border-[#C9A84C]/40 text-[#C9A84C]">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />} Save

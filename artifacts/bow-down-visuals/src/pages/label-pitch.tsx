@@ -4,7 +4,9 @@ import {
   Disc3, Sparkles, Loader2, Copy, Check, Mail, FileText,
   Building2, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
   AlertTriangle, Music2, ListMusic, Clapperboard, Users, MessageCircle, ChevronDown,
+  Rocket, CalendarClock,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SyncTab from "@/components/sync-pitch/SyncTab";
@@ -120,6 +122,7 @@ async function authedFetch(
 
 export default function LabelPitch() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>("kit");
 
@@ -726,6 +729,24 @@ export default function LabelPitch() {
                 <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5 text-sm leading-relaxed text-amber-200/90">
                   <AlertTriangle className="mb-2 h-4 w-4" aria-hidden="true" />
                   {kit.disclaimer}
+                </div>
+
+                {/* next steps — hand the finished kit into distribute + scheduler */}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setLocation(`/coach?tab=distribute&title=${encodeURIComponent(songTitle || kit.analysis.oneLiner || "")}`)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
+                  >
+                    <Rocket className="h-4 w-4" aria-hidden="true" />
+                    {t("labelPitch.distributeThisSong")}
+                  </button>
+                  <button
+                    onClick={() => setLocation(`/scheduler?caption=${encodeURIComponent(`New music: ${songTitle || kit.analysis.oneLiner || ""}`)}`)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+                  >
+                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                    {t("labelPitch.scheduleAnnouncement")}
+                  </button>
                 </div>
               </div>
             )}

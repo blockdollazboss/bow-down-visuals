@@ -156,12 +156,15 @@ export default function Tips() {
         </h1>
         <p className="mt-3 max-w-2xl text-white/55">{t("tips.subtitle")}</p>
 
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-200/90">
-          <BadgeAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-          <p>
-            <strong className="text-amber-100">{t("tips.paymentsSoonTitle")}</strong> {t("tips.paymentsSoonBody")}
-          </p>
-        </div>
+        {/* Honest disclosure driven by the live flag: tips are intent-only until payments go live */}
+        {!loading && !dashboard?.paymentsLive && (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-200/90">
+            <BadgeAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <p>
+              <strong className="text-amber-100">{t("tips.paymentsSoonTitle")}</strong> {t("tips.paymentsSoonBody")}
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <div className="mt-12 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

@@ -5,7 +5,8 @@ import {
   Mic2, Video, Film, FolderOpen, Headphones, ArrowRight, ArrowUpRight,
   Zap, AlertCircle, User, Flame, Star, Sparkles, Clapperboard, ImageIcon,
   Lightbulb, TrendingUp, DollarSign, Activity, ChevronRight, Play, Plus,
-  Music2, BadgeDollarSign, Scissors as ScissorsIcon,
+  Music2, BadgeDollarSign, Scissors as ScissorsIcon, Gift, UsersRound, Store,
+  ShoppingBag, Coffee, Disc3, Megaphone, Crown,
 } from "lucide-react";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -466,6 +467,31 @@ export default function Dashboard() {
                 </Link>
               </>
             )}
+          </div>
+          {/* Earn / Sell pipeline — one card per coach money tab */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            {[
+              { tab: "referrals", label: t("coach.tabReferrals", { defaultValue: "Referrals" }), Icon: Gift },
+              { tab: "team", label: t("coach.tabTeam", { defaultValue: "Team" }), Icon: UsersRound },
+              { tab: "storefronts", label: t("coach.tabStorefronts", { defaultValue: "Storefronts" }), Icon: Store },
+              { tab: "my-shop", label: t("coach.tabMyShop", { defaultValue: "My Shop" }), Icon: ShoppingBag },
+              { tab: "tips", label: t("coach.tabTips", { defaultValue: "Tips" }), Icon: Coffee },
+              { tab: "beats", label: t("coach.tabBeats", { defaultValue: "Sell Beats" }), Icon: Disc3 },
+              { tab: "shoutouts", label: t("coach.tabShoutouts", { defaultValue: "Shoutouts" }), Icon: Megaphone },
+              { tab: "memberships", label: t("coach.tabMemberships", { defaultValue: "Memberships" }), Icon: Crown },
+            ].map(({ tab, label, Icon }) => (
+              <Link key={tab} href={`/coach?tab=${tab}`}>
+                <div className="group h-full p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-primary/40 hover:bg-primary/[0.05] hover:-translate-y-0.5 transition-all cursor-pointer text-center">
+                  <div className="h-10 w-10 mx-auto rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-2.5 group-hover:scale-110 transition-transform">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-black text-white">{label}</p>
+                  <p className="text-[10px] font-bold text-primary/60 group-hover:text-primary mt-1 flex items-center justify-center gap-1">
+                    {t("dashboard.open_tab", { defaultValue: "Open" })}<ArrowRight className="h-3 w-3" />
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
 

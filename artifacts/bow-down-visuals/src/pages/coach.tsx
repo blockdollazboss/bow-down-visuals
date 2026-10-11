@@ -350,7 +350,27 @@ function HubTabFallback() {
  {activeTab === "tips" && <Tips />}
  {activeTab === "beats" && <Beats />}
  {activeTab === "memberships" && <Memberships />}
- {activeTab === "distribute" && <Distribute key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "plan" || distributeSubTab === "new" || distributeSubTab === "releases" ? distributeSubTab : undefined} />}
+ {activeTab === "distribute" && (
+ <>
+ <Distribute key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "plan" || distributeSubTab === "new" || distributeSubTab === "releases" ? distributeSubTab : undefined} />
+ {/* handoff: released music needs listeners — turn them into earners via referrals */}
+ <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
+ <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.10]">
+ <Gift className="h-5 w-5 text-primary" aria-hidden="true" />
+ </div>
+ <div className="min-w-[200px] flex-1">
+ <p className="text-sm font-black text-white">{t("coach.distributeReferralTitle", { defaultValue: "Music out? Get paid twice." })}</p>
+ <p className="mt-0.5 text-xs text-white/50">{t("coach.distributeReferralSub", { defaultValue: "Every listener you bring earns you 25% of their credit purchases for 90 days." })}</p>
+ </div>
+ <button
+ onClick={() => setActiveTab("referrals")}
+ className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+ >
+ {t("coach.distributeReferralCta", { defaultValue: "Open Referrals" })}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+ </button>
+ </div>
+ </>
+ )}
  {activeTab === "storefronts" && <Storefronts />}
  {activeTab === "my-shop" && <MyShop />}
  {activeTab === "press-kit" && <PressKit />}
@@ -627,6 +647,31 @@ function HubTabFallback() {
  </div>
  </>
  )}
+
+ {/* action buttons — the plan is a starting line, not a display */}
+ <div className="mt-6 flex flex-wrap justify-center gap-3">
+ <button
+ onClick={() => setActiveTab("distribute")}
+ className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+ >
+ <Rocket className="h-4 w-4" aria-hidden="true" />
+ {t("coach.planActDistribute", { defaultValue: "Distribute music" })}
+ </button>
+ <button
+ onClick={() => setActiveTab("brand-deals")}
+ className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+ >
+ <Handshake className="h-4 w-4" aria-hidden="true" />
+ {t("coach.planActDeals", { defaultValue: "Find brand deals" })}
+ </button>
+ <button
+ onClick={() => setActiveTab("referrals")}
+ className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+ >
+ <Gift className="h-4 w-4" aria-hidden="true" />
+ {t("coach.planActReferrals", { defaultValue: "Grow referrals" })}
+ </button>
+ </div>
 
  <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/30">
  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
