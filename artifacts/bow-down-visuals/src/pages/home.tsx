@@ -1280,7 +1280,7 @@ function MusicVideoTeaser({ isLight }: { isLight: boolean }) {
           <video
             ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
-            src={mediaUrl(isLight ? "teaser-light-219.mp4" : "official-teaser.mp4")}
+            src={mediaUrl(isLight ? "banner-light-temp.mp4" : "official-teaser.mp4")}
             muted
             loop
             playsInline
