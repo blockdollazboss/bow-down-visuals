@@ -5,7 +5,9 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Heart, Eye, Share2, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Heart, Eye } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import ShareMenu from "@/components/ShareMenu";
 import type { ShowcaseItem } from "./index";
 
 /* ─── Public showcase item page ───
@@ -14,6 +16,7 @@ import type { ShowcaseItem } from "./index";
 
 export default function ShowcaseItemPage() {
   const { t } = useTranslation();
+  const { getAccessToken } = useAuth();
   const [, params] = useRoute("/showcase/:slug");
   const slug = params?.slug ?? "";
   const [item, setItem] = useState<ShowcaseItem | null>(null);
@@ -21,7 +24,6 @@ export default function ShowcaseItemPage() {
   const [notFound, setNotFound] = useState(false);
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -55,23 +57,6 @@ export default function ShowcaseItemPage() {
     } catch {
       setLikes((l) => l + 1);
     }
-  }
-
-  async function handleShare() {
-    const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      /* clipboard unavailable — fall back to prompt-less copy via selection */
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   if (loading) {
@@ -159,13 +144,14 @@ export default function ShowcaseItemPage() {
                 <Heart className={`h-4 w-4 ${liked ? "fill-black" : ""}`} />
                 {likes}
               </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold border border-white/15 text-white/70 hover:border-[#e8c86a]/50 hover:text-white transition"
-              >
-                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Share2 className="h-4 w-4" />}
-                {copied ? "Copied!" : "Share"}
-              </button>
+              {/* Share-to-earn viral loop: tracked shares, sharer's ?ref= on the link, quest credit. */}
+              <ShareMenu
+                getToken={getAccessToken}
+                shareUrl={typeof window !== "undefined" ? window.location.href : ""}
+                text={item ? `${item.title} — made with Bow Down Visuals` : undefined}
+                contentType="showcase"
+                contentId={slug}
+              />
             </div>
           </div>
 

@@ -20,6 +20,7 @@ import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import ShareMenu from "@/components/ShareMenu";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
@@ -880,20 +881,16 @@ export function FinalVideoExport({
                   <CalendarClock className="h-3.5 w-3.5" />
                   Schedule Post
                 </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const origin = window.location.origin;
-                    const refPart = referralCode ? `\nMake your own: ${origin}/?ref=${encodeURIComponent(referralCode)}` : `\nMake your own: ${origin}/`;
-                    navigator.clipboard?.writeText(`${exportUrl}\n\nMade with Bow Down Visuals 🦈${refPart}`);
-                    toast({ title: "Share link copied", description: referralCode ? "Video link + your referral link — every share can earn you Visual Bucs." : "Video link copied — share it everywhere." });
-                  }}
-                  className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
-                  data-testid="btn-handoff-share"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  Copy Share Link{referralCode ? " + ref" : ""}
-                </button>
+                {/* Share-to-earn viral loop: tracked shares, ?ref= on links, quest credit. */}
+                <div className="flex-1 min-w-[120px]" data-testid="btn-handoff-share">
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={exportUrl}
+                    text="My new video just dropped — fresh out the vault 🔥"
+                    contentType="video"
+                    referralCode={referralCode ?? null}
+                  />
+                </div>
                 <div className="flex-1 min-w-[120px] flex" data-testid="btn-handoff-showcase">
                   <PublishToShowcase
                     mediaType="video"

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
-  Trophy, Loader2, ArrowLeft, Crown, Medal, Share2, Copy, Check,
+  Trophy, Loader2, ArrowLeft, Crown, Medal, Share2,
   ChevronRight, Sparkles,
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useAuth } from "@/contexts/AuthContext";
+import ShareMenu from "@/components/ShareMenu";
 import { formatBucs, formatBucsShort, ordinal } from "@/lib/visual-bucs";
 
 /* ─── Winners' circle ──────────────────────────────────────────────────────
@@ -46,39 +48,12 @@ function PlaceIcon({ place, className }: { place: number; className?: string }) 
     : <Medal className={className} />;
 }
 
-function shareTargets(text: string, url: string) {
-  return {
-    x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
-  };
-}
-
 /* ─── Shareable winner card ─────────────────────────────────────────────── */
 function WinnerCard({ w, showChallenge }: { w: WinnerItem; showChallenge: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const [shared, setShared] = useState(false);
+  const { getAccessToken } = useAuth();
   const style = PLACE_STYLE[w.place] ?? PLACE_STYLE[3]!;
   const pageUrl = `https://bowdownvisuals.com/challenge/${w.challenge.slug}/winners`;
   const shareText = `🏆 ${w.creator.display_name ?? "A creator"} took ${ordinal(w.place)} place in the "${w.challenge.title}" challenge on Bow Down Visuals${w.prize_credits > 0 ? ` — ${formatBucs(w.prize_credits)} won` : ""}!`;
-  const targets = useMemo(() => shareTargets(shareText, pageUrl), [shareText, pageUrl]);
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(pageUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard unavailable */ }
-  };
-  const nativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: shareText, url: pageUrl });
-        setShared(true);
-      } catch { /* dismissed */ }
-    } else {
-      copyLink();
-    }
-  };
 
   return (
     <article className={`relative overflow-hidden rounded-2xl border bg-zinc-950 ${style.ring}`}>
@@ -115,23 +90,18 @@ function WinnerCard({ w, showChallenge }: { w: WinnerItem; showChallenge: boolea
           </Link>
         )}
       </div>
-      <div className="flex items-center gap-2 border-t border-white/10 px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-2.5">
         <span className="mr-auto flex items-center gap-1.5 text-[11px] text-white/40">
           <Share2 className="h-3.5 w-3.5" /> Share the crown
         </span>
-        <a href={targets.x} target="_blank" rel="noopener noreferrer" title="Share on X"
-          className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20">𝕏 Post</a>
-        <a href={targets.whatsapp} target="_blank" rel="noopener noreferrer" title="Share on WhatsApp"
-          className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20">WhatsApp</a>
-        <button onClick={copyLink} title="Copy link"
-          className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20">
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-        <button onClick={nativeShare} title="Share"
-          className="flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-black text-black hover:brightness-110">
-          <Share2 className="h-3.5 w-3.5" /> {shared ? "Shared" : "Share"}
-        </button>
+        {/* Share-to-earn viral loop: tracked shares, ?ref= on the link, quest credit. */}
+        <ShareMenu
+          getToken={getAccessToken}
+          shareUrl={pageUrl}
+          text={shareText}
+          contentType="winner_card"
+          contentId={w.challenge.slug}
+        />
       </div>
     </article>
   );

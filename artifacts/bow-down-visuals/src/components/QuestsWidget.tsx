@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight } from "lucide-react";
+import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface Quest {
@@ -24,6 +24,9 @@ const QUEST_META: Record<string, { icon: typeof ImageIcon; href: string; titleKe
   "make-thumbnail": { icon: ImageIcon, href: "/thumbnail-maker", titleKey: "retention.quest_make_thumbnail_title", descKey: "retention.quest_make_thumbnail_desc" },
   "generate-song":   { icon: Music2, href: "/make-song", titleKey: "retention.quest_generate_song_title", descKey: "retention.quest_generate_song_desc" },
   "export-video":    { icon: Clapperboard, href: "/video-editor", titleKey: "retention.quest_export_video_title", descKey: "retention.quest_export_video_desc" },
+  /* Viral Sharer (share-to-earn loop): reward is 0 / TBD until the owner
+     approves how it fits the 300 VB/week pool — see backend QUEST_DEFS. */
+  "viral-sharer":   { icon: Share2, href: "/my-projects", titleKey: "retention.quest_viral_sharer_title", descKey: "retention.quest_viral_sharer_desc" },
 };
 
 export default function QuestsWidget({
@@ -168,7 +171,13 @@ export default function QuestsWidget({
                     <p className="text-[13px] font-black text-white truncate">
                       {meta ? t(meta.titleKey) : q.key}
                     </p>
-                    <span className="text-[11px] font-bold text-amber-300/90 shrink-0">{q.reward} VB</span>
+                    {q.reward > 0 ? (
+                      <span className="text-[11px] font-bold text-amber-300/90 shrink-0">{q.reward} VB</span>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-wide text-white/35 border border-white/10 rounded-full px-2 py-0.5 shrink-0">
+                        {t("share.reward_tbd", { defaultValue: "Reward TBD" })}
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-white/45 truncate">{meta ? t(meta.descKey) : ""}</p>
                   <div className="mt-1.5 flex items-center gap-2">
@@ -181,7 +190,7 @@ export default function QuestsWidget({
                 </div>
                 {q.claimed ? (
                   <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wide shrink-0">{t("retention.quests_claimed")}</span>
-                ) : canClaim ? (
+                ) : canClaim && q.reward > 0 ? (
                   <button type="button" onClick={() => void claim(q.key)} disabled={claiming === q.key}
                     className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60">
                     {claiming === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}

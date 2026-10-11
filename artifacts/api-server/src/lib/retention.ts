@@ -186,31 +186,16 @@ export async function recordCreation(userId: string, kind: CreationKind): Promis
   }
 }
 
-/* ── SHARE-TO-EARN toggle (defensive read) ─────────────────────────────────
-   `share_to_earn_enabled` is being added to retention_prefs by a sibling
-   worker. Read it with raw SQL so this keeps working before the column
-   exists (missing column/table ⇒ default true = feature on). Never throws. */
-export async function getShareToEarnEnabled(userId: string): Promise<boolean> {
-  try {
-    const result = await db.execute(
-      sql`SELECT share_to_earn_enabled FROM retention_prefs WHERE user_id = ${userId} LIMIT 1`
-    );
-    const row = (result.rows as Array<{ share_to_earn_enabled?: boolean | null }>)[0];
-    return row?.share_to_earn_enabled ?? true;
-  } catch {
-    return true;
-  }
-}
-
 /* ── SHARE HOOK: call after a share action (POST /api/shares) ────────────
    Unlike recordCreation, a share is NOT a creation event: it never touches
    creation streaks — it only advances the "viral-sharer" quest. Honors
-   quests_enabled and share_to_earn_enabled. Fire-and-forget: never throws. */
+   quests_enabled and the share_to_earn_enabled toggle (owned by the
+   login-streaks sibling). Fire-and-forget: never throws. */
 export async function recordShareEvent(userId: string): Promise<void> {
   try {
     const prefs = await getPrefs(userId);
     if (!prefs.questsEnabled) return;
-    if (!(await getShareToEarnEnabled(userId))) return;
+    if (!prefs.shareToEarnEnabled) return;
     await updateQuests(userId, "share");
   } catch (err) {
     logger.warn({ err, userId }, "[retention] recordShareEvent failed");
