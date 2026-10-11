@@ -18,6 +18,7 @@ import {
   GEN4_IMAGE_TURBO_CREDIT_COST,
   GPT_IMAGE_25_SUNBURST_CREDIT_COST,
   NANO_BANANA_21_CREDIT_COST,
+  IDEOGRAM_40_CREDIT_COST,
   resolveArtistImagePlan,
 } from "./artist-image-pricing";
 
@@ -28,6 +29,7 @@ const PRO_CREDITS = Number(process.env["ARTIST_IMAGE_CREDITS"]) || GEN4_IMAGE_CR
 const TURBO_CREDITS = Number(process.env["ARTIST_IMAGE_TURBO_CREDITS"]) || GEN4_IMAGE_TURBO_CREDIT_COST;
 const SUNBURST_CREDITS = Number(process.env["ARTIST_IMAGE_SUNBURST_CREDITS"]) || GPT_IMAGE_25_SUNBURST_CREDIT_COST;
 const NANO_CREDITS = Number(process.env["ARTIST_IMAGE_NANO_CREDITS"]) || NANO_BANANA_21_CREDIT_COST;
+const IDEOGRAM_CREDITS = Number(process.env["ARTIST_IMAGE_IDEOGRAM_CREDITS"]) || IDEOGRAM_40_CREDIT_COST;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const SUNBURST_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
@@ -186,6 +188,36 @@ async function generateWithNanoBanana(opts: {
   return Buffer.from(b64, "base64");
 }
 
+/** Calls Ideogram 4.0 (best in-image text rendering). Returns the PNG buffer.
+ *  Ideogram URLs are ephemeral, so the image is downloaded immediately. */
+async function generateWithIdeogram(prompt: string): Promise<Buffer> {
+  const apiKey = process.env["IDEOGRAM_API_KEY"];
+  if (!apiKey) throw new Error("IDEOGRAM_API_KEY is not configured on the server");
+
+  const form = new FormData();
+  form.append("text_prompt", prompt.slice(0, 4000));
+  /* magic-prompt auto-enables with text_prompt and improves text layout;
+     rendering_speed FLASH is not yet supported (API returns 400). */
+  form.append("rendering_speed", "DEFAULT");
+
+  const res = await fetch("https://api.ideogram.ai/v1/ideogram-v4/generate", {
+    method: "POST",
+    headers: { "Api-Key": apiKey },
+    body: form,
+    signal: AbortSignal.timeout(180_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Ideogram API error (${res.status}): ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { data?: { url?: string }[] };
+  const url = json.data?.[0]?.url;
+  if (!url) throw new Error("Ideogram returned no image data.");
+  const dl = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  if (!dl.ok) throw new Error(`Ideogram image download failed (${dl.status})`);
+  return Buffer.from(await dl.arrayBuffer());
+}
+
 /* ── Request validation ── */
 const artistImageSchema = z.object({
   promptText: z.string().min(1, "promptText is required").max(5000),
@@ -220,6 +252,7 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
     turboCredits: TURBO_CREDITS,
     sunburstCredits: SUNBURST_CREDITS,
     nanoCredits: NANO_CREDITS,
+    ideogramCredits: IDEOGRAM_CREDITS,
   });
   const creditCost = plan.creditCost;
 
@@ -265,6 +298,32 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "OpenAI image generation failed";
       req.log.error({ err: msg }, "[artist-image] GPT Image 2.5 generation failed — no credits charged");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
+
+  /* ── Ideogram 4.0 path: synchronous, best text rendering (thumbnails/posters) ── */
+  if (plan.model === "ideogram-4.0") {
+    try {
+      req.log.info(
+        { userId: req.userId, ratio: plan.ratio, vaultId: vaultId ?? null },
+        "[artist-image] Ideogram 4.0 generation started",
+      );
+      const buffer = await generateWithIdeogram(promptText.trim());
+      await chargeForImage(req, creditCost, "Artist Image (Ideogram 4.0)");
+      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, buffer);
+      res.json({
+        taskId: `ideogram-${randomUUID()}`,
+        status: "succeeded",
+        url,
+        path: storagePath,
+        creditCost,
+        model: plan.model,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Ideogram image generation failed";
+      req.log.error({ err: msg }, "[artist-image] Ideogram 4.0 generation failed — no credits charged");
       res.status(500).json({ error: msg });
     }
     return;
