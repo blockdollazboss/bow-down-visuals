@@ -8,7 +8,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Theme-aware cursor palette: deep bronze with dark outlines on light theme
    (gold washes out on ivory), classic gold glow on dark. */
-function useCursorPalette() {
+export function useCursorPalette() {
   const isLight = useIsLightTheme();
   return isLight
     ? {

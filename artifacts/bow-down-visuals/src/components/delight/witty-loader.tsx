@@ -185,12 +185,12 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
 
       {/* ── BOTTOM-LEFT: the crowned mark ── */}
       <div className="absolute bottom-8 left-6 md:left-14 z-10">
-        <CrownedLogo />
+        <CrownedLogo isLight={isLight} />
       </div>
 
       {/* ── BOTTOM-RIGHT: ticket-stub barcode ── */}
       <div className="absolute bottom-8 right-6 md:right-10 z-10">
-        <BarcodeStrip progress={progress} />
+        <BarcodeStrip progress={progress} isLight={isLight} />
       </div>
 
       {/* Ad inquiry modals — above the loader overlay */}
@@ -204,7 +204,7 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
 /* CrownedLogo — bare Shark King mark, no box. Levitates with a breathing
    gold aura and orbiting light ring. The aura brightens and the mark swells
    subtly as your cursor approaches — alive, not gimmicky. */
-function CrownedLogo() {
+function CrownedLogo({ isLight }: { isLight: boolean }) {
   const [proximity, setProximity] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -248,9 +248,9 @@ function CrownedLogo() {
         <div aria-hidden className="absolute inset-0 -m-4 animate-[spin_12s_linear_infinite]">
           <div className="absolute inset-0 rounded-full border border-transparent border-t-primary/70 border-r-primary/30" />
         </div>
-        {/* Bare mark — no box, no container */}
+        {/* Bare mark — no box, no container. Light theme gets the ivory-ribbon logo. */}
         <img
-          src="/logo-static.webp"
+          src={isLight ? "/logo-light.png" : "/logo-static.webp"}
           alt="Bow Down Visuals"
           className="relative h-28 w-28 object-contain"
           style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}
@@ -265,9 +265,10 @@ function CrownedLogo() {
 }
 
 /* BarcodeStrip — a real UPC-A barcode label in the Bow Down theme.
-   Black sticker, gold bars, 12 typewriter digits below that count
+   Black sticker with gold bars on dark theme; ivory sticker with deep
+   bronze bars on light theme. 12 typewriter digits below that count
    from 000000000000 to 999999999999 with progress. */
-function BarcodeStrip({ progress }: { progress: number }) {
+function BarcodeStrip({ progress, isLight }: { progress: number; isLight: boolean }) {
 
   // UPC-A: 12 digits, guard | 6 left | middle guard | 6 right | guard
   const MODULE = 2;
@@ -286,10 +287,14 @@ function BarcodeStrip({ progress }: { progress: number }) {
 
   return (
     <div
-      className="bg-black border border-primary/40 rounded-md px-4 pt-3 pb-2 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_20px_rgba(212,175,55,0.15)]"
+      className={`border rounded-md px-4 pt-3 pb-2 ${
+        isLight
+          ? "bg-[#FDFBF6] border-[#c9a84c]/50 shadow-[0_4px_24px_rgba(90,70,20,0.18),0_0_20px_rgba(201,168,76,0.25)]"
+          : "bg-black border-primary/40 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_20px_rgba(212,175,55,0.15)]"
+      }`}
       style={{ transform: "rotate(-1.5deg)" }}
     >
-      {/* Quiet zone + gold bars */}
+      {/* Quiet zone + bars — deep bronze on ivory for light theme */}
       <div className="flex items-stretch" style={{ height: "48px" }}>
         {bars.map((w, i) => {
           const barStart = (filled / totalModules) * 100;
@@ -304,8 +309,14 @@ function BarcodeStrip({ progress }: { progress: number }) {
               style={{
                 width: `${w * MODULE}px`,
                 height: "100%",
-                backgroundColor: !isBar ? "transparent" : isLit ? "#d4af37" : "#2a2a2a",
-                boxShadow: isBar && isLit ? "0 0 4px rgba(212,175,55,0.5)" : "none",
+                backgroundColor: !isBar
+                  ? "transparent"
+                  : isLit
+                    ? isLight ? "#8a6d2b" : "#d4af37"
+                    : isLight ? "#DDD6C6" : "#2a2a2a",
+                boxShadow: isBar && isLit
+                  ? isLight ? "0 0 4px rgba(138,109,43,0.4)" : "0 0 4px rgba(212,175,55,0.5)"
+                  : "none",
               }}
             />
           );
@@ -313,7 +324,7 @@ function BarcodeStrip({ progress }: { progress: number }) {
       </div>
       {/* 12 typewriter digits */}
       <p
-        className="text-center text-primary font-mono font-bold mt-1"
+        className={`text-center font-mono font-bold mt-1 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}
         style={{ fontSize: "13px", letterSpacing: "0.18em" }}
       >
         {digits.slice(0, 6)} {digits.slice(6)}

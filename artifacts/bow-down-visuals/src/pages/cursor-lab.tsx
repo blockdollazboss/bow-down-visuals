@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from "@/lib/cursor-settings";
 import { useTranslation } from "react-i18next";
+import { useCursorPalette } from "@/components/CustomCursor";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Cursor Settings ───
    Permanent page where visitors choose their cursor.
@@ -9,47 +11,55 @@ import { useTranslation } from "react-i18next";
 /* Visual preview of each cursor — rendered statically in the selection card
    so visitors can see what they're picking without clicking first. */
 function CursorPreview({ id }: { id: CursorId }) {
+  const p = useCursorPalette();
+  const isLight = useIsLightTheme();
   const base = "flex items-center justify-center h-14 rounded-lg bg-black/40 border border-white/5 mb-2";
+  const glow = (strong = true) => ({ filter: `drop-shadow(0 0 8px ${strong ? p.glowStrong : p.glow})` });
+  // Image cursors (coin, 8-bit shark) get the same light-theme treatment as the
+  // live cursor: subtle darkening + dark shadow so they don't wash out on ivory.
+  const imgFilter = isLight
+    ? `drop-shadow(0 0 10px ${p.glowStrong}) brightness(0.96)`
+    : `drop-shadow(0 0 10px ${p.glowStrong})`;
   switch (id) {
     case "shark-fin":
       return (
         <div className={base}>
-          <svg width="36" height="36" viewBox="0 0 24 24" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M12 2 C 8 8, 6 14, 4 20 L 12 17 L 20 20 C 18 14, 16 8, 12 2 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          <svg width="36" height="36" viewBox="0 0 24 24" style={glow()}>
+            <path d="M12 2 C 8 8, 6 14, 4 20 L 12 17 L 20 20 C 18 14, 16 8, 12 2 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
           </svg>
         </div>
       );
     case "crown":
       return (
         <div className={base}>
-          <svg width="40" height="30" viewBox="0 0 24 18" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M2 16 L 4 6 L 9 11 L 12 3 L 15 11 L 20 6 L 22 16 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-            <rect x="2" y="16" width="20" height="2" fill="#e8c86a" rx="1" />
+          <svg width="40" height="30" viewBox="0 0 24 18" style={glow()}>
+            <path d="M2 16 L 4 6 L 9 11 L 12 3 L 15 11 L 20 6 L 22 16 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+            <rect x="2" y="16" width="20" height="2" fill={p.bright} rx="1" />
           </svg>
         </div>
       );
     case "bucs-coin":
       return (
         <div className={base}>
-          <img src="/images/visual-bucs-coin-transparent.png" alt="" className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(201,168,76,0.9)]" draggable={false} />
+          <img src="/images/visual-bucs-coin-transparent.png" alt="" className="w-12 h-12 object-contain" style={{ filter: imgFilter }} draggable={false} />
         </div>
       );
     case "gold-trail":
       return (
         <div className={base}>
           <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#e8c86a]/40" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[#e8c86a]/60" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[#e8c86a]/80" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#C9A84C] shadow-[0_0_10px_rgba(201,168,76,1)]" />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.bright, opacity: 0.4 }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.bright, opacity: 0.6 }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.bright, opacity: 0.8 }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.fill, boxShadow: `0 0 10px ${p.glowStrong}` }} />
           </div>
         </div>
       );
     case "lightning":
       return (
         <div className={base}>
-          <svg width="24" height="36" viewBox="0 0 24 32" className="drop-shadow-[0_0_10px_rgba(232,200,106,0.9)]">
-            <path d="M13 2 L 5 18 L 11 18 L 9 30 L 19 12 L 13 12 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1" />
+          <svg width="24" height="36" viewBox="0 0 24 32" style={glow()}>
+            <path d="M13 2 L 5 18 L 11 18 L 9 30 L 19 12 L 13 12 Z" fill={p.bright} stroke={p.fill} strokeWidth="1" />
           </svg>
         </div>
       );
@@ -60,7 +70,7 @@ function CursorPreview({ id }: { id: CursorId }) {
             src="/images/thy-cheat-code-8bit-transparent.png"
             alt=""
             className="w-12 h-12 object-contain"
-            style={{ imageRendering: "pixelated", animation: "shark-swim 2s ease-in-out infinite" }}
+            style={{ imageRendering: "pixelated", animation: "shark-swim 2s ease-in-out infinite", filter: imgFilter }}
             draggable={false}
           />
           <style>{`
@@ -74,97 +84,97 @@ function CursorPreview({ id }: { id: CursorId }) {
     case "flame":
       return (
         <div className={base}>
-          <svg width="28" height="40" viewBox="0 0 24 32" className="drop-shadow-[0_0_10px_rgba(232,200,106,0.9)]">
-            <path d="M12 2 C 8 10, 4 14, 4 22 C 4 28, 8 30, 12 30 C 16 30, 20 28, 20 22 C 20 14, 16 10, 12 2 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1" />
+          <svg width="28" height="40" viewBox="0 0 24 32" style={glow()}>
+            <path d="M12 2 C 8 10, 4 14, 4 22 C 4 28, 8 30, 12 30 C 16 30, 20 28, 20 22 C 20 14, 16 10, 12 2 Z" fill={p.bright} stroke={p.fill} strokeWidth="1" />
           </svg>
         </div>
       );
     case "diamond":
       return (
         <div className={base}>
-          <svg width="36" height="30" viewBox="0 0 32 28" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M8 4 L 24 4 L 30 12 L 16 26 L 2 12 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1.5" />
+          <svg width="36" height="30" viewBox="0 0 32 28" style={glow()}>
+            <path d="M8 4 L 24 4 L 30 12 L 16 26 L 2 12 Z" fill={p.bright} stroke={p.fill} strokeWidth="1.5" />
           </svg>
         </div>
       );
     case "star":
       return (
         <div className={base}>
-          <svg width="36" height="36" viewBox="0 0 24 24" className="drop-shadow-[0_0_10px_rgba(201,168,76,0.8)]">
-            <path d="M12 2 L 14.5 8.5 L 21 9 L 16 13.5 L 17.5 20 L 12 16.5 L 6.5 20 L 8 13.5 L 3 9 L 9.5 8.5 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          <svg width="36" height="36" viewBox="0 0 24 24" style={glow()}>
+            <path d="M12 2 L 14.5 8.5 L 21 9 L 16 13.5 L 17.5 20 L 12 16.5 L 6.5 20 L 8 13.5 L 3 9 L 9.5 8.5 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
           </svg>
         </div>
       );
     case "money-bag":
       return (
         <div className={base}>
-          <svg width="36" height="40" viewBox="0 0 36 40" className="drop-shadow-[0_0_10px_rgba(201,168,76,0.8)]">
-            <path d="M10 10 L 26 10 L 32 28 C 32 34, 26 38, 18 38 C 10 38, 4 34, 4 28 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1.5" />
-            <text x="18" y="28" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#000">$</text>
+          <svg width="36" height="40" viewBox="0 0 36 40" style={glow()}>
+            <path d="M10 10 L 26 10 L 32 28 C 32 34, 26 38, 18 38 C 10 38, 4 34, 4 28 Z" fill={p.fill} stroke={p.edge} strokeWidth="1.5" />
+            <text x="18" y="28" textAnchor="middle" fontSize="14" fontWeight="bold" fill={isLight ? "#FFFDF7" : "#000"}>$</text>
           </svg>
         </div>
       );
     case "gold-key":
       return (
         <div className={base}>
-          <svg width="32" height="32" viewBox="0 0 32 32" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <circle cx="10" cy="10" r="6" fill="none" stroke="#C9A84C" strokeWidth="3" />
-            <path d="M14 14 L 26 26 M22 22 L 26 18" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
+          <svg width="32" height="32" viewBox="0 0 32 32" style={glow()}>
+            <circle cx="10" cy="10" r="6" fill="none" stroke={p.fill} strokeWidth="3" />
+            <path d="M14 14 L 26 26 M22 22 L 26 18" stroke={p.fill} strokeWidth="3" strokeLinecap="round" />
           </svg>
         </div>
       );
     case "trophy":
       return (
         <div className={base}>
-          <svg width="32" height="36" viewBox="0 0 32 36" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-            <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke="#C9A84C" strokeWidth="2" />
-            <rect x="10" y="26" width="12" height="4" rx="2" fill="#e8c86a" />
+          <svg width="32" height="36" viewBox="0 0 32 36" style={glow()}>
+            <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+            <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke={p.fill} strokeWidth="2" />
+            <rect x="10" y="26" width="12" height="4" rx="2" fill={p.bright} />
           </svg>
         </div>
       );
     case "rocket":
       return (
         <div className={base}>
-          <svg width="28" height="36" viewBox="0 0 28 36" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          <svg width="28" height="36" viewBox="0 0 28 36" style={glow()}>
+            <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
           </svg>
         </div>
       );
     case "crosshair":
       return (
         <div className={base}>
-          <svg width="40" height="40" viewBox="0 0 40 40" className="drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]">
-            <circle cx="20" cy="20" r="14" fill="none" stroke="#C9A84C" strokeWidth="2" />
-            <circle cx="20" cy="20" r="3" fill="#e8c86a" />
-            <path d="M20 2 L 20 10 M20 30 L 20 38 M2 20 L 10 20 M30 20 L 38 20" stroke="#C9A84C" strokeWidth="2" />
+          <svg width="40" height="40" viewBox="0 0 40 40" style={glow()}>
+            <circle cx="20" cy="20" r="14" fill="none" stroke={p.fill} strokeWidth="2" />
+            <circle cx="20" cy="20" r="3" fill={p.bright} />
+            <path d="M20 2 L 20 10 M20 30 L 20 38 M2 20 L 10 20 M30 20 L 38 20" stroke={p.fill} strokeWidth="2" />
           </svg>
         </div>
       );
     case "music-note":
       return (
         <div className={base}>
-          <svg width="28" height="36" viewBox="0 0 28 36" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <ellipse cx="7" cy="28" rx="5" ry="4" fill="#C9A84C" />
-            <ellipse cx="21" cy="24" rx="5" ry="4" fill="#e8c86a" />
-            <path d="M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
+          <svg width="28" height="36" viewBox="0 0 28 36" style={glow()}>
+            <ellipse cx="7" cy="28" rx="5" ry="4" fill={p.fill} />
+            <ellipse cx="21" cy="24" rx="5" ry="4" fill={p.bright} />
+            <path d="M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke={p.fill} strokeWidth="3" strokeLinecap="round" />
           </svg>
         </div>
       );
     case "gamepad":
       return (
         <div className={base}>
-          <svg width="40" height="28" viewBox="0 0 40 28" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          <svg width="40" height="28" viewBox="0 0 40 28" style={glow()}>
+            <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
           </svg>
         </div>
       );
     case "camera":
       return (
         <div className={base}>
-          <svg width="36" height="28" viewBox="0 0 36 28" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <rect x="2" y="8" width="32" height="18" rx="4" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-            <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1.5" />
+          <svg width="36" height="28" viewBox="0 0 36 28" style={glow()}>
+            <rect x="2" y="8" width="32" height="18" rx="4" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+            <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke={p.bright} strokeWidth="1.5" />
           </svg>
         </div>
       );
@@ -175,6 +185,7 @@ function CursorPreview({ id }: { id: CursorId }) {
 
 export default function CursorLab() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [clicks, setClicks] = useState({ gold: 0, ghost: 0, link: 0 });
   const [active, setActive] = useState<CursorId>("shark-fin");
   const [isTouch, setIsTouch] = useState(false);
@@ -193,7 +204,14 @@ export default function CursorLab() {
   };
 
   return (
-    <div className="min-h-screen text-white p-4 md:p-8" style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}>
+    <div
+      className="min-h-screen p-4 md:p-8"
+      style={{
+        background: isLight ? "rgba(250,247,240,0.9)" : "rgba(0,0,0,0.82)",
+        backdropFilter: "blur(8px)",
+        color: isLight ? "#2D2A24" : "#fff",
+      }}
+    >
       <div className="max-w-6xl mx-auto rounded-2xl border border-white/10 bg-black/70 p-6 md:p-8 shadow-2xl">
       <h1 className="text-3xl md:text-4xl font-black text-[#e8c86a] mb-2" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9)" }}>{t("cursor-lab.cursor_style")}</h1>
       <p className="text-white/85 mb-8 text-base">{t("cursor-lab.pick_your_cursor_it_s_saved_and")}</p>
