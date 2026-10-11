@@ -11,6 +11,7 @@ import {
   SHOOT_BACKGROUNDS,
   composePhotoShootBrief,
 } from "./generate-artist-image";
+import { SCENE_PACKS } from "./photo/photo-shoot-scenes";
 import type { ArtistImageModel, ArtistImageRatio } from "./generate-artist-image";
 
 export type ArtistImageModalMode = "generate" | "photoshoot";
@@ -234,6 +235,22 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {/* Photo Shoot: wardrobe / pose / backdrop presets */}
         {isShoot && (
           <>
+            {/* Curated scene packs — one tap sets wardrobe + pose + backdrop */}
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Scene packs</p>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {SCENE_PACKS.map((pack) => (
+                <button
+                  key={pack.id}
+                  type="button"
+                  disabled={generating}
+                  title={pack.blurb}
+                  onClick={() => applyShootChange({ poseId: pack.poseId, outfit: pack.outfit, background: pack.background })}
+                  className={chipClass(poseId === pack.poseId && outfit === pack.outfit && background === pack.background)}
+                >
+                  {pack.name}
+                </button>
+              ))}
+            </div>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Wardrobe</p>
             <div className="flex gap-2 flex-wrap mb-2">
               {SHOOT_OUTFITS.map((o) => (
@@ -312,7 +329,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {isShoot ? (
           <p className="mt-4 text-xs text-white/50 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5">
             <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-            Identity lock on — your Artist Photo is the face reference. Turbo · 200 Visual Bucs per shoot.
+            Identity lock on — your Artist Photo is the face reference. Turbo · 100 Visual Bucs per shoot.
           </p>
         ) : (
           <>

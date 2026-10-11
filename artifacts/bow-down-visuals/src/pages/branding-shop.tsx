@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import MerchDropPlanner from "@/components/wave8/MerchDropPlanner";
+import { ProductPhotoStudio } from "@/components/photo/ProductPhotoStudio";
 import {
   BRANDING_PRODUCTS,
   BRANDING_STYLES,
@@ -973,6 +974,10 @@ export default function BrandingShop() {
                   </button>
                 </div>
               )}
+            </div>
+            {/* ── Product Photo Studio: packshots + lifestyle shots for merch ── */}
+            <div className="mt-10">
+              <ProductPhotoStudio />
             </div>
           </div>
         )}

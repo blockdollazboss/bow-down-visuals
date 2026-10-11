@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
-import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight } from "lucide-react";
+import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
@@ -9,6 +9,7 @@ import { BrowseLibraryButton } from "@/pages/library";
 import { StreamPackTool } from "@/pages/stream-pack";
 import BrandingShop from "@/pages/branding-shop";
 import JewelryStudio from "@/pages/jewelry";
+import { HeadshotStudio } from "@/components/photo/HeadshotStudio";
 
 /* ─── Branding Kit ──────────────────────────────────────────────────────────
    Hub page for the creator brand-identity tools: Logo Studio, Intro & Outro
@@ -17,7 +18,7 @@ import JewelryStudio from "@/pages/jewelry";
 
 /* Tab labels translate inside the component (via t()); icons stay static.
    The blurbs are reference metadata and are not rendered on this page. */
-type TabKey = "logo" | "intros" | "stream" | "shop" | "jewelry";
+type TabKey = "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry";
 
 export default function BrandingKit() {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ export default function BrandingKit() {
   const [tab, setTab] = useState<TabKey>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      return q === "intros" || q === "stream" || q === "shop" || q === "jewelry" ? q : "logo";
+      return q === "intros" || q === "stream" || q === "headshots" || q === "shop" || q === "jewelry" ? q : "logo";
     } catch { return "logo"; }
   });
 
@@ -33,6 +34,7 @@ export default function BrandingKit() {
     { key: "logo", label: t("brandingKit.tabs.logo.label"), Icon: Palette },
     { key: "intros", label: t("brandingKit.tabs.intros.label"), Icon: Clapperboard },
     { key: "stream", label: t("brandingKit.tabs.stream.label"), Icon: Tv },
+    { key: "headshots", label: t("brandingKit.tabs.headshots.label", { defaultValue: "Headshots" }), Icon: Camera },
     { key: "shop", label: t("brandingKit.tabs.shop.label", { defaultValue: "Shop" }), Icon: Store },
     { key: "jewelry", label: t("brandingKit.tabs.jewelry.label", { defaultValue: "Jewelry" }), Icon: Gem },
   ] as const;
@@ -112,6 +114,7 @@ export default function BrandingKit() {
         {tab === "logo" && <LogoMakerTool key="logo" />}
         {tab === "intros" && <IntrosOutrosTool key="intros" />}
         {tab === "stream" && <StreamPackTool key="stream" />}
+        {tab === "headshots" && <HeadshotStudio key="headshots" />}
         {tab === "shop" && <BrandingShop key="shop" />}
         {tab === "jewelry" && <JewelryStudio key="jewelry" />}
       </div>

@@ -2006,6 +2006,9 @@
       },
       "stream": {
         "label": "Stream Bundle"
+      },
+      "headshots": {
+        "label": "Headshots"
       }
     },
     "title": "Thy Crown"
@@ -11380,7 +11383,9 @@
       "generate": "Generate",
       "abtest": "A/B Test",
       "library": "Library",
-      "aria": "Thumbnail studio sections"
+      "aria": "Thumbnail studio sections",
+      "enhance": "Enhance",
+      "background": "Background"
     }
   },
   "wave9": {
@@ -12175,5 +12180,253 @@
     "startFailed": "Could not start conversion.",
     "failedRefunded": "Conversion failed — credits refunded.",
     "notConfiguredError": "Singing-voice conversion isn't connected yet."
+  },
+  "headshotStudio": {
+    "eyebrow": "Profile pics",
+    "title": "AI Headshots",
+    "subtitle": "A profile pic that looks expensive. Pick a flow — the AI handles the rest.",
+    "flows": {
+      "autopilot": "AI Autopilot",
+      "preset": "Style presets",
+      "manual": "Manual prompt"
+    },
+    "autopilot": {
+      "blurb": "One tap. The AI picks the most flattering studio look automatically — lighting, backdrop, framing, everything.",
+      "costNote": "Charged only if the headshot succeeds."
+    },
+    "styleLabel": "Style",
+    "presetNames": {
+      "studio": "Studio",
+      "stage": "Stage",
+      "street": "Street",
+      "luxury": "Luxury"
+    },
+    "presets": {
+      "studio": "Classic studio portrait — clean backdrop, soft pro lighting.",
+      "stage": "On-stage look — spotlights and crowd energy behind you.",
+      "street": "Street editorial — golden hour, urban, confident.",
+      "luxury": "Luxury editorial — marble, gold, high-end fashion."
+    },
+    "manualLabel": "Your prompt — full control",
+    "manualPlaceholder": "e.g. dramatic black-and-white headshot, hard shadows, film noir mood, looking off-camera…",
+    "refLabel": "Face reference (optional)",
+    "refPlaceholder": "Paste a photo URL to lock your identity — the headshot keeps your face.",
+    "modelLabel": "Engine",
+    "models": {
+      "nano": "Nano Banana",
+      "nanoHint": "Fast · locks your face",
+      "ideogram": "Ideogram",
+      "ideogramHint": "Alt render style"
+    },
+    "featureName": "AI Headshot",
+    "generate": "Generate headshot",
+    "generating": "Generating…",
+    "visualBucs": "Visual Bucs",
+    "costNote": "Charged only if the headshot succeeds.",
+    "errors": {
+      "describeFirst": "Describe the headshot look first.",
+      "outOfCredits": "Not enough Visual Bucs. Please buy more Visual Bucs to continue.",
+      "failed": "Headshot generation failed. Visual Bucs were not charged.",
+      "tryOtherEngine": "Try the other engine above — or ask the owner to connect the API key."
+    },
+    "resultLabel": "Your headshot",
+    "resultAlt": "Generated AI headshot",
+    "download": "Download"
+  },
+  "productPhotoStudio": {
+    "title": "Product Photo Studio",
+    "subtitle": "Clean packshots and lifestyle shots for your merch — ready to sell.",
+    "stepProduct": "1. Your product",
+    "uploadCta": "Upload product photo",
+    "uploading": "Uploading…",
+    "pastePlaceholder": "https://…",
+    "useUrl": "Use URL",
+    "recentLabel": "Pick from recent uploads",
+    "productReady": "Product photo ready",
+    "changePhoto": "Use a different photo",
+    "productAlt": "Product photo",
+    "namePlaceholder": "Product name (optional — e.g. Gold Chain Tee)",
+    "stepShot": "2. Shot type",
+    "packshot": "Packshot",
+    "packshotBlurb": "Clean white-background product photo for your storefront.",
+    "lifestyle": "Lifestyle",
+    "lifestyleBlurb": "Your product styled in a real scene — ads, socials, banners.",
+    "stepStyle": "3. Scene style",
+    "modeAutopilot": "AI Autopilot",
+    "modePresets": "Scene presets",
+    "modeCustom": "Custom prompt",
+    "kindLabel": "What are you selling? AI picks the fitting scene.",
+    "kind": {
+      "apparel": "Apparel",
+      "drinkware": "Mugs & drinkware",
+      "jewelry": "Jewelry",
+      "poster": "Posters & art",
+      "accessory": "Accessories",
+      "home": "Home goods",
+      "other": "Something else"
+    },
+    "preset": {
+      "studioWhite": "Studio White",
+      "studioWhiteBlurb": "Pure white, soft shadow — the classic storefront shot.",
+      "lightGrey": "Light Grey",
+      "lightGreyBlurb": "Soft grey studio sweep, premium and calm.",
+      "infinityWhite": "Infinity Cove",
+      "infinityWhiteBlurb": "High-key white with crisp reflections.",
+      "marbleLuxe": "Marble Luxe",
+      "marbleLuxeBlurb": "Marble, gold accents, soft window light.",
+      "streetStyle": "Street Style",
+      "streetStyleBlurb": "Candid city look, fashion editorial.",
+      "goldenHour": "Golden Hour",
+      "goldenHourBlurb": "Warm sunlight, cozy and premium.",
+      "cozyHome": "Styled Home",
+      "cozyHomeBlurb": "Modern interior, natural daylight."
+    },
+    "customPlaceholder": "e.g. Your hoodie laid flat on a marble table next to gold sunglasses, soft morning light…",
+    "customHint": "Full manual control — describe the exact scene, lighting, and background.",
+    "stepModel": "4. Model & size",
+    "modelNano": "Nano Banana 2.1",
+    "modelNanoBlurb": "Fast — keeps your product pixel-accurate.",
+    "modelIdeogram": "Ideogram 4.0",
+    "modelIdeogramBlurb": "Best for products with text or logos.",
+    "ratioSquare": "Square 1:1",
+    "ratioStory": "Story 9:16",
+    "generate": "Generate photo",
+    "credits": "{n} Visual Bucs",
+    "generating": "Shooting your product…",
+    "resultTitle": "Your product photo",
+    "resultAlt": "Generated product photo",
+    "download": "Download",
+    "usePhoto": "Use this photo",
+    "confirmFeature": "Product Photo Studio",
+    "errorSignIn": "Sign in to upload a product photo.",
+    "errorNotImage": "That file is not an image.",
+    "errorUpload": "Could not start the upload. Try again.",
+    "errorNoProduct": "Upload a product photo first — the AI needs to see your product.",
+    "errorNoPrompt": "Describe the scene first.",
+    "errorFailed": "Photo generation failed.",
+    "errorCredits": "Not enough Visual Bucs. Please buy more Visual Bucs to continue."
+  },
+  "photoEnhance": {
+    "featureName": "Photo Enhance",
+    "title": "Upload a photo to enhance",
+    "uploadTitle": "Upload a photo to enhance",
+    "uploadHint": "JPG or PNG, up to 12 MB. Old, noisy, or black-and-white photos welcome.",
+    "errorNotImage": "That file is not an image.",
+    "errorTooLarge": "That file is too large (12 MB max).",
+    "errorUpload": "Upload failed. Try again.",
+    "errorNoPhoto": "Upload a photo first.",
+    "errorNoOps": "Pick at least one operation.",
+    "errorFailed": "Enhancement failed. Visual Bucs were not charged.",
+    "errorCredits": "Not enough Visual Bucs. Please buy more Visual Bucs to continue.",
+    "errorNotConnected": "Photo Enhance is not connected yet — the AI image service still needs to be set up on the server.",
+    "beforeAfter": "Before / After — drag the divider",
+    "previewOriginal": "Your photo",
+    "startOver": "Start over",
+    "before": "Before",
+    "after": "After",
+    "compareSlider": "Compare before and after",
+    "enhancing": "Enhancing your photo…",
+    "applied": "Applied: {{ops}}",
+    "download": "Download",
+    "autopilotTitle": "Enhance everything",
+    "autopilotHint": "One tap: upscale, denoise, and repair damage — the AI picks the rest.",
+    "autopilotButton": "Enhance everything",
+    "costNote": "{{cost}} Visual Bucs per enhancement",
+    "pickOps": "Or pick operations",
+    "colorizeHint": "Colorize only applies to black-and-white photos. Restore repairs scratches, dust, and fading.",
+    "advanced": "Advanced — strength sliders",
+    "runSelected": "Enhance with selected",
+    "ops": {
+      "upscale": "Upscale",
+      "denoise": "Denoise",
+      "restore": "Restore",
+      "colorize": "Colorize"
+    }
+  },
+  "bgStudio": {
+    "uploadNotImage": "Please choose an image file.",
+    "uploadedTitle": "Photo uploaded",
+    "uploadedDesc": "Now remove the background.",
+    "uploadFailed": "Upload failed. Try again.",
+    "step1": "Upload a photo",
+    "step2": "Remove the background",
+    "step3": "Replace the background",
+    "uploading": "Uploading…",
+    "dropHint": "Drop a photo here, or tap to choose one",
+    "photoReady": "Photo ready",
+    "changePhoto": "Change photo",
+    "removeCta": "Remove background",
+    "removing": "Removing background…",
+    "removeFailed": "Background removal failed.",
+    "noOutput": "No output image returned.",
+    "advanced": "Manual: removal strength",
+    "aggressiveness": "Removal strength",
+    "aggressivenessHint": "Higher removes more edge pixels — use it for fuzzy or shadowy backgrounds.",
+    "before": "Before",
+    "after": "After",
+    "detectedColor": "Detected background color",
+    "kind": {
+      "color": "Color",
+      "gradient": "Gradient",
+      "ai": "AI backdrop"
+    },
+    "custom": "Custom",
+    "checkingAi": "Checking AI availability…",
+    "aiNotConnected": "AI backdrops are not connected on this server yet. Pick a solid color or preset scene instead.",
+    "customPrompt": "Custom backdrop prompt",
+    "promptPlaceholder": "Describe the backdrop — e.g. golden desert dunes at dawn, soft light",
+    "provider": "Model",
+    "generateCta": "Generate AI backdrop",
+    "generating": "Generating backdrop…",
+    "backdropFailed": "Backdrop generation failed.",
+    "priceTbdNote": "Draft price — not final. Free colors and gradients never cost anything.",
+    "composeFailed": "Could not compose the final image.",
+    "compositing": "Compositing…",
+    "result": "Your new photo",
+    "startOver": "Start over",
+    "download": "Download PNG"
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "title": "Scene packs",
+      "packs": {
+        "neonStage": {
+          "name": "Neon Stage",
+          "blurb": "Electric live-energy shot — cover-art caliber, made for the single cover."
+        },
+        "rooftopGolden": {
+          "name": "Rooftop Golden Hour",
+          "blurb": "Warm, editorial press-kit shot — soft golden light, city skyline behind you."
+        },
+        "studioNoir": {
+          "name": "Studio Noir",
+          "blurb": "Moody black-studio portrait — the one for your profile pic and stream branding."
+        },
+        "streetLuxury": {
+          "name": "Street Luxury",
+          "blurb": "Night-city flex for socials — wet asphalt, neon glow, luxury car in the frame."
+        },
+        "palaceThrone": {
+          "name": "Palace Throne",
+          "blurb": "Full Bow Down royalty — throne, gold hall, god-rays. The hero-branding shot."
+        }
+      },
+      "tags": {
+        "albumArt": "Album art",
+        "singleCover": "Single cover",
+        "tourPromo": "Tour promo",
+        "pressKit": "Press kit",
+        "bioPhoto": "Bio photo",
+        "magazineStyle": "Magazine style",
+        "profilePic": "Profile pic",
+        "streamBranding": "Stream branding",
+        "logoAdjacent": "Logo-adjacent",
+        "socialContent": "Social content",
+        "dropAnnouncements": "Drop announcements",
+        "merchTieIn": "Merch tie-in",
+        "heroBranding": "Hero branding",
+        "announcementGraphics": "Announcement graphics"
+      }
+    }
   }
 }

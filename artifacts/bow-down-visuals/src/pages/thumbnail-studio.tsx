@@ -1081,6 +1081,8 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { BrowseLibraryButton } from "@/pages/library";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
+import { PhotoEnhance } from "@/components/photo/PhotoEnhance";
+import { BgStudio } from "@/components/photo/BgStudio";
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
    Upload 2-4 thumbnail variants, AI predicts which one gets the most clicks
@@ -1725,13 +1727,13 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
    library. The A/B Test panel keeps its ?test=<imageUrl> deep-link protocol
    (used by the Generate tab's "A/B Test" button). */
 
-type StudioTabKey = "generate" | "abtest" | "library";
+type StudioTabKey = "generate" | "abtest" | "enhance" | "background" | "library";
 
-const STUDIO_TABS: StudioTabKey[] = ["generate", "abtest", "library"];
+const STUDIO_TABS: StudioTabKey[] = ["generate", "abtest", "enhance", "background", "library"];
 
 function studioTabLabel(t: (k: string, o?: Record<string, unknown>) => string, key: StudioTabKey): string {
   return t(`thumbnailStudio.tabs.${key}`, {
-    defaultValue: key === "generate" ? "Generate" : key === "abtest" ? "A/B Test" : "Library",
+    defaultValue: key === "generate" ? "Generate" : key === "abtest" ? "A/B Test" : key === "enhance" ? "Enhance" : key === "background" ? "Background" : "Library",
   });
 }
 
@@ -1746,7 +1748,7 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
   const [tab, setTab] = useState<StudioTabKey>(() => {
     try {
       const param = new URLSearchParams(window.location.search).get("tab");
-      if (param === "generate" || param === "abtest" || param === "library") return param;
+      if (param === "generate" || param === "abtest" || param === "enhance" || param === "background" || param === "library") return param;
     } catch {
       /* non-browser — ignore */
     }
@@ -1824,6 +1826,8 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
 
         {tab === "generate" && <ThumbnailMakerModule />}
         {tab === "abtest" && <ThumbnailAbTester />}
+        {tab === "enhance" && <PhotoEnhance />}
+        {tab === "background" && <BgStudio />}
         {tab === "library" && <ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />}
       </div>
     </div>
