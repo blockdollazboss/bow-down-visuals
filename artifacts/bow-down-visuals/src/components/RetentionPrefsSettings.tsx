@@ -13,13 +13,21 @@ type PrefKey =
   | "daily_drop_enabled"
   | "away_digest_enabled"
   | "creation_streaks_enabled"
-  | "quests_enabled";
+  | "quests_enabled"
+  | "login_streaks_enabled"
+  | "share_to_earn_enabled"
+  | "contests_enabled"
+  | "fomo_feed_enabled";
 
 const PREF_KEYS: PrefKey[] = [
   "daily_drop_enabled",
   "away_digest_enabled",
   "creation_streaks_enabled",
   "quests_enabled",
+  "login_streaks_enabled",
+  "share_to_earn_enabled",
+  "contests_enabled",
+  "fomo_feed_enabled",
 ];
 
 const PREF_I18N: Record<PrefKey, string> = {
@@ -27,6 +35,10 @@ const PREF_I18N: Record<PrefKey, string> = {
   away_digest_enabled: "awayDigestEnabled",
   creation_streaks_enabled: "creationStreaksEnabled",
   quests_enabled: "questsEnabled",
+  login_streaks_enabled: "loginStreaksEnabled",
+  share_to_earn_enabled: "shareToEarnEnabled",
+  contests_enabled: "contestsEnabled",
+  fomo_feed_enabled: "fomoFeedEnabled",
 };
 
 export function RetentionPrefsSettings() {
@@ -53,6 +65,10 @@ export function RetentionPrefsSettings() {
           away_digest_enabled: d.away_digest_enabled ?? true,
           creation_streaks_enabled: d.creation_streaks_enabled ?? true,
           quests_enabled: d.quests_enabled ?? true,
+          login_streaks_enabled: d.login_streaks_enabled ?? true,
+          share_to_earn_enabled: d.share_to_earn_enabled ?? true,
+          contests_enabled: d.contests_enabled ?? true,
+          fomo_feed_enabled: d.fomo_feed_enabled ?? true,
         });
       } catch {
         /* silent — settings shows other sections regardless */
@@ -83,6 +99,10 @@ export function RetentionPrefsSettings() {
         away_digest_enabled: d.away_digest_enabled ?? next,
         creation_streaks_enabled: d.creation_streaks_enabled ?? next,
         quests_enabled: d.quests_enabled ?? next,
+        login_streaks_enabled: d.login_streaks_enabled ?? next,
+        share_to_earn_enabled: d.share_to_earn_enabled ?? next,
+        contests_enabled: d.contests_enabled ?? next,
+        fomo_feed_enabled: d.fomo_feed_enabled ?? next,
       });
       toast({ title: t("retention.prefs.saved") });
     } catch {

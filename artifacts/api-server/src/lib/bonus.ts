@@ -61,7 +61,8 @@ export async function ensureBonusColumns(): Promise<void> {
       ADD COLUMN IF NOT EXISTS bonus_credits_expires_at TIMESTAMPTZ NULL,
       ADD COLUMN IF NOT EXISTS daily_streak INTEGER NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS last_daily_claim DATE NULL,
-      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL;
+      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL,
+      ADD COLUMN IF NOT EXISTS streak_freezes INTEGER NOT NULL DEFAULT 0;
     CREATE TABLE IF NOT EXISTS wheel_spins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL,
@@ -87,6 +88,8 @@ export interface BonusProfile {
   dailyStreak: number;
   lastDailyClaim: string | null;
   lastWheelSpin: string | null;
+  /** Non-VB streak-freeze tokens banked on the profile (earned at 7-day milestone claims). */
+  streakFreezes: number;
 }
 
 export async function getBonusProfile(userId: string): Promise<BonusProfile> {
@@ -94,7 +97,7 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("profiles")
-    .select("bonus_credits, bonus_credits_expires_at, daily_streak, last_daily_claim, last_wheel_spin")
+    .select("bonus_credits, bonus_credits_expires_at, daily_streak, last_daily_claim, last_wheel_spin, streak_freezes")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(`Failed to read bonus profile: ${error.message}`);
@@ -104,6 +107,7 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
     dailyStreak: (data as any)?.daily_streak ?? 0,
     lastDailyClaim: (data as any)?.last_daily_claim ?? null,
     lastWheelSpin: (data as any)?.last_wheel_spin ?? null,
+    streakFreezes: (data as any)?.streak_freezes ?? 0,
   };
 }
 
@@ -143,12 +147,23 @@ export function utcYesterday(): string {
   return new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 }
 
+/** UTC date of the day before yesterday (two days ago). */
+export function utcDayBeforeYesterday(): string {
+  return new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+}
+
 export interface DailyClaimResult {
   claimed: boolean;
   reason?: "already_claimed";
   streak?: number;
   bonusGranted?: number;
   isStreakMilestone?: boolean;
+  /** True when a banked streak freeze was auto-consumed to save the streak. */
+  freezeUsed?: boolean;
+  /** True when this claim earned a new streak freeze (7-day milestone). */
+  freezesEarned?: boolean;
+  /** Freeze balance after this claim. */
+  streakFreezes?: number;
 }
 
 export async function claimDailyBonus(userId: string): Promise<DailyClaimResult> {
@@ -158,7 +173,7 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
 
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("daily_streak, last_daily_claim")
+    .select("daily_streak, last_daily_claim, streak_freezes")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(`Failed to read streak: ${error.message}`);
@@ -169,20 +184,46 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
   }
 
   const prevStreak = (profile as any)?.daily_streak ?? 0;
-  // Consecutive day → increment; otherwise reset to 1.
-  const newStreak = lastClaim === utcYesterday() ? prevStreak + 1 : 1;
+  const currentFreezes = (profile as any)?.streak_freezes ?? 0;
+
+  let newStreak: number;
+  let freezeUsed = false;
+  if (lastClaim === utcYesterday()) {
+    // Consecutive day → increment.
+    newStreak = prevStreak + 1;
+  } else if (lastClaim === utcDayBeforeYesterday() && currentFreezes > 0) {
+    // Exactly one day missed and a freeze is banked → auto-consume it to
+    // preserve the streak (Duolingo-style). Longer gaps reset regardless.
+    newStreak = prevStreak + 1;
+    freezeUsed = true;
+  } else {
+    newStreak = 1;
+  }
+
   const isMilestone = newStreak % 7 === 0;
   const bonus = isMilestone ? DAILY_BONUS_STREAK_7 : DAILY_BONUS_BASE;
 
+  // Streak freezes are non-VB tokens: +1 at every 7-day milestone claim.
+  const freezesEarned = isMilestone;
+  const newFreezes = currentFreezes - (freezeUsed ? 1 : 0) + (freezesEarned ? 1 : 0);
+
   const { error: updateErr } = await admin
     .from("profiles")
-    .update({ daily_streak: newStreak, last_daily_claim: today })
+    .update({ daily_streak: newStreak, last_daily_claim: today, streak_freezes: newFreezes })
     .eq("id", userId);
   if (updateErr) throw new Error(`Failed to update streak: ${updateErr.message}`);
 
   await addBonusCredits(userId, bonus);
-  logger.info({ userId, newStreak, bonus }, "[bonus] daily claim");
-  return { claimed: true, streak: newStreak, bonusGranted: bonus, isStreakMilestone: isMilestone };
+  logger.info({ userId, newStreak, bonus, freezeUsed, freezesEarned }, "[bonus] daily claim");
+  return {
+    claimed: true,
+    streak: newStreak,
+    bonusGranted: bonus,
+    isStreakMilestone: isMilestone,
+    freezeUsed,
+    freezesEarned,
+    streakFreezes: newFreezes,
+  };
 }
 
 export interface WheelSpinResult {

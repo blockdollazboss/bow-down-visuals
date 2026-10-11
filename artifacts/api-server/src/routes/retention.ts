@@ -20,7 +20,8 @@ const router = Router();
    GET  /api/retention/quests        — current week's quests + progress
    POST /api/retention/quests/claim  — claim a completed quest ({ questKey })
    GET  /api/retention/prefs         — retention on/off prefs (streaks, quests,
-                                    daily drop, away digest)
+                                    daily drop, away digest, login streaks,
+                                    share-to-earn, contests, FOMO feed)
    PATCH /api/retention/prefs        — update prefs
    Both systems respect retention_prefs: nothing tracks and nothing pays
    out while the user has the system switched off. */
@@ -94,6 +95,11 @@ const prefsSchema = z.object({
   /* Added for Thy Daily Drop + While You Were Away digest. */
   daily_drop_enabled: z.boolean().optional(),
   away_digest_enabled: z.boolean().optional(),
+  /* Login-streaks-with-teeth pack: owned here, consumed by sibling systems. */
+  login_streaks_enabled: z.boolean().optional(),
+  share_to_earn_enabled: z.boolean().optional(),
+  contests_enabled: z.boolean().optional(),
+  fomo_feed_enabled: z.boolean().optional(),
 });
 
 router.patch("/retention/prefs", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {

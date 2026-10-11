@@ -11998,7 +11998,23 @@
         "desc": "Three fresh quests every Monday with Visual Bucs rewards."
       },
       "saved": "Preferences saved",
-      "saveFailed": "Couldn't save — try again."
+      "saveFailed": "Couldn't save — try again.",
+      "loginStreaksEnabled": {
+        "title": "Login streaks",
+        "desc": "Daily login streaks, streak freezes, and milestone celebrations."
+      },
+      "shareToEarnEnabled": {
+        "title": "Share to earn",
+        "desc": "Earn rewards for sharing your creations and inviting friends."
+      },
+      "contestsEnabled": {
+        "title": "Contests",
+        "desc": "Creator contests and challenges with prizes."
+      },
+      "fomoFeedEnabled": {
+        "title": "FOMO feed",
+        "desc": "Live activity feed showing what other creators are winning."
+      }
     },
     "drops": {
       "fitness-transformation-youtube-thumbnail": {
@@ -12121,6 +12137,23 @@
         "title": "TikTok Growth Hook",
         "description": "The pattern-interrupt opener built for TikTok's first two seconds."
       }
+    },
+    "dailyBonus": {
+      "ladderTitle": "The 30-day climb",
+      "rungDay": "Day {{day}}",
+      "rungReward": "🎁 {{bonus}} VB · 🧊 +1 freeze",
+      "rungLegend": "👑 30-day legend",
+      "freezesBanked": "🧊 {{count}} streak freeze banked — miss a day and your chain survives",
+      "milestoneHeadline": "🏆 {{days}}-day streak!",
+      "milestoneSub": "Milestone bonus secured 🔥",
+      "freezeEarned": "🧊 +1 streak freeze earned — miss a day and your chain survives!",
+      "freezeUsed": "🧊 Streak freeze used — your {{streak}}-day chain is saved!"
+    },
+    "streakWidget": {
+      "atRiskTitle": "Don't lose your {{streak}}-day streak!",
+      "atRiskSub": "Claim today or your streak resets to zero.",
+      "freezeSalvageTitle": "🧊 Save your {{streak}}-day streak!",
+      "freezeSalvageSub": "You missed yesterday — a streak freeze will save your chain. Claim today!"
     }
   },
   "retentionDelight": {

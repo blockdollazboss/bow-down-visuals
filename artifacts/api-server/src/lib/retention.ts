@@ -11,7 +11,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { addCreditsToProfile } from "./supabase-admin";
 import { logger } from "./logger";
 
-export type CreationKind = "project" | "song" | "thumbnail" | "export";
+export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
 
 /* ── Streak milestones: day count → VB payout. Each claimable once. ────── */
 export const STREAK_MILESTONES = [
@@ -32,6 +32,14 @@ export const QUEST_DEFS: QuestDef[] = [
   { key: "make-thumbnail", target: 1, reward: 50,  kinds: ["thumbnail"] },
   { key: "generate-song",  target: 1, reward: 100, kinds: ["song"] },
   { key: "export-video",   target: 1, reward: 150, kinds: ["export"] },
+  /* ── PENDING OWNER APPROVAL (2026-10-11) ──────────────────────────────
+     The weekly quest pool is capped at 300 VB/week and the three quests
+     above already total 300 (50 + 100 + 150). This quest tracks fully and
+     renders in the widget, but its payout is deliberately 0 until the owner
+     picks how it fits the cap (rebalance the three existing rewards, or
+     raise the pool). claimQuestReward refuses to pay a 0-reward quest, so
+     no invented payout can leak. Set `reward` here when approved. */
+  { key: "viral-sharer",   target: 3, reward: 0,   kinds: ["share"] },
 ];
 
 function todayKey(): string {
@@ -52,6 +60,11 @@ interface Prefs {
   /* Added for Thy Daily Drop + While You Were Away digest. */
   dailyDropEnabled: boolean;
   awayDigestEnabled: boolean;
+  /* Login-streaks-with-teeth pack: owned here, consumed by sibling systems. */
+  loginStreaksEnabled: boolean;
+  shareToEarnEnabled: boolean;
+  contestsEnabled: boolean;
+  fomoFeedEnabled: boolean;
 }
 
 async function getPrefs(userId: string): Promise<Prefs> {
@@ -62,6 +75,10 @@ async function getPrefs(userId: string): Promise<Prefs> {
         questsEnabled: retentionPrefsTable.questsEnabled,
         dailyDropEnabled: retentionPrefsTable.dailyDropEnabled,
         awayDigestEnabled: retentionPrefsTable.awayDigestEnabled,
+        loginStreaksEnabled: retentionPrefsTable.loginStreaksEnabled,
+        shareToEarnEnabled: retentionPrefsTable.shareToEarnEnabled,
+        contestsEnabled: retentionPrefsTable.contestsEnabled,
+        fomoFeedEnabled: retentionPrefsTable.fomoFeedEnabled,
       })
       .from(retentionPrefsTable)
       .where(eq(retentionPrefsTable.userId, userId))
@@ -72,6 +89,10 @@ async function getPrefs(userId: string): Promise<Prefs> {
       questsEnabled: row?.questsEnabled ?? true,
       dailyDropEnabled: row?.dailyDropEnabled ?? true,
       awayDigestEnabled: row?.awayDigestEnabled ?? true,
+      loginStreaksEnabled: row?.loginStreaksEnabled ?? true,
+      shareToEarnEnabled: row?.shareToEarnEnabled ?? true,
+      contestsEnabled: row?.contestsEnabled ?? true,
+      fomoFeedEnabled: row?.fomoFeedEnabled ?? true,
     };
   } catch (err) {
     logger.warn({ err, userId }, "[retention] prefs read failed — defaulting to enabled");
@@ -80,6 +101,10 @@ async function getPrefs(userId: string): Promise<Prefs> {
       questsEnabled: true,
       dailyDropEnabled: true,
       awayDigestEnabled: true,
+      loginStreaksEnabled: true,
+      shareToEarnEnabled: true,
+      contestsEnabled: true,
+      fomoFeedEnabled: true,
     };
   }
 }
@@ -158,6 +183,37 @@ export async function recordCreation(userId: string, kind: CreationKind): Promis
     if (prefs.questsEnabled) await updateQuests(userId, kind);
   } catch (err) {
     logger.warn({ err, userId, kind }, "[retention] recordCreation failed");
+  }
+}
+
+/* ── SHARE-TO-EARN toggle (defensive read) ─────────────────────────────────
+   `share_to_earn_enabled` is being added to retention_prefs by a sibling
+   worker. Read it with raw SQL so this keeps working before the column
+   exists (missing column/table ⇒ default true = feature on). Never throws. */
+export async function getShareToEarnEnabled(userId: string): Promise<boolean> {
+  try {
+    const result = await db.execute(
+      sql`SELECT share_to_earn_enabled FROM retention_prefs WHERE user_id = ${userId} LIMIT 1`
+    );
+    const row = (result.rows as Array<{ share_to_earn_enabled?: boolean | null }>)[0];
+    return row?.share_to_earn_enabled ?? true;
+  } catch {
+    return true;
+  }
+}
+
+/* ── SHARE HOOK: call after a share action (POST /api/shares) ────────────
+   Unlike recordCreation, a share is NOT a creation event: it never touches
+   creation streaks — it only advances the "viral-sharer" quest. Honors
+   quests_enabled and share_to_earn_enabled. Fire-and-forget: never throws. */
+export async function recordShareEvent(userId: string): Promise<void> {
+  try {
+    const prefs = await getPrefs(userId);
+    if (!prefs.questsEnabled) return;
+    if (!(await getShareToEarnEnabled(userId))) return;
+    await updateQuests(userId, "share");
+  } catch (err) {
+    logger.warn({ err, userId }, "[retention] recordShareEvent failed");
   }
 }
 
@@ -297,6 +353,9 @@ export async function claimQuestReward(
 ): Promise<{ reward: number }> {
   const def = QUEST_DEFS.find((q) => q.key === questKey);
   if (!def) throw new Error("Unknown quest");
+  /* The Viral Sharer quest tracks with reward 0 until the owner approves
+     how it fits the 300 VB/week pool — refuse to pay anything invented. */
+  if (def.reward <= 0) throw new Error("This quest's reward is pending owner approval");
   const status = await getQuestsStatus(userId);
   if (!status.enabled) throw new Error("Quests are disabled");
   const q = status.quests.find((s) => s.key === questKey);
@@ -335,6 +394,10 @@ export async function getRetentionPrefs(userId: string): Promise<{
   quests_enabled: boolean;
   daily_drop_enabled: boolean;
   away_digest_enabled: boolean;
+  login_streaks_enabled: boolean;
+  share_to_earn_enabled: boolean;
+  contests_enabled: boolean;
+  fomo_feed_enabled: boolean;
 }> {
   const prefs = await getPrefs(userId);
   return {
@@ -342,6 +405,10 @@ export async function getRetentionPrefs(userId: string): Promise<{
     quests_enabled: prefs.questsEnabled,
     daily_drop_enabled: prefs.dailyDropEnabled,
     away_digest_enabled: prefs.awayDigestEnabled,
+    login_streaks_enabled: prefs.loginStreaksEnabled,
+    share_to_earn_enabled: prefs.shareToEarnEnabled,
+    contests_enabled: prefs.contestsEnabled,
+    fomo_feed_enabled: prefs.fomoFeedEnabled,
   };
 }
 
@@ -352,12 +419,20 @@ export async function setRetentionPrefs(
     quests_enabled?: boolean;
     daily_drop_enabled?: boolean;
     away_digest_enabled?: boolean;
+    login_streaks_enabled?: boolean;
+    share_to_earn_enabled?: boolean;
+    contests_enabled?: boolean;
+    fomo_feed_enabled?: boolean;
   }
 ): Promise<{
   creation_streaks_enabled: boolean;
   quests_enabled: boolean;
   daily_drop_enabled: boolean;
   away_digest_enabled: boolean;
+  login_streaks_enabled: boolean;
+  share_to_earn_enabled: boolean;
+  contests_enabled: boolean;
+  fomo_feed_enabled: boolean;
 }> {
   const current = await getPrefs(userId);
   const next = {
@@ -365,6 +440,10 @@ export async function setRetentionPrefs(
     quests_enabled: patch.quests_enabled ?? current.questsEnabled,
     daily_drop_enabled: patch.daily_drop_enabled ?? current.dailyDropEnabled,
     away_digest_enabled: patch.away_digest_enabled ?? current.awayDigestEnabled,
+    login_streaks_enabled: patch.login_streaks_enabled ?? current.loginStreaksEnabled,
+    share_to_earn_enabled: patch.share_to_earn_enabled ?? current.shareToEarnEnabled,
+    contests_enabled: patch.contests_enabled ?? current.contestsEnabled,
+    fomo_feed_enabled: patch.fomo_feed_enabled ?? current.fomoFeedEnabled,
   };
   await db
     .insert(retentionPrefsTable)
@@ -374,6 +453,10 @@ export async function setRetentionPrefs(
       questsEnabled: next.quests_enabled,
       dailyDropEnabled: next.daily_drop_enabled,
       awayDigestEnabled: next.away_digest_enabled,
+      loginStreaksEnabled: next.login_streaks_enabled,
+      shareToEarnEnabled: next.share_to_earn_enabled,
+      contestsEnabled: next.contests_enabled,
+      fomoFeedEnabled: next.fomo_feed_enabled,
     })
     .onConflictDoUpdate({
       target: retentionPrefsTable.userId,
@@ -382,6 +465,10 @@ export async function setRetentionPrefs(
         questsEnabled: next.quests_enabled,
         dailyDropEnabled: next.daily_drop_enabled,
         awayDigestEnabled: next.away_digest_enabled,
+        loginStreaksEnabled: next.login_streaks_enabled,
+        shareToEarnEnabled: next.share_to_earn_enabled,
+        contestsEnabled: next.contests_enabled,
+        fomoFeedEnabled: next.fomo_feed_enabled,
         updatedAt: new Date(),
       },
     });

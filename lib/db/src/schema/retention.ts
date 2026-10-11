@@ -43,6 +43,20 @@ export const levelCelebrationsTable = pgTable("level_celebrations", {
 }, (t) => [primaryKey({ columns: [t.userId, t.level] })]);
 export type LevelCelebration = typeof levelCelebrationsTable.$inferSelect;
 
+/** Share-to-earn viral loop: one row per share action (native / X / WhatsApp /
+ * copy link) posted via POST /api/shares. Feeds the "Viral Sharer" weekly
+ * quest (quest_progress rows with quest_key = 'viral-sharer'). */
+export const shareEventsTable = pgTable("share_events", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  userId:      uuid("user_id").notNull(),
+  contentType: text("content_type").notNull(),
+  contentId:   text("content_id"),
+  channel:     text("channel").notNull(),
+  createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+// Indexes (user_id, created_at) live in migration 0117.
+export type ShareEvent = typeof shareEventsTable.$inferSelect;
+
 /** User-facing on/off for every retention system. */
 export const retentionPrefsTable = pgTable("retention_prefs", {
   userId:                   uuid("user_id").primaryKey(),
@@ -53,6 +67,12 @@ export const retentionPrefsTable = pgTable("retention_prefs", {
   leaderboardVisible:       boolean("leaderboard_visible").notNull().default(true),
   awayDigestEnabled:        boolean("away_digest_enabled").notNull().default(true),
   questsEnabled:            boolean("quests_enabled").notNull().default(true),
+  /* Login-streaks-with-teeth pack (2026-10-11): owned by prefs plumbing,
+     consumed by sibling systems. */
+  loginStreaksEnabled:      boolean("login_streaks_enabled").notNull().default(true),
+  shareToEarnEnabled:       boolean("share_to_earn_enabled").notNull().default(true),
+  contestsEnabled:          boolean("contests_enabled").notNull().default(true),
+  fomoFeedEnabled:          boolean("fomo_feed_enabled").notNull().default(true),
   updatedAt:                timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 export type RetentionPrefs = typeof retentionPrefsTable.$inferSelect;
