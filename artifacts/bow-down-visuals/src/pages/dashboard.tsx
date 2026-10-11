@@ -295,6 +295,7 @@ export default function Dashboard() {
   const greet = t(greetingKey(new Date().getHours()), { name });
 
   return (
+    <>
     <div className="min-h-screen bg-black text-white lux-page">
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -302,18 +303,9 @@ export default function Dashboard() {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-8 md:py-10 space-y-8">
-
-        {/* ── RETENTION DELIGHT MODALS (dismissible, pref-gated server-side) ── */}
-        {sharkDrop && (
-          <SharkDropModal
-            drop={sharkDrop}
-            onClaimed={() => setSharkDrop(null)}
-            onDismiss={() => setSharkDrop(null)}
-          />
-        )}
-        {levelUp !== null && (
-          <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />
-        )}
+        {/* NOTE: fixed-position modals live outside .lux-page (see bottom of
+            component) — its entrance animation's fill-mode transform would
+            otherwise trap them to page coordinates instead of the viewport. */}
 
         {/* ── PAYMENT TOAST ── */}
         {paymentToast && (
@@ -553,8 +545,20 @@ export default function Dashboard() {
         <LeaderboardWidget />
 
         <ExtensionPromoBanner />
-        <AwayDigestModal />
       </div>
     </div>
+    {/* ── FIXED MODALS — outside .lux-page so `fixed inset-0` = viewport ── */}
+    {sharkDrop && (
+      <SharkDropModal
+        drop={sharkDrop}
+        onClaimed={() => setSharkDrop(null)}
+        onDismiss={() => setSharkDrop(null)}
+      />
+    )}
+    {levelUp !== null && (
+      <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />
+    )}
+    <AwayDigestModal />
+  </>
   );
 }

@@ -136,11 +136,20 @@ export function MysteryCrate() {
           : typeof r.cooldownSeconds === "number" ? r.cooldownSeconds
           : 3600;
         setCooldown(wait);
+      } else if (res.status === 401) {
+        setPhase("closed");
+        // Dead/expired session — the known staging zombie-session case.
+        // Blaming the connection here sends the user chasing wifi ghosts.
+        setClaimedMessage("Your session expired — sign in again, then open the crate.");
       } else {
-        throw new Error(`spin failed: ${res.status}`);
+        setPhase("closed");
+        const serverMsg = typeof r.error === "string" && r.error.trim() ? r.error.trim() : null;
+        setClaimedMessage(serverMsg ?? `Couldn't open the crate (server error ${res.status}). Try again.`);
       }
     } catch {
       setPhase("closed");
+      // Only a real network failure reaches here — this is the one case
+      // where "check your connection" is the truth.
       setClaimedMessage("Couldn't open the crate. Check your connection and try again.");
     }
   }
