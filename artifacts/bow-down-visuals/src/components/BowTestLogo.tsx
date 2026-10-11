@@ -49,6 +49,13 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    if (isLight) {
+      // Light theme has no bow sprite sheets: clear any stale dark frame left
+      // on the canvas by the previous theme run and show the light poster.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (posterRef.current) posterRef.current.style.display = "";
+    }
+
     const base = import.meta.env.BASE_URL;
     const sheets: (HTMLImageElement | null)[] = new Array(SHEETS).fill(null);
     let sheetsReady = 0;
