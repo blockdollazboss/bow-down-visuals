@@ -351,6 +351,17 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             "linear-gradient(to bottom, black 70%, transparent 100%)",
         }}
       >
+        {/* Hero banner video — top of page, theme-aware */}
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          src={isLight ? "/videos/banner-light-temp.mp4" : "/videos/official-teaser.mp4"}
+          muted
+          loop
+          autoPlay
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        />
         {/* Background glow effects */}
         <div className="absolute inset-0 hero-glows">
           <div
