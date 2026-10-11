@@ -299,7 +299,7 @@ export default function Dashboard() {
 
   return (
     <>
-    <div className="min-h-screen bg-black text-white lux-page">
+    <div className="min-h-screen bg-black text-white lux-page dashboard-root">
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[420px] bg-primary/[0.08] rounded-full blur-[120px]" />
