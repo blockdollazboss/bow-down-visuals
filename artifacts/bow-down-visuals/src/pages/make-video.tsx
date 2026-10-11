@@ -31,6 +31,7 @@ import { AudioTranscribe } from "@/components/AudioTranscribe";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { AvatarPresenterPanel, EMPTY_PRESENTER, type AvatarPresenterConfig } from "@/components/video/AvatarPresenterPanel";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -54,6 +55,8 @@ interface VideoFormValues {
   videoLength: string;
   locationIdeas: string;
   specialInstructions: string;
+  /** AI avatar presenter choice (Step 3) — travels with the plan. */
+  presenter: AvatarPresenterConfig;
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
@@ -286,6 +289,7 @@ export function MakeVideoModule() {
       artistName: "", songTitle: "", genre: "", mood: "", lyrics: "",
       artistDescription: "", brandColors: "", visualStyleRules: "", doNotChangeRules: "",
       videoStyle: "", platform: "", videoLength: "", locationIdeas: "", specialInstructions: "",
+      presenter: EMPTY_PRESENTER,
     },
   });
 
@@ -409,6 +413,7 @@ export function MakeVideoModule() {
         lyrics: values.lyrics,
         artistDescription: values.artistDescription,
         instructions: combinedInstructions,
+        presenter: values.presenter?.mode === "ai-avatar" ? values.presenter : null,
         artistVault: loadedVault
           ? {
               vaultId:             loadedVault.id,
@@ -1229,6 +1234,15 @@ export function MakeVideoModule() {
                     style={{ minHeight: "90px" }}
                   />
                 </FieldWrapper>
+              </div>
+
+              {/* AI Avatar Presenter — talking-head host option, docked in the
+                  video creation flow (gated until a HeyGen/Hedra key exists). */}
+              <div data-min-stars="3">
+                <AvatarPresenterPanel
+                  value={watched.presenter ?? EMPTY_PRESENTER}
+                  onChange={(next) => setValue("presenter", next, { shouldDirty: true })}
+                />
               </div>
             </div>
           )}

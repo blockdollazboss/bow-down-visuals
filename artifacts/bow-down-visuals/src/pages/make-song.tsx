@@ -20,6 +20,7 @@ import { CoverSongModal } from "@/components/song/CoverSongModal";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { HarmonyGeneratorModal } from "@/components/song/HarmonyGeneratorModal";
+import { SingingVoiceModal } from "@/components/song/SingingVoiceModal";
 import { LrcExportModal } from "@/components/song/LrcExportModal";
 import type { HubAsset } from "@/lib/hub-project";
 import { useHubProject } from "@/lib/hub-project";
@@ -172,6 +173,8 @@ export function MakeSongModule() {
   const [polishOpen, setPolishOpen] = useState(false);
   /* AI Harmony Generator (Suno parity) — modal over the finished song. */
   const [harmonyOpen, setHarmonyOpen] = useState(false);
+  /* Singing-Voice Conversion — voice choice docked with the other song actions (gated until provider key exists). */
+  const [singingOpen, setSingingOpen] = useState(false);
   /* Synced Lyrics Export (.lrc) — tap-to-sync (free) or AI align, docked with the other song actions. */
   const [lrcOpen, setLrcOpen] = useState(false);
   const { toast } = useToast();
@@ -184,7 +187,9 @@ export function MakeSongModule() {
      - /make-song?audioUrl=… pre-fills an extracted audio track as the song.
      - /make-song?mode=inspo opens the Inspo tab (shared vibe links).
      - /make-song?tab=mashup&songA=<id>&songB=<id> opens the Mashup tab
-       with songs pre-selected (from "Mashup with another" links). */
+       with songs pre-selected (from "Mashup with another" links).
+     - /make-song?concept=… (or /create?panel=song&concept=…) pre-fills the
+       song topic from the Dream Collab / Link-to-Hit handoffs. */
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -200,6 +205,11 @@ export function MakeSongModule() {
       }
       const deepA = params.get("songA");
       const deepB = params.get("songB");
+      const deepConcept = params.get("concept");
+      if (deepConcept) {
+        setValue("songTopic", deepConcept.slice(0, 2000));
+        consumed.push("concept");
+      }
       if (params.get("tab") === "mashup" || deepA) {
         setMashupTab("mashup");
         if (deepA) setMashupA(deepA);
@@ -845,6 +855,24 @@ export function MakeSongModule() {
                           artistName: watched.artistName || undefined,
                         }}
                         initialLyrics={pkg.lyrics}
+                      />
+                      {/* Singing-Voice Conversion: convert vocals into a chosen singing voice, docked with the other song actions. */}
+                      <button
+                        type="button"
+                        onClick={() => setSingingOpen(true)}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+                      >
+                        <Mic className="h-4 w-4" />
+                        {t("singingVoice.buttonLabel", { defaultValue: "Singing Voice" })} ({t("singingVoice.buttonCost", { defaultValue: "800 VB · price TBD" })})
+                      </button>
+                      <SingingVoiceModal
+                        open={singingOpen}
+                        onClose={() => setSingingOpen(false)}
+                        source={{
+                          audioUrl,
+                          title: watched.songTitle || pkg.bestTitle || "Untitled Song",
+                          artistName: watched.artistName || undefined,
+                        }}
                       />
                       {/* Synced Lyrics Export (.lrc) — DistroKid parity: tap-to-sync (free) or AI align. */}
                       {pkg.lyrics.trim() && (

@@ -315,7 +315,163 @@ function VideoUpscaleTool() {
   );
 }
 
-/* ─── Tab 2: Image Upscaler (new) ─────────────────────────────────────── */
+/* ─── Premium generative video upscale (separate product) ───────────────
+   Topaz-style GENERATIVE upscale: a model reconstructs plausible detail.
+   This is a SEPARATE, premium-priced product from the classic ffmpeg
+   upscaler above (300 VB) — the two are never merged, replaced, or priced
+   the same. Gated: no provider key is configured yet, so the submit CTA
+   stays disabled with a clear message. Price is a PLACEHOLDER (1500 VB)
+   until the user approves the real price. */
+
+const GENERATIVE_UPSCALE_CREDIT_COST = 1500; // PLACEHOLDER — needs user price approval
+
+type GenerativeModeStatus = "idle" | "checking" | "ready" | "unconfigured";
+
+function GenerativeUpscaleTool() {
+  const { t } = useTranslation();
+  const [modeStatus, setModeStatus] = useState<GenerativeModeStatus>("idle");
+  const [genTarget, setGenTarget] = useState<TargetKey>("1080p");
+  const [genError, setGenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setModeStatus("checking");
+    (async () => {
+      try {
+        const res = await fetch("/api/ai-upscale/status");
+        if (!res.ok) throw new Error("status failed");
+        const data = (await res.json()) as { configured?: boolean };
+        if (alive) setModeStatus(data.configured ? "ready" : "unconfigured");
+      } catch {
+        if (alive) { setModeStatus("unconfigured"); setGenError(t("upscale.genStatusFailed", { defaultValue: "Could not reach the upscale service." })); }
+      }
+    })();
+    return () => { alive = false; };
+  }, [t]);
+
+  const gated = modeStatus !== "ready";
+
+  return (
+    <div className="mt-6 space-y-5">
+      {/* What makes it different — honest framing */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-primary/[0.15] bg-primary/[0.04] px-4 py-3">
+        <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
+        <p className="text-xs text-white/55 leading-relaxed">
+          {t("upscale.genFraming", {
+            defaultValue:
+              "Generative AI upscale is a different product from the classic upscaler above: a model reconstructs plausible detail instead of just resampling pixels. Premium price, premium result — the classic 300 VB ffmpeg upscale stays available beside it.",
+          })}
+        </p>
+      </div>
+
+      {/* Target picker */}
+      <div>
+        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("upscale.upscaleTo")}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {TARGETS.map((tg) => (
+            <button
+              key={tg.key}
+              type="button"
+              onClick={() => setGenTarget(tg.key)}
+              className={`rounded-xl border px-4 py-3.5 text-left transition ${
+                genTarget === tg.key
+                  ? "border-primary/60 bg-primary/[0.08]"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+              }`}
+            >
+              <p className="font-bold text-white">{t(tg.labelKey)}</p>
+              <p className="text-xs text-white/40 mt-0.5">{t(tg.blurbKey)}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Gate message */}
+      {modeStatus === "checking" && (
+        <div className="flex items-center gap-2 text-xs text-white/40">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t("upscale.genChecking", { defaultValue: "Checking generative upscale provider…" })}
+        </div>
+      )}
+      {modeStatus === "unconfigured" && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-amber-300/80 shrink-0 mt-0.5" />
+          <p className="text-xs text-white/60 leading-relaxed">
+            {t("upscale.genNotConfigured", {
+              defaultValue:
+                "Generative AI upscaling isn't connected yet — the site owner needs to add a provider key. The classic ffmpeg upscaler above works right now. You won't be charged.",
+            })}
+          </p>
+        </div>
+      )}
+      {genError && modeStatus === "unconfigured" && (
+        <p className="text-xs text-red-300/70">{genError}</p>
+      )}
+
+      <button
+        type="button"
+        disabled={gated}
+        title={gated ? t("upscale.genDisabledTitle", { defaultValue: "Connect a provider key to enable" }) : undefined}
+        className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {t("upscale.genButton", {
+          defaultValue: "Generative upscale to {{target}} ({{cost}} VB — price TBD)",
+          target: genTarget === "4k" ? "4K" : "1080p",
+          cost: GENERATIVE_UPSCALE_CREDIT_COST,
+        })}
+      </button>
+      <p className="text-center text-[11px] text-white/35">
+        {t("upscale.genPriceNote", {
+          defaultValue: "Placeholder price — the real price needs owner approval before this goes live. Classic ffmpeg upscale stays 300 VB.",
+        })}
+      </p>
+    </div>
+  );
+}
+
+/* ─── Video upscale tab shell: Classic vs Generative mode ─────────────── */
+
+type VideoUpscaleMode = "classic" | "generative";
+
+function VideoUpscaleWithModes() {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<VideoUpscaleMode>("classic");
+  return (
+    <>
+      {/* Mode toggle — both upscales live side by side, never merged */}
+      <div className="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label={t("upscale.modeLabel", { defaultValue: "Upscale mode" })}>
+        {(
+          [
+            { key: "classic", titleKey: "upscale.modeClassic", descKey: "upscale.modeClassicDesc", cost: 300 },
+            { key: "generative", titleKey: "upscale.modeGenerative", descKey: "upscale.modeGenerativeDesc", cost: GENERATIVE_UPSCALE_CREDIT_COST },
+          ] as const
+        ).map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            role="tab"
+            aria-selected={mode === m.key}
+            onClick={() => setMode(m.key)}
+            className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+              mode === m.key
+                ? "border-primary/50 bg-primary/[0.07]"
+                : "border-white/10 bg-white/[0.02] hover:border-white/25"
+            }`}
+          >
+            <p className="text-xs font-bold text-white">
+              {t(m.titleKey, { defaultValue: m.key === "classic" ? "Classic (ffmpeg)" : "Generative AI" })}
+              <span className="ml-1.5 text-[10px] font-black text-primary/80">{m.cost} VB</span>
+            </p>
+            <p className="text-[10px] text-white/40 mt-0.5">
+              {t(m.descKey, { defaultValue: m.key === "classic" ? "Fast pixel resampling" : "AI detail reconstruction (premium)" })}
+            </p>
+          </button>
+        ))}
+      </div>
+      {mode === "classic" ? <VideoUpscaleTool /> : <GenerativeUpscaleTool />}
+    </>
+  );
+}
 
 const IMAGE_CREDIT_COST = 300;
 const IMAGE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -1040,7 +1196,7 @@ export default function Upscale({ embedded }: { embedded?: boolean } = {}) {
         </div>
 
         <div className="mt-8">
-          {tab === "video" && <VideoUpscaleTool />}
+          {tab === "video" && <VideoUpscaleWithModes />}
           {tab === "image" && <ImageUpscaleTool />}
           {tab === "enhance" && <WatermarkRemovalTool showBackLink={false} />}
         </div>
