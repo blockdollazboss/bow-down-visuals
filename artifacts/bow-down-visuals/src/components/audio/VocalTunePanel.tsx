@@ -334,7 +334,7 @@ export function VocalTunePanel() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -347,7 +347,7 @@ export function VocalTunePanel() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -462,7 +462,7 @@ export function VocalTunePanel() {
           {hardtuneFallback && (
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
               <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-200/70">
+              <p className="text-xs text-amber-400">
                 {t("vocalTune.hardtuneFallbackNote", { defaultValue: "Note-level tracking couldn't lock onto this audio, so we applied a gentle global tune instead — no charge difference, and your Bucs were still only spent once." })}
               </p>
             </div>
@@ -532,7 +532,7 @@ export function VocalTunePanel() {
             </a>
             <button
               onClick={reset}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
             >
               <RefreshCw className="h-4 w-4" /> {t("vocalTune.newTuneButton", { defaultValue: "New tune" })}
             </button>

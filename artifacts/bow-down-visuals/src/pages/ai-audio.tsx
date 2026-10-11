@@ -799,7 +799,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" /> {t("beatMaker.stepSequencerTab")}
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">{t("beatMaker.freeBadge")}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-400/20 text-green-300 font-bold">{t("beatMaker.freeBadge")}</span>
           </button>
         ) : (
           <button
@@ -1045,7 +1045,7 @@ function SamplesPanel() {
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
@@ -1181,7 +1181,7 @@ function SamplesPanel() {
           <section className="mt-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
                 <h2 className="text-lg font-black">
                   {t("samples.yourPack", { num: samples.length })}
                   {creditsRemaining !== null && (
@@ -1522,7 +1522,7 @@ function SfxPanel() {
         </div>
 
         {/* ── generator card ──────────────────────────────────────────── */}
-        <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <div data-dark-lock className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <AudioWaveform className="h-5 w-5" aria-hidden="true" />
@@ -1609,7 +1609,7 @@ function SfxPanel() {
           )}
 
           {error && (
-            <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>
+            <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
           )}
           {outOfCredits && (
             <div className="mt-6"><OutOfCredits /></div>
@@ -1618,7 +1618,7 @@ function SfxPanel() {
 
         {/* ── result ──────────────────────────────────────────────────── */}
         {result && (
-          <div id="sfx-result" className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+          <div id="sfx-result" data-dark-lock className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
             <h2 className="text-lg font-bold">{t("sfx.resultTitle")}</h2>
             <p className="mt-1 text-sm text-white/50 line-clamp-2">“{result.prompt}”</p>
             <audio ref={audioRef} src={result.url} controls className="mt-4 w-full accent-[#C9A84C]" />

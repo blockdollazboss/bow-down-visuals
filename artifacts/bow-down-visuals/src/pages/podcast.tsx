@@ -433,7 +433,7 @@ export default function PodcastStudio() {
   const creditsLabel =
     mode === "video"
       ? t("podcast.generate.billedOnLength")
-      : t("podcast.generate.creditsEstimate", { credits: estimate.credits });
+      : t("podcast.generate.creditsEstimate", { credits: estimate.credits * 100 });
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -477,7 +477,7 @@ export default function PodcastStudio() {
         )}
 
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -545,7 +545,7 @@ export default function PodcastStudio() {
                     </span>
                     <span className="flex items-center gap-1 text-primary">
                       <VisualBucsIcon className="h-3.5 w-3.5" />
-                      {t("podcast.script.creditsCost", { credits: estimate.credits })}
+                      {t("podcast.script.creditsCost", { credits: estimate.credits * 100 })}
                     </span>
                   </div>
                   <textarea
@@ -569,7 +569,7 @@ export default function PodcastStudio() {
                     className={inputClass}
                   />
                   <p className="mt-2 text-xs text-white/35">
-                    {t("podcast.topic.note", { credits: estimateTopicModeCost().credits })}
+                    {t("podcast.topic.note", { credits: estimateTopicModeCost().credits * 100 })}
                   </p>
                 </>
               )}
@@ -590,7 +590,7 @@ export default function PodcastStudio() {
 
               {mode === "dialogue" &&
                 (dialogueDisabled ? (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-100/90">
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-400">
                     <span className="font-semibold">
                       {t("podcast.dialogue.disabledTitle")}
                     </span>{" "}
@@ -617,7 +617,7 @@ export default function PodcastStudio() {
                       </span>
                       <span className="flex items-center gap-1 text-primary">
                         <VisualBucsIcon className="h-3.5 w-3.5" />
-                        {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits })}
+                        {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits * 100 })}
                       </span>
                     </div>
                     <textarea
@@ -724,7 +724,7 @@ export default function PodcastStudio() {
                       />
                     ))}
                     {dialogueUntagged > 0 && (
-                      <p className="flex items-start gap-2 text-xs text-amber-200/70">
+                      <p className="flex items-start gap-2 text-xs text-amber-400">
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         {t("podcast.dialogue.untaggedWarning", { count: dialogueUntagged })}
                       </p>
@@ -889,7 +889,7 @@ export default function PodcastStudio() {
                   </div>
 
                   <p className="text-xs text-white/35">
-                    {t("podcast.result.creditsNote", { used: result.creditsUsed, remaining: result.creditsRemaining })}
+                    {t("podcast.result.creditsNote", { used: (result.creditsUsed ?? 0) * 100, remaining: result.creditsRemaining ?? 0 })}
                   </p>
                 </div>
               )}

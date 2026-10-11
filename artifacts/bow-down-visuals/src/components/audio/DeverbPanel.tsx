@@ -353,8 +353,8 @@ export function DeverbPanel() {
           <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] px-5 py-4">
             <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-200">{t("deverb.gatedTitle")}</p>
-              <p className="text-sm text-amber-200/70 mt-1 leading-relaxed">
+              <p className="font-bold text-amber-400">{t("deverb.gatedTitle")}</p>
+              <p className="text-sm text-amber-400 mt-1 leading-relaxed">
                 {gate?.reason === "provider_not_configured"
                   ? t("deverb.gatedProviderMissing")
                   : gate?.reason === "pricing_pending"
@@ -398,7 +398,7 @@ export function DeverbPanel() {
           {error && (
             <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
               <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-200/80">{error}</p>
+              <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
 
@@ -411,7 +411,7 @@ export function DeverbPanel() {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
                 className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-                  dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+                  dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
                 }`}
               >
                 <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -557,7 +557,7 @@ export function DeverbPanel() {
                 </a>
                 <button
                   onClick={reset}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
                 >
                   <RefreshCw className="h-4 w-4" /> {t("deverb.newDeverbButton")}
                 </button>
@@ -570,13 +570,13 @@ export function DeverbPanel() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <Link
                     href="/audio-studio?tab=voiceover"
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.10] px-4 py-3 text-sm font-bold text-white/75 hover:border-white/25 hover:text-white transition"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/75 hover:border-white/25 hover:text-white transition"
                   >
                     {t("deverb.handoffVoiceover")} <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
                     href="/audio-studio?tab=podcast"
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.10] px-4 py-3 text-sm font-bold text-white/75 hover:border-white/25 hover:text-white transition"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/75 hover:border-white/25 hover:text-white transition"
                   >
                     {t("deverb.handoffPodcast")} <ArrowRight className="h-4 w-4" />
                   </Link>

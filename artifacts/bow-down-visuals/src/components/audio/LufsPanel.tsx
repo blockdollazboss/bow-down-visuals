@@ -238,7 +238,7 @@ function MeterBar({ label, value }: { label: string; value: number | null }) {
         <span className="font-bold uppercase tracking-wider text-white/45">{label}</span>
         <span className="tabular-nums font-bold text-white/85">{value == null ? "—" : `${value.toFixed(1)} LUFS`}</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-white/[0.06]">
         <div
           className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-red-400 transition-[width] duration-100"
           style={{ width: `${pct}%` }}
@@ -631,7 +631,7 @@ export function LufsPanel() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -644,7 +644,7 @@ export function LufsPanel() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); void pickFile(e.dataTransfer.files[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -945,7 +945,7 @@ export function LufsPanel() {
             </a>
             <button
               onClick={reset}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
             >
               <RefreshCw className="h-4 w-4" /> {t("lufs.newButton", { defaultValue: "New file" })}
             </button>
@@ -966,7 +966,7 @@ export function LufsPanel() {
               </Link>
               <Link
                 href="/distribute"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-5 py-3.5 text-sm font-bold text-white/70 hover:border-white/25 transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 px-5 py-3.5 text-sm font-bold text-white/70 hover:border-white/25 transition-all"
               >
                 <Rocket className="h-4 w-4" />
                 {t("lufs.handoffDistribute", { defaultValue: "Distribute it →" })}

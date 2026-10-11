@@ -304,7 +304,7 @@ function CleanupPanel() {
           </span>
           <div>
             <h2 className="text-2xl font-black">{t("audioCleanup.title")}</h2>
-            <p className="text-sm text-white/45">{t("audioCleanup.subtitle", { cost: CLEANUP_CREDIT_COST })}</p>
+            <p className="text-sm text-white/45">{t("audioCleanup.subtitle", { cost: CLEANUP_CREDIT_COST * 100 })}</p>
           </div>
         </div>
 
@@ -325,7 +325,7 @@ function CleanupPanel() {
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200/80">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
@@ -338,7 +338,7 @@ function CleanupPanel() {
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
               className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-                dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+                dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
               }`}
             >
               <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -393,7 +393,7 @@ function CleanupPanel() {
               disabled={!file || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {t("audioCleanup.cleanupButton", { cost: CLEANUP_CREDIT_COST })}
+              {t("audioCleanup.cleanupButton", { cost: CLEANUP_CREDIT_COST * 100 })}
             </button>
             {creditsRemaining != null && (
               <p className="text-center text-xs text-white/35">{t("audioCleanup.creditsRemaining", { n: creditsRemaining })}</p>
@@ -487,7 +487,7 @@ function CleanupPanel() {
               </a>
               <button
                 onClick={reset}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
               >
                 <RefreshCw className="h-4 w-4" /> {t("audioCleanup.newCleanupButton")}
               </button>
@@ -507,7 +507,10 @@ function CleanupPanel() {
               onClose={() => setPolishOpen(false)}
               source={{
                 audioUrl: outputUrl,
-                title: `${file?.name?.replace(/\.[^.]+$/, "") || "Audio"} — cleaned`,
+                title: t("audioCleanup.polishModalTitle", {
+                  name: file?.name?.replace(/\.[^.]+$/, "") || "Audio",
+                  defaultValue: `${file?.name?.replace(/\.[^.]+$/, "") || "Audio"} — cleaned`,
+                }),
               }}
             />
             {noiseReductionDb != null && (
@@ -541,8 +544,8 @@ type StemKey = "vocals" | "drums" | "bass" | "other";
 const STEM_DEFS: Array<{ key: StemKey; labelKey: string; blurbKey: string; accent: string }> = [
   { key: "vocals", labelKey: "stemVocals", blurbKey: "stemVocalsBlurb", accent: "text-amber-300" },
   { key: "drums", labelKey: "stemDrums", blurbKey: "stemDrumsBlurb", accent: "text-red-300" },
-  { key: "bass", labelKey: "stemBass", blurbKey: "stemBassBlurb", accent: "text-emerald-300" },
-  { key: "other", labelKey: "stemOther", blurbKey: "stemOtherBlurb", accent: "text-sky-300" },
+  { key: "bass", labelKey: "stemBass", blurbKey: "stemBassBlurb", accent: "text-green-300" },
+  { key: "other", labelKey: "stemOther", blurbKey: "stemOtherBlurb", accent: "text-blue-300" },
 ];
 
 type StemsJobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
@@ -791,7 +794,7 @@ function VocalOnlyPreset() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -820,7 +823,7 @@ function VocalOnlyPreset() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -922,7 +925,7 @@ function VocalOnlyPreset() {
             <a
               href={acapellaUrl}
               download="acapella.mp3"
-              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-5 py-2.5 text-sm font-semibold text-white/70 hover:border-white/25 transition"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/70 hover:border-white/25 transition"
             >
               <Download className="h-4 w-4" /> {t("vocalRemoval.downloadAcapella")}
             </a>
@@ -971,7 +974,7 @@ function VocalOnlyPreset() {
           {karaokeMissing && (
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
               <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-200/70">
+              <p className="text-xs text-amber-400">
                 {t("vocalRemoval.karaokeMissing")}
               </p>
             </div>
@@ -979,7 +982,7 @@ function VocalOnlyPreset() {
 
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
           >
             <RefreshCw className="h-4 w-4" /> {t("vocalRemoval.newSong")}
           </button>
@@ -1126,7 +1129,7 @@ function InstrumentalPreset() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -1139,7 +1142,7 @@ function InstrumentalPreset() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-              dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -1168,7 +1171,7 @@ function InstrumentalPreset() {
             disabled={!file || !user}
             className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {t("stems.instrumentalSplitButton", { cost: STEMS_INSTRUMENTAL_CREDIT_COST })}
+            {t("stems.instrumentalSplitButton", { cost: STEMS_INSTRUMENTAL_CREDIT_COST * 100 })}
           </button>
           {creditsRemaining != null && (
             <p className="text-center text-xs text-white/35">{t("stems.creditsRemaining", { count: creditsRemaining })}</p>
@@ -1482,7 +1485,7 @@ function StemsPanel() {
           </span>
           <div>
             <h2 className="text-2xl font-black">{t("stems.pageTitle")}</h2>
-            <p className="text-sm text-white/45">{t("stems.pageSubtitle", { cost: STEMS_CREDIT_COST })}</p>
+            <p className="text-sm text-white/45">{t("stems.pageSubtitle", { cost: STEMS_CREDIT_COST * 100 })}</p>
           </div>
         </div>
 
@@ -1545,7 +1548,7 @@ function StemsPanel() {
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200/80">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
@@ -1574,7 +1577,7 @@ function StemsPanel() {
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
               className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-                dragOver ? "border-primary/60 bg-primary/5" : "border-white/[0.12] hover:border-white/25"
+                dragOver ? "border-primary/60 bg-primary/5" : "border-white/10 hover:border-white/25"
               }`}
             >
               <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -1603,7 +1606,7 @@ function StemsPanel() {
               disabled={!file || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {t("stems.splitButton", { cost: STEMS_CREDIT_COST })}
+              {t("stems.splitButton", { cost: STEMS_CREDIT_COST * 100 })}
             </button>
             {creditsRemaining != null && (
               <p className="text-center text-xs text-white/35">{t("stems.creditsRemaining", { count: creditsRemaining })}</p>
@@ -1668,7 +1671,7 @@ function StemsPanel() {
                 </button>
                 <div className="flex-1">
                   <div
-                    className="relative h-2.5 cursor-pointer rounded-full bg-white/[0.08]"
+                    className="relative h-2.5 cursor-pointer rounded-full border border-white/10 bg-white/[0.08]"
                     onClick={(e) => {
                       const r = e.currentTarget.getBoundingClientRect();
                       seekAll((e.clientX - r.left) / r.width);
@@ -1699,7 +1702,7 @@ function StemsPanel() {
                     <a
                       href={stems[s.key]}
                       download={`${s.key}.wav`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.1] px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition"
                       title={t("stems.downloadWav", { label: s.label })}
                     >
                       <Download className="h-3.5 w-3.5" /> {t("stems.wav")}
@@ -1823,7 +1826,7 @@ function StemsPanel() {
 
             <button
               onClick={reset}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
             >
               <RefreshCw className="h-4 w-4" /> {t("stems.splitAnother")}
             </button>
@@ -1893,14 +1896,14 @@ const MASTER_LOUDNESS: Array<{ key: MasterLoudnessKey; spec: string }> = [
 ];
 
 const MASTER_STEM_TYPE_META: Record<MasterStemType, { label: string; chip: string }> = {
-  vocals: { label: "Vocals", chip: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30" },
+  vocals: { label: "Vocals", chip: "bg-pink-500/15 text-pink-300 border-pink-500/30" },
   drums: { label: "Drums", chip: "bg-red-500/15 text-red-300 border-red-500/30" },
   bass: { label: "Bass", chip: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-  keys: { label: "Keys", chip: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  guitar: { label: "Guitar", chip: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
-  strings: { label: "Strings", chip: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
-  fx: { label: "FX", chip: "bg-teal-500/15 text-teal-300 border-teal-500/30" },
-  beat: { label: "Beat", chip: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  keys: { label: "Keys", chip: "bg-blue-500/15 text-blue-300 border-blue-500/30" },
+  guitar: { label: "Guitar", chip: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  strings: { label: "Strings", chip: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  fx: { label: "FX", chip: "bg-green-500/15 text-green-300 border-green-500/30" },
+  beat: { label: "Beat", chip: "bg-green-500/15 text-green-400 border-green-500/30" },
   other: { label: "Stem", chip: "bg-white/10 text-white/60 border-white/20" },
 };
 
@@ -1976,7 +1979,7 @@ function GenreGrid({ value, onChange }: { value: MasterGenreKey; onChange: (g: M
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === g.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.genres.${g.key}.label`, { defaultValue: GENRE_LABEL_FALLBACK[g.key] })}</p>
+            <p className={`font-bold text-sm ${value === g.key ? "text-amber-300" : "text-white/80"}`}>{t(`mixMaster.genres.${g.key}.label`, { defaultValue: GENRE_LABEL_FALLBACK[g.key] })}</p>
             <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.genres.${g.key}.blurb`)}</p>
           </button>
         ))}
@@ -2002,7 +2005,7 @@ function IntensityPicker({ value, onChange }: { value: MasterIntensityKey; onCha
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === opt.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.intensities.${opt.key}.label`)}</p>
+            <p className={`font-bold text-sm ${value === opt.key ? "text-amber-300" : "text-white/80"}`}>{t(`mixMaster.intensities.${opt.key}.label`)}</p>
             <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.intensities.${opt.key}.blurb`)}</p>
           </button>
         ))}
@@ -2028,7 +2031,7 @@ function LoudnessPicker({ value, onChange }: { value: MasterLoudnessKey; onChang
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === loud.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.loudness.${loud.key}.label`)}</p>
+            <p className={`font-bold text-sm ${value === loud.key ? "text-amber-300" : "text-white/80"}`}>{t(`mixMaster.loudness.${loud.key}.label`)}</p>
             <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.loudness.${loud.key}.blurb`)}</p>
             <p className="text-[10px] text-white/30 mt-1 font-mono">{loud.spec}</p>
           </button>
@@ -2059,7 +2062,7 @@ function ReferenceUpload({
         <button
           type="button"
           onClick={() => ref.current?.click()}
-          className="w-full rounded-xl border border-dashed border-white/[0.12] px-4 py-3 text-sm text-white/40 hover:text-white/70 hover:border-white/25 transition"
+          className="w-full rounded-xl border border-dashed border-white/10 px-4 py-3 text-sm text-white/40 hover:text-white/70 hover:border-white/25 transition"
         >
           <Disc3 className="h-4 w-4 inline mr-2 -mt-0.5" />
           {t("mixMaster.referenceHint")}
@@ -2102,7 +2105,7 @@ function JobResult({
     const url = mp3Url || wavUrl;
     if (url && reportedRef.current !== url) {
       reportedRef.current = url;
-      addAsset({ kind: "song", url, label: `${kindLabel} — master`, detail: "MixMaster output" });
+      addAsset({ kind: "song", url, label: t("mixMaster.hubAssetLabel", { kind: kindLabel, defaultValue: `${kindLabel} — master` }), detail: "MixMaster output" });
     }
   }, [mp3Url, wavUrl, kindLabel, addAsset]);
 
@@ -2139,8 +2142,8 @@ function JobResult({
   return (
     <div className="mt-6 space-y-5">
       <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3">
-        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-        <p className="text-sm text-emerald-200/80">{kindLabel} complete — compare it against the original below.</p>
+        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+        <p className="text-sm text-green-400">{t("mixMaster.jobComplete", { kind: kindLabel, defaultValue: `${kindLabel} complete — compare it against the original below.` })}</p>
       </div>
 
       {/* A/B player */}
@@ -2157,7 +2160,7 @@ function JobResult({
               />
               Loudness-matched
             </label>
-            <div className="flex rounded-lg border border-white/[0.1] overflow-hidden">
+            <div className="flex rounded-lg border border-white/10 overflow-hidden">
               <button
                 type="button"
                 onClick={() => flipSide("before")}
@@ -2173,7 +2176,7 @@ function JobResult({
                 onClick={() => flipSide("after")}
                 disabled={!mp3Url}
                 className={`px-4 py-1.5 text-xs font-bold transition disabled:opacity-30 ${
-                  abSide === "after" ? "bg-[#C9A84C]/25 text-[#f7dd7f]" : "text-white/40 hover:text-white/70"
+                  abSide === "after" ? "bg-[#C9A84C]/25 text-amber-300" : "text-white/40 hover:text-white/70"
                 }`}
               >
                 {t("mixMaster.after")}
@@ -2222,14 +2225,14 @@ function JobResult({
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Input loudness", value: fmtLufs(stats.inputLufs) },
-              { label: "Output loudness", value: fmtLufs(stats.outputLufs ?? stats.targetLufs) },
-              { label: "True peak in", value: fmtDb(stats.inputTruePeak) },
-              { label: "True peak out", value: fmtDb(stats.outputTruePeak ?? stats.targetTruePeak) },
+              { label: t("mixMaster.statInputLoudness", { defaultValue: "Input loudness" }), value: fmtLufs(stats.inputLufs) },
+              { label: t("mixMaster.statOutputLoudness", { defaultValue: "Output loudness" }), value: fmtLufs(stats.outputLufs ?? stats.targetLufs) },
+              { label: t("mixMaster.statTruePeakIn", { defaultValue: "True peak in" }), value: fmtDb(stats.inputTruePeak) },
+              { label: t("mixMaster.statTruePeakOut", { defaultValue: "True peak out" }), value: fmtDb(stats.outputTruePeak ?? stats.targetTruePeak) },
             ].map((s) => (
               <div key={s.label} className="rounded-xl bg-black/40 border border-white/[0.06] px-3 py-2.5">
                 <p className="text-[10px] text-white/35 uppercase tracking-wider">{s.label}</p>
-                <p className="text-sm font-black text-[#f7dd7f] mt-1 font-mono">{s.value}</p>
+                <p className="text-sm font-black text-amber-300 mt-1 font-mono">{s.value}</p>
               </div>
             ))}
           </div>
@@ -2277,25 +2280,25 @@ function JobResult({
         <a
           href={wavUrl ?? undefined}
           download
-          className={`flex items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 py-3 font-bold text-sm text-[#f7dd7f] hover:bg-[#C9A84C]/20 transition ${!wavUrl ? "pointer-events-none opacity-30" : ""}`}
+          className={`flex items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 py-3 font-bold text-sm text-amber-300 hover:bg-[#C9A84C]/20 transition ${!wavUrl ? "pointer-events-none opacity-30" : ""}`}
         >
-          <Download className="h-4 w-4" /> WAV (24-bit)
+          <Download className="h-4 w-4" /> {t("mixMaster.downloadWav", { defaultValue: "WAV (24-bit)" })}
         </a>
         <a
           href={mp3Url ?? undefined}
           download
-          className={`flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] py-3 font-bold text-sm text-white/80 hover:bg-white/[0.08] transition ${!mp3Url ? "pointer-events-none opacity-30" : ""}`}
+          className={`flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-3 font-bold text-sm text-white/80 hover:bg-white/[0.08] transition ${!mp3Url ? "pointer-events-none opacity-30" : ""}`}
         >
-          <Download className="h-4 w-4" /> MP3 (320k)
+          <Download className="h-4 w-4" /> {t("mixMaster.downloadMp3", { defaultValue: "MP3 (320k)" })}
         </a>
       </div>
 
       <button
         type="button"
         onClick={onReset}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] py-3 text-sm font-bold text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-bold text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition"
       >
-        <RefreshCw className="h-4 w-4" /> Start another
+        <RefreshCw className="h-4 w-4" /> {t("mixMaster.startAnother", { defaultValue: "Start another" })}
       </button>
     </div>
   );
@@ -2389,7 +2392,7 @@ function MasterPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || "Mastering failed — your Visual Bucs were refunded.");
+          setError(data.error || t("mixMaster.errorFailed", { defaultValue: "Mastering failed — your Visual Bucs were refunded." }));
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -2427,7 +2430,7 @@ function MasterPanel() {
       if (res.status === 402) { setOutOfCredits(true); setStatus("idle"); return; }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start mastering.");
+        setError(data.message || data.error || t("mixMaster.errorStartFailed", { defaultValue: "Could not start mastering." }));
         return;
       }
       setJobId(data.jobId);
@@ -2516,7 +2519,7 @@ function MasterPanel() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -2528,7 +2531,7 @@ function MasterPanel() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${
-              dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -2558,10 +2561,12 @@ function MasterPanel() {
             disabled={!file || !user}
             className="w-full rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] py-3.5 font-black text-black hover:brightness-110 active:scale-[0.99] transition disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {!user ? "Sign in to master" : `Master my track — ${MASTER_CREDIT_COST} Visual Bucs`}
+            {!user
+              ? t("mastering.signInToMaster")
+              : t("mixMaster.masterButton", { cost: MASTER_CREDIT_COST * 100, defaultValue: `Master my track — ${MASTER_CREDIT_COST * 100} Visual Bucs` })}
           </button>
           {typeof creditsRemaining === "number" && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+            <p className="text-center text-xs text-white/35">{t("mixMaster.creditsRemaining", { n: creditsRemaining, defaultValue: `${creditsRemaining} Visual Bucs remaining` })}</p>
           )}
         </div>
       )}
@@ -2570,10 +2575,10 @@ function MasterPanel() {
         <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
           <Loader2 className="h-8 w-8 text-[#C9A84C] mx-auto mb-4 animate-spin" />
           <p className="font-bold text-white">
-            {status === "uploading" ? "Uploading your mix…" : status === "queued" ? "Queued — warming up the chain…" : "Mastering in progress…"}
+            {status === "uploading" ? t("mixMaster.statusUploading", { defaultValue: "Uploading your mix…" }) : status === "queued" ? t("mixMaster.statusQueued", { defaultValue: "Queued — warming up the chain…" }) : t("mixMaster.statusProcessing", { defaultValue: "Mastering in progress…" })}
           </p>
           <p className="text-xs text-white/40 mt-2">
-            Analyzing loudness → genre chain → two-pass normalization → WAV + MP3. Safe to close this tab — the job runs on the server.
+            {t("mixMaster.progressDetail", { defaultValue: "Analyzing loudness → genre chain → two-pass normalization → WAV + MP3. Safe to close this tab — the job runs on the server." })}
           </p>
         </div>
       )}
@@ -2621,7 +2626,7 @@ function MixPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || "Mixing failed — your Visual Bucs were refunded.");
+          setError(data.error || t("mixMaster.errorMixFailed", { defaultValue: "Mixing failed — your Visual Bucs were refunded." }));
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -2665,7 +2670,7 @@ function MixPanel() {
       if (res.status === 402) { setOutOfCredits(true); setStatus("idle"); return; }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start the mix.");
+        setError(data.message || data.error || t("mixMaster.errorStartMixFailed", { defaultValue: "Could not start the mix." }));
         return;
       }
       setJobId(data.jobId);
@@ -2691,7 +2696,7 @@ function MixPanel() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -2699,7 +2704,7 @@ function MixPanel() {
         <div className="mt-6 space-y-5">
           <div>
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
-              Stems <span className="text-white/25 normal-case font-medium">({stems.length}/{MASTER_MAX_STEMS})</span>
+              {t("mixMaster.stemsLabel", { defaultValue: "Stems" })} <span className="text-white/25 normal-case font-medium">({stems.length}/{MASTER_MAX_STEMS})</span>
             </p>
             <div
               onClick={() => fileInputRef.current?.click()}
@@ -2707,12 +2712,12 @@ function MixPanel() {
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
               className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-8 text-center transition ${
-                dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/[0.12] hover:border-white/25"
+                dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/10 hover:border-white/25"
               }`}
             >
               <Upload className="h-7 w-7 text-white/30 mx-auto mb-2" />
               <p className="font-semibold text-white/70 text-sm">{t("mixMaster.dropStemsHint")}</p>
-              <p className="text-xs text-white/35 mt-1">Vocals, drums, bass, keys… up to {MASTER_MAX_STEMS} files, 100 MB each</p>
+              <p className="text-xs text-white/35 mt-1">{t("mixMaster.dropStemsTypes", { max: MASTER_MAX_STEMS, defaultValue: `Vocals, drums, bass, keys… up to ${MASTER_MAX_STEMS} files, 100 MB each` })}</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -2745,7 +2750,7 @@ function MixPanel() {
                   );
                 })}
                 <p className="text-[11px] text-white/30">
-                  Stem types are auto-detected from filenames — the engine applies the right chain to each one.
+                  {t("mixMaster.stemAutoDetectNote", { defaultValue: "Stem types are auto-detected from filenames — the engine applies the right chain to each one." })}
                 </p>
               </div>
             )}
@@ -2758,7 +2763,7 @@ function MixPanel() {
           <div data-min-stars="3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("mixMaster.vocalLevel")}</p>
-              <span className="text-xs font-mono text-[#f7dd7f]">
+              <span className="text-xs font-mono text-amber-300">
                 {vocalDb > 0 ? `+${vocalDb.toFixed(1)}` : vocalDb.toFixed(1)} dB
               </span>
             </div>
@@ -2786,10 +2791,16 @@ function MixPanel() {
             disabled={stems.length === 0 || !user}
             className="w-full rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] py-3.5 font-black text-black hover:brightness-110 active:scale-[0.99] transition disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {!user ? "Sign in to mix" : `Mix & master ${stems.length} stem${stems.length === 1 ? "" : "s"} — ${MIX_CREDIT_COST} credits`}
+            {!user
+              ? t("mastering.signInToMaster")
+              : t("mixMaster.mixButton", {
+                  n: stems.length,
+                  cost: MIX_CREDIT_COST * 100,
+                  defaultValue: `Mix & master ${stems.length} stem${stems.length === 1 ? "" : "s"} — ${MIX_CREDIT_COST * 100} Visual Bucs`,
+                })}
           </button>
           {typeof creditsRemaining === "number" && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+            <p className="text-center text-xs text-white/35">{t("mixMaster.creditsRemaining", { n: creditsRemaining, defaultValue: `${creditsRemaining} Visual Bucs remaining` })}</p>
           )}
         </div>
       )}
@@ -2798,10 +2809,10 @@ function MixPanel() {
         <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
           <Loader2 className="h-8 w-8 text-[#C9A84C] mx-auto mb-4 animate-spin" />
           <p className="font-bold text-white">
-            {status === "uploading" ? `Uploading ${stems.length} stems…` : status === "queued" ? "Queued — staging your stems…" : "Mixing in progress…"}
+            {status === "uploading" ? t("mixMaster.statusUploadingStems", { n: stems.length, defaultValue: `Uploading ${stems.length} stems…` }) : status === "queued" ? t("mixMaster.statusQueuedStems", { defaultValue: "Queued — staging your stems…" }) : t("mixMaster.statusMixing", { defaultValue: "Mixing in progress…" })}
           </p>
           <p className="text-xs text-white/40 mt-2">
-            Detecting stems → gain staging → EQ → compression → panning → mixdown → master chain → WAV + MP3. Safe to close this tab.
+            {t("mixMaster.progressDetailMix", { defaultValue: "Detecting stems → gain staging → EQ → compression → panning → mixdown → master chain → WAV + MP3. Safe to close this tab." })}
           </p>
         </div>
       )}
@@ -2894,7 +2905,7 @@ function QuickMasterPanel() {
           setMp3Url(data.mp3Url ?? null);
           /* The mastered track flows into the project — distribute, video and the hub rail can pick it up. */
           if (data.mp3Url || data.wavUrl) {
-            addAsset({ kind: "song", url: data.mp3Url || data.wavUrl || "", label: "Mastered track", detail: `Express mastering · ${preset}` });
+            addAsset({ kind: "song", url: data.mp3Url || data.wavUrl || "", label: t("mastering.hubAssetLabel", { defaultValue: "Mastered track" }), detail: `Express mastering · ${preset}` });
           }
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
@@ -3003,7 +3014,7 @@ function QuickMasterPanel() {
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-200/80">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -3016,7 +3027,7 @@ function QuickMasterPanel() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}
             className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-12 text-center transition ${
-              dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/[0.12] hover:border-white/25"
+              dragOver ? "border-[#C9A84C]/60 bg-[#C9A84C]/5" : "border-white/10 hover:border-white/25"
             }`}
           >
             <Upload className="h-8 w-8 text-white/30 mx-auto mb-3" />
@@ -3055,7 +3066,7 @@ function QuickMasterPanel() {
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
-                  <p className={`font-bold text-sm ${preset === p.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mastering.presets.${p.key}.label`)}</p>
+                  <p className={`font-bold text-sm ${preset === p.key ? "text-amber-300" : "text-white/80"}`}>{t(`mastering.presets.${p.key}.label`)}</p>
                   <p className="text-xs text-white/45 mt-1 leading-relaxed">{t(`mastering.presets.${p.key}.blurb`)}</p>
                   <p className="text-[11px] text-white/30 mt-1.5 font-mono">{p.spec}</p>
                 </button>
@@ -3069,7 +3080,7 @@ function QuickMasterPanel() {
             disabled={!file || !user}
             className="w-full rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] py-3.5 font-black text-black hover:brightness-110 active:scale-[0.99] transition disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {!user ? t("mastering.signInToMaster") : t("mastering.masterButton", { cost: QUICK_MASTER_CREDIT_COST })}
+            {!user ? t("mastering.signInToMaster") : t("mastering.masterButton", { cost: QUICK_MASTER_CREDIT_COST * 100 })}
           </button>
           {typeof creditsRemaining === "number" && (
             <p className="text-center text-xs text-white/35">{t("mastering.creditsRemaining", { count: creditsRemaining })}</p>
@@ -3094,21 +3105,21 @@ function QuickMasterPanel() {
       {status === "done" && (
         <div className="mt-6 space-y-5">
           <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <p className="text-sm text-emerald-200/80">{t("mastering.masterComplete")}</p>
+            <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+            <p className="text-sm text-green-400">{t("mastering.masterComplete")}</p>
           </div>
 
           {/* A/B player */}
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("mastering.beforeAfter")}</p>
-              <div className="flex rounded-lg border border-white/[0.1] overflow-hidden">
+              <div className="flex rounded-lg border border-white/10 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => flipSide("before")}
                   disabled={!beforeUrl}
                   className={`px-4 py-1.5 text-xs font-bold transition disabled:opacity-30 ${
-                    abSide === "before" ? "bg-white/[0.12] text-white" : "text-white/40 hover:text-white/70"
+                    abSide === "before" ? "bg-[#C9A84C]/25 text-amber-300" : "text-white/40 hover:text-white/70"
                   }`}
                 >
                   {t("mastering.before")}
@@ -3118,7 +3129,7 @@ function QuickMasterPanel() {
                   onClick={() => flipSide("after")}
                   disabled={!mp3Url}
                   className={`px-4 py-1.5 text-xs font-bold transition disabled:opacity-30 ${
-                    abSide === "after" ? "bg-[#C9A84C]/25 text-[#f7dd7f]" : "text-white/40 hover:text-white/70"
+                    abSide === "after" ? "bg-[#C9A84C]/25 text-amber-300" : "text-white/40 hover:text-white/70"
                   }`}
                 >
                   {t("mastering.after")}
@@ -3166,7 +3177,7 @@ function QuickMasterPanel() {
                 ].map((s) => (
                   <div key={s.label} className="rounded-xl bg-black/40 border border-white/[0.06] px-3 py-2.5">
                     <p className="text-[10px] text-white/35 uppercase tracking-wider">{s.label}</p>
-                    <p className="text-sm font-black text-[#f7dd7f] mt-1 font-mono">{s.value}</p>
+                    <p className="text-sm font-black text-amber-300 mt-1 font-mono">{s.value}</p>
                   </div>
                 ))}
               </div>
@@ -3183,14 +3194,14 @@ function QuickMasterPanel() {
             <a
               href={wavUrl ?? undefined}
               download
-              className={`flex items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 py-3 font-bold text-sm text-[#f7dd7f] hover:bg-[#C9A84C]/20 transition ${!wavUrl ? "pointer-events-none opacity-30" : ""}`}
+              className={`flex items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 py-3 font-bold text-sm text-amber-300 hover:bg-[#C9A84C]/20 transition ${!wavUrl ? "pointer-events-none opacity-30" : ""}`}
             >
               <Download className="h-4 w-4" /> {t("mastering.downloadWav")}
             </a>
             <a
               href={mp3Url ?? undefined}
               download
-              className={`flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] py-3 font-bold text-sm text-white/80 hover:bg-white/[0.08] transition ${!mp3Url ? "pointer-events-none opacity-30" : ""}`}
+              className={`flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-3 font-bold text-sm text-white/80 hover:bg-white/[0.08] transition ${!mp3Url ? "pointer-events-none opacity-30" : ""}`}
             >
               <Download className="h-4 w-4" /> {t("mastering.downloadMp3")}
             </a>
@@ -3199,7 +3210,7 @@ function QuickMasterPanel() {
           <button
             type="button"
             onClick={reset}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] py-3 text-sm font-bold text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-bold text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition"
           >
             <RefreshCw className="h-4 w-4" /> {t("mastering.masterAnother")}
           </button>
@@ -3213,8 +3224,8 @@ function QuickMasterPanel() {
 
 function MixMasterPanel() {
   const { t } = useTranslation();
-  /* master = 8 VB full-chain master · quick = 4 VB express master (merged
-     from /mastering, POST /api/mastering) · mix = 15 VB stem mixdown */
+  /* master = 800 VB full-chain master · quick = 400 VB express master (merged
+     from /mastering, POST /api/mastering) · mix = 1500 VB stem mixdown */
   const [tab, setTab] = useState<"master" | "quick" | "mix">(() => {
     try { return new URLSearchParams(window.location.search).get("mode") === "quick" ? "quick" : "master"; } catch { return "master"; }
   });
@@ -3234,7 +3245,7 @@ function MixMasterPanel() {
   return (
     <>
         <div className="flex items-center gap-3 mb-2">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C9A84C]/15 text-[#f7dd7f]">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C9A84C]/15 text-amber-300">
             <AudioLines className="h-5 w-5" />
           </span>
           <div>
@@ -3245,7 +3256,7 @@ function MixMasterPanel() {
 
         {/* Honest framing */}
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
-          <Info className="h-4 w-4 text-[#C9A84C]/70 shrink-0 mt-0.5" />
+          <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
             {t("mixMaster.honestFraming")}{" "}
             <span className="text-white/80 font-semibold">{t("mixMaster.honestFramingBold")}</span>{" "}
@@ -3272,7 +3283,7 @@ function MixMasterPanel() {
                 <Icon className="h-4 w-4" />
                 {b.label} {b.sublabel && <span className="hidden sm:inline">{b.sublabel}</span>}
                 <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${active ? "bg-black/20" : "bg-white/[0.08] text-white/50"}`}>
-                  {b.cost} VB
+                  {b.cost * 100} VB
                 </span>
               </button>
             );
@@ -3281,10 +3292,10 @@ function MixMasterPanel() {
 
         <p className="text-xs text-white/35 mt-3 leading-relaxed">
           {tab === "master"
-            ? "Upload one finished stereo mix — choose a genre sound, intensity and loudness target, get back a release-ready master."
+            ? t("mixMaster.tabMasterDesc", { defaultValue: "Upload one finished stereo mix — choose a genre sound, intensity and loudness target, get back a release-ready master." })
             : tab === "quick"
               ? t("mixMaster.tabQuickDesc", { defaultValue: "Upload one finished stereo mix — pick a preset, get a radio-ready master for 400 Visual Bucs. Fast, no knobs." })
-              : "Upload up to 12 stems — the engine detects each one, balances levels, EQs, compresses, pans and masters the full mixdown."}
+              : t("mixMaster.tabMixDesc", { defaultValue: "Upload up to 12 stems — the engine detects each one, balances levels, EQs, compresses, pans and masters the full mixdown." })}
         </p>
 
         {tab === "master" ? <MasterPanel /> : tab === "quick" ? <QuickMasterPanel /> : <MixPanel />}
@@ -3360,18 +3371,18 @@ export default function AudioStudio() {
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-[#d4a017]/[0.07] rounded-full blur-[120px]" />
       </div>
       <main className="relative z-10 mx-auto max-w-3xl px-4 py-10">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-[#fbbf24] transition-colors mb-8 group">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-amber-400 transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> {t("audioStudio.back", { defaultValue: "Back" })}
         </Link>
 
         {/* Hero */}
         <div className="mb-8">
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#fbbf24]">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
             <AudioWaveform className="h-3 w-3" />
             {t("audioStudio.kicker", { defaultValue: "Thy Booth" })}
           </div>
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#d4a017]/15 border border-[#d4a017]/30 text-[#fbbf24] shadow-[0_0_24px_rgba(212,160,23,0.25)]">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#d4a017]/15 border border-[#d4a017]/30 text-amber-400 shadow-[0_0_24px_rgba(212,160,23,0.25)]">
               <AudioWaveform className="h-6 w-6" />
             </span>
             <div>
