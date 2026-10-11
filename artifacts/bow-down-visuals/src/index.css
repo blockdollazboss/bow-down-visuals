@@ -2471,3 +2471,19 @@ html[data-star-level="5"] [data-min-stars="6"] {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Light mode: Extension promo badge — ivory pill, bottom-right */
+.light .bdv-extension-badge {
+  background: rgba(250, 246, 237, 0.95) !important;
+  border-color: rgba(201, 168, 76, 0.4) !important;
+  color: #7A5A12 !important;
+}
+.light .bdv-extension-badge:hover {
+  background: rgba(250, 246, 237, 1) !important;
+}
+.light .bdv-extension-badge-dismiss {
+  color: rgba(122, 90, 18, 0.6) !important;
+}
+.light .bdv-extension-badge-dismiss:hover {
+  color: #7A5A12 !important;
+}
