@@ -1653,30 +1653,20 @@ export default function Home() {
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>
-    {/* Curtain overlay — dark theme gets the theatrical stage curtains.
-          Light theme gets golden sunbeams instead (creative direction:
-          light = sunrise, dark = stage). */}
-      {isLight ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-[3]"
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 50% at 10% 0%, rgba(255, 210, 120, 0.45) 0%, transparent 70%), radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 210, 120, 0.45) 0%, transparent 70%), linear-gradient(to bottom, rgba(255, 235, 190, 0.3) 0%, transparent 40%)",
-          }}
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-[3]"
-          style={{
-            backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
-            backgroundSize: "cover",
-            backgroundPosition: "center top",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
-      )}
+    {/* Curtain overlay — both themes get the theatrical stage curtains.
+          Dark uses the original gold curtains; light uses the same curtains
+          lightened to ivory via CSS filter. Same setup, different mood. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-[3]"
+        style={{
+          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+          ...(isLight ? { filter: "brightness(2.8) sepia(0.25) saturate(0.7)", opacity: 0.85 } : {}),
+        }}
+      />
     </>
   );
 }
