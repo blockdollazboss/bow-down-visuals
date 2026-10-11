@@ -21,14 +21,19 @@ vi.mock("../../../lib/objectStorage", () => ({
 
 import {
   STEM_SPLITTER_CREDIT_COST,
+  STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST,
+  STEM_SPLIT_MODES,
   STEM_KEYS,
   STEM_LABELS,
+  parseStemSplitMode,
   buildDemucsArgs,
   demucsStemDir,
   stemFilePath,
   validateStemLevels,
   buildRemixFilter,
   buildRemixArgs,
+  buildInstrumentalFilter,
+  buildInstrumentalMixArgs,
   runStemJob,
   __clearStemJobs,
   type StemJob,
@@ -47,10 +52,13 @@ function makeJob(overrides: Partial<StemJob> = {}): StemJob {
     id: "job-123",
     userId: "user-456",
     status: "queued",
+    mode: "full",
     sourceName: "track.mp3",
     durationSeconds: null,
     stemUrls: null,
     stemRefs: null,
+    instrumentalUrl: null,
+    instrumentalRef: null,
     error: null,
     creditsCharged: STEM_SPLITTER_CREDIT_COST,
     createdAt: Date.now(),
@@ -61,6 +69,46 @@ function makeJob(overrides: Partial<StemJob> = {}): StemJob {
 describe("STEM_SPLITTER_CREDIT_COST", () => {
   it("charges 4 credits per song", () => {
     expect(STEM_SPLITTER_CREDIT_COST).toBe(400);
+  });
+});
+
+describe("STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST", () => {
+  it("prices the instrumental preset at 3 credits (matches the vocals preset)", () => {
+    expect(STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST).toBe(300);
+  });
+  it("is cheaper than the full 4-stem split", () => {
+    expect(STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST).toBeLessThan(STEM_SPLITTER_CREDIT_COST);
+  });
+});
+
+describe("STEM_SPLIT_MODES / parseStemSplitMode", () => {
+  it("lists full and instrumental", () => {
+    expect(STEM_SPLIT_MODES).toEqual(["full", "instrumental"]);
+  });
+  it("parses both modes and rejects everything else", () => {
+    expect(parseStemSplitMode("full")).toBe("full");
+    expect(parseStemSplitMode("instrumental")).toBe("instrumental");
+    expect(parseStemSplitMode("vocals")).toBeNull();
+    expect(parseStemSplitMode(undefined)).toBeNull();
+    expect(parseStemSplitMode(42)).toBeNull();
+  });
+});
+
+describe("buildInstrumentalFilter / buildInstrumentalMixArgs", () => {
+  it("sums exactly drums, bass, other — vocals are never in the mix", () => {
+    const filter = buildInstrumentalFilter();
+    expect(filter).toContain("amix=inputs=3");
+    expect(filter).toContain("normalize=0");
+    expect(filter).toContain("alimiter=limit=0.95");
+  });
+  it("maps the three instrumental stems as inputs in order, then the filter and output", () => {
+    const args = buildInstrumentalMixArgs("/tmp/stemdir", "/tmp/instrumental.wav");
+    expect(args.slice(0, 4)).toEqual(["-y", "-hide_banner", "-loglevel", "error"]);
+    expect(args).toContain("/tmp/stemdir/drums.wav");
+    expect(args).toContain("/tmp/stemdir/bass.wav");
+    expect(args).toContain("/tmp/stemdir/other.wav");
+    expect(args).not.toContain("/tmp/stemdir/vocals.wav");
+    expect(args[args.length - 1]).toBe("/tmp/instrumental.wav");
   });
 });
 

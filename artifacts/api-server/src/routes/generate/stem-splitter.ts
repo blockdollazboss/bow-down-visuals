@@ -16,6 +16,10 @@ import {
 const router = Router();
 
 export const STEM_SPLITTER_CREDIT_COST = 400;
+/** Instrumental preset: same 4-stem Demucs run, delivers drums+bass+other
+ * mixed (vocals removed) as a single WAV. Priced at 300 VB to match the
+ * vocals-only preset — NOT user-approved, placeholder pending review. */
+export const STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST = 300;
 const STEM_UPLOAD_MAX_BYTES = 25 * 1024 * 1024; // 25 MB — same guard as song uploads
 const STEM_MAX_DURATION_SECONDS = 600; // 10 min ceiling: 4-stem Demucs on CPU is the heaviest job we run
 
@@ -27,6 +31,22 @@ const STEM_DEMUCS_TIMEOUT_MS = Number(process.env["STEM_SPLITTER_TIMEOUT_MS"] ??
 
 export type StemKey = "vocals" | "drums" | "bass" | "other";
 export const STEM_KEYS: StemKey[] = ["vocals", "drums", "bass", "other"];
+
+/**
+ * Separation modes.
+ * - "full": 4-stem Demucs split, per-stem WAV URLs.
+ * - "instrumental": same 4-stem Demucs run, then a cheap ffmpeg mix of
+ *   drums+bass+other (vocals dropped) delivered as one WAV. Cheaper than a
+ *   second Demucs pass (--two-stems would re-run the whole heavy model) and
+ *   more reliable than trying to skip stems Demucs always computes anyway.
+ */
+export type StemSplitMode = "full" | "instrumental";
+export const STEM_SPLIT_MODES: StemSplitMode[] = ["full", "instrumental"];
+
+export function parseStemSplitMode(value: unknown): StemSplitMode | null {
+  if (value === "full" || value === "instrumental") return value;
+  return null;
+}
 
 export const STEM_LABELS: Record<StemKey, string> = {
   vocals: "Vocals",
@@ -131,6 +151,40 @@ export function buildRemixArgs(
   return args;
 }
 
+/** The three stems that make up an instrumental mix (everything but vocals). */
+export const INSTRUMENTAL_STEM_KEYS = ["drums", "bass", "other"] as const;
+
+/**
+ * Build the ffmpeg filter for the instrumental preset: sum drums+bass+other
+ * at unity (normalize=0 keeps levels honest), then a limiter to catch
+ * clipping when the summed stems get hot.
+ */
+export function buildInstrumentalFilter(): string {
+  const vols = INSTRUMENTAL_STEM_KEYS.map((_, i) => `[${i}:a]volume=1[s${i}]`).join(";");
+  const mix = INSTRUMENTAL_STEM_KEYS.map((_, i) => `[s${i}]`).join("");
+  return `${vols};${mix}amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95`;
+}
+
+export function buildInstrumentalMixArgs(
+  stemDir: string,
+  outputPath: string,
+): string[] {
+  const args: string[] = ["-y", "-hide_banner", "-loglevel", "error"];
+  for (const key of INSTRUMENTAL_STEM_KEYS) {
+    args.push("-i", stemFilePath(stemDir, key));
+  }
+  args.push(
+    "-filter_complex",
+    buildInstrumentalFilter(),
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "44100",
+    outputPath,
+  );
+  return args;
+}
+
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
 export type StemJobStatus = "queued" | "processing" | "done" | "failed";
@@ -146,10 +200,15 @@ export interface StemJob {
   id: string;
   userId: string;
   status: StemJobStatus;
+  mode: StemSplitMode;
   sourceName: string;
   durationSeconds: number | null;
   stemUrls: StemUrls | null;
   stemRefs: StemUrls | null;
+  /** Instrumental preset deliverable (mode === "instrumental"): single WAV
+   * of drums+bass+other, vocals removed. */
+  instrumentalUrl: string | null;
+  instrumentalRef: string | null;
   error: string | null;
   creditsCharged: number;
   createdAt: number;
@@ -286,18 +345,36 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
       stemBuffers[key] = await fs.readFile(p);
     }
 
-    const urls = {} as StemUrls;
-    const refs = {} as StemUrls;
-    for (const key of STEM_KEYS) {
-      const objectName = `stems/${job.userId}/${job.id}/${key}.wav`;
-      const ref = await uploadMediaToSupabaseStorage(objectName, stemBuffers[key], "audio/wav");
-      refs[key] = ref;
-      urls[key] = await refreshSupabaseStorageUrl(ref);
+    if (job.mode === "instrumental") {
+      // Instrumental preset: cheap post-process mix of drums+bass+other —
+      // no second Demucs run, no vocals anywhere in the deliverable.
+      const mixPath = join(workDir, "instrumental.wav");
+      await runProcess(
+        "ffmpeg",
+        buildInstrumentalMixArgs(stemDir, mixPath),
+        300_000,
+      );
+      const mixBuffer = await fs.readFile(mixPath);
+      const objectName = `stems/${job.userId}/${job.id}/instrumental.wav`;
+      const ref = await uploadMediaToSupabaseStorage(objectName, mixBuffer, "audio/wav");
+      job.instrumentalRef = ref;
+      job.instrumentalUrl = await refreshSupabaseStorageUrl(ref);
+      job.stemUrls = null;
+      job.stemRefs = null;
+    } else {
+      const urls = {} as StemUrls;
+      const refs = {} as StemUrls;
+      for (const key of STEM_KEYS) {
+        const objectName = `stems/${job.userId}/${job.id}/${key}.wav`;
+        const ref = await uploadMediaToSupabaseStorage(objectName, stemBuffers[key], "audio/wav");
+        refs[key] = ref;
+        urls[key] = await refreshSupabaseStorageUrl(ref);
+      }
+      job.stemUrls = urls;
+      job.stemRefs = refs;
     }
 
     job.status = "done";
-    job.stemUrls = urls;
-    job.stemRefs = refs;
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Stem splitting failed";
@@ -356,6 +433,11 @@ export async function runRemixJob(
  * Flow: upload audio → charge 4 credits → server-owned background job →
  * poll GET /api/stems/:jobId → per-stem WAV URLs. Failed jobs refund
  * automatically. Safe to close the tab while it runs.
+ *
+ * Optional mode (query or body field): "full" (default) or "instrumental".
+ * Instrumental mode (3 credits) runs the same Demucs split but delivers a
+ * single WAV of drums+bass+other with the vocals removed — the cheap
+ * ffmpeg mix, not a second Demucs pass.
  */
 router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) {
@@ -363,8 +445,18 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     return;
   }
 
+  const rawMode = (req.query.mode as string | undefined) ?? (req.body as { mode?: unknown } | undefined)?.mode;
+  const mode = rawMode === undefined ? "full" : parseStemSplitMode(rawMode);
+  if (!mode) {
+    res.status(400).json({ error: "Invalid mode — use \"full\" or \"instrumental\"." });
+    return;
+  }
+  const cost = mode === "instrumental" ? STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST : STEM_SPLITTER_CREDIT_COST;
+  const action =
+    mode === "instrumental" ? "AI Stem Splitter (instrumental)" : "AI Stem Splitter (4-stem)";
+
   const balance = req.userCredits ?? 0;
-  if (balance < STEM_SPLITTER_CREDIT_COST) {
+  if (balance < cost) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to split stems.",
@@ -374,8 +466,8 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
 
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, STEM_SPLITTER_CREDIT_COST, {
-      action: "AI Stem Splitter (4-stem)",
+    creditsRemaining = await chargeCredits(req.userId!, cost, {
+      action,
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
@@ -396,12 +488,15 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     id: randomUUID(),
     userId: req.userId!,
     status: "queued",
+    mode,
     sourceName: req.file.originalname,
     durationSeconds: null,
     stemUrls: null,
     stemRefs: null,
+    instrumentalUrl: null,
+    instrumentalRef: null,
     error: null,
-    creditsCharged: STEM_SPLITTER_CREDIT_COST,
+    creditsCharged: cost,
     createdAt: Date.now(),
   };
   jobs.set(job.id, job);
@@ -412,7 +507,8 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   res.status(202).json({
     jobId: job.id,
     status: job.status,
-    creditsCharged: STEM_SPLITTER_CREDIT_COST,
+    mode: job.mode,
+    creditsCharged: cost,
     creditsRemaining,
   });
 });
@@ -420,8 +516,9 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
 /**
  * GET /api/stems/:jobId
  *
- * Poll job status. Returns per-stem URLs when done (signed, reviewable
- * WAVs retained in Supabase storage).
+ * Poll job status. Returns per-stem URLs when done (full mode) or the
+ * single instrumental URL (instrumental mode) — signed, reviewable WAVs
+ * retained in Supabase storage.
  */
 router.get("/stems/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
@@ -433,9 +530,11 @@ router.get("/stems/:jobId", requireAuth, (req, res) => {
   res.json({
     jobId: job.id,
     status: job.status,
+    mode: job.mode,
     sourceName: job.sourceName,
     durationSeconds: job.durationSeconds,
     stems: job.stemUrls,
+    instrumental: job.instrumentalUrl,
     error: job.error,
     createdAt: job.createdAt,
   });
