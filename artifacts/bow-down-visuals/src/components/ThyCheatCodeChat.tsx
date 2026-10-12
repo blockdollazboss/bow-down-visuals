@@ -9,7 +9,14 @@ import {
   hasDownloadedExtension,
   hasOptedOutExtensionPromo,
   optOutExtensionPromo,
+  markExtensionDownloaded,
 } from "@/lib/extension-promo";
+import {
+  isAndroidDevice,
+  hasDownloadedAndroidApp,
+  hasOptedOutAndroidPromo,
+  optOutAndroidPromo,
+} from "@/lib/android-promo";
 
 /* ─── Thy Cheat Code — on-site AI chat, right-side slide-over drawer ────────
    Gold/black 8-bit luxury theme, mobile-friendly. Mounted globally in
@@ -64,16 +71,34 @@ const GREETING: ChatMessage = {
 
 const MAX_HISTORY = 6;
 
-/* ─── Extension promo inside the chat ───
-   Thy Cheat Code mentions the Chrome extension himself until the visitor
-   downloads it or tells him to stop. Phrases like "stop promoting it" /
-   "don't remind me" opt out permanently; install questions get a direct
-   answer without burning API credits. */
+/* ─── Promo system inside the chat ───
+   Thy Cheat Code promotes three things himself, rotating across
+   sessions (one nudge per session, shortly after the drawer opens):
+   the Chrome extension, the Android app (Android visitors only), and
+   the paid ad Takeovers (Spotlight + Loading Screen). Each promo
+   stops when its goal is done (downloaded) or the visitor says
+   "stop promoting it" / "don't remind me" — that opts out of ALL
+   promos permanently. Direct questions get canned answers without
+   burning API credits. */
 const STOP_PROMO_RE =
-  /(stop (promoting|telling|mentioning)|don't remind|do not remind|no more (promo|remind)|stop.*(extension|promo).*remind|enough.*extension)/i;
+  /(stop (promoting|telling|mentioning)|don't remind|do not remind|no more (promo|remind|ads)|stop.*(extension|promo|ad).*remind|enough.*(extension|promos|ads))/i;
 const EXT_INSTALL_RE =
   /(chrome extension|browser extension)/i;
-const EXT_NUDGE_SESSION_KEY = "bdv-extension-chat-nudge";
+const ANDROID_RE =
+  /(android app|mobile app|phone app|android|apk)/i;
+const ADS_RE =
+  /(advertis|spotlight|takeover|ad placement|sponsor|promote my (brand|business|product|music)|get my (brand|business|product|music) (in front|on))/i;
+const PROMO_NUDGE_SESSION_KEY = "bdv-chat-promo-nudge";
+const PROMO_ROTATION_KEY = "bdv-chat-promo-rotation";
+const ADS_OPTOUT_KEY = "bdv-chat-ads-optout";
+
+function hasOptedOutAds(): boolean {
+  try {
+    return localStorage.getItem(ADS_OPTOUT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 const EXT_NUDGE: ChatMessage = {
   role: "assistant",
@@ -81,11 +106,76 @@ const EXT_NUDGE: ChatMessage = {
     "Quick one — I also live in your Chrome toolbar as an extension: AI chat, every site tool, daily bonuses, one-click saving. Download: bowdownvisuals.com/bow-down-visuals-extension-v2.zip — then unzip, go to chrome://extensions, turn on Developer mode, hit Load unpacked, pick the folder. Done in 30 seconds. (You can also install this site as a Chrome app from your browser menu. Say “stop promoting it” anytime and I'll never mention it again.)",
 };
 
+const ANDROID_NUDGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "Quick one — you're on Android, so grab the Bow Down Visuals app: every tool in your pocket, same account, same Visual Bucs. It's free — get it at bowdownvisuals.com/download and install the APK in under a minute. (Say “stop promoting it” anytime and I'll never mention it again.)",
+};
+
+const ADS_NUDGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "Quick one for brands and creators — I sell two takeover spots on this site. Spotlight Takeover: your video becomes the full-screen background on the sign-in and sign-up screens — $1,000 for 7 days. Loading Screen Takeover: your brand on every loading screen — $2,500 for 7 days. Tap the “Your video here” badge on the sign-in screen to send an inquiry; every placement is approved personally before anything charges. (Say “stop promoting it” anytime and I'll never mention it again.)",
+};
+
 const EXT_INSTALL_ANSWER: ChatMessage = {
   role: "assistant",
   content:
     "Easy — hit the gold Download button on the /extension page, unzip the file, then in Chrome go to chrome://extensions → turn on Developer mode → “Load unpacked” → pick the unzipped folder. Pin the extension icon and you're set. Full step-by-step is on the /extension page too.",
 };
+
+const ANDROID_ANSWER: ChatMessage = {
+  role: "assistant",
+  content:
+    "Yes — there's a free Android app. Head to bowdownvisuals.com/download, tap Download APK, and install it (Android may ask you to allow installs from your browser — that's normal for a direct APK). Same account, same Visual Bucs, every tool in your pocket.",
+};
+
+const ADS_ANSWER: ChatMessage = {
+  role: "assistant",
+  content:
+    "Two takeover spots put your brand in front of every Bow Down Visuals visitor. Spotlight Takeover — $1,000 for 7 days: your video (1080p MP4, up to 30s, muted loop) becomes the full-screen background on the sign-in and sign-up screens, with your link on the Ad badge. Loading Screen Takeover — $2,500 for 7 days: your brand on every loading screen site-wide. To book, tap the “Your video here” badge on the sign-in screen (or a takeover card on any loading screen) and send the inquiry — every placement is reviewed and approved before anything charges.",
+};
+
+/** Pick the next eligible promo nudge, rotating across sessions so
+ *  repeat visitors don't get the same one every time. */
+function pickPromoNudge(): ChatMessage | null {
+  const eligible: ChatMessage[] = [];
+  if (!hasDownloadedExtension() && !hasOptedOutExtensionPromo()) eligible.push(EXT_NUDGE);
+  if (isAndroidDevice() && !hasDownloadedAndroidApp() && !hasOptedOutAndroidPromo()) eligible.push(ANDROID_NUDGE);
+  if (!hasOptedOutAds() && !hasOptedOutExtensionPromo()) eligible.push(ADS_NUDGE);
+  if (eligible.length === 0) return null;
+  let rotation = 0;
+  try {
+    rotation = Number(localStorage.getItem(PROMO_ROTATION_KEY) ?? 0) || 0;
+    localStorage.setItem(PROMO_ROTATION_KEY, String(rotation + 1));
+  } catch { /* private mode — always first eligible */ }
+  return eligible[rotation % eligible.length]!;
+}
+
+/** Render assistant text with tappable links — a promo whose URL can't
+ *  be tapped doesn't convert (the extension ZIP used to render as
+ *  plain text). Only assistant bubbles are linkified. */
+function renderRich(content: string) {
+  const parts = content.split(/(https?:\/\/[^\s)]+|bowdownvisuals\.com\/[^\s)]+)/g);
+  return parts.map((part, i) => {
+    if (!/^(https?:\/\/|bowdownvisuals\.com\/)/.test(part)) {
+      return <span key={i}>{part}</span>;
+    }
+    const href = part.startsWith("http") ? part : `https://${part}`;
+    return (
+      <a
+        key={i}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={part.includes("extension-v2.zip") ? () => markExtensionDownloaded() : undefined}
+        className="text-[#E8C96A] underline underline-offset-2 hover:text-[#F5DE8E]"
+      >
+        {part}
+      </a>
+    );
+  });
+}
 
 /** Open the Thy Cheat Code chat drawer, optionally with a prefilled prompt. */
 export function openThyChat(prompt?: string) {
@@ -115,20 +205,22 @@ export function ThyCheatCodeChat() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  /* Proactive extension nudge: once per session, shortly after the drawer
-     opens, Thy Cheat Code mentions the extension himself — unless the
-     visitor already downloaded it or told him to stop. */
+  /* Proactive promo nudge: once per session, shortly after the drawer
+     opens, Thy Cheat Code promotes one thing himself — rotating across
+     the extension, the Android app, and the ad Takeovers — unless the
+     visitor already grabbed it or told him to stop. */
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     try {
-      if (sessionStorage.getItem(EXT_NUDGE_SESSION_KEY) === "1") return;
+      if (sessionStorage.getItem(PROMO_NUDGE_SESSION_KEY) === "1") return;
     } catch { /* private mode */ }
-    if (hasDownloadedExtension() || hasOptedOutExtensionPromo()) return;
+    const nudge = pickPromoNudge();
+    if (!nudge) return;
     const t = window.setTimeout(() => {
       if (cancelled) return;
-      setMessages((prev) => [...prev, EXT_NUDGE]);
-      try { sessionStorage.setItem(EXT_NUDGE_SESSION_KEY, "1"); } catch { /* ignore */ }
+      setMessages((prev) => [...prev, nudge]);
+      try { sessionStorage.setItem(PROMO_NUDGE_SESSION_KEY, "1"); } catch { /* ignore */ }
     }, 4000);
     return () => {
       cancelled = true;
@@ -146,13 +238,25 @@ export function ThyCheatCodeChat() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
-    // "Stop promoting it" → permanent opt-out, no API call.
-    if (STOP_PROMO_RE.test(trimmed) && !hasDownloadedExtension()) {
+    // "Stop promoting it" → permanent opt-out of ALL chat promos, no API call.
+    if (STOP_PROMO_RE.test(trimmed)) {
       optOutExtensionPromo();
+      optOutAndroidPromo();
+      try { localStorage.setItem(ADS_OPTOUT_KEY, "1"); } catch { /* ignore */ }
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Got it — I'll stop mentioning the extension. It's on the /extension page if you ever want it." },
+        { role: "assistant", content: "Got it — no more promos from me. The extension, the Android app, and the ad spots stay on the /download and sign-in pages if you ever want them." },
       ]);
+      return;
+    }
+    // Android app questions → direct answer, no API call.
+    if (ANDROID_RE.test(trimmed) && /(app|install|download|get|how|where|apk)/i.test(trimmed)) {
+      setMessages((prev) => [...prev, ANDROID_ANSWER]);
+      return;
+    }
+    // Advertising / takeover questions → direct answer, no API call.
+    if (ADS_RE.test(trimmed)) {
+      setMessages((prev) => [...prev, ADS_ANSWER]);
       return;
     }
     // Extension install questions → direct answer, no API call.
@@ -334,7 +438,7 @@ export function ThyCheatCodeChat() {
                   }
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
                 >
-                  {m.content}
+                  {m.role === "assistant" ? renderRich(m.content) : m.content}
                 </div>
               </div>
             ))}

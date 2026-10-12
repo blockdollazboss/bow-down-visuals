@@ -38,6 +38,8 @@ Always use these exact prices. Never invent pack names or different prices.
 - Refer & Earn: 25% commission for referrals.
 - Creator Academy: training for creators.
 - Support email: support@bowdownvisuals.com.
+- Free Android app: Bow Down Visuals has a free Android app (APK) on the /download page — same account, same Visual Bucs, every tool. The Chrome extension is free too, on the /extension page.
+- Advertising — two paid Takeover spots, exact prices: Spotlight Takeover is $1,000 for 7 days (your video as the full-screen background on the sign-in and sign-up screens, your link on the Ad badge). Loading Screen Takeover is $2,500 for 7 days (your brand on every loading screen). To book, visitors tap the "Your video here" badge on the sign-in screen or a takeover card on a loading screen and send an inquiry; every placement is owner-approved before any charge. Always use these exact prices.
 
 Rules:
 - Be concise, friendly, and helpful. Match the site's bold, confident tone but stay professional.
@@ -114,6 +116,16 @@ function getFaqReply(userMessage: string): string | null {
   // Greetings
   if (/^(hi|hey|hello|yo|sup|howdy|good\s?(morning|afternoon|evening))\b/.test(msg) && msg.length < 30) {
     return "Hey! Welcome to Bow Down Visuals. I can help with our AI tools, Visual Buc credit packs, booking, or how everything works — what do you want to know?";
+  }
+
+  // Android app
+  if (/android|mobile app|phone app|apk/.test(msg)) {
+    return "Yes — there's a free Android app. Head to bowdownvisuals.com/download, tap Download APK, and install it (Android may ask you to allow installs from your browser — that's normal for a direct APK). Same account, same Visual Bucs, every tool in your pocket.";
+  }
+
+  // Advertising / takeovers
+  if (/advertis|spotlight|takeover|ad placement|sponsor/.test(msg)) {
+    return "Two takeover spots put your brand in front of every Bow Down Visuals visitor. Spotlight Takeover — $1,000 for 7 days: your video becomes the full-screen background on the sign-in and sign-up screens, with your link on the Ad badge. Loading Screen Takeover — $2,500 for 7 days: your brand on every loading screen site-wide. To book, tap the 'Your video here' badge on the sign-in screen (or a takeover card on any loading screen) and send the inquiry — every placement is reviewed and approved before anything charges.";
   }
 
   // Pricing / Visual Buc packs
