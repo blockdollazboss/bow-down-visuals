@@ -38,6 +38,8 @@ import {
   AudioLines,
   Clapperboard,
   Megaphone,
+  MessageSquare,
+  Image as ImageIcon,
   CalendarCheck,
   DollarSign,
   Gift,
@@ -1008,6 +1010,88 @@ function StudioShowcase() {
   );
 }
 
+/* ─── Template galleries band ──────────────────────────────────────────────
+   The public /templates galleries are SEO lead magnets; the homepage links
+   them so visitors (and crawlers following internal links) actually reach
+   them. Each card deep-links into its gallery, which deep-links into the
+   matching tool with the template preloaded. */
+function TemplatesBand() {
+  const { t } = useTranslation();
+  const galleries = [
+    {
+      href: "/templates/videos",
+      icon: Clapperboard,
+      title: t("home.templates.videosTitle", { defaultValue: "Video Edit Templates" }),
+      blurb: t("home.templates.videosBlurb", { defaultValue: "Auto edits, lyric sync cuts, product promos and reveals — drop in clips, get a finished video." }),
+      count: t("home.templates.videosCount", { defaultValue: "8 templates" }),
+    },
+    {
+      href: "/templates/thumbnails",
+      icon: ImageIcon,
+      title: t("home.templates.thumbnailsTitle", { defaultValue: "Thumbnail Templates" }),
+      blurb: t("home.templates.thumbnailsBlurb", { defaultValue: "High-CTR YouTube thumbnail styles for gaming, fitness, podcasts, finance and more." }),
+      count: t("home.templates.thumbnailsCount", { defaultValue: "30 templates" }),
+    },
+    {
+      href: "/templates/hooks",
+      icon: Zap,
+      title: t("home.templates.hooksTitle", { defaultValue: "Hook Templates" }),
+      blurb: t("home.templates.hooksBlurb", { defaultValue: "Scroll-stopping openers for Shorts, TikTok and Reels that plug straight into Hook Studio." }),
+      count: t("home.templates.hooksCount", { defaultValue: "30 templates" }),
+    },
+    {
+      href: "/templates/captions",
+      icon: MessageSquare,
+      title: t("home.templates.captionsTitle", { defaultValue: "Caption Packs" }),
+      blurb: t("home.templates.captionsBlurb", { defaultValue: "Done-for-you caption packs for launches, promos and everyday posts." }),
+      count: t("home.templates.captionsCount", { defaultValue: "30 packs" }),
+    },
+  ];
+  return (
+    <section className="px-5 py-16 md:py-20">
+      <LuxReveal className="mx-auto max-w-6xl">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-3">
+            <MarketingBadge variant="kicker">
+              {t("home.templates.kicker", { defaultValue: "Free template library" })}
+            </MarketingBadge>
+            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
+              {t("home.templates.title", { defaultValue: "Start from a template, finish like a pro" })}
+            </h2>
+            <p className="max-w-xl text-white/50">
+              {t("home.templates.sub", { defaultValue: "Browse the free galleries, pick a style, and generate it with AI — no blank canvas, no guesswork." })}
+            </p>
+          </div>
+          <Link
+            href="/templates"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition-colors hover:text-yellow-300"
+          >
+            {t("home.templates.browseAll", { defaultValue: "Browse all templates" })}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {galleries.map((g) => (
+            <Link key={g.href} href={g.href} className="group block">
+              <div className="lux-panel lux-card-lift flex h-full flex-col rounded-2xl p-6">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 transition-colors group-hover:bg-primary/20">
+                  <g.icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="text-base font-semibold text-white">{g.title}</h3>
+                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-white/50">{g.blurb}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+                  {g.count}
+                  <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
 function PricingSection() {
   const { t } = useTranslation();
   return (
@@ -1669,6 +1753,7 @@ export default function Home() {
       <SectionDivider />
       <BuiltForCreators isLight={isLight} />
       <StudioShowcase />
+      <TemplatesBand />
       <BrandingShopSection />
       <PricingSection />
       <PromoStrip />

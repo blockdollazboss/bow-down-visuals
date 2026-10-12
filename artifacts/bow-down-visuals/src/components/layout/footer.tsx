@@ -11,6 +11,7 @@ const NAVIGATE = [
   { label: "Pricing",     href: "/pricing" },
   { label: "Beta Access", href: "/beta-access" },
   { label: "Waitlist",    href: "/waitlist" },
+  { label: "Download the App", href: "/download" },
   { label: "Contact / Support", href: "/contact" },
 ];
 
@@ -40,6 +41,16 @@ const CREATOR_HUB_LINKS = [
   { label: "For Musicians", href: "/for/musicians" },
   { label: "For TikTokers", href: "/for/tiktokers" },
   { label: "Browse Genres", href: "/genres" },
+];
+
+/* Public template galleries (SEO lead magnets) — internal links from every
+   page's footer are what make the galleries rank and convert. */
+const TEMPLATE_LINKS = [
+  { label: "Template Library", href: "/templates" },
+  { label: "Video Templates", href: "/templates/videos" },
+  { label: "Thumbnail Templates", href: "/templates/thumbnails" },
+  { label: "Hook Templates", href: "/templates/hooks" },
+  { label: "Caption Packs", href: "/templates/captions" },
 ];
 
 /* Social channels — accounts are being created; links go live with real URLs then.
@@ -80,7 +91,7 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-10 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-10 mb-10">
 
           {/* Navigate */}
           <nav className="flex flex-col gap-2.5" aria-label="Footer">
@@ -114,6 +125,20 @@ export function SiteFooter() {
           <nav className="flex flex-col gap-2.5" aria-label="For creators">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>For Creators</p>
             {CREATOR_HUB_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`text-sm ${T.link} transition-colors w-fit`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Templates */}
+          <nav className="flex flex-col gap-2.5" aria-label="Templates">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Templates</p>
+            {TEMPLATE_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
