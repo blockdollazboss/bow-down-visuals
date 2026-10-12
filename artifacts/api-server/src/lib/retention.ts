@@ -28,18 +28,14 @@ export interface QuestDef {
   reward: number;
   kinds: CreationKind[];
 }
+/* Weekly quest pool is capped at 300 VB/week (owner-approved 2026-10-09).
+   Rebalanced 2026-10-11 per owner approval (option A: fit viral-sharer
+   inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300. */
 export const QUEST_DEFS: QuestDef[] = [
-  { key: "make-thumbnail", target: 1, reward: 50,  kinds: ["thumbnail"] },
-  { key: "generate-song",  target: 1, reward: 100, kinds: ["song"] },
-  { key: "export-video",   target: 1, reward: 150, kinds: ["export"] },
-  /* ── PENDING OWNER APPROVAL (2026-10-11) ──────────────────────────────
-     The weekly quest pool is capped at 300 VB/week and the three quests
-     above already total 300 (50 + 100 + 150). This quest tracks fully and
-     renders in the widget, but its payout is deliberately 0 until the owner
-     picks how it fits the cap (rebalance the three existing rewards, or
-     raise the pool). claimQuestReward refuses to pay a 0-reward quest, so
-     no invented payout can leak. Set `reward` here when approved. */
-  { key: "viral-sharer",   target: 3, reward: 0,   kinds: ["share"] },
+  { key: "make-thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
+  { key: "generate-song",  target: 1, reward: 80,  kinds: ["song"] },
+  { key: "export-video",   target: 1, reward: 120, kinds: ["export"] },
+  { key: "viral-sharer",   target: 3, reward: 60,  kinds: ["share"] },
 ];
 
 function todayKey(): string {
