@@ -1032,31 +1032,25 @@ html, body {
   color: #7A5F1D !important;
 }
 
-/* ── Hero headline accent INSIDE a dark-locked block: the GOLD SHINE ──
-   "hired a team." keeps the exact treatment it has in dark mode — the
-   animated gold-shine gradient — in light mode too (owner, twice over:
-   the accent "can stay the same" as the dark site; a solid-white and a
-   solid-bronze rendering were both rejected). This exemption beats the
-   solid-bronze rule above (higher specificity) and applies only inside
-   dark-locked containers, so gold-shine headlines on cream content
-   sections keep their bronze. */
-.light .no-throne-bg [data-dark-lock] .gold-text-shine {
-  background: linear-gradient(90deg,
-    #c8860a 0%,
-    #f5c842 30%,
-    #ffe680 50%,
-    #f5c842 70%,
-    #c8860a 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: gold-shine 4s linear infinite;
-  filter: none;
-  text-shadow: none;
+/* Hero badges: their authored LIGHT treatment stands (owner: "you
+   shouldn't have been touching those badges"). The badge row sits inside
+   the dark-locked hero copy column, so the champagne-glass remap is
+   re-applied to it explicitly — badges look exactly as they did before
+   the column was locked. */
+.light .no-throne-bg [data-hero-badges] .bg-primary\/10 {
+  background-color: rgba(201,168,76,0.14) !important;
+  border-color: rgba(138,107,31,0.35) !important;
 }
+.light .no-throne-bg [data-hero-badges] .text-primary {
+  color: #7A5F1D !important;
+}
+
+/* ── Hero headline accent: LEAVE IT ALONE (owner, final word 2026-10-12).
+   "hired a team." keeps its original light treatment — the solid bronze
+   from the .no-throne-bg rule above — in BOTH themes' hero. White and
+   gold-shine restyles were both tried and both rejected by the owner
+   ("leave the hired a team", "hired team can stay the same"). There is
+   deliberately NO dark-lock exemption for the accent: do not add one. */
 
 /* Gold small print inside the dark-locked hero copy (eyebrow whisper,
    slogan): a soft dark halo so the bright gold holds over the palace

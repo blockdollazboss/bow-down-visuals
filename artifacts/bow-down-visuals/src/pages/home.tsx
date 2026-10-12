@@ -464,8 +464,11 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           {t("home.positioning")}
         </p>
 
-        {/* Top badges — clearance + refer & earn */}
-        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+        {/* Top badges — clearance + refer & earn. data-hero-badges: the
+            badges keep their authored LIGHT treatment (champagne glass,
+            bronze text) even inside the dark-locked copy column — the
+            owner never asked for the badges to change. */}
+        <div data-hero-badges className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
         {/* Clearance badge */}
         <Link href="/beta-access">
           <div
