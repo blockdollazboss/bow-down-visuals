@@ -11,6 +11,11 @@
    the King (z-4) and behind ALL hero text (copy column z-10). It used
    to ride at z-30 and drew its silhouettes over the proof/share rows;
    the owner ordered it behind the text. Do not raise it back.
+   FIT (owner directive 2026-10-12): preserveAspectRatio is "meet", NEVER
+   "slice" — slice scaled the 1440-wide viewBox to cover and cropped it:
+   the softbox tops on wide screens, BOTH lights clean off the edges on
+   phones ("chopped off", owner's words). Meet keeps the whole set in
+   frame at every width, anchored to the floor (YMax).
    Pure decoration: pointer-events-none, aria-hidden. */
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
@@ -20,7 +25,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-[3] -mt-[216px] h-[184px] w-full sm:-mt-[244px] sm:h-[208px]"
+      className="pointer-events-none relative z-[3] -mt-[240px] h-[210px] w-full sm:-mt-[272px] sm:h-[240px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
@@ -34,7 +39,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
       />
       <svg
         viewBox="0 0 1440 240"
-        preserveAspectRatio="xMidYMax slice"
+        preserveAspectRatio="xMidYMax meet"
         className="absolute inset-0 h-full w-full"
         style={{
           color: silhouette,
