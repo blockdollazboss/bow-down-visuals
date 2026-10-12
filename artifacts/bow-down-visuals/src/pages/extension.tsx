@@ -13,6 +13,7 @@ import {
   Smartphone, ArrowRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Thy Cheat Code browser extension promo page ─── */
 /* Coming soon to the Chrome Web Store. Email notify-me form posts to the
@@ -66,15 +67,18 @@ const GUIDE_STEPS = [
 ];
 
 const GUIDE_FIXES = [
-  { q: "The  icon isn't in my toolbar", a: "Click the puzzle-piece icon (Extensions menu) in Chrome's toolbar and pin “Bow Down Visuals — Content Creator Cheat Code”." },
+  { q: "The extension icon isn't in my toolbar", a: "Click the puzzle-piece icon (Extensions menu) in Chrome's toolbar and pin “Bow Down Visuals — Content Creator Cheat Code”." },
   { q: "“You're not signed in”", a: "Open bowdownvisuals.com in a Chrome tab and sign in, then click the extension icon again. The extension borrows your site session." },
   { q: "Chrome blocked the install", a: "You must use “Load unpacked” with Developer mode on — don't drag the zip into Chrome. Unzip first, then select the folder." },
 ];
 
-const inputClass = "h-12 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
 
 export default function Extension() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const inputClass = isLight
+    ? "h-12 bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60 focus:border-primary/50 rounded-xl text-sm"
+    : "h-12 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
   usePageTitle(t("extension.metaTitle"));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -130,7 +134,7 @@ export default function Extension() {
         <LuxReveal className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
           <MarketingBadge variant="kicker">
             <Puzzle className="h-3.5 w-3.5 mr-1.5" />{t("extension.download_now_chrome_web_store_so")}</MarketingBadge>
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight">{t("extension.thy_cheat_code")}<span className="text-[#e8c86a]">{t("extension.in_your_browser")}</span>
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight">{t("extension.thy_cheat_code")}{" "}<span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>{t("extension.in_your_browser")}</span>
           </h1>
           <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto">{t("extension.the_entire_bow_down_visuals_crea")}</p>
 
@@ -142,13 +146,13 @@ export default function Extension() {
               className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#fbbf24] to-[#d4a017] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(251,191,36,0.35)]"
             >
               <Download className="h-5 w-5" />{t("extension.download_for_chrome_v2_0_1")}</a>
-            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 text-left">
+            <div className={`rounded-2xl border p-5 text-left ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-[#0a0a0a]"}`}>
               <p className="font-semibold text-sm mb-2">{t("extension.load_it_in_30_seconds")}</p>
               <ol className="text-white/55 text-sm space-y-1.5 list-decimal list-inside">
                 <li>{t("extension.unzip_the_downloaded_file")}</li>
-                <li>{t("extension.open")}<span className="text-white font-mono text-xs">{t("extension.chrome_extensions")}</span>{t("extension.in_chrome")}</li>
-                <li>{t("extension.turn_on")}<span className="text-white">{t("extension.developer_mode")}</span>{t("extension.top_right")}</li>
-                <li>{t("extension.click")}<span className="text-white">{t("extension.load_unpacked")}</span>{t("extension.select_the_unzipped_folder")}</li>
+                <li>{t("extension.open")}{" "}<span className="text-white font-mono text-xs">{t("extension.chrome_extensions")}</span>{" "}{t("extension.in_chrome")}</li>
+                <li>{t("extension.turn_on")}{" "}<span className="text-white">{t("extension.developer_mode")}</span>{" "}{t("extension.top_right")}</li>
+                <li>{t("extension.click")}{" "}<span className="text-white">{t("extension.load_unpacked")}</span>{" "}{t("extension.select_the_unzipped_folder")}</li>
               </ol>
               <p className="text-white/30 text-xs mt-3">{t("extension.sign_in_on_bowdownvisuals_com_fi")}</p>
             </div>
@@ -182,7 +186,7 @@ export default function Extension() {
           <div className="pt-8">
             <Link
               href="/download"
-              className="group inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
+              className={`group inline-flex flex-wrap items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] text-[#6B5B36] hover:border-[#C9A84C] hover:text-[#7A5A12]" : "border-white/10 bg-white/[0.03] text-white/60 hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"}`}
             >
               <Smartphone className="h-4 w-4" />
               {t("extension.getTheAppInstead", { defaultValue: "On your phone instead? Get the Android app, iPhone & Chrome web app" })}
@@ -197,13 +201,13 @@ export default function Extension() {
         <div className="max-w-4xl mx-auto">
           <LuxReveal className="text-center mb-10">
             <MarketingBadge variant="kicker">{t("extension.install_guide")}</MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.up_and_running")}<span className="text-[#e8c86a]">{t("extension.in_30_seconds")}</span>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.up_and_running")}{" "}<span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>{t("extension.in_30_seconds")}</span>
             </h2>
           </LuxReveal>
           <div className="space-y-3">
             {GUIDE_STEPS.map((s, i) => (
               <LuxReveal key={s.title} delay={i * 0.04}>
-                <div className="flex gap-4 rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 hover:border-white/20 transition-colors">
+                <div className={`flex gap-4 rounded-2xl border p-5 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-[#0a0a0a] hover:border-white/20"}`}>
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fbbf24] to-[#d4a017] text-black font-bold text-sm">
                     {i + 1}
                   </span>
@@ -219,7 +223,7 @@ export default function Extension() {
             <h3 className="font-semibold text-lg mb-3 text-center">{t("extension.something_off_quick_fixes")}</h3>
             <div className="space-y-3">
               {GUIDE_FIXES.map((f) => (
-                <div key={f.q} className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5">
+                <div key={f.q} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-[#0a0a0a]"}`}>
                   <p className="font-semibold mb-1.5 text-sm">{f.q}</p>
                   <p className="text-white/55 text-sm leading-relaxed">{f.a}</p>
                 </div>
@@ -234,14 +238,14 @@ export default function Extension() {
         <div className="max-w-6xl mx-auto">
           <LuxReveal className="text-center mb-10">
             <MarketingBadge variant="kicker">{t("extension.inside_the_popup")}</MarketingBadge>
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.five_tabs")}<span className="text-[#e8c86a]">{t("extension.everything_you_need")}</span>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">{t("extension.five_tabs")}{" "}<span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>{t("extension.everything_you_need")}</span>
             </h2>
           </LuxReveal>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TABS.map((t, i) => (
               <LuxReveal key={t.name} delay={i * 0.06}>
-                <div className="h-full rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 space-y-3 hover:border-[#d4a017]/40 transition">
-                  <t.icon className="h-7 w-7 text-[#e8c86a]" />
+                <div className={`h-full rounded-2xl border p-6 space-y-3 transition ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-[#0a0a0a] hover:border-[#d4a017]/40"}`}>
+                  <t.icon className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                   <h3 className="font-semibold text-lg">💬 {t.name}</h3>
                   <p className="text-white/55 text-sm leading-relaxed">{t.body}</p>
                 </div>
@@ -249,9 +253,9 @@ export default function Extension() {
             ))}
             <LuxReveal delay={0.3}>
               <div className="h-full rounded-2xl border border-[#d4a017]/40 bg-gradient-to-br from-[#d4a017]/15 to-transparent p-6 space-y-3">
-                <Zap className="h-7 w-7 text-[#e8c86a]" />
+                <Zap className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                 <h3 className="font-semibold text-lg">{t("extension.omnibox_shortcut")}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{t("extension.type")}<span className="text-white font-mono">{t("extension.bdv")}</span>{t("extension.tab_in_the_address_bar_to_ask_th")}</p>
+                <p className="text-white/55 text-sm leading-relaxed">{t("extension.type")}{" "}<span className="text-white font-mono">{t("extension.bdv")}</span>{" "}{t("extension.tab_in_the_address_bar_to_ask_th")}</p>
               </div>
             </LuxReveal>
           </div>
@@ -263,8 +267,8 @@ export default function Extension() {
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-4">
           {PERKS.map((p, i) => (
             <LuxReveal key={p.title} delay={i * 0.06}>
-              <div className="text-center space-y-3 p-6 rounded-2xl border border-white/10 bg-[#0a0a0a] hover:border-[#d4a017]/40 transition-colors">
-                <p.icon className="h-8 w-8 text-[#e8c86a] mx-auto" />
+              <div className={`text-center space-y-3 p-6 rounded-2xl border transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-[#0a0a0a] hover:border-[#d4a017]/40"}`}>
+                <p.icon className={`h-8 w-8 mx-auto ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                 <h3 className="font-semibold">{p.title}</h3>
                 <p className="text-white/55 text-sm">{p.body}</p>
               </div>
@@ -283,7 +287,7 @@ export default function Extension() {
           <div className="space-y-3">
             {FAQS.map((f, i) => (
               <LuxReveal key={f.q} delay={i * 0.05}>
-                <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-5">
+                <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-[#0a0a0a]"}`}>
                   <p className="font-semibold mb-1.5">{f.q}</p>
                   <p className="text-white/55 text-sm leading-relaxed">{f.a}</p>
                 </div>
@@ -292,7 +296,7 @@ export default function Extension() {
           </div>
           <div className="text-center mt-10">
             <Link href="/">
-              <span className="text-[#e8c86a] hover:underline text-sm cursor-pointer">{t("extension.back_to_the_site")}</span>
+              <span className={`${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"} hover:underline text-sm cursor-pointer`}>{t("extension.back_to_the_site")}</span>
             </Link>
           </div>
         </div>
