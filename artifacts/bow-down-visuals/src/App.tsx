@@ -336,7 +336,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         {!isHome && <AppSidebar />}
         <div className="min-w-0 flex-1 flex flex-col">
           <div className="sticky top-0 z-40 relative">
-            <VideoBanner />
+            {!location.startsWith("/video-editor") && <VideoBanner />}
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <NotificationsBell />
             </div>
