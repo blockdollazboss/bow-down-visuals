@@ -2522,12 +2522,12 @@ html[data-star-level="5"] [data-min-stars="6"] {
   border-color: rgba(122, 90, 18, 0.12) !important;
 }
 
-/* Loading screen: light version */
-.light .loading-screen,
-.light [data-loading-screen] {
-  background-color: #FAF6ED !important;
-  color: #1C1712 !important;
-}
+/* Loading screen in light mode needs NO ivory repaint: the WittyLoader
+   root is dark-locked by design (its video + still backdrops are themed
+   media), and its one ivory gradient over the light video was removed
+   2026-10-12. The old `.light .loading-screen / [data-loading-screen]`
+   ivory rule matched no element in the codebase and was deleted as
+   dead CSS — do not re-add a light repaint for the loader. */
 
 /* Video pages: native controls keep their standard dark panel in light
    mode too — the old ivory gradient panel was a white layer over the

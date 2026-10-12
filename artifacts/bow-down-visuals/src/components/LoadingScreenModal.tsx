@@ -3,9 +3,12 @@ import { X, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Shared Loading Screen Takeover inquiry modal. Triggered from the
-   loading-screen promo in the WittyLoader rotation. Mirrors SpotlightModal. */
+   loading-screen promo in the WittyLoader rotation. Mirrors SpotlightModal.
+   Theme-aware (2026-10-12): ivory panel + bronze ink in light mode via
+   useIsLightTheme, authored black-gold in dark. */
 
 type Offer = {
   name: string;
@@ -16,6 +19,7 @@ type Offer = {
 };
 
 export default function LoadingScreenModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const isLight = useIsLightTheme();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -71,14 +75,14 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
       aria-label="Advertise on the loading screens"
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-[#c9a84c]/30 bg-[#0d0d0f] p-6 shadow-[0_0_60px_rgba(201,168,76,0.2)]"
+        className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "border-[#c9a84c]/30 bg-[#0d0d0f] shadow-[0_0_60px_rgba(201,168,76,0.2)]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         {done ? (
           <div className="text-center py-6">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-[#e8c86a]" />
-            <h3 className="mt-4 text-xl font-bold text-white">Request received</h3>
-            <p className="mt-2 text-sm text-white/60">
+            <CheckCircle2 className={`mx-auto h-12 w-12 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
+            <h3 className={`mt-4 text-xl font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Request received</h3>
+            <p className={`mt-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
               We'll review your creative and reach out within 48 hours to get your
               placement live.
             </p>
@@ -93,39 +97,39 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
           <>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-widest text-[#c9a84c]">Advertise here</p>
-                <h3 className="mt-1 text-2xl font-bold text-white">
+                <p className={`text-xs uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#c9a84c]"}`}>Advertise here</p>
+                <h3 className={`mt-1 text-2xl font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
                   {offer?.name ?? "Loading Screen Takeover"}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full p-1 text-white/40 hover:text-white"
+                className={`rounded-full p-1 ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white"}`}
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mt-3 text-sm text-white/70">
+            <p className={`mt-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/70"}`}>
               Your brand on every loading screen site-wide — the moment
               creators wait, they see you.
             </p>
 
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-[#e8c86a]">${price}</span>
-              <span className="text-sm text-white/50">for {days} days</span>
+              <span className={`text-4xl font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>${price}</span>
+              <span className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/50"}`}>for {days} days</span>
             </div>
 
-            <ul className="mt-4 space-y-1.5 text-sm text-white/65">
+            <ul className={`mt-4 space-y-1.5 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/65"}`}>
               {(offer?.specs ?? [
                 "Your brand across every loading screen site-wide",
                 "1080p image or muted looping video",
                 "Your link on the placement click-through",
               ]).map((s) => (
                 <li key={s} className="flex gap-2">
-                  <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-[#c9a84c]" />
+                  <Sparkles className={`h-4 w-4 shrink-0 mt-0.5 ${isLight ? "text-[#7A5A12]" : "text-[#c9a84c]"}`} />
                   {s}
                 </li>
               ))}
@@ -133,7 +137,7 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
 
             <form onSubmit={submit} className="mt-5 space-y-3">
               <div>
-                <Label htmlFor="ls-name" className="text-white/80">Your name</Label>
+                <Label htmlFor="ls-name" className={isLight ? "text-[#2A1E07]" : "text-white/80"}>Your name</Label>
                 <Input
                   id="ls-name"
                   value={name}
@@ -141,11 +145,11 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
                   placeholder="Jane Creator"
                   required
                   maxLength={200}
-                  className="mt-1 bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className={`mt-1 focus:border-[#c9a84c]/60 ${isLight ? "bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60" : "bg-white/5 border-white/10 placeholder:text-white/25"}`}
                 />
               </div>
               <div>
-                <Label htmlFor="ls-email" className="text-white/80">Email</Label>
+                <Label htmlFor="ls-email" className={isLight ? "text-[#2A1E07]" : "text-white/80"}>Email</Label>
                 <Input
                   id="ls-email"
                   type="email"
@@ -154,11 +158,11 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
                   placeholder="you@example.com"
                   required
                   maxLength={320}
-                  className="mt-1 bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className={`mt-1 focus:border-[#c9a84c]/60 ${isLight ? "bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60" : "bg-white/5 border-white/10 placeholder:text-white/25"}`}
                 />
               </div>
               <div>
-                <Label htmlFor="ls-video" className="text-white/80">Video or image URL</Label>
+                <Label htmlFor="ls-video" className={isLight ? "text-[#2A1E07]" : "text-white/80"}>Video or image URL</Label>
                 <Input
                   id="ls-video"
                   type="url"
@@ -167,12 +171,12 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
                   placeholder="https://…/your-ad.mp4"
                   required
                   maxLength={2000}
-                  className="mt-1 bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className={`mt-1 focus:border-[#c9a84c]/60 ${isLight ? "bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60" : "bg-white/5 border-white/10 placeholder:text-white/25"}`}
                 />
               </div>
               <div>
-                <Label htmlFor="ls-link" className="text-white/80">
-                  Link it clicks to <span className="text-white/35">(optional)</span>
+                <Label htmlFor="ls-link" className={isLight ? "text-[#2A1E07]" : "text-white/80"}>
+                  Link it clicks to <span className={isLight ? "text-[#8A7A56]" : "text-white/35"}>(optional)</span>
                 </Label>
                 <Input
                   id="ls-link"
@@ -181,7 +185,7 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
                   onChange={(e) => setTargetUrl(e.target.value)}
                   placeholder="https://yourbrand.com"
                   maxLength={2000}
-                  className="mt-1 bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className={`mt-1 focus:border-[#c9a84c]/60 ${isLight ? "bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60" : "bg-white/5 border-white/10 placeholder:text-white/25"}`}
                 />
               </div>
 
@@ -198,7 +202,7 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
                   <>Request this spot · ${price}</>
                 )}
               </Button>
-              <p className="text-center text-xs text-white/35">
+              <p className={`text-center text-xs ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>
                 No charge now — we confirm availability and approve your creative first.
               </p>
             </form>
