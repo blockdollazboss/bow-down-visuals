@@ -78,7 +78,7 @@ export default function Download() {
         <LuxReveal>
           <div className="text-center mb-12">
             <MarketingBadge variant="kicker">{t("download.get_bow_down_visuals_everywhere")}</MarketingBadge>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{t("download.take_the_studio")}<span className="text-[#e8c86a]">{t("download.with_you")}</span>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{t("download.take_the_studio")}{" "}<span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>{t("download.with_you")}</span>
             </h1>
             <p className="mt-4 text-white/50 max-w-xl mx-auto">{t("download.the_full_ai_content_studio_as_an")}</p>
           </div>
@@ -90,60 +90,60 @@ export default function Download() {
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
+            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Smartphone className="h-7 w-7 text-[#e8c86a]" />
+                <Smartphone className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("download.android_app")}</h2>
-              <p className="text-sm text-white/50 mb-6">{t("download.every_studio_tool_songs_videos_t")}</p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.full_studio_optimized_for_touch")}</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.daily_bonus_hourly_crate_on_the")}</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />{t("download.same_account_same_credits")}</li>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("download.every_studio_tool_songs_videos_t")}</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.full_studio_optimized_for_touch")}</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.daily_bonus_hourly_crate_on_the")}</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.same_account_same_credits")}</li>
               </ul>
               <a href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.1-android/bow-down-visuals.apk" download onClick={markAndroidDownloaded}>
                 <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6">
                   <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_apk")}</Button>
               </a>
               {onAndroid && (
-                <p className="mt-3 text-center text-xs text-[#e8c86a]">{t("download.you_re_on_android_this_one_s_for")}</p>
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("download.you_re_on_android_this_one_s_for")}</p>
               )}
             </div>
           </LuxReveal>
 
           {/* Extension card */}
           <LuxReveal>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <div className={`rounded-2xl border p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.03]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Puzzle className="h-7 w-7 text-[#e8c86a]" />
+                <Puzzle className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("download.chrome_extension")}</h2>
-              <p className="text-sm text-white/50 mb-6">{t("download.thy_cheat_code_in_your_browser_t")}</p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-[#e8c86a]" />{t("download.ai_chat_on_any_page")}</li>
-                <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#e8c86a]" />{t("download.right_click_ai_actions")}</li>
-                <li className="flex items-center gap-2"><BellRing className="h-4 w-4 text-[#e8c86a]" />{t("download.never_miss_free_credits")}</li>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("download.thy_cheat_code_in_your_browser_t")}</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><MessageCircle className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.ai_chat_on_any_page")}</li>
+                <li className="flex items-center gap-2"><Zap className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.right_click_ai_actions")}</li>
+                <li className="flex items-center gap-2"><BellRing className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.never_miss_free_credits")}</li>
               </ul>
               <a href="/bow-down-visuals-extension-v2.zip" download onClick={markExtensionDownloaded}>
-                <Button variant="outline" className="w-full border-white/15 text-base py-6 hover:bg-white/5">
+                <Button variant="outline" className={`w-full text-base py-6 ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#2A1E07] hover:bg-[#C9A84C]/20" : "border-white/15 hover:bg-white/5"}`}>
                   <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_extension")}</Button>
               </a>
-              <Link href="/extension" className="mt-3 block text-center text-xs text-white/40 hover:text-white/70">{t("download.learn_more_about_the_extension")}</Link>
+              <Link href="/extension" className={`mt-3 block text-center text-xs ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white/70"}`}>{t("download.learn_more_about_the_extension")}</Link>
             </div>
           </LuxReveal>
 
           {/* iPhone / iPad card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onIOS ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
+            <div className={`rounded-2xl border p-8 ${onIOS ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Share className="h-7 w-7 text-[#e8c86a]" />
+                <Share className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
               <h2 className="text-2xl font-bold mb-2">iPhone & iPad</h2>
-              <p className="text-sm text-white/50 mb-6">Install the full studio as a web app — no App Store needed.</p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Full studio, full-screen from your home screen</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Daily bonus & hourly crate on the go</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Same account, same credits</li>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Install the full studio as a web app — no App Store needed.</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Full studio, full-screen from your home screen</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Daily bonus & hourly crate on the go</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Same account, same credits</li>
               </ul>
               <Button
                 className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6"
@@ -155,23 +155,23 @@ export default function Download() {
                 <Share className="h-5 w-5 mr-2" />Show me how
               </Button>
               {onIOS && (
-                <p className="mt-3 text-center text-xs text-[#e8c86a]">You're on iOS — this one's for you.</p>
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>You're on iOS — this one's for you.</p>
               )}
             </div>
           </LuxReveal>
 
           {/* Chrome web app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
+            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Globe className="h-7 w-7 text-[#e8c86a]" />
+                <Globe className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
               <h2 className="text-2xl font-bold mb-2">Chrome Web App</h2>
-              <p className="text-sm text-white/50 mb-6">Install the studio straight from Chrome — no download, no sideloading.</p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Full studio, full-screen from your home screen</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Always up to date — no manual updates</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" />Same account, same credits</li>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Install the studio straight from Chrome — no download, no sideloading.</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Full studio, full-screen from your home screen</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Always up to date — no manual updates</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Same account, same credits</li>
               </ul>
               <Button
                 className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6"
@@ -183,7 +183,7 @@ export default function Download() {
                 <Globe className="h-5 w-5 mr-2" />Show me how
               </Button>
               {onChromeMobile && (
-                <p className="mt-3 text-center text-xs text-[#e8c86a]">You're on Chrome — this one's for you.</p>
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>You're on Chrome — this one's for you.</p>
               )}
             </div>
           </LuxReveal>
@@ -193,11 +193,11 @@ export default function Download() {
         <div id="ios-install-steps" className="mt-16 grid gap-8 md:grid-cols-2">
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" />{t("download.installing_the_apk")}</h3>
+              <ShieldCheck className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.installing_the_apk")}</h3>
             <ol className="space-y-4">
               {APK_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -208,11 +208,11 @@ export default function Download() {
           </div>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" />{t("download.installing_the_extension")}</h3>
+              <ShieldCheck className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.installing_the_extension")}</h3>
             <ol className="space-y-4">
               {EXT_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -223,11 +223,11 @@ export default function Download() {
           </div>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <Share className="h-5 w-5 text-[#e8c86a]" />Installing on iPhone / iPad</h3>
+              <Share className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Installing on iPhone / iPad</h3>
             <ol className="space-y-4">
               {IOS_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -238,11 +238,11 @@ export default function Download() {
           </div>
           <div id="chrome-install-steps">
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <Globe className="h-5 w-5 text-[#e8c86a]" />Installing from Chrome</h3>
+              <Globe className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Installing from Chrome</h3>
             <ol className="space-y-4">
               {CHROME_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -258,7 +258,7 @@ export default function Download() {
           <h3 className="text-lg font-bold mb-6 text-center">{t("download.questions")}</h3>
           <div className="space-y-3 max-w-2xl mx-auto">
             {FAQS.map((f, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+              <div key={i} className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-white/10 bg-white/[0.02]"}`}>
                 <p className="text-sm font-semibold mb-1">{f.q}</p>
                 <p className="text-xs text-white/45">{f.a}</p>
               </div>
