@@ -17,8 +17,11 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, SkipBack, ZoomIn, ZoomOut, Scissors, Film, Music2,
   AlertTriangle, RotateCcw, PlusSquare, RefreshCw, Repeat, LayoutList, Waves, ChevronDown, ChevronUp,
-  Snowflake, Loader2, X, Share2, Download,
+  Snowflake, Loader2, X, Share2, Download, Copy, ClipboardPaste, Trash2, Gauge,
+  Rewind, Sparkles, Palette, ArrowLeftRight, Volume2, VolumeX, Pencil, Upload,
 } from "lucide-react";
+import { ClipContextMenu, type ContextMenuItem } from "./ClipContextMenu";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useShareClip } from "@/hooks/use-share-clip";
@@ -33,8 +36,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings, computeManualTimings } from "@/lib/scene-timing";
-import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode } from "@/lib/editor-settings";
-import { defaultClipEdit, TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT } from "@/lib/editor-settings";
+import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import {
+  defaultClipEdit, defaultColorCorrection, TRANSITIONS, EFFECTS, COLOR_GRADES, GRADE_PRESET_CORRECTIONS,
+  TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
+} from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
@@ -604,6 +610,52 @@ export function TimelineDock({
     setSelectedIdx(playheadIdx + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splitScene, canSplit, setScenes, playheadIdx, currentTime, splitStart, splitDur, clipEdits, settings, setSettings, snapEnabled, beatGrid]);
+
+  /* ── Generic split of the clip at `idx` at the current playhead — the
+     right-click menu's "Split at playhead" targets the right-clicked clip,
+     not necessarily the one under the playhead. Same scene/clipEdit math as
+     doSplit above. ── */
+  const splitClipAt = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    if (!(currentTime > start + 0.3 && currentTime < start + dur - 0.3)) return;
+    const splitAt = snap(currentTime) - start;
+    const ce = clipEdits[scene.id] ?? defaultClipEdit();
+    const origTrimStart = ce.trimStart ?? 0;
+    const origTrimEnd = ce.trimEnd ?? 0;
+
+    const firstId = scene.id;
+    const secondId = genId();
+    const secondScene: SceneData = {
+      ...scene,
+      id: secondId,
+      sceneNumber: scene.sceneNumber + 0.5,
+      timestamp: tsRange(start + splitAt, start + dur),
+    };
+    const firstScene: SceneData = {
+      ...scene,
+      timestamp: tsRange(start, start + splitAt),
+    };
+
+    const nextScenes = [...scenes];
+    nextScenes[idx] = firstScene;
+    nextScenes.splice(idx + 1, 0, secondScene);
+    setScenes(nextScenes);
+
+    setSettings({
+      ...settings,
+      clips: {
+        ...clipEdits,
+        [firstId]: { ...ce, trimEnd: origTrimEnd + (dur - splitAt) },
+        [secondId]: { ...ce, trimStart: origTrimStart + splitAt, useLipSync: false, lipSyncUrl: null, lipSyncStatus: null },
+      },
+    });
+    setSelectedIdx(idx + 1);
+    toast({ title: "Clip split", description: `Split at ${fmt(snap(currentTime))}` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setScenes, scenes, offsets, durs, currentTime, clipEdits, settings, setSettings, setSelectedIdx, toast, snapEnabled, beatGrid]);
 
   /* ── Keyboard shortcut: "S" splits the clip under the playhead (ignored while typing) ── */
   useEffect(() => {
