@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Crown } from "lucide-react";
-import { mediaUrl } from "@/lib/media-cdn";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─────────────────── Shark King banner ─────────────────── */
 /* Slim full-width strip (toolbar-sized) starring the Shark King — the
@@ -9,6 +9,10 @@ import { mediaUrl } from "@/lib/media-cdn";
    the site background (#0b0603), the artwork melts into that base through
    vertical edge fades, and gradient scrims dissolve the top/bottom seams
    into the surrounding page so there are no harsh edges.
+
+   Owner directive (2026-10-11): the drone video is gone — the strip now
+   shows a theme-aware still image instead (golden palace on light,
+   torchlit dark palace on dark).
 
    Pointer-reactive like the old banner: horizontal pointer position eases
    a subtle "prowl" pan of the artwork toward the cursor (±28px, artwork
@@ -33,6 +37,8 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const glowRef = useRef<HTMLDivElement | null>(null);
+  // Theme-aware artwork: golden palace on light, torchlit dark palace on dark.
+  const isLight = useIsLightTheme();
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -115,13 +121,15 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       <div className="bdv-banner-drift absolute inset-0 will-change-transform">
         {/* Prowl-pan artwork layer — edge-faded so it melts into the base */}
         <div ref={mediaRef} className="absolute inset-0 will-change-transform">
-          <video
-            src={mediaUrl("top-banner-drone.mp4")}
-            autoPlay
-            muted
-            loop
-            playsInline
+          <img
+            src={
+              isLight
+                ? "/images/shark-king-final-banner-light-v1.png"
+                : "/images/shark-king-final-banner-dark-v1.png"
+            }
+            alt=""
             aria-hidden
+            draggable={false}
             className="h-full w-full object-cover object-[center_52%]"
             style={{
               maskImage:
