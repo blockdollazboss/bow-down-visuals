@@ -807,7 +807,8 @@ export async function refreshSupabaseStorageUrl(value: string): Promise<string> 
   if (typeof value === "string" && value.startsWith(R2_STORAGE_REF_PREFIX)) {
     try {
       return await r2GetSignedUrl(r2Key, SUPABASE_SIGNED_URL_TTL_SEC);
-    } catch {
+    } catch (err) {
+      console.error(`[storage] R2 presign failed for ref, returning unplayable raw ref: ${value}`, err);
       return value;
     }
   }
@@ -829,9 +830,13 @@ export async function refreshSupabaseStorageUrl(value: string): Promise<string> 
     const { data, error } = await supabase.storage
       .from(parsed.bucket)
       .createSignedUrl(parsed.objectPath, SUPABASE_SIGNED_URL_TTL_SEC);
-    if (error || !data?.signedUrl) return value;
+    if (error || !data?.signedUrl) {
+      console.error(`[storage] Supabase sign failed for ref, returning unplayable raw ref: ${value}`, error);
+      return value;
+    }
     return data.signedUrl;
-  } catch {
+  } catch (err) {
+    console.error(`[storage] Supabase sign threw for ref, returning unplayable raw ref: ${value}`, err);
     return value;
   }
 }
