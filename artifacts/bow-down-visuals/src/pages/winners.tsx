@@ -181,10 +181,6 @@ export default function WinnersPage() {
     };
   }, [perChallenge, ch, hof, slug, title, description]);
 
-  if (loading) {
-    return <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-black"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
   const items: WinnerItem[] = perChallenge
     ? (ch?.winners.map((w) => ({
         place: w.place, prize_credits: w.prize_credits, announced_at: w.announced_at,
@@ -234,7 +230,11 @@ export default function WinnersPage() {
           )}
         </div>
 
-        {!announced || notFound ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : !announced || notFound ? (
           <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
             <Crown className={`mx-auto h-10 w-10 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
             <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>No crowns handed out yet.</p>
