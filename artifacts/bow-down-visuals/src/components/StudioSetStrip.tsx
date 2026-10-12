@@ -15,7 +15,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-30 -mt-[105px] h-[210px] w-full sm:-mt-[120px] sm:h-[240px]"
+      className="pointer-events-none relative z-30 -mt-[84px] h-[184px] w-full sm:-mt-[100px] sm:h-[208px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
@@ -23,8 +23,8 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         className="absolute inset-0"
         style={{
           background: isLight
-            ? "linear-gradient(to bottom, transparent 0%, rgba(120,90,30,0.10) 45%, rgba(120,90,30,0.22) 82%, rgba(120,90,30,0.28) 100%)"
-            : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.52) 45%, rgba(0,0,0,0.9) 82%, rgba(0,0,0,0.97) 100%)",
+            ? "linear-gradient(to bottom, transparent 0%, rgba(120,90,30,0.10) 42%, rgba(120,90,30,0.24) 72%, rgba(120,90,30,0.12) 90%, transparent 100%)"
+            : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.52) 42%, rgba(0,0,0,0.92) 72%, rgba(0,0,0,0.55) 90%, transparent 100%)",
         }}
       />
       <svg
@@ -97,10 +97,6 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
             <polygon points="1155,58 1205,58 1213,88 1147,88" fill={panel} />
           </g>
           <rect x="1173" y="92" width="14" height="10" rx="2" fill="currentColor" />
-          {/* boom arm reaching over the set from the fill light */}
-          <g transform="rotate(-16 1184 96)">
-            <rect x="880" y="92" width="308" height="5" rx="2" fill="currentColor" />
-          </g>
         </g>
       </svg>
     </div>
