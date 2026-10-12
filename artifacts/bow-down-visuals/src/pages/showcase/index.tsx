@@ -6,6 +6,7 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight, Heart, Eye, Play, Music, Image as ImageIcon } from "lucide-react";
 
 /* ─── Public creator showcase ───
@@ -65,6 +66,7 @@ function MediaThumb({ item }: { item: ShowcaseItem }) {
 }
 
 export default function Showcase() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
     "Creator Showcase — Made with Bow Down Visuals",
@@ -106,9 +108,9 @@ export default function Showcase() {
           <div className="text-center mb-10">
             <MarketingBadge variant="kicker">Community showcase</MarketingBadge>
             <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-              Made with <span className="text-[#e8c86a]">Bow Down Visuals</span>
+              Made with <span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>Bow Down Visuals</span>
             </h1>
-            <p className="mt-4 text-white/50 max-w-2xl mx-auto">
+            <p className={`mt-4 max-w-2xl mx-auto ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
               Real thumbnails, videos, and songs made by creators in the
               community. Get inspired — then make your own.
             </p>
@@ -124,6 +126,8 @@ export default function Showcase() {
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                 type === f.value
                   ? "bg-[#e8c86a] text-black"
+                  : isLight
+                  ? "border border-[#C9A84C]/40 text-[#6B5B36] hover:border-[#C9A84C]/70 hover:text-[#2A1E07]"
                   : "border border-white/15 text-white/60 hover:border-white/30 hover:text-white"
               }`}
             >
@@ -133,25 +137,25 @@ export default function Showcase() {
         </div>
 
         {loading ? (
-          <p className="text-center text-white/40 py-16">Loading showcase…</p>
+          <p className={`text-center py-16 ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>Loading showcase…</p>
         ) : items.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl border border-white/10 bg-white/[0.02]">
-            <p className="text-white/50 mb-2">The showcase is just getting started.</p>
-            <p className="text-sm text-white/35">Be the first to publish your creation.</p>
+          <div className={`text-center py-16 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.02]"}`}>
+            <p className={`${isLight ? "text-[#6B5B36]" : "text-white/50"} mb-2`}>The showcase is just getting started.</p>
+            <p className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>Be the first to publish your creation.</p>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item, i) => (
               <LuxReveal key={item.id} delay={Math.min(i * 0.05, 0.3)}>
                 <Link href={`/showcase/${item.slug}`}>
-                  <article className="group rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden hover:border-[#e8c86a]/40 transition-colors h-full flex flex-col cursor-pointer">
+                  <article className={`group rounded-2xl border overflow-hidden transition-colors h-full flex flex-col cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-white/[0.03] hover:border-[#e8c86a]/40"}`}>
                     <MediaThumb item={item} />
                     <div className="p-5 flex flex-col flex-1">
-                      <h2 className="font-bold mb-1 group-hover:text-[#e8c86a] transition-colors line-clamp-1">
+                      <h2 className={`font-bold mb-1 transition-colors line-clamp-1 ${isLight ? "group-hover:text-[#7A5A12]" : "group-hover:text-[#e8c86a]"}`}>
                         {item.title}
                       </h2>
-                      <p className="text-xs text-white/40 mb-3">by {item.creator_name}</p>
-                      <div className="flex items-center gap-4 text-xs text-white/40 mt-auto">
+                      <p className={`text-xs mb-3 ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>by {item.creator_name}</p>
+                      <div className={`flex items-center gap-4 text-xs mt-auto ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>
                         <span className="flex items-center gap-1">
                           <Heart className="h-3.5 w-3.5" /> {item.likes}
                         </span>
@@ -170,7 +174,7 @@ export default function Showcase() {
         {/* Bottom CTA */}
         <div className="mt-16 text-center rounded-2xl border border-[#c9a84c]/25 bg-gradient-to-b from-[#c9a84c]/[0.07] to-transparent p-10">
           <h2 className="text-2xl font-bold mb-3">Get featured here</h2>
-          <p className="text-white/50 mb-6 max-w-xl mx-auto text-sm">
+          <p className={`mb-6 max-w-xl mx-auto text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             Made something you're proud of? Publish it to the showcase from
             any of your creations — it's free, and your page is shareable.
           </p>

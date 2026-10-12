@@ -5,6 +5,7 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowLeft, ArrowRight, Heart, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
@@ -15,6 +16,7 @@ import type { ShowcaseItem } from "./index";
    (likes, views) and share buttons — the viral loop. */
 
 export default function ShowcaseItemPage() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [, params] = useRoute("/showcase/:slug");
@@ -111,7 +113,7 @@ export default function ShowcaseItemPage() {
           </Link>
 
           {/* Media */}
-          <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/[0.02] mb-8">
+          <div className={`rounded-2xl overflow-hidden border mb-8 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-white/10 bg-white/[0.02]"}`}>
             {item.media_type === "video" ? (
               <video src={item.media_url} controls poster={item.thumbnail_url ?? undefined} className="w-full max-h-[70vh]" playsInline />
             ) : item.media_type === "song" ? (
