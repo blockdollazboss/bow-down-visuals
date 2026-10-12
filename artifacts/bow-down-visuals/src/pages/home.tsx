@@ -356,7 +356,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             Sits behind the glows so they wash over it; the mask fades it into the next section. */}
         <img
           className="absolute inset-0 h-full w-full object-cover"
-          src={isLight ? "/images/shark-king-final-banner-light-v1.png" : "/images/shark-king-final-banner-dark-v1.png"}
+          src={isLight ? "/images/shark-king-final-banner-light-v1.webp" : "/images/shark-king-final-banner-dark-v1.webp"}
           alt=""
           aria-hidden="true"
           draggable={false}

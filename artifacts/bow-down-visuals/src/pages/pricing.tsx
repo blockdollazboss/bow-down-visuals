@@ -463,28 +463,39 @@ export default function Pricing() {
               return (
               <div
                 key={plan.name}
-                data-dark-lock
                 ref={(el) => { planRefs.current[plan.stars - 1] = el; }}
-                className={`relative rounded-2xl border flex flex-col p-6 transition-all duration-300 ${
+                className={`relative transition-all duration-300 ${
                   isHighlighted
-                    ? "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)] -translate-y-1"
-                    : plan.name === "Kingpin"
-                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)] hover:-translate-y-1"
-                    : plan.name === "Crime Boss"
-                    ? "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)] hover:-translate-y-1"
-                    : plan.featured
-                    ? "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)] hover:-translate-y-1"
-                    : "lux-card"
+                    ? "-translate-y-1"
+                    : plan.name === "Kingpin" || plan.name === "Crime Boss" || plan.featured
+                    ? "hover:-translate-y-1"
+                    : ""
                 }`}
               >
-                {/* Badge */}
+                {/* Badge — mounted on the wrapper, NOT inside the card:
+                    .lux-shine cards clip with overflow:hidden (sheen sweep),
+                    which sliced the badge's top half off at the card border. */}
                 {plan.badge && (
-                  <div className="absolute -top-4 left-0 right-0 z-10 flex justify-center">
+                  <div className="absolute -top-4 left-0 right-0 z-20 flex justify-center pointer-events-none">
                     <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
                     </MarketingBadge>
                   </div>
                 )}
+              <div
+                data-dark-lock
+                className={`relative rounded-2xl border flex flex-col p-6 h-full ${
+                  isHighlighted
+                    ? "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)]"
+                    : plan.name === "Kingpin"
+                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)]"
+                    : plan.name === "Crime Boss"
+                    ? "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)]"
+                    : plan.featured
+                    ? "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)]"
+                    : "lux-card"
+                }`}
+              >
 
                 {/* Plan header */}
                 <div className="mb-5 mt-1">
@@ -541,6 +552,7 @@ export default function Pricing() {
                     </div>
                   ))}
                 </div>
+              </div>
               </div>
               );
             })}

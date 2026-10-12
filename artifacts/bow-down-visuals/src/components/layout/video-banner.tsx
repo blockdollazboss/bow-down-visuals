@@ -124,8 +124,8 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
           <img
             src={
               isLight
-                ? "/images/shark-king-final-banner-light-v1.png"
-                : "/images/shark-king-final-banner-dark-v1.png"
+                ? "/images/shark-king-final-banner-light-v1.webp"
+                : "/images/shark-king-final-banner-dark-v1.webp"
             }
             alt=""
             aria-hidden

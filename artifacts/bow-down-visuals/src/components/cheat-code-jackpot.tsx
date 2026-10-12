@@ -421,15 +421,17 @@ export function CheatCodeJackpot() {
  {/* Banner image background — theme-aware: golden palace on light, dark palace on dark */}
  <img
    className="absolute inset-0 h-full w-full object-cover opacity-40"
-   src={isLight ? "/images/shark-king-final-banner-light-v1.png" : "/images/shark-king-final-banner-dark-v1.png"}
+   src={isLight ? "/images/shark-king-final-banner-light-v1.webp" : "/images/shark-king-final-banner-dark-v1.webp"}
    alt=""
    aria-hidden="true"
    draggable={false}
  />
  <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
  <span aria-hidden="true" className="shrink-0 leading-none">
+ {/* Light theme: transparent sprite — the webp has a baked black
+     background that reads as a black stamp on the cream banner. */}
  <img
- src="/thy-cheat-code-8bit.webp"
+ src={isLight ? "/images/thy-cheat-code-8bit-transparent.png" : "/thy-cheat-code-8bit.webp"}
  alt=""
  width={40}
  height={40}
@@ -442,7 +444,7 @@ export function CheatCodeJackpot() {
  <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#F5DE8E]"}`}>
  {bannerBody.title}
  </p>
- <p className="truncate text-[11px] sm:text-xs text-white/50">
+ <p className={`truncate text-[11px] sm:text-xs ${isLight ? "text-[#6B5310]/80" : "text-white/50"}`}>
  {bannerBody.sub}
  </p>
  </div>
@@ -453,7 +455,8 @@ export function CheatCodeJackpot() {
  className={cn(
  "pixel-display shrink-0 rounded-none border-2 border-[#C9A84C]",
  "bg-[#C9A84C]/15 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]",
- "text-[#F5DE8E] hover:bg-[#C9A84C]/30 transition-colors",
+ isLight ? "text-[#7A5A12] hover:bg-[#C9A84C]/30" : "text-[#F5DE8E] hover:bg-[#C9A84C]/30",
+ "transition-colors",
  )}
  >
  Enter code
@@ -463,7 +466,7 @@ export function CheatCodeJackpot() {
  type="button"
  onClick={dismissBanner}
  aria-label="Dismiss jackpot banner"
- className="shrink-0 px-2 text-lg leading-none text-white/40 hover:text-white/80"
+ className={`shrink-0 px-2 text-lg leading-none ${isLight ? "text-[#7A5A12]/50 hover:text-[#7A5A12]" : "text-white/40 hover:text-white/80"}`}
  >
  ×
  </button>
