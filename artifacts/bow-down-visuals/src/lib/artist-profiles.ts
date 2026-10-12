@@ -395,6 +395,8 @@ export interface CreatorProfile {
   tip_jar_enabled: boolean;
   ai_design: Record<string, unknown> | null;
   is_public: boolean;
+  /* Official house/company account (migration 0125) — e.g. Thy Cheat Code. */
+  is_official?: boolean;
   follower_count: number;
   total_plays: number;
   referral_code?: string | null;

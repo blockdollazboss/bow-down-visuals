@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, Link2Off, Crown } from "lucide-react";
+import { Loader2, Link2Off, Crown, BadgeCheck } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import type { CreatorProfile } from "@/lib/artist-profiles";
@@ -25,6 +25,22 @@ function RecruiterBadge({ badge }: { badge: NonNullable<CreatorProfile["recruite
         {badge.title} Recruiter · {"★".repeat(badge.stars)}
         <span className="text-amber-300/60 font-semibold">{badge.signups} recruited</span>
       </a>
+    </div>
+  );
+}
+
+/* ─── Official badge — house/company accounts (migration 0125). Today this
+   is Thy Cheat Code: the site's host and everybody's first friend. ── */
+function OfficialBadge() {
+  return (
+    <div className="flex justify-center px-4 pb-4">
+      <span
+        className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-4 py-1.5 text-xs font-bold text-[#e8c86a]"
+        title="The official Bow Down Visuals account — Thy Cheat Code is everybody's first friend 🦈"
+      >
+        <BadgeCheck className="h-3.5 w-3.5" />
+        Official · Bow Down Visuals
+      </span>
     </div>
   );
 }
@@ -121,6 +137,7 @@ export default function ArtistPublic() {
       >
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
+        {profile.is_official && <OfficialBadge />}
         {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
         <TrophyShelf slug={slug} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
         <ProfileActions profile={profile} />

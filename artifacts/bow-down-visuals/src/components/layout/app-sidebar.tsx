@@ -72,6 +72,8 @@ import {
   CalendarDays,
   Clock,
   MessageSquareReply,
+  MessageCircle,
+  Compass,
   TrendingUp,
   Repeat,
   DollarSign,
@@ -217,6 +219,18 @@ const SECTIONS: NavSection[] = [
     links: [
       { href: "/", labelKey: "nav.home", icon: Home },
       { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    /* The social area — unburied 2026-10-12 (owner directive). Feed is the
+       front door (/home, the creator timeline); Thy Cheat Code is every
+       member's first friend there. */
+    titleKey: "nav.community",
+    links: [
+      { href: "/home", labelKey: "nav.feed", icon: Newspaper },
+      { href: "/explore", labelKey: "nav.explore", icon: Compass },
+      { href: "/groups", labelKey: "nav.groups", icon: Users },
+      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
     ],
   },
   {
