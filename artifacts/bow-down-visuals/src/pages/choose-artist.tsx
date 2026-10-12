@@ -9,6 +9,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { SUBJECT_TYPE_META, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 
 export default function ChooseArtist() {
@@ -17,7 +18,10 @@ export default function ChooseArtist() {
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
-  const isLight = typeof document !== "undefined" && document.documentElement.classList.contains("light");
+  // Reactive: MutationObserver on <html> class flips this the instant the
+  // theme toggle fires — placeholder + treatments swap with no reload.
+  // Owner directive 2026-10-11: character placeholder must follow the theme automatically.
+  const isLight = useIsLightTheme();
   const placeholderShark = `${import.meta.env.BASE_URL}images/${isLight ? "shark-king-light-authority.png" : "shark-king-clean-authority.png"}`;
 
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
@@ -257,8 +261,10 @@ export default function ChooseArtist() {
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
-                        ? `linear-gradient(135deg, ${T(0.22)} 0%, ${T(0.08)} 60%, #000 100%)`
-                        : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+                        ? `linear-gradient(135deg, ${T(0.22)} 0%, ${T(0.08)} 60%, ${isLight ? "#EFE6D0" : "#000"} 100%)`
+                        : isLight
+                          ? "linear-gradient(135deg, #F7F1E3 0%, #EFE6D0 100%)"
+                          : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
                   }}
                 >
                   {/* Theme color wash — the character's identity glows through */}
@@ -294,6 +300,15 @@ export default function ChooseArtist() {
                       background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.28) 50%, rgba(0,0,0,0.5) 100%)",
                     }} />
                   )}
+                  {/* Light-theme warm treatment — a whisper of warm cream so the
+                      reference image feels intentional on light theme, never a
+                      white washout or ghost. Image stays fully visible. */}
+                  {isLight && vault.reference_image_url && (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                      background: "linear-gradient(180deg, rgba(247,241,227,0.18) 0%, rgba(247,241,227,0.06) 50%, rgba(201,168,76,0.12) 100%)",
+                    }} />
+                  )}
                   {/* Initials avatar (no photo) */}
                   {!vault.reference_image_url && (
                     <div style={{
@@ -304,12 +319,16 @@ export default function ChooseArtist() {
                     }}>
                       <div style={{
                         width: 72, height: 72, borderRadius: "50%",
-                        background: isSelected ? `linear-gradient(135deg, ${T(0.25)}, ${T(0.06)})` : "rgba(255,255,255,0.06)",
-                        border: isSelected ? `2px solid ${T(0.5)}` : "1px solid rgba(255,255,255,0.1)",
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${T(0.25)}, ${T(0.06)})`
+                          : isLight ? "rgba(138,109,47,0.10)" : "rgba(255,255,255,0.06)",
+                        border: isSelected
+                          ? `2px solid ${T(0.5)}`
+                          : isLight ? "1px solid rgba(138,109,47,0.35)" : "1px solid rgba(255,255,255,0.1)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: isSelected ? `0 0 28px ${T(0.35)}` : "none",
                       }}>
-                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? THEME : "rgba(255,255,255,0.35)" }}>{initials}</span>
+                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? THEME : isLight ? "rgba(138,109,47,0.65)" : "rgba(255,255,255,0.35)" }}>{initials}</span>
                       </div>
                     </div>
                   )}
