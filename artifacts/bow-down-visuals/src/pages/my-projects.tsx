@@ -18,6 +18,8 @@ import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareFor
 import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { formatBucs } from "@/lib/visual-bucs";
 import { useTranslation } from "react-i18next";
 import MyClips from "@/pages/my-clips";
 import SongsPage from "@/pages/songs";
@@ -348,6 +350,7 @@ function ProjectCard({
 }) {
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
+  const isLight = useIsLightTheme();
 
   const date = new Date(project.created_at).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -357,9 +360,16 @@ function ProjectCard({
     [project.artist_name, project.song_title].filter(Boolean).join(" — ") ||
     project.project_type;
 
-  const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
+  // Light theme: golden cream marble instead of pastel type colors.
+  // Dark theme: keep the existing colored accents.
+  const iconColor = isLight
+    ? "text-[#8a6d2f]"
+    : (TYPE_COLORS[project.project_type] ?? "text-primary");
   const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
-  const headerGradient = TYPE_GRADIENTS[project.project_type] ?? "from-primary/30 via-primary/10 to-black/40";
+  // Light theme: golden cream marble headers instead of pastel gradients.
+  const headerGradient = isLight
+    ? "from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]"
+    : (TYPE_GRADIENTS[project.project_type] ?? "from-primary/30 via-primary/10 to-black/40");
 
   const savedScenes = (project.output_data?.scenes ?? []) as { demoClipUrl?: string | null; provider?: string | null }[];
   const clipCount = savedScenes.filter((s) => s.demoClipUrl).length;
@@ -385,7 +395,16 @@ function ProjectCard({
            still shows instead of an empty strip) ── */}
       <div className={`relative overflow-hidden bg-gradient-to-br ${headerGradient} ${clipUrls.length > 0 ? "h-28 md:h-32" : "h-24 md:h-28"}`}>
         {clipUrls.length > 0 && (
-          <div className="absolute inset-0 flex bg-black" data-dark-lock>
+          <div
+            className={`absolute inset-0 flex ${isLight ? "bg-gradient-to-br from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]" : "bg-black"}`}
+            {...(!isLight ? { "data-dark-lock": true } : {})}
+          >
+            {/* Themed placeholder behind videos — shows if clips fail to load */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className={isLight ? "text-[#c9a84c]/40" : "text-white/10"}>
+                <div className="[&>svg]:h-10 [&>svg]:w-10">{icon}</div>
+              </div>
+            </div>
             {clipUrls.map((url) => (
               <video
                 key={url}
@@ -393,7 +412,7 @@ function ProjectCard({
                 muted
                 playsInline
                 preload="metadata"
-                className="flex-1 min-w-0 h-full object-cover"
+                className="flex-1 min-w-0 h-full object-cover relative"
               />
             ))}
           </div>
@@ -416,7 +435,7 @@ function ProjectCard({
               <span className="text-xs text-white/30">{date}</span>
               {project.credits_used > 0 && (
                 <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
-                  {t("myProjects.visualBucsUsed", { count: project.credits_used })}
+                  {formatBucs(project.credits_used * 100)}
                 </Badge>
               )}
             </div>
@@ -466,7 +485,11 @@ function ProjectCard({
 
         {clipCount > 0 && (
           <div className="flex items-center gap-1.5 mt-2.5">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
+            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              isLight
+                ? "border-[#c9a84c]/30 bg-[#c9a84c]/15 text-[#8a6d2f]"
+                : "border-green-500/30 bg-green-500/10 text-green-400"
+            }`}>
               <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               {t("myProjects.runwayClipsSaved", { count: clipCount })}
             </span>
@@ -1072,7 +1095,7 @@ export default function MyProjects() {
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">{t("myProjects.visualBucsRefunded")}</span>
                           )}
                           {row.credits_used != null && row.credits_used > 0 && (
-                            <span className="text-[10px] text-white/30">{t("myProjects.visualBucsUsed", { count: row.credits_used })}</span>
+                            <span className="text-[10px] text-white/30">{formatBucs(row.credits_used * 100)}</span>
                           )}
                         </div>
                         {projectLabel && (

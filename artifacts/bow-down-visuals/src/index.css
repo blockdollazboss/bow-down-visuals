@@ -278,14 +278,14 @@ html, body {
   background-color: #FAF7F0;
 }
 
-/* ── 2. Surfaces: dark slabs become polished marble white ── */
+/* ── 2. Surfaces: dark slabs become warm cream marble (never stark white) ── */
 .light .bg-black:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: #FFFFFF;
+  background-color: #FDFBF5;
 }
 .light .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: #FFFFFF;
+  background-color: #FDFBF5;
 }
 .light .bg-zinc-950:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-neutral-950:not([data-dark-lock]):not([data-dark-lock] *) {
@@ -295,7 +295,7 @@ html, body {
 .light .bg-neutral-900:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-stone-900:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-gray-900:not([data-dark-lock]):not([data-dark-lock] *) {
-  background-color: #FFFFFF;
+  background-color: #FDFBF5;
 }
 .light .bg-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *),

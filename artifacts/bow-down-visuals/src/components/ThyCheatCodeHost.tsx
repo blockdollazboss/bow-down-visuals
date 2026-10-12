@@ -4,6 +4,7 @@ import { X, MessageCircle, Sparkles, Footprints } from "lucide-react";
 import { getGuideForRoute } from "@/guides";
 import { openThyChat } from "@/components/ThyCheatCodeChat";
 import { mediaUrl } from "@/lib/media-cdn";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Thy Cheat Code — the in-page coach ──────────────────────────────────
    He doesn't float outside the page anymore. He IS the page's coach: rendered
@@ -36,6 +37,7 @@ function readDismissed(route: string): boolean {
 
 export function ThyCheatCodeHost() {
   const [location] = useLocation();
+  const isLight = useIsLightTheme();
   const route = normalizePath(location);
   const [dismissed, setDismissed] = useState<boolean>(true);
 
@@ -81,7 +83,7 @@ export function ThyCheatCodeHost() {
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
             <video
-              src={mediaUrl("thy-cheat-code-idle-8bit.mp4")}
+              src={mediaUrl(isLight ? "thy-cheat-code-idle-8bit-light.mp4" : "thy-cheat-code-idle-8bit.mp4")}
               autoPlay
               muted
               loop

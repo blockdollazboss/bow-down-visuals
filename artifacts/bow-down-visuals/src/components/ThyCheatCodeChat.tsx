@@ -4,6 +4,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 import { mediaUrl } from "@/lib/media-cdn";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   hasDownloadedExtension,
   hasOptedOutExtensionPromo,
@@ -95,6 +96,7 @@ export function openThyChat(prompt?: string) {
 
 export function ThyCheatCodeChat() {
   // Free version: direct fetch to /api/free-chat (no credits)
+  const isLight = useIsLightTheme();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -250,7 +252,7 @@ export function ThyCheatCodeChat() {
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                 >
                   <video
-                    src={mediaUrl("thy-cheat-code-working-8bit.mp4")}
+                    src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light.mp4" : "thy-cheat-code-working-8bit.mp4")}
                     autoPlay
                     muted
                     loop
@@ -314,7 +316,7 @@ export function ThyCheatCodeChat() {
                     style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                   >
                     <video
-                      src={mediaUrl("thy-cheat-code-working-8bit.mp4")}
+                      src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light.mp4" : "thy-cheat-code-working-8bit.mp4")}
                       autoPlay
                       muted
                       loop

@@ -13,6 +13,7 @@ import { ExpressPayButton } from "@/components/ExpressPayButton";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { mediaUrl } from "@/lib/media-cdn";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { SocialProofBand } from "@/components/SocialProofBand";
 
 type Plan = {
@@ -186,6 +187,7 @@ function WantedMeter({ onSelect, plans }: { onSelect: (stars: number) => void; p
 
 export default function Pricing() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   usePageTitle(t("pricing.pageTitle"), t("pricing.pageDescription"));
 
   /* ─── data (inside component so t() re-renders on language change) ─── */
@@ -425,7 +427,7 @@ export default function Pricing() {
           </MarketingBadge>
           <div className="mx-auto mb-6 h-28 w-28 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_32px_rgba(201,168,76,0.3)]">
             <video
-              src={mediaUrl("thy-cheat-code-levelup-8bit.mp4")}
+              src={mediaUrl(isLight ? "thy-cheat-code-levelup-8bit-light.mp4" : "thy-cheat-code-levelup-8bit.mp4")}
               autoPlay
               muted
               loop
