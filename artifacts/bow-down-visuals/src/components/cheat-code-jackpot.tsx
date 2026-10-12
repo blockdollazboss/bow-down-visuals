@@ -444,7 +444,7 @@ export function CheatCodeJackpot() {
  <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#F5DE8E]"}`}>
  {bannerBody.title}
  </p>
- <p className={`truncate text-[11px] sm:text-xs ${isLight ? "text-[#6B5310]/80" : "text-white/50"}`}>
+ <p className={`truncate text-[11px] sm:text-xs ${isLight ? "font-medium text-[#6B5310]" : "text-white/50"}`}>
  {bannerBody.sub}
  </p>
  </div>
@@ -466,7 +466,7 @@ export function CheatCodeJackpot() {
  type="button"
  onClick={dismissBanner}
  aria-label="Dismiss jackpot banner"
- className={`shrink-0 px-2 text-lg leading-none ${isLight ? "text-[#7A5A12]/50 hover:text-[#7A5A12]" : "text-white/40 hover:text-white/80"}`}
+ className={`shrink-0 px-2 text-lg leading-none ${isLight ? "text-[#7A5A12]/70 hover:text-[#7A5A12]" : "text-white/40 hover:text-white/80"}`}
  >
  ×
  </button>
