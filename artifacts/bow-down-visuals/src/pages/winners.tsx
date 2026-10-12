@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useRoute } from "wouter";
 import {
   Trophy, Loader2, ArrowLeft, Crown, Medal, Share2,
@@ -114,6 +115,7 @@ export default function WinnersPage() {
   const slug = chParams?.slug ?? "";
   const perChallenge = !isHof && !!slug;
 
+  const isLight = useIsLightTheme();
   const [hof, setHof] = useState<WinnerItem[] | null>(null);
   const [ch, setCh] = useState<ChallengeWinnersResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -197,14 +199,14 @@ export default function WinnersPage() {
   return (
     <>
       <JsonLd data={jsonLd} />
-      <div className="min-h-[calc(100dvh-4rem)] bg-black px-4 py-6 md:px-8">
+      <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
         <Link href={perChallenge ? `/challenge/${slug}` : "/shorts"}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 hover:text-primary">
+          className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
           <ArrowLeft className="h-4 w-4" /> {perChallenge ? "Back to challenge" : "Back to Shorts"}
         </Link>
 
         {/* hero */}
-        <div className="relative mb-8 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-zinc-950 via-black to-zinc-950 p-6 md:p-8">
+        <div className={`relative mb-8 overflow-hidden rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/50 bg-[linear-gradient(135deg,#FCF7EA,#F4E7C3_55%,#EDDCAC)]" : "border-primary/25 bg-gradient-to-br from-zinc-950 via-black to-zinc-950"}`}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15">
@@ -214,10 +216,10 @@ export default function WinnersPage() {
               <p className="text-xs font-bold uppercase tracking-widest text-primary">
                 {perChallenge ? `#${ch?.challenge.hashtag ?? slug}` : "All-time"}
               </p>
-              <h1 className="text-2xl font-black text-white md:text-3xl">
+              <h1 className={`text-2xl font-black md:text-3xl ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
                 {perChallenge ? `${ch?.challenge.title ?? "Challenge"} — Winners` : "Winners' Circle"}
               </h1>
-              <p className="mt-1 text-sm text-white/55">
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                 {perChallenge
                   ? "Crowned by community votes. Prizes paid in Visual Bucs."
                   : "Every champion, every crown, every bag secured. This is the hall of fame."}
@@ -233,10 +235,10 @@ export default function WinnersPage() {
         </div>
 
         {!announced || notFound ? (
-          <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
-            <Crown className="mx-auto h-10 w-10 text-white/20" />
-            <p className="mt-3 font-bold text-white">No crowns handed out yet.</p>
-            <p className="mt-1 text-sm text-white/50">
+          <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
+            <Crown className={`mx-auto h-10 w-10 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>No crowns handed out yet.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
               {perChallenge
                 ? "Winners haven't been announced for this challenge — the votes are still being counted."
                 : "The first challenge hasn't crowned a winner yet. That could be you."}
@@ -256,10 +258,10 @@ export default function WinnersPage() {
 
         {/* the loop: winners → enter */}
         {announced && (
-          <div className="mt-10 flex flex-col items-start gap-3 rounded-2xl border border-primary/25 bg-zinc-950 p-5 md:flex-row md:items-center">
+          <div className={`mt-10 flex flex-col items-start gap-3 rounded-2xl border p-5 md:flex-row md:items-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
             <div className="flex-1">
-              <h2 className="text-lg font-black text-white">Your name belongs up there.</h2>
-              <p className="mt-1 text-sm text-white/55">
+              <h2 className={`text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Your name belongs up there.</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                 Enter a live challenge, rally votes on your entry, and take the crown —
                 prizes land straight in your Visual Bucs balance.
               </p>
