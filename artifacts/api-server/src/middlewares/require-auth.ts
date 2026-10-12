@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
+import { ensureTomFriendship } from "../lib/tom-friendship";
 
 declare global {
   namespace Express {
@@ -90,6 +91,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     req.userCredits = newProfile?.credits ?? 300;
     req.userPlan = "free";
+
+    if (newProfile) {
+      // Brand-new account (this branch runs exactly once per user — when
+      // their profile row is first provisioned). The Tom move: Thy Cheat
+      // Code becomes their first friend, both directions. Idempotent and
+      // never throws, so auth can't fail over it.
+      await ensureTomFriendship(user.id);
+    }
   }
 
   next();

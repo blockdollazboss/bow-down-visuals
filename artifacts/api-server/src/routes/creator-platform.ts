@@ -22,6 +22,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
+import { ensureTomFriendship } from "../lib/tom-friendship";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
 function adminEmails(): string[] {
@@ -443,6 +444,7 @@ function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
     tip_jar_enabled: p.tipJarEnabled,
     ai_design: p.aiDesign,
     is_public: p.isPublic,
+    is_official: p.isOfficial,
     follower_count: p.followerCount,
     total_plays: p.totalPlays,
     created_at: p.createdAt,
@@ -531,6 +533,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         social_links: profile.socialLinks,
         top_creators: profile.topCreators,
         tip_jar_enabled: profile.tipJarEnabled,
+        is_official: profile.isOfficial,
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
         created_at: profile.createdAt,
@@ -638,6 +641,10 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
+    // The Tom move: a creator profile now exists, so Thy Cheat Code can
+    // follow back (and the user follows Thy if anything missed it).
+    // Idempotent, never throws.
+    await ensureTomFriendship(userId);
     res.status(201).json({ profile: { ...toPublicProfile(created), ...(await profileExtras(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");

@@ -8,6 +8,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { resolveCreatorTier } from "../middlewares/require-tier";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { ensureTomFriendship } from "../lib/tom-friendship";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -152,6 +153,9 @@ async function ensureProfile(userId: string, email: string | undefined): Promise
     })
     .returning({ id: creatorProfilesTable.id });
   logger.info({ userId, profileId: created.id }, "creator-tiers: auto-created minimal profile for checkout");
+  // The Tom move: profile created → Thy Cheat Code first-friend hook
+  // (idempotent, never throws).
+  await ensureTomFriendship(userId);
   return created.id;
 }
 
