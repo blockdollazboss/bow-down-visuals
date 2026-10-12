@@ -62,7 +62,7 @@ const execFileAsync = promisify(execFile);
 
 /** Credits charged per 10 minutes of finished audio. */
 export const PODCAST_CREDITS_PER_10MIN =
-  Number(process.env["PODCAST_CREDITS_PER_10MIN"]) || 3;
+  Number(process.env["PODCAST_CREDITS_PER_10MIN"]) || 300;
 
 /** Seconds per billable block. */
 export const SECONDS_PER_BLOCK = 600;
