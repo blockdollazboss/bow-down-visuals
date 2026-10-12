@@ -11,7 +11,7 @@ import {
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText, MessageCircle,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
-  Fingerprint, Laugh, Timer,
+  Fingerprint, Laugh, Timer, Crown,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -1700,6 +1700,34 @@ export default function VideoEditor() {
           <>
             {/* ── CapCut-style slim top bar ── */}
             <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b vv-border vv-marble-panel">
+              {/* Theme-aware wordmark — light: dark bronze, dark: gold. Links home. */}
+              <Link
+                href="/"
+                className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
+                title="Bow Down Visuals — home"
+                aria-label="Bow Down Visuals home"
+              >
+                <Crown className="h-4 w-4 text-[#C9A84C] shrink-0" />
+                <span
+                  className="text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
+                  style={{
+                    fontFamily: '"Cinzel", Georgia, serif',
+                    color: isLight ? "#2A2118" : "#E8C96A",
+                  }}
+                >
+                  BOW&nbsp;DOWN
+                </span>
+                <span
+                  className="hidden sm:inline text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
+                  style={{
+                    fontFamily: '"Cinzel", Georgia, serif',
+                    color: isLight ? "#2A2118" : "#E8C96A",
+                  }}
+                >
+                  VISUALS
+                </span>
+              </Link>
+              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
               <Link href="/my-projects" className="flex items-center gap-2 vv-ink-50 vv-hover-ink transition-colors">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="text-xs font-bold hidden sm:inline">{t("videoEditor.projectsNav")}</span>
