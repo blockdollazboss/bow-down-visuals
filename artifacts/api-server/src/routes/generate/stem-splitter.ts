@@ -10,8 +10,11 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
+  uploadFileStreamToSupabaseStorage,
+  SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { runGatedDemucs, DEMUCS_THREAD_ENV } from "../../lib/demucs-gate";
 
 const router = Router();
 
@@ -282,7 +285,11 @@ function runDemucs(songPath: string, outDir: string, model: string): Promise<voi
     const child = spawn(
       STEM_DEMUCS_PYTHON,
       buildDemucsArgs(songPath, outDir, model),
-      { stdio: ["ignore", "pipe", "pipe"] },
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        // 2026-10-12 OOM fix: cap PyTorch thread pools (see lib/demucs-gate.ts).
+        env: { ...process.env, ...DEMUCS_THREAD_ENV },
+      },
     );
     let stderr = "";
     child.stderr?.on("data", (d: Buffer) => {
@@ -334,15 +341,17 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
     }
 
     // Real Demucs 4-stem separation — never faked, never stubbed.
+    // 2026-10-12 OOM fix: single-flight gate shared with lib/stem-separation —
+    // two concurrent PyTorch children OOM-kill the 512MB container.
     const outDir = join(workDir, "demucs-out");
-    await runDemucs(inputPath, outDir, STEM_DEMUCS_MODEL);
+    await runGatedDemucs(() => runDemucs(inputPath, outDir, STEM_DEMUCS_MODEL));
 
     const stemDir = demucsStemDir(outDir, STEM_DEMUCS_MODEL, inputPath);
-    const stemBuffers = {} as Record<StemKey, Buffer>;
+    // 2026-10-12 OOM fix: verify each stem exists, but do NOT read them
+    // into RAM — the old stemBuffers held all 4 WAVs + mix as Buffers
+    // (~160MB+ for a 4-min song, off-heap). Uploads stream from disk.
     for (const key of STEM_KEYS) {
-      const p = stemFilePath(stemDir, key);
-      await fs.access(p); // throws a clear error if Demucs didn't emit this stem
-      stemBuffers[key] = await fs.readFile(p);
+      await fs.access(stemFilePath(stemDir, key)); // throws a clear error if Demucs didn't emit this stem
     }
 
     if (job.mode === "instrumental") {
@@ -354,9 +363,8 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
         buildInstrumentalMixArgs(stemDir, mixPath),
         300_000,
       );
-      const mixBuffer = await fs.readFile(mixPath);
       const objectName = `stems/${job.userId}/${job.id}/instrumental.wav`;
-      const ref = await uploadMediaToSupabaseStorage(objectName, mixBuffer, "audio/wav");
+      const ref = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, mixPath, "audio/wav");
       job.instrumentalRef = ref;
       job.instrumentalUrl = await refreshSupabaseStorageUrl(ref);
       job.stemUrls = null;
@@ -366,7 +374,12 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
       const refs = {} as StemUrls;
       for (const key of STEM_KEYS) {
         const objectName = `stems/${job.userId}/${job.id}/${key}.wav`;
-        const ref = await uploadMediaToSupabaseStorage(objectName, stemBuffers[key], "audio/wav");
+        const ref = await uploadFileStreamToSupabaseStorage(
+          SUPABASE_CLIPS_BUCKET,
+          objectName,
+          stemFilePath(stemDir, key),
+          "audio/wav",
+        );
         refs[key] = ref;
         urls[key] = await refreshSupabaseStorageUrl(ref);
       }
