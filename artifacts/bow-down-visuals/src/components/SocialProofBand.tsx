@@ -147,7 +147,7 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
         <p className="text-center text-sm font-semibold text-white/60">
           {t("socialProof.joinCta")}{" "}
           <span className="text-primary font-black tabular-nums">{formatInt(creators)}</span>{" "}
-          {creators === 1 ? t("socialProof.creatorWord") : t("socialProof.creatorsWord")}
+          {stats.creators === 1 ? t("socialProof.creatorWord") : t("socialProof.creatorsWord")}
           {/* 2026-10-12: never print a dead "0 tracks & videos published" —
               the media segment only appears once something is published. */}
           {stats.tracks_published + stats.videos_published > 0 && (
