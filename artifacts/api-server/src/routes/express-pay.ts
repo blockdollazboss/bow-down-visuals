@@ -4,8 +4,7 @@ import Stripe from "stripe";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
-import { addCreditsToProfile } from "../lib/supabase-admin";
-import { isPaymentAlreadyRecorded, recordStripePayment } from "../lib/payment-record";
+import { fulfillCreditPurchase } from "../lib/payment-record";
 
 const router = Router();
 
@@ -144,21 +143,12 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
       return;
     }
 
-    // Idempotency — same pattern as checkout/verify
+    // Grant via insert-first claiming — shares idempotency with the
+    // payment_intent.succeeded webhook branch (same PI id key). Only the
+    // claim winner grants; the loser sees duplicate/inflight.
     try {
-      const alreadyProcessed = await isPaymentAlreadyRecorded(pi.id);
-      if (alreadyProcessed) {
-        res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
-        return;
-      }
-    } catch (err: unknown) {
-      logger.error({ err }, "express_pay/verify: idempotency check failed — proceeding");
-    }
-
-    try {
-      const { newCredits } = await addCreditsToProfile(req.userId!, creditsToAdd);
-      await recordStripePayment({
-        stripeSessionId: pi.id,
+      const result = await fulfillCreditPurchase({
+        idempotencyKey: pi.id,
         stripePaymentIntentId: pi.id,
         userId: req.userId!,
         creditPack: metaPack,
@@ -166,14 +156,22 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
         amountTotal: pi.amount,
         currency: pi.currency,
       });
+      if (result.outcome === "duplicate") {
+        res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
+        return;
+      }
+      if (result.outcome === "inflight") {
+        res.status(409).json({ error: "Payment is being processed. Please wait a moment and refresh." });
+        return;
+      }
       logger.info(
         { userId: req.userId, creditsToAdd, pack: metaPack, paymentIntentId: pi.id },
         "express_pay/verify: credits applied successfully"
       );
-      res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: metaPack });
+      res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "unknown";
-      logger.error({ err, userId: req.userId }, "express_pay/verify: credit update failed");
+      logger.error({ err, userId: req.userId }, "express_pay/verify: credit grant failed");
       res.status(500).json({ error: `Payment verified but credits could not be applied: ${msg}` });
     }
   } catch (err) {

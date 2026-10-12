@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import type { z } from "zod";
 
@@ -17,6 +18,9 @@ export const creatorPayoutsTable = pgTable("creator_payouts", {
   updatedAt:        timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("creator_payouts_profile_idx").on(t.profileId),
+  // Atomic double-payout guard: only one 'processing' payout per profile.
+  // The INSERT is the arbiter — concurrent requests hit 23505, not two transfers.
+  uniqueIndex("creator_payouts_profile_processing_ux").on(t.profileId).where(sql`status = 'processing'`),
 ]);
 
 export const insertCreatorPayoutSchema = createInsertSchema(creatorPayoutsTable).omit({

@@ -178,6 +178,51 @@ export interface ChargeLedgerRecord {
   projectId?: string | null;
 }
 
+export interface ChargeCreditsOpts {
+  rollbackOnLedgerFailure?: boolean;
+  /**
+   * Idempotency key for this charge. If a credit_usage row already exists
+   * with this key, the charge is skipped and the current balance is returned
+   * (idempotent success — safe for client retries). The key is written into
+   * the ledger row on success.
+   */
+  idempotencyKey?: string | null;
+  /**
+   * Force the deduction from the personal balance, skipping team-pool
+   * routing. Use for endpoints where the spend must be personal (e.g.
+   * funding a team pool from personal credits).
+   */
+  personalOnly?: boolean;
+}
+
+/**
+ * Check whether an idempotency key was already charged. Returns the existing
+ * ledger row id if found, null otherwise.
+ */
+async function findExistingCharge(idempotencyKey: string): Promise<string | null> {
+  try {
+    const [row] = await db
+      .select({ id: creditUsageTable.id })
+      .from(creditUsageTable)
+      .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
+      .limit(1);
+    return row?.id ?? null;
+  } catch {
+    // Table/column missing on a lagging DB — fail open (no dedup) rather
+    // than blocking the charge. Logged by the caller.
+    return null;
+  }
+}
+
+/**
+ * Read the user's current personal credit balance (fresh, no cache).
+ */
+async function readPersonalBalance(userId: string): Promise<number> {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("profiles").select("credits").eq("id", userId).single();
+  return (data as { credits?: number } | null)?.credits ?? 0;
+}
+
 /**
  * Charge `cost` credits with a guaranteed ledger trace.
  *
@@ -203,7 +248,7 @@ export async function chargeCredits(
   userId: string,
   cost: number,
   record: ChargeLedgerRecord,
-  opts?: { rollbackOnLedgerFailure?: boolean },
+  opts?: ChargeCreditsOpts,
 ): Promise<number> {
   // Admin-only mode: block users who haven't been explicitly approved.
   // This check sits BEFORE team-pool handling so team members can't
@@ -212,12 +257,23 @@ export async function chargeCredits(
     logger.warn({ userId, cost }, "[credits] blocked non-whitelisted spend (admin-only mode)");
     throw new CreditsDisabledError();
   }
-  // Team pool first: if the user is an active member of a team, the spend
-  // comes from the shared pool — not their personal balance — unless the
-  // team's policy allows falling back to personal credits.
+  // P0-23 idempotency: if this exact charge already landed, don't charge
+  // again — return the current balance as an idempotent success.
+  const idempotencyKey = opts?.idempotencyKey?.trim() || null;
+  if (idempotencyKey) {
+    const existing = await findExistingCharge(idempotencyKey);
+    if (existing) {
+      logger.info({ userId, cost, action: record.action, idempotencyKey }, "[credits] duplicate charge suppressed by idempotency key");
+      return readPersonalBalance(userId);
+    }
+  }
+  // Team pool first (unless forced personal): if the user is an active
+  // member of a team, the spend comes from the shared pool — not their
+  // personal balance — unless the team's policy allows falling back.
   let teamId: string | null = null;
   let creditsAfter: number;
-  const activeTeam = await getUserActiveTeam(userId);
+  const useTeamPool = !opts?.personalOnly;
+  const activeTeam = useTeamPool ? await getUserActiveTeam(userId) : null;
   if (activeTeam) {
     const tid: string = activeTeam.team.id;
     const poolBalance: number = activeTeam.team.credits;
@@ -254,6 +310,7 @@ export async function chargeCredits(
       creditsUsed: cost,
       projectId: record.projectId ?? null,
       teamId,
+      idempotencyKey,
     });
   } catch (err) {
     if (rollback) {

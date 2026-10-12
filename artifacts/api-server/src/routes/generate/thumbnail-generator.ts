@@ -7,7 +7,7 @@ import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
-import { deductCredits } from "../../lib/credits";
+import { chargeCredits } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -170,8 +170,16 @@ router.post(
     }
 
     /* Charge up front — refunded below if nothing generates.
-       deductCredits enforces the admin-only lockdown. */
-    const creditsAfter = await deductCredits(req.userId!, BATCH_CREDIT_COST);
+       P0-23: strict ledger + idempotency via chargeCredits. */
+    const idempotencyKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
+      ? (req.body as { idempotencyKey: string }).idempotencyKey
+      : null;
+    const creditsAfter = await chargeCredits(
+      req.userId!,
+      BATCH_CREDIT_COST,
+      { action: "thumbnail_batch_generate" },
+      { idempotencyKey, personalOnly: true },
+    );
 
     const facePhotoBuffer = req.file?.buffer ?? null;
     const images: Array<{ url: string; variation: number }> = [];

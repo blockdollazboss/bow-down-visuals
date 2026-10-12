@@ -4,7 +4,7 @@ import { db, booksTable, bookChaptersTable, bookPrintOrdersTable } from "@worksp
 import { eq, asc, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { deductCredits } from "../lib/credits.js";
+import { chargeCredits } from "../lib/credits.js";
 import { generateEpub, generatePdf, generateCoverPdf, bookFilename, type BookExportData } from "../lib/book-export";
 import { r2Upload, r2PublicUrl } from "../lib/r2-client";
 import {
@@ -66,6 +66,8 @@ const AiAssistSchema = z.object({
   text: z.string().max(100_000).optional().default(""),
   /* Extra instruction from the user, e.g. "make it funnier". */
   instruction: z.string().max(2000).optional().default(""),
+  /* Client-supplied idempotency key — safe retries don't double-charge. */
+  idempotencyKey: z.string().max(100).optional(),
 });
 
 /* ── Helpers ── */
@@ -379,9 +381,14 @@ router.post("/books/ai/assist", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Book not found" });
       return;
     }
-    /* Charge 1 credit (100 Visual Bucs) per AI assist. */
+    /* Charge 1 credit (100 Visual Bucs) per AI assist — strict ledger + idempotency. */
     try {
-      await deductCredits(req.userId!, 100);
+      await chargeCredits(
+        req.userId!,
+        100,
+        { action: "books_ai_assist", projectId: bookId },
+        { idempotencyKey: parsed.data.idempotencyKey ?? null, personalOnly: true },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Insufficient credits";
       res.status(402).json({ error: message });
@@ -481,6 +488,7 @@ router.get("/books/:id/export/pdf", requireAuth, async (req, res) => {
 
 const CoverGenerateSchema = z.object({
   style: z.string().trim().max(200).optional().default(""),
+  idempotencyKey: z.string().max(100).optional(),
 });
 
 router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
@@ -496,9 +504,14 @@ router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Book not found" });
       return;
     }
-    /* Charge 2 credits (200 Visual Bucs) for cover generation. */
+    /* Charge 2 credits (200 Visual Bucs) for cover generation — strict ledger + idempotency. */
     try {
-      await deductCredits(req.userId!, 200);
+      await chargeCredits(
+        req.userId!,
+        200,
+        { action: "books_cover_generate", projectId: bookId },
+        { idempotencyKey: parsed.data.idempotencyKey ?? null, personalOnly: true },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Insufficient credits";
       res.status(402).json({ error: message });
@@ -564,6 +577,7 @@ const OrderSchema = z.object({
   quantity: z.number().int().min(1).max(100).default(1),
   color: z.enum(["bw", "color"]).default("bw"),
   contactEmail: z.string().trim().email(),
+  idempotencyKey: z.string().max(100).optional(),
 });
 
 /* Build the print-ready PDFs and upload to R2. Returns URLs + page count. */
@@ -733,9 +747,18 @@ router.post("/books/:id/print/order", requireAuth, async (req, res) => {
     const totalUsd = printCostUsd + shippingUsd;
     const priceVb = Math.ceil(totalUsd * 100 * USD_CENTS_TO_VB * LULU_MARKUP);
 
-    /* Charge Visual Bucs. */
+    /* Charge Visual Bucs — strict ledger + idempotency (P0-23: this is a
+       real-money Lulu order; a retried request must not double-charge). */
     try {
-      await deductCredits(req.userId!, priceVb);
+      await chargeCredits(
+        req.userId!,
+        priceVb,
+        { action: "books_lulu_order", projectId: bookId },
+        {
+          idempotencyKey: parsed.data.idempotencyKey ?? `lulu-order:${bookId}:${podPackageId}:${quantity}`,
+          personalOnly: true,
+        },
+      );
     } catch (err) {
       res.status(402).json({ error: err instanceof Error ? err.message : "Insufficient Visual Bucs" });
       return;

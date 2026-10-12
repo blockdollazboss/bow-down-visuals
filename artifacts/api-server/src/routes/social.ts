@@ -24,7 +24,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { chargeCredits, refundCredits, deductCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
@@ -749,7 +749,15 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     creditsRemaining = await readCreditBalance(req.userId!);
   } else {
     try {
-      creditsRemaining = await deductCredits(req.userId!, TIKTOK_POST_CREDITS);
+      /* Strict ledger + idempotency (P0-23). rollbackOnLedgerFailure=false:
+         the money is already taken at this point so the upload must proceed;
+         a ledger gap is logged as CRITICAL for manual reconciliation. */
+      creditsRemaining = await chargeCredits(
+        req.userId!,
+        TIKTOK_POST_CREDITS,
+        { action: "social_tiktok_post" },
+        { idempotencyKey: `tiktok-post:${attemptId}`, personalOnly: true, rollbackOnLedgerFailure: false },
+      );
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -758,7 +766,14 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
         });
         return;
       }
-      throw err;
+      if (err instanceof LedgerWriteError) {
+        // Deduction stands, ledger missing — logged CRITICAL inside
+        // chargeCredits. Upload must proceed; read balance for response.
+        logger.error({ userId: req.userId, attemptId }, "[social] ledger write failed for tiktok charge — proceeding with upload, reconciliation needed");
+        creditsRemaining = await readCreditBalance(req.userId!);
+      } else {
+        throw err;
+      }
     }
     /* Mark the deduction immediately so a reclaimed retry after a crash
        knows not to charge again. A failure here is logged, not fatal — the
@@ -973,7 +988,15 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     creditsRemaining = await readCreditBalance(req.userId!);
   } else {
     try {
-      creditsRemaining = await deductCredits(req.userId!, FACEBOOK_POST_CREDITS);
+      /* Strict ledger + idempotency (P0-23). rollbackOnLedgerFailure=false:
+         the money is already taken at this point so the publish must proceed;
+         a ledger gap is logged as CRITICAL for manual reconciliation. */
+      creditsRemaining = await chargeCredits(
+        req.userId!,
+        FACEBOOK_POST_CREDITS,
+        { action: "social_facebook_post" },
+        { idempotencyKey: `facebook-post:${attemptId}`, personalOnly: true, rollbackOnLedgerFailure: false },
+      );
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -982,7 +1005,14 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
         });
         return;
       }
-      throw err;
+      if (err instanceof LedgerWriteError) {
+        // Deduction stands, ledger missing — logged CRITICAL inside
+        // chargeCredits. Publish must proceed; read balance for response.
+        logger.error({ userId: req.userId, attemptId }, "[social] ledger write failed for facebook charge — proceeding with publish, reconciliation needed");
+        creditsRemaining = await readCreditBalance(req.userId!);
+      } else {
+        throw err;
+      }
     }
     /* Mark the deduction immediately so a reclaimed retry after a crash
        knows not to charge again. A failure here is logged, not fatal — the

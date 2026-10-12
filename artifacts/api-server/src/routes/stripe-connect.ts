@@ -209,22 +209,27 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
       return;
     }
 
-    // Block concurrent double-payouts: one in-flight payout at a time.
-    const inFlight = await db.execute(sql`
-      SELECT id FROM creator_payouts
-      WHERE profile_id = ${profileId} AND status = 'processing' LIMIT 1
-    `);
-    if (inFlight.rows.length > 0) {
-      res.status(409).json({ error: "PAYOUT_IN_FLIGHT", message: "A payout is already processing." });
-      return;
+    // Atomic double-payout guard (P0-10): the partial unique index
+    // creator_payouts_profile_processing_ux makes this INSERT the arbiter.
+    // Two concurrent requests → one wins, the other gets 23505 → 409.
+    // (The old SELECT-then-INSERT had a TOCTOU race: both could see zero
+    // in-flight payouts and both insert.)
+    let payoutId: string;
+    try {
+      const ins = await db.execute(sql`
+        INSERT INTO creator_payouts (profile_id, amount_cents, status)
+        VALUES (${profileId}, ${available}, 'processing')
+        RETURNING id
+      `);
+      payoutId = String((ins.rows[0] as Record<string, unknown>)["id"]);
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === "23505") {
+        res.status(409).json({ error: "PAYOUT_IN_FLIGHT", message: "A payout is already processing." });
+        return;
+      }
+      throw err;
     }
-
-    const ins = await db.execute(sql`
-      INSERT INTO creator_payouts (profile_id, amount_cents, status)
-      VALUES (${profileId}, ${available}, 'processing')
-      RETURNING id
-    `);
-    const payoutId = String((ins.rows[0] as Record<string, unknown>)["id"]);
 
     try {
       const transfer = await createPayoutTransfer(

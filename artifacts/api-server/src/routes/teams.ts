@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, OutOfCreditsError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
@@ -441,8 +441,16 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       }
     }
     // Deduct from personal Supabase balance first (throws 402 if short).
+    // P0-23: routed through chargeCredits for the strict ledger entry +
+    // idempotency. personalOnly: the fund source must be personal, never
+    // the team pool being funded.
     try {
-      await deductCredits(userId, amount);
+      await chargeCredits(
+        userId,
+        amount,
+        { action: "team_fund_debit" },
+        { idempotencyKey: idempotencyKey ? `team-fund-debit:${idempotencyKey}` : null, personalOnly: true },
+      );
     } catch (e) {
       if (e instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits" });
