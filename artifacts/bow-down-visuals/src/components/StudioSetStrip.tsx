@@ -15,7 +15,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-30 -mt-[84px] h-[184px] w-full sm:-mt-[100px] sm:h-[208px]"
+      className="pointer-events-none relative z-30 -mt-[140px] h-[184px] w-full sm:-mt-[160px] sm:h-[208px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
