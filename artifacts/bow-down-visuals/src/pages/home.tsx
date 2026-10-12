@@ -1309,7 +1309,7 @@ function MusicVideoTeaser({ isLight }: { isLight: boolean }) {
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             aria-label={t("home.teaserVideoAria")}
             onError={(e) => {
               // Hide broken video, show poster fallback instead
