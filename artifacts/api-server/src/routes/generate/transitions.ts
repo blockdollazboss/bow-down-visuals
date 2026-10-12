@@ -43,6 +43,23 @@ const TRANSITIONS = {
   radial:      { label: "Radial",          blurb: "Clock-wipe sweep around the center",         xfade: "radial" },
   pixelize:    { label: "Pixelize",        blurb: "Retro blocky pixel transition",              xfade: "pixelize" },
   hblur:       { label: "Blur Sweep",      blurb: "Dreamy horizontal blur blend",               xfade: "hblur" },
+  zoomblur:    { label: "Zoom Blur",       blurb: "Rush in with a zoom burst",                  xfade: "zoomin" },
+  filmburn:    { label: "Film Burn",       blurb: "Burn through with hot light",                xfade: "fadewhite" },
+  rgbsplit:    { label: "RGB Split",       blurb: "Channel-split glitch snap",                  xfade: "dissolve" },
+  morph:       { label: "Morph",           blurb: "Fluid warp between clips",                   xfade: "dissolve" },
+  pagepeel:    { label: "Page Peel",       blurb: "Curl the frame off like a page",             xfade: "dissolve" },
+  cuberotate:  { label: "Cube Rotate",     blurb: "Spin the scene on a cube face",              xfade: "dissolve" },
+  ripple:      { label: "Ripple",          blurb: "Liquid ripple wash",                         xfade: "dissolve" },
+  shatter:     { label: "Shatter",         blurb: "Break apart into fragments",                 xfade: "pixelize" },
+  irisin:      { label: "Iris In",         blurb: "Iris closes into the next scene",            xfade: "circleclose" },
+  irisout:     { label: "Iris Out",        blurb: "Iris opens out of the last scene",           xfade: "circleopen" },
+  crosszoom:   { label: "Cross Zoom",      blurb: "Zoom straight through the frame",            xfade: "zoomin" },
+  slidemosaic: { label: "Slide Mosaic",    blurb: "Tiled mosaic slide sweep",                   xfade: "slideleft" },
+  chromaticaberration: { label: "Chromatic Aberration", blurb: "Prismatic edge-shift blend",    xfade: "dissolve" },
+  lensdistortion: { label: "Lens Distortion", blurb: "Warp through a glass lens",               xfade: "zoomin" },
+  waterdrop:   { label: "Water Drop",      blurb: "Splash outward like a droplet",              xfade: "circleopen" },
+  paintsplash: { label: "Paint Splash",    blurb: "Splatter into the next shot",                xfade: "dissolve" },
+  radialwipe:  { label: "Radial Wipe",     blurb: "Wide clock-wipe around the center",          xfade: "radial" },
 } as const;
 
 type TransitionKey = keyof typeof TRANSITIONS;
