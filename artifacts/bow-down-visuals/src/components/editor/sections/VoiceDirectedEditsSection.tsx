@@ -398,6 +398,7 @@ export function VoiceDirectedEditsSection({
         <div className="flex gap-2">
           <div className="relative flex-1">
             <input
+              id="voice-directed-command-input"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleDirect(); }}

@@ -8,6 +8,7 @@ import {
   Recycle,
   Sparkles,
   Wand2,
+  Brain,
   Image as ImageIcon,
   Palette,
   MapPin,
@@ -59,6 +60,7 @@ export type VisualVibesTool =
   | "timeline"
   | "pre-production"
   | "voice-edits"
+  | "copilot"
   | "edit-recipes"
   | "studio"
   | "pro-tools"
@@ -102,6 +104,7 @@ const TOOL_THEMES: Record<VisualVibesTool, ToolTheme> = {
   "timeline":      { accent: "#6366f1", accentSoft: "rgba(99,102,241,0.12)",   glow1: "rgba(99,102,241,0.16)",  glow2: "rgba(129,140,248,0.08)",  icon: ListVideo },
   "pre-production":{ accent: "#a16207", accentSoft: "rgba(161,98,7,0.12)",    glow1: "rgba(161,98,7,0.16)",    glow2: "rgba(202,138,4,0.08)",    icon: BookOpen },
   "voice-edits":   { accent: "#0d9488", accentSoft: "rgba(13,148,136,0.12)",   glow1: "rgba(13,148,136,0.16)",  glow2: "rgba(45,212,191,0.08)",   icon: MessageSquareText },
+  "copilot":       { accent: "#C9A84C", accentSoft: "rgba(201,168,76,0.12)",   glow1: "rgba(201,168,76,0.16)",  glow2: "rgba(232,201,106,0.08)",   icon: Brain },
   "edit-recipes":  { accent: "#ea580c", accentSoft: "rgba(234,88,12,0.12)",    glow1: "rgba(234,88,12,0.16)",   glow2: "rgba(251,146,60,0.08)",   icon: Scissors },
   "studio":        { accent: "#ca8a04", accentSoft: "rgba(202,138,4,0.12)",    glow1: "rgba(202,138,4,0.16)",   glow2: "rgba(234,179,8,0.08)",    icon: Clapperboard },
   "pro-tools":     { accent: "#94a3b8", accentSoft: "rgba(148,163,184,0.12)",  glow1: "rgba(148,163,184,0.16)", glow2: "rgba(203,213,225,0.08)",  icon: SlidersHorizontal },
