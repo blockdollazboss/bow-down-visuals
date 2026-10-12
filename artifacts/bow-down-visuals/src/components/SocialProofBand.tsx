@@ -147,22 +147,30 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
           {t("socialProof.joinCta")}{" "}
           <span className="text-primary font-black tabular-nums">{formatInt(creators)}</span>{" "}
           {creators === 1 ? t("socialProof.creatorWord") : t("socialProof.creatorsWord")}
-          <span className="mx-2 text-white/20" aria-hidden>·</span>
-          <span className="text-white/45 font-medium">
-            <span className="text-primary/90 font-bold tabular-nums">{formatInt(media)}</span>{" "}
-            {t("socialProof.mediaPublished")}
-          </span>
+          {/* 2026-10-12: never print a dead "0 tracks & videos published" —
+              the media segment only appears once something is published. */}
+          {stats.tracks_published + stats.videos_published > 0 && (
+            <>
+              <span className="mx-2 text-white/20" aria-hidden>·</span>
+              <span className="text-white/45 font-medium">
+                <span className="text-primary/90 font-bold tabular-nums">{formatInt(media)}</span>{" "}
+                {t("socialProof.mediaPublished")}
+              </span>
+            </>
+          )}
         </p>
       </section>
     );
   }
 
+  // 2026-10-12: zero stats are dropped — a sales band that reads
+  // "0 plays / $0 paid out" hurts more than a shorter stat row.
   const statDefs = [
-    { value: formatInt(creators), label: t("socialProof.stats.creators") },
-    { value: formatInt(media), label: t("socialProof.stats.media") },
-    { value: formatInt(plays), label: t("socialProof.stats.plays") },
-    { value: formatMoney(paidOut), label: t("socialProof.stats.paidOut") },
-  ];
+    { raw: stats.creators, value: formatInt(creators), label: t("socialProof.stats.creators") },
+    { raw: stats.tracks_published + stats.videos_published, value: formatInt(media), label: t("socialProof.stats.media") },
+    { raw: stats.plays, value: formatInt(plays), label: t("socialProof.stats.plays") },
+    { raw: stats.paid_out_usd, value: formatMoney(paidOut), label: t("socialProof.stats.paidOut") },
+  ].filter((s) => s.raw > 0);
 
   return (
     <section
