@@ -935,8 +935,13 @@ html, body {
 
 /* Light mode: ALL content sits ABOVE background layers. Text never buries.
    Floating promos (.bdv-extension-badge, .spotlight-promo-badge) are excluded —
-   they are explicitly positioned pills and must keep their fixed/absolute placement. */
-.light .no-throne-bg > *:not(.homepage-stage):not([aria-hidden="true"]):not(.bdv-extension-badge):not(.spotlight-promo-badge) {
+   they are explicitly positioned pills and must keep their fixed/absolute placement.
+   DIALOGS are excluded too (2026-10-12): this rule's specificity beats Tailwind's
+   .fixed/.z-50, so the Spotlight inquiry modal — a direct child of the auth
+   pages' .no-throne-bg root — was flattened into the page flow at the very
+   bottom of the light sign-in/sign-up screens, invisible and unclickable.
+   Any role="dialog" overlay keeps its authored fixed placement. */
+.light .no-throne-bg > *:not(.homepage-stage):not([aria-hidden="true"]):not(.bdv-extension-badge):not(.spotlight-promo-badge):not([role="dialog"]) {
   position: relative;
   z-index: 1;
 }
