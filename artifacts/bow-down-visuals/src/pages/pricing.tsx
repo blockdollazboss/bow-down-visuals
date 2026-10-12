@@ -452,7 +452,7 @@ export default function Pricing() {
         </section>
 
         {/* ── LIVE SOCIAL PROOF ── */}
-        <SocialProofBand variant="compact" className="border-y border-primary/10 bg-black/40" />
+        <SocialProofBand variant="compact" className={isLight ? "border-y border-primary/20 bg-[#C9A84C]/[0.08]" : "border-y border-primary/10 bg-black/40"} />
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-32">
@@ -483,16 +483,23 @@ export default function Pricing() {
                   </div>
                 )}
               <div
-                data-dark-lock
                 className={`relative rounded-2xl border flex flex-col p-6 h-full ${
                   isHighlighted
-                    ? "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)]"
+                    ? isLight
+                      ? "border-amber-500 bg-amber-300/30 shadow-[0_0_60px_rgba(251,191,36,0.35)]"
+                      : "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)]"
                     : plan.name === "Kingpin"
-                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)]"
+                    ? isLight
+                      ? "lux-shine border-amber-500/60 bg-gradient-to-b from-[#FBF3D9] via-[#F6EBC6] to-[#EFDCAC] shadow-[0_24px_60px_-24px_rgba(168,135,31,0.45)]"
+                      : "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)]"
                     : plan.name === "Crime Boss"
-                    ? "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)]"
+                    ? isLight
+                      ? "border-purple-400/60 bg-gradient-to-b from-[#F2EEFB] via-[#E9E2F7] to-[#DCD0F0] shadow-[0_24px_60px_-24px_rgba(126,87,194,0.35)]"
+                      : "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)]"
                     : plan.featured
-                    ? "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)]"
+                    ? isLight
+                      ? "lux-shine border-primary/50 bg-gradient-to-b from-[#FCF6E0] via-[#F9EFC9] to-[#F3E3B2] shadow-[0_24px_60px_-24px_rgba(168,135,31,0.4)]"
+                      : "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)]"
                     : "lux-card"
                 }`}
               >
@@ -506,24 +513,28 @@ export default function Pricing() {
                         key={s}
                         className={`h-4 w-4 ${
                           s <= plan.stars
-                            ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]"
-                            : "fill-transparent text-white/15"
+                            ? isLight
+                              ? "fill-amber-500 text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.55)]"
+                              : "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+                            : isLight
+                              ? "fill-transparent text-[#B08D2E]/35"
+                              : "fill-transparent text-white/15"
                         }`}
                       />
                     ))}
                   </div>
-                  <h2 className="text-lg font-bold text-primary mb-0.5">
+                  <h2 className={`text-lg font-bold mb-0.5 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>
                     {plan.name}
                   </h2>
-                  <p className="text-xs text-white/35 font-medium mb-4">{t("pricing.planCard.bestFor", { bestFor: plan.bestFor })}</p>
+                  <p className={`text-xs font-medium mb-4 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>{t("pricing.planCard.bestFor", { bestFor: plan.bestFor })}</p>
 
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-4xl font-black text-white">${plan.price}</span>
-                    <span className="text-white/35">{plan.period}</span>
+                    <span className={`text-4xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>${plan.price}</span>
+                    <span className={isLight ? "text-[#8A7A56]" : "text-white/35"}>{plan.period}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Zap className="h-3 w-3 text-primary" />
-                    <span className="text-xs font-bold text-primary">{plan.credits}</span>
+                    <Zap className={`h-3 w-3 ${isLight ? "text-[#7A5A12]" : "text-primary"}`} />
+                    <span className={`text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>{plan.credits}</span>
                   </div>
                 </div>
 
@@ -533,7 +544,9 @@ export default function Pricing() {
                     className={`w-full font-bold h-10 gap-2 ${
                       plan.featured
                         ? "gold-glow"
-                        : ""
+                        : isLight
+                          ? "border-[#8A6D1F]/50 text-[#4A3A10] hover:bg-[#C9A84C]/10 hover:text-[#4A3A10]"
+                          : ""
                     }`}
                     variant={plan.featured ? "luxury" : "outline"}
                   >
@@ -547,8 +560,8 @@ export default function Pricing() {
                 <div className="space-y-2.5 flex-1">
                   {plan.features.map((f) => (
                     <div key={f} className="flex items-start gap-2.5">
-                      <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm text-white/75 leading-snug">{f}</span>
+                      <Check className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isLight ? "text-[#A8871F]" : "text-primary"}`} />
+                      <span className={`text-sm leading-snug ${isLight ? "text-[#4A3D24]" : "text-white/75"}`}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -573,10 +586,10 @@ export default function Pricing() {
           </div>
 
           {/* Test mode notice */}
-          <div className="flex items-center justify-center gap-2 mb-8 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
-            <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
-            <span className="text-sm text-yellow-200/70">
-              {t("pricing.creditPacks.testModeLead")} <strong className="text-yellow-300">{t("pricing.creditPacks.testModeStrong")}</strong>{t("pricing.creditPacks.testModeTail")}
+          <div className={`flex items-center justify-center gap-2 mb-8 px-4 py-3 rounded-xl border max-w-lg mx-auto ${isLight ? "border-amber-600/30 bg-amber-400/10" : "border-yellow-500/20 bg-yellow-500/[0.06]"}`}>
+            <AlertCircle className={`h-4 w-4 shrink-0 ${isLight ? "text-amber-600" : "text-yellow-400"}`} />
+            <span className={`text-sm ${isLight ? "text-amber-900/75" : "text-yellow-200/70"}`}>
+              {t("pricing.creditPacks.testModeLead")} <strong className={isLight ? "text-amber-900" : "text-yellow-300"}>{t("pricing.creditPacks.testModeStrong")}</strong>{t("pricing.creditPacks.testModeTail")}
             </span>
           </div>
 
