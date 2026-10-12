@@ -38,6 +38,10 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   isPublic:        boolean("is_public").notNull().default(true),
   /** Gold checkmark: staff-verified creator (Worker 8, migration 0091). */
   isVerified:      boolean("is_verified").notNull().default(false),
+  /** Official house/company account (migration 0125). Today exactly one:
+      Thy Cheat Code (slug "thy-cheat-code") — the site's host and every
+      creator's first friend. */
+  isOfficial:      boolean("is_official").notNull().default(false),
   followerCount:   integer("follower_count").notNull().default(0),
   totalPlays:      integer("total_plays").notNull().default(0),
   /** Stripe Connect (Express) money-out. account id set at onboarding;
