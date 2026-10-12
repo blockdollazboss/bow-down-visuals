@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Music2, Play, Pause, Loader2, ArrowLeft, BadgeDollarSign, Wand2, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Sound page — /sound/:id ──────────────────────────────────────────────
    The sound's home turf: play it, see every video running it, grab it for
@@ -27,6 +28,7 @@ function fmt(n: number): string {
 }
 
 export default function SoundPage() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/sound/:id");
   const soundId = params?.id ? decodeURIComponent(params.id) : "";
   const { toast } = useToast();
@@ -61,34 +63,34 @@ export default function SoundPage() {
   }
 
   if (loading) {
-    return <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-black"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center ${isLight ? "" : "bg-black"}`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   if (!data) {
     return (
-      <div className="flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 bg-black px-6 text-center">
-        <Music2 className="h-12 w-12 text-white/20" />
-        <p className="text-white/60">That sound's not on the map.</p>
+      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center ${isLight ? "" : "bg-black"}`}>
+        <Music2 className={`h-12 w-12 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
+        <p className={isLight ? "text-[#6B5B36]" : "text-white/60"}>That sound's not on the map.</p>
         <Link href="/shorts" className="rounded-full bg-primary px-6 py-2.5 font-bold text-black">Back to Shorts</Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-black px-4 py-6 md:px-8">
-      <Link href="/shorts" className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 hover:text-primary">
+    <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
+      <Link href="/shorts" className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
         <ArrowLeft className="h-4 w-4" /> Back to Shorts
       </Link>
 
       {/* hero */}
-      <div className="mb-8 flex flex-col items-start gap-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-zinc-950 to-zinc-900 p-6 md:flex-row md:items-center">
+      <div className={`mb-8 flex flex-col items-start gap-5 rounded-2xl border p-6 md:flex-row md:items-center ${isLight ? "border-[#C9A84C]/50 bg-[linear-gradient(135deg,#FCF7EA,#F4E7C3_55%,#EDDCAC)]" : "border-primary/25 bg-gradient-to-br from-zinc-950 to-zinc-900"}`}>
         <button onClick={togglePlay} disabled={!data.sound.url} title="Play sound"
           className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary text-black shadow-[0_0_30px_rgba(212,175,55,0.4)] transition hover:scale-105 disabled:opacity-40">
           {playing ? <Pause className="h-9 w-9" /> : <Play className="ml-1 h-9 w-9" />}
         </button>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">Sound</p>
-          <h1 className="truncate text-2xl font-black text-white md:text-3xl">{data.sound.title ?? "Untitled sound"}</h1>
-          <p className="mt-1 text-sm text-white/50">{fmt(data.sound.use_count)} videos running this sound</p>
+          <h1 className={`truncate text-2xl font-black md:text-3xl ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{data.sound.title ?? "Untitled sound"}</h1>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{fmt(data.sound.use_count)} videos running this sound</p>
           {data.sound.is_earning && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
               <BadgeDollarSign className="h-4 w-4" />
@@ -107,14 +109,14 @@ export default function SoundPage() {
       {/* earning items — the money angle leads */}
       {data.earning_items.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-black text-white">
+          <h2 className={`mb-3 flex items-center gap-2 text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
             <Trophy className="h-5 w-5 text-primary" /> Cash in on this sound
           </h2>
-          <p className="mb-3 text-sm text-white/50">These videos sell while their creators sleep. Yours could be next.</p>
+          <p className={`mb-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>These videos sell while their creators sleep. Yours could be next.</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {data.earning_items.map((v) => (
               <Link key={v.id} href={`/store/buy/video/${v.id}`}
-                className="group overflow-hidden rounded-xl border border-primary/30 bg-zinc-950">
+                className={`group overflow-hidden rounded-xl border ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-primary/30 bg-zinc-950"}`}>
                 <div className="aspect-[9/16] bg-zinc-900">
                   <Link href={`/shorts?start=${v.id}`} className="block h-full w-full">
                     {v.thumbnail_url
@@ -123,7 +125,7 @@ export default function SoundPage() {
                   </Link>
                 </div>
                 <div className="p-2.5">
-                  <p className="truncate text-sm font-bold text-white">{v.title}</p>
+                  <p className={`truncate text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{v.title}</p>
                   <p className="text-xs font-bold text-primary">${(v.price_cents / 100).toFixed(2)} · buy</p>
                 </div>
               </Link>
@@ -134,9 +136,9 @@ export default function SoundPage() {
 
       {/* all videos using it */}
       <section>
-        <h2 className="mb-3 text-lg font-black text-white">Running this sound ({fmt(data.videos.length)})</h2>
+        <h2 className={`mb-3 text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Running this sound ({fmt(data.videos.length)})</h2>
         {data.videos.length === 0 ? (
-          <p className="text-white/40">Nobody's run with it yet — be the first and set the price.</p>
+          <p className={isLight ? "text-[#8A7A56]" : "text-white/40"}>Nobody's run with it yet — be the first and set the price.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
             {data.videos.map((v) => (
