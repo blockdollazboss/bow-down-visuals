@@ -379,49 +379,56 @@ function noiseBurst(
   src.start(t); src.stop(t + dur + 0.02);
 }
 
-/* Presets — classic starting patterns (true = hit). Rows: kick,snare,clap,chat,ohat,808,perc,shk */
-const PRESETS: Record<string, { nameKey: string; bpm: number; grid: boolean[][] }> = {
+/* Presets — classic starting patterns. Values: 0 = off, 1 = hit, 2 = accent.
+   Rows: kick,snare,clap,chat,ohat,808,perc,shk,crash. Bass: MIDI notes per step (null = rest). */
+const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; grid: number[][]; bass: (number | null)[] }> = {
   trap: {
-    nameKey: "beatMaker.presetTrap", bpm: 140,
+    nameKey: "beatMaker.presetTrap", fallback: "Trap", bpm: 140,
     grid: [
-      [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
       [0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0],
-      [1,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0],
+      [1,0,2,1,0,1,0,1,1,0,1,2,0,1,1,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
       [1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0],
       [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,null,null,36,null,null,null,34,null,32,null,31,null],
   },
   drill: {
-    nameKey: "beatMaker.presetDrill", bpm: 142,
+    nameKey: "beatMaker.presetDrill", fallback: "Drill", bpm: 142,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,2],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0],
       [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [33,null,null,33,null,null,33,null,31,null,null,29,null,null,null,null],
   },
   boombap: {
-    nameKey: "beatMaker.presetBoomBap", bpm: 92,
+    nameKey: "beatMaker.presetBoomBap", fallback: "Boom Bap", bpm: 92,
     grid: [
-      [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [2,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,1,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,1,0,0,1,0,0,1,0,0,0,0,1,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-    ].map((r) => r.map(Boolean)),
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,null,null,null,null,43,null,null,null,41,null,null,null],
   },
   afrobeats: {
-    nameKey: "beatMaker.presetAfrobeats", bpm: 102,
+    nameKey: "beatMaker.presetAfrobeats", fallback: "Afrobeats", bpm: 102,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
       [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
@@ -431,11 +438,33 @@ const PRESETS: Record<string, { nameKey: string; bpm: number; grid: boolean[][] 
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0],
       [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,36,null,null,null,34,null,null,null,32,null,null,null],
+  },
+  house: {
+    nameKey: "beatMaker.presetHouse", fallback: "House", bpm: 124,
+    grid: [
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,36,null,null,null,36,null,null,null,39,null,38,null],
   },
 };
 
-const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(false));
+const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(0));
+const emptyBass = (): (number | null)[] => Array(STEPS).fill(null);
+
+/* 808 bass range: C1 (24) .. B2 (47) */
+const BASS_LO = 24;
+const BASS_HI = 47;
 
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
