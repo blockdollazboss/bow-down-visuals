@@ -14,6 +14,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -34,7 +35,7 @@ const upscaleSchema = z.object({
 });
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: UPSCALE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -136,7 +137,7 @@ async function probeVideoHeight(inputPath: string): Promise<number | null> {
 /* ── Background worker ──────────────────────────────────────────────── */
 
 /** Exported for tests. */
-export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, originalName: string): Promise<void> {
+export async function runUpscaleJob(job: UpscaleJob, uploadedPath: string, originalName: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "upscale-"));
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
@@ -144,7 +145,7 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Honest gate: don't "upscale" a video that's already at/above target.
     const sourceHeight = await probeVideoHeight(inputPath);
@@ -181,6 +182,7 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -253,7 +255,7 @@ router.post("/upscale", requireAuth, upload.single("video"), async (req, res) =>
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runUpscaleJob(job, req.file.buffer, req.file.originalname);
+  void runUpscaleJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,

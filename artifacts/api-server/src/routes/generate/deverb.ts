@@ -43,6 +43,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -119,7 +120,7 @@ router.get("/deverb/status", publicApiLimiter, (_req: Request, res: Response) =>
 /* ── Upload handling ─────────────────────────────────────────────────── */
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: DEVERB_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.originalname)) {
@@ -187,7 +188,7 @@ export function __clearDeverbJobs(): void {
 /** Exported for tests. */
 export async function runDeverbJob(
   job: DeverbJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
 ): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "deverb-"));
@@ -197,7 +198,7 @@ export async function runDeverbJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Real de-reverb via the configured AI provider.
     await callDeverbProvider(inputPath, job.mode, outputPath);
@@ -224,6 +225,7 @@ export async function runDeverbJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -325,7 +327,7 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runDeverbJob(job, req.file.buffer, req.file.originalname);
+  void runDeverbJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,

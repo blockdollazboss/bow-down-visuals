@@ -1,11 +1,14 @@
 import { randomUUID } from "crypto";
+import { unlink } from "node:fs/promises";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  uploadMediaToSupabaseStorage,
+  uploadFileStreamToSupabaseStorage,
+  SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 
@@ -15,7 +18,8 @@ const router = Router();
 const UPLOAD_CLIP_MAX_BYTES = 80 * 1024 * 1024;
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  // 2026-10-12 OOM fix: disk-backed — an 80MB clip never sits in RAM.
+  storage: tmpUploadStorage,
   limits: { fileSize: UPLOAD_CLIP_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -48,9 +52,10 @@ router.post("/upload-clip", requireAuth, upload.single("clip"), async (req, res)
     const rawExt = (req.file.originalname.split(".").pop() ?? "mp4").toLowerCase();
     const ext = rawExt.replace(/[^a-z0-9]/g, "") || "mp4";
     const objectName = `uploads/${req.userId}/${Date.now()}-${randomUUID()}.${ext}`;
-    const ref = await uploadMediaToSupabaseStorage(
+    const ref = await uploadFileStreamToSupabaseStorage(
+      SUPABASE_CLIPS_BUCKET,
       objectName,
-      req.file.buffer,
+      req.file.path,
       req.file.mimetype || "video/mp4",
     );
     const url = await refreshSupabaseStorageUrl(ref);
@@ -59,6 +64,8 @@ router.post("/upload-clip", requireAuth, upload.single("clip"), async (req, res)
     const msg = err instanceof Error ? err.message : "Upload failed";
     req.log.error({ err: msg }, "[upload-clip] upload failed");
     res.status(500).json({ error: msg });
+  } finally {
+    await unlink(req.file.path).catch(() => {});
   }
 });
 

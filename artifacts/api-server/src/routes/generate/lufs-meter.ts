@@ -14,6 +14,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -50,7 +51,7 @@ const NORM_TP = -1.0;
 const NORM_LRA = 11;
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: LUFS_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.originalname)) {
@@ -284,7 +285,7 @@ export function __clearLufsNormalizeJobs(): void {
 /** Exported for tests. */
 export async function runLufsNormalizeJob(
   job: LufsNormalizeJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
 ): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "lufs-norm-"));
@@ -294,7 +295,7 @@ export async function runLufsNormalizeJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Pass 1: measure (also gives the honest "before" numbers).
     const analysis = await runLoudnessAnalysis(inputPath, job.targetLufs);
@@ -340,6 +341,7 @@ export async function runLufsNormalizeJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -375,7 +377,7 @@ router.post("/lufs/analyze", requireAuth, upload.single("audio"), async (req: Re
   try {
     const ext = (req.file.originalname.split(".").pop() ?? "mp3").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp3";
     const inputPath = join(workDir, `input.${ext}`);
-    await fs.writeFile(inputPath, req.file.buffer);
+    await fs.copyFile(req.file.path, inputPath); // 2026-10-12 OOM fix: disk-backed upload
     const analysis = await runLoudnessAnalysis(inputPath, DEFAULT_TARGET);
     res.json({
       fileName: req.file.originalname,
@@ -397,6 +399,7 @@ router.post("/lufs/analyze", requireAuth, upload.single("audio"), async (req: Re
     res.status(500).json({ error: message });
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(req.file.path).catch(() => {});
   }
 });
 
@@ -473,7 +476,7 @@ router.post("/lufs/normalize", requireAuth, upload.single("audio"), async (req: 
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runLufsNormalizeJob(job, req.file.buffer, req.file.originalname);
+  void runLufsNormalizeJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,

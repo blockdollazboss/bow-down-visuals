@@ -51,6 +51,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -389,7 +390,7 @@ async function muxDubbedVideo(
 
 export async function runTranslateJob(
   job: TranslateJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
   voiceId: string,
 ): Promise<void> {
@@ -399,7 +400,7 @@ export async function runTranslateJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     const durationSec = await probeDurationSec(inputPath);
     job.durationSec = durationSec;
@@ -501,13 +502,14 @@ export async function runTranslateJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
 /* ── Upload ──────────────────────────────────────────────────────────── */
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_TRANSLATOR_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) cb(null, true);
@@ -650,7 +652,7 @@ router.post(
     jobs.set(job.id, job);
 
     // Server-owned: runs detached from the request/tab lifecycle.
-    void runTranslateJob(job, req.file.buffer, req.file.originalname, voiceId);
+    void runTranslateJob(job, req.file.path, req.file.originalname, voiceId);
 
     res.status(202).json({
       jobId: job.id,

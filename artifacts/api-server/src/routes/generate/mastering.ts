@@ -14,6 +14,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -46,7 +47,7 @@ export {
 };
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: MASTERING_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const name = (file.originalname || "").toLowerCase();
@@ -156,7 +157,7 @@ async function measureOutputLufs(outputPath: string): Promise<number | null> {
 /* ── Background worker ──────────────────────────────────────────────── */
 
 /** Exported for tests. */
-export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, originalName: string): Promise<void> {
+export async function runMasteringJob(job: MasteringJob, uploadedPath: string, originalName: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "mastering-"));
   const ext = (originalName.split(".").pop() ?? "wav").toLowerCase().replace(/[^a-z0-9]/g, "") || "wav";
   const inputPath = join(workDir, `input.${ext}`);
@@ -165,7 +166,7 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Pass 1 — measure the processed mix.
     const measurement = await measureLoudness(inputPath, job.preset);
@@ -206,6 +207,7 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -289,7 +291,7 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runMasteringJob(job, req.file.buffer, req.file.originalname);
+  void runMasteringJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,

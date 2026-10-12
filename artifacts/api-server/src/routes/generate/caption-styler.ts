@@ -16,6 +16,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -26,7 +27,7 @@ const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // Whisper's hard limit
 const WHISPER_TIMEOUT_MS = 240_000; // 4 minutes
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: CAPTION_STYLER_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -342,7 +343,7 @@ async function probeVideoSize(inputPath: string): Promise<{ w: number; h: number
 }
 
 /** Exported for tests. */
-export async function runCaptionStylerJob(job: CaptionStylerJob, inputBuffer: Buffer, originalName: string): Promise<void> {
+export async function runCaptionStylerJob(job: CaptionStylerJob, uploadedPath: string, originalName: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "caption-styler-"));
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
@@ -351,7 +352,7 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, inputBuffer: Bu
   const outputPath = join(workDir, "captioned.mp4");
 
   try {
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // 1. Extract audio for Whisper (mp3 keeps it under the 25MB Whisper cap
     // for typical short-form videos; longer videos may still exceed it).
@@ -407,6 +408,7 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, inputBuffer: Bu
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -485,7 +487,7 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runCaptionStylerJob(job, req.file.buffer, req.file.originalname);
+  void runCaptionStylerJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,

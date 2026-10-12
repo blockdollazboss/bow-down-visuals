@@ -14,6 +14,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -31,7 +32,7 @@ const MODE_LABELS: Record<AudioCleanupMode, string> = {
 };
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: AUDIO_CLEANUP_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.originalname)) {
@@ -164,7 +165,7 @@ async function measureRmsDb(filePath: string): Promise<number | null> {
 /** Exported for tests. */
 export async function runAudioCleanupJob(
   job: AudioCleanupJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
 ): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "audio-cleanup-"));
@@ -174,7 +175,7 @@ export async function runAudioCleanupJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Baseline loudness for the noise-reduction estimate.
     const rmsBefore = await measureRmsDb(inputPath);
@@ -210,6 +211,7 @@ export async function runAudioCleanupJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -287,7 +289,7 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runAudioCleanupJob(job, req.file.buffer, req.file.originalname);
+  void runAudioCleanupJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,
