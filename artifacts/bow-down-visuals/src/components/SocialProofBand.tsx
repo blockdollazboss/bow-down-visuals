@@ -63,9 +63,10 @@ function formatInt(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }
 
-function formatMoney(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-US");
-}
+/* No money formatting anywhere in this band (owner, 2026-10-12): the site
+   pays nobody in cash — rewards are Visual Bucs. The old "$ paid out (USD)"
+   stat contradicted the model; the band now shows referral Visual Bucs
+   awarded, which the API already aggregates honestly. */
 
 /** Animated count-up that starts the first time the band scrolls into view. */
 function useCountUp(target: number | null, start: boolean, durationMs = 1400): number {
@@ -129,7 +130,7 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
   const creators = useCountUp(ready ? stats.creators : null, inView && ready);
   const media = useCountUp(ready ? stats.tracks_published + stats.videos_published : null, inView && ready);
   const plays = useCountUp(ready ? stats.plays : null, inView && ready);
-  const paidOut = useCountUp(ready ? stats.paid_out_usd : null, inView && ready);
+  const referralBucs = useCountUp(ready ? stats.referral_bucs_awarded : null, inView && ready);
 
   const verticalCount = vertical && stats?.verticals ? stats.verticals[vertical] ?? 0 : 0;
   const verticalLabel = vertical ? VERTICAL_LABELS[vertical] ?? "creators" : "";
@@ -169,7 +170,7 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
     { raw: stats.creators, value: formatInt(creators), label: t("socialProof.stats.creators") },
     { raw: stats.tracks_published + stats.videos_published, value: formatInt(media), label: t("socialProof.stats.media") },
     { raw: stats.plays, value: formatInt(plays), label: t("socialProof.stats.plays") },
-    { raw: stats.paid_out_usd, value: formatMoney(paidOut), label: t("socialProof.stats.paidOut") },
+    { raw: stats.referral_bucs_awarded, value: formatInt(referralBucs), label: t("socialProof.stats.paidOut") },
   ].filter((s) => s.raw > 0);
 
   return (
