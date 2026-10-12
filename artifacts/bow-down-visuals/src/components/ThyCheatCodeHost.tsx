@@ -77,6 +77,7 @@ export function ThyCheatCodeHost() {
     return (
       <div className="absolute top-2 left-4 sm:left-6 lg:left-8 z-[30]">
         <button
+          data-dark-lock
           onClick={expand}
           className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
           style={{ imageRendering: "pixelated" }}
