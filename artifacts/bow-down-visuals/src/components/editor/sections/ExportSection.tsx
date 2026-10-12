@@ -623,6 +623,33 @@ export function ExportSection({
               />
             </Field>
           )}
+          {/* ── Platform presets: one tap sets format + resolution ── */}
+          <div>
+            <p className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Platform presets</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { name: "YouTube", format: "16:9", resolution: "1080p", desc: "1920×1080 landscape" },
+                { name: "TikTok", format: "9:16", resolution: "1080p", desc: "1080×1920 vertical" },
+                { name: "Reels / Shorts", format: "9:16", resolution: "1080p", desc: "1080×1920 vertical" },
+                { name: "Instagram", format: "4:5", resolution: "1080p", desc: "1080×1350 portrait" },
+              ].map((p) => {
+                const active = (settings.export.format ?? "9:16") === p.format;
+                return (
+                  <button key={p.name} type="button"
+                    onClick={() => setExport({ format: p.format as typeof settings.export.format, resolution: p.resolution as typeof settings.export.resolution })}
+                    title={`${p.name}: ${p.desc}`}
+                    className={`px-2 py-2 rounded-lg text-left border transition-colors ${
+                      active
+                        ? "border-[#C9A84C]/50 bg-[#C9A84C]/10"
+                        : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                    }`}>
+                    <span className={`block text-[11px] font-black ${active ? "text-[#C9A84C]" : "text-white/80"}`}>{p.name}</span>
+                    <span className="block text-[9px] text-white/40 font-mono">{p.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </EditorCard>
 
