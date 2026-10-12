@@ -2446,10 +2446,14 @@ html[data-star-level="5"] [data-min-stars="6"] {
   color: #1C1712 !important;
 }
 
-/* Dashboard cards: white with subtle border, dark text */
+/* Dashboard cards: white with subtle border, dark text.
+   2026-10-12: the bg-white/[0.0x] pattern selectors carry the
+   [data-dark-lock] exclusion — the video players (dark-locked) use
+   bg-white/[0.02] and [0.03] for subtle controls, and this rule was
+   painting them solid white with dark text inside the dark player. */
 .light .dashboard-card,
-.light [class*="bg-white/[0.03]"],
-.light [class*="bg-white/[0.02]"] {
+.light [class*="bg-white/[0.03]"]:not([data-dark-lock]):not([data-dark-lock] *),
+.light [class*="bg-white/[0.02]"]:not([data-dark-lock]):not([data-dark-lock] *) {
   background-color: #FFFFFF !important;
   border-color: rgba(122, 90, 18, 0.15) !important;
   color: #1C1712 !important;
