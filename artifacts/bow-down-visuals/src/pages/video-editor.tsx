@@ -2753,9 +2753,24 @@ export default function VideoEditor() {
 
                   </div>
                 </div>
-                {/* ── Panel size sync: 5 presets set BOTH sides to the same width ── */}
+                {/* ── Panel size sync: 0 collapses both, 1-5 presets set BOTH sides to the same width ── */}
                 <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
                   <span className="text-[10px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
+                  <button
+                    type="button"
+                    title="Collapse both panels (distraction-free)"
+                    onClick={() => {
+                      setPanelCollapsed(true);
+                      setRightPanelCollapsed(true);
+                    }}
+                    className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                      panelCollapsed && rightPanelCollapsed
+                        ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
+                        : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
+                    }`}
+                  >
+                    0
+                  </button>
                   {PANEL_SNAPS.map((s, i) => {
                     const synced = panelWidth === s && rightPanelWidth === s;
                     return (
@@ -2768,6 +2783,8 @@ export default function VideoEditor() {
                           setPanelWidth(s);
                           rightPanelWidthRef.current = s;
                           setRightPanelWidth(s);
+                          setPanelCollapsed(false);
+                          setRightPanelCollapsed(false);
                           try {
                             localStorage.setItem("bdv:panelWidth", String(s));
                             localStorage.setItem("bdv:rightPanelWidth", String(s));
