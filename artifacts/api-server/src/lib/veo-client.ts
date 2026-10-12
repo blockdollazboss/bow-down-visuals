@@ -6,6 +6,9 @@
  * download the hosted MP4 (needs the API key) within the 2-day window.
  */
 
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+
 const VEO_MODEL = process.env["VEO_VIDEO_MODEL"] || "veo-3.1-generate-preview";
 const VEO_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${VEO_MODEL}`;
 
@@ -105,4 +108,25 @@ export async function downloadVeoVideo(videoUri: string): Promise<Buffer> {
   });
   if (!res.ok) throw new Error(`Veo download failed (${res.status})`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/**
+ * Streaming variant of downloadVeoVideo — writes the MP4 straight to
+ * disk instead of buffering the whole clip in RAM.
+ * (2026-10-12, OOM fix.)
+ */
+export async function downloadVeoVideoToFile(
+  videoUri: string,
+  destPath: string,
+): Promise<void> {
+  const sep = videoUri.includes("?") ? "&" : "?";
+  const res = await fetch(`${videoUri}${sep}key=${geminiKey()}`, {
+    signal: AbortSignal.timeout(300_000),
+  });
+  if (!res.ok) throw new Error(`Veo download failed (${res.status})`);
+  if (!res.body) throw new Error("Veo download returned no body");
+  await pipeline(
+    res.body as Parameters<typeof pipeline>[0],
+    createWriteStream(destPath),
+  );
 }

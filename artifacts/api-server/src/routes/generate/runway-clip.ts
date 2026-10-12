@@ -11,6 +11,8 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import {
   uploadMediaToSupabaseStorage,
+  uploadFileStreamToSupabaseStorage,
+  SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRef,
 } from "../../lib/objectStorage";
@@ -27,7 +29,7 @@ import {
   VEO_PRICING_VERSION,
   resolveClipPlan,
 } from "./clip-pricing";
-import { submitVeoVideo, pollVeoOperation, downloadVeoVideo } from "../../lib/veo-client";
+import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
 import { getLockedPack } from "./pre-production";
 import type { PackIngredients } from "@workspace/db";
 
@@ -582,9 +584,12 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
       const tmpFile = path.join(os.tmpdir(), `veo-${randomUUID()}.mp4`);
       try {
         req.log.info({ taskId }, "[runway-clip] downloading clip from Veo");
-        const buffer = await downloadVeoVideo(poll.videoUri);
+        // 2026-10-12 OOM fix: stream Veo download + upload via disk —
+        // the whole clip used to sit in RAM twice (download Buffer,
+        // then upload).
+        await downloadVeoVideoToFile(poll.videoUri, tmpFile);
         const objectName = `clips/${randomUUID()}.mp4`;
-        const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
 
         /* ── Charge once, guarded by pendingTasks presence ── */
@@ -718,7 +723,9 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
         const objectName = `clips/${randomUUID()}.mp4`;
         req.log.info({ objectName }, "[runway-clip] uploading clip to Supabase Storage");
-        const storageRef = await uploadMediaToSupabaseStorage(objectName, readFileSync(tmpFile), "video/mp4");
+        // 2026-10-12 OOM fix: stream the upload from disk — readFileSync
+        // used to load the entire MP4 into RAM (and block the event loop).
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
 
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
         req.log.info({ objectName, taskId }, "[runway-clip] clip saved to Supabase Storage — returning storage ref + preview URL");
