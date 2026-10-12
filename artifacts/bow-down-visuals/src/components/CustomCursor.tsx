@@ -92,16 +92,11 @@ function useMousePosition(ref: React.RefObject<HTMLDivElement | null>) {
 
     const tick = () => {
       if (!settled) {
-        const dx = target.x - current.x;
-        const dy = target.y - current.y;
-        if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
-          current.x = target.x;
-          current.y = target.y;
-          settled = true;
-        } else {
-          current.x += dx * 0.22;
-          current.y += dy * 0.22;
-        }
+        // Direct 1:1 tracking — no glide. Owner directive 2026-10-11:
+        // the cursor must be accurate, never easing behind the pointer.
+        current.x = target.x;
+        current.y = target.y;
+        settled = true;
         if (ref.current) {
           ref.current.style.transform = `translate(${current.x}px, ${current.y}px)`;
         }
