@@ -174,6 +174,19 @@ const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Luxury Gold":         "sepia(65%) saturate(175%) brightness(112%) contrast(108%)",
   "Dark Drill":          "brightness(72%) contrast(148%) saturate(55%)",
   "Cinematic Contrast":  "contrast(155%) saturate(88%) brightness(90%)",
+  "Duotone":             "grayscale(100%) contrast(120%) sepia(55%) hue-rotate(-10deg) brightness(105%)",
+  "Sepia+":              "sepia(80%) contrast(105%) brightness(102%)",
+  "Infrared-look":       "hue-rotate(-120deg) saturate(160%) contrast(125%) brightness(105%)",
+  "Night Vision":        "hue-rotate(90deg) saturate(200%) brightness(110%) contrast(130%)",
+  "Comic / Halftone":    "contrast(150%) saturate(180%) brightness(105%)",
+  /* Emboss/edge-detect have no true CSS equivalent — this is the closest
+   * color approximation; the burn uses the generic CSS→eq translation. */
+  "Emboss":              "grayscale(60%) contrast(160%) brightness(115%)",
+  "Edge Detect Glow":    "contrast(170%) saturate(150%) brightness(110%)",
+  "Film Grain+":         "contrast(110%) brightness(96%)",
+  /* Chromatic Aberration preview is a color hint — the burn applies a real
+   * rgbashift split (see api-server effects-ffmpeg.ts). */
+  "Chromatic Aberration": "saturate(120%) contrast(108%)",
 };
 
 /* ─── Thy Library deep-link maps ──────────────────────────────────────────

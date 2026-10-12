@@ -1754,6 +1754,15 @@ export function ExportDoctor({
     "Luxury Gold",
     "Dark Drill",
     "Cinematic Contrast",
+    "Duotone",
+    "Sepia+",
+    "Infrared-look",
+    "Night Vision",
+    "Comic / Halftone",
+    "Emboss",
+    "Edge Detect Glow",
+    "Film Grain+",
+    "Chromatic Aberration",
   ];
   const fxList = effects ?? [];
   const fcEffectsCount = fxList.length;
@@ -1880,6 +1889,20 @@ export function ExportDoctor({
     "Light Leaks",
     "Lens Flare",
     "Animated Waveform",
+    "Snow",
+    "Confetti",
+    "Fireworks",
+    "God Rays",
+    "Anamorphic Flares",
+    "Bokeh",
+    "Scan Lines",
+    "Hologram",
+    "Kaleidoscope",
+    "Mirror",
+    "Neon Frame",
+    "VHS Tracking",
+    "Datamosh-lite",
+    "Tilt-Shift",
   ];
   const ovList = overlays ?? [];
   const fcOverlaysFound = ovList.length > 0 || !!watermarkText?.trim();

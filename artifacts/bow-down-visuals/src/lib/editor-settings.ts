@@ -462,6 +462,15 @@ export const EFFECTS = [
   "Camera Shake",
   "Slow Zoom",
   "Speed Ramp",
+  "Duotone",
+  "Sepia+",
+  "Infrared-look",
+  "Night Vision",
+  "Comic / Halftone",
+  "Emboss",
+  "Edge Detect Glow",
+  "Film Grain+",
+  "Chromatic Aberration",
 ] as const;
 
 /** Color-grade presets (a subset of the Effects catalog applied as a look). */
@@ -486,6 +495,20 @@ export const OVERLAYS = [
   "Light Leaks",
   "Animated Waveform",
   "Logo / Watermark",
+  "Snow",
+  "Confetti",
+  "Fireworks",
+  "God Rays",
+  "Anamorphic Flares",
+  "Bokeh",
+  "Scan Lines",
+  "Hologram",
+  "Kaleidoscope",
+  "Mirror",
+  "Neon Frame",
+  "VHS Tracking",
+  "Datamosh-lite",
+  "Tilt-Shift",
 ] as const;
 
 export const CAPTION_FONT_SIZES = ["Small", "Medium", "Large", "XL"] as const;
@@ -1316,6 +1339,20 @@ export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
   "Dust":              25,
   "Animated Waveform": 45,
   "Logo / Watermark":  65,
+  "Snow":              30,
+  "Confetti":          40,
+  "Fireworks":         40,
+  "God Rays":          30,
+  "Anamorphic Flares": 30,
+  "Bokeh":             30,
+  "Scan Lines":        25,
+  "Hologram":          35,
+  "Kaleidoscope":      35,
+  "Mirror":            30,
+  "Neon Frame":        30,
+  "VHS Tracking":      35,
+  "Datamosh-lite":     35,
+  "Tilt-Shift":        30,
 };
 
 /** A production bible: the locked creative source of truth for a music video / film project. */

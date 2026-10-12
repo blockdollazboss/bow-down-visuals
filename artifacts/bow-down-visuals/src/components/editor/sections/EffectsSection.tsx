@@ -10,7 +10,7 @@ import {
 } from "@/lib/editor-settings";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getDefaultWatermarkUrl } from "@/lib/watermark";
-import { STRENGTH_PRESETS } from "@/components/ActiveOverlayEffects";
+import { STRENGTH_PRESETS, VISUAL_EFFECTS } from "@/components/ActiveOverlayEffects";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
@@ -326,8 +326,10 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         <div className="flex flex-wrap gap-2 mb-3">
           {OVERLAYS.map((ov) => {
             const active = settings.overlays.includes(ov);
-            // Particle overlays (Smoke, Rain, Sparks, Dust) are preview-only — the export pipeline doesn't burn them in yet.
-            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust"].includes(ov);
+            // Particle overlays (Smoke, Rain, Sparks, Dust, Snow, Confetti,
+            // Fireworks, Bokeh) are preview-only — the export pipeline doesn't
+            // burn them in yet.
+            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust", "Snow", "Confetti", "Fireworks", "Bokeh"].includes(ov);
             return (
               <Chip
                 key={ov}
@@ -566,7 +568,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         )}
 
         {/* ── Overlay Strength mode ── */}
-        {settings.overlays.filter((o) => ["Rain","Smoke","Sparks","Dust","Light Leaks","Lens Flare","Animated Waveform"].includes(o)).length > 0 && (
+        {settings.overlays.filter((o) => VISUAL_EFFECTS.includes(o)).length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/[0.06]">
             <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Overlay Strength</label>
             <div className="flex gap-1.5 flex-wrap">
@@ -574,10 +576,9 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button key={mode} type="button"
                   onClick={() => {
                     const preset = STRENGTH_PRESETS[mode] ?? {};
-                    const VISUAL = ["Light Leaks","Lens Flare","Smoke","Rain","Sparks","Dust","Animated Waveform"];
                     const newIntensity = { ...settings.overlayIntensity };
                     for (const ov of settings.overlays) {
-                      if (VISUAL.includes(ov)) {
+                      if (VISUAL_EFFECTS.includes(ov)) {
                         newIntensity[ov] = mode === "off" ? 0 : (preset[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 25);
                       }
                     }
@@ -627,15 +628,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
 
         {/* ── Overlay Debug ── */}
         {settings.overlays.length > 0 && (() => {
-          const VISUAL = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
-          const activeVisual = settings.overlays.filter((o) => VISUAL.includes(o));
+          const activeVisual = settings.overlays.filter((o) => VISUAL_EFFECTS.includes(o));
           const qm = settings.overlayQualityMode ?? "music-video";
           const rows: [string, string, "ok" | "warn" | "neutral"][] = [
             ["overlay strength mode",  qm === "music-video" ? "Music Video" : qm.charAt(0).toUpperCase() + qm.slice(1), qm === "off" ? "warn" : "ok"],
             ["selected overlays",       settings.overlays.join(", ") || "none", settings.overlays.length > 0 ? "ok" : "warn"],
             ["active overlay count",    String(settings.overlays.length), "neutral"],
             ["solo preview",            settings.soloPreviewOverlay ?? "none", settings.soloPreviewOverlay ? "warn" : "neutral"],
-            ...(VISUAL.map((ov): [string, string, "ok" | "warn" | "neutral"] => {
+            ...(VISUAL_EFFECTS.map((ov): [string, string, "ok" | "warn" | "neutral"] => {
               const active = settings.overlays.includes(ov);
               const pct = active ? (settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20) : 0;
               return [
