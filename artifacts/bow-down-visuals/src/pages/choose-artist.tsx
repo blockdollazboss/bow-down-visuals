@@ -286,6 +286,14 @@ export default function ChooseArtist() {
                       }}
                     />
                   )}
+                  {/* Dark-theme scrim — tones down bright reference images so they
+                      don't glow white against dark theme. Image stays visible. */}
+                  {!isLight && vault.reference_image_url && (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                      background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.28) 50%, rgba(0,0,0,0.5) 100%)",
+                    }} />
+                  )}
                   {/* Initials avatar (no photo) */}
                   {!vault.reference_image_url && (
                     <div style={{

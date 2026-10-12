@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Timer, Sparkles, X, Gift, Loader2, Package } from "lucide-react";
 import { DraggableWidget } from "@/components/draggable-widget";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 interface BoxPrize {
   credits: number;
@@ -31,6 +32,7 @@ type BoxPhase = "closed" | "shaking" | "opening" | "revealed";
 export function MysteryCrate() {
   const { user, getAccessToken } = useAuth();
   const [location] = useLocation();
+  const isLight = useIsLightTheme();
 
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<BonusStatus | null>(null);
@@ -264,15 +266,17 @@ export function MysteryCrate() {
           className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 ${
             ready
               ? "bg-gradient-to-br from-[#ffd700] to-[#8a6d2f] animate-[pulse_1.6s_ease-in-out_infinite] shadow-[0_0_24px_rgba(255,215,0,0.55)] border-2 border-[#fff]/30"
-              : "bg-gradient-to-br from-[#3a3a3a] to-[#1a1a1a] border border-[#c9a84c]/50"
+              : isLight
+                ? "bg-gradient-to-br from-[#F5F0E6] to-[#E8DCC0] border border-[#c9a84c]/60"
+                : "bg-gradient-to-br from-[#3a3a3a] to-[#1a1a1a] border border-[#c9a84c]/50"
           }`}
         >
           {ready ? (
             <Package className="h-7 w-7 text-black" />
           ) : loadError ? (
-            <Package className="h-7 w-7 text-[#c9a84c]/60" />
+            <Package className={`h-7 w-7 ${isLight ? "text-[#8a6d2f]/70" : "text-[#c9a84c]/60"}`} />
           ) : (
-            <span className="text-[#c9a84c] text-[11px] font-bold leading-tight text-center px-1">
+            <span className={`${isLight ? "text-[#8a6d2f]" : "text-[#c9a84c]"} text-[11px] font-bold leading-tight text-center px-1`}>
               {formatCompact(cooldown)}
             </span>
           )}
