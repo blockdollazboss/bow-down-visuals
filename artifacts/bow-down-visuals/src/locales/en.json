@@ -2634,7 +2634,7 @@
     "see_winners": "See the winners' circle",
     "hall_of_fame": "Hall of fame",
     "next_drop": "The next contest drops Monday",
-    "next_drop_sub": "One theme. One week. {{cap}} in Visual Bucs on the line. Next up: \"{{theme}}\" (#{{hashtag}}).",
+    "next_drop_sub": "One theme. One week. {{cap}} on the line. Next up: \"{{theme}}\" (#{{hashtag}}).",
     "admin_nudge": "Admin: this week's contest isn't live yet. One tap launches \"{{theme}}\" with the {{cap}} prize pool.",
     "launching": "Launching…",
     "launch_week": "Launch this week's contest",

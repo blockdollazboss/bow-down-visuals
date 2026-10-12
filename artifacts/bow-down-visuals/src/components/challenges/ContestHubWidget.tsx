@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatBucs, formatBucsShort } from "@/lib/visual-bucs";
 import ConfettiBurst from "@/components/artist/confetti-burst";
 import { cn } from "@/lib/utils";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── ContestHubWidget — the weekly creator contest ritual ────────────────
    The addictive weekly heartbeat, docked on the dashboard and the homepage.
@@ -90,6 +91,7 @@ export default function ContestHubWidget() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
+  const isLight = useIsLightTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +182,12 @@ export default function ContestHubWidget() {
 
   return (
     <section aria-label={t("weekly_contest.aria", { defaultValue: "Weekly creator contest" })}
-      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.10] via-zinc-950 to-black p-6 md:p-7">
+      className={cn(
+        "relative overflow-hidden rounded-3xl border p-6 md:p-7",
+        isLight
+          ? "border-[#c9a84c]/30 bg-gradient-to-br from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]"
+          : "border-primary/25 bg-gradient-to-br from-primary/[0.10] via-zinc-950 to-black",
+      )}>
       {/* ambient glow */}
       <div aria-hidden className="pointer-events-none absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-primary/[0.14] blur-[90px]" />
 
@@ -213,6 +220,12 @@ export default function ContestHubWidget() {
 /* ─── Live / upcoming: the FOMO driver ──────────────────────────────────── */
 function LiveCard({ data, challenge, enterHref }: { data: WeeklyData; challenge: WeeklyChallenge; enterHref: string }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const ink = isLight ? "text-[#2A2118]" : "text-white";
+  const sub = isLight ? "text-[#4A3B22]/70" : "text-white/55";
+  const ghostLink = isLight
+    ? "border-[#c9a84c]/40 text-[#4A3B22]/80"
+    : "border-white/15 text-white/75";
   const target = challenge.status === "upcoming" ? challenge.starts_at : challenge.ends_at;
   const countdown = useCountdown(target);
   return (
@@ -238,13 +251,13 @@ function LiveCard({ data, challenge, enterHref }: { data: WeeklyData; challenge:
         )}
       </div>
 
-      <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">{challenge.title}</h2>
+      <h2 className={cn("mt-3 text-2xl font-black md:text-3xl", ink)}>{challenge.title}</h2>
       {challenge.description && (
-        <p className="mt-1.5 max-w-2xl text-sm text-white/55">{challenge.description}</p>
+        <p className={cn("mt-1.5 max-w-2xl text-sm", sub)}>{challenge.description}</p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        <span className="inline-flex items-center gap-1.5 text-white/65">
+        <span className={cn("inline-flex items-center gap-1.5", sub)}>
           <Users className="h-4 w-4 text-primary" />
           {t("weekly_contest.entries", { defaultValue: "{{count}} entries", count: fmtCount(challenge.entry_count) })}
         </span>
@@ -254,7 +267,7 @@ function LiveCard({ data, challenge, enterHref }: { data: WeeklyData; challenge:
           </span>
         )}
         {challenge.prizes.slice(0, 3).map((p) => (
-          <span key={p.place} className="inline-flex items-center gap-1 text-xs font-bold text-white/70">
+          <span key={p.place} className={cn("inline-flex items-center gap-1 text-xs font-bold", sub)}>
             {MEDAL[p.place - 1] ?? `#${p.place}`} {formatBucsShort(p.prize_credits)}
           </span>
         ))}
@@ -267,13 +280,13 @@ function LiveCard({ data, challenge, enterHref }: { data: WeeklyData; challenge:
           {t("weekly_contest.enter_now", { defaultValue: "Enter now" })}
         </Link>
         <Link href={`/challenge/${challenge.slug}`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/75 hover:border-primary/50 hover:text-primary">
+          className={cn("inline-flex items-center gap-1.5 rounded-full border px-5 py-3 text-sm font-bold hover:border-primary/50 hover:text-primary", ghostLink)}>
           {t("weekly_contest.view_entries", { defaultValue: "View entries" })}
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
 
-      <p className="mt-3 text-xs text-white/40">
+      <p className={cn("mt-3 text-xs", sub)}>
         {t("weekly_contest.enter_hint", {
           defaultValue: "Post your video and it's auto-entered — winners are paid in Visual Bucs from this week's {{cap}} prize pool.",
           cap: formatBucs(data.weekly_cap_vb),
@@ -286,16 +299,19 @@ function LiveCard({ data, challenge, enterHref }: { data: WeeklyData; challenge:
 /* ─── Judging: entries closed, votes still move the crown ───────────────── */
 function JudgingCard({ challenge }: { challenge: WeeklyChallenge }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const ink = isLight ? "text-[#2A2118]" : "text-white";
+  const sub = isLight ? "text-[#4A3B22]/70" : "text-white/55";
   const countdown = useCountdown(challenge.judging_ends_at);
   return (
     <div className="relative">
       <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">
         {t("weekly_contest.label", { defaultValue: "Weekly creator contest" })}
       </p>
-      <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
+      <h2 className={cn("mt-3 text-2xl font-black md:text-3xl", ink)}>
         {t("weekly_contest.judging_title", { defaultValue: "Judging is on — every vote moves the crown" })}
       </h2>
-      <p className="mt-1.5 max-w-2xl text-sm text-white/55">
+      <p className={cn("mt-1.5 max-w-2xl text-sm", sub)}>
         {t("weekly_contest.judging_sub", {
           defaultValue: "Entries are closed for \"{{title}}\". Rally votes on your favorites — the community crown decides.",
           title: challenge.title,
@@ -320,6 +336,12 @@ function JudgingCard({ challenge }: { challenge: WeeklyChallenge }) {
 /* ─── Winners: the confetti moment ──────────────────────────────────────── */
 function WinnersCard({ challenge }: { challenge: WeeklyChallenge }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const ink = isLight ? "text-[#2A2118]" : "text-white";
+  const sub = isLight ? "text-[#4A3B22]/70" : "text-white/55";
+  const ghostLink = isLight
+    ? "border-[#c9a84c]/40 text-[#4A3B22]/80"
+    : "border-white/15 text-white/75";
   const fresh = challenge.winners.some((w) => {
     if (!w.announced_at) return false;
     return Date.now() - new Date(w.announced_at).getTime() < 48 * 3_600_000;
@@ -331,11 +353,11 @@ function WinnersCard({ challenge }: { challenge: WeeklyChallenge }) {
       <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">
         {t("weekly_contest.label", { defaultValue: "Weekly creator contest" })}
       </p>
-      <h2 className="mt-3 flex items-center gap-2 text-2xl font-black text-white md:text-3xl">
+      <h2 className={cn("mt-3 flex items-center gap-2 text-2xl font-black md:text-3xl", ink)}>
         <Crown className="h-7 w-7 text-primary" />
         {t("weekly_contest.winners_dropped", { defaultValue: "Winners just dropped" })}
       </h2>
-      <p className="mt-1.5 text-sm text-white/55">
+      <p className={cn("mt-1.5 text-sm", sub)}>
         {t("weekly_contest.winners_sub", {
           defaultValue: "\"{{title}}\" is crowned — prizes paid in Visual Bucs.",
           title: challenge.title,
@@ -344,7 +366,7 @@ function WinnersCard({ challenge }: { challenge: WeeklyChallenge }) {
       {top.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {top.map((w) => (
-            <span key={w.place} className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.08] px-4 py-1.5 text-sm font-bold text-white">
+            <span key={w.place} className={cn("inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.08] px-4 py-1.5 text-sm font-bold", ink)}>
               {MEDAL[w.place - 1] ?? `#${w.place}`}
               {w.creator.display_name ? `@${w.creator.display_name}` : t("weekly_contest.a_creator", { defaultValue: "a creator" })}
               {w.prize_credits > 0 && (
@@ -361,7 +383,7 @@ function WinnersCard({ challenge }: { challenge: WeeklyChallenge }) {
           {t("weekly_contest.see_winners", { defaultValue: "See the winners' circle" })}
         </Link>
         <Link href="/winners"
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/75 hover:border-primary/50 hover:text-primary">
+          className={cn("inline-flex items-center gap-1.5 rounded-full border px-5 py-3 text-sm font-bold hover:border-primary/50 hover:text-primary", ghostLink)}>
           {t("weekly_contest.hall_of_fame", { defaultValue: "Hall of fame" })}
           <ChevronRight className="h-4 w-4" />
         </Link>
@@ -378,13 +400,17 @@ function NoContestCard({
   launchError: string | null; onLaunch: () => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const ink = isLight ? "text-[#2A2118]" : "text-white";
+  const sub = isLight ? "text-[#4A3B22]/70" : "text-white/55";
+  const adminInk = isLight ? "text-[#8a6d2f]" : "text-amber-200";
   const countdown = useCountdown(data.next_launch_at);
   return (
     <div className="relative">
       <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">
         {t("weekly_contest.label", { defaultValue: "Weekly creator contest" })}
       </p>
-      <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
+      <h2 className={cn("mt-3 text-2xl font-black md:text-3xl", ink)}>
         {t("weekly_contest.next_drop", { defaultValue: "The next contest drops Monday" })}
       </h2>
       {countdown && (
@@ -392,9 +418,9 @@ function NoContestCard({
           <Timer className="h-4 w-4" /> {countdown}
         </p>
       )}
-      <p className="mt-3 max-w-2xl text-sm text-white/55">
+      <p className={cn("mt-3 max-w-2xl text-sm", sub)}>
         {t("weekly_contest.next_drop_sub", {
-          defaultValue: "One theme. One week. {{cap}} in Visual Bucs on the line. Next up: \"{{theme}}\" (#{{hashtag}}).",
+          defaultValue: "One theme. One week. {{cap}} on the line. Next up: \"{{theme}}\" (#{{hashtag}}).",
           cap: formatBucs(data.weekly_cap_vb),
           theme: data.suggested_theme.title,
           hashtag: data.suggested_theme.hashtag,
@@ -402,7 +428,7 @@ function NoContestCard({
       </p>
       {isAdmin && (
         <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
-          <p className="text-sm font-bold text-amber-200">
+          <p className={cn("text-sm font-bold", adminInk)}>
             {t("weekly_contest.admin_nudge", {
               defaultValue: "Admin: this week's contest isn't live yet. One tap launches \"{{theme}}\" with the {{cap}} prize pool.",
               theme: data.suggested_theme.title,
@@ -440,16 +466,20 @@ function NoContestCard({
 /* ─── Last week's crowns — the loop never dead-ends ─────────────────────── */
 function LastWeekStrip({ lastWeek }: { lastWeek: LastWeek }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const ink = isLight ? "text-[#2A2118]" : "text-white";
+  const sub = isLight ? "text-[#4A3B22]/70" : "text-white/60";
+  const rule = isLight ? "border-[#c9a84c]/30" : "border-white/10";
   return (
-    <div className="mt-5 border-t border-white/10 pt-4">
+    <div className={cn("mt-5 border-t pt-4", rule)}>
       <Link href={`/challenge/${lastWeek.challenge_slug}/winners`}
         className="group flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-        <span className="inline-flex items-center gap-1.5 font-black text-white">
+        <span className={cn("inline-flex items-center gap-1.5 font-black", ink)}>
           <Crown className="h-4 w-4 text-primary" />
           {t("weekly_contest.last_week", { defaultValue: "Last week's crowns" })}
         </span>
         {lastWeek.winners.slice(0, 3).map((w) => (
-          <span key={w.place} className="text-white/60">
+          <span key={w.place} className={sub}>
             {MEDAL[w.place - 1] ?? `#${w.place}`} @{w.creator.display_name ?? w.creator.slug ?? "?"}
           </span>
         ))}
