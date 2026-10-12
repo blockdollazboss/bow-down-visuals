@@ -4,8 +4,8 @@ import express from "express";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { mkdtemp, writeFile, rm } from "fs/promises";
-import { existsSync, statSync, readFileSync } from "fs";
+import { mkdtemp, writeFile, rm, mkdir, unlink } from "fs/promises";
+import { existsSync, statSync, readFileSync, createReadStream } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
@@ -655,7 +655,11 @@ interface SceneTestJob {
 }
 
 const sceneTestJobs = new Map<string, SceneTestJob>();
-const sceneTestBuffers = new Map<string, Buffer>(); // fallback in-memory download
+/* 2026-10-12 OOM fix: the fallback download used to pin whole rendered
+   clips in RAM (Map<string, Buffer>) for up to 2h. It now spills to a
+   temp file on disk; the Map holds only the file path. */
+const sceneTestBuffers = new Map<string, string>(); // jobId -> fallback file path
+const SCENE_TEST_FALLBACK_DIR = join(tmpdir(), "scene-test-fallback");
 
 setInterval(
   () => {
@@ -663,7 +667,9 @@ setInterval(
     for (const [id, job] of sceneTestJobs) {
       if (new Date(job.createdAt).getTime() < cutoff) {
         sceneTestJobs.delete(id);
+        const fallbackPath = sceneTestBuffers.get(id);
         sceneTestBuffers.delete(id);
+        if (fallbackPath) void unlink(fallbackPath).catch(() => {});
       }
     }
   },
@@ -891,9 +897,12 @@ async function processSceneTestJob(
         "DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — using fallback download";
     }
 
-    /* ── 7: Fallback — serve via in-memory download route ───────────────── */
+    /* ── 7: Fallback — serve via on-disk download route ────────────────── */
     if (!signedUrl) {
-      sceneTestBuffers.set(jobId, fileBuffer);
+      await mkdir(SCENE_TEST_FALLBACK_DIR, { recursive: true });
+      const fallbackPath = join(SCENE_TEST_FALLBACK_DIR, `${jobId}.mp4`);
+      await writeFile(fallbackPath, fileBuffer);
+      sceneTestBuffers.set(jobId, fallbackPath);
       const fallbackUrl = `/api/lip-sync-tests/${jobId}/download`;
       dbg({ storageMethod: "fallback-download", resultUrl: fallbackUrl });
       update({
@@ -929,28 +938,28 @@ async function processSceneTestJob(
 
 /* ──────────────────────────────────────────────────────────────────────────
    GET /api/lip-sync-tests/:testId/download
-   Fallback download route — serves the rendered MP4 from memory when
-   Replit object-storage signing fails.  No auth required; the UUID testId
-   is unguessable and acts as the bearer token.
+   Fallback download route — streams the rendered MP4 from a temp file
+   when Replit object-storage signing fails.  No auth required; the UUID
+   testId is unguessable and acts as the bearer token.
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync-tests/:testId/download", (req, res) => {
   const paramId = req.params["testId"];
   const testId = Array.isArray(paramId) ? (paramId[0] ?? "") : (paramId ?? "");
-  const buf = sceneTestBuffers.get(testId);
-  if (!buf) {
+  const fallbackPath = sceneTestBuffers.get(testId);
+  if (!fallbackPath || !existsSync(fallbackPath)) {
     res
       .status(404)
       .json({ error: "Test file not found or expired", code: "not_found" });
     return;
   }
   res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Length", String(buf.length));
+  res.setHeader("Content-Length", String(statSync(fallbackPath).size));
   res.setHeader(
     "Content-Disposition",
     `attachment; filename="scene-test-${testId.slice(0, 8)}.mp4"`,
   );
   res.setHeader("Cache-Control", "private, max-age=7200");
-  res.end(buf);
+  createReadStream(fallbackPath).pipe(res);
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
