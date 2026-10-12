@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
-  Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, Hash,
+  Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, ArrowRight, Hash, GalleryHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -207,7 +207,9 @@ export default function Promote() {
         </div>
       </section>
 
-      {/* Tab bar: Promo Copy | Link in Bio (builder docked, no new sidebar item) */}
+      {/* Tab bar: Promo Copy | Link in Bio (builder docked, no new sidebar item).
+          Carousel Maker stays its own tool page, so it rides the tab bar as a
+          link-out — it was orphaned with zero inbound links before this. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8">
         <div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-1.5">
           {(
@@ -228,6 +230,13 @@ export default function Promote() {
               {tb.label}
             </button>
           ))}
+          <Link
+            href="/carousel-maker"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold text-white/55 transition hover:text-white"
+          >
+            <GalleryHorizontal className="h-4 w-4" />
+            {t("promote.tabs.carouselMaker", { defaultValue: "Carousel Maker" })}
+          </Link>
         </div>
       </div>
 
@@ -385,6 +394,24 @@ export default function Promote() {
                 </div>
               )}
             </div>
+
+            {/* Next step in the promote flow: turn the drop into a swipeable
+                social carousel (Carousel Maker, 100 Visual Bucs per export). */}
+            <Link
+              href="/carousel-maker"
+              className="group mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/[0.08] to-transparent px-5 py-4 transition hover:border-primary/50"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <GalleryHorizontal className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-white">{t("promote.results.carouselTitle", { defaultValue: "Turn this drop into a carousel" })}</span>
+                <span className="block text-xs text-white/50">{t("promote.results.carouselBody", { defaultValue: "Design a scroll-stopping Instagram/TikTok carousel for this release in the Carousel Maker." })}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-primary transition group-hover:translate-x-0.5">
+                {t("promote.results.carouselCta", { defaultValue: "Open Carousel Maker" })} <ArrowRight className="h-4 w-4" />
+              </span>
+            </Link>
           </div>
         )}
 
