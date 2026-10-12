@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { formatBucs, formatBucsShort } from "@/lib/visual-bucs";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ function useCountdown(target: string | null): string | null {
 }
 
 export default function ChallengePage() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/challenge/:slug");
   const slug = params?.slug ?? "";
   const [, navigate] = useLocation();
@@ -157,14 +159,14 @@ export default function ChallengePage() {
   };
 
   if (loading) {
-    return <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-black"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center ${isLight ? "" : "bg-black"}`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   if (!data || !challenge) {
     return (
-      <div className="flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 bg-black px-6 text-center">
-        <Trophy className="h-12 w-12 text-white/20" />
-        <h1 className="text-xl font-bold text-white">No challenge by that name.</h1>
-        <p className="text-white/50">Start it yourself — the crown's empty.</p>
+      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center ${isLight ? "" : "bg-black"}`}>
+        <Trophy className={`h-12 w-12 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
+        <h1 className={`text-xl font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>No challenge by that name.</h1>
+        <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>Start it yourself — the crown's empty.</p>
         <Link href="/shorts" className="rounded-full bg-primary px-6 py-2.5 font-bold text-black">Back to Shorts</Link>
       </div>
     );
@@ -176,8 +178,8 @@ export default function ChallengePage() {
   const canVote = challenge.status === "live" || challenge.status === "judging";
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-black px-4 py-6 md:px-8">
-      <Link href="/shorts" className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 hover:text-primary">
+    <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
+      <Link href="/shorts" className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
         <ArrowLeft className="h-4 w-4" /> Back to Shorts
       </Link>
 
@@ -189,12 +191,12 @@ export default function ChallengePage() {
         {challenge.cover_url && (
           <img src={challenge.cover_url} alt={challenge.title} className="h-56 w-full object-cover md:h-72" />
         )}
-        <div className={challenge.cover_url ? "absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" : "bg-gradient-to-br from-zinc-950 to-zinc-900"}>
+        <div {...(challenge.cover_url ? { "data-dark-lock": true } : {})} className={challenge.cover_url ? "absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" : isLight ? "bg-[linear-gradient(135deg,#FCF7EA,#F4E7C3_55%,#EDDCAC)]" : "bg-gradient-to-br from-zinc-950 to-zinc-900"}>
           <div className="flex h-full flex-col justify-end p-6">
             <p className="text-xs font-bold uppercase tracking-widest text-primary">#{challenge.hashtag}</p>
-            <h1 className="mt-1 text-3xl font-black text-white md:text-4xl">{challenge.title}</h1>
-            {challenge.description && <p className="mt-2 max-w-2xl text-sm text-white/70">{challenge.description}</p>}
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/60">
+            <h1 className={`mt-1 text-3xl font-black md:text-4xl ${!challenge.cover_url && isLight ? "text-[#2A1E07]" : "text-white"}`}>{challenge.title}</h1>
+            {challenge.description && <p className={`mt-2 max-w-2xl text-sm ${!challenge.cover_url && isLight ? "text-[#6B5B36]" : "text-white/70"}`}>{challenge.description}</p>}
+            <div className={`mt-3 flex flex-wrap items-center gap-4 text-sm ${!challenge.cover_url && isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
               <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /> {fmt(challenge.entry_count)} entries</span>
               <span className="inline-flex items-center gap-1.5"><Eye className="h-4 w-4 text-primary" /> {fmt(challenge.total_views)} views</span>
             </div>
@@ -205,7 +207,7 @@ export default function ChallengePage() {
                   <Trophy className="h-4 w-4" /> {formatBucs(challenge.prize_pool_credits)} prize pool
                 </span>
                 {challenge.prizes.slice(0, 3).map((p) => (
-                  <span key={p.place} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-white/80">
+                  <span key={p.place} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${!challenge.cover_url && isLight ? "bg-[#C9A84C]/15 text-[#7A5A12]" : "bg-white/5 text-white/80"}`}>
                     {p.place === 1 ? "🥇" : p.place === 2 ? "🥈" : "🥉"} {formatBucsShort(p.prize_credits)} VB
                   </span>
                 ))}
@@ -215,7 +217,7 @@ export default function ChallengePage() {
                 <Trophy className="h-4 w-4" /> Prize: {challenge.prize_text}
               </p>
             ) : (
-              <p className="mt-3 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm text-white/60">
+              <p className={`mt-3 inline-flex w-fit items-center gap-2 rounded-full border px-4 py-1.5 text-sm ${!challenge.cover_url && isLight ? "border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#6B5B36]" : "border-white/15 bg-white/5 text-white/60"}`}>
                 <BadgeDollarSign className="h-4 w-4 text-primary" /> No prize posted — win the clout, keep the crown
               </p>
             )}
@@ -224,10 +226,10 @@ export default function ChallengePage() {
       </div>
 
       {/* join flow — the creation loop */}
-      <div className="mb-8 flex flex-col items-start gap-3 rounded-2xl border border-primary/25 bg-zinc-950 p-5 md:flex-row md:items-center">
+      <div className={`mb-8 flex flex-col items-start gap-3 rounded-2xl border p-5 md:flex-row md:items-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
         <div className="flex-1">
-          <h2 className="text-lg font-black text-white">Run the challenge. Keep the bag.</h2>
-          <p className="mt-1 text-sm text-white/55">
+          <h2 className={`text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Run the challenge. Keep the bag.</h2>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
             Post your entry with <span className="font-bold text-primary">#{challenge.hashtag}</span> and it lands here automatically.
             {canVote && " Rally votes — the community crown decides the winners."}
             {challenge.prize_pool_credits > 0 && ` ${formatBucs(challenge.prize_pool_credits)} on the line, paid straight to winners.`}
@@ -257,7 +259,7 @@ export default function ChallengePage() {
       {/* entry grid — vote for the crown */}
       <section className="mb-10">
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-black text-white">Entries ({fmt(data.entries.length)})</h2>
+          <h2 className={`text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Entries ({fmt(data.entries.length)})</h2>
           <div className="ml-auto flex rounded-full bg-white/5 p-1 text-xs font-bold">
             <button onClick={() => setSort("votes")}
               className={cn("rounded-full px-3 py-1.5", sort === "votes" ? "bg-primary text-black" : "text-white/60 hover:text-white")}>
@@ -270,8 +272,8 @@ export default function ChallengePage() {
           </div>
         </div>
         {entries.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
-            <p className="text-white/50">No entries yet. First one in sets the bar — and the price.</p>
+          <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
+            <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>No entries yet. First one in sets the bar — and the price.</p>
             <Link href={joinHref} className="mt-4 inline-block rounded-full bg-primary px-6 py-2.5 font-bold text-black">
               Be the first entry
             </Link>
@@ -321,24 +323,24 @@ export default function ChallengePage() {
           </div>
         )}
         {canVote && (
-          <p className="mt-3 text-xs text-white/40">One vote per entry. No voting your own — your fans have to do that. 🦈</p>
+          <p className={`mt-3 text-xs ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>One vote per entry. No voting your own — your fans have to do that. 🦈</p>
         )}
       </section>
 
       {/* more challenges — the loop never dead-ends */}
       {more.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-black text-white">More challenges running</h2>
+          <h2 className={`mb-3 text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>More challenges running</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {more.map((c) => (
               <Link key={c.slug} href={`/challenge/${c.slug}`}
-                className="rounded-xl border border-white/10 bg-zinc-950 p-4 hover:border-primary/40">
-                <p className="font-bold text-white">{c.title}</p>
+                className={`rounded-xl border p-4 hover:border-primary/40 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]" : "border-white/10 bg-zinc-950"}`}>
+                <p className={`font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{c.title}</p>
                 <p className="text-xs text-primary">#{c.hashtag} · {fmt(c.entry_count)} entries</p>
                 {(c.prize_pool_credits ?? 0) > 0 ? (
                   <p className="mt-1 text-xs font-bold text-primary">🏆 {formatBucs(c.prize_pool_credits!)} prize pool</p>
                 ) : c.prize_text ? (
-                  <p className="mt-1 text-xs text-white/60">🏆 {c.prize_text}</p>
+                  <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>🏆 {c.prize_text}</p>
                 ) : null}
               </Link>
             ))}
@@ -351,12 +353,13 @@ export default function ChallengePage() {
 
 /* ─── Lifecycle banner: upcoming → live (countdown) → judging → winners ─── */
 function LifecycleBanner({ status, countdown, slug }: { status: Lifecycle; countdown: string | null; slug: string }) {
+  const isLight = useIsLightTheme();
   if (status === "winners") {
     return (
       <Link href={`/challenge/${slug}/winners`}
         className="mb-6 flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3.5 hover:bg-primary/15">
         <Crown className="h-5 w-5 shrink-0 text-primary" />
-        <p className="text-sm font-bold text-white">The crowns have been handed out — see the winners' circle.</p>
+        <p className={`text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-white"}`}>The crowns have been handed out — see the winners' circle.</p>
         <ChevronRight className="ml-auto h-4 w-4 text-primary" />
       </Link>
     );
@@ -368,13 +371,13 @@ function LifecycleBanner({ status, countdown, slug }: { status: Lifecycle; count
   };
   const c = copy[status];
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-zinc-950 px-5 py-3.5">
+    <div className={`mb-6 flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-3.5 ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
       <span className="relative flex h-2.5 w-2.5">
         {status === "live" && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />}
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
       </span>
       <p className="text-sm font-black uppercase tracking-widest text-primary">{c.label}</p>
-      <p className="text-sm text-white/55">{c.sub}</p>
+      <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{c.sub}</p>
       {countdown && (
         <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-sm font-black text-primary">
           <Timer className="h-4 w-4" /> {countdown}
