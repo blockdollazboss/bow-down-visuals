@@ -77,9 +77,12 @@ export function ThyCheatCodeHost() {
     return (
       <div className="absolute top-2 left-4 sm:left-6 lg:left-8 z-[30]">
         <button
-          data-dark-lock
           onClick={expand}
-          className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
+          className={`inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 py-1.5 pl-2 pr-4 text-sm transition hover:border-[#C9A84C]/70 ${
+            isLight
+              ? "bg-[#FBF6E9]/90 text-[#6B5B36] shadow-[0_4px_18px_rgba(122,90,18,0.25)] hover:text-[#2A1E07]"
+              : "bg-black/60 text-neutral-300 hover:text-white"
+          }`}
           style={{ imageRendering: "pixelated" }}
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
@@ -94,8 +97,8 @@ export function ThyCheatCodeHost() {
             />
           </span>
           <span>
-            <span className="tcc-display text-sm text-[#E8C96A]">THY CHEAT CODE</span>
-            <span className="tcc-accent text-xs text-neutral-400"> · TIPS FOR THIS PAGE</span>
+            <span className={`tcc-display text-sm ${isLight ? "text-[#7A5A12]" : "text-[#E8C96A]"}`}>THY CHEAT CODE</span>
+            <span className={`tcc-accent text-xs ${isLight ? "text-[#8A7A56]" : "text-neutral-400"}`}> · TIPS FOR THIS PAGE</span>
           </span>
         </button>
       </div>
