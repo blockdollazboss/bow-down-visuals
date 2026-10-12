@@ -1647,28 +1647,9 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-    {/* Curtain overlay — both themes get the theatrical stage curtains.
-          Dark uses the original gold curtains; light uses the same curtains
-          lightened to ivory via CSS filter. Same setup, different mood. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[1]"
-        style={{
-          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-          ...(isLight ? { filter: "brightness(2.8) sepia(0.25) saturate(0.7)", opacity: 0.85 } : {}),
-        }}
-      />
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
-      {/* Content layer — above the curtain overlay (z-[1]) so the drapes
-          frame the backdrop only and never veil a card or a line of text
-          (owner screenshot, 2026-10-12: Built-for grid's outer columns
-          slid under the drapes and lost text). */}
-      <div className="relative z-[2]">
       <HeroSection isLight={isLight} />
       {/* The set stands on the hero/band seam — camera + lights cover the
           straight edges the backdrop and fog print there (owner, 2026-10-12). */}
@@ -1695,7 +1676,6 @@ export default function Home() {
       <SectionDivider />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
-      </div>
     </div>
     </>
   );

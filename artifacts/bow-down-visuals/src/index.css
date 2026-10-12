@@ -970,13 +970,6 @@ html, body {
     linear-gradient(180deg, rgba(28,23,18,0.15) 0%, transparent 30%, rgba(28,23,18,0.10) 100%);
 }
 
-/* Curtain overlay in light mode: lift the shadows so the gold drapes
-   read as sunlit velvet, not a dark frame on a light stage. */
-.light .no-throne-bg ~ div[style*="home-curtains-overlay"] {
-  filter: brightness(1.12) saturate(1.08);
-  opacity: 0.94;
-}
-
 /* ── Typography: deep espresso ink, never washed gray ── */
 .light .no-throne-bg h1:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #14100B;
