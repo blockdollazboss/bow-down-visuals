@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,9 +10,12 @@ import {
   Trash2, Wand2, Disc3, Scissors, Store, Music4, Timer, KeyRound,
   SlidersHorizontal, Lock, Tag, AudioWaveform, ArrowLeft, AlertTriangle,
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
-  Cloud, Footprints, Library, Package, Check, Sparkles,
+  Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
+  Volume2, VolumeX, Clapperboard, Piano,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { stashBeatHandoff } from "@/lib/beat-handoff";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
@@ -307,15 +310,17 @@ const TRACKS = [
   { id: "b808",  labelKey: "beatMaker.track808",       color: "bg-violet-400" },
   { id: "perc",  labelKey: "beatMaker.trackPerc",      color: "bg-emerald-400" },
   { id: "shk",   labelKey: "beatMaker.trackShaker",    color: "bg-lime-300" },
+  { id: "crash", labelKey: "beatMaker.trackCrash",     color: "bg-fuchsia-400" },
 ] as const;
 
 type TrackId = typeof TRACKS[number]["id"];
 const STEPS = 16;
 
 /* Synthesize one drum hit at time t. All sounds are oscillator/noise based —
-   no samples, no network. */
-function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode) {
+   no samples, no network. vel: 1 = normal, >1 = accent. */
+function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode, vel = 1) {
   const g = ctx.createGain();
+  g.gain.value = vel;
   g.connect(dest);
 
   if (id === "kick") {
@@ -323,7 +328,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     o.type = "sine";
     o.frequency.setValueAtTime(160, t);
     o.frequency.exponentialRampToValueAtTime(42, t + 0.11);
-    g.gain.setValueAtTime(1, t);
+    g.gain.setValueAtTime(vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
     o.connect(g); o.start(t); o.stop(t + 0.26);
   } else if (id === "b808") {
@@ -331,7 +336,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     o.type = "sine";
     o.frequency.setValueAtTime(110, t);
     o.frequency.exponentialRampToValueAtTime(48, t + 0.3);
-    g.gain.setValueAtTime(0.9, t);
+    g.gain.setValueAtTime(0.9 * vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
     o.connect(g); o.start(t); o.stop(t + 0.6);
   } else if (id === "snare") {
@@ -339,7 +344,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     const o = ctx.createOscillator();
     o.type = "triangle"; o.frequency.setValueAtTime(190, t);
     const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0.5, t);
+    g2.gain.setValueAtTime(0.5 * vel, t);
     g2.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
     o.connect(g2); g2.connect(dest); o.start(t); o.stop(t + 0.12);
   } else if (id === "clap") {
@@ -349,16 +354,51 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     noiseBurst(ctx, t, 0.05, 8000, g, 0.32, "highpass");
   } else if (id === "ohat") {
     noiseBurst(ctx, t, 0.32, 7500, g, 0.3, "highpass");
+  } else if (id === "crash") {
+    noiseBurst(ctx, t, 1.1, 5200, g, 0.34, "highpass");
+    noiseBurst(ctx, t, 0.5, 9000, g, 0.18, "highpass");
   } else if (id === "perc") {
     const o = ctx.createOscillator();
     o.type = "square"; o.frequency.setValueAtTime(620, t);
-    g.gain.setValueAtTime(0.22, t);
+    g.gain.setValueAtTime(0.22 * vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
     o.connect(g); o.start(t); o.stop(t + 0.1);
   } else { // shk
     noiseBurst(ctx, t, 0.09, 6000, g, 0.18, "highpass");
   }
 }
+
+/* 808 bass note with a short pitch glide into the target. midi: 24 (C1)..47 (B2). */
+function synthBass(ctx: BaseAudioContext, midi: number, t: number, dest: AudioNode, vel = 1, prevMidi: number | null = null) {
+  const f = 440 * Math.pow(2, (midi - 69) / 12);
+  const o = ctx.createOscillator();
+  o.type = "sine";
+  if (prevMidi != null) {
+    const pf = 440 * Math.pow(2, (prevMidi - 69) / 12);
+    o.frequency.setValueAtTime(Math.max(20, pf), t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f), t + 0.045);
+  } else {
+    o.frequency.setValueAtTime(Math.max(20, f), t);
+  }
+  const o2 = ctx.createOscillator();
+  o2.type = "triangle";
+  o2.frequency.setValueAtTime(Math.max(20, f * 2), t);
+  const g = ctx.createGain();
+  const g2 = ctx.createGain();
+  g2.gain.value = 0.16;
+  const dur = 0.85;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.9 * vel, t + 0.014);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); o2.connect(g2); g2.connect(g); g.connect(dest);
+  o.start(t); o.stop(t + dur + 0.05);
+  o2.start(t); o2.stop(t + dur + 0.05);
+}
+
+export const midiToNoteName = (midi: number): string => {
+  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+};
 
 function noiseBurst(
   ctx: BaseAudioContext, t: number, dur: number, freq: number,

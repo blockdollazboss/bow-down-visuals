@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, SkipBack, ZoomIn, ZoomOut, Scissors, Film, Music2,
   AlertTriangle, RotateCcw, PlusSquare, RefreshCw, Repeat, LayoutList, Waves, ChevronDown, ChevronUp,
-  Snowflake, Loader2, X, Share2, Download,
+  Snowflake, Loader2, X, Share2, Download, Copy, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -115,6 +115,9 @@ export function TimelineDock({
   const [beatLoading, setBeatLoading] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSync, setShowSync] = useState(false);
+  /* Multi-select: shift+click adds clips to the selection for batch delete/duplicate. */
+  const [multiSelected, setMultiSelected] = useState<Set<number>>(new Set());
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const dockRootRef = useRef<HTMLDivElement | null>(null);
@@ -583,22 +586,107 @@ export function TimelineDock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splitScene, canSplit, setScenes, playheadIdx, currentTime, splitStart, splitDur, clipEdits, settings, setSettings, snapEnabled, beatGrid]);
 
-  /* ── Keyboard shortcut: "S" splits the clip under the playhead (ignored while typing) ── */
+  /* ── Delete selected clip(s) — removes from scenes + cleans clip edits.
+      Ripple: remaining clips close the gap automatically (flex-basis layout). ── */
+  const doDelete = useCallback(() => {
+    if (selectedIdx == null || !setScenes) return;
+    const idxs = [...new Set([selectedIdx, ...multiSelected])].sort((a, b) => a - b);
+    if (idxs.length === 0 || idxs.some((i) => i < 0 || i >= scenes.length)) return;
+    const idsToRemove = new Set(idxs.map((i) => scenes[i]!.id));
+    const nextScenes = scenes.filter((s) => !idsToRemove.has(s.id));
+    setScenes(nextScenes);
+    const nextClips = { ...clipEdits };
+    for (const id of idsToRemove) delete nextClips[id];
+    setSettings({ ...settings, clips: nextClips });
+    setSelectedIdx(null);
+    setMultiSelected(new Set());
+    toast({ title: `Deleted ${idxs.length} clip${idxs.length > 1 ? "s" : ""}` });
+  }, [selectedIdx, multiSelected, scenes, setScenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  /* ── Duplicate selected clip(s) — inserts copies right after the originals ── */
+  const doDuplicate = useCallback(() => {
+    if (selectedIdx == null || !setScenes) return;
+    const idxs = [...new Set([selectedIdx, ...multiSelected])].sort((a, b) => a - b);
+    if (idxs.length === 0 || idxs.some((i) => i < 0 || i >= scenes.length)) return;
+    const nextScenes = [...scenes];
+    const nextClips = { ...clipEdits };
+    // Insert from the end so earlier indices stay valid.
+    for (let k = idxs.length - 1; k >= 0; k--) {
+      const i = idxs[k]!;
+      const orig = scenes[i]!;
+      const newId = genId();
+      const copy: SceneData = {
+        ...orig,
+        id: newId,
+        sceneNumber: orig.sceneNumber + 0.5,
+        timestamp: orig.timestamp,
+      };
+      nextScenes.splice(i + 1, 0, copy);
+      const ce = clipEdits[orig.id];
+      if (ce) nextClips[newId] = { ...ce, useLipSync: false, lipSyncUrl: null, lipSyncStatus: null, lipSyncJobId: null };
+    }
+    setScenes(nextScenes);
+    setSettings({ ...settings, clips: nextClips });
+    setSelectedIdx(idxs[0]! + 1);
+    setMultiSelected(new Set());
+    toast({ title: `Duplicated ${idxs.length} clip${idxs.length > 1 ? "s" : ""}` });
+  }, [selectedIdx, multiSelected, scenes, setScenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  /* ── Keyboard shortcuts: S = split · Delete/Backspace = delete selected ·
+      Ctrl/Cmd+D = duplicate (ignored while typing) ── */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() !== "s" || e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      const key = e.key.toLowerCase();
+      // Duplicate: Ctrl/Cmd+D
+      if ((e.metaKey || e.ctrlKey) && key === "d") {
+        if (selectedIdx == null) return;
+        e.preventDefault();
+        doDuplicate();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Delete / Backspace: delete selected clip(s)
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedIdx == null) return;
+        e.preventDefault();
+        doDelete();
+        return;
+      }
+      // "?" toggles the shortcuts panel
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcuts((s) => !s);
+        return;
+      }
+      if (key !== "s") return;
       if (!canSplit) return;
       e.preventDefault();
       doSplit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canSplit, doSplit]);
+  }, [canSplit, doSplit, doDelete, doDuplicate, selectedIdx]);
 
-  const isSelected = (i: number) => selectedIdx === i;
+  const isSelected = (i: number) => selectedIdx === i || multiSelected.has(i);
   const dockHidden = !!settings.timelineDockHidden;
+
+  /* ── Clip click: plain click selects one; shift+click toggles multi-select ── */
+  const handleClipClick = useCallback((e: React.MouseEvent, i: number) => {
+    e.stopPropagation();
+    if (e.shiftKey && selectedIdx != null && selectedIdx !== i) {
+      setMultiSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(i)) next.delete(i);
+        else next.add(i);
+        return next;
+      });
+    } else {
+      setSelectedIdx(selectedIdx === i && multiSelected.size === 0 ? null : i);
+      setMultiSelected(new Set());
+    }
+  }, [selectedIdx, multiSelected, setSelectedIdx]);
 
   /* ── Report the dock's rendered height so floating UI (e.g. the master player) can avoid overlapping it ── */
   useEffect(() => {
@@ -738,6 +826,19 @@ export function TimelineDock({
           <Scissors className="h-3 w-3" /> Split
         </button>
 
+        <button type="button" onClick={doDuplicate} disabled={selectedIdx == null || !setScenes}
+          data-testid="timeline-dock-duplicate" title="Duplicate selected clip(s) (Ctrl+D)"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground border border-border hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+          <Copy className="h-3 w-3" /> Duplicate
+        </button>
+
+        <button type="button" onClick={doDelete} disabled={selectedIdx == null || !setScenes}
+          data-testid="timeline-dock-delete" title="Delete selected clip(s) (Delete)"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
+            text-red-400/90 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300">
+          <Trash2 className="h-3 w-3" /> Delete
+        </button>
+
         <button type="button" onClick={doFreeze} disabled={!canFreeze}
           data-testid="timeline-dock-freeze" title={t("videoEditor.freezeTitle")}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
@@ -806,7 +907,7 @@ export function TimelineDock({
 
         <span className="text-[9px] text-muted-foreground/60 hidden md:inline">
           {isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
-          drag edges to trim · drag waveform to select export range · S to split
+          drag edges to trim · drag waveform to select export range · S to split · Del to delete · Ctrl+D to duplicate · Shift+click multi-select
         </span>
 
         <div className="flex items-center gap-1">
@@ -827,7 +928,54 @@ export function TimelineDock({
           className="flex items-center gap-1 p-1.5 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors">
           <ChevronDown className="h-3.5 w-3.5" />
         </button>
+
+        <button type="button" onClick={() => setShowShortcuts((s) => !s)}
+          data-testid="timeline-dock-shortcuts"
+          title="Keyboard shortcuts (?)"
+          className={`flex items-center justify-center h-7 w-7 rounded-lg border text-[11px] font-black transition-colors ${
+            showShortcuts ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground/70 border-border hover:text-foreground"
+          }`}>
+          ?
+        </button>
       </div>
+
+      {/* ── Keyboard shortcuts panel ── */}
+      {showShortcuts && (
+        <div className="border-b border-white/10 bg-black px-3 md:px-6 py-3" data-testid="timeline-dock-shortcuts-panel">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-black text-[#C9A84C] uppercase tracking-widest">Keyboard shortcuts</p>
+            <button type="button" onClick={() => setShowShortcuts(false)}
+              className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors" aria-label="Close shortcuts">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-1.5">
+            {[
+              ["Space", "Play / pause"],
+              ["S", "Split clip at playhead"],
+              ["Delete / Backspace", "Delete selected clip(s)"],
+              ["Ctrl+D", "Duplicate selected clip(s)"],
+              ["Shift+Click", "Multi-select clips"],
+              ["← / →", "Seek 5s (Shift: prev/next clip)"],
+              ["J / L", "Rewind / fast-forward 10s"],
+              [", / .", "Step one frame"],
+              ["Home", "Restart from 0:00"],
+              ["M", "Mute / unmute"],
+              ["F", "Fullscreen"],
+              ["P", "Picture-in-picture"],
+              ["T", "Theater mode"],
+              ["Ctrl+Z", "Undo"],
+              ["Ctrl+Shift+Z / Ctrl+Y", "Redo"],
+              ["Esc", "Close panels / exit theater"],
+            ].map(([keys, desc]) => (
+              <div key={keys} className="flex items-center gap-2 text-[11px]">
+                <kbd className="shrink-0 px-1.5 py-0.5 rounded border border-white/15 bg-white/5 font-mono text-[10px] text-white/80">{keys}</kbd>
+                <span className="text-white/55 truncate">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Sync status panel — migrated from the removed VideoTimeline component ── */}
       {showSync && (
@@ -1059,7 +1207,7 @@ export function TimelineDock({
                           boxShadow: selected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : hasOverlap ? "0 0 0 1px #f472b655" : undefined,
                           cursor: "grab",
                         }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                        onClick={(e) => handleClipClick(e, i)}
                         data-testid={`timeline-dock-clip-${i}`}
                       >
                         {trimStart > 0 && clipDur > 0 && (
@@ -1127,7 +1275,7 @@ export function TimelineDock({
                                 opacity: isDragging ? 0.6 : 1,
                                 cursor: "grab",
                               }}
-                              onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                              onClick={(e) => handleClipClick(e, i)}
                               data-testid={`timeline-dock-clip-${i}`}
                             >
                               {/* Actual video frame — first frame of the attached clip, dimmed behind the label */}

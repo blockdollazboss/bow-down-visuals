@@ -13,7 +13,13 @@
  * tape-noise core; the full VHS (scanlines + tracking-line wobble) needs
  * extra overlay inputs and renders through POST /api/cinematic-fx instead.
  * The master player labels that honestly ("preview approximates — export is
- * the real thing"). */
+ * the real thing").
+ *
+ * Dedicated chains also exist for "Film Grain+" (heavier animated noise)
+ * and "Chromatic Aberration" (real rgbashift split) — the other new effects
+ * (Duotone, Sepia+, Infrared-look, Night Vision, Comic / Halftone, Emboss,
+ * Edge Detect Glow) translate losslessly through the generic CSS path since
+ * they only use grayscale/sepia/brightness/contrast/saturate/hue-rotate. */
 
 export const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Film Grain": "contrast(108%) brightness(97%)",
@@ -45,6 +51,15 @@ export const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Luxury Gold": "sepia(65%) saturate(175%) brightness(112%) contrast(108%)",
   "Dark Drill": "brightness(72%) contrast(148%) saturate(55%)",
   "Cinematic Contrast": "contrast(155%) saturate(88%) brightness(90%)",
+  Duotone: "grayscale(100%) contrast(120%) sepia(55%) hue-rotate(-10deg) brightness(105%)",
+  "Sepia+": "sepia(80%) contrast(105%) brightness(102%)",
+  "Infrared-look": "hue-rotate(-120deg) saturate(160%) contrast(125%) brightness(105%)",
+  "Night Vision": "hue-rotate(90deg) saturate(200%) brightness(110%) contrast(130%)",
+  "Comic / Halftone": "contrast(150%) saturate(180%) brightness(105%)",
+  Emboss: "grayscale(60%) contrast(160%) brightness(115%)",
+  "Edge Detect Glow": "contrast(170%) saturate(150%) brightness(110%)",
+  "Film Grain+": "contrast(110%) brightness(96%)",
+  "Chromatic Aberration": "saturate(120%) contrast(108%)",
 };
 
 const clamp = (n: number, lo: number, hi: number) =>
@@ -161,6 +176,18 @@ export const BW_GOLD_BLEND_FFMPEG =
 export const FILM_GRAIN_FFMPEG =
   "noise=alls=7:allf=t,eq=contrast=1.08:brightness=-0.015";
 
+/** Heavier animated film grain — the "Film Grain+" preset's true burn:
+ *  double the temporal noise of Film Grain with a touch more contrast. */
+export const FILM_GRAIN_PLUS_NAME = "Film Grain+";
+export const FILM_GRAIN_PLUS_FFMPEG =
+  "noise=alls=14:allf=t,eq=contrast=1.10:brightness=-0.02";
+
+/** True chromatic aberration — the CSS preview is only a color hint, so the
+ *  burn applies a real RGB channel split (red/blue shifted ±5px). */
+export const CA_NAME = "Chromatic Aberration";
+export const TRUE_CA_FFMPEG =
+  "eq=saturation=1.20:contrast=1.08,rgbashift=rh=5:gh=0:bh=-5";
+
 /* ── True Cinematic FX (CapCut parity) ───────────────────────────────────────
  * Real burned versions of the effects that were previously CSS-preview
  * approximations. These chains are what POST /api/cinematic-fx burns AND
@@ -250,6 +277,10 @@ export function ffmpegForEffect(name: string): {
     return { ffmpeg: LUXURY_GOLD_FFMPEG, supported: true, type: "color-grade" };
   if (name === FILM_GRAIN_NAME)
     return { ffmpeg: FILM_GRAIN_FFMPEG, supported: true, type: "filter" };
+  if (name === FILM_GRAIN_PLUS_NAME)
+    return { ffmpeg: FILM_GRAIN_PLUS_FFMPEG, supported: true, type: "filter" };
+  if (name === CA_NAME)
+    return { ffmpeg: TRUE_CA_FFMPEG, supported: true, type: "filter" };
   if (name === VHS_NAME)
     return { ffmpeg: TRUE_VHS_FFMPEG, supported: true, type: "filter" };
   if (name === CINEMATIC_BARS_NAME)
