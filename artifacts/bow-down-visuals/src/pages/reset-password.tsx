@@ -72,7 +72,7 @@ export default function ResetPassword() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg">
       <video
         ref={bgVideoRef}
-        src={mediaUrl("videos/signin-drone-bg.mp4")}
+        src={mediaUrl("videos/signin-drone-bg-web.mp4")}
         muted
         playsInline
         preload="auto"

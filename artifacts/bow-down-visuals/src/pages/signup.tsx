@@ -169,7 +169,7 @@ export default function Signup() {
         <video
           ref={bgVideoRef}
           key={isLight ? "light" : "dark"}
-          src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
+          src={mediaUrl(isLight ? "videos/signup-light-action-web.mp4" : "videos/signin-drone-bg-web.mp4")}
           muted
           playsInline
           preload="auto"
@@ -213,7 +213,7 @@ export default function Signup() {
       <video
         ref={bgVideoRef}
         key={isLight ? "light" : "dark"}
-        src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
+        src={mediaUrl(isLight ? "videos/signup-light-action-web.mp4" : "videos/signin-drone-bg-web.mp4")}
         muted
         playsInline
         preload="auto"

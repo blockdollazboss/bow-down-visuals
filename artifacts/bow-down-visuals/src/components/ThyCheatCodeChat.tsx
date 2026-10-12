@@ -356,7 +356,7 @@ export function ThyCheatCodeChat() {
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                 >
                   <video
-                    src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light.mp4" : "thy-cheat-code-working-8bit.mp4")}
+                    src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light-web.mp4" : "thy-cheat-code-working-8bit-web.mp4")}
                     autoPlay
                     muted
                     loop
@@ -420,7 +420,7 @@ export function ThyCheatCodeChat() {
                     style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                   >
                     <video
-                      src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light.mp4" : "thy-cheat-code-working-8bit.mp4")}
+                      src={mediaUrl(isLight ? "thy-cheat-code-working-8bit-light-web.mp4" : "thy-cheat-code-working-8bit-web.mp4")}
                       autoPlay
                       muted
                       loop

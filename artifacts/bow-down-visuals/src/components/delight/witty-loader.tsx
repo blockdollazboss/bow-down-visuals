@@ -98,7 +98,7 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
         <video
           aria-hidden
           className="absolute inset-0 h-full w-full object-cover"
-          src={mediaUrl("videos/loading-light-temp.mp4")}
+          src={mediaUrl("videos/loading-light-temp-web.mp4")}
           autoPlay
           muted
           loop
