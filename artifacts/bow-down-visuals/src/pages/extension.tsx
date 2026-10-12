@@ -10,6 +10,7 @@ import { markExtensionDownloaded } from "@/lib/extension-promo";
 import {
   MessageCircle, Wrench, Search, Wallet, Download,
   Bell, Check, Puzzle, Zap, MousePointerClick, BellRing,
+  Smartphone, ArrowRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -173,6 +174,20 @@ export default function Extension() {
               </form>
             )}
             </div>
+          </div>
+
+          {/* The unified download hub (Android app, iPhone/Chrome web app,
+              extension) had zero inbound links — the promo funnel pointed
+              only here, so close the loop from this page to /download. */}
+          <div className="pt-8">
+            <Link
+              href="/download"
+              className="group inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
+            >
+              <Smartphone className="h-4 w-4" />
+              {t("extension.getTheAppInstead", { defaultValue: "On your phone instead? Get the Android app, iPhone & Chrome web app" })}
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </div>
         </LuxReveal>
       </section>
