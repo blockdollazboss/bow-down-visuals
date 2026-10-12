@@ -1749,6 +1749,11 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
     })
   );
   const [tab, setTab] = useState<StudioTabKey>(() => {
+    /* Embedded (e.g. video-editor tool panel): fully self-contained — never
+       read the host page's ?tab= param. The host uses ?tab= for its own
+       rail tabs, and wouter re-renders the host on replaceState, so sharing
+       the param causes cross-component interference and panel jank. */
+    if (embedded) return defaultTab ?? "generate";
     try {
       const param = new URLSearchParams(window.location.search).get("tab");
       if (param === "generate" || param === "abtest" || param === "enhance" || param === "background" || param === "library") return param;
@@ -1760,6 +1765,10 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
 
   function switchTab(next: StudioTabKey) {
     setTab(next);
+    /* Embedded: keep tab state internal. Writing ?tab= here would collide
+       with the host page's own ?tab= namespace and force a full host
+       re-render on every tab click (wouter listens to replaceState). */
+    if (embedded) return;
     try {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", next);
