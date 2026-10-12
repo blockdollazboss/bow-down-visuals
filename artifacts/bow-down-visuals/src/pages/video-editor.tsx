@@ -261,6 +261,30 @@ export default function VideoEditor() {
   const { t } = useTranslation();
   /* Light-theme aware accents for hardcoded highlight colors. */
   const isLight = useIsLightTheme();
+  /* ── Marble chrome theme ──
+     Light: golden white marble cream. Dark: golden black marble smoke gray.
+     Layered CSS gradients only (no images). Applied via .vv-* utility classes
+     defined in the <style> block at the page root; tones driven by CSS vars. */
+  const vvVars = {
+    "--vv-marble-page": isLight
+      ? "linear-gradient(115deg, rgba(201,168,76,0.07) 0%, transparent 22%, rgba(201,168,76,0.04) 45%, transparent 68%, rgba(201,168,76,0.07) 100%), linear-gradient(135deg, #FFFDF8 0%, #FAF5E9 32%, #F3ECDA 64%, #EDE3C8 100%)"
+      : "linear-gradient(115deg, rgba(201,168,76,0.05) 0%, transparent 25%, rgba(170,170,170,0.06) 50%, transparent 75%, rgba(201,168,76,0.04) 100%), linear-gradient(135deg, #0A0A0A 0%, #141414 35%, #1D1D1D 65%, #262626 100%)",
+    "--vv-marble-panel": isLight
+      ? "linear-gradient(160deg, rgba(201,168,76,0.06) 0%, transparent 30%, rgba(201,168,76,0.035) 70%, transparent 100%), linear-gradient(165deg, #FFFDF9 0%, #F8F2E4 55%, #F0E6CF 100%)"
+      : "linear-gradient(160deg, rgba(201,168,76,0.045) 0%, transparent 35%, rgba(170,170,170,0.05) 70%, transparent 100%), linear-gradient(165deg, #0C0C0C 0%, #151515 55%, #1E1E1E 100%)",
+    "--vv-marble-rail": isLight
+      ? "linear-gradient(180deg, rgba(201,168,76,0.05) 0%, transparent 40%), linear-gradient(180deg, #FCF8EE 0%, #F4EDD9 100%)"
+      : "linear-gradient(180deg, #080808 0%, #101010 100%)",
+    "--vv-ink": isLight ? "#2A2118" : "#FFF6E6",
+    "--vv-border": isLight ? "rgba(146,110,44,0.30)" : "rgba(201,168,76,0.20)",
+    "--vv-border-soft": isLight ? "rgba(146,110,44,0.18)" : "rgba(201,168,76,0.12)",
+    "--vv-border-faint": isLight ? "rgba(146,110,44,0.10)" : "rgba(255,255,255,0.06)",
+    "--vv-wash-2": isLight ? "rgba(120,90,40,0.045)" : "rgba(255,255,255,0.02)",
+    "--vv-wash-3": isLight ? "rgba(120,90,40,0.06)" : "rgba(255,255,255,0.03)",
+    "--vv-wash-4": isLight ? "rgba(120,90,40,0.075)" : "rgba(255,255,255,0.04)",
+    "--vv-wash-5": isLight ? "rgba(120,90,40,0.09)" : "rgba(255,255,255,0.05)",
+    "--vv-wash-10": isLight ? "rgba(120,90,40,0.14)" : "rgba(255,255,255,0.10)",
+  } as React.CSSProperties;
   usePageTitle(t("videoEditor.pageTitle"), t("videoEditor.pageDescription"));
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
@@ -1623,7 +1647,39 @@ export default function VideoEditor() {
 
   return (
     <>
-    <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
+    <style>{`
+      .vv-marble-page { background: var(--vv-marble-page); }
+      .vv-marble-panel { background: var(--vv-marble-panel); }
+      .vv-marble-rail { background: var(--vv-marble-rail); }
+      .vv-ink { color: var(--vv-ink); }
+      .vv-hover-ink:hover { color: var(--vv-ink); }
+      .vv-border { border-color: var(--vv-border); }
+      .vv-border-soft { border-color: var(--vv-border-soft); }
+      .vv-border-faint { border-color: var(--vv-border-faint); }
+      .vv-border-strong { border-color: var(--vv-border); }
+      .vv-hover-border-strong:hover { border-color: var(--vv-border); }
+      .vv-ink-20 { color: color-mix(in srgb, var(--vv-ink) 20%, transparent); }
+      .vv-ink-25 { color: color-mix(in srgb, var(--vv-ink) 25%, transparent); }
+      .vv-ink-30 { color: color-mix(in srgb, var(--vv-ink) 30%, transparent); }
+      .vv-ink-35 { color: color-mix(in srgb, var(--vv-ink) 35%, transparent); }
+      .vv-ink-40 { color: color-mix(in srgb, var(--vv-ink) 40%, transparent); }
+      .vv-ink-45 { color: color-mix(in srgb, var(--vv-ink) 45%, transparent); }
+      .vv-ink-50 { color: color-mix(in srgb, var(--vv-ink) 50%, transparent); }
+      .vv-ink-55 { color: color-mix(in srgb, var(--vv-ink) 55%, transparent); }
+      .vv-ink-60 { color: color-mix(in srgb, var(--vv-ink) 60%, transparent); }
+      .vv-ink-70 { color: color-mix(in srgb, var(--vv-ink) 70%, transparent); }
+      .vv-ink-80 { color: color-mix(in srgb, var(--vv-ink) 80%, transparent); }
+      .vv-ink-85 { color: color-mix(in srgb, var(--vv-ink) 85%, transparent); }
+      .vv-wash-2 { background-color: var(--vv-wash-2); }
+      .vv-wash-3 { background-color: var(--vv-wash-3); }
+      .vv-wash-4 { background-color: var(--vv-wash-4); }
+      .vv-wash-5 { background-color: var(--vv-wash-5); }
+      .vv-wash-10 { background-color: var(--vv-wash-10); }
+      .vv-hover-wash-3:hover { background-color: var(--vv-wash-3); }
+      .vv-hover-wash-5:hover { background-color: var(--vv-wash-5); }
+      .vv-hover-wash-10:hover { background-color: var(--vv-wash-10); }
+    `}</style>
+    <div className="h-screen flex flex-col vv-marble-page vv-ink overflow-hidden" style={vvVars}>
       <VideoBanner onHeightChange={setHeaderHeight} />
       {/* Live collaborator cursors overlay */}
       <CollaboratorCursors collaborators={collaborators} />
@@ -1638,20 +1694,20 @@ export default function VideoEditor() {
         ) : loadError ? (
           <div className="py-20 text-center space-y-3">
             <p className="text-red-400 font-semibold">{loadError}</p>
-            <Link href="/my-projects"><Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("videoEditor.backToProjects")}</Button></Link>
+            <Link href="/my-projects"><Button variant="outline" className="vv-border vv-wash-5 vv-ink vv-hover-wash-10">{t("videoEditor.backToProjects")}</Button></Link>
           </div>
         ) : (
           <>
             {/* ── CapCut-style slim top bar ── */}
-            <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b border-white/10 bg-black">
-              <Link href="/my-projects" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
+            <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b vv-border vv-marble-panel">
+              <Link href="/my-projects" className="flex items-center gap-2 vv-ink-50 vv-hover-ink transition-colors">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="text-xs font-bold hidden sm:inline">{t("videoEditor.projectsNav")}</span>
               </Link>
-              <div className="w-px h-5 bg-white/10" aria-hidden="true" />
+              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
               <div className="flex items-center gap-2 min-w-0">
                 <Clapperboard className="h-4 w-4 text-primary shrink-0" />
-                <h1 className="text-sm font-bold text-white tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
+                <h1 className="text-sm font-bold vv-ink tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
               </div>
               <SaveIndicator state={saveState} />
               {/* ── Live collaborators (Supabase presence) ── */}
@@ -1665,14 +1721,14 @@ export default function VideoEditor() {
                     <div
                       key={c.userId}
                       title={c.name}
-                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold text-white"
+                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold vv-ink"
                       style={{ backgroundColor: c.color }}
                     >
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                   ))}
                   {collaborators.length > 4 && (
-                    <div className="h-6 w-6 rounded-full border-2 border-black bg-white/10 flex items-center justify-center text-[10px] font-bold text-white/70">
+                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[10px] font-bold vv-ink-70">
                       +{collaborators.length - 4}
                     </div>
                   )}
@@ -1689,10 +1745,10 @@ export default function VideoEditor() {
               >
                 <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
               </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
                 <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
               </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
               <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
@@ -1710,12 +1766,12 @@ export default function VideoEditor() {
                   data-testid="autosave-toggle"
                   aria-label={t("videoEditor.autosave")}
                 />
-                <span className="text-xs text-white/50 hidden lg:inline">{t("videoEditor.autosave")}</span>
+                <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
               </label>
               <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-8" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
                 <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
               </Button>
-              <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
+              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
               <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-8" data-testid="btn-export-topbar">
@@ -1727,7 +1783,7 @@ export default function VideoEditor() {
             <div className="flex-1 flex min-h-0 relative" style={{ paddingBottom: dockHeight }}>
 
               {/* ── LEFT RAIL: icon nav ── */}
-              <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
+              <nav className="w-[68px] shrink-0 vv-marble-rail border-r vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
                 {orderedRailTabs([
                     // ── 1. PLAN & SOURCE ──
                     { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
@@ -1774,7 +1830,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
                         className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
-                          leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
+                          leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
                         }`}
                       >
                         {item.icon}
@@ -1784,9 +1840,9 @@ export default function VideoEditor() {
               </nav>
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
-              <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 bg-[#0a0a0a] border-r border-white/10 overflow-y-auto hidden md:block">
-                <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">
+              <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-r vv-border overflow-y-auto hidden md:block">
+                <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
+                  <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
                     {{
                       clips: t("videoEditor.railMedia"),
                       templates: t("videoEditor.railTemplates"),
@@ -1918,7 +1974,7 @@ export default function VideoEditor() {
                             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-primary">{t("videoEditor.consistencyLockActive")}</p>
-                                <p className="text-[10px] text-white/40 mt-0.5">
+                                <p className="text-[10px] vv-ink-40 mt-0.5">
                                   {activeArtist ? t("videoEditor.consistencyLockDesc", { name: activeArtist.artist_name }) : t("videoEditor.consistencyLockDescGeneric")}
                                 </p>
                               </div>
@@ -1938,10 +1994,10 @@ export default function VideoEditor() {
                             previewAudioUrl && lyricsForCaptions && lyricsForCaptions.trim().length > 10 ? (
                               <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-white flex items-center gap-2">
+                                  <p className="text-sm font-bold vv-ink flex items-center gap-2">
                                     <Sparkles className="h-4 w-4 text-primary shrink-0" /> {t("videoEditor.generateScenesTitle")}
                                   </p>
-                                  <p className="text-xs text-white/40 mt-0.5">
+                                  <p className="text-xs vv-ink-40 mt-0.5">
                                     {t("videoEditor.generateScenesDesc")}
                                   </p>
                                 </div>
@@ -1961,10 +2017,10 @@ export default function VideoEditor() {
                                 )}
                               </div>
                             ) : !previewAudioUrl ? (
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-white/60">{t("videoEditor.noSongLoaded")}</p>
-                                  <p className="text-[10px] text-white/35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
+                                  <p className="text-xs font-bold vv-ink-60">{t("videoEditor.noSongLoaded")}</p>
+                                  <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
                                 </div>
                                 <button
                                   type="button"
@@ -1979,27 +2035,27 @@ export default function VideoEditor() {
 
                           {/* Rebuild scenes banner — shown when saved plan exists */}
                           {rawResult && (
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
                               <div className="flex-1 min-w-0">
                                 {scenes.length === 0 ? (
                                   <>
                                     <p className="text-xs font-bold text-amber-400">{t("videoEditor.noScenesSavedPlan")}</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
+                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
                                   </>
                                 ) : rebuildStatus === "done" ? (
                                   <>
                                     <p className="text-xs font-bold text-green-400">{t("videoEditor.scenesLoadedFromPlan", { count: scenes.length })}</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
+                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
                                   </>
                                 ) : rebuildStatus === "error" ? (
                                   <>
                                     <p className="text-xs font-bold text-red-400">{t("videoEditor.parseScenesTitle")}</p>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
+                                    <p className="text-[10px] vv-ink-40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
                                   </>
                                 ) : (
                                   <>
-                                    <p className="text-xs font-bold text-white/50">{t("videoEditor.savedPlanAvailable")}</p>
-                                    <p className="text-[10px] text-white/35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
+                                    <p className="text-xs font-bold vv-ink-50">{t("videoEditor.savedPlanAvailable")}</p>
+                                    <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
                                   </>
                                 )}
                               </div>
@@ -2376,8 +2432,8 @@ export default function VideoEditor() {
                     >
                       {/* Dock-in map: one-tap jumps to the finishing tools that
                           live inside Visual Vibes — labeling only, no behavior change. */}
-                      <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                        <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-3">
+                      <div className="mb-5 rounded-2xl border vv-border-soft vv-wash-2 p-4">
+                        <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest mb-3">
                           {t("videoEditor.vibesDockTitle", { defaultValue: "Finish inside Visual Vibes" })}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -2398,7 +2454,7 @@ export default function VideoEditor() {
                               key={d.id}
                               type="button"
                               onClick={() => setLeftTab(d.id)}
-                              className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/70 hover:border-primary/50 hover:text-white transition-colors"
+                              className="rounded-full border vv-border vv-wash-3 px-3.5 py-1.5 text-xs font-bold vv-ink-70 hover:border-primary/50 vv-hover-ink transition-colors"
                             >
                               {t(d.labelKey, { defaultValue: d.fallback })}
                             </button>
@@ -2467,7 +2523,7 @@ export default function VideoEditor() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setPanelCollapsed(true); }}
-                  className="absolute top-2 -left-1 h-6 w-6 rounded-full bg-black/80 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-primary/50 transition-colors"
+                  className="absolute top-2 -left-1 h-6 w-6 rounded-full bg-black/80 border vv-border flex items-center justify-center vv-ink-60 vv-hover-ink hover:border-primary/50 transition-colors"
                   title="Collapse panel"
                 >
                   <ChevronLeft className="h-3 w-3" />
@@ -2478,7 +2534,7 @@ export default function VideoEditor() {
                 <button
                   type="button"
                   onClick={() => setPanelCollapsed(false)}
-                  className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-r border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
+                  className="shrink-0 w-8 hidden md:flex items-center justify-center vv-marble-panel border-r vv-border vv-ink-60 vv-hover-ink vv-hover-wash-3 transition-colors"
                   title="Expand panel"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -2551,7 +2607,7 @@ export default function VideoEditor() {
                 </div>
                 {/* ── Panel size sync: 5 presets set BOTH sides to the same width ── */}
                 <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
-                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider mr-1">Panels:</span>
+                  <span className="text-[10px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
                   {PANEL_SNAPS.map((s, i) => {
                     const synced = panelWidth === s && rightPanelWidth === s;
                     return (
@@ -2572,7 +2628,7 @@ export default function VideoEditor() {
                         className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
                           synced
                             ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
-                            : "bg-white/5 text-white/40 border border-white/10 hover:text-white hover:border-white/30"
+                            : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
                         }`}
                       >
                         {i + 1}
@@ -2619,7 +2675,7 @@ export default function VideoEditor() {
                             {activeArtist.artist_name}
                           </p>
                           {(activeArtist.artist_type || activeArtist.genre) && (
-                            <p className="text-[9px] text-white/30 mt-[1px]">
+                            <p className="text-[9px] vv-ink-30 mt-[1px]">
                               {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
                             </p>
                           )}
@@ -2638,18 +2694,18 @@ export default function VideoEditor() {
                   {/* ── Collapsible Debug Panel — only with ?debug=1 and at 6 stars (debug/experimental).
                       The editor should feel like a finished product, not a sandbox. ── */}
                   {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
-                  <div className="rounded-xl border border-white/[0.06] overflow-hidden" data-min-stars="6">
+                  <div className="rounded-xl border vv-border-faint overflow-hidden" data-min-stars="6">
                     <button
                       type="button"
                       onClick={() => setDebugOpen((o) => !o)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.03] transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left vv-hover-wash-3 transition-colors"
                     >
-                      <Bug className="h-3 w-3 text-white/20" />
-                      <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
-                      {debugOpen ? <ChevronUp className="h-3 w-3 text-white/20" /> : <ChevronDown className="h-3 w-3 text-white/20" />}
+                      <Bug className="h-3 w-3 vv-ink-20" />
+                      <span className="text-[10px] font-bold vv-ink-25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
+                      {debugOpen ? <ChevronUp className="h-3 w-3 vv-ink-20" /> : <ChevronDown className="h-3 w-3 vv-ink-20" />}
                     </button>
                     {debugOpen && (
-                      <div className="px-3 pb-3 border-t border-white/[0.05] pt-2 space-y-0.5">
+                      <div className="px-3 pb-3 border-t vv-border-faint pt-2 space-y-0.5">
                         {([
                           ["scenes",         `${scenes.length} total · ${scenes.filter(s => sceneHasClip(s)).length} with clip`],
                           ["audio url",      previewAudioUrl ? "loaded OK" : "none"],
@@ -2678,10 +2734,10 @@ export default function VideoEditor() {
                           ["lip sync error",    (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncError?.slice(0, 40) ?? "—"; })()],
                         ] as [string, string][]).map(([label, value]) => (
                           <div key={label} className="flex items-center justify-between gap-2">
-                            <span className="text-[9px] font-mono text-white/25">{label}</span>
+                            <span className="text-[9px] font-mono vv-ink-25">{label}</span>
                             <span className={`text-[9px] font-bold shrink-0 ${
                               value.includes("OK") ? "text-green-400/70"
-                                : value === "none" || value === "no" || value === "unknown" ? "text-white/25"
+                                : value === "none" || value === "no" || value === "unknown" ? "vv-ink-25"
                                 : "text-[#C9A84C]/70"
                             }`}>{value}</span>
                           </div>
@@ -2727,7 +2783,7 @@ export default function VideoEditor() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setRightPanelCollapsed(true); }}
-                  className="absolute top-2 -right-1 h-6 w-6 rounded-full bg-black/80 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-primary/50 transition-colors"
+                  className="absolute top-2 -right-1 h-6 w-6 rounded-full bg-black/80 border vv-border flex items-center justify-center vv-ink-60 vv-hover-ink hover:border-primary/50 transition-colors"
                   title="Collapse panel"
                 >
                   <ChevronRight className="h-3 w-3" />
@@ -2738,7 +2794,7 @@ export default function VideoEditor() {
                 <button
                   type="button"
                   onClick={() => setRightPanelCollapsed(false)}
-                  className="shrink-0 w-8 hidden md:flex items-center justify-center bg-[#0a0a0a] border-l border-white/10 text-white/60 hover:text-white hover:bg-white/[0.03] transition-colors"
+                  className="shrink-0 w-8 hidden md:flex items-center justify-center vv-marble-panel border-l vv-border vv-ink-60 vv-hover-ink vv-hover-wash-3 transition-colors"
                   title="Expand panel"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -2746,9 +2802,9 @@ export default function VideoEditor() {
               )}
 
               {/* ── RIGHT PANEL: CREATE MORE + FINISH sections ── */}
-              <aside style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth, display: rightPanelCollapsed ? "none" : undefined }} className="shrink-0 bg-[#0a0a0a] border-l border-white/10 overflow-y-auto hidden md:block">
-                <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a] z-10">
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">
+              <aside style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth, display: rightPanelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-l vv-border overflow-y-auto hidden md:block">
+                <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
+                  <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
                     {({
                       "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
                       "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
@@ -3029,7 +3085,7 @@ export default function VideoEditor() {
               </aside>
 
               {/* ── RIGHT RAIL: CREATE MORE + FINISH icon nav ── */}
-              <nav className="w-[68px] shrink-0 bg-[#080808] border-l border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Create more and finish">
+              <nav className="w-[68px] shrink-0 vv-marble-rail border-l vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Create more and finish">
                 {orderedRailTabs([
                     // ── 4. CREATE MORE ──
                     { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
@@ -3055,7 +3111,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
                         className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
-                          rightTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
+                          rightTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
                         }`}
                       >
                         {item.icon}
@@ -3069,14 +3125,14 @@ export default function VideoEditor() {
                   keeps the space. ── */}
               {selectedIdx != null && scenes[selectedIdx] && (
               <div
-                className="absolute top-0 right-0 bottom-0 z-30 w-[300px] max-w-[85vw] bg-[#0a0a0a]/95 backdrop-blur-md border-l border-primary/20 shadow-[-16px_0_48px_rgba(0,0,0,0.6)] flex flex-col animate-[slideInRight_0.25s_ease-out]"
+                className="absolute top-0 right-0 bottom-0 z-30 w-[300px] max-w-[85vw] vv-marble-panel backdrop-blur-md border-l border-primary/20 shadow-[-16px_0_48px_rgba(0,0,0,0.6)] flex flex-col animate-[slideInRight_0.25s_ease-out]"
                 role="complementary"
                 aria-label={t("videoEditor.inspector")}
               >
-                <div className="h-12 shrink-0 flex items-center px-4 border-b border-white/10">
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest flex-1">{t("videoEditor.inspector")}</h2>
+                <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border">
+                  <h2 className="text-xs font-black vv-ink uppercase tracking-widest flex-1">{t("videoEditor.inspector")}</h2>
                   <button type="button" onClick={() => setSelectedIdx(null)}
-                    className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center h-7 w-7 rounded-lg border vv-border-soft vv-wash-4 vv-ink-50 vv-hover-ink vv-hover-wash-10 transition-colors"
                     title={t("videoEditor.hideInspector")} aria-label={t("videoEditor.hideInspector")}>
                     <PanelRightClose className="h-3.5 w-3.5" />
                   </button>
@@ -3087,18 +3143,18 @@ export default function VideoEditor() {
                       const hasClip = sceneHasClip(scene);
                       return (
                         <div className="space-y-3">
-                          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
-                            <p className="text-xs text-white/70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || t("videoEditor.noPrompt")}</p>
+                          <div className="rounded-xl border vv-border vv-wash-2 p-3">
+                            <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
+                            <p className="text-xs vv-ink-70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || t("videoEditor.noPrompt")}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
-                              <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "text-white/40"}`}>{hasClip ? t("videoEditor.clipAttached") : t("videoEditor.clipNoClip")}</p>
+                            <div className="rounded-xl border vv-border vv-wash-2 p-3">
+                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
+                              <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "vv-ink-40"}`}>{hasClip ? t("videoEditor.clipAttached") : t("videoEditor.clipNoClip")}</p>
                             </div>
-                            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
-                              <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "text-white/40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
+                            <div className="rounded-xl border vv-border vv-wash-2 p-3">
+                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
+                              <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "vv-ink-40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
                             </div>
                           </div>
                           <button
@@ -3111,7 +3167,7 @@ export default function VideoEditor() {
                           <button
                             type="button"
                             onClick={() => setTab("clips")}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold vv-ink border vv-border vv-wash-5 vv-hover-wash-10 transition-colors"
                           >
                             <Film className="h-3.5 w-3.5" /> {t("videoEditor.goToClips")}
                           </button>
