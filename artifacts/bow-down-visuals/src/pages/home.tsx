@@ -352,6 +352,25 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             "linear-gradient(to bottom, black 70%, transparent 100%)",
         }}
       >
+        {/* Palace backdrop — theme-aware: golden palace on light, dark palace on dark.
+            Sits behind the glows so they wash over it; the mask fades it into the next section. */}
+        <img
+          className="absolute inset-0 h-full w-full object-cover"
+          src={isLight ? "/images/shark-king-final-banner-light-v1.png" : "/images/shark-king-final-banner-dark-v1.png"}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+        {/* Readability wash — keeps the headline crisp over the palace in both themes */}
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{
+            background: isLight
+              ? "linear-gradient(100deg, rgba(255,252,245,0.72) 0%, rgba(255,252,245,0.45) 45%, rgba(255,252,245,0.25) 100%)"
+              : "linear-gradient(100deg, rgba(5,5,8,0.55) 0%, rgba(5,5,8,0.25) 45%, rgba(5,5,8,0.05) 100%)",
+          }}
+        />
         {/* Background glow effects */}
         <div className="absolute inset-0 hero-glows">
           <div
