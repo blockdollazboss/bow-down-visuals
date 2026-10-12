@@ -1,6 +1,4 @@
 import { Router } from "express";
-import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getPaymentHistory, getCreditUsage } from "../lib/payment-record";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
@@ -26,23 +24,29 @@ router.get("/credits/history", requireAuth, async (req, res) => {
    Every account can claim a single grant of free credits so new signups can
    try the tools before buying. Idempotent: the trial_credits_claimed flag on
    profiles makes repeat calls a no-op, and the frontend gates on
-   localStorage so it only attempts the call until the first success. */
+   localStorage so it only attempts the call until the first success.
+   NOTE: trial_credits_claimed must exist in the SUPABASE profiles table
+   (supabase/migrations/0055_trial_credits.sql — run once in the Supabase
+   SQL Editor). There is deliberately NO runtime DDL here: the api-server's
+   drizzle `db` points at DATABASE_URL (Render Postgres), a different
+   database from Supabase, so any ALTER executed here could never create
+   the column where it is actually read. A previous ensureTrialColumn()
+   did exactly that — DDL against the wrong database — and was removed. */
 const TRIAL_CREDITS = 1000;
-let trialColumnEnsured = false;
 
-async function ensureTrialColumn(): Promise<void> {
-  if (trialColumnEnsured) return;
-  trialColumnEnsured = true;
-  await db.execute(sql.raw(`
-    ALTER TABLE profiles
-    ADD COLUMN IF NOT EXISTS trial_credits_claimed BOOLEAN NOT NULL DEFAULT FALSE;
-  `));
+/** PostgREST code for "column does not exist" — the 0055 migration was never run. */
+const PG_UNDEFINED_COLUMN = "42703";
+
+function isMissingTrialColumn(err: { code?: string; message?: string } | null): boolean {
+  return (
+    err?.code === PG_UNDEFINED_COLUMN &&
+    /trial_credits_claimed/.test(err.message ?? "")
+  );
 }
 
 router.post("/credits/claim-trial", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    await ensureTrialColumn();
     const supabase = getSupabaseAdmin();
 
     const { data: profile, error: fetchError } = await supabase
@@ -50,7 +54,24 @@ router.post("/credits/claim-trial", requireAuth, async (req, res) => {
       .select("trial_credits_claimed")
       .eq("id", userId)
       .maybeSingle();
-    if (fetchError) throw new Error(`Failed to read profile: ${fetchError.message}`);
+    if (fetchError) {
+      if (isMissingTrialColumn(fetchError)) {
+        // Schema drift: the 0055 migration was never run in Supabase.
+        // Fail safe (no grant — the flag can't be recorded, so granting
+        // would allow unlimited re-claims) and say exactly what's wrong.
+        req.log.error(
+          { userId },
+          "credits/claim-trial: profiles.trial_credits_claimed is missing in Supabase — run supabase/migrations/0055_trial_credits.sql in the Supabase SQL Editor",
+        );
+        res.status(503).json({
+          granted: false,
+          reason: "trial_unavailable",
+          error: "Trial credits are temporarily unavailable. Please try again later.",
+        });
+        return;
+      }
+      throw new Error(`Failed to read profile: ${fetchError.message}`);
+    }
 
     if (profile?.trial_credits_claimed) {
       res.json({ granted: false, reason: "already_claimed" });
