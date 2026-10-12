@@ -19,6 +19,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
+import { runGatedDemucs, DEMUCS_THREAD_ENV } from "./demucs-gate.js";
 
 const DEMUCS_PYTHON = process.env["DEMUCS_PYTHON"] ?? "python3";
 const DEMUCS_MODEL = process.env["DEMUCS_MODEL"] ?? "mdx_extra_q";
@@ -397,7 +398,11 @@ function runDemucs(songPath: string, outDir: string, model: string): Promise<voi
         outDir,
         songPath,
       ],
-      { stdio: ["ignore", "pipe", "pipe"] },
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        // 2026-10-12 OOM fix: cap PyTorch thread pools (see demucs-gate.ts).
+        env: { ...process.env, ...DEMUCS_THREAD_ENV },
+      },
     );
     let stderr = "";
     child.stderr?.on("data", (d: Buffer) => {
@@ -442,7 +447,9 @@ export async function separateVocalStems(
         ? await trimSongToBestWindow(songPath, workdir, trimSeconds, windowStrategy)
         : songPath;
     const outDir = join(workdir, "demucs-out");
-    await runDemucs(demucsInput, outDir, model);
+    // 2026-10-12 OOM fix: Demucs runs are single-flight process-wide —
+    // two concurrent PyTorch children OOM-kill the 512MB container.
+    await runGatedDemucs(() => runDemucs(demucsInput, outDir, model));
     // Demucs layout: <outDir>/<model>/<input-basename>/{vocals.wav,no_vocals.wav}
     const stemDir = join(outDir, model, basename(demucsInput, extname(demucsInput)));
     let vocalsPath = join(stemDir, "vocals.wav");
