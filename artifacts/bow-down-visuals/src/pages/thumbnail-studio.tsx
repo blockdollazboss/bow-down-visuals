@@ -81,14 +81,20 @@ const STYLE_PRESETS = [
   },
 ] as const;
 
-const inputClass =
-  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 " +
-  "focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 " +
-  "focus-visible:ring-offset-0 transition-colors rounded-xl";
-const textareaClass =
-  "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 " +
-  "focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 " +
-  "focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
+const inputClass = (isLight: boolean) =>
+  (isLight
+    ? "h-11 bg-black/[0.04] border-black/10 text-black/80 placeholder:text-black/30 "
+    : "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 ") +
+  "focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 " +
+  "focus-visible:ring-offset-0 transition-colors rounded-xl " +
+  (isLight ? "focus:bg-black/[0.06]" : "focus:bg-white/[0.06]");
+const textareaClass = (isLight: boolean) =>
+  (isLight
+    ? "bg-black/[0.04] border-black/10 text-black/80 placeholder:text-black/30 "
+    : "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 ") +
+  "focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 " +
+  "focus-visible:ring-offset-0 transition-colors rounded-xl resize-none " +
+  (isLight ? "focus:bg-black/[0.06]" : "focus:bg-white/[0.06]");
 
 /* ── Single-shot artwork mode (merged from /thumbnail) ───────────────────
    The legacy 1-credit single-shot generator: POST /api/generate-thumbnail
@@ -141,10 +147,14 @@ const SS_MOODS = [
   { value: "Kid-Friendly", labelKey: "thumbnail.moodKidFriendly" },
 ];
 
-const ssSelectClass =
-  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm " +
-  "focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 " +
-  "focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
+const ssSelectClass = (isLight: boolean) =>
+  "h-11 w-full rounded-xl px-3 text-sm " +
+  (isLight
+    ? "bg-black/[0.04] border border-black/10 text-black/80 "
+    : "bg-white/[0.04] border border-white/[0.08] text-white ") +
+  "focus:outline-none focus:border-primary/50 focus-visible:ring-2 " +
+  "focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer " +
+  (isLight ? "focus:bg-black/[0.06]" : "focus:bg-white/[0.06]");
 
 function SSStyledSelect({ name, placeholder, options, value, onChange }: {
   name: string; placeholder: string; options: { value: string; labelKey: string }[]; value: string; onChange: (v: string) => void;
@@ -154,17 +164,18 @@ function SSStyledSelect({ name, placeholder, options, value, onChange }: {
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
-        className={ssSelectClass} style={{ colorScheme: isLight ? "light" : "dark" }}>
+        className={ssSelectClass(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }}>
         <option value="" disabled>{placeholder}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
       </select>
-      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
+      <ChevronRight className={isLight ? "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black/30 rotate-90 pointer-events-none" : "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none"} />
     </div>
   );
 }
 
 function SingleShotCoverArt() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -255,55 +266,55 @@ function SingleShotCoverArt() {
         <MarketingBadge variant="muted">{t("thumbnail.costBadge")}</MarketingBadge>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8">
+      <div className={isLight ? "rounded-2xl border border-black/10 bg-[#F7F1E3] p-6 md:p-8" : "rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8"}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div data-min-stars="2">
             <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="thumbnail" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.artistNameLabel")}</Label>
-              <Input {...register("artistName", { required: true })} placeholder={t("thumbnail.artistNamePlaceholder")} className={inputClass + (errors.artistName ? " border-red-500/50" : "")} />
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.artistNameLabel")}</Label>
+              <Input {...register("artistName", { required: true })} placeholder={t("thumbnail.artistNamePlaceholder")} className={inputClass(isLight) + (errors.artistName ? " border-red-500/50" : "")} />
               {errors.artistName && <p className="text-red-400 text-xs">{t("thumbnail.requiredError")}</p>}
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.songTitleLabel")}</Label>
-              <Input {...register("songTitle")} placeholder={t("thumbnail.songTitlePlaceholder")} className={inputClass} />
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.songTitleLabel")}</Label>
+              <Input {...register("songTitle")} placeholder={t("thumbnail.songTitlePlaceholder")} className={inputClass(isLight)} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.platformLabel")}</Label>
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.platformLabel")}</Label>
               <SSStyledSelect name="platform" placeholder={t("thumbnail.selectPlatform")} options={SS_PLATFORMS} value={watched.platform} onChange={(v) => setValue("platform", v)} />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.artStyleLabel")}</Label>
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.artStyleLabel")}</Label>
               <SSStyledSelect name="artStyle" placeholder={t("thumbnail.selectStyle")} options={SS_ART_STYLES} value={watched.artStyle} onChange={(v) => setValue("artStyle", v)} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.colorThemeLabel")}</Label>
-              <Input {...register("colorTheme")} placeholder={t("thumbnail.colorThemePlaceholder")} className={inputClass} />
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.colorThemeLabel")}</Label>
+              <Input {...register("colorTheme")} placeholder={t("thumbnail.colorThemePlaceholder")} className={inputClass(isLight)} />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.moodLabel")}</Label>
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.moodLabel")}</Label>
               <SSStyledSelect name="mood" placeholder={t("thumbnail.selectMood")} options={SS_MOODS} value={watched.mood} onChange={(v) => setValue("mood", v)} />
             </div>
           </div>
           <div className="space-y-2" data-min-stars="3">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.featuredTextLabel")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnail.optionalNote")}</span></Label>
-            <Input {...register("featuredText")} placeholder={t("thumbnail.featuredTextPlaceholder")} className={inputClass} />
+            <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.featuredTextLabel")}<span className={isLight ? "text-black/30 font-normal normal-case tracking-normal" : "text-white/25 font-normal normal-case tracking-normal"}>{t("thumbnail.optionalNote")}</span></Label>
+            <Input {...register("featuredText")} placeholder={t("thumbnail.featuredTextPlaceholder")} className={inputClass(isLight)} />
           </div>
           <div className="space-y-2" data-min-stars="4">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnail.specialRequestsLabel")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnail.optionalNote")}</span></Label>
-            <Textarea {...register("specialRequests")} placeholder={t("thumbnail.specialRequestsPlaceholder")} className={textareaClass} style={{ minHeight: "100px" }} />
+            <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnail.specialRequestsLabel")}<span className={isLight ? "text-black/30 font-normal normal-case tracking-normal" : "text-white/25 font-normal normal-case tracking-normal"}>{t("thumbnail.optionalNote")}</span></Label>
+            <Textarea {...register("specialRequests")} placeholder={t("thumbnail.specialRequestsPlaceholder")} className={textareaClass(isLight)} style={{ minHeight: "100px" }} />
           </div>
           <div className="pt-2">
             <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
               {loading ? <><Loader2 className="h-5 w-5 animate-spin" />{t("thumbnail.buildingPack")}</> : <><ImageIcon className="h-5 w-5" />{t("thumbnail.generateButton")}</>}
             </Button>
-            <p className="text-white/25 text-xs mt-3">{t("thumbnail.costNote")}</p>
+            <p className={isLight ? "text-black/25 text-xs mt-3" : "text-white/25 text-xs mt-3"}>{t("thumbnail.costNote")}</p>
           </div>
         </form>
       </div>
@@ -313,7 +324,7 @@ function SingleShotCoverArt() {
       {recentThumbs.length > 0 && (
         <div className="mt-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">{t("thumbnail.recentTitle")}</h2>
+            <h2 className={isLight ? "text-lg font-bold text-black/80" : "text-lg font-bold text-white"}>{t("thumbnail.recentTitle")}</h2>
             <Link href="/thumbnails" className="text-xs font-semibold text-primary hover:underline">{t("thumbnail.viewLibrary")}</Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2">
@@ -321,16 +332,16 @@ function SingleShotCoverArt() {
               <Link
                 key={thumb.id}
                 href="/thumbnails"
-                className="shrink-0 w-44 rounded-xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                className={isLight ? "shrink-0 w-44 rounded-xl border border-black/10 bg-[#F7F1E3] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300" : "shrink-0 w-44 rounded-xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"}
               >
                 {thumb.thumbnail_url ? (
                   <img src={thumb.thumbnail_url} alt={thumb.song_title ?? t("thumbnail.thumbnailFallback")} className="w-44 aspect-video object-cover" loading="lazy" />
                 ) : (
                   <div className="w-44 aspect-video flex items-center justify-center bg-black/40">
-                    <ImageIcon className="h-6 w-6 text-white/15" />
+                    <ImageIcon className={isLight ? "h-6 w-6 text-black/15" : "h-6 w-6 text-white/15"} />
                   </div>
                 )}
-                <p className="px-2.5 py-2 text-xs text-white/60 truncate">{thumb.song_title ?? t("thumbnail.untitled")}</p>
+                <p className={isLight ? "px-2.5 py-2 text-xs text-black/60 truncate" : "px-2.5 py-2 text-xs text-white/60 truncate"}>{thumb.song_title ?? t("thumbnail.untitled")}</p>
               </Link>
             ))}
           </div>
@@ -351,7 +362,7 @@ function SingleShotCoverArt() {
               <img
                 src={thumbnailImageUrl}
                 alt={t("thumbnail.generatedAlt")}
-                className="w-full rounded-xl border border-white/10"
+                className={isLight ? "w-full rounded-xl border border-black/10" : "w-full rounded-xl border border-white/10"}
                 data-testid="img-generated-thumbnail"
               />
               <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
@@ -361,11 +372,11 @@ function SingleShotCoverArt() {
                       <Clapperboard className="h-4 w-4" />{t("thumbnailMaker.sendToVideoStudio")}</Button>
                   </Link>
                   <Link href="/thumbnails">
-                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("thumbnail.viewLibrary")}</Button>
+                    <Button variant="outline" size="sm" className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10" : "border-white/10 bg-white/5 text-white hover:bg-white/10"}>{t("thumbnail.viewLibrary")}</Button>
                   </Link>
                 </div>
                 <a href={thumbnailImageUrl} download="thumbnail.png" target="_blank" rel="noreferrer">
-                  <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("thumbnail.downloadImage")}</Button>
+                  <Button variant="outline" size="sm" className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10" : "border-white/10 bg-white/5 text-white hover:bg-white/10"}>{t("thumbnail.downloadImage")}</Button>
                 </a>
               </div>
             </div>
@@ -396,6 +407,7 @@ function SingleShotCoverArt() {
 
 export function ThumbnailMakerModule() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();  const [mode, setMode] = useState<"simple" | "custom" | "artwork">("simple");
@@ -625,7 +637,7 @@ export function ThumbnailMakerModule() {
         actionLabel={t("hubSpine.flowBar.useSongInVideo")}
         onPick={handleProjectPick}
       />
-      <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8 space-y-8">
+      <div className={isLight ? "rounded-2xl border border-black/10 bg-[#F7F1E3] p-6 md:p-8 space-y-8" : "rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 md:p-8 space-y-8"}>
           {/* Video reference badge (?video= deep-link from caption suite) */}
           {videoRef && (
             <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
@@ -636,7 +648,7 @@ export function ThumbnailMakerModule() {
               <button
                 type="button"
                 onClick={() => setVideoRef(null)}
-                className="shrink-0 rounded-lg px-2 py-1 text-amber-300 hover:text-amber-400 hover:bg-white/10"
+                className={isLight ? "shrink-0 rounded-lg px-2 py-1 text-amber-300 hover:text-amber-400 hover:bg-black/10" : "shrink-0 rounded-lg px-2 py-1 text-amber-300 hover:text-amber-400 hover:bg-white/10"}
                 aria-label={t("thumbnailMaker.removeVideoReference")}
               >
                 ✕
@@ -670,7 +682,7 @@ export function ThumbnailMakerModule() {
 
           {mode === "simple" && (
             <div className="space-y-4">
-              <p className="text-sm text-white/60">
+              <p className={isLight ? "text-sm text-black/60" : "text-sm text-white/60"}>
                 Pick a style — we'll handle the rest. One click, done.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -685,7 +697,7 @@ export function ThumbnailMakerModule() {
                     }}
                     className="p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-center"
                   >
-                    <span className="text-sm font-semibold text-white">{preset.label}</span>
+                    <span className={isLight ? "text-sm font-semibold text-black/80" : "text-sm font-semibold text-white"}>{preset.label}</span>
                   </button>
                 ))}
               </div>
@@ -696,19 +708,19 @@ export function ThumbnailMakerModule() {
           <div className="space-y-8">
           {/* Prompt */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.promptLabel")}</Label>
+            <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnailMaker.promptLabel")}</Label>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={t("thumbnailMaker.promptPlaceholder")}
-              className={textareaClass}
+              className={textareaClass(isLight)}
               style={{ minHeight: "96px" }}
             />
           </div>
 
           {/* Style presets */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.stylePresetLabel")}</Label>
+            <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnailMaker.stylePresetLabel")}</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STYLE_PRESETS.map((s) => (
                 <button
@@ -723,10 +735,10 @@ export function ThumbnailMakerModule() {
                 >
                   <div className="text-2xl mb-2">{s.emoji}</div>
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-bold text-white">{t(s.nameKey)}</p>
+                    <p className={isLight ? "text-sm font-bold text-black/80" : "text-sm font-bold text-white"}>{t(s.nameKey)}</p>
                     {stylePreset === s.id && <Check className="h-4 w-4 text-primary" />}
                   </div>
-                  <p className="text-xs text-white/40 mt-1">{t(s.descriptionKey)}</p>
+                  <p className={isLight ? "text-xs text-black/40 mt-1" : "text-xs text-white/40 mt-1"}>{t(s.descriptionKey)}</p>
                 </button>
               ))}
             </div>
@@ -734,7 +746,7 @@ export function ThumbnailMakerModule() {
 
           {/* Aspect ratio */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t("thumbnailMaker.formatLabel")}</Label>
+            <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>{t("thumbnailMaker.formatLabel")}</Label>
             <div className="grid grid-cols-2 gap-3 max-w-md">
               <button
                 type="button"
@@ -747,8 +759,8 @@ export function ThumbnailMakerModule() {
               >
                 <MonitorPlay className="h-6 w-6 text-primary shrink-0" />
                 <div className="text-left">
-                  <p className="text-sm font-bold text-white">{t("thumbnailMaker.landscapeLabel")}</p>
-                  <p className="text-xs text-white/40">{t("thumbnailMaker.landscapeBlurb")}</p>
+                  <p className={isLight ? "text-sm font-bold text-black/80" : "text-sm font-bold text-white"}>{t("thumbnailMaker.landscapeLabel")}</p>
+                  <p className={isLight ? "text-xs text-black/40" : "text-xs text-white/40"}>{t("thumbnailMaker.landscapeBlurb")}</p>
                 </div>
               </button>
               <button
@@ -762,8 +774,8 @@ export function ThumbnailMakerModule() {
               >
                 <Smartphone className="h-6 w-6 text-primary shrink-0" />
                 <div className="text-left">
-                  <p className="text-sm font-bold text-white">{t("thumbnailMaker.portraitLabel")}</p>
-                  <p className="text-xs text-white/40">{t("thumbnailMaker.portraitBlurb")}</p>
+                  <p className={isLight ? "text-sm font-bold text-black/80" : "text-sm font-bold text-white"}>{t("thumbnailMaker.portraitLabel")}</p>
+                  <p className={isLight ? "text-xs text-black/40" : "text-xs text-white/40"}>{t("thumbnailMaker.portraitBlurb")}</p>
                 </div>
               </button>
             </div>
@@ -772,21 +784,21 @@ export function ThumbnailMakerModule() {
           {/* Overlay text + face photo */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-                {t("thumbnailMaker.headlineLabel")} <span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnailMaker.optionalNote")}</span>
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>
+                {t("thumbnailMaker.headlineLabel")} <span className={isLight ? "text-black/25 font-normal normal-case tracking-normal" : "text-white/25 font-normal normal-case tracking-normal"}>{t("thumbnailMaker.optionalNote")}</span>
               </Label>
               <Input
                 value={overlayText}
                 onChange={(e) => setOverlayText(e.target.value)}
                 placeholder={t("thumbnailMaker.headlinePlaceholder")}
-                className={inputClass}
+                className={inputClass(isLight)}
                 maxLength={80}
               />
-              <p className="text-xs text-white/25">{t("thumbnailMaker.headlineHint")}</p>
+              <p className={isLight ? "text-xs text-black/25" : "text-xs text-white/25"}>{t("thumbnailMaker.headlineHint")}</p>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
-                {t("thumbnailMaker.faceLabel")} <span className="text-white/25 font-normal normal-case tracking-normal">{t("thumbnailMaker.identityLockNote")}</span>
+              <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>
+                {t("thumbnailMaker.faceLabel")} <span className={isLight ? "text-black/25 font-normal normal-case tracking-normal" : "text-white/25 font-normal normal-case tracking-normal"}>{t("thumbnailMaker.identityLockNote")}</span>
               </Label>
               {facePreview ? (
                 <div className="relative inline-block">
@@ -808,7 +820,7 @@ export function ThumbnailMakerModule() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-[68px] rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex items-center justify-center gap-2 text-sm text-white/40 hover:border-primary/40 hover:text-white/70 transition-colors"
+                  className={isLight ? "w-full h-[68px] rounded-xl border border-dashed border-black/15 bg-black/[0.02] flex items-center justify-center gap-2 text-sm text-black/40 hover:border-primary/40 hover:text-black/70 transition-colors" : "w-full h-[68px] rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex items-center justify-center gap-2 text-sm text-white/40 hover:border-primary/40 hover:text-white/70 transition-colors"}
                 >
                   <Upload className="h-4 w-4" />{t("thumbnailMaker.uploadFace")}</button>
               )}
@@ -819,7 +831,7 @@ export function ThumbnailMakerModule() {
                 className="hidden"
                 onChange={handleFaceSelect}
               />
-              <p className="text-xs text-white/25">{t("thumbnailMaker.faceHint")}</p>
+              <p className={isLight ? "text-xs text-black/25" : "text-xs text-white/25"}>{t("thumbnailMaker.faceHint")}</p>
             </div>
           </div>
 
@@ -846,7 +858,7 @@ export function ThumbnailMakerModule() {
                   <ImageIcon className="h-5 w-5" />{t("thumbnailMaker.generateButton")} <CostBadge cost={200} className="ml-2" /></>
               )}
             </Button>
-            <p className="text-white/25 text-xs mt-3">{t("thumbnailMaker.costNote")}</p>
+            <p className={isLight ? "text-black/25 text-xs mt-3" : "text-white/25 text-xs mt-3"}>{t("thumbnailMaker.costNote")}</p>
           </div>
           </div>
           )}
@@ -864,7 +876,7 @@ export function ThumbnailMakerModule() {
         {images.length > 0 && (
           <div id="tg-results" className="mt-10">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <h2 className="text-lg font-bold text-white">{t("thumbnailMaker.resultsTitle")}</h2>
+              <h2 className={isLight ? "text-lg font-bold text-black/80" : "text-lg font-bold text-white"}>{t("thumbnailMaker.resultsTitle")}</h2>
               <Link href={selectedImage ? `/thumbnail-studio?tab=abtest&test=${encodeURIComponent(selectedImage.url)}` : "/thumbnail-studio?tab=abtest"}>
                 <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
                   <FlaskConical className="h-4 w-4" />{t("thumbnailMaker.abTestButton")}</Button>
@@ -888,7 +900,7 @@ export function ThumbnailMakerModule() {
                     className={`w-full object-cover ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16] max-h-[480px] mx-auto"}`}
                     loading="lazy"
                   />
-                  <span className="absolute top-3 left-3 text-xs font-bold bg-black/70 text-white px-2.5 py-1 rounded-full border border-white/10">
+                  <span className={isLight ? "absolute top-3 left-3 text-xs font-bold bg-black/70 text-black/80 px-2.5 py-1 rounded-full border border-black/10" : "absolute top-3 left-3 text-xs font-bold bg-black/70 text-white px-2.5 py-1 rounded-full border border-white/10"}>
                     {t("thumbnailMaker.variationBadge", { n: img.variation })}
                   </span>
                   {selected === img.variation && (
@@ -902,7 +914,7 @@ export function ThumbnailMakerModule() {
 
             {selectedImage && (
               <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.04] p-5 flex flex-wrap items-center justify-between gap-4">
-                <p className="text-sm text-white/60">
+                <p className={isLight ? "text-sm text-black/60" : "text-sm text-white/60"}>
                   <span className="text-primary font-bold">{t("thumbnailMaker.variationBadge", { n: selectedImage.variation })}</span> {t("thumbnailMaker.selectedSummary")}
                 </p>
                 <div className="flex gap-3 flex-wrap">
@@ -910,7 +922,7 @@ export function ThumbnailMakerModule() {
                     variant="outline"
                     size="sm"
                     onClick={() => setLightbox(selectedImage.url)}
-                    className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+                    className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10" : "border-white/10 bg-white/5 text-white hover:bg-white/10"}
                   >{t("thumbnailMaker.previewButton")}</Button>
                   <a href={selectedImage.url} download={`thumbnail-v${selectedImage.variation}.png`} target="_blank" rel="noreferrer">
                     <Button size="sm" className="gold-glow font-bold gap-2">
@@ -954,8 +966,8 @@ export function ThumbnailMakerModule() {
                 Generates two alternates of the source thumbnail; the picked
                 winner travels into the video packaging flow. */}
             <div id="wave8-thumbnail-ab" className="mt-10 rounded-2xl border border-primary/25 bg-black/60 p-5 md:p-6">
-              <h3 className="text-lg font-bold text-white">{t("wave8.thumbnailAb.title")}</h3>
-              <p className="text-sm text-white/50 mt-1">{t("wave8.thumbnailAb.subtitle")}</p>
+              <h3 className={isLight ? "text-lg font-bold text-black/80" : "text-lg font-bold text-white"}>{t("wave8.thumbnailAb.title")}</h3>
+              <p className={isLight ? "text-sm text-black/50 mt-1" : "text-sm text-white/50 mt-1"}>{t("wave8.thumbnailAb.subtitle")}</p>
 
               {abError && (
                 <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
@@ -984,24 +996,24 @@ export function ThumbnailMakerModule() {
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-white/40 mt-4">{t("wave8.thumbnailAb.compareNote")}</p>
+                  <p className={isLight ? "text-sm text-black/40 mt-4" : "text-sm text-white/40 mt-4"}>{t("wave8.thumbnailAb.compareNote")}</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div className="rounded-2xl overflow-hidden border-2 border-white/[0.08] bg-white/[0.02]">
+                    <div className={isLight ? "rounded-2xl overflow-hidden border-2 border-black/[0.08] bg-black/[0.02]" : "rounded-2xl overflow-hidden border-2 border-white/[0.08] bg-white/[0.02]"}>
                       <img
                         src={selectedImage?.url ?? images[0]?.url}
                         alt={t("wave8.thumbnailAb.originalLabel")}
                         className={`w-full object-cover ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16] max-h-[320px] mx-auto"}`}
                         loading="lazy"
                       />
-                      <p className="text-xs font-bold text-white/60 px-3 py-2.5">{t("wave8.thumbnailAb.originalLabel")}</p>
+                      <p className={isLight ? "text-xs font-bold text-black/60 px-3 py-2.5" : "text-xs font-bold text-white/60 px-3 py-2.5"}>{t("wave8.thumbnailAb.originalLabel")}</p>
                     </div>
                     {abVariants.map((v, i) => (
                       <div
                         key={`${v.label}-${i}`}
-                        className={`rounded-2xl overflow-hidden border-2 transition-all bg-white/[0.02] ${
+                        className={`rounded-2xl overflow-hidden border-2 transition-all ${isLight ? "bg-black/[0.02]" : "bg-white/[0.02]"} ${
                           winnerUrl === v.url
                             ? "border-primary shadow-[0_0_32px_rgba(212,175,55,0.25)]"
-                            : "border-white/[0.08]"
+                            : isLight ? "border-black/10" : "border-white/[0.08]"
                         }`}
                       >
                         <img
@@ -1011,7 +1023,7 @@ export function ThumbnailMakerModule() {
                           loading="lazy"
                         />
                         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                          <p className="text-xs font-bold text-white/60">{v.label}</p>
+                          <p className={isLight ? "text-xs font-bold text-black/60" : "text-xs font-bold text-white/60"}>{v.label}</p>
                           {winnerUrl === v.url ? (
                             <span className="text-xs font-bold text-primary flex items-center gap-1">
                               <Check className="h-3.5 w-3.5" /> {t("wave8.thumbnailAb.winnerLabel")}
@@ -1034,7 +1046,7 @@ export function ThumbnailMakerModule() {
 
                   {winnerUrl && (
                     <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm text-white/60">
+                      <p className={isLight ? "text-sm text-black/60" : "text-sm text-white/60"}>
                         <span className="text-primary font-bold">{t("wave8.thumbnailAb.winnerLabel")}</span> — {t("wave8.thumbnailAb.winnerSaved")}
                       </p>
                       <Link href="/video-studio">
@@ -1056,7 +1068,7 @@ export function ThumbnailMakerModule() {
           onClick={() => setLightbox(null)}
         >
           <button
-            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
+            className={isLight ? "absolute top-4 right-4 h-10 w-10 rounded-full bg-black/10 text-black/80 flex items-center justify-center hover:bg-black/20" : "absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"}
             onClick={() => setLightbox(null)}
             aria-label={t("thumbnailMaker.closePreviewAria")}
           >
@@ -1065,7 +1077,7 @@ export function ThumbnailMakerModule() {
           <img
             src={lightbox}
             alt={t("thumbnailMaker.fullPreviewAlt")}
-            className="max-h-[90vh] max-w-full rounded-xl border border-white/10"
+            className={isLight ? "max-h-[90vh] max-w-full rounded-xl border border-black/10" : "max-h-[90vh] max-w-full rounded-xl border border-white/10"}
             onClick={(e) => e.stopPropagation()}
           />
         </div>
@@ -1135,13 +1147,14 @@ function scoreColor(v: number): string {
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
+  const isLight = useIsLightTheme();
   return (
     <div>
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-white/50">{label}</span>
-        <span className="text-white/85 font-semibold tabular-nums">{value}</span>
+        <span className={isLight ? "text-black/50" : "text-white/50"}>{label}</span>
+        <span className={isLight ? "text-black/85 font-semibold tabular-nums" : "text-white/85 font-semibold tabular-nums"}>{value}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+      <div className={isLight ? "h-1.5 rounded-full bg-black/10 overflow-hidden" : "h-1.5 rounded-full bg-white/10 overflow-hidden"}>
         <div className={`h-full rounded-full ${scoreColor(value)}`} style={{ width: `${value}%` }} />
       </div>
     </div>
@@ -1263,7 +1276,7 @@ function ThumbnailAbTester() {
           <Trophy className="w-7 h-7 text-amber-400" />
           <h2 className={`text-2xl font-black ${isLight ? "gold-foil" : "bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent"}`}>{t("thumbnailTest.pageTitle")}</h2>
         </div>
-        <p className="text-white/55 max-w-2xl mb-8">{t("thumbnailTest.pageSubtitle")}<span className="text-white/35">{t("thumbnailTest.subtitleNote")}</span>
+        <p className={isLight ? "text-black/55 max-w-2xl mb-8" : "text-white/55 max-w-2xl mb-8"}>{t("thumbnailTest.pageSubtitle")}<span className={isLight ? "text-black/40" : "text-white/35"}>{t("thumbnailTest.subtitleNote")}</span>
         </p>
 
         {outOfCredits && <OutOfCredits />}
@@ -1275,7 +1288,7 @@ function ThumbnailAbTester() {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors mb-6 ${
-            dragOver ? "border-primary bg-primary/5" : "border-white/10 hover:border-primary/40 bg-[#0a0a0a]"
+            dragOver ? "border-primary bg-primary/5" : isLight ? "border-black/10 hover:border-primary/40 bg-[#F7F1E3]" : "border-white/10 hover:border-primary/40 bg-[#0a0a0a]"
           }`}
         >
           <input
@@ -1287,22 +1300,22 @@ function ThumbnailAbTester() {
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
           />
           <Upload className="w-8 h-8 text-primary mx-auto mb-3" />
-          <p className="text-white/80 font-medium">{t("thumbnailTest.uploadCta")}</p>
-          <p className="text-white/35 text-sm mt-1">{t("thumbnailTest.uploadFormats", { uploaded: files.length, max: MAX_FILES })}</p>
+          <p className={isLight ? "text-black/80 font-medium" : "text-white/80 font-medium"}>{t("thumbnailTest.uploadCta")}</p>
+          <p className={isLight ? "text-black/35 text-sm mt-1" : "text-white/35 text-sm mt-1"}>{t("thumbnailTest.uploadFormats", { uploaded: files.length, max: MAX_FILES })}</p>
         </div>
 
         {/* Previews */}
         {previews.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {previews.map((src, i) => (
-              <div key={i} className="relative rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a]">
+              <div key={i} className={isLight ? "relative rounded-xl overflow-hidden border border-black/10 bg-[#F7F1E3]" : "relative rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a]"}>
                 <img src={src} alt={t("thumbnailTest.thumbnailAlt", { n: i + 1 })} className="w-full aspect-video object-cover" />
                 <span className="absolute top-2 left-2 text-xs font-bold bg-black/70 text-amber-300 px-2 py-0.5 rounded">
                   {i + 1}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white/60 hover:text-red-400"
+                  className={isLight ? "absolute top-2 right-2 p-1 rounded-full bg-black/70 text-black/60 hover:text-red-400" : "absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white/60 hover:text-red-400"}
                   aria-label={t("thumbnailTest.removeThumbnailAria", { n: i + 1 })}
                 >
                   <X className="w-4 h-4" />
@@ -1319,14 +1332,14 @@ function ThumbnailAbTester() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("thumbnailTest.titlePlaceholder")}
             maxLength={200}
-            className="rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
+            className={isLight ? "rounded-xl bg-[#F7F1E3] border border-black/10 px-4 py-3 text-sm text-black/80 placeholder:text-black/25 focus:border-primary/60 focus:outline-none" : "rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"}
           />
           <input
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
             placeholder={t("thumbnailTest.nichePlaceholder")}
             maxLength={100}
-            className="rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
+            className={isLight ? "rounded-xl bg-[#F7F1E3] border border-black/10 px-4 py-3 text-sm text-black/80 placeholder:text-black/25 focus:border-primary/60 focus:outline-none" : "rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"}
           />
         </div>
 
@@ -1338,7 +1351,7 @@ function ThumbnailAbTester() {
           {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
           {testing ? t("thumbnailTest.analyzing") : t("thumbnailTest.runTestButton", { cost: CREDIT_COST })}
         </button>
-        {!user && <p className="text-white/35 text-sm mt-2">{t("thumbnailTest.signInPrompt")}</p>}
+        {!user && <p className={isLight ? "text-black/35 text-sm mt-2" : "text-white/35 text-sm mt-2"}>{t("thumbnailTest.signInPrompt")}</p>}
 
         {error && (
           <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -1359,8 +1372,8 @@ function ThumbnailAbTester() {
                   {t("thumbnailTest.confidence", { confidence: result.confidence })}
                 </span>
               </div>
-              <p className="text-white/75 text-sm">{result.reasoning}</p>
-              <p className="text-white/35 text-xs mt-3 italic">{result.disclaimer}</p>
+              <p className={isLight ? "text-black/75 text-sm" : "text-white/75 text-sm"}>{result.reasoning}</p>
+              <p className={isLight ? "text-black/35 text-xs mt-3 italic" : "text-white/35 text-xs mt-3 italic"}>{result.disclaimer}</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -1369,13 +1382,13 @@ function ThumbnailAbTester() {
                 return (
                   <div
                     key={a.index}
-                    className={`rounded-2xl border p-5 bg-[#0a0a0a] ${
-                      isWinner ? "border-primary/50 shadow-[0_0_32px_rgba(251,191,36,0.15)]" : "border-white/10 hover:border-white/20"
+                    className={`rounded-2xl border p-5 ${isLight ? "bg-[#F7F1E3] border-black/10" : "bg-[#0a0a0a]"} ${
+                      isWinner ? "border-primary/50 shadow-[0_0_32px_rgba(251,191,36,0.15)]" : isLight ? "border-black/10 hover:border-black/20" : "border-white/10 hover:border-white/20"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white/90">{t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}</span>
+                        <span className={isLight ? "text-sm font-bold text-black/90" : "text-sm font-bold text-white/90"}>{t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}</span>
                         {isWinner && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
                             <CheckCircle2 className="w-4 h-4" />{t("thumbnailTest.winnerBadge")}</span>
@@ -1387,7 +1400,7 @@ function ThumbnailAbTester() {
                       <img
                         src={previews[a.index]}
                         alt={t("thumbnailTest.thumbnailAlt", { n: a.index + 1 })}
-                        className="w-full aspect-video object-cover rounded-lg border border-white/10 mb-4"
+                        className={isLight ? "w-full aspect-video object-cover rounded-lg border border-black/10 mb-4" : "w-full aspect-video object-cover rounded-lg border border-white/10 mb-4"}
                       />
                     )}
                     <div className="space-y-2.5 mb-4">
@@ -1398,7 +1411,7 @@ function ThumbnailAbTester() {
                     {a.strengths.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-semibold text-green-400 mb-1">{t("thumbnailTest.strengthsLabel")}</p>
-                        <ul className="text-xs text-white/50 list-disc list-inside space-y-0.5">
+                        <ul className={isLight ? "text-xs text-black/50 list-disc list-inside space-y-0.5" : "text-xs text-white/50 list-disc list-inside space-y-0.5"}>
                           {a.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1406,7 +1419,7 @@ function ThumbnailAbTester() {
                     {a.weaknesses.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-semibold text-red-300 mb-1">{t("thumbnailTest.weaknessesLabel")}</p>
-                        <ul className="text-xs text-white/50 list-disc list-inside space-y-0.5">
+                        <ul className={isLight ? "text-xs text-black/50 list-disc list-inside space-y-0.5" : "text-xs text-white/50 list-disc list-inside space-y-0.5"}>
                           {a.weaknesses.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1414,7 +1427,7 @@ function ThumbnailAbTester() {
                     {a.tips.length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs font-semibold text-amber-300 mb-1">{t("thumbnailTest.fixesLabel")}</p>
-                        <ul className="text-xs text-white/70 list-disc list-inside space-y-0.5">
+                        <ul className={isLight ? "text-xs text-black/70 list-disc list-inside space-y-0.5" : "text-xs text-white/70 list-disc list-inside space-y-0.5"}>
                           {a.tips.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
@@ -1454,24 +1467,24 @@ function ThumbnailAbTester() {
 
             <button
               onClick={() => { setResult(null); setImprovedUrls({}); }}
-              className="mt-8 inline-flex items-center gap-2 text-sm text-white/40 hover:text-white"
+              className={isLight ? "mt-8 inline-flex items-center gap-2 text-sm text-black/40 hover:text-black/80" : "mt-8 inline-flex items-center gap-2 text-sm text-white/40 hover:text-white"}
             >
               <RefreshCw className="w-4 h-4" />{t("thumbnailTest.testDifferent")}</button>
           </section>
         )}
 
         {/* How it works */}
-        <section className="mt-12 rounded-2xl border border-white/10 bg-[#0a0a0a] p-6">
-          <h3 className="font-black text-white mb-3 flex items-center gap-2">
+        <section className={isLight ? "mt-12 rounded-2xl border border-black/10 bg-[#F7F1E3] p-6" : "mt-12 rounded-2xl border border-white/10 bg-[#0a0a0a] p-6"}>
+          <h3 className={isLight ? "font-black text-black/80 mb-3 flex items-center gap-2" : "font-black text-white mb-3 flex items-center gap-2"}>
             <ImageIcon className="w-5 h-5 text-primary" />{t("thumbnailTest.howItWorks")}</h3>
-          <ul className="text-sm text-white/55 space-y-2 list-disc list-inside">
-            <li><span className="text-white/85">{t("thumbnailTest.scoreCuriosity")}</span> — {t("thumbnailTest.scoreCuriosityText")}</li>
-            <li><span className="text-white/85">{t("thumbnailTest.scoreReadability")}</span> — {t("thumbnailTest.scoreReadabilityText")}</li>
-            <li><span className="text-white/85">{t("thumbnailTest.scoreEmotion")}</span> — {t("thumbnailTest.scoreEmotionText")}</li>
-            <li><span className="text-white/85">{t("thumbnailTest.scoreContrast")}</span> — {t("thumbnailTest.scoreContrastText")}</li>
-            <li><span className="text-white/85">{t("thumbnailTest.scoreFace")}</span> — {t("thumbnailTest.scoreFaceText")}</li>
+          <ul className={isLight ? "text-sm text-black/55 space-y-2 list-disc list-inside" : "text-sm text-white/55 space-y-2 list-disc list-inside"}>
+            <li><span className={isLight ? "text-black/85" : "text-white/85"}>{t("thumbnailTest.scoreCuriosity")}</span> — {t("thumbnailTest.scoreCuriosityText")}</li>
+            <li><span className={isLight ? "text-black/85" : "text-white/85"}>{t("thumbnailTest.scoreReadability")}</span> — {t("thumbnailTest.scoreReadabilityText")}</li>
+            <li><span className={isLight ? "text-black/85" : "text-white/85"}>{t("thumbnailTest.scoreEmotion")}</span> — {t("thumbnailTest.scoreEmotionText")}</li>
+            <li><span className={isLight ? "text-black/85" : "text-white/85"}>{t("thumbnailTest.scoreContrast")}</span> — {t("thumbnailTest.scoreContrastText")}</li>
+            <li><span className={isLight ? "text-black/85" : "text-white/85"}>{t("thumbnailTest.scoreFace")}</span> — {t("thumbnailTest.scoreFaceText")}</li>
           </ul>
-          <p className="text-xs text-white/35 mt-4">{t("thumbnailTest.costNote")}</p>
+          <p className={isLight ? "text-xs text-black/35 mt-4" : "text-xs text-white/35 mt-4"}>{t("thumbnailTest.costNote")}</p>
         </section>
     </div>
   );
@@ -1495,6 +1508,7 @@ function formatDate(iso: string) {
 
 function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const { project } = useHubProject();
@@ -1562,8 +1576,8 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
     <div>
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-2xl font-black text-white tracking-tight mb-2">{t("thumbnails.libraryTitle")}</h2>
-            <p className="text-white/50 max-w-2xl">{t("thumbnails.librarySubtitle")}</p>
+            <h2 className={isLight ? "text-2xl font-black text-black/80 tracking-tight mb-2" : "text-2xl font-black text-white tracking-tight mb-2"}>{t("thumbnails.libraryTitle")}</h2>
+            <p className={isLight ? "text-black/50 max-w-2xl" : "text-white/50 max-w-2xl"}>{t("thumbnails.librarySubtitle")}</p>
           </div>
           <Button onClick={onGoGenerate} className="gold-glow font-bold rounded-xl gap-2">
             <Sparkles className="h-4 w-4" />{t("thumbnails.makeThumbnail")}</Button>
@@ -1582,12 +1596,12 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
         )}
 
         {!loading && !error && thumbnails.length === 0 && (
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-12 text-center">
+          <div className={isLight ? "rounded-2xl border border-black/10 bg-[#F7F1E3] p-12 text-center" : "rounded-2xl border border-white/10 bg-[#0a0a0a] p-12 text-center"}>
             <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center mx-auto mb-4">
               <ImageIcon className="h-8 w-8 text-primary/60" />
             </div>
-            <p className="text-white/60 font-medium mb-2">{t("thumbnails.emptyTitle")}</p>
-            <p className="text-white/30 text-sm mb-6">{t("thumbnails.emptyBody")}</p>
+            <p className={isLight ? "text-black/60 font-medium mb-2" : "text-white/60 font-medium mb-2"}>{t("thumbnails.emptyTitle")}</p>
+            <p className={isLight ? "text-black/30 text-sm mb-6" : "text-white/30 text-sm mb-6"}>{t("thumbnails.emptyBody")}</p>
             <Button onClick={onGoGenerate} className="gold-glow font-bold rounded-xl">{t("thumbnails.openMaker")}</Button>
           </div>
         )}
@@ -1597,7 +1611,7 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
             {allThumbnails.map((thumb) => (
               <div
                 key={thumb.id}
-                className="group rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                className={isLight ? "group rounded-2xl border border-black/10 bg-[#F7F1E3] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300" : "group rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"}
               >
                 <button
                   onClick={() => setLightbox(thumb)}
@@ -1613,22 +1627,22 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-8 w-8 text-white/15" />
+                      <ImageIcon className={isLight ? "h-8 w-8 text-black/15" : "h-8 w-8 text-white/15"} />
                     </div>
                   )}
                 </button>
                 <div className="p-4">
-                  <p className="text-white font-semibold text-sm truncate">
+                  <p className={isLight ? "text-black/80 font-semibold text-sm truncate" : "text-white font-semibold text-sm truncate"}>
                     {thumb.song_title ?? thumb.action_label ?? t("thumbnails.untitled")}
                   </p>
-                  <p className="text-white/40 text-xs mt-1 flex items-center gap-1.5">
+                  <p className={isLight ? "text-black/40 text-xs mt-1 flex items-center gap-1.5" : "text-white/40 text-xs mt-1 flex items-center gap-1.5"}>
                     <Calendar className="h-3 w-3" /> {formatDate(thumb.created_at)}
-                    {thumb.artist_name && <span className="text-white/25">· {thumb.artist_name}</span>}
+                    {thumb.artist_name && <span className={isLight ? "text-black/25" : "text-white/25"}>· {thumb.artist_name}</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-3">
                     {thumb.thumbnail_url && (
                       <a href={thumb.thumbnail_url} download target="_blank" rel="noreferrer">
-                        <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5">
+                        <Button variant="outline" size="sm" className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10 gap-1.5" : "border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5"}>
                           <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                       </a>
                     )}
@@ -1645,14 +1659,14 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs text-white/40 hover:text-white px-2 py-1"
+                          className={isLight ? "text-xs text-black/40 hover:text-black/80 px-2 py-1" : "text-xs text-white/40 hover:text-white px-2 py-1"}
                         >{t("thumbnails.keep")}</button>
                       </span>
                     ) : (
                       <button
                         onClick={() => setConfirmDeleteId(thumb.id)}
                         title={t("thumbnails.removeTitle")}
-                        className="ml-auto flex items-center gap-1.5 text-xs text-white/35 hover:text-red-400 transition-colors px-2 py-1.5"
+                        className={isLight ? "ml-auto flex items-center gap-1.5 text-xs text-black/35 hover:text-red-400 transition-colors px-2 py-1.5" : "ml-auto flex items-center gap-1.5 text-xs text-white/35 hover:text-red-400 transition-colors px-2 py-1.5"}
                       >
                         <Trash2 className="h-3.5 w-3.5" />{t("thumbnails.remove")}</button>
                     )}
@@ -1670,12 +1684,12 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
           onClick={() => setLightbox(null)}
         >
           <div
-            className="relative max-w-5xl w-full rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden"
+            className={isLight ? "relative max-w-5xl w-full rounded-2xl border border-black/10 bg-[#F7F1E3] overflow-hidden" : "relative max-w-5xl w-full rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden"}
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setLightbox(null)}
-              className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+              className={isLight ? "absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 border border-black/10 flex items-center justify-center text-black/60 hover:text-black/80 transition-colors" : "absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"}
               aria-label={t("thumbnails.closeAria")}
             >
               <X className="h-4 w-4" />
@@ -1687,12 +1701,12 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
                 className="w-full max-h-[75vh] object-contain bg-black"
               />
             )}
-            <div className="p-4 md:p-5 flex items-center gap-3 flex-wrap border-t border-white/[0.06]">
+            <div className={isLight ? "p-4 md:p-5 flex items-center gap-3 flex-wrap border-t border-black/[0.06]" : "p-4 md:p-5 flex items-center gap-3 flex-wrap border-t border-white/[0.06]"}>
               <div className="min-w-0">
-                <p className="text-white font-semibold text-sm truncate">
+                <p className={isLight ? "text-black/80 font-semibold text-sm truncate" : "text-white font-semibold text-sm truncate"}>
                   {lightbox.song_title ?? lightbox.action_label ?? t("thumbnails.untitled")}
                 </p>
-                <p className="text-white/40 text-xs mt-0.5">
+                <p className={isLight ? "text-black/40 text-xs mt-0.5" : "text-white/40 text-xs mt-0.5"}>
                   {formatDate(lightbox.created_at)}
                   {lightbox.artist_name && ` · ${lightbox.artist_name}`}
                 </p>
@@ -1700,7 +1714,7 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
               <div className="ml-auto flex items-center gap-2">
                 {lightbox.thumbnail_url && (
                   <a href={lightbox.thumbnail_url} download target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5">
+                    <Button variant="outline" size="sm" className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10 gap-1.5" : "border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5"}>
                       <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                   </a>
                 )}
@@ -1742,6 +1756,7 @@ function studioTabLabel(t: (k: string, o?: Record<string, unknown>) => string, k
 
 export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?: StudioTabKey; embedded?: boolean } = {}) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   usePageTitle(
     t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" }),
     t("thumbnailStudio.subtitle", {
@@ -1779,7 +1794,7 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
   }
 
   return (
-    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+    <div className={embedded ? (isLight ? "text-black/80" : "text-white") : (isLight ? "min-h-screen text-black/80" : "min-h-screen bg-black text-white")}>
       {!embedded && (
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
@@ -1791,7 +1806,7 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
         <>
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
+          className={isLight ? "inline-flex items-center gap-2 text-sm text-black/40 hover:text-black/80 transition-colors mb-8 group" : "inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"}
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />{t("thumbnailMaker.backToDashboard")}</Link>
 
@@ -1802,10 +1817,10 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
             </div>
             <MarketingBadge variant="muted">{t("thumbnailMaker.costBadge")}</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
+          <h1 className={isLight ? "text-3xl md:text-4xl font-black text-black/80 tracking-tight mb-3" : "text-3xl md:text-4xl font-black text-white tracking-tight mb-3"}>
             {t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
           </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
+          <p className={isLight ? "text-black/50 text-lg max-w-2xl" : "text-white/50 text-lg max-w-2xl"}>
             {t("thumbnailStudio.subtitle", {
               defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
             })}
@@ -1818,7 +1833,7 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
         )}
 
         {/* tabs — scrolls horizontally on phones so no tab is ever clipped */}
-        <div className="mb-8 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={t("thumbnailStudio.tabs.aria", { defaultValue: "Thumbnail studio sections" })}>
+        <div className={isLight ? "mb-8 flex gap-2 overflow-x-auto rounded-2xl border border-black/10 bg-black/[0.03] p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "mb-8 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"} role="tablist" aria-label={t("thumbnailStudio.tabs.aria", { defaultValue: "Thumbnail studio sections" })}>
           {STUDIO_TABS.map((key) => (
             <button
               key={key}
