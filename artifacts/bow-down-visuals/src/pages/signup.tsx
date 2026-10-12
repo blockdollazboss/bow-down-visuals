@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
@@ -35,14 +36,7 @@ const schema = (t: (key: string) => string) =>
 export default function Signup() {
   const { t } = useTranslation();
   // Theme-aware video: light theme gets the signup action video, dark gets the drone video
-  const [isLight, setIsLight] = useState(false);
-  useEffect(() => {
-    const check = () => setIsLight(document.documentElement.classList.contains("light"));
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => obs.disconnect();
-  }, []);
+  const isLight = useIsLightTheme();
   usePageTitle(t("signup.pageTitle"), t("signup.pageDescription"));
   const { signUp, signInWithProvider, getAccessToken, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();

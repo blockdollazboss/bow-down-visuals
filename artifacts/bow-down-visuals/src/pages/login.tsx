@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
@@ -22,14 +23,7 @@ import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 export default function Login() {
   const { t } = useTranslation();
   // Theme-aware video: light theme gets the sign-in action video, dark gets the drone video
-  const [isLight, setIsLight] = useState(false);
-  useEffect(() => {
-    const check = () => setIsLight(document.documentElement.classList.contains("light"));
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => obs.disconnect();
-  }, []);
+  const isLight = useIsLightTheme();
   const schema = z.object({
     email: z.string().email(t("auth.invalidEmail")),
     password: z.string().min(6, t("auth.passwordMinLength")),
