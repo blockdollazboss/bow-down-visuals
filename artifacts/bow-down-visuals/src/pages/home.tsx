@@ -543,9 +543,13 @@ function HeroSection({ isLight }: { isLight: boolean }) {
 
       {/* Ground fog — dark theme: smoke. Light theme: water mist.
           The fog-lab particle canvas: ~220 particles the cursor genuinely
-          stirs like a fluid. */}
+          stirs like a fluid.
+          2026-10-12: bottom mask fade — the canvas's hard bottom edge
+          guillotined the smoke into a straight line at the hero's end
+          (owner screenshot). The mask dissolves the fog into the fixed
+          stage backdrop below instead. */}
       <FogCanvas
-        className="inset-x-0 bottom-0 z-[4] h-[46%]"
+        className="inset-x-0 bottom-0 z-[4] h-[46%] [mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)] [-webkit-mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)]"
         ceilingFrac={0.55}
         buoyancy={-10}
         waterMode={isLight}
