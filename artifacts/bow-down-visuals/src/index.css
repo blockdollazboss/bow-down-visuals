@@ -597,26 +597,12 @@ html, body {
   box-shadow: 0 8px 32px rgb(138 107 31 / 0.10), inset 0 1px 0 rgb(255 255 255 / 0.8);
 }
 
-/* Video banner (site header band): ivory hall, video becomes a watermark */
-.light .bdv-banner:not([data-dark-lock]) {
-  background-color: #FAF7F0 !important;
-}
-.light .bdv-banner:not([data-dark-lock]) .bdv-banner-drift video {
-  opacity: 0.22;
-}
-/* Blend scrims: PAGE_BG gradients become ivory (inline styles need !important) */
-.light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-x-0"][class*="top-0"] {
-  background: linear-gradient(to bottom, #FAF7F0 0%, transparent 100%) !important;
-}
-.light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-x-0"][class*="bottom-0"] {
-  background: linear-gradient(to top, #FAF7F0 0%, transparent 100%) !important;
-}
-.light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-y-0"][class*="left-0"] {
-  background: linear-gradient(to right, #FAF7F0 0%, transparent 100%) !important;
-}
-.light .bdv-banner:not([data-dark-lock]) div[aria-hidden][class*="inset-y-0"][class*="right-0"] {
-  background: linear-gradient(to left, #FAF7F0 0%, transparent 100%) !important;
-}
+/* Video banner (site header band): the media shows at FULL strength in
+   light mode too. The old ivory repaint (band forced #FAF7F0, video faded
+   to a 0.22 watermark, scrims repainted ivory) was a white layer over the
+   banner media — removed by owner directive 2026-10-12: no white layer
+   over any video in the light theme. The band keeps its authored dark
+   PAGE_BG melt in both themes. */
 /* ── Spotlight artist cards (choose-artist): dark card → ivory ──
    Guarded by :not([style*="url("]) so cards WITH an artist reference
    image keep their photo — only empty slots get the ivory fill.
@@ -673,17 +659,11 @@ html, body {
   border-color: rgb(231 217 188 / 0.9);
 }
 
-/* Login page: video shows through in light mode, subtle warm veil for form readability */
-.light .no-throne-bg video[class*="object-cover"] {
-  opacity: 0.85;
-}
-.light .no-throne-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgb(250 247 240 / 0.25) 0%, rgb(250 247 240 / 0.15) 50%, rgb(250 247 240 / 0.35) 100%);
-}
+/* Videos run at FULL opacity in light mode and no page-level ivory veil
+   sits over them (owner directive 2026-10-12: no white layer over any
+   video in the light theme). The old 0.85 video fade + ::after veil —
+   written for the login page but applied to every .no-throne-bg page,
+   homepage included — are gone. */
 
 /* Login form inputs: readable in light mode (not black rectangles) */
 .light .no-throne-bg input[type="password"],
@@ -1006,9 +986,13 @@ html, body {
   filter: none;
   text-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
-/* Positioning whisper + slogans: deep bronze gold */
-.light .no-throne-bg .text-primary\/90,
-.light .no-throne-bg .text-primary\/80 {
+/* Positioning whisper + slogans: deep bronze gold.
+   Dark-locked hero copy is exempt: over the hero photo + scrim the copy
+   keeps its dark-theme bright gold, exactly as it renders in dark mode
+   (owner directive 2026-10-12: light hero text must look like the dark
+   hero screenshot). */
+.light .no-throne-bg .text-primary\/90:not([data-dark-lock]):not([data-dark-lock] *),
+.light .no-throne-bg .text-primary\/80:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #8A6B1F !important;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
@@ -1037,13 +1021,40 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Badges & pills: champagne glass, bronze-gold text ── */
-.light .no-throne-bg .bg-primary\/10 {
+/* ── Badges & pills: champagne glass, bronze-gold text.
+   Dark-locked hero badges are exempt — same dark-theme gold glass as
+   dark mode (owner directive 2026-10-12). ── */
+.light .no-throne-bg .bg-primary\/10:not([data-dark-lock]):not([data-dark-lock] *) {
   background-color: rgba(201,168,76,0.14) !important;
   border-color: rgba(138,107,31,0.35) !important;
 }
-.light .no-throne-bg .text-primary {
+.light .no-throne-bg .text-primary:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #7A5F1D !important;
+}
+
+/* ── Hero headline accent INSIDE a dark-locked block: solid white ──
+   The middle (dark) hero screenshot is the reference: "hired a team."
+   reads white, not bronze and not gold-gradient. This exemption beats
+   the solid-bronze rule above (higher specificity) and applies only
+   inside dark-locked containers, so gold-shine headlines on cream
+   content sections keep their bronze. */
+.light .no-throne-bg [data-dark-lock] .gold-text-shine {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: #FFFFFF;
+  color: #FFFFFF;
+  animation: none;
+  filter: none;
+  text-shadow: none;
+}
+
+/* Gold small print inside the dark-locked hero copy (eyebrow whisper,
+   slogan): a soft dark halo so the bright gold holds over the palace
+   art's brightest marble, the way it sits on the dark hall in dark mode. */
+.light .no-throne-bg [data-dark-lock] .text-primary\/90,
+.light .no-throne-bg [data-dark-lock] .text-primary\/80 {
+  text-shadow: 0 1px 14px rgba(24,16,2,0.65), 0 0 3px rgba(24,16,2,0.4);
 }
 
 /* ── CTA buttons: rich gold that sings on ivory ── */
@@ -1083,12 +1094,10 @@ html, body {
   border-color: rgba(201,168,76,0.28) !important;
 }
 
-/* ── Teaser video letterbox: warm dissolve, not black crush ── */
-.light .no-throne-bg .from-black.via-transparent.to-black,
-.light .no-throne-bg [class*="from-black"][class*="to-black"] {
-  --tw-gradient-from: rgba(250,246,237,0.95) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgba(250,246,237,0.95) var(--tw-gradient-to-position);
-}
+/* ── Teaser video letterbox: the authored black fades stand in BOTH
+   themes. The old ivory repaint put near-solid white bands over the
+   teaser video's edges — removed by owner directive 2026-10-12 (no
+   white layer over any video in the light theme). ── */
 
 /* ── Fog canvas in light mode: golden dust, not gray smoke ── */
 .light .no-throne-bg canvas[class*="fog"],
@@ -1113,21 +1122,19 @@ html, body {
   color: #8A6B1F !important;
   text-shadow: 0 1px 0 rgba(255,255,255,0.6) !important;
 }
-/* Banner backdrop in light mode: warm ivory, not black video */
-.light .bdv-banner {
-  background: linear-gradient(180deg, #FDFBF7 0%, #F7F0DE 100%) !important;
-}
-.light .bdv-banner video {
-  opacity: 0.25;
-}
+/* Banner backdrop: no ivory repaint, no video fade in light mode
+   (owner directive 2026-10-12 — no white layer over any video). */
 
 /* Jackpot strip: bronze-gold text, readable on ivory */
 .light .text-\[\#F5DE8E\] {
   color: #7A5F1D !important;
 }
-/* Thy Cheat Code badge gold: deep bronze on ivory */
-.light .text-\[\#E8C96A\],
-.light .text-\[\#E8C86A\] {
+/* Thy Cheat Code badge gold: deep bronze on ivory.
+   Dark-locked areas are exempt: the coach chip is black glass in BOTH
+   themes, and bronze-on-black was unreadable mud (owner screenshot,
+   2026-10-12) — inside a lock the authored bright gold stands. */
+.light .text-\[\#E8C96A\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #7A5F1D !important;
 }
 
@@ -2519,10 +2526,9 @@ html[data-star-level="5"] [data-min-stars="6"] {
   color: #1C1712 !important;
 }
 
-/* Video pages: ensure controls readable in light mode */
-.light video::-webkit-media-controls-panel {
-  background-image: linear-gradient(transparent, rgba(250, 246, 237, 0.9)) !important;
-}
+/* Video pages: native controls keep their standard dark panel in light
+   mode too — the old ivory gradient panel was a white layer over the
+   bottom of every video (owner directive 2026-10-12). */
 
 /* Light mode: floating widgets (guide, playlist) stay visible above overlays */
 .light [data-guide-widget],
