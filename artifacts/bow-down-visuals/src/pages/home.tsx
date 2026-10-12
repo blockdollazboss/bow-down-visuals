@@ -234,7 +234,7 @@ function ShareRow({ label }: { label?: string }) {
     "flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
 
   return (
-    <div className="flex items-center gap-3">
+    <div data-dark-lock className="flex items-center gap-3">
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">{label ?? t("home.shareLabel")}</span>
       <a href={xHref} target="_blank" rel="noopener noreferrer" aria-label={t("home.shareX")} className={btn}>
         <XIcon className="h-3.5 w-3.5" />
@@ -441,8 +441,9 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           aria-hidden="true"
           className="pointer-events-none absolute -inset-x-10 -inset-y-8 z-[-1] rounded-[3rem]"
           style={{
-            background:
-              "radial-gradient(ellipse at 50% 62%, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.24) 52%, transparent 76%)",
+            background: isLight
+              ? "radial-gradient(ellipse at 50% 62%, rgba(24,16,2,0.62) 0%, rgba(24,16,2,0.36) 52%, transparent 78%)"
+              : "radial-gradient(ellipse at 50% 62%, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.24) 52%, transparent 76%)",
           }}
         />
 
@@ -478,7 +479,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </div>
 
         {/* Headline */}
-        <h1 className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
+        <h1 data-dark-lock className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
           {t("home.heroHeadlineA")}{" "}
           <span className="gold-text-shine">{t("home.heroHeadlineB")}</span>
         </h1>
@@ -489,7 +490,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </p>
 
         {/* Subheadline */}
-        <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+        <p data-dark-lock className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
           {t("home.heroSub")}
         </p>
 
@@ -515,7 +516,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </div>
 
         {/* Returning users */}
-        <p className="text-sm text-white/40">
+        <p data-dark-lock className="text-sm text-white/40">
           {t("home.alreadyHaveAccount")}{" "}
           <Link href="/login" className="font-semibold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors">
             {t("home.signIn")}
@@ -523,7 +524,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </p>
 
         {/* Social proof — true claims only */}
-        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
+        <div data-dark-lock className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-4 w-4 text-primary/60" /> {t("home.proofPayOnly")}
           </span>
@@ -823,7 +824,7 @@ function HowItWorks() {
 }
 
 
-function BuiltForCreators() {
+function BuiltForCreators({ isLight }: { isLight: boolean }) {
   const { t } = useTranslation();
   return (
     <section className="py-20 md:py-28 px-5">
@@ -860,7 +861,7 @@ function BuiltForCreators() {
         </div>
 
         {/* Formats strip — not just music: movies, podcasts, streaming */}
-        <div className="mt-12 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+        <div className={`mt-12 rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF3DF]/85" : "border-white/[0.07] bg-white/[0.02]"}`}>
           <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-6">
             {t("home.formatsKicker")}
           </p>
@@ -1646,9 +1647,28 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
+    {/* Curtain overlay — both themes get the theatrical stage curtains.
+          Dark uses the original gold curtains; light uses the same curtains
+          lightened to ivory via CSS filter. Same setup, different mood. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-[1]"
+        style={{
+          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+          ...(isLight ? { filter: "brightness(2.8) sepia(0.25) saturate(0.7)", opacity: 0.85 } : {}),
+        }}
+      />
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
+      {/* Content layer — above the curtain overlay (z-[1]) so the drapes
+          frame the backdrop only and never veil a card or a line of text
+          (owner screenshot, 2026-10-12: Built-for grid's outer columns
+          slid under the drapes and lost text). */}
+      <div className="relative z-[2]">
       <HeroSection isLight={isLight} />
       {/* The set stands on the hero/band seam — camera + lights cover the
           straight edges the backdrop and fog print there (owner, 2026-10-12). */}
@@ -1666,7 +1686,7 @@ export default function Home() {
       <MusicVideoTeaser isLight={isLight} />
       <HowItWorks />
       <SectionDivider />
-      <BuiltForCreators />
+      <BuiltForCreators isLight={isLight} />
       <StudioShowcase />
       <BrandingShopSection />
       <PricingSection />
@@ -1675,21 +1695,8 @@ export default function Home() {
       <SectionDivider />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
+      </div>
     </div>
-    {/* Curtain overlay — both themes get the theatrical stage curtains.
-          Dark uses the original gold curtains; light uses the same curtains
-          lightened to ivory via CSS filter. Same setup, different mood. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[3]"
-        style={{
-          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-          ...(isLight ? { filter: "brightness(2.8) sepia(0.25) saturate(0.7)", opacity: 0.85 } : {}),
-        }}
-      />
     </>
   );
 }
