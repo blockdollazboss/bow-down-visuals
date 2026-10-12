@@ -187,7 +187,10 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
           <span className="bg-gradient-to-r from-yellow-300 via-primary to-yellow-300 bg-clip-text text-transparent tabular-nums">
             {formatInt(creators)}
           </span>{" "}
-          {t("socialProof.headlineSuffix")}
+          {/* Plural-aware (owner screenshot, 2026-10-12): "Join 1 creators"
+              was printing because the suffix baked the plural in. */}
+          {stats.creators === 1 ? t("socialProof.headlineCreatorWord") : t("socialProof.headlineCreatorsWord")}{" "}
+          {t("socialProof.headlineTail")}
         </h2>
         {vertical && verticalCount > 0 && (
           <p className="mt-2 text-sm font-semibold text-primary/90">
@@ -195,7 +198,18 @@ export function SocialProofBand({ variant = "full", vertical, className = "" }: 
             {t("socialProof.verticalSuffix")}
           </p>
         )}
-        <div className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4 md:gap-8">
+        {/* Adaptive grid (owner screenshot, 2026-10-12): with the zero-stats
+            dropped, a lone surviving stat used to sit in the first cell of a
+            4-col grid — a lopsided empty box. The row now fits its count. */}
+        <div className={`mt-8 grid gap-6 md:gap-8 ${
+          statDefs.length === 1
+            ? "grid-cols-1"
+            : statDefs.length === 2
+              ? "grid-cols-2 max-w-xl mx-auto w-full"
+              : statDefs.length === 3
+                ? "grid-cols-1 min-[520px]:grid-cols-3"
+                : "grid-cols-2 md:grid-cols-4"
+        }`}>
           {statDefs.map((s) => (
             <div key={s.label}>
               <div className="text-3xl md:text-4xl font-black tracking-tight text-white tabular-nums drop-shadow-[0_0_18px_rgba(201,168,76,0.25)]">
