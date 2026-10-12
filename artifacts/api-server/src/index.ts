@@ -5,6 +5,7 @@ import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startJobPoller } from "./lib/job-poller";
+import { startMemoryWatchdog } from "./lib/memory-watchdog";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -21,6 +22,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // 2026-10-12 OOM fix: log process memory every 60s (was zero observability).
+  startMemoryWatchdog();
 
   // Guarantee the Cheat Code Jackpot tables exist (idempotent). This is a
   // safety net in case the pre-boot `drizzle-kit push` ever fails silently.
