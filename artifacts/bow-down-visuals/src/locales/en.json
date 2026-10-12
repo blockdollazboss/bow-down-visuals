@@ -12187,12 +12187,12 @@
   },
   "retentionDelight": {
     "sharkDrop_title": "The Shark Dropped Something",
-    "sharkDrop_subtitle": "The shark dropped {amount} VB in your vault!",
+    "sharkDrop_subtitle": "The shark dropped {{amount}} VB in your vault!",
     "sharkDrop_body": "A surprise gift from Thy Cheat Code. Claim it before it swims away.",
-    "sharkDrop_claim": "Claim {amount} VB",
+    "sharkDrop_claim": "Claim {{amount}} VB",
     "sharkDrop_claiming": "Claiming…",
-    "sharkDrop_claimed": "+{amount} Visual Bucs added to your balance",
-    "sharkDrop_expires": "Expires in {time}",
+    "sharkDrop_claimed": "+{{amount}} Visual Bucs added to your balance",
+    "sharkDrop_expires": "Expires in {{time}}",
     "sharkDrop_expired": "This drop swam away",
     "sharkDrop_dismiss": "Maybe later",
     "sharkDrop_failed": "Claim failed. Try again.",
@@ -12204,7 +12204,7 @@
     "levelUp_copy": "Copy share text",
     "levelUp_copied": "Copied",
     "levelUp_dismiss": "Keep creating",
-    "levelUp_shareText": "I just hit {rank} ({stars}★) on Bow Down Visuals — the content creation cheat code. 🦈",
+    "levelUp_shareText": "I just hit {{rank}} ({{stars}}★) on Bow Down Visuals — the content creation cheat code. 🦈",
     "levelUp_unlocks_1": [
       "One-tap AI autopilot flows",
       "The essential generate button, nothing else"

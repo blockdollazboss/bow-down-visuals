@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X, Gift, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── SharkDropModal — surprise Visual Bucs ──────────────────────────────
    The King Shark (character-locked favicon GIF) drops VB in your vault.
@@ -39,6 +40,7 @@ export default function SharkDropModal({
 }) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
+  const isLight = useIsLightTheme();
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,30 +104,30 @@ export default function SharkDropModal({
       onClick={onDismiss}
     >
       <div
-        className="shark-drop-modal relative w-[min(94vw,420px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+        className={`shark-drop-modal relative w-[min(94vw,420px)] rounded-3xl border-2 border-[#C9A84C] p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both] ${isLight ? "bg-gradient-to-b from-[#FFFDF8] to-[#F7F1E3]" : "bg-gradient-to-b from-[#1a1408] to-black"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="absolute top-3 right-3 rounded-full p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          className={`absolute top-3 right-3 rounded-full p-1.5 transition-colors ${isLight ? "text-[#4A3B22]/50 hover:text-[#2A2118] hover:bg-black/5" : "text-white/40 hover:text-white hover:bg-white/10"}`}
         >
           <X className="h-5 w-5" />
         </button>
 
         {/* Mascot — the character-locked Shark King, ringed in gold */}
-        <div className="mx-auto -mt-16 mb-4 h-28 w-28 rounded-full border-[3px] border-[#e8c86a] shadow-[0_0_35px_rgba(232,200,106,0.55)] overflow-hidden bg-black">
-          <img src="/favicon.gif" alt="Thy Cheat Code, the Shark King" className="h-full w-full object-cover" draggable={false} />
+        <div className={`mx-auto -mt-16 mb-4 h-28 w-28 rounded-full border-[3px] border-[#e8c86a] shadow-[0_0_35px_rgba(232,200,106,0.55)] overflow-hidden ${isLight ? "bg-[#F7F1E3]" : "bg-black"}`}>
+          <img src={isLight ? "/images/shark-king-light-authority.png" : "/favicon.gif"} alt="Thy Cheat Code, the Shark King" className="h-full w-full object-cover" draggable={false} />
         </div>
 
         <p className="text-[10px] font-black tracking-[0.22em] text-[#C9A84C]/80 uppercase flex items-center justify-center gap-1.5">
           <Gift className="h-3.5 w-3.5" />{t("retentionDelight.sharkDrop_title")}
         </p>
-        <h2 className="font-display mt-2 text-2xl font-black text-white leading-tight">
+        <h2 className={`font-display mt-2 text-2xl font-black leading-tight ${isLight ? "text-[#2A2118]" : "text-white"}`}>
           {t("retentionDelight.sharkDrop_subtitle", { amount: formatVB(drop.amount) })}
         </h2>
-        <p className="mt-2 text-sm text-white/60">{t("retentionDelight.sharkDrop_body")}</p>
+        <p className={`mt-2 text-sm ${isLight ? "text-[#4A3B22]/70" : "text-white/60"}`}>{t("retentionDelight.sharkDrop_body")}</p>
 
         {claimed ? (
           <p className="mt-6 rounded-xl bg-[#e8c86a]/10 border border-[#e8c86a]/30 px-4 py-3 text-sm font-bold text-[#e8c86a]">
@@ -147,14 +149,14 @@ export default function SharkDropModal({
             <button
               type="button"
               onClick={onDismiss}
-              className="mt-3 text-sm font-semibold text-white/40 hover:text-white/70 transition-colors"
+              className={`mt-3 text-sm font-semibold transition-colors ${isLight ? "text-[#4A3B22]/50 hover:text-[#2A2118]" : "text-white/40 hover:text-white/70"}`}
             >
               {t("retentionDelight.sharkDrop_dismiss")}
             </button>
           </>
         )}
 
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-white/35">
+        <p className={`mt-4 flex items-center justify-center gap-1.5 text-[11px] ${isLight ? "text-[#4A3B22]/45" : "text-white/35"}`}>
           <Timer className="h-3 w-3" />{expiryLabel(drop.expiresAt, t)}
         </p>
       </div>
