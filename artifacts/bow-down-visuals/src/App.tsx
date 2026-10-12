@@ -588,7 +588,7 @@ function AppShell() {
                 <Route path="/books"><ProtectedRoute><Books /></ProtectedRoute></Route>
                 <Route path="/library"><ProtectedRoute><Library /></ProtectedRoute></Route>
                 <Route path="/cartoon-studio"><Redirect to="/create?panel=cartoon" /></Route>
-                <Route path="/merch"><QueryPreservingRedirect to="/branding-shop?tab=merch" /></Route>
+                <Route path="/merch"><QueryPreservingRedirect to="/branding-kit?tab=shop&subtab=merch" /></Route>
                 <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists" /></Route>
                 <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><Redirect to="/analytics-hub?tab=channel-audit" /></Route>

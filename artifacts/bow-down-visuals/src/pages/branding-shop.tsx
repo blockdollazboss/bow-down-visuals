@@ -134,7 +134,12 @@ export default function BrandingShop() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>(() => {
-    try { return new URLSearchParams(window.location.search).get("tab") === "merch" ? "merch" : "shop"; } catch { return "shop"; }
+    /* Deep links: standalone /branding-shop?tab=merch, or embedded in the
+       Branding Kit as /branding-kit?tab=shop&subtab=merch (the /merch route). */
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get("subtab") === "merch" || q.get("tab") === "merch" ? "merch" : "shop";
+    } catch { return "shop"; }
   });
   const [shopCat, setShopCat] = useState<"merch" | "smart" | "jewelry">("merch");
 
