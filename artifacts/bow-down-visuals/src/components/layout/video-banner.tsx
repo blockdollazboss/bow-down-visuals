@@ -75,7 +75,9 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
 
     const loop = () => {
       if (cancelled) return;
-      const k = reduce ? 1 : 0.12;
+      // Direct tracking (k = 1): the artwork stops the moment the pointer stops.
+      // No easing glide — owner directive 2026-10-11.
+      const k = 1;
       currentX += (targetX - currentX) * k;
       glowCX += (glowTX - glowCX) * k;
       glowCY += (glowTY - glowCY) * k;
