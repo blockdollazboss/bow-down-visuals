@@ -12,9 +12,10 @@
  *   When master player is paused/scrubbing, all CSS animations freeze instantly.
  */
 import type React from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
 
-/* ─── Watermark asset (transparent PNG) ─────────────────────────────────── */
-const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.webp`;
+/* ─── Watermark asset (theme-aware — use getDefaultWatermarkUrl(isLight)) ── */
 
 /* ─── Music Video defaults — clearly visible, never 100% ────────────────── */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
@@ -452,6 +453,7 @@ function WatermarkEffect({
   showOnPreview?: boolean;
   logoUrl?: string;
 }) {
+  const isLight = useIsLightTheme();
   if (!showOnPreview || type === "none") return null;
 
   const isBottom = position.includes("bottom");
@@ -480,7 +482,7 @@ function WatermarkEffect({
     return (
       <img
         data-testid="watermark-overlay"
-        src={logoUrl || WATERMARK_URL}
+        src={logoUrl || getDefaultWatermarkUrl(isLight)}
         alt="Bow Down Visuals"
         draggable={false}
         style={{

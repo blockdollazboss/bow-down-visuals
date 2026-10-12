@@ -9,6 +9,7 @@ import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHubProject } from "@/lib/hub-project";
 import { useToast } from "@/hooks/use-toast";
@@ -250,6 +251,7 @@ export function FinalVideoExport({
   fitMode,
   isSubscriber = false,
 }: FinalVideoExportProps) {
+  const isLight = useIsLightTheme();
   const { addAsset, referralCode } = useHubProject();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -580,6 +582,7 @@ export function FinalVideoExport({
         matchVideoLength: hasAudio ? matchVideoLength : false,
         addWatermark: qualityOpts ? qualityOpts.watermark : addWatermark,
         customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
+        watermarkTheme: isLight ? "light" : "dark",
         watermarkPosition,
         watermarkSize,
         watermarkMargin,

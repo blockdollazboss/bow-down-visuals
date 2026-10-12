@@ -890,6 +890,7 @@ const exportFinalVideoSchema = z.object({
   matchVideoLength: z.boolean().default(true),
   addWatermark: z.boolean().default(false),
   customWatermarkUrl: z.string().nullish(),
+  watermarkTheme: z.enum(["light", "dark"]).default("dark"),
   watermarkPosition: z.string().default("bottom-right"),
   watermarkSize: z.string().default("medium"),
   watermarkMargin: z.number().default(16),
@@ -938,6 +939,8 @@ export interface ExportRequestBody {
     matchVideoLength?: boolean;
     addWatermark?: boolean;
     customWatermarkUrl?: string | null;
+    /** Theme-matched default watermark: "light" = bronze logo, "dark" = gold logo. */
+    watermarkTheme?: "light" | "dark";
     /** Legacy (non-branding) watermark placement — mirrors settings.watermarkPosition. */
     watermarkPosition?: string;
     /** Legacy (non-branding) watermark size — mirrors settings.watermarkSize. */
@@ -1042,6 +1045,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     matchVideoLength = true,
     addWatermark = false,
     customWatermarkUrl,
+    watermarkTheme = "dark",
     watermarkPosition = "bottom-right",
     watermarkSize = "medium",
     watermarkMargin = 16,
@@ -1624,7 +1628,11 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     /* ── 2: Resolve audio (reuse prepared file or download fresh) ── */
     let audioPath: string | null = null;
-    const DEFAULT_WATERMARK = path.join(WORKSPACE_ROOT, "artifacts/bow-down-visuals/public/bdv-watermark.png");
+    // Theme-aware default watermark: light theme gets the bronze-on-transparent
+    // logo, dark theme gets the gold-on-transparent logo. (Also fixes the old
+    // reference to bdv-watermark.png which never existed — the dark file is .webp.)
+    const DEFAULT_WATERMARK = path.join(WORKSPACE_ROOT, "artifacts/bow-down-visuals/public",
+      watermarkTheme === "light" ? "bdv-watermark-light.png" : "bdv-watermark.webp");
 
     if (!testMode && usePrepared && preparedEntry?.audio?.ready && existsSync(preparedEntry.audio.localPath)) {
       // Use the EXACT audio file already downloaded + ffprobe-verified in prepare step

@@ -8,6 +8,8 @@ import {
   getClipEdit,
   type EditorSettings, type ClipEdit,
 } from "@/lib/editor-settings";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
 import { STRENGTH_PRESETS } from "@/components/ActiveOverlayEffects";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
@@ -81,6 +83,7 @@ function IntensityRow({
 }
 
 export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades, onReplaceClipVideo, onGoToCaptions, onGoToExport }: EffectsSectionProps) {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const [bgRemovalScene, setBgRemovalScene] = useState<string>("");
   const [bgRemoving, setBgRemoving] = useState(false);
@@ -436,7 +439,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 {/* Visual preview on a mid-grey swatch so transparency is obvious */}
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
                   style={{ background: "linear-gradient(135deg,#2a2a2a 50%,#1a1a1a 50%)" }}>
-                  <img src={`${import.meta.env.BASE_URL}bdv-watermark.webp`} alt="Bow Down Visuals watermark"
+                  <img src={getDefaultWatermarkUrl(isLight)} alt="Bow Down Visuals watermark"
                     className="h-8 w-auto"
                     style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }} />
                   <span className="text-[10px] text-white/40 leading-tight">Transparent PNG — no background</span>

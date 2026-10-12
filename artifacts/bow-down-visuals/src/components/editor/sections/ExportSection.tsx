@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
@@ -676,7 +677,7 @@ export function ExportSection({
               ) : (
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03]">
                   <img
-                    src={`${import.meta.env.BASE_URL}bdv-watermark.webp`}
+                    src={getDefaultWatermarkUrl(isLight)}
                     alt="Bow Down Visuals watermark"
                     className="h-10 w-auto max-w-[120px] object-contain"
                   />
