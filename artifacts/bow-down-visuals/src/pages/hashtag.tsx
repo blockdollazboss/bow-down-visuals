@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Hash, Loader2, ArrowLeft, Music2, Clapperboard, Trophy } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Hashtag hub — /hashtag/:tag ───────────────────────────────────────────
    Every tag is a doorway: shorts + videos + tracks + challenges, all linked.
@@ -29,6 +30,7 @@ function fmt(n: number): string {
 }
 
 export default function HashtagPage() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/hashtag/:tag");
   const tag = params?.tag ? decodeURIComponent(params.tag) : "";
   const [data, setData] = useState<HashtagData | null>(null);
@@ -53,27 +55,27 @@ export default function HashtagPage() {
   }, [tag]);
 
   if (loading) {
-    return <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-black"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center ${isLight ? "" : "bg-black"}`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   const total = (data?.shorts.length ?? 0) + (data?.videos.length ?? 0) + (data?.tracks.length ?? 0);
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-black px-4 py-6 md:px-8">
-      <Link href="/shorts" className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 hover:text-primary">
+    <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
+      <Link href="/shorts" className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
         <ArrowLeft className="h-4 w-4" /> Back to Shorts
       </Link>
       <div className="mb-8 flex items-center gap-4">
         <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><Hash className="h-8 w-8 text-primary" /></span>
         <div>
-          <h1 className="text-3xl font-black text-white">#{tag}</h1>
-          <p className="text-sm text-white/50">{fmt(total)} pieces of content tagged</p>
+          <h1 className={`text-3xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>#{tag}</h1>
+          <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{fmt(total)} pieces of content tagged</p>
         </div>
       </div>
 
       {!data || total === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
-          <p className="text-white/50">Nothing tagged #{tag} yet. Tag it first — own the search.</p>
+        <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
+          <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>Nothing tagged #{tag} yet. Tag it first — own the search.</p>
           <Link href="/publish?type=video&category=video" className="mt-4 inline-block rounded-full bg-primary px-6 py-2.5 font-bold text-black">
             Post with #{tag}
           </Link>
@@ -84,10 +86,10 @@ export default function HashtagPage() {
             <Section title="Challenges" icon={<Trophy className="h-5 w-5 text-primary" />}>
               {data.challenges.map((c) => (
                 <Link key={c.slug} href={`/challenge/${c.slug}`}
-                  className="rounded-xl border border-primary/30 bg-zinc-950 p-4 hover:border-primary/60">
-                  <p className="font-bold text-white">{c.title}</p>
+                  className={`rounded-xl border p-4 hover:border-primary/60 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-primary/30 bg-zinc-950"}`}>
+                  <p className={`font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{c.title}</p>
                   <p className="text-xs text-primary">{fmt(c.entry_count)} entries</p>
-                  {c.prize_text && <p className="mt-1 text-xs text-white/60">🏆 {c.prize_text}</p>}
+                  {c.prize_text && <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>🏆 {c.prize_text}</p>}
                 </Link>
               ))}
             </Section>
@@ -114,9 +116,10 @@ export default function HashtagPage() {
 }
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  const isLight = useIsLightTheme();
   return (
     <section className="mb-8">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-black text-white">{icon} {title}</h2>
+      <h2 className={`mb-3 flex items-center gap-2 text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{icon} {title}</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">{children}</div>
     </section>
   );
