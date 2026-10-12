@@ -4,6 +4,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { markExtensionDownloaded } from "@/lib/extension-promo";
 import { markAndroidDownloaded, isAndroidDevice } from "@/lib/android-promo";
 import { markIOSInstalled, isIOSDevice } from "@/lib/ios-promo";
@@ -58,6 +59,7 @@ const FAQS = [
 ];
 
 export default function Download() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("download.metaTitle"));
   const onAndroid = typeof navigator !== "undefined" && isAndroidDevice();
@@ -83,7 +85,7 @@ export default function Download() {
         </LuxReveal>
 
         {/* Live social proof — real platform numbers */}
-        <SocialProofBand variant="compact" className="mb-10 rounded-2xl border border-primary/15 bg-black/40" />
+        <SocialProofBand variant="compact" className={isLight ? "mb-10 rounded-2xl border border-primary/25 bg-[#C9A84C]/[0.08]" : "mb-10 rounded-2xl border border-primary/15 bg-black/40"} />
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
