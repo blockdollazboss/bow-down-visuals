@@ -218,6 +218,20 @@ export function MusicStudio({
 
   return (
     <div className="space-y-4">
+      {/* ── Beat maker cross-link: producers start here ── */}
+      <a
+        href="/ai-audio?tab=beats"
+        className="flex items-center gap-3 rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-r from-[#C9A84C]/15 via-[#C9A84C]/[0.06] to-transparent px-4 py-3 transition-colors hover:border-[#C9A84C]/70 hover:from-[#C9A84C]/20"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C]/40">
+          <Disc3 className="h-5 w-5 text-[#C9A84C]" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-black text-[#E8C96A]">Make a beat</span>
+          <span className="block text-xs text-white/50 truncate">Step sequencer, 808 bass, mixer — send it straight back here</span>
+        </span>
+        <span className="text-[#C9A84C] text-lg leading-none">→</span>
+      </a>
       {/* ── Suno-style Now Playing / Song workspace header ── */}
       <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden">
         <div className="p-4 flex items-center gap-4">

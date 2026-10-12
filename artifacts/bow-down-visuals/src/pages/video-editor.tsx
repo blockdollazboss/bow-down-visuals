@@ -12,6 +12,7 @@ import {
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText, MessageCircle,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
   Fingerprint, Laugh, Timer, Crown, Trash2, Copy, Brain,
+  Camera, Clock3, Gauge, Grid3x3,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -32,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
+import { ClipContextMenu, type ContextMenuItem } from "@/components/editor/ClipContextMenu";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings } from "@/lib/scene-timing";
 import {
@@ -39,6 +41,7 @@ import {
   sceneHasClip,
   getClipEdit,
   defaultClipEdit,
+  defaultStemEffects,
   type ClipEdit,
   formatAspectCss,
   formatDimensions,
@@ -562,6 +565,63 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* ── Beat maker handoff: ?beathandoff=<id> ──
+     The beat maker renders a WAV, stashes it in the module-level handoff
+     cache (same SPA session — no reload), and routes here. Pick it up
+     one-shot and add it as a timeline audio stem, then land on the Audio
+     tab so the producer sees it. Unknown/expired ids are ignored. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("beathandoff");
+      if (!id) return;
+      import("@/lib/beat-handoff").then(({ takeBeatHandoff }) => {
+        const beat = takeBeatHandoff(id);
+        if (!beat) return;
+        setSettings((prev) => ({
+          ...prev,
+          musicStudio: {
+            ...prev.musicStudio,
+            stems: [
+              ...prev.musicStudio.stems,
+              {
+                id: `beat-${Date.now()}`,
+                name: beat.title,
+                type: "beat",
+                url: beat.url,
+                storagePath: "",
+                fileType: "audio/wav",
+                fileSize: beat.blob.size,
+                uploadedAt: new Date().toISOString(),
+                durationSec: beat.durationSec,
+                muted: false,
+                solo: false,
+                locked: false,
+                volume: 100,
+                pan: 0,
+                trimStart: 0,
+                trimEnd: 0,
+                startTime: 0,
+                effects: defaultStemEffects(),
+              },
+            ],
+          },
+        }));
+        setTab("music");
+        toast({
+          title: t("videoEditor.beatReadyTitle", { defaultValue: "Beat added to your timeline" }),
+          description: t("videoEditor.beatReadyDesc", { defaultValue: "{{title}} is now an audio stem — trim, mix, and export it with your video.", title: beat.title }),
+        });
+        // Strip the param so a refresh doesn't re-add the stem.
+        const url = new URL(window.location.href);
+        url.searchParams.delete("beathandoff");
+        window.history.replaceState(null, "", url.toString());
+      }).catch(() => { /* handoff unavailable — ignore */ });
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /* ── Thy Library deep-links (?fx= / ?textstyle= / ?transition=) ──────────
      Each slug resolves against the library preset catalog, then maps to the
      editor's built-in export-safe catalog (see LIBRARY_*_MAP above).
@@ -692,7 +752,7 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "motion", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
+  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "copilot", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "motion", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
 
   /* 3-Second Lab: prefill the video description from the timeline's opening
      (first scene lyric/action or first caption line). */
@@ -1908,6 +1968,7 @@ export default function VideoEditor() {
                     {{
                       clips: t("videoEditor.railMedia"),
                       templates: t("videoEditor.railTemplates"),
+                      copilot: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }),
                       music: t("videoEditor.railAudio"),
                       timeline: t("videoEditor.railTimeline"),
                       "beat-sync": t("videoEditor.railBeatSync"),
@@ -2455,7 +2516,7 @@ export default function VideoEditor() {
                         settings={settings}
                         setSettings={setSettings}
                         setScenes={setScenes}
-                        captions={captions}
+                        captions={settings.captions?.lines ?? []}
                         totalDurationSec={previewEngineState?.audioDuration ?? null}
                         songTitle={songTitle}
                         artistName={artistName}
@@ -3692,6 +3753,9 @@ function MasterPreviewPlayer({
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
+  /* ── Right-click context menu on the preview player + title/action safe guides ── */
+  const [playerCtx, setPlayerCtx] = useState<{ x: number; y: number } | null>(null);
+  const [safeGuides, setSafeGuides] = useState(false);
   const blurVideoRef = useRef<HTMLVideoElement | null>(null);
   /* Ambient glow layer — a blurred, dimmed mirror of the playing video rendered
    * behind the whole player frame (always on, not just fitMode=blur). */
@@ -3844,6 +3908,118 @@ function MasterPreviewPlayer({
     setSettings({ ...settings, export: { ...settings.export, fitMode: next } });
     toast({ description: t("videoEditor.fitModeToast", { label: t(FIT_TOAST[next]) }), duration: 2000 });
   };
+
+  /* ── Right-click context menu actions (preview player) ── */
+  const openPlayerCtxMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPlayerCtx({ x: e.clientX, y: e.clientY });
+  };
+
+  /** Capture the current video frame to a PNG download (canvas drawImage). */
+  const screenshotFrame = () => {
+    const v = liveVideoRef.current;
+    if (!v || !v.videoWidth || !v.videoHeight || !v.currentSrc) {
+      toast({ title: "No frame to capture", description: "The player has no video loaded.", variant: "destructive" });
+      return;
+    }
+    try {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      const g = c.getContext("2d");
+      if (!g) throw new Error("Canvas not supported");
+      g.drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob((blob) => {
+        if (!blob) {
+          toast({ title: "Capture blocked", description: "This video source doesn't allow frame capture.", variant: "destructive" });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bowdown-frame-${Math.round(eng?.currentTime ?? 0)}s.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        toast({ title: "Frame saved", description: "PNG downloaded to your device." });
+      }, "image/png");
+    } catch {
+      toast({ title: "Capture blocked", description: "This video source doesn't allow frame capture.", variant: "destructive" });
+    }
+  };
+
+  /** Copy the current playhead position as a timecode. */
+  const copyTimestamp = async () => {
+    const tSec = eng?.currentTime ?? 0;
+    const ms = Math.floor((tSec % 1) * 1000);
+    const tc = `${fmtSecs(tSec)}.${String(ms).padStart(3, "0")}`;
+    try {
+      await navigator.clipboard.writeText(tc);
+      toast({ title: "Timestamp copied", description: tc });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard is unavailable.", variant: "destructive" });
+    }
+  };
+
+  /** Zoom the player: "fit" = whole frame visible (letterboxed), "fill" = crop to fill. */
+  const setFitZoom = (mode: "fit" | "fill") => {
+    setSettings({ ...settings, export: { ...settings.export, fitMode: mode } });
+    toast({ description: mode === "fit" ? "Zoom: fit — whole frame visible" : "Zoom: fill — frame crops to fill", duration: 2000 });
+  };
+
+  const setPlayerSpeed = (r: number) => {
+    setSpeed(r);
+    onSetPlaybackRate(r);
+    toast({ description: `Playback speed ${r}×`, duration: 1500 });
+  };
+
+  function buildPlayerCtxItems(): ContextMenuItem[] {
+    const curFit = (settings.export.fitMode ?? "fill") as FitMode;
+    return [
+      {
+        key: "screenshot", label: "Screenshot frame",
+        icon: <Camera className="h-3.5 w-3.5" />,
+        onClick: screenshotFrame,
+      },
+      {
+        key: "timestamp", label: "Copy timestamp",
+        icon: <Clock3 className="h-3.5 w-3.5" />,
+        onClick: () => { void copyTimestamp(); },
+      },
+      { key: "div-1", divider: true, label: "" },
+      {
+        key: "guides", label: "Toggle safe guides",
+        icon: <Grid3x3 className="h-3.5 w-3.5" />,
+        checked: safeGuides,
+        onClick: () => {
+          setSafeGuides((g) => !g);
+          toast({ description: safeGuides ? "Safe guides hidden" : "Safe guides shown", duration: 1500 });
+        },
+      },
+      {
+        key: "zoom-fit", label: "Zoom to fit",
+        icon: <Minimize2 className="h-3.5 w-3.5" />,
+        checked: curFit === "fit",
+        onClick: () => setFitZoom("fit"),
+      },
+      {
+        key: "zoom-fill", label: "Zoom to fill",
+        icon: <Maximize2 className="h-3.5 w-3.5" />,
+        checked: curFit === "fill",
+        onClick: () => setFitZoom("fill"),
+      },
+      {
+        key: "speed", label: "Playback speed", icon: <Gauge className="h-3.5 w-3.5" />,
+        children: ([0.25, 0.5, 1, 1.5, 2] as const).map((r) => ({
+          key: `speed-${r}`, label: `${r}×`,
+          checked: speed === r,
+          onClick: () => setPlayerSpeed(r),
+        })),
+      },
+    ];
+  }
 
   /* ── Transport: volume / mute / speed / loop ── */
   const [volume,   setVolume  ] = useState(1);
@@ -4601,6 +4777,7 @@ function MasterPreviewPlayer({
       <div
         data-testid="master-player-canvas"
         ref={compareTrackRef}
+        onContextMenu={openPlayerCtxMenu}
         className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
         style={{ aspectRatio: arCss, width: isFullscreen ? "100%" : floatWidth, height: isFullscreen ? "100%" : "auto", maxWidth: "100%", marginLeft: "auto", marginRight: "auto" }}
       >
@@ -4950,6 +5127,26 @@ function MasterPreviewPlayer({
             </div>
           </button>
         )}
+
+        {/* ── Title-safe / action-safe guides (from the player right-click menu) ── */}
+        {safeGuides && (
+          <>
+            <div
+              className="absolute pointer-events-none border border-dashed border-white/40 rounded-sm"
+              style={{ top: "5%", bottom: "5%", left: "5%", right: "5%", zIndex: 32 }}
+              aria-hidden
+            >
+              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-white/50">Action safe</span>
+            </div>
+            <div
+              className="absolute pointer-events-none border border-dashed border-[#C9A84C]/70 rounded-sm"
+              style={{ top: "10%", bottom: "10%", left: "10%", right: "10%", zIndex: 32 }}
+              aria-hidden
+            >
+              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-[#C9A84C]/70">Title safe</span>
+            </div>
+          </>
+        )}
       </div>
         );
         /* Fullscreen: center canvas with correct aspect ratio; non-fullscreen: raw canvas */
@@ -4957,6 +5154,17 @@ function MasterPreviewPlayer({
           ? <div className="flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">{canvas}</div>
           : canvas;
       })()}
+
+      {/* ── Preview player right-click context menu ── */}
+      {playerCtx && (
+        <ClipContextMenu
+          x={playerCtx.x}
+          y={playerCtx.y}
+          items={buildPlayerCtxItems()}
+          onClose={() => setPlayerCtx(null)}
+          testId="player-context-menu"
+        />
+      )}
 
       <div ref={chromeFooterRef}>
       {/* ── Minimized chip — condensed play/pause only, distinct from auto-PiP ── */}

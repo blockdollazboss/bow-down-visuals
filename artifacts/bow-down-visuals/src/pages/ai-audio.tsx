@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,9 +10,12 @@ import {
   Trash2, Wand2, Disc3, Scissors, Store, Music4, Timer, KeyRound,
   SlidersHorizontal, Lock, Tag, AudioWaveform, ArrowLeft, AlertTriangle,
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
-  Cloud, Footprints, Library, Package, Check, Sparkles,
+  Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
+  Volume2, VolumeX, Clapperboard, Piano,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { stashBeatHandoff } from "@/lib/beat-handoff";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
@@ -307,15 +310,17 @@ const TRACKS = [
   { id: "b808",  labelKey: "beatMaker.track808",       color: "bg-violet-400" },
   { id: "perc",  labelKey: "beatMaker.trackPerc",      color: "bg-emerald-400" },
   { id: "shk",   labelKey: "beatMaker.trackShaker",    color: "bg-lime-300" },
+  { id: "crash", labelKey: "beatMaker.trackCrash",     color: "bg-fuchsia-400" },
 ] as const;
 
 type TrackId = typeof TRACKS[number]["id"];
 const STEPS = 16;
 
 /* Synthesize one drum hit at time t. All sounds are oscillator/noise based —
-   no samples, no network. */
-function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode) {
+   no samples, no network. vel: 1 = normal, >1 = accent. */
+function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode, vel = 1) {
   const g = ctx.createGain();
+  g.gain.value = vel;
   g.connect(dest);
 
   if (id === "kick") {
@@ -323,7 +328,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     o.type = "sine";
     o.frequency.setValueAtTime(160, t);
     o.frequency.exponentialRampToValueAtTime(42, t + 0.11);
-    g.gain.setValueAtTime(1, t);
+    g.gain.setValueAtTime(vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
     o.connect(g); o.start(t); o.stop(t + 0.26);
   } else if (id === "b808") {
@@ -331,7 +336,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     o.type = "sine";
     o.frequency.setValueAtTime(110, t);
     o.frequency.exponentialRampToValueAtTime(48, t + 0.3);
-    g.gain.setValueAtTime(0.9, t);
+    g.gain.setValueAtTime(0.9 * vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
     o.connect(g); o.start(t); o.stop(t + 0.6);
   } else if (id === "snare") {
@@ -339,7 +344,7 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     const o = ctx.createOscillator();
     o.type = "triangle"; o.frequency.setValueAtTime(190, t);
     const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0.5, t);
+    g2.gain.setValueAtTime(0.5 * vel, t);
     g2.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
     o.connect(g2); g2.connect(dest); o.start(t); o.stop(t + 0.12);
   } else if (id === "clap") {
@@ -349,16 +354,51 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
     noiseBurst(ctx, t, 0.05, 8000, g, 0.32, "highpass");
   } else if (id === "ohat") {
     noiseBurst(ctx, t, 0.32, 7500, g, 0.3, "highpass");
+  } else if (id === "crash") {
+    noiseBurst(ctx, t, 1.1, 5200, g, 0.34, "highpass");
+    noiseBurst(ctx, t, 0.5, 9000, g, 0.18, "highpass");
   } else if (id === "perc") {
     const o = ctx.createOscillator();
     o.type = "square"; o.frequency.setValueAtTime(620, t);
-    g.gain.setValueAtTime(0.22, t);
+    g.gain.setValueAtTime(0.22 * vel, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
     o.connect(g); o.start(t); o.stop(t + 0.1);
   } else { // shk
     noiseBurst(ctx, t, 0.09, 6000, g, 0.18, "highpass");
   }
 }
+
+/* 808 bass note with a short pitch glide into the target. midi: 24 (C1)..47 (B2). */
+function synthBass(ctx: BaseAudioContext, midi: number, t: number, dest: AudioNode, vel = 1, prevMidi: number | null = null) {
+  const f = 440 * Math.pow(2, (midi - 69) / 12);
+  const o = ctx.createOscillator();
+  o.type = "sine";
+  if (prevMidi != null) {
+    const pf = 440 * Math.pow(2, (prevMidi - 69) / 12);
+    o.frequency.setValueAtTime(Math.max(20, pf), t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f), t + 0.045);
+  } else {
+    o.frequency.setValueAtTime(Math.max(20, f), t);
+  }
+  const o2 = ctx.createOscillator();
+  o2.type = "triangle";
+  o2.frequency.setValueAtTime(Math.max(20, f * 2), t);
+  const g = ctx.createGain();
+  const g2 = ctx.createGain();
+  g2.gain.value = 0.16;
+  const dur = 0.85;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.9 * vel, t + 0.014);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); o2.connect(g2); g2.connect(g); g.connect(dest);
+  o.start(t); o.stop(t + dur + 0.05);
+  o2.start(t); o2.stop(t + dur + 0.05);
+}
+
+export const midiToNoteName = (midi: number): string => {
+  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+};
 
 function noiseBurst(
   ctx: BaseAudioContext, t: number, dur: number, freq: number,
@@ -379,49 +419,56 @@ function noiseBurst(
   src.start(t); src.stop(t + dur + 0.02);
 }
 
-/* Presets — classic starting patterns (true = hit). Rows: kick,snare,clap,chat,ohat,808,perc,shk */
-const PRESETS: Record<string, { nameKey: string; bpm: number; grid: boolean[][] }> = {
+/* Presets — classic starting patterns. Values: 0 = off, 1 = hit, 2 = accent.
+   Rows: kick,snare,clap,chat,ohat,808,perc,shk,crash. Bass: MIDI notes per step (null = rest). */
+const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; grid: number[][]; bass: (number | null)[] }> = {
   trap: {
-    nameKey: "beatMaker.presetTrap", bpm: 140,
+    nameKey: "beatMaker.presetTrap", fallback: "Trap", bpm: 140,
     grid: [
-      [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
       [0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0],
-      [1,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0],
+      [1,0,2,1,0,1,0,1,1,0,1,2,0,1,1,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
       [1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0],
       [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,null,null,36,null,null,null,34,null,32,null,31,null],
   },
   drill: {
-    nameKey: "beatMaker.presetDrill", bpm: 142,
+    nameKey: "beatMaker.presetDrill", fallback: "Drill", bpm: 142,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,2],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
       [0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0],
       [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [33,null,null,33,null,null,33,null,31,null,null,29,null,null,null,null],
   },
   boombap: {
-    nameKey: "beatMaker.presetBoomBap", bpm: 92,
+    nameKey: "beatMaker.presetBoomBap", fallback: "Boom Bap", bpm: 92,
     grid: [
-      [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [2,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,1,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,1,0,0,1,0,0,1,0,0,0,0,1,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-    ].map((r) => r.map(Boolean)),
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,null,null,null,null,43,null,null,null,41,null,null,null],
   },
   afrobeats: {
-    nameKey: "beatMaker.presetAfrobeats", bpm: 102,
+    nameKey: "beatMaker.presetAfrobeats", fallback: "Afrobeats", bpm: 102,
     grid: [
       [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
       [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
@@ -431,49 +478,163 @@ const PRESETS: Record<string, { nameKey: string; bpm: number; grid: boolean[][] 
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [1,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0],
       [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
-    ].map((r) => r.map(Boolean)),
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,36,null,null,null,34,null,null,null,32,null,null,null],
+  },
+  house: {
+    nameKey: "beatMaker.presetHouse", fallback: "House", bpm: 124,
+    grid: [
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,36,null,null,null,36,null,null,null,39,null,38,null],
   },
 };
 
-const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(false));
+const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(0));
+const emptyBass = (): (number | null)[] => Array(STEPS).fill(null);
+
+/* 808 bass range: C1 (24) .. B2 (47) */
+const BASS_LO = 24;
+const BASS_HI = 47;
+
+type PatternId = "A" | "B" | "C" | "D";
+const PATTERN_IDS: PatternId[] = ["A", "B", "C", "D"];
+interface PatternData { grid: number[][]; bass: (number | null)[] }
 
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
-  const [grid, setGrid] = useState<boolean[][]>(() => PRESETS.trap.grid.map((r) => [...r]));
+  const isLight = useIsLightTheme();
+  const [, navigate] = useLocation();
+  const [patterns, setPatterns] = useState<Record<PatternId, PatternData>>(() => ({
+    A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
+    B: { grid: emptyGrid(), bass: emptyBass() },
+    C: { grid: emptyGrid(), bass: emptyBass() },
+    D: { grid: emptyGrid(), bass: emptyBass() },
+  }));
+  const [activePat, setActivePat] = useState<PatternId>("A");
   const [bpm, setBpm] = useState(140);
   const [swing, setSwing] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(-1);
   const [exporting, setExporting] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [showMixer, setShowMixer] = useState(false);
+  const [showBass, setShowBass] = useState(false);
+  const [vol, setVol] = useState<number[]>(() => TRACKS.map(() => 1));
+  const [mute, setMute] = useState<boolean[]>(() => TRACKS.map(() => false));
+  const [solo, setSolo] = useState<boolean[]>(() => TRACKS.map(() => false));
+  const [bassVol, setBassVol] = useState(0.9);
+  const [bassMute, setBassMute] = useState(false);
+  const [bassPaint, setBassPaint] = useState(36); // C2 — pitch painted by bass roll clicks
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
   const stepRef = useRef(0);
   const nextTimeRef = useRef(0);
+  const tapsRef = useRef<number[]>([]);
+  const clipRef = useRef<{ grid: number[][]; bass: (number | null)[] } | null>(null);
+  const gainCache = useRef(new WeakMap<BaseAudioContext, { drums: GainNode[]; bass: GainNode }>());
+
+  const grid = patterns[activePat]!.grid;
+  const bass = patterns[activePat]!.bass;
   const gridRef = useRef(grid);
+  const bassRef = useRef(bass);
   const bpmRef = useRef(bpm);
   const swingRef = useRef(swing);
   gridRef.current = grid;
+  bassRef.current = bass;
   bpmRef.current = bpm;
   swingRef.current = swing;
+
+  /* ── theme tones ── */
+  const T = {
+    card: isLight
+      ? "border-[#c9a84c]/30 bg-gradient-to-br from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]"
+      : "border-white/10 bg-white/[0.03]",
+    label: isLight ? "text-[#4A3B22]/70" : "text-white/60",
+    heading: isLight ? "text-[#2A2118]" : "text-white",
+    dim: isLight ? "text-[#4A3B22]/50" : "text-white/40",
+    pill: isLight
+      ? "border-[#c9a84c]/30 text-[#4A3B22] hover:border-[#c9a84c]/60 hover:text-[#2A2118]"
+      : "border-white/15 text-white/60 hover:border-primary/60 hover:text-white",
+    cellOff: isLight
+      ? "bg-[#8a6d2f]/[0.07] border-[#8a6d2f]/15 hover:bg-[#8a6d2f]/[0.18]"
+      : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.1]",
+    cellOffBeat: isLight
+      ? "bg-[#8a6d2f]/[0.15] border-[#8a6d2f]/25 hover:bg-[#8a6d2f]/[0.24]"
+      : "bg-white/[0.07] border-white/10 hover:bg-white/[0.14]",
+    patActive: "bg-primary text-black border-transparent font-black",
+    slider: "accent-[#C9A84C]",
+  };
+
+  /* ── mixer gain graph ── */
+  const getGains = (ctx: BaseAudioContext) => {
+    let e = gainCache.current.get(ctx);
+    if (!e) {
+      const drums = TRACKS.map(() => {
+        const gn = ctx.createGain();
+        gn.connect(ctx.destination);
+        return gn;
+      });
+      const bassG = ctx.createGain();
+      bassG.connect(ctx.destination);
+      e = { drums, bass: bassG };
+      gainCache.current.set(ctx, e);
+    }
+    return e;
+  };
+  const applyMixer = useCallback((ctx: BaseAudioContext, v: number[], m: boolean[], s: boolean[], bv: number, bm: boolean) => {
+    const { drums, bass: bassG } = getGains(ctx);
+    const anySolo = s.some(Boolean);
+    TRACKS.forEach((_, ti) => {
+      const audible = anySolo ? s[ti] : !m[ti];
+      drums[ti]!.gain.value = audible ? v[ti]! : 0;
+    });
+    bassG.gain.value = bm ? 0 : bv;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getCtx = () => {
     if (!ctxRef.current) ctxRef.current = new AudioContext();
     if (ctxRef.current.state === "suspended") void ctxRef.current.resume();
+    applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
     return ctxRef.current;
   };
+  // Re-apply mixer when faders change during playback
+  useEffect(() => {
+    if (ctxRef.current && playing) applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vol, mute, solo, bassVol, bassMute]);
 
-  const scheduleStep = useCallback((s: number, t: number) => {
-    const ctx = getCtx();
-    const g = gridRef.current;
+  const scheduleStep = useCallback((s: number, time: number) => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const { drums, bass: bassG } = getGains(ctx);
     const sw = swingRef.current;
-    // Swing delays off-beat 16ths (odd steps)
-    const when = s % 2 === 1 ? t + (60 / bpmRef.current / 4) * sw : t;
+    // Swing delays off-beat 16ths (odd steps), 0–100%
+    const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
+    const g = gridRef.current;
     TRACKS.forEach((tr, ti) => {
-      if (g[ti]?.[s]) synthHit(ctx, tr.id, when, ctx.destination);
+      const v = g[ti]?.[s] ?? 0;
+      if (v > 0) synthHit(ctx, tr.id, when, drums[ti]!, v === 2 ? 1.4 : 1);
     });
+    const bn = bassRef.current[s];
+    if (bn != null) {
+      const prev = s > 0 ? bassRef.current[s - 1] : null;
+      synthBass(ctx, bn, when, bassG, 1, prev);
+    }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
     window.setTimeout(() => setStep(s), ms);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const start = useCallback(() => {
@@ -489,6 +650,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         stepRef.current = (stepRef.current + 1) % STEPS;
       }
     }, 25);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleStep]);
 
   const stop = useCallback(() => {
@@ -503,11 +665,27 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     void ctxRef.current?.close().catch(() => {});
   }, []);
 
+  /* ── grid editing: click toggles, right-click toggles accent ── */
+  const patchActive = (fn: (p: PatternData) => PatternData) => {
+    setPatterns((prev) => ({ ...prev, [activePat]: fn({ grid: prev[activePat]!.grid.map((r) => [...r]), bass: [...prev[activePat]!.bass] }) }));
+  };
   const toggle = (ti: number, s: number) => {
-    setGrid((prev) => {
-      const next = prev.map((r) => [...r]);
-      next[ti]![s] = !next[ti]![s];
-      return next;
+    patchActive((p) => {
+      p.grid[ti]![s] = p.grid[ti]![s] === 0 ? 1 : 0;
+      return p;
+    });
+  };
+  const toggleAccent = (ti: number, s: number) => {
+    patchActive((p) => {
+      const cur = p.grid[ti]![s] ?? 0;
+      p.grid[ti]![s] = cur === 2 ? 1 : 2;
+      return p;
+    });
+  };
+  const toggleBass = (midi: number, s: number) => {
+    patchActive((p) => {
+      p.bass[s] = p.bass[s] === midi ? null : midi;
+      return p;
     });
   };
 
@@ -515,43 +693,87 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const p = PRESETS[key];
     if (!p) return;
     stop();
-    setGrid(p.grid.map((r) => [...r]));
+    patchActive(() => ({ grid: p.grid.map((r) => [...r]), bass: [...p.bass] }));
     setBpm(p.bpm);
   };
 
   const randomize = () => {
     stop();
-    setGrid(TRACKS.map((_, ti) =>
-      Array.from({ length: STEPS }, (_, s) => {
-        const density = [0.35, 0.14, 0.1, 0.75, 0.08, 0.3, 0.22, 0.4][ti] ?? 0.2;
-        // keep kicks/snares roughly on-grid for musicality
-        if (ti === 1 && s % 4 !== 0 && Math.random() < 0.85) return false;
-        return Math.random() < density;
-      })
-    ));
+    patchActive(() => ({
+      grid: TRACKS.map((_, ti) =>
+        Array.from({ length: STEPS }, (_, s) => {
+          const density = [0.35, 0.14, 0.1, 0.75, 0.08, 0.3, 0.22, 0.4, 0.05][ti] ?? 0.2;
+          if (ti === 1 && s % 4 !== 0 && Math.random() < 0.85) return 0;
+          const r = Math.random();
+          return r < density * 0.25 ? 2 : r < density ? 1 : 0;
+        })
+      ),
+      bass: Array.from({ length: STEPS }, (_, s) =>
+        s % 4 === 0 && Math.random() < 0.7 ? [36, 36, 34, 32][Math.floor(Math.random() * 4)]! : null
+      ),
+    }));
+  };
+
+  /* ── patterns A/B/C/D ── */
+  const copyPattern = () => {
+    const p = patterns[activePat]!;
+    clipRef.current = { grid: p.grid.map((r) => [...r]), bass: [...p.bass] };
+  };
+  const pastePattern = () => {
+    if (!clipRef.current) return;
+    const c = clipRef.current;
+    patchActive(() => ({ grid: c.grid.map((r) => [...r]), bass: [...c.bass] }));
+  };
+  const clearPattern = () => {
+    stop();
+    patchActive(() => ({ grid: emptyGrid(), bass: emptyBass() }));
+  };
+
+  /* ── tap tempo ── */
+  const tapTempo = () => {
+    const now = performance.now();
+    const taps = tapsRef.current.filter((ts) => now - ts < 2500);
+    taps.push(now);
+    tapsRef.current = taps;
+    if (taps.length >= 2) {
+      const intervals = taps.slice(1).map((ts, i) => ts - taps[i]!);
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      setBpm(Math.min(200, Math.max(60, Math.round(60000 / avg))));
+    }
+  };
+
+  /* ── offline render (shared by WAV export + Send to Visual Vibes) ── */
+  const renderBeat = async (bars = 4) => {
+    const totalSteps = STEPS * bars;
+    const stepDur = 60 / bpmRef.current / 4;
+    const totalDur = totalSteps * stepDur + 1.2;
+    const sampleRate = 44100;
+    const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
+    applyMixer(off, vol, mute, solo, bassVol, bassMute);
+    const { drums, bass: bassG } = getGains(off);
+    const g = gridRef.current;
+    const bn = bassRef.current;
+    const sw = swingRef.current;
+    for (let s = 0; s < totalSteps; s++) {
+      const si = s % STEPS;
+      const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
+      TRACKS.forEach((tr, ti) => {
+        const v = g[ti]?.[si] ?? 0;
+        if (v > 0) synthHit(off, tr.id, tt, drums[ti]!, v === 2 ? 1.4 : 1);
+      });
+      const note = bn[si];
+      if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? bn[si - 1] : null);
+    }
+    const rendered = await off.startRendering();
+    const blob = audioBufferToWav(rendered);
+    return { blob, url: URL.createObjectURL(blob), durationSec: totalDur };
   };
 
   /* Render 4 bars offline → WAV → download. Pure client-side. */
   const exportWav = async () => {
     setExporting(true);
     try {
-      const bars = 4;
-      const totalSteps = STEPS * bars;
-      const stepDur = 60 / bpm / 4;
-      const totalDur = totalSteps * stepDur + 0.6;
-      const sampleRate = 44100;
-      const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
-      const g = gridRef.current;
-      const sw = swingRef.current;
-      for (let s = 0; s < totalSteps; s++) {
-        const t = s * stepDur + (s % 2 === 1 ? stepDur * sw : 0);
-        TRACKS.forEach((tr, ti) => {
-          if (g[ti]?.[s % STEPS]) synthHit(off, tr.id, t, off.destination);
-        });
-      }
-      const rendered = await off.startRendering();
-      const blob = audioBufferToWav(rendered);
-      const url = URL.createObjectURL(blob);
+      const { blob, url, durationSec } = await renderBeat(4);
       const a = document.createElement("a");
       a.href = url;
       a.download = `beat-${bpm}bpm.wav`;
@@ -559,90 +781,169 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       // Keep the blob URL alive for this session so the hub project can use it.
       onGenerated?.({
         url,
-        title: t("beatMaker.sequencerBeatTitle", { bpm }),
-        durationMs: Math.round(totalDur * 1000),
+        title: t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` }),
+        durationMs: Math.round(durationSec * 1000),
         meta: { bpm: String(bpm), source: "sequencer", sessionOnly: "1" },
       });
+      void blob;
     } finally {
       setExporting(false);
     }
   };
 
+  /* Render → stash → open the video editor with the beat as a timeline stem. */
+  const sendToVisualVibes = async () => {
+    setSending(true);
+    try {
+      const { blob, url, durationSec } = await renderBeat(4);
+      const id = stashBeatHandoff({
+        blob,
+        url,
+        title: t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` }),
+        bpm,
+        durationSec,
+      });
+      stop();
+      navigate(`/video-editor?beathandoff=${id}&tab=music`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const bassRows = Array.from({ length: BASS_HI - BASS_LO + 1 }, (_, i) => BASS_HI - i);
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
+    <div className={`rounded-2xl border p-6 space-y-5 ${T.card}`}>
       {/* Transport */}
       <div className="flex flex-wrap items-center gap-3">
         <Button
           onClick={playing ? stop : start}
           className={`h-11 px-6 rounded-xl font-bold ${playing ? "bg-red-500 hover:bg-red-600 text-white" : "bg-primary text-black hover:bg-primary/90"}`}
         >
-          {playing ? <><Square className="w-4 h-4 mr-2" /> {t("beatMaker.stop")}</> : <><Play className="w-4 h-4 mr-2" /> {t("beatMaker.play")}</>}
+          {playing ? <><Square className="w-4 h-4 mr-2" /> {t("beatMaker.stop", { defaultValue: "Stop" })}</> : <><Play className="w-4 h-4 mr-2" /> {t("beatMaker.play", { defaultValue: "Play" })}</>}
         </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button" onClick={tapTempo} variant="outline"
+            className={`h-11 px-4 rounded-xl text-sm font-bold ${T.pill}`}
+            title={t("beatMaker.tapTempoHint", { defaultValue: "Tap to set tempo" })}
+          >
+            <Timer className="w-4 h-4 mr-1.5" /> {t("beatMaker.tapTempo", { defaultValue: "Tap" })}
+          </Button>
+          <span className={`text-2xl font-black tabular-nums w-14 text-center ${T.heading}`}>{bpm}</span>
+          <span className={`text-xs ${T.dim}`}>BPM</span>
+        </div>
         <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-          <Label className="text-white/60 text-xs whitespace-nowrap w-14">{t("beatMaker.bpmValue", { n: bpm })}</Label>
+          <Label className={`${T.label} text-xs whitespace-nowrap`}>{t("beatMaker.bpmLabel", { defaultValue: "Tempo" })}</Label>
           <input
             type="range" min={60} max={200} value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
-            className="flex-1 accent-amber-400"
+            className={`flex-1 ${T.slider}`}
+            aria-label="BPM"
           />
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-          <Label className="text-white/60 text-xs whitespace-nowrap w-16">{t("beatMaker.swingValue", { n: Math.round(swing * 100) })}</Label>
+          <Label className={`${T.label} text-xs whitespace-nowrap`}>{t("beatMaker.swingLabel", { defaultValue: "Swing" })}</Label>
           <input
-            type="range" min={0} max={0.6} step={0.01} value={swing}
+            type="range" min={0} max={1} step={0.01} value={swing}
             onChange={(e) => setSwing(Number(e.target.value))}
-            className="flex-1 accent-amber-400"
+            className={`flex-1 ${T.slider}`}
+            aria-label="Swing"
           />
+          <span className={`text-xs tabular-nums w-10 ${T.dim}`}>{Math.round(swing * 100)}%</span>
         </div>
       </div>
 
-      {/* Presets + tools */}
+      {/* Pattern slots + tools */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>{t("beatMaker.pattern", { defaultValue: "Pattern" })}</span>
+        {PATTERN_IDS.map((pid) => (
+          <button
+            key={pid} type="button"
+            onClick={() => { stop(); setActivePat(pid); }}
+            className={`w-9 h-9 rounded-lg border text-sm transition-colors ${activePat === pid ? T.patActive : T.pill}`}
+          >
+            {pid}
+          </button>
+        ))}
+        <span className={`mx-1 h-6 w-px ${isLight ? "bg-[#8a6d2f]/20" : "bg-white/10"}`} />
+        <button type="button" onClick={copyPattern} className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill}`}>
+          <Copy className="w-3.5 h-3.5" /> {t("beatMaker.copy", { defaultValue: "Copy" })}
+        </button>
+        <button type="button" onClick={pastePattern} disabled={!clipRef.current} className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors disabled:opacity-40 ${T.pill}`}>
+          <ClipboardPaste className="w-3.5 h-3.5" /> {t("beatMaker.paste", { defaultValue: "Paste" })}
+        </button>
+        <button type="button" onClick={clearPattern} className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} hover:!border-red-400/60`}>
+          <Trash2 className="w-3.5 h-3.5" /> {t("beatMaker.clear", { defaultValue: "Clear" })}
+        </button>
+      </div>
+
+      {/* Presets + randomize */}
       <div className="flex flex-wrap gap-2">
         {Object.entries(PRESETS).map(([key, p]) => (
           <button
             key={key} type="button" onClick={() => loadPreset(key)}
-            className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-primary/60 hover:text-white transition-colors"
+            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${T.pill}`}
           >
-            {t(p.nameKey)}
+            {t(p.nameKey, { defaultValue: p.fallback })}
           </button>
         ))}
         <button
           type="button" onClick={randomize}
-          className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-primary/60 hover:text-white transition-colors flex items-center gap-1.5"
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill}`}
         >
-          <Shuffle className="w-3.5 h-3.5" /> {t("beatMaker.randomize")}
+          <Shuffle className="w-3.5 h-3.5" /> {t("beatMaker.randomize", { defaultValue: "Randomize" })}
         </button>
         <button
-          type="button" onClick={() => { stop(); setGrid(emptyGrid()); }}
-          className="px-3 py-1.5 rounded-full text-sm border border-white/15 text-white/60 hover:border-red-400/60 hover:text-white transition-colors flex items-center gap-1.5"
+          type="button"
+          onClick={() => setShowMixer((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showMixer ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
         >
-          <Trash2 className="w-3.5 h-3.5" /> {t("beatMaker.clear")}
+          <SlidersHorizontal className="w-3.5 h-3.5" /> {t("beatMaker.mixer", { defaultValue: "Mixer" })}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowBass((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showBass ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <Piano className="w-3.5 h-3.5" /> {t("beatMaker.bassline", { defaultValue: "808 Bass" })}
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Drum grid — click toggles, right-click toggles accent */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="min-w-[640px] space-y-1.5">
           {TRACKS.map((tr, ti) => (
             <div key={tr.id} className="flex items-center gap-1.5">
-              <div className="w-24 shrink-0 text-xs text-white/60 font-medium truncate">{t(tr.labelKey)}</div>
+              <div className="w-24 shrink-0 flex items-center gap-1">
+                <button
+                  type="button" onClick={() => setMute((m) => m.map((v, i) => (i === ti ? !v : v)))}
+                  className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${mute[ti] ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}
+                  title={t("beatMaker.mute", { defaultValue: "Mute" })}
+                >M</button>
+                <button
+                  type="button" onClick={() => setSolo((s) => s.map((v, i) => (i === ti ? !v : v)))}
+                  className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${solo[ti] ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}
+                  title={t("beatMaker.solo", { defaultValue: "Solo" })}
+                >S</button>
+                <span className={`text-xs font-medium truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+              </div>
               <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
                 {Array.from({ length: STEPS }, (_, s) => {
-                  const on = grid[ti]?.[s];
+                  const v = grid[ti]?.[s] ?? 0;
                   const isBeat = s % 4 === 0;
                   return (
                     <button
                       key={s}
                       type="button"
                       onClick={() => toggle(ti, s)}
+                      onContextMenu={(e) => { e.preventDefault(); toggleAccent(ti, s); }}
                       className={`aspect-square rounded-md border transition-all ${
-                        on
-                          ? `${tr.color} border-transparent shadow-[0_0_8px_rgba(255,255,255,0.25)]`
-                          : isBeat
-                            ? "bg-white/[0.07] border-white/10 hover:bg-white/[0.14]"
-                            : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.1]"
+                        v > 0
+                          ? `${tr.color} border-transparent shadow-[0_0_8px_rgba(255,255,255,0.25)] ${v === 2 ? "outline outline-2 outline-[#C9A84C] outline-offset-1" : ""}`
+                          : isBeat ? T.cellOffBeat : T.cellOff
                       } ${step === s && playing ? "ring-2 ring-white/70" : ""}`}
-                      aria-label={t("beatMaker.stepAria", { label: t(tr.labelKey), n: s + 1, state: on ? t("beatMaker.stepOn") : t("beatMaker.stepOff") })}
+                      aria-label={t("beatMaker.stepAria", { label: t(tr.labelKey, { defaultValue: tr.id }), n: s + 1, state: v === 2 ? t("beatMaker.stepAccent", { defaultValue: "accent" }) : v === 1 ? t("beatMaker.stepOn", { defaultValue: "on" }) : t("beatMaker.stepOff", { defaultValue: "off" }) })}
                     />
                   );
                 })}
@@ -651,6 +952,105 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           ))}
         </div>
       </div>
+      <p className={`text-xs ${T.dim}`}>
+        {t("beatMaker.accentHint", { defaultValue: "Click a step to toggle · right-click for accent · gold ring = accent hit" })}
+      </p>
+
+      {/* Mixer */}
+      {showMixer && (
+        <div className={`rounded-xl border p-4 space-y-2 ${isLight ? "border-[#c9a84c]/25 bg-[#8a6d2f]/[0.04]" : "border-white/10 bg-black/30"}`}>
+          <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>{t("beatMaker.mixerTitle", { defaultValue: "Mixer" })}</p>
+          {TRACKS.map((tr, ti) => (
+            <div key={tr.id} className="flex items-center gap-2">
+              <span className={`w-20 text-xs truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+              <input
+                type="range" min={0} max={1.5} step={0.01} value={vol[ti]}
+                onChange={(e) => setVol((v) => v.map((x, i) => (i === ti ? Number(e.target.value) : x)))}
+                className={`flex-1 h-1 ${T.slider}`} aria-label={`${tr.id} volume`}
+              />
+              <span className={`text-xs tabular-nums w-9 text-right ${T.dim}`}>{Math.round((vol[ti] ?? 0) * 100)}%</span>
+              {mute[ti] && <VolumeX className="w-3.5 h-3.5 text-red-400" />}
+              {!mute[ti] && <Volume2 className={`w-3.5 h-3.5 ${T.dim}`} />}
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            <span className={`w-20 text-xs font-bold ${T.label}`}>{t("beatMaker.bassVol", { defaultValue: "808 Bass" })}</span>
+            <input
+              type="range" min={0} max={1.5} step={0.01} value={bassVol}
+              onChange={(e) => setBassVol(Number(e.target.value))}
+              className={`flex-1 h-1 ${T.slider}`} aria-label="808 bass volume"
+            />
+            <button type="button" onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
+          </div>
+        </div>
+      )}
+
+      {/* 808 bass piano roll */}
+      {showBass && (
+        <div className={`rounded-xl border p-4 space-y-2 ${isLight ? "border-[#c9a84c]/25 bg-[#8a6d2f]/[0.04]" : "border-white/10 bg-black/30"}`}>
+          <div className="flex items-center justify-between">
+            <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>
+              {t("beatMaker.bassTitle", { defaultValue: "808 Bassline" })}
+              <span className={`ml-2 font-medium normal-case ${T.dim}`}>{t("beatMaker.bassHint", { defaultValue: "Click a cell to place the selected pitch · click again to clear" })}</span>
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-xs ${T.label}`}>{t("beatMaker.bassPitch", { defaultValue: "Pitch" })}</span>
+              <select
+                value={bassPaint}
+                onChange={(e) => setBassPaint(Number(e.target.value))}
+                className={`h-8 rounded-lg border text-xs font-bold px-2 ${isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5] text-[#2A2118]" : "border-white/15 bg-black text-white"}`}
+              >
+                {Array.from({ length: BASS_HI - BASS_LO + 1 }, (_, i) => BASS_LO + i).map((m) => (
+                  <option key={m} value={m}>{midiToNoteName(m)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="flex items-center gap-1 mb-1">
+                <div className="w-10 shrink-0" />
+                <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
+                  {Array.from({ length: STEPS }, (_, s) => (
+                    <div key={s} className={`text-center text-[9px] tabular-nums ${s % 4 === 0 ? T.label : T.dim}`}>{s + 1}</div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-[2px] max-h-64 overflow-y-auto pr-1">
+                {bassRows.map((m) => {
+                  const name = midiToNoteName(m);
+                  const isC = name.startsWith("C");
+                  const isBlack = name.includes("#");
+                  return (
+                    <div key={m} className="flex items-center gap-1">
+                      <div className={`w-10 shrink-0 text-[10px] tabular-nums text-right pr-1 ${isC ? "font-black text-[#C9A84C]" : T.dim}`}>{name}</div>
+                      <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
+                        {Array.from({ length: STEPS }, (_, s) => {
+                          const on = bass[s] === m;
+                          return (
+                            <button
+                              key={s} type="button"
+                              onClick={() => toggleBass(m, s)}
+                              className={`h-4 rounded-[3px] border transition-all ${
+                                on
+                                  ? "bg-violet-400 border-transparent shadow-[0_0_6px_rgba(167,139,250,0.5)]"
+                                  : isBlack
+                                    ? isLight ? "bg-[#2A2118]/[0.06] border-[#8a6d2f]/10 hover:bg-violet-400/30" : "bg-white/[0.06] border-white/[0.08] hover:bg-violet-400/30"
+                                    : isLight ? "bg-[#8a6d2f]/[0.08] border-[#8a6d2f]/15 hover:bg-violet-400/30" : "bg-white/[0.03] border-white/[0.06] hover:bg-violet-400/30"
+                              } ${step === s && playing ? "ring-1 ring-white/70" : ""}`}
+                              aria-label={`Bass ${name} step ${s + 1}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export + handoffs */}
       <div className="flex flex-wrap gap-2 pt-1">
@@ -660,27 +1060,37 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           className="h-11 px-5 rounded-xl bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-50"
         >
           {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-          {t("beatMaker.exportWavFree")}
+          {t("beatMaker.exportWavFree", { defaultValue: "Export WAV (free)" })}
+        </Button>
+        <Button
+          onClick={sendToVisualVibes}
+          disabled={sending}
+          className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
+          variant="outline"
+        >
+          {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Clapperboard className="w-4 h-4 mr-2" />}
+          {t("beatMaker.sendToVisualVibes", { defaultValue: "Send to Visual Vibes" })}
         </Button>
         <Link
           href="/audio-studio?tab=stems"
-          className="flex items-center gap-2 h-11 px-5 rounded-xl border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+          className={`flex items-center gap-2 h-11 px-5 rounded-xl border text-sm font-medium transition-colors ${isLight ? "border-[#c9a84c]/40 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"}`}
         >
-          <Scissors className="w-4 h-4" /> {t("beatMaker.splitExportedStems")}
+          <Scissors className="w-4 h-4" /> {t("beatMaker.splitExportedStems", { defaultValue: "Split exported stems" })}
         </Link>
         <Link
           href="/beats"
-          className="flex items-center gap-2 h-11 px-5 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
+          className={`flex items-center gap-2 h-11 px-5 rounded-xl border text-sm transition-colors ${T.pill}`}
         >
-          <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace")}
+          <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace", { defaultValue: "Sell on the marketplace" })}
         </Link>
       </div>
-      <p className="text-xs text-white/40">
-        {t("beatMaker.sequencerNote")}
+      <p className={`text-xs ${T.dim}`}>
+        {t("beatMaker.sequencerNote", { defaultValue: "100% client-side Web Audio synthesis — playing and exporting costs nothing." })}
       </p>
     </div>
   );
 }
+
 
 /* Encode an AudioBuffer as a 16-bit WAV blob. */
 function audioBufferToWav(buffer: AudioBuffer): Blob {
