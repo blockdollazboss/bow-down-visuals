@@ -1165,6 +1165,13 @@ html, body {
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
    (WittyLoader, video players, teleprompter — excluded above via :not) */
+/* Base ink: elements inside a locked area that set no color of their own
+   (e.g. outline buttons, which inherit) must start from white — in light
+   mode they would otherwise inherit the page root's remapped dark ink
+   and vanish on the dark surface. (2026-10-12) */
+.light [data-dark-lock] {
+  color: #fff;
+}
 .light [data-dark-lock].bg-background,
 .light [data-dark-lock] .bg-background {
   background-color: #050505;
@@ -2448,41 +2455,46 @@ html[data-star-level="5"] [data-min-stars="6"] {
   color: #1C1712 !important;
 }
 
-/* Dashboard text: dark instead of white */
-.light .text-white {
+/* Dashboard text: dark instead of white.
+   2026-10-12: every selector here now carries the [data-dark-lock]
+   exclusion. These global !important rules previously ignored the
+   dark-lock contract (§16) and flipped text dark inside locked dark
+   surfaces — pricing plan cards showed near-invisible prices and
+   "best for" lines in light theme, and player text was at risk too. */
+.light .text-white:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #1C1712 !important;
 }
-.light .text-white\/60,
-.light .text-white\/50,
-.light .text-white\/40 {
+.light .text-white\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) {
   color: rgba(28, 23, 18, 0.6) !important;
 }
-.light .text-white\/30 {
+.light .text-white\/30:not([data-dark-lock]):not([data-dark-lock] *) {
   color: rgba(28, 23, 18, 0.4) !important;
 }
 /* Remaining white-opacity steps → dark equivalents (global: white at X%
    on light surfaces is unreadable without these) */
-.light .text-white\/70 { color: rgba(28, 23, 18, 0.78) !important; }
-.light .text-white\/45 { color: rgba(28, 23, 18, 0.55) !important; }
-.light .text-white\/35 { color: rgba(28, 23, 18, 0.48) !important; }
-.light .text-white\/25 { color: rgba(28, 23, 18, 0.38) !important; }
-.light .text-white\/20 { color: rgba(28, 23, 18, 0.32) !important; }
-.light .text-white\/15 { color: rgba(28, 23, 18, 0.28) !important; }
-.light .text-white\/10 { color: rgba(28, 23, 18, 0.22) !important; }
+.light .text-white\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.78) !important; }
+.light .text-white\/45:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.55) !important; }
+.light .text-white\/35:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.48) !important; }
+.light .text-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.38) !important; }
+.light .text-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.32) !important; }
+.light .text-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.28) !important; }
+.light .text-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { color: rgba(28, 23, 18, 0.22) !important; }
 
 /* Dashboard muted text */
-.light .text-muted-foreground {
+.light .text-muted-foreground:not([data-dark-lock]):not([data-dark-lock] *) {
   color: rgba(28, 23, 18, 0.6) !important;
 }
 
 /* Keep gold accents gold */
-.light .text-primary {
+.light .text-primary:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #7A5A12 !important;
 }
 
 /* Dashboard borders */
-.light .border-white\/10,
-.light .border-white\/5 {
+.light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) {
   border-color: rgba(122, 90, 18, 0.12) !important;
 }
 
