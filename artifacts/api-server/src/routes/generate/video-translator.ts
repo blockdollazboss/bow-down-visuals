@@ -50,6 +50,7 @@ import {
   resolveAttributionFont,
   attributionDrawtext,
 } from "../../lib/attribution";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -208,6 +209,7 @@ export interface TranslateJob {
 }
 
 const jobs = new Map<string, TranslateJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getTranslateJob(id: string): TranslateJob | undefined {
   return jobs.get(id);

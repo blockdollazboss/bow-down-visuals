@@ -12,6 +12,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -87,6 +88,7 @@ interface FreezeMaskJob {
 }
 
 const jobs = new Map<string, FreezeMaskJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 function pruneJobs() {
   const now = Date.now();

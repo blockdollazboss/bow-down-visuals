@@ -30,6 +30,7 @@ import {
   type StemType,
   type LoudnormMeasurement,
 } from "./mix-master-chain";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -122,6 +123,7 @@ export interface MixMasterJob {
 }
 
 const jobs = new Map<string, MixMasterJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getMixMasterJob(id: string): MixMasterJob | undefined {
   return jobs.get(id);

@@ -10,6 +10,7 @@ import {
   AvatarNotConfiguredError,
   submitAvatarVideo,
 } from "../../lib/avatar-client";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 
@@ -41,6 +42,7 @@ export interface AvatarJob {
 }
 
 const jobs = new Map<string, AvatarJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getAvatarJob(id: string): AvatarJob | undefined {
   return jobs.get(id);

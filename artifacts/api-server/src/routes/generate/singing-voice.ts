@@ -9,6 +9,7 @@ import {
   SingingVoiceNotConfiguredError,
   submitSingingConversion,
 } from "../../lib/singing-voice-client";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 
@@ -40,6 +41,7 @@ export interface SingingJob {
 }
 
 const jobs = new Map<string, SingingJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getSingingJob(id: string): SingingJob | undefined {
   return jobs.get(id);

@@ -13,6 +13,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -269,6 +270,7 @@ export interface LufsNormalizeJob {
 }
 
 const jobs = new Map<string, LufsNormalizeJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getLufsNormalizeJob(id: string): LufsNormalizeJob | undefined {
   return jobs.get(id);

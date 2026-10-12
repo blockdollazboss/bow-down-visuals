@@ -13,6 +13,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -209,6 +210,7 @@ export interface VocalPolishJob {
 }
 
 const jobs = new Map<string, VocalPolishJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getVocalPolishJob(id: string): VocalPolishJob | undefined {
   return jobs.get(id);

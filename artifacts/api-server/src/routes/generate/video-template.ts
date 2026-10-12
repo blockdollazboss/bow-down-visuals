@@ -25,6 +25,7 @@ import {
   type SlotPlan,
 } from "../../lib/video-template-engine";
 import { logger } from "../../lib/logger";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -64,6 +65,7 @@ interface TemplateJob {
 }
 
 const jobs = new Map<string, TemplateJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const renderQueue: Array<() => Promise<void>> = [];
 let queuePumping = false;
 

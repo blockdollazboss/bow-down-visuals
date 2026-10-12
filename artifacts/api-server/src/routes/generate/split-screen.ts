@@ -14,6 +14,7 @@ import {
 } from "../../lib/objectStorage";
 import { SANS_BOLD, escapeDrawtext } from "../../lib/video-template-engine";
 import { logger } from "../../lib/logger";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -110,6 +111,7 @@ interface SplitScreenJob {
 }
 
 const jobs = new Map<string, SplitScreenJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const renderQueue: Array<() => Promise<void>> = [];
 let queuePumping = false;
 

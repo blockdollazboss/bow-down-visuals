@@ -13,6 +13,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -88,6 +89,7 @@ export interface MasteringJob {
 }
 
 const jobs = new Map<string, MasteringJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getMasteringJob(id: string): MasteringJob | undefined {
   return jobs.get(id);

@@ -14,6 +14,7 @@ import {
 } from "../../lib/objectStorage";
 import { enqueueExport } from "../../lib/export-jobs";
 import { logger } from "../../lib/logger";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -106,6 +107,7 @@ interface MultiRatioJob {
    refunds any ratio that never completed (see the finally block in the
    worker). */
 const jobs = new Map<string, MultiRatioJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const JOB_TTL_MS = 2 * 60 * 60 * 1000;
 
 function pruneJobs(): void {

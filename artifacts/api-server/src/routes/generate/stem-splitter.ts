@@ -15,6 +15,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { runGatedDemucs, DEMUCS_THREAD_ENV } from "../../lib/demucs-gate";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 
@@ -218,6 +219,7 @@ export interface StemJob {
 }
 
 const jobs = new Map<string, StemJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getStemJob(id: string): StemJob | undefined {
   return jobs.get(id);

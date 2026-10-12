@@ -19,6 +19,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -569,7 +570,9 @@ export interface FillerRenderJob {
 }
 
 const analyzeJobs = new Map<string, FillerAnalyzeJob>();
+attachJobMapTtl(analyzeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const renderJobs = new Map<string, FillerRenderJob>();
+attachJobMapTtl(renderJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getFillerAnalyzeJob(id: string): FillerAnalyzeJob | undefined {
   return analyzeJobs.get(id);

@@ -14,6 +14,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 /* Transparent style reuses vocal-polish's gentle global-drift engine —
    same DSP helpers, same honest limits. Hard-tune needs note-by-note
    snapping, which that engine cannot do, so it lives here. */
@@ -318,6 +319,7 @@ export interface VocalTuneJob {
 }
 
 const jobs = new Map<string, VocalTuneJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getVocalTuneJob(id: string): VocalTuneJob | undefined {
   return jobs.get(id);

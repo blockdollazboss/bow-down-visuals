@@ -52,6 +52,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { eq, and } from "drizzle-orm";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -812,6 +813,7 @@ export interface LyricRenderJob {
 }
 
 const renderJobs = new Map<string, LyricRenderJob>();
+attachJobMapTtl(renderJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getLyricRenderJob(id: string): LyricRenderJob | undefined {
   return renderJobs.get(id);

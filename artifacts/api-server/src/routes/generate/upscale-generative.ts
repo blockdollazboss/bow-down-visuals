@@ -9,6 +9,7 @@ import {
   submitGenerativeUpscale,
   type GenerativeUpscaleTarget,
 } from "../../lib/generative-upscale-client";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 
@@ -44,6 +45,7 @@ export interface GenerativeUpscaleJob {
 }
 
 const jobs = new Map<string, GenerativeUpscaleJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getGenerativeUpscaleJob(id: string): GenerativeUpscaleJob | undefined {
   return jobs.get(id);

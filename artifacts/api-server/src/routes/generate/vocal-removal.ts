@@ -16,6 +16,7 @@ import {
 import { separateVocalStems, cleanupWorkdir } from "../../lib/stem-separation";
 import { getOpenAI } from "../../lib/ai-clients";
 import { toFile } from "openai";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -53,6 +54,7 @@ export interface VocalRemovalJob {
 }
 
 const jobs = new Map<string, VocalRemovalJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getVocalRemovalJob(id: string): VocalRemovalJob | undefined {
   return jobs.get(id);

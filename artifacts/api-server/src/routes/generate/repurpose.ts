@@ -28,6 +28,7 @@ import {
   resolveAttributionFont,
   attributionDrawtext,
 } from "../../lib/attribution";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -467,6 +468,7 @@ export interface RepurposeJob {
 }
 
 const repurposeJobs = new Map<string, RepurposeJob>();
+attachJobMapTtl(repurposeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 export function __clearRepurposeJobs(): void {
   repurposeJobs.clear();
 }
