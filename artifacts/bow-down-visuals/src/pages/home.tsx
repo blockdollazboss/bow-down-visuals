@@ -1620,7 +1620,7 @@ export default function Home() {
   }, [authLoading, user, activeArtist, setLocation]);
 
   /* Don't flash the marketing page while the redirect fires. */
-  if (authLoading || user) return null;
+  if (authLoading || (user && !activeArtist)) return null;
 
   return (
     <>

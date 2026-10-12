@@ -463,6 +463,7 @@ export default function Pricing() {
               return (
               <div
                 key={plan.name}
+                data-dark-lock
                 ref={(el) => { planRefs.current[plan.stars - 1] = el; }}
                 className={`relative rounded-2xl border flex flex-col p-6 transition-all duration-300 ${
                   isHighlighted
