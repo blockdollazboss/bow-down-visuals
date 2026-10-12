@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
+import { installSessionGuard, registerSessionHooks } from "@/lib/session-guard";
 
 interface Profile {
   id: string;
@@ -42,6 +43,26 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 let lastServerCheck = 0;
 const SERVER_CHECK_TTL_MS = 60_000;
 
+/** Guards handleSessionDeath so concurrent 401s only redirect once. */
+let sessionDeathFired = false;
+
+/** Removes the Supabase auth-token keys from localStorage. */
+function clearSupabaseStorage() {
+  const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+  try {
+    const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+    localStorage.removeItem(`sb-${projectRef}-auth-token`);
+  } catch {
+    try {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch {
+      /* storage unavailable — session already cleared server-side above */
+    }
+  }
+}
+
 /** True when the JWT is expired or unparseable (30s clock-skew grace). */
 function isJwtExpired(token: string): boolean {
   try {
@@ -60,14 +81,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* Session-death path (NOT user-initiated sign-out): the server rejected the
+   * token and a refresh didn't revive it. Clear everything and land on /login
+   * with a friendly "session expired" notice — never a silent zombie state.
+   * Idempotent: concurrent 401s across tabs/requests only redirect once. */
+  const handleSessionDeath = useCallback(async () => {
+    if (sessionDeathFired) return;
+    sessionDeathFired = true;
+
+    try {
+      await getSupabase().auth.signOut();
+    } catch {
+      /* session already dead server-side — continue with local cleanup */
+    }
+    clearSupabaseStorage();
+    lastServerCheck = 0;
+    setUser(null);
+    setProfile(null);
+
+    try {
+      await fetch("/__staging_logout", { credentials: "same-origin" });
+    } catch {
+      /* ignore — no staging gate here */
+    }
+
+    /* Full navigation (not pushState): guarantees every in-memory cache,
+     * poller, and stale closure is torn down with the dead session. */
+    window.location.href = "/login?session=expired";
+  }, []);
+
   useEffect(() => {
+    /* Global 401/403 self-healing for every same-origin /api/* fetch call:
+     * one refresh attempt + single retry, then a clean session-death
+     * redirect instead of a zombie signed-in state. */
+    installSessionGuard();
+    registerSessionHooks({
+      getClient: () => supabase,
+      onSessionDead: () => { void handleSessionDeath(); },
+    });
+
     if (!supabase) {
       console.error(
         "[AuthContext] Supabase client is null. " +
         "Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Replit Secrets."
       );
       setLoading(false);
-      return;
+      return () => { registerSessionHooks(null); };
     }
 
     const client = supabase;
@@ -107,8 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+      registerSessionHooks(null);
+    };
+  }, [handleSessionDeath]);
 
   async function fetchProfile(client: SupabaseClient, userId: string) {
     const { data } = await client
@@ -199,14 +261,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return refreshed.session.access_token;
       }
 
-      /* Dead session: clear it so the UI signs out cleanly instead of
-       * showing a broken signed-in state. */
-      await signOut();
+      /* Dead session: clear it and bounce to /login with an expiry notice
+       * instead of leaving a broken signed-in-looking state. */
+      await handleSessionDeath();
       return null;
     } catch {
       return null;
     }
-  }, []);
+  }, [handleSessionDeath]);
 
   async function signUp(email: string, password: string, displayName: string) {
     const client = getSupabase();
@@ -276,20 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       /* fall through to the manual storage cleanup below */
     }
 
-    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
-
-    try {
-      const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-      localStorage.removeItem(`sb-${projectRef}-auth-token`);
-    } catch {
-      try {
-        Object.keys(localStorage)
-          .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
-          .forEach((key) => localStorage.removeItem(key));
-      } catch {
-        /* storage unavailable — session already cleared server-side above */
-      }
-    }
+    clearSupabaseStorage();
 
     setUser(null);
     setProfile(null);
@@ -307,6 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
+
 
   /* One-time trial credits: covers email + social signups. The endpoint is
    * idempotent; localStorage gates the call so it only fires until the first

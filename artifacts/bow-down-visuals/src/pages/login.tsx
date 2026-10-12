@@ -46,6 +46,24 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  /* Session-expiry notice: the self-healing session guard lands here with
+   * ?session=expired after clearing a dead session. Show a friendly banner
+   * once, then clean the param so a refresh doesn't re-show it. */
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("session") === "expired") {
+        setSessionExpired(true);
+        params.delete("session");
+        const clean = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
+        window.history.replaceState({}, "", clean);
+      }
+    } catch {
+      /* ignore — notice is a nicety, never a blocker */
+    }
+  }, []);
+
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
@@ -144,6 +162,18 @@ export default function Login() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
+      {/* Session-expiry notice from the self-healing session guard */}
+      {sessionExpired && (
+        <div className="relative z-20 mx-auto mt-4 max-w-md px-4 animate-[fadeSlideIn_0.5s_ease-out_both]">
+          <p className={`rounded-xl border px-4 py-3 text-center text-sm font-medium backdrop-blur-xl ${
+            isLight
+              ? "border-[#c9a84c]/50 bg-[#FDFBF5]/90 text-[#6b5320]"
+              : "border-[#c9a84c]/40 bg-black/70 text-[#e8c86a]"
+          }`}>
+            Your session expired — please sign in again.
+          </p>
+        </div>
+      )}
       {/* Drone video background — scrub through with your mouse, full brightness.
           Theme-aware: light gets the sign-in action video, dark gets the drone footage. */}
       <video
