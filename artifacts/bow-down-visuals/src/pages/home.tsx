@@ -364,13 +364,17 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           aria-hidden="true"
           draggable={false}
         />
-        {/* Readability wash — keeps the headline crisp over the palace in both themes */}
+        {/* Readability wash — DARK theme only. The light theme used to get
+            a white veil here (0.72 → 0.25 ivory); the owner ordered it gone
+            2026-10-12 ("the white layer over the big shark has to go").
+            Light hero readability is carried by the copy's dark scrim +
+            dark-locked text instead — the palace art now shows clean. */}
         <div
           className="absolute inset-0"
           aria-hidden="true"
           style={{
             background: isLight
-              ? "linear-gradient(100deg, rgba(255,252,245,0.72) 0%, rgba(255,252,245,0.45) 45%, rgba(255,252,245,0.25) 100%)"
+              ? "none"
               : "linear-gradient(100deg, rgba(5,5,8,0.55) 0%, rgba(5,5,8,0.25) 45%, rgba(5,5,8,0.05) 100%)",
           }}
         />
@@ -434,17 +438,23 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </div>
 
         {/* Copy — right side. z-10: headline, subtext and buttons stay
-            above the fixed curtain overlay (z-[5]). */}
-        <div className="relative z-10 text-center lg:text-left space-y-5 lg:pt-[10%]">
+            above the fixed curtain overlay (z-[5]).
+            data-dark-lock on the whole column: the copy sits on the hero
+            photo + scrim, so in light mode it keeps its dark-theme
+            treatment end to end (owner directive 2026-10-12 — light hero
+            text must look like the dark hero). Locking the column (not
+            each element) matters: §16's base-ink rule would white-out
+            any element carrying the lock itself, gold accents included. */}
+        <div data-dark-lock className="relative z-10 text-center lg:text-left space-y-5 lg:pt-[10%]">
         {/* Readability scrim — soft dark halo behind the copy so the raised
             fog never washes out the text. Lives inside the copy's z-10
             stacking context at z-[-1]: behind the words, above the fog. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -inset-x-10 -inset-y-8 z-[-1] rounded-[3rem]"
+          className="pointer-events-none absolute -inset-x-28 -inset-y-14 z-[-1] rounded-[3rem]"
           style={{
             background: isLight
-              ? "radial-gradient(ellipse at 50% 62%, rgba(24,16,2,0.62) 0%, rgba(24,16,2,0.36) 52%, transparent 78%)"
+              ? "radial-gradient(ellipse farthest-side at 50% 42%, rgba(24,16,2,0.72) 0%, rgba(24,16,2,0.50) 55%, transparent 100%)"
               : "radial-gradient(ellipse at 50% 62%, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.24) 52%, transparent 76%)",
           }}
         />
