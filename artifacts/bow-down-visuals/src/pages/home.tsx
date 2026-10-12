@@ -63,6 +63,7 @@ import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import { StudioSetStrip } from "@/components/StudioSetStrip";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
@@ -1649,6 +1650,9 @@ export default function Home() {
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
       <HeroSection isLight={isLight} />
+      {/* The set stands on the hero/band seam — camera + lights cover the
+          straight edges the backdrop and fog print there (owner, 2026-10-12). */}
+      <StudioSetStrip isLight={isLight} />
       <SocialProofBand />
       <ProofBand />
       {/* ── Weekly creator contest ritual — the can't-miss heartbeat ── */}
