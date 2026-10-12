@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "crypto";
-import { promises as fs } from "fs";
+import { promises as fs, createWriteStream } from "fs";
+import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { execFile } from "child_process";
@@ -28,6 +29,8 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
+import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -89,7 +92,7 @@ const cutBodySchema = z.object({
 });
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: VOD_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -174,8 +177,25 @@ interface TranscriptSegment {
  * is split into sequential chunks and timestamps are offset back.
  * Exported for tests (pure-ish orchestration; network calls mocked).
  */
-export async function transcribeVideoBuffer(
-  buffer: Buffer,
+
+/** 2026-10-12 OOM fix: stream a remote video to a temp file instead of
+ *  buffering it in RAM. Caller owns the file and must unlink it. */
+async function downloadUrlToTempFile(url: string, prefix: string): Promise<string> {
+  const resp = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+  if (!resp.body) throw new Error("fetch returned no body");
+  const dest = join(tmpdir(), `${prefix}-${randomUUID()}.mp4`);
+  try {
+    await pipeline(resp.body as Parameters<typeof pipeline>[0], createWriteStream(dest));
+  } catch (err) {
+    await fs.unlink(dest).catch(() => {});
+    throw err;
+  }
+  return dest;
+}
+
+export async function transcribeVideoFile(
+  videoPath: string,
   originalName: string,
   transcribeFn?: (audio: { buffer: Buffer; name: string }) => Promise<{ segments: TranscriptSegment[] }>,
 ): Promise<{ segments: TranscriptSegment[]; durationSec: number }> {
@@ -183,7 +203,7 @@ export async function transcribeVideoBuffer(
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
   try {
-    await fs.writeFile(inputPath, buffer);
+    await fs.copyFile(videoPath, inputPath); // 2026-10-12 OOM fix: disk-to-disk, never a RAM Buffer
     const durationSec = (await probeDurationSec(inputPath)) ?? 0;
 
     // Extract compact mono audio for transcription.
@@ -363,10 +383,10 @@ router.post(
     }
     const { videoUrl, clipLength, maxClips, vibe } = parsed.data;
 
-    let videoBuffer: Buffer | null = null;
+    let videoPath: string | null = null;
     let originalName = "vod.mp4";
     if (req.file) {
-      videoBuffer = req.file.buffer;
+      videoPath = req.file.path;
       originalName = req.file.originalname || originalName;
     } else if (videoUrl) {
       // SSRF guard — only our own Supabase storage, same as /transcribe-url.
@@ -385,14 +405,13 @@ router.post(
         return;
       }
       try {
-        const resp = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
-        if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
-        const ab = await resp.arrayBuffer();
-        if (ab.byteLength > VOD_MAX_BYTES) {
+        videoPath = await downloadUrlToTempFile(videoUrl, "streamer-dl");
+        const { size } = await fs.stat(videoPath);
+        if (size > VOD_MAX_BYTES) {
+          await fs.unlink(videoPath).catch(() => {});
           res.status(413).json({ error: "FILE_TOO_LARGE", message: "This video exceeds the 80 MB limit." });
           return;
         }
-        videoBuffer = Buffer.from(ab);
       } catch (err) {
         logger.error({ err }, "[streamer-clips] failed to fetch videoUrl");
         res.status(502).json({ error: "Could not download the video URL." });
@@ -401,6 +420,13 @@ router.post(
     } else {
       res.status(400).json({ error: "Upload a video file or provide videoUrl." });
       return;
+    }
+
+    // 2026-10-12 OOM fix: remove the temp/upload file when the response
+    // closes — covers every exit this handler can take from here on.
+    if (videoPath) {
+      const p = videoPath;
+      res.once("close", () => { void fs.unlink(p).catch(() => {}); });
     }
 
     const balance = req.userCredits ?? 0;
@@ -446,10 +472,10 @@ router.post(
       // Store the source VOD so the cut step can fetch it later.
       const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
       const objectName = `streamer-clips/${req.userId}/${Date.now()}-${randomUUID()}.${ext}`;
-      const videoRef = await uploadMediaToSupabaseStorage(objectName, videoBuffer, "video/mp4");
+      const videoRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, videoPath, "video/mp4");
       const signedUrl = await refreshSupabaseStorageUrl(videoRef);
 
-      const { segments, durationSec } = await transcribeVideoBuffer(videoBuffer, originalName);
+      const { segments, durationSec } = await transcribeVideoFile(videoPath, originalName);
       if (segments.length === 0) {
         await refundAndFail(422, "NO_SPEECH", "No speech detected in this video — highlights need audio with talking.");
         return;
