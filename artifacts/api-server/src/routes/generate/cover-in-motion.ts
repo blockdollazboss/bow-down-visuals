@@ -3,7 +3,9 @@ import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { writeFile, readFile, unlink } from "fs/promises";
+import { unlink, stat } from "fs/promises";
+import { createWriteStream } from "fs";
+import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
@@ -11,7 +13,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
+import { uploadPublicMediaFileToR2 } from "../../lib/objectStorage";
 
 const execFileAsync = promisify(execFile);
 
@@ -76,30 +78,37 @@ async function waitForTask(client: RunwayML, taskId: string): Promise<string> {
   }
 }
 
-async function downloadToBuffer(url: string): Promise<Buffer> {
+/** 2026-10-12 OOM follow-through: stream the rendered video to a temp
+ *  file — never a whole-video Buffer in RAM. Caller unlinks the file. */
+async function downloadToTempFile(url: string): Promise<string> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Could not download the rendered video (${res.status}).`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length === 0) throw new Error("The rendered video came back empty.");
-  return buf;
+  if (!res.body) throw new Error("The rendered video came back empty.");
+  const dest = join(tmpdir(), `${randomUUID()}-motion-dl.mp4`);
+  try {
+    await pipeline(res.body as Parameters<typeof pipeline>[0], createWriteStream(dest));
+    const { size } = await stat(dest);
+    if (size === 0) throw new Error("The rendered video came back empty.");
+    return dest;
+  } catch (err) {
+    await unlink(dest).catch(() => {});
+    throw err;
+  }
 }
 
-/** Trim to the first 3 s when the user asked for a 3 s loop. */
-async function trimTo3s(mp4: Buffer): Promise<Buffer> {
-  const id = randomUUID();
-  const inPath = join(tmpdir(), `${id}-motion-in.mp4`);
-  const outPath = join(tmpdir(), `${id}-motion-out.mp4`);
+/** Trim to the first 3 s when the user asked for a 3 s loop. File-to-file. */
+async function trimTo3sFile(inPath: string): Promise<string> {
+  const outPath = join(tmpdir(), `${randomUUID()}-motion-out.mp4`);
   try {
-    await writeFile(inPath, mp4);
     await execFileAsync("ffmpeg", ["-v", "error", "-i", inPath, "-t", "3", "-c", "copy", outPath], {
       timeout: 60_000,
     });
-    const out = await readFile(outPath);
-    if (!out || out.length === 0) throw new Error("Could not trim the video to 3 seconds.");
-    return out;
+    const { size } = await stat(outPath);
+    if (size === 0) throw new Error("Could not trim the video to 3 seconds.");
+    return outPath;
   } finally {
+    // The input is always consumed; the OUTPUT is the caller's to unlink.
     await unlink(inPath).catch(() => {});
-    await unlink(outPath).catch(() => {});
   }
 }
 
@@ -175,14 +184,17 @@ router.post("/cover-in-motion/animate", publicApiLimiter, requireAuth, async (re
     logger.info({ taskId: task.id, userId: req.userId }, "[cover-in-motion] Runway task submitted");
 
     const runwayUrl = await waitForTask(client, task.id);
-    let videoBuffer = await downloadToBuffer(runwayUrl);
-    if (durationSec === 3) {
-      videoBuffer = await trimTo3s(videoBuffer);
-    }
+    const downloadedPath = await downloadToTempFile(runwayUrl);
+    const finalPath = durationSec === 3 ? await trimTo3sFile(downloadedPath) : downloadedPath;
 
     const videoPath = `${req.userId}/cover-in-motion/${Date.now()}-${randomUUID()}.mp4`;
     // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
-    const publicUrl = await uploadPublicMediaToR2(BUCKET, videoPath, videoBuffer, "video/mp4");
+    let publicUrl: string;
+    try {
+      publicUrl = await uploadPublicMediaFileToR2(BUCKET, videoPath, finalPath, "video/mp4");
+    } finally {
+      await unlink(finalPath).catch(() => {});
+    }
 
     res.json({
       videoUrl: publicUrl,

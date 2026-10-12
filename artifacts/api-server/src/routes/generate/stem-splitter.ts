@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { spawn } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { NextFunction, Request, Response, Router } from "express";
@@ -314,10 +315,13 @@ function runDemucs(songPath: string, outDir: string, model: string): Promise<voi
   });
 }
 
-async function downloadToBuffer(url: string): Promise<Buffer> {
+/** 2026-10-12 OOM follow-through: stems are full-song WAVs (tens of MB
+ *  each) — stream downloads straight to disk, never through RAM. */
+async function downloadToFile(url: string, destPath: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Stem download failed (${res.status})`);
-  return Buffer.from(await res.arrayBuffer());
+  if (!res.body) throw new Error("Stem download returned no body");
+  await pipeline(res.body as Parameters<typeof pipeline>[0], createWriteStream(destPath));
 }
 
 /* ── Background worker ──────────────────────────────────────────────── */
@@ -422,16 +426,14 @@ export async function runRemixJob(
   try {
     const stemPaths = {} as Record<StemKey, string>;
     for (const key of STEM_KEYS) {
-      const buf = await downloadToBuffer(job.stemUrls[key]);
       const p = join(workDir, `${key}.wav`);
-      await fs.writeFile(p, buf);
+      await downloadToFile(job.stemUrls[key], p);
       stemPaths[key] = p;
     }
     const outputPath = join(workDir, "remix.wav");
     await runProcess("ffmpeg", buildRemixArgs(stemPaths, levels, outputPath), 300_000);
-    const outBuffer = await fs.readFile(outputPath);
     const objectName = `stems/${job.userId}/${job.id}/remix-${Date.now()}.wav`;
-    const ref = await uploadMediaToSupabaseStorage(objectName, outBuffer, "audio/wav");
+    const ref = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, outputPath, "audio/wav");
     const url = await refreshSupabaseStorageUrl(ref);
     return { url, ref };
   } finally {

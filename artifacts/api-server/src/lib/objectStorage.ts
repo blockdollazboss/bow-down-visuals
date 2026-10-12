@@ -548,6 +548,24 @@ export async function uploadMediaToSupabaseStorage(
  * R2 key structure preserves the old bucket layout:
  * `<bucket>/<objectPath>` inside the single R2 bucket.
  */
+/** File-path sibling of uploadPublicMediaToR2 (2026-10-12 OOM
+ *  follow-through): streams the file to R2 without buffering it in RAM.
+ *  The Supabase fallback (R2 unconfigured) still reads the file — that
+ *  path is dev-only in practice; R2 is configured on staging/production. */
+export async function uploadPublicMediaFileToR2(
+  bucket: string,
+  objectPath: string,
+  filePath: string,
+  contentType: string,
+): Promise<string> {
+  if (isR2Configured()) {
+    const { createReadStream } = await import("fs");
+    return r2Upload(r2KeyForBucket(bucket, objectPath), createReadStream(filePath), contentType);
+  }
+  const { readFile } = await import("fs/promises");
+  return uploadPublicMediaToR2(bucket, objectPath, await readFile(filePath), contentType);
+}
+
 export async function uploadPublicMediaToR2(
   bucket: string,
   objectPath: string,
