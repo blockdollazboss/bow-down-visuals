@@ -4,6 +4,7 @@ import { JsonLd, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from "@/components/seo/
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { InstagramIcon, TikTokIcon, YouTubeIcon, SOCIAL_HANDLE } from "@/components/social-icons";
 import { ThemedLogo } from "@/components/ThemedLogo";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 const NAVIGATE = [
   { label: "Home",        href: "/" },
@@ -53,9 +54,22 @@ const SOCIALS_COMING_SOON = [
 export function SiteFooter() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
+  const isLight = useIsLightTheme();
+  /* Theme-aware text tones: warm bronze on cream (light), white washes on black (dark). */
+  const T = {
+    label: isLight ? "text-[#8a6d2f]" : "text-white/20",
+    link: isLight ? "text-[#4A3B22] hover:text-[#8a6d2f]" : "text-white/45 hover:text-white",
+    body: isLight ? "text-[#4A3B22]/80" : "text-white/35",
+    muted: isLight ? "text-[#8a6d2f]/70 hover:text-primary" : "text-white/40 hover:text-primary",
+    copy: isLight ? "text-[#8a6d2f]/70" : "text-white/20",
+    fine: isLight ? "text-[#8a6d2f]/50" : "text-white/15",
+    icon: isLight ? "text-[#8a6d2f]" : "text-white/50",
+    border: isLight ? "border-[#c9a84c]/25" : "border-white/[0.05]",
+    socialBorder: isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5]" : "border-white/10 bg-white/[0.03]",
+  };
 
   return (
-    <footer className="relative z-[2] bg-black border-t border-transparent py-12 px-5">
+    <footer className={`relative z-[2] border-t py-12 px-5 ${isLight ? "bg-gradient-to-b from-[#F7F1E3] to-[#EFE6D0] border-[#c9a84c]/25" : "bg-black border-transparent"}`}>
       {/* z-[2]: the homepage lives in an isolated z-[1] stacking context whose
           fixed full-viewport stage backdrop would otherwise paint over the
           footer and swallow it. The footer must sit above the page root. */}
@@ -70,12 +84,12 @@ export function SiteFooter() {
 
           {/* Navigate */}
           <nav className="flex flex-col gap-2.5" aria-label="Footer">
-            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Navigate</p>
             {NAVIGATE.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+                className={`text-sm ${T.link} transition-colors w-fit`}
               >
                 {l.label}
               </Link>
@@ -84,12 +98,12 @@ export function SiteFooter() {
 
           {/* AI Tools */}
           <nav className="flex flex-col gap-2.5" aria-label="AI tools">
-            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">AI Tools</p>
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>AI Tools</p>
             {AI_TOOLS_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+                className={`text-sm ${T.link} transition-colors w-fit`}
               >
                 {l.label}
               </Link>
@@ -98,12 +112,12 @@ export function SiteFooter() {
 
           {/* For Creators */}
           <nav className="flex flex-col gap-2.5" aria-label="For creators">
-            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">For Creators</p>
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>For Creators</p>
             {CREATOR_HUB_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+                className={`text-sm ${T.link} transition-colors w-fit`}
               >
                 {l.label}
               </Link>
@@ -112,12 +126,12 @@ export function SiteFooter() {
 
           {/* Legal */}
           <nav className="flex flex-col gap-2.5" aria-label="Legal">
-            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Legal</p>
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Legal</p>
             {LEGAL.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
+                className={`text-sm ${T.link} transition-colors w-fit`}
               >
                 {l.label}
               </Link>
@@ -136,13 +150,13 @@ export function SiteFooter() {
               <Sparkles className="h-3 w-3" aria-hidden="true" />
               Powered by Thy Cheat Code
             </span>
-            <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
+            <p className={`${T.body} text-xs mt-3 max-w-xs leading-relaxed`}>
               AI creator studio for lyrics, music video plans, video prompts,
               captions, thumbnails, promo clips, and more.
             </p>
             <a
               href="/contact"
-              className="inline-flex items-center gap-1.5 mt-4 text-xs text-white/40 hover:text-primary transition-colors"
+              className={`inline-flex items-center gap-1.5 mt-4 text-xs ${T.muted} transition-colors`}
             >
               <Mail className="h-3 w-3 shrink-0" />
               Contact Us
@@ -152,9 +166,9 @@ export function SiteFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/20 text-xs pl-[14%] sm:pl-[10%]">© 2026 Bow Down Visuals. All rights reserved.</p>
-          <p className="text-white/15 text-[10px] pl-[14%] sm:pl-[10%] mt-1">All game titles, trademarks, and platform names are property of their respective owners. No affiliation or endorsement implied.</p>
+        <div className={`border-t ${T.border} pt-6 flex flex-col sm:flex-row items-center justify-between gap-3`}>
+          <p className={`${T.copy} text-xs pl-[14%] sm:pl-[10%]`}>© 2026 Bow Down Visuals. All rights reserved.</p>
+          <p className={`${T.fine} text-[10px] pl-[14%] sm:pl-[10%] mt-1`}>All game titles, trademarks, and platform names are property of their respective owners. No affiliation or endorsement implied.</p>
           {/* Social row — swap <span> for <a href="…"> to go live (see data-social-link) */}
           <div className="flex flex-col items-center gap-2" aria-label="Social media">
             <div className="flex items-center gap-3">
@@ -165,21 +179,21 @@ export function SiteFooter() {
                   title={`${label} — coming soon`}
                   aria-label={`${label} (coming soon)`}
                   aria-disabled="true"
-                  className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] inline-flex items-center justify-center text-white/50 cursor-not-allowed hover:text-primary hover:border-primary/40 transition-colors"
+                  className={`h-10 w-10 rounded-full border ${T.socialBorder} inline-flex items-center justify-center ${T.icon} cursor-not-allowed hover:text-primary hover:border-primary/40 transition-colors`}
                 >
                   <Icon className="h-5 w-5" />
                 </span>
               ))}
             </div>
-            <p className="text-white/40 text-xs">@BowDownVisuals</p>
+            <p className={`${T.muted} text-xs`}>@BowDownVisuals</p>
           </div>
-          <p className="text-white/[0.13] text-[10px] select-none" title="every arcade has its secrets">
+          <p className={`${T.fine} text-[10px] select-none`} title="every arcade has its secrets">
             psst&hellip; this site has a cheat code
           </p>
           <div className="flex items-center gap-4">
-            <Link href="/terms"         className="text-white/20 text-xs hover:text-white/50 transition-colors">Terms</Link>
-            <Link href="/privacy"       className="text-white/20 text-xs hover:text-white/50 transition-colors">Privacy</Link>
-            <Link href="/refund-policy" className="text-white/20 text-xs hover:text-white/50 transition-colors">Refunds</Link>
+            <Link href="/terms"         className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Terms</Link>
+            <Link href="/privacy"       className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Privacy</Link>
+            <Link href="/refund-policy" className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Refunds</Link>
           </div>
         </div>
       </div>

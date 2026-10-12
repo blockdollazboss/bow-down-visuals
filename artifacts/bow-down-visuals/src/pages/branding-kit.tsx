@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
 import { BrowseLibraryButton } from "@/pages/library";
@@ -22,6 +23,7 @@ type TabKey = "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry";
 
 export default function BrandingKit() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   usePageTitle(t("brandingKit.pageTitle"), "AI brand identity studio for creators — logos, intros, outros, and stream bundles.");
   const [tab, setTab] = useState<TabKey>(() => {
     try {
@@ -73,7 +75,9 @@ export default function BrandingKit() {
                 className={`relative flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition border ${
                   active
                     ? "border-primary/60 bg-primary/10 text-primary"
-                    : "border-white/10 bg-white/[0.02] text-white/50 hover:text-white/85 hover:border-white/25"
+                    : isLight
+                      ? "border-[#c9a84c]/30 bg-[#FDFBF5] text-[#4A3B22] hover:text-[#8a6d2f] hover:border-[#c9a84c]/50"
+                      : "border-white/10 bg-white/[0.02] text-white/50 hover:text-white/85 hover:border-white/25"
                 }`}
               >
                 <Icon className="h-4 w-4" />

@@ -259,7 +259,7 @@ export default function Signup() {
               aria-label={t("signup.displayNameField")}
               placeholder={t("signup.displayNameField")}
               autoComplete="nickname"
-              className="h-9 w-28 md:w-36 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("displayName")}
             />
             <Input
@@ -268,7 +268,7 @@ export default function Signup() {
               aria-label={t("signup.emailField")}
               placeholder={t("signup.emailField")}
               autoComplete="email"
-              className="h-9 w-28 md:w-36 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("email")}
             />
             <Input
@@ -277,7 +277,7 @@ export default function Signup() {
               aria-label={t("signup.passwordField")}
               placeholder={t("signup.passwordField")}
               autoComplete="new-password"
-              className="h-9 w-28 md:w-32 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-32 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("password")}
             />
             <Input
@@ -286,7 +286,7 @@ export default function Signup() {
               aria-label={t("signup.confirmPasswordField")}
               placeholder={t("signup.confirmPasswordField")}
               autoComplete="new-password"
-              className="h-9 w-28 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-44 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("confirmPassword")}
             />
             <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>

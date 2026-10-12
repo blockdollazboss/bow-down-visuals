@@ -189,7 +189,7 @@ export default function Login() {
                   type="email"
                   aria-label={t("auth.email")}
                   placeholder={t("auth.emailPlaceholder")}
-                  className="h-9 w-56 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className={`h-9 w-56 text-sm focus:border-[#c9a84c]/60 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   value={resetEmail}
                   onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
                 />
@@ -225,7 +225,7 @@ export default function Login() {
                   aria-label={t("auth.email")}
                   placeholder={t("auth.email")}
                   autoComplete="email"
-                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("email")}
                 />
                 <Input
@@ -234,7 +234,7 @@ export default function Login() {
                   aria-label={t("auth.password")}
                   placeholder={t("auth.password")}
                   autoComplete="current-password"
-                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("password")}
                 />
                 <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>

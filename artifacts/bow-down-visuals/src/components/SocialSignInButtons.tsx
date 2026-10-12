@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { GoogleGMark } from "./GoogleSignInButton";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /** Facebook "f" mark (inline SVG). Uses currentColor to match theme. */
 export function FacebookMark({ className = "h-5 w-5" }: { className?: string }) {
@@ -72,6 +73,7 @@ export function SocialSignInButtons({
   mode,
   providers = ["google", "apple", "facebook"],
 }: SocialSignInButtonsProps) {
+  const isLight = useIsLightTheme();
   return (
     <div className="flex items-center justify-center gap-3">
       {providers.map((provider) => {
@@ -87,7 +89,7 @@ export function SocialSignInButtons({
             data-testid={`btn-${provider}-signin`}
             title={meta.label}
             aria-label={`${mode === "signin" ? "Continue" : "Sign up"} with ${meta.label}`}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+            className={`flex h-11 w-11 items-center justify-center rounded-full border transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary disabled:opacity-50 ${isLight ? "border-[#c9a84c]/50 bg-[#FDFBF5] text-[#4A3B22]" : "border-white/20 bg-white/5 text-white/80"}`}
           >
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
