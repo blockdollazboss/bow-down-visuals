@@ -62,3 +62,23 @@ with the command in the right-hand column (run from the repo root).
 | 1.42 | `artifacts/bow-down-visuals/public/thy-cheat-code-making.mp4` | `assets-archive/public-mirror/thy-cheat-code-making.mp4` | `mkdir -p $(dirname artifacts/bow-down-visuals/public/thy-cheat-code-making.mp4) && mv assets-archive/public-mirror/thy-cheat-code-making.mp4 artifacts/bow-down-visuals/public/thy-cheat-code-making.mp4` |
 | 1.26 | `artifacts/bow-down-visuals/public/thy-cheat-code-idle.mp4` | `assets-archive/public-mirror/thy-cheat-code-idle.mp4` | `mkdir -p $(dirname artifacts/bow-down-visuals/public/thy-cheat-code-idle.mp4) && mv assets-archive/public-mirror/thy-cheat-code-idle.mp4 artifacts/bow-down-visuals/public/thy-cheat-code-idle.mp4` |
 | 1.12 | `artifacts/bow-down-visuals/public/thy-cheat-code-working.mp4` | `assets-archive/public-mirror/thy-cheat-code-working.mp4` | `mkdir -p $(dirname artifacts/bow-down-visuals/public/thy-cheat-code-working.mp4) && mv assets-archive/public-mirror/thy-cheat-code-working.mp4 artifacts/bow-down-visuals/public/thy-cheat-code-working.mp4` |
+
+## 2026-10-12 addendum — pre-compression originals
+
+After the compression pass (commit 29498104), the 13 original MP4s below were replaced in src by `-web.mp4` versions and verified at zero references. They were moved here the same way; restore any with `mv` back to its original path.
+
+| Original path | Size |
+|---|---|
+| videos/loading-light-temp.mp4 | 12.35 MB |
+| thy-cheat-code-levelup-8bit-light.mp4 | 12.26 MB |
+| videos/signin-drone-bg.mp4 | 11.64 MB |
+| thy-cheat-code-levelup-8bit.mp4 | 11.63 MB |
+| videos/signin-light-action.mp4 | 9.76 MB |
+| thy-cheat-code-working-8bit-light.mp4 | 8.66 MB |
+| thy-cheat-code-making-8bit.mp4 | 8.16 MB |
+| videos/signup-light-action.mp4 | 7.42 MB |
+| thy-cheat-code-working-8bit.mp4 | 7.39 MB |
+| thy-cheat-code-idle-8bit-light.mp4 | 7.20 MB |
+| thy-cheat-code-making-8bit-light-v2.mp4 | 6.91 MB |
+| thy-cheat-code-idle-8bit.mp4 | 4.88 MB |
+| official-teaser.mp4 | 3.31 MB |
