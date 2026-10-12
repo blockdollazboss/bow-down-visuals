@@ -110,6 +110,8 @@ export default function Browse() {
         <Link href="/genres" className="font-bold text-[#e8c86a] hover:underline">Genres</Link>
         <span className="text-white/20">·</span>
         <Link href="/search" className="font-bold text-[#e8c86a] hover:underline">Search</Link>
+        <span className="text-white/20">·</span>
+        <Link href="/remix" className="font-bold text-[#e8c86a] hover:underline">Remix Trends</Link>
       </div>
 
       <CreateCta />
