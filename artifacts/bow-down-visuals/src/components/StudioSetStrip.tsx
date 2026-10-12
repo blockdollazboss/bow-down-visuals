@@ -6,6 +6,11 @@
    screenshots, 2026-10-12). The owner asked for the seam to be covered by
    "a camera set up / light set up" — so the set stands on the seam and
    the floor gradient melts both edges away underneath it.
+   LAYERING (owner directive 2026-10-12): the set sits at z-[3] — above
+   the backdrop (z-0), grain (z-1) and spotlight beams (z-2), but BEHIND
+   the King (z-4) and behind ALL hero text (copy column z-10). It used
+   to ride at z-30 and drew its silhouettes over the proof/share rows;
+   the owner ordered it behind the text. Do not raise it back.
    Pure decoration: pointer-events-none, aria-hidden. */
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
@@ -15,7 +20,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-30 -mt-[216px] h-[184px] w-full sm:-mt-[244px] sm:h-[208px]"
+      className="pointer-events-none relative z-[3] -mt-[216px] h-[184px] w-full sm:-mt-[244px] sm:h-[208px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
