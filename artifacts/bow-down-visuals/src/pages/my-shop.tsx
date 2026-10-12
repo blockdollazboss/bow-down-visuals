@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
-  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2,
+  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -373,6 +373,22 @@ export default function MyShop() {
             <Plus className="w-4 h-4" /> {t("myShop.newShop")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
           </button>
         </div>
+
+        {/* Music & digital sales live in the Store Dashboard (the /music-sales
+            surface) — dock the handoff here so sellers can reach it from
+            their shop instead of hunting for the URL. */}
+        <Link href="/music-sales" className="group mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/25 bg-gradient-to-r from-amber-400/[0.08] to-transparent px-5 py-4 transition hover:border-amber-400/50">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
+            <TrendingUp className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-white">{t("myShop.salesBannerTitle", { defaultValue: "Selling music or digital products?" })}</span>
+            <span className="block text-xs text-white/50">{t("myShop.salesBannerBody", { defaultValue: "Track every sale, order and payout in your Music Sales dashboard." })}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-300 transition group-hover:translate-x-0.5">
+            {t("myShop.salesBannerCta", { defaultValue: "View sales" })} <ArrowLeft className="h-4 w-4 rotate-180" />
+          </span>
+        </Link>
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
