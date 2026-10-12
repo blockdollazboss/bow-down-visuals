@@ -978,25 +978,25 @@ html, body {
 }
 
 /* ── Typography: deep espresso ink, never washed gray ── */
-.light .no-throne-bg h1 {
+.light .no-throne-bg h1:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #14100B;
   text-shadow: 0 1px 0 rgba(255,255,255,0.55), 0 2px 24px rgba(201,168,76,0.18);
 }
-.light .no-throne-bg h2 {
+.light .no-throne-bg h2:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #1A1410;
   text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
 /* Body copy: warm bronze — readable and rich, not cold gray */
-.light .no-throne-bg .text-white\/55 {
+.light .no-throne-bg .text-white\/55:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #4E4232 !important;
 }
-.light .no-throne-bg .text-white\/50 {
+.light .no-throne-bg .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #5A4C38 !important;
 }
-.light .no-throne-bg .text-white\/40 {
+.light .no-throne-bg .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #6B5D45 !important;
 }
-.light .no-throne-bg .text-white\/35 {
+.light .no-throne-bg .text-white\/35:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #6E6046 !important;
 }
 
