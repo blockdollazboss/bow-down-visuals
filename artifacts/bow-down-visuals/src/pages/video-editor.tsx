@@ -11,7 +11,7 @@ import {
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText, MessageCircle,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
-  Fingerprint, Laugh, Timer, Crown,
+  Fingerprint, Laugh, Timer, Crown, Trash2, Copy, Brain,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -86,6 +86,7 @@ import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { MotionGraphicsSection } from "@/components/editor/sections/MotionGraphicsSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDirectedEditsSection";
+import { AICopilotPanel } from "@/components/editor/sections/AICopilotPanel";
 import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
 import { TimelineTemplatesSection } from "@/components/editor/sections/TimelineTemplatesSection";
 import { BackgroundReplaceSection } from "@/components/editor/sections/BackgroundReplaceSection";
@@ -136,7 +137,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "motion" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab";
+type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "motion" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab" | "copilot";
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -1178,6 +1179,25 @@ export default function VideoEditor() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleUndo, handleRedo]);
 
+  /* Cmd+K / Ctrl+K — AI command bar: jump to the Voice-Directed Edits
+   * input (the prompt-to-edit engine) and focus it. */
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "k") return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      const input = document.getElementById("voice-directed-command-input");
+      if (input) {
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Wait for the scroll, then focus.
+        window.setTimeout(() => (input as HTMLInputElement).focus({ preventScroll: true }), 350);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   /* ── Debounced autosave on scenes / settings change ── */
   useEffect(() => {
     if (loading || !project) return;
@@ -1819,6 +1839,7 @@ export default function VideoEditor() {
                     { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
                     { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
                     // ── 2. BUILD ──
+                    { id: "copilot", label: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }), icon: <Brain className="h-5 w-5" />, testId: "rail-copilot" },
                     { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
                     { id: "beat-sync", label: t("videoEditor.railBeatSync"), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-beat-sync" },
                     { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
@@ -2405,6 +2426,31 @@ export default function VideoEditor() {
                   )}
 
 
+
+                  {leftTab === "copilot" && (
+                    <ToolPanelShell
+                      tool="copilot"
+                      kicker={t("videoEditor.railCopilot", { defaultValue: "AI" })}
+                      title={t("videoEditor.copilotTitle", { defaultValue: "AI Copilot" })}
+                      subtitle={t("videoEditor.copilotDesc", {
+                        defaultValue: "An expert editor watching your timeline — suggestions, one-tap fixes.",
+                      })}
+                    >
+                    <div className="p-4">
+                      <AICopilotPanel
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        setScenes={setScenes}
+                        captions={captions}
+                        totalDurationSec={previewEngineState?.audioDuration ?? null}
+                        songTitle={songTitle}
+                        artistName={artistName}
+                        genre={project?.genre ?? undefined}
+                      />
+                    </div>
+                    </ToolPanelShell>
+                  )}
 
                   {leftTab === "voice-edits" && (
                     <ToolPanelShell
@@ -3199,6 +3245,89 @@ export default function VideoEditor() {
                           >
                             <Film className="h-3.5 w-3.5" /> {t("videoEditor.goToClips")}
                           </button>
+                          {/* ── Clip audio controls ── */}
+                          {(() => {
+                            const ce = { ...defaultClipEdit(), ...(settings.clips[scene.id] ?? {}) };
+                            const patchClip = (patch: Partial<typeof ce>) => {
+                              setSettings((prev) => ({
+                                ...prev,
+                                clips: { ...prev.clips, [scene.id]: { ...defaultClipEdit(), ...(prev.clips[scene.id] ?? {}), ...patch } },
+                              }));
+                            };
+                            return (
+                              <div className="rounded-xl border vv-border vv-wash-2 p-3 space-y-2.5">
+                                <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">Clip audio</p>
+                                <div className="flex items-center gap-2">
+                                  <button type="button" onClick={() => patchClip({ muted: !ce.muted })}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
+                                      ce.muted ? "text-red-300 border-red-500/40 bg-red-500/10" : "vv-ink-70 vv-border vv-wash-5"
+                                    }`}
+                                    title={ce.muted ? "Unmute clip audio" : "Mute clip audio"}>
+                                    {ce.muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                                    {ce.muted ? "Muted" : "Mute"}
+                                  </button>
+                                  <span className="text-[11px] vv-ink-50 font-mono ml-auto">{ce.volume}%</span>
+                                </div>
+                                <input type="range" min={0} max={150} step={5} value={ce.volume}
+                                  onChange={(e) => patchClip({ volume: Number(e.target.value) })}
+                                  className="w-full accent-[#C9A84C]" title="Clip volume" aria-label="Clip volume" />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="text-[10px] vv-ink-50">Fade in
+                                    <input type="range" min={0} max={5} step={0.1} value={ce.fadeIn}
+                                      onChange={(e) => patchClip({ fadeIn: Number(e.target.value) })}
+                                      className="w-full accent-[#C9A84C]" aria-label="Fade in seconds" />
+                                    <span className="font-mono">{ce.fadeIn.toFixed(1)}s</span>
+                                  </label>
+                                  <label className="text-[10px] vv-ink-50">Fade out
+                                    <input type="range" min={0} max={5} step={0.1} value={ce.fadeOut}
+                                      onChange={(e) => patchClip({ fadeOut: Number(e.target.value) })}
+                                      className="w-full accent-[#C9A84C]" aria-label="Fade out seconds" />
+                                    <span className="font-mono">{ce.fadeOut.toFixed(1)}s</span>
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          {/* ── Delete / duplicate ── */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const id = scene.id;
+                                setScenes(scenes.filter((s) => s.id !== id));
+                                setSettings((prev) => {
+                                  const next = { ...prev.clips };
+                                  delete next[id];
+                                  return { ...prev, clips: next };
+                                });
+                                setSelectedIdx(null);
+                              }}
+                              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-red-300 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete clip
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newId = `sc_${Math.random().toString(36).slice(2, 10)}`;
+                                const copy = { ...scene, id: newId, sceneNumber: scene.sceneNumber + 0.5 };
+                                const next = [...scenes];
+                                next.splice(selectedIdx + 1, 0, copy);
+                                setScenes(next);
+                                const ce = settings.clips[scene.id];
+                                if (ce) {
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    clips: { ...prev.clips, [newId]: { ...ce, useLipSync: false, lipSyncUrl: null, lipSyncStatus: null, lipSyncJobId: null } },
+                                  }));
+                                }
+                                setSelectedIdx(selectedIdx + 1);
+                              }}
+                              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold vv-ink border vv-border vv-wash-5 vv-hover-wash-10 transition-colors"
+                            >
+                              <Copy className="h-3.5 w-3.5" /> Duplicate
+                            </button>
+                          </div>
                         </div>
                       );
                     })()}

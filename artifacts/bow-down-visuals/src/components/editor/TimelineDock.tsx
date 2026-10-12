@@ -503,20 +503,36 @@ export function TimelineDock({
     throw new Error(t("videoEditor.freezeTimedOut"));
   }
 
-  async function doFreeze() {
-    if (!canFreeze || !splitScene?.demoClipUrl) return;
+  /* ── Freeze a clip at an index at the current playhead (generic — used by the
+     Freeze tool and the right-click menu). Renders a 2s hold of the current
+     frame server-side; the floating result card offers "Use in editor". ── */
+  const freezeClipAt = useCallback(async (idx: number) => {
+    const scene = scenes[idx];
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    const ok =
+      !!scene?.demoClipUrl && !freezeBusy &&
+      currentTime > start + 0.2 && currentTime < start + dur - 0.2;
+    if (!ok || !scene?.demoClipUrl) {
+      toast({
+        title: "Can't freeze here",
+        description: "Move the playhead over a clip with video, then freeze.",
+        variant: "destructive",
+      });
+      return;
+    }
     setFreezeBusy(true);
     setFreezeResult(null);
-    freezeSceneIdRef.current = splitScene.id;
+    freezeSceneIdRef.current = scene.id;
     // Media-file timestamp = clip trim offset + playhead position inside the clip.
-    const trimStart = clipEdits[splitScene.id]?.trimStart ?? 0;
+    const trimStart = clipEdits[scene.id]?.trimStart ?? 0;
     try {
       const res = await confirmedFetch("/api/freeze-frame", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoUrl: splitScene.demoClipUrl,
-          timestamp: Math.max(0, trimStart + (currentTime - splitStart)),
+          videoUrl: scene.demoClipUrl,
+          timestamp: Math.max(0, trimStart + (currentTime - start)),
           holdDuration: 2,
         }),
       });
@@ -542,6 +558,12 @@ export function TimelineDock({
     } finally {
       setFreezeBusy(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenes, offsets, durs, currentTime, freezeBusy, clipEdits, confirmedFetch, toast, t]);
+
+  async function doFreeze() {
+    if (playheadIdx === null) return;
+    await freezeClipAt(playheadIdx);
   }
 
 
@@ -598,6 +620,302 @@ export function TimelineDock({
   }, [canSplit, doSplit]);
 
   const isSelected = (i: number) => selectedIdx === i;
+
+  /* ── Right-click context menu for timeline clips ── */
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sceneIdx: number } | null>(null);
+  const [sceneClipboard, setSceneClipboard] = useState<{ scene: SceneData; edit: ClipEdit } | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
+
+  const openClipCtxMenu = useCallback((e: React.MouseEvent, i: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIdx(i);
+    setCtxMenu({ x: e.clientX, y: e.clientY, sceneIdx: i });
+  }, [setSelectedIdx]);
+
+  /** Patch a clip's ClipEdit (same merge pattern as EffectsSection.patchClip). */
+  const patchClipEdit = useCallback((sceneId: string, patch: Partial<ClipEdit>) => {
+    const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
+    setSettings({ ...settings, clips: { ...clipEdits, [sceneId]: { ...current, ...patch } } });
+  }, [clipEdits, settings, setSettings]);
+
+  /** Patch a clip's Pro Tools settings (speed / reverse / color grade). */
+  const patchProTools = useCallback((sceneId: string, patch: Partial<ProToolsSettings>) => {
+    const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
+    patchClipEdit(sceneId, { proTools: { ...current.proTools, ...patch } });
+  }, [clipEdits, patchClipEdit]);
+
+  const duplicateClip = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    const newId = genId();
+    const copy: SceneData = { ...scene, id: newId, sceneNumber: scene.sceneNumber + 0.5 };
+    const next = [...scenes];
+    next.splice(idx + 1, 0, copy);
+    setScenes(next);
+    const ce = clipEdits[scene.id];
+    if (ce) {
+      setSettings({ ...settings, clips: { ...clipEdits, [newId]: { ...ce } } });
+    }
+    setSelectedIdx(idx + 1);
+    toast({ title: "Clip duplicated", description: `${scene.section || `Scene ${idx + 1}`} copied after itself.` });
+  }, [setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  const deleteClip = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    setScenes(scenes.filter((_, i) => i !== idx));
+    if (clipEdits[scene.id]) {
+      const rest = { ...clipEdits };
+      delete rest[scene.id];
+      setSettings({ ...settings, clips: rest });
+    }
+    if (selectedIdx === idx) setSelectedIdx(null);
+    else if (selectedIdx !== null && selectedIdx > idx) setSelectedIdx(selectedIdx - 1);
+    toast({ title: "Clip deleted", description: scene.section || `Scene ${idx + 1}` });
+  }, [setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, setSelectedIdx, toast]);
+
+  const copyClip = useCallback((idx: number) => {
+    const scene = scenes[idx];
+    if (!scene) return;
+    const edit = { ...defaultClipEdit(), ...(clipEdits[scene.id] ?? {}) };
+    setSceneClipboard({ scene: JSON.parse(JSON.stringify(scene)) as SceneData, edit });
+    toast({ title: "Clip copied", description: scene.section || `Scene ${idx + 1}` });
+  }, [scenes, clipEdits, toast]);
+
+  const pasteClip = useCallback((afterIdx: number) => {
+    if (!sceneClipboard || !setScenes) return;
+    const newId = genId();
+    const copy: SceneData = {
+      ...sceneClipboard.scene,
+      id: newId,
+      sceneNumber: (scenes[afterIdx]?.sceneNumber ?? afterIdx) + 0.5,
+    };
+    const next = [...scenes];
+    next.splice(afterIdx + 1, 0, copy);
+    setScenes(next);
+    setSettings({ ...settings, clips: { ...clipEdits, [newId]: { ...sceneClipboard.edit } } });
+    setSelectedIdx(afterIdx + 1);
+    toast({ title: "Clip pasted", description: sceneClipboard.scene.section || "Clip" });
+  }, [sceneClipboard, setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  const renameClip = useCallback((idx: number) => {
+    const scene = scenes[idx];
+    if (!scene || !setScenes) return;
+    const next = window.prompt("Rename clip", scene.section || `Scene ${idx + 1}`);
+    if (next === null) return;
+    const label = next.trim();
+    if (!label) return;
+    setScenes(scenes.map((s, i) => (i === idx ? { ...s, section: label } : s)));
+    toast({ title: "Clip renamed", description: label });
+  }, [scenes, setScenes, toast]);
+
+  /** Replace-clip file picker flow — uploads via /api/upload-clip, then swaps the clip URL. */
+  const handleReplaceFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const sceneId = replaceTargetId;
+    setReplaceTargetId(null);
+    if (!file || !sceneId || !onReplaceClipVideo) return;
+    try {
+      toast({ title: "Uploading replacement clip…" });
+      let token: string | null = null;
+      try {
+        token = (await supabase?.auth.getSession())?.data?.session?.access_token ?? null;
+      } catch { token = null; }
+      if (!token) throw new Error("Not signed in. Please sign in and try again.");
+      const form = new FormData();
+      form.append("clip", file, file.name);
+      const res = await fetch("/api/upload-clip", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? data.error ?? `Upload failed (${res.status})`);
+      if (!data.url) throw new Error("Upload succeeded but returned no clip URL.");
+      onReplaceClipVideo(sceneId, data.url);
+      toast({ title: "Clip replaced", description: file.name });
+    } catch (err) {
+      toast({
+        title: "Replace failed",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+    }
+  }, [replaceTargetId, onReplaceClipVideo, toast]);
+
+  /* ── Build the right-click menu items for the clip at index `idx`. Every
+     item performs a real action — nothing here is a dead button. ── */
+  function buildClipCtxItems(idx: number): ContextMenuItem[] {
+    const scene = scenes[idx];
+    if (!scene) return [];
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    const idxCanSplit = currentTime > start + 0.3 && currentTime < start + dur - 0.3;
+    const idxCanFreeze =
+      !!scene.demoClipUrl && !freezeBusy &&
+      currentTime > start + 0.2 && currentTime < start + dur - 0.2;
+    const ce = { ...defaultClipEdit(), ...(clipEdits[scene.id] ?? {}) };
+    const pt = ce.proTools;
+    const label = scene.section || `Scene ${idx + 1}`;
+    const pasteAfter = selectedIdx ?? idx;
+
+    return [
+      {
+        key: "split", label: <span>Split at playhead <span className="ml-1 text-[10px] text-white/30 font-mono">S</span></span>,
+        icon: <Scissors className="h-3.5 w-3.5" />,
+        disabled: !idxCanSplit,
+        disabledTitle: idxCanSplit ? undefined : "Move the playhead over this clip to split it",
+        onClick: () => splitClipAt(idx),
+      },
+      {
+        key: "duplicate", label: "Duplicate clip",
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => duplicateClip(idx),
+      },
+      {
+        key: "delete", label: "Delete clip", danger: true,
+        icon: <Trash2 className="h-3.5 w-3.5" />,
+        onClick: () => deleteClip(idx),
+      },
+      { key: "div-1", divider: true, label: "" },
+      {
+        key: "copy", label: "Copy clip",
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => copyClip(idx),
+      },
+      {
+        key: "paste", label: "Paste clip",
+        icon: <ClipboardPaste className="h-3.5 w-3.5" />,
+        disabled: !sceneClipboard,
+        disabledTitle: !sceneClipboard ? "Copy a clip first" : undefined,
+        onClick: () => pasteClip(pasteAfter),
+      },
+      { key: "div-2", divider: true, label: "" },
+      {
+        key: "speed", label: "Speed", icon: <Gauge className="h-3.5 w-3.5" />,
+        children: [0.25, 0.5, 1, 1.5, 2, 4].map((v) => ({
+          key: `speed-${v}`, label: `${v}×`,
+          checked: pt.speed === v && !pt.speedCurve,
+          onClick: () => {
+            patchProTools(scene.id, { speed: v, speedCurve: null });
+            toast({ title: "Clip speed", description: `${label}: ${v}×` });
+          },
+        })),
+      },
+      {
+        key: "reverse", label: "Reverse clip", icon: <Rewind className="h-3.5 w-3.5" />,
+        checked: pt.reverse,
+        onClick: () => {
+          patchProTools(scene.id, { reverse: !pt.reverse });
+          toast({ title: pt.reverse ? "Reverse off" : "Reverse on", description: `${label} plays ${pt.reverse ? "forward" : "backward"} on export` });
+        },
+      },
+      {
+        key: "freeze", label: "Freeze frame",
+        icon: <Snowflake className="h-3.5 w-3.5" />,
+        disabled: !idxCanFreeze,
+        disabledTitle: !idxCanFreeze ? "Move the playhead over a clip with video to freeze it" : undefined,
+        onClick: () => { void freezeClipAt(idx); },
+      },
+      { key: "div-3", divider: true, label: "" },
+      {
+        key: "transition", label: "Transition into clip", icon: <ArrowLeftRight className="h-3.5 w-3.5" />,
+        children: (idx === 0 ? ["Cut"] : [...TRANSITIONS]).map((tr) => ({
+          key: `transition-${tr}`, label: tr,
+          checked: ce.transition === tr,
+          onClick: () => {
+            patchClipEdit(scene.id, { transition: tr });
+            toast({ title: "Transition", description: `${label}: ${tr}` });
+          },
+        })),
+      },
+      {
+        key: "effect", label: "Add effect", icon: <Sparkles className="h-3.5 w-3.5" />,
+        children: ["None", ...EFFECTS].map((fx) => ({
+          key: `effect-${fx}`, label: fx,
+          checked: ce.effect === fx,
+          onClick: () => {
+            patchClipEdit(scene.id, { effect: fx });
+            toast({ title: "Clip effect", description: `${label}: ${fx}` });
+          },
+        })),
+      },
+      {
+        key: "grade", label: "Adjust color", icon: <Palette className="h-3.5 w-3.5" />,
+        children: [
+          ...[...COLOR_GRADES].map((g) => ({
+            key: `grade-${g}`, label: g,
+            checked: pt.colorGradePreset === g,
+            onClick: () => {
+              const preset = GRADE_PRESET_CORRECTIONS[g];
+              patchProTools(scene.id, {
+                colorGradePreset: g,
+                ...(preset ? { colorCorrection: { ...preset } } : {}),
+              });
+              toast({ title: "Color grade", description: `${label}: ${g}` });
+            },
+          })),
+          { key: "grade-clear", divider: true, label: "" },
+          {
+            key: "grade-none", label: "Clear grade",
+            onClick: () => {
+              patchProTools(scene.id, { colorGradePreset: null, colorCorrection: defaultColorCorrection() });
+              toast({ title: "Color grade cleared", description: label });
+            },
+          },
+        ],
+      },
+      {
+        key: "volume", label: "",
+        custom: (
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#C9A84C]/80">Volume</span>
+              <span className="text-[11px] font-mono text-white/60">{ce.volume}%</span>
+            </div>
+            <input
+              type="range" min={0} max={100} step={1} value={ce.volume}
+              onChange={(e) => patchClipEdit(scene.id, { volume: Number(e.target.value) })}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full accent-[#C9A84C] cursor-pointer"
+              aria-label="Clip volume"
+            />
+          </div>
+        ),
+        keepOpen: true,
+      },
+      {
+        key: "mute", label: ce.muted ? "Unmute clip" : "Mute clip",
+        icon: ce.muted ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />,
+        checked: ce.muted,
+        onClick: () => {
+          patchClipEdit(scene.id, { muted: !ce.muted });
+          toast({ title: ce.muted ? "Clip unmuted" : "Clip muted", description: label });
+        },
+      },
+      { key: "div-4", divider: true, label: "" },
+      {
+        key: "replace", label: "Replace clip…",
+        icon: <Upload className="h-3.5 w-3.5" />,
+        disabled: !onReplaceClipVideo,
+        disabledTitle: !onReplaceClipVideo ? "Not available" : undefined,
+        onClick: () => {
+          setReplaceTargetId(scene.id);
+          // Defer so the menu unmounts before the file dialog opens.
+          setTimeout(() => replaceInputRef.current?.click(), 50);
+        },
+      },
+      {
+        key: "rename", label: "Rename clip",
+        icon: <Pencil className="h-3.5 w-3.5" />,
+        onClick: () => renameClip(idx),
+      },
+    ];
+  }
+
   const dockHidden = !!settings.timelineDockHidden;
 
   /* ── Report the dock's rendered height so floating UI (e.g. the master player) can avoid overlapping it ── */
@@ -1060,6 +1378,7 @@ export function TimelineDock({
                           cursor: "grab",
                         }}
                         onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                        onContextMenu={(e) => openClipCtxMenu(e, i)}
                         data-testid={`timeline-dock-clip-${i}`}
                       >
                         {trimStart > 0 && clipDur > 0 && (
@@ -1128,6 +1447,7 @@ export function TimelineDock({
                                 cursor: "grab",
                               }}
                               onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                              onContextMenu={(e) => openClipCtxMenu(e, i)}
                               data-testid={`timeline-dock-clip-${i}`}
                             >
                               {/* Actual video frame — first frame of the attached clip, dimmed behind the label */}
@@ -1186,6 +1506,27 @@ export function TimelineDock({
           </div>
         </div>
       </div>
+
+      {/* ── Hidden file input for the "Replace clip…" menu action ── */}
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleReplaceFile}
+        aria-hidden
+      />
+
+      {/* ── Right-click context menu for timeline clips ── */}
+      {ctxMenu && scenes[ctxMenu.sceneIdx] && (
+        <ClipContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={buildClipCtxItems(ctxMenu.sceneIdx)}
+          onClose={() => setCtxMenu(null)}
+          testId="timeline-clip-context-menu"
+        />
+      )}
     </div>
   );
 }
