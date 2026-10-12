@@ -1032,19 +1032,28 @@ html, body {
   color: #7A5F1D !important;
 }
 
-/* ── Hero headline accent INSIDE a dark-locked block: solid white ──
-   The middle (dark) hero screenshot is the reference: "hired a team."
-   reads white, not bronze and not gold-gradient. This exemption beats
-   the solid-bronze rule above (higher specificity) and applies only
-   inside dark-locked containers, so gold-shine headlines on cream
-   content sections keep their bronze. */
+/* ── Hero headline accent INSIDE a dark-locked block: the GOLD SHINE ──
+   "hired a team." keeps the exact treatment it has in dark mode — the
+   animated gold-shine gradient — in light mode too (owner, twice over:
+   the accent "can stay the same" as the dark site; a solid-white and a
+   solid-bronze rendering were both rejected). This exemption beats the
+   solid-bronze rule above (higher specificity) and applies only inside
+   dark-locked containers, so gold-shine headlines on cream content
+   sections keep their bronze. */
 .light .no-throne-bg [data-dark-lock] .gold-text-shine {
-  background: none;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  -webkit-text-fill-color: #FFFFFF;
-  color: #FFFFFF;
-  animation: none;
+  background: linear-gradient(90deg,
+    #c8860a 0%,
+    #f5c842 30%,
+    #ffe680 50%,
+    #f5c842 70%,
+    #c8860a 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: gold-shine 4s linear infinite;
   filter: none;
   text-shadow: none;
 }

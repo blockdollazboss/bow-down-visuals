@@ -113,12 +113,16 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
           style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
         />
       )}
-      {/* Cinematic gradient — dark in dark theme, light in light theme */}
+      {/* Cinematic gradient — DARK theme only. Light theme used to lay a
+          0.9 → 0.2 ivory gradient over the whole loading video; the owner
+          ordered it gone 2026-10-12 (no white layer over any video in the
+          light theme — the loading screen included). The light loading
+          video now plays clean; the gold edge vignette below stays. */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{ background: isLight
-          ? "linear-gradient(260deg, rgba(255,252,245,0.9) 0%, rgba(255,252,245,0.6) 38%, rgba(255,252,245,0.2) 65%, rgba(255,252,245,0.4) 100%)"
+          ? "none"
           : "linear-gradient(260deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
       />
       {/* Vignette — theater darkness at the edges (dark) or soft light glow (light) */}
