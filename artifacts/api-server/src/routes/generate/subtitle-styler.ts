@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { downloadToFileCapped } from "../../lib/download-to-file";
 import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -91,23 +92,8 @@ router.get("/subtitle-styles", requireAuth, (_req, res) => {
 });
 
 async function downloadTo(url: string, destPath: string): Promise<void> {
-  const res = await fetch(url);
-  if (!res.ok || !res.body) {
-    throw new Error(`Failed to download media (HTTP ${res.status}).`);
-  }
-  const chunks: Buffer[] = [];
-  let total = 0;
-  const reader = res.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_VIDEO_BYTES) {
-      throw new Error("Video is larger than the 100 MB limit.");
-    }
-    chunks.push(Buffer.from(value));
-  }
-  await writeFile(destPath, Buffer.concat(chunks));
+  // 2026-10-12: streams to disk with the same cap + messages (lib/download-to-file).
+  await downloadToFileCapped({ url, destPath, capBytes: MAX_VIDEO_BYTES, kindLabel: "media", capLabel: "Video" });
 }
 
 /** Escape the subtitle file path for the ffmpeg subtitles filter. */

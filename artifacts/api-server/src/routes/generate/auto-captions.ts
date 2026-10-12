@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { downloadToFileCapped } from "../../lib/download-to-file";
 import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -59,23 +60,8 @@ router.get("/auto-captions/info", requireAuth, (_req, res) => {
 });
 
 async function downloadTo(url: string, destPath: string, capBytes: number): Promise<void> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-  if (!res.ok || !res.body) {
-    throw new Error(`Failed to download video (HTTP ${res.status}).`);
-  }
-  const chunks: Buffer[] = [];
-  let total = 0;
-  const reader = res.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > capBytes) {
-      throw new Error("Video is larger than the 100 MB limit.");
-    }
-    chunks.push(Buffer.from(value));
-  }
-  await writeFile(destPath, Buffer.concat(chunks));
+  // 2026-10-12: streams to disk with the same cap + messages (lib/download-to-file).
+  await downloadToFileCapped({ url, destPath, capBytes, kindLabel: "video", capLabel: "Video", timeoutMs: 120_000 });
 }
 
 /** Escape the subtitle file path for the ffmpeg subtitles filter. */
