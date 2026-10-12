@@ -278,6 +278,7 @@ router.get("/nfc-cards/orders", requireAuth, async (req: Request, res: Response)
     .eq("user_id", req.userId!)
     .order("created_at", { ascending: false });
   if (error) {
+    console.error("[nfc-cards] orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -295,6 +296,7 @@ router.get("/nfc-cards/admin/orders", requireAuth, requireAdmin, async (_req: Re
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
+    console.error("[nfc-cards] admin orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -311,6 +313,7 @@ router.get("/nfc-cards/admin/orders.csv", requireAuth, requireAdmin, async (_req
     .order("created_at", { ascending: true, referencedTable: "nfc_card_orders" })
     .limit(5000);
   if (error) {
+    console.error("[nfc-cards] admin orders.csv failed", error);
     res.status(500).json({ ok: false, error: "Failed to export orders" });
     return;
   }

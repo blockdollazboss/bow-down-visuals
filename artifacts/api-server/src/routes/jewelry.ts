@@ -110,6 +110,7 @@ router.get("/jewelry/orders", requireAuth, async (req: Request, res: Response) =
     .eq("user_id", req.userId!)
     .order("created_at", { ascending: false });
   if (error) {
+    console.error("[jewelry] orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -126,6 +127,7 @@ router.get("/jewelry/admin/orders", requireAuth, requireAdmin, async (_req: Requ
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
+    console.error("[jewelry] admin orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -142,6 +144,7 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
     .order("created_at", { ascending: true })
     .limit(1000);
   if (error) {
+    console.error("[jewelry] admin orders.csv failed", error);
     res.status(500).json({ ok: false, error: "Failed to export orders" });
     return;
   }
