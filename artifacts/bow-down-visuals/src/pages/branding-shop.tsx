@@ -126,6 +126,9 @@ const inputClass =
 
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed";
+const goldBtnGated = (isLight: boolean) =>
+  "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition disabled:cursor-not-allowed " +
+  (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none");
 
 function productByKey(key: ProductKey): Product {
   return PRODUCTS.find((p) => p.key === key)!;
@@ -897,7 +900,7 @@ export default function BrandingShop() {
                     <a href="/login" className="text-primary underline">{t("brandingShop.signIn")}</a> {t("brandingShop.signInToDesign")}
                   </p>
                 )}
-                <button onClick={designBrandKit} disabled={designing || !user} className={goldBtn + " w-full"}>
+                <button onClick={designBrandKit} disabled={designing || !user} className={(!user && !designing ? goldBtnGated(isLight) : goldBtn) + " w-full"}>
                   {designing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.designingButton")}
@@ -1213,7 +1216,7 @@ export default function BrandingShop() {
                   <span className="text-white/50">{t("brandingShop.totalLabel")}</span>
                   <span className="text-lg font-black text-primary">{money(cartTotal)}</span>
                 </div>
-                <button onClick={placeOrder} disabled={ordering || !user} className={goldBtn + " w-full"}>
+                <button onClick={placeOrder} disabled={ordering || !user} className={(!user && !ordering ? goldBtnGated(isLight) : goldBtn) + " w-full"}>
                   {ordering ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.placingOrder")}
