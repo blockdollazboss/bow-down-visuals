@@ -25,3 +25,20 @@
 - [Terms](/terms): Terms of service.
 - [Privacy](/privacy): Privacy policy.
 - [Refund Policy](/refund-policy): Refund policy.
+
+## More Public Pages
+
+- [Jewelry Shop](/jewelry-shop): The Bow Down Visuals jewelry line — branded pieces creators can wear and sell.
+- [Tour Planner](/tour): Plan a tour route with venues, dates, and promo in one flow.
+- [Hook Studio](/hooks): Generate scroll-stopping hooks, captions, titles, and scripts.
+- [Shorts](/shorts): A vertical short-form feed of creator clips.
+- [Trending](/trending): What is rising across the platform right now.
+- [Promote](/promote): Promo copy and campaign tools for releases.
+- [Remix Trends](/remix): Jump on trending sounds and formats.
+- [Setlist Builder](/setlist): Build and order a live setlist.
+- [Interview Prep](/interview-prep): AI practice for press and podcast interviews.
+- [Brand Deal Calculator](/brand-calculator): Estimate what to charge for brand deals and sponsorships.
+- [Creator Pricing](/creator-pricing): Creator plans — go pro and keep more of your money.
+- [Branding Kit](/branding-kit): Logos, intros, overlays, and brand assets.
+- [Groups](/groups): Creator groups and communities.
+- [Events](/events): Platform events and challenges.
