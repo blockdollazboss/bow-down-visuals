@@ -2058,7 +2058,7 @@ function ReferenceUpload({
       </p>
       {file ? (
         <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5">
-          <span className="text-sm text-white/70 truncate">{file.name}</span>
+          <span className="min-w-0 text-sm text-white/70 truncate">{file.name}</span>
           <button type="button" onClick={onClear} className="text-white/40 hover:text-white/80 transition shrink-0 ml-3">
             <X className="h-4 w-4" />
           </button>

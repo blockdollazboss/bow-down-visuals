@@ -427,7 +427,7 @@ export default function AlbumsSection({
                       }`}
                     >
                       {added ? <Check className="h-4 w-4 shrink-0" /> : <Plus className="h-4 w-4 shrink-0 text-white/30" />}
-                      <span className="truncate">{s.title}</span>
+                      <span className="truncate min-w-0 flex-1">{s.title}</span>
                     </button>
                   );
                 })}

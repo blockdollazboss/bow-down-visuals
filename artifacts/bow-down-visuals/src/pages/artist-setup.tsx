@@ -147,7 +147,7 @@ function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose:
           How is all of this in one place? That's the cheat code. It should feel illegal. 🦈
         </p>
         <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 p-2 pl-4">
-          <span className="flex-1 truncate text-left text-sm text-white/70">{url}</span>
+          <span className="flex-1 min-w-0 truncate text-left text-sm text-white/70">{url}</span>
           <button onClick={() => void copy(url, "link")} className="flex items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black">
             {copied === "link" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied === "link" ? "Copied" : "Copy"}
@@ -1160,7 +1160,7 @@ function PublishTab({
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Your link</label>
           <div className="flex items-center gap-2">
-            <span className="flex-1 truncate text-sm text-white/80">{url}</span>
+            <span className="flex-1 min-w-0 truncate text-sm text-white/80">{url}</span>
             <button onClick={() => void copy()} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70">
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copied" : "Copy"}

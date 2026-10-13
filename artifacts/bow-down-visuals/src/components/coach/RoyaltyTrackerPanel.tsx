@@ -337,7 +337,7 @@ export default function RoyaltyTrackerPanel() {
                       {summary!.perSong.slice(0, 8).map((s) => (
                         <div key={s.song}>
                           <div className="mb-1 flex items-center justify-between text-sm">
-                            <span className="truncate font-semibold">{s.song}</span>
+                            <span className="min-w-0 truncate font-semibold">{s.song}</span>
                             <span className="ml-2 shrink-0 font-bold text-amber-200">{fmtMoney(s.amount)}</span>
                           </div>
                           <Bar pct={(s.cents / maxSong) * 100} gold />

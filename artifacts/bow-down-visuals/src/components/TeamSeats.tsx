@@ -321,7 +321,7 @@ export function TeamSeats() {
               {t("settings.teamNoEmailNote")}
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded bg-black/60 border border-white/10 px-2 py-1.5 text-xs text-white/70">
+              <code className="flex-1 min-w-0 truncate rounded bg-black/60 border border-white/10 px-2 py-1.5 text-xs text-white/70">
                 {inviteLink}
               </code>
               <Button type="button" variant="outline" size="sm" onClick={copyLink} className="border-white/15">

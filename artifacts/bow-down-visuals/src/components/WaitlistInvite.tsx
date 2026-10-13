@@ -99,7 +99,7 @@ export function InviteShareKit({ inviteUrl, position }: { inviteUrl: string; pos
     <div>
       {/* copy-link bar */}
       <div className="flex items-center gap-2 rounded-xl border border-primary/25 bg-black/40 p-2 pl-4">
-        <span className="flex-1 truncate text-sm font-mono text-primary">{inviteUrl}</span>
+        <span className="flex-1 min-w-0 truncate text-sm font-mono text-primary">{inviteUrl}</span>
         <Button type="button" onClick={copyLink} size="sm" className="gold-glow font-bold gap-2 shrink-0">
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? t("invite.copied") : t("invite.copyLink")}

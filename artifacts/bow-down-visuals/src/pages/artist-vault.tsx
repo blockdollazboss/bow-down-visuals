@@ -1196,7 +1196,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-1.5">
-                    <p className="text-xs font-bold text-white truncate" title={o.label}>{o.label}</p>
+                    <p className="min-w-0 text-xs font-bold text-white truncate" title={o.label}>{o.label}</p>
                     <button
                       type="button"
                       onClick={() => { setEditingId(o.id); setEditLabel(o.label); }}

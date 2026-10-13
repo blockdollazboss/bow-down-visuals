@@ -1506,7 +1506,7 @@ function PresaveManager(props: {
               <ul className="space-y-1.5">
                 {stats.recentFollows.slice(0, 5).map((f) => (
                   <li key={f.email} className="flex items-center justify-between gap-2 text-xs text-white/60">
-                    <span className="truncate">{f.name ? `${f.name} <${f.email}>` : f.email}</span>
+                    <span className="min-w-0 truncate">{f.name ? `${f.name} <${f.email}>` : f.email}</span>
                     <span className="shrink-0 text-white/30">
                       {new Date(f.created_at).toLocaleDateString()}
                     </span>

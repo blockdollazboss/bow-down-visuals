@@ -535,7 +535,7 @@ export default function SongsPage() {
                       (coversById[s.id] ?? []).map((c) => (
                         <div key={c.id} className="rounded-lg bg-black/40 border border-white/10 p-2.5">
                           <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <p className="text-xs font-semibold text-white truncate">{c.title}</p>
+                            <p className="min-w-0 text-xs font-semibold text-white truncate">{c.title}</p>
                             <button
                               type="button"
                               onClick={() => setComparePair({ original: s, cover: c })}
@@ -581,7 +581,7 @@ export default function SongsPage() {
                       (mashupsById[s.id] ?? []).map((mu) => (
                         <div key={mu.id} className="rounded-lg bg-black/40 border border-primary/20 p-2.5">
                           <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <p className="text-xs font-semibold text-white truncate">{mu.title}</p>
+                            <p className="min-w-0 text-xs font-semibold text-white truncate">{mu.title}</p>
                             <Link href={`/make-song?tab=mashup&songA=${mu.id}`}>
                               <span className="text-[11px] font-bold text-primary hover:underline shrink-0 cursor-pointer">
                                 {t("songs.mashupWith")}
@@ -636,7 +636,7 @@ export default function SongsPage() {
                     ) : (
                       <Plus className="h-4 w-4 shrink-0 text-[#e8c86a]" />
                     )}
-                    <span className="truncate flex-1">{a.title}</span>
+                    <span className="truncate flex-1 min-w-0">{a.title}</span>
                     <span className="text-[10px] text-white/30 shrink-0">{a.track_count} tracks</span>
                   </button>
                 ))}

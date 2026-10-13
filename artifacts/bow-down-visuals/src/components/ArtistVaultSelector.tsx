@@ -324,9 +324,9 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
                       v.id === selected ? "bg-gradient-to-r from-primary/[0.15] to-transparent border-l-2 border-l-primary" : "border-l-2 border-l-transparent"
                     }`}
                   >
-                    <span className="truncate text-sm text-white font-medium tracking-wide">{v.artist_name}</span>
+                    <span className="min-w-0 truncate text-sm text-white font-medium tracking-wide">{v.artist_name}</span>
                     <SubjectBadge type={normalizeSubjectType(v.artist_type)} />
-                    {v.genre && <span className="ml-auto text-xs text-white/35 truncate pl-2 font-medium">{v.genre}</span>}
+                    {v.genre && <span className="ml-auto min-w-0 text-xs text-white/35 truncate pl-2 font-medium">{v.genre}</span>}
                   </button>
                 ))}
               </div>

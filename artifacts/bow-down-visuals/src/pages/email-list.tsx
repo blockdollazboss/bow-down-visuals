@@ -514,7 +514,7 @@ export default function EmailListBuilder() {
  <h3 className="flex items-center gap-2 font-semibold"><ExternalLink className="h-4 w-4 text-primary" />{t("email-list.hosted_landing_page")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.send_fans_here_no_website_needed")}</p>
  <div className="mt-3 flex items-center gap-2">
- <code className={`flex-1 truncate rounded-xl px-4 py-3 text-sm ${isLight ? "bg-[#F7ECD2]/80 text-[#7A5A12]" : "bg-black/60 text-primary"}`}>bowdownvisuals.com/join/{activeList.handle}</code>
+ <code className={`flex-1 min-w-0 truncate rounded-xl px-4 py-3 text-sm ${isLight ? "bg-[#F7ECD2]/80 text-[#7A5A12]" : "bg-black/60 text-primary"}`}>bowdownvisuals.com/join/{activeList.handle}</code>
  <button onClick={() => copyText("landing", `https://bowdownvisuals.com/join/${activeList.handle}`)} className="rounded-xl border border-white/10 p-3 text-white/60 hover:text-white" title={t("email-list.copy_link")}>
  {copied === "landing" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
