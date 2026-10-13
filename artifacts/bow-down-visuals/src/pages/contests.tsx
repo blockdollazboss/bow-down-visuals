@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -72,6 +73,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function Contests() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -412,7 +414,7 @@ export default function Contests() {
                         onClick={() => toggleMethod(m.key)}
                         className={`rounded-xl border px-3 py-2.5 text-left transition ${
                           methods.has(m.key)
-                            ? "border-primary/60 bg-primary/10"
+                            ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                             : "border-white/[0.12] bg-white/[0.02] hover:border-white/25"
                         }`}
                       >
