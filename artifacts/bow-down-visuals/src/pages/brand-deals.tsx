@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -121,6 +122,7 @@ function fitBar(score: number): string {
 }
 
 export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" | "pitch" | "marketplace" }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, profile, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -634,13 +636,13 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
                       </div>
 
                       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                        <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                             <BadgeDollarSign className="h-3.5 w-3.5" aria-hidden="true" /> {t("brandDeals.estValue")}
                           </p>
                           <p className="mt-1.5 text-sm leading-relaxed text-white/75">{deal.valueRange}</p>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                        <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("brandDeals.outreachAngle")}
                           </p>
@@ -674,7 +676,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
                       </button>
 
                       {drafting && (
-                        <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-5">
+                        <div className={`mt-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
                           {outreachError && (
                             <p className="flex items-start gap-2 text-sm text-red-300">
                               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -832,6 +834,7 @@ function KitCopyButton({ text }: { text: string }) {
 }
 
 function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -1045,7 +1048,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
               <label className={outreachLabelClass} htmlFor="pitch-contact">{t("outreach.contactLabel")}</label>
               <input id="pitch-contact" className={inputClass} value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={t("outreach.contactPlaceholder")} maxLength={100} />
             </div>
-            <p className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs leading-relaxed text-white/45">
+            <p className={`rounded-xl border p-3 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/45"}`}>
               {t("outreach.tipPrefix")} <span className="text-primary">{t("outreach.tipMarketplace")}</span> {t("outreach.tipSuffix")}
             </p>
           </div>
@@ -1115,7 +1118,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
             </h3>
             <div className="mt-4 space-y-4">
               {kit.followUps.map((f, i) => (
-                <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold uppercase tracking-wider text-white/50">
                       {t("outreach.followUpDay", { day: f.day })} · {f.subject}
@@ -1298,6 +1301,7 @@ const marketplaceSectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 function MarketplaceTab() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -1523,7 +1527,7 @@ function MarketplaceTab() {
           <div className="mt-4 space-y-2">
             {matches.map((m) => (
               <Link key={m.dealId} href={`/sponsors/${m.dealId}`}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 transition hover:border-primary/40">
+                className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/60" : "border-white/10 bg-black/40 hover:border-primary/40"}`}>
                 <div>
                   <p className="font-bold text-white">{m.brandName}</p>
                   <p className="text-xs text-white/50">{m.why}</p>
