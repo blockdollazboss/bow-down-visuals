@@ -1467,15 +1467,15 @@ export default function AnalyticsHub() {
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(247,241,222,0.07)" />
+                <XAxis dataKey="name" stroke="rgba(247,241,222,0.5)" tick={{ fill: "rgba(247,241,222,0.6)", fontSize: 12 }} />
                 <YAxis
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 12 }}
+                  stroke="rgba(247,241,222,0.5)"
+                  tick={{ fill: "rgba(247,241,222,0.6)", fontSize: 12 }}
                   tickFormatter={(v: number) => fmt(v)}
                 />
                 <Tooltip
-                  contentStyle={isLight ? { background: "#FCF7EA", border: "1px solid rgba(201,168,76,0.45)", borderRadius: 12, color: "#2A1E07" } : { background: "#0a0a0a", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 12, color: "#fff" }}
+                  contentStyle={isLight ? { background: "#FCF7EA", border: "1px solid rgba(201,168,76,0.45)", borderRadius: 12, color: "#2A1E07" } : { background: "#171208", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 12, color: "#fff" }}
                   formatter={(value) => [`${Number(value).toLocaleString("en-US")} ${t("analyticsHub.views")}`, t("analyticsHub.views30d")]}
                 />
                 <Bar dataKey="views" radius={[8, 8, 0, 0]}>

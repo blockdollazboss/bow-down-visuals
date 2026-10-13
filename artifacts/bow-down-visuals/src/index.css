@@ -3015,3 +3015,24 @@ html:not(.light) .bg-amber-500\/10 { background-color: rgb(201 168 76 / 0.10); }
 html:not(.light) .bg-amber-500\/15 { background-color: rgb(201 168 76 / 0.15); }
 html:not(.light) .bg-amber-500\/20 { background-color: rgb(201 168 76 / 0.20); }
 input[type="checkbox"], input[type="radio"], input[type="range"], progress { accent-color: #C9A84C; }
+
+/* Dark warmth, round 10 — the yellow long tail. The big pages were
+   converted by hand; this catches every remaining yellow utility in
+   dark theme and steps it onto the gold ramp, so no surface anywhere
+   still speaks traffic-yellow. Light theme already remaps yellows to
+   antique gold in its own tables. */
+html:not(.light) .text-yellow-200 { color: #E3C566; }
+html:not(.light) .text-yellow-300 { color: #E8CE7A; }
+html:not(.light) .text-yellow-400 { color: #C9A84C; }
+html:not(.light) .text-yellow-500 { color: #C9A84C; }
+html:not(.light) .bg-yellow-400 { background-color: #DDBB62; }
+html:not(.light) .bg-yellow-500 { background-color: #C9A84C; }
+html:not(.light) .bg-yellow-600 { background-color: #A8842F; }
+html:not(.light) .border-yellow-500 { border-color: #C9A84C; }
+html:not(.light) .border-yellow-500\/30 { border-color: rgb(201 168 76 / 0.30); }
+html:not(.light) .border-yellow-500\/40 { border-color: rgb(201 168 76 / 0.40); }
+html:not(.light) .from-yellow-400 { --tw-gradient-from: #DDBB62 var(--tw-gradient-from-position); }
+html:not(.light) .from-yellow-500 { --tw-gradient-from: #C9A84C var(--tw-gradient-from-position); }
+html:not(.light) .to-yellow-400 { --tw-gradient-to: #DDBB62 var(--tw-gradient-to-position); }
+html:not(.light) .to-yellow-500 { --tw-gradient-to: #C9A84C var(--tw-gradient-to-position); }
+html:not(.light) .to-yellow-600 { --tw-gradient-to: #A8842F var(--tw-gradient-to-position); }

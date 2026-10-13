@@ -99,7 +99,7 @@ function GaugeArc({ score }: { score: number }) {
  <path
  d="M 16 104 A 84 84 0 0 1 184 104"
  fill="none"
- stroke="rgba(255,255,255,0.08)"
+ stroke="rgba(247,241,222,0.08)"
  strokeWidth="14"
  strokeLinecap="round"
  />
