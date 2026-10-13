@@ -373,6 +373,16 @@ html, body {
 .light .text-\[\#C9A84C\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#e8c86a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+/* Opacity variants of the pale gold (text-[#e8c86a]/80 etc.) generate
+   different class names, so the rule above never matched them — fact
+   labels on the genre hubs, community cross-links and stream empty-state
+   text stayed pale gold on ivory (~1.5:1). Deepen them to bronze too,
+   keeping a trace of the variant's step-down. Dark untouched. */
+.light .text-\[\#e8c86a\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#e8c86a\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#e8c86a\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#e8c86a\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-\[\#e8c86a\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
 /* Branding Kit hero title: the pale #f7e9b8 middle stop washes out on ivory —
    deepen to an antique-bronze gradient in light mode (dark theme untouched) */
 .light .branding-kit-title:not([data-dark-lock]) {
