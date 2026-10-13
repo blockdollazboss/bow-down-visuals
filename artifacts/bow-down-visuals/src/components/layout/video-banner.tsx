@@ -39,6 +39,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const glowRef = useRef<HTMLDivElement | null>(null);
   // Theme-aware artwork: golden palace on light, torchlit dark palace on dark.
   const isLight = useIsLightTheme();
+  const MELT = isLight ? "#FAF7F0" : PAGE_BG;
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -114,7 +115,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     <div
       ref={wrapRef}
       className="bdv-banner relative w-full overflow-hidden h-[72px] md:h-[88px]"
-      style={{ backgroundColor: PAGE_BG }}
+      style={{ backgroundColor: MELT }}
       aria-label="Bow Down Visuals banner"
     >
       {/* Ambient drift wrapper (CSS ken-burns) */}
@@ -141,19 +142,26 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         </div>
       </div>
 
+      {/* Light-theme ivory toner — softens the artwork's blown sunbeam
+          hotspot toward the ivory palette so no stark white sits behind
+          or beside the wordmark (owner, Oct 13). */}
+      {isLight && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#F3E5C3]/20" />
+      )}
+
       {/* Blend scrims — dissolve the seams into the page background */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-2/5"
         style={{
-          background: `linear-gradient(to bottom, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to bottom, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
         style={{
-          background: `linear-gradient(to top, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to top, ${MELT} 0%, transparent 100%)`,
         }}
       />
       {/* Side vignettes — boundless edges */}
@@ -161,14 +169,14 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         aria-hidden
         className="pointer-events-none absolute inset-y-0 left-0 w-1/4"
         style={{
-          background: `linear-gradient(to right, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to right, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-y-0 right-0 w-1/4"
         style={{
-          background: `linear-gradient(to left, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to left, ${MELT} 0%, transparent 100%)`,
         }}
       />
 
@@ -198,11 +206,11 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
                 backgroundImage:
-                  "linear-gradient(100deg, #b98a2e 0%, #f5d576 25%, #fffbe8 50%, #f5d576 75%, #b98a2e 100%)",
+                  "linear-gradient(100deg, #b98a2e 0%, #f5d576 25%, #ffedb0 50%, #f5d576 75%, #b98a2e 100%)",
                 backgroundSize: "200% auto",
                 animation: "gold-shine 4.5s linear infinite",
                 filter:
-                  "drop-shadow(0 2px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 16px rgba(255,215,100,0.5))",
+                  "drop-shadow(0 2px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 16px rgba(255,215,100,0.35))",
               }}
             >
               BOW&nbsp;DOWN&nbsp;VISUALS
@@ -219,7 +227,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
               fontFamily: "'Cinzel', serif",
               fontWeight: 700,
               textShadow:
-                "0 2px 6px rgba(0,0,0,0.95), 0 0 18px rgba(246,221,143,0.55)",
+                "0 2px 6px rgba(0,0,0,0.95), 0 0 18px rgba(246,221,143,0.4)",
             }}
           >
             The Content Creator&rsquo;s Cheat Code
