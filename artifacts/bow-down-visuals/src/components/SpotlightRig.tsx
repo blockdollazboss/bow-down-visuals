@@ -174,11 +174,28 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                       "radial-gradient(ellipse at center, rgba(255,252,230,0.92) 0%, rgba(255,228,140,0.78) 52%, transparent 72%)",
                   }}
                 />
+                {/* The lamp itself — a real spotlight fixture: hanging rod,
+                    yoke, tapered metal can, gold mouth rim, lit lens. The
+                    beam emanates from the lens (owner, Oct 13: "add actual
+                    spotlight lamps"). */}
+                <div className="absolute left-1/2 top-0 w-16 -translate-x-1/2">
+                  <svg viewBox="0 0 64 52" className="w-full" aria-hidden>
+                    <rect x="30.5" y="0" width="3" height="7" fill="#1c1508" />
+                    <path d="M15 24 L15 13 Q15 6 22 6 L42 6 Q49 6 49 13 L49 24" fill="none" stroke="#8A6B1F" strokeWidth="3" />
+                    <path d="M20 10 L44 10 L49 40 L15 40 Z" fill="#241a0c" stroke="#C9A84C" strokeOpacity="0.55" strokeWidth="1" />
+                    <path d="M23 12 L32 12 L32 38 L19 38 Z" fill="#ffffff" opacity="0.06" />
+                    <circle cx="13" cy="24" r="3" fill="#8A6B1F" />
+                    <circle cx="51" cy="24" r="3" fill="#8A6B1F" />
+                    <rect x="13.5" y="38" width="37" height="4" rx="2" fill="#C9A84C" />
+                    <ellipse cx="32" cy="45" rx="15" ry="4" fill="#FFE9A8" />
+                    <ellipse cx="32" cy="45" rx="9" ry="2.4" fill="#FFF9E0" />
+                  </svg>
+                </div>
                 {/* Beam cone — shorter, landing near the King's feet */}
                 <div
-                  className="absolute left-1/2 top-[1%] h-[80%] w-[360px] -translate-x-1/2 blur-[7px]"
+                  className="absolute left-1/2 top-[5%] h-[76%] w-[360px] -translate-x-1/2 blur-[7px]"
                   style={{
-                    clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
+                    clipPath: "polygon(44% 0, 56% 0, 100% 100%, 0 100%)",
                     background:
                       "linear-gradient(to bottom, rgba(255,226,130,0.58) 0%, rgba(255,210,100,0.27) 55%, transparent 94%)",
                   }}
