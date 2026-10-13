@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useCallback } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
@@ -72,6 +73,7 @@ const tabBtn = (active: boolean) =>
  }`;
 
 export default function EmailListBuilder() {
+  const isLight = useIsLightTheme();
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const [tab, setTab] = useState<TabKey>("dashboard");
@@ -477,7 +479,7 @@ export default function EmailListBuilder() {
  {copied === "body" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
  </div>
- <div className="mt-2 whitespace-pre-wrap rounded-xl bg-black/50 p-4 text-sm leading-relaxed text-white/80">
+ <div className={`mt-2 whitespace-pre-wrap rounded-xl p-4 text-sm leading-relaxed ${isLight ? "bg-[#F7ECD2]/70 text-[#2A1E07]" : "bg-black/50 text-white/80"}`}>
  {nlDraft.body}
  </div>
  <p className="mt-3 text-xs text-white/35">{t("email-list.ai_draft_read_it_make_it_yours_t")}</p>
@@ -512,7 +514,7 @@ export default function EmailListBuilder() {
  <h3 className="flex items-center gap-2 font-semibold"><ExternalLink className="h-4 w-4 text-primary" />{t("email-list.hosted_landing_page")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.send_fans_here_no_website_needed")}</p>
  <div className="mt-3 flex items-center gap-2">
- <code className="flex-1 truncate rounded-xl bg-black/60 px-4 py-3 text-sm text-primary">bowdownvisuals.com/join/{activeList.handle}</code>
+ <code className={`flex-1 truncate rounded-xl px-4 py-3 text-sm ${isLight ? "bg-[#F7ECD2]/80 text-[#7A5A12]" : "bg-black/60 text-primary"}`}>bowdownvisuals.com/join/{activeList.handle}</code>
  <button onClick={() => copyText("landing", `https://bowdownvisuals.com/join/${activeList.handle}`)} className="rounded-xl border border-white/10 p-3 text-white/60 hover:text-white" title={t("email-list.copy_link")}>
  {copied === "landing" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
@@ -526,8 +528,8 @@ export default function EmailListBuilder() {
  <h3 className="flex items-center gap-2 font-semibold"><Code2 className="h-4 w-4 text-primary" />{t("email-list.embed_on_your_own_site")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.paste_this_anywhere_signups_land")}</p>
  <div className="relative mt-3">
- <pre className="overflow-x-auto rounded-xl bg-black/60 p-4 text-xs leading-relaxed text-white/70">{embedSnippet}</pre>
- <button onClick={() => copyText("embed", embedSnippet)} className="absolute right-3 top-3 rounded-lg border border-white/10 bg-black/60 p-2 text-white/60 hover:text-white" title={t("email-list.copy_embed_code")}>
+ <pre className={`overflow-x-auto rounded-xl p-4 text-xs leading-relaxed ${isLight ? "bg-[#F7ECD2]/80 text-[#2A1E07]" : "bg-black/60 text-white/70"}`}>{embedSnippet}</pre>
+ <button onClick={() => copyText("embed", embedSnippet)} className={`absolute right-3 top-3 rounded-lg border p-2 ${isLight ? "border-[#C9A84C]/40 bg-white text-[#6B5B36] hover:text-[#2A1E07]" : "border-white/10 bg-black/60 text-white/60 hover:text-white"}`} title={t("email-list.copy_embed_code")}>
  {copied === "embed" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
  </button>
  </div>
