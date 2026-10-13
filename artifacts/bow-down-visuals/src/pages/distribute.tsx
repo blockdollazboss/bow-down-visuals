@@ -585,7 +585,7 @@ function NewReleaseWizard(props: {
                   <button
                     onClick={() => selectSong(songId === s.id ? null : s)}
                     className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                      songId === s.id ? "border-primary/60 bg-primary/[0.08]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
+                      songId === s.id ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                     }`}
                   >
                     <Disc3 className={`h-7 w-7 shrink-0 ${songId === s.id ? "text-primary" : "text-white/30"}`} />
@@ -641,7 +641,7 @@ function NewReleaseWizard(props: {
                   key={tc.type}
                   onClick={() => setReleaseType(tc.type as DistributionTier)}
                   className={`rounded-2xl border p-4 text-left transition ${
-                    releaseType === tc.type ? "border-primary/60 bg-primary/[0.08]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
+                    releaseType === tc.type ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                   }`}
                 >
                   <p className="flex items-center justify-between text-sm font-black">
@@ -785,7 +785,7 @@ function NewReleaseWizard(props: {
                     onClick={() => setArtModel(m.value)}
                     title={m.note}
                     className={`rounded-xl border px-4 py-2 text-xs font-bold transition ${
-                      artModel === m.value ? "border-primary/60 bg-primary/[0.08] text-primary" : "border-white/15 text-white/50 hover:border-white/40"
+                      artModel === m.value ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/15 text-white/50 hover:border-white/40"
                     }`}
                   >
                     {m.label} · {m.credits} VB
@@ -3198,7 +3198,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
                               <button
                                 onClick={() => { setSelectedId(r.id); clearBanners(); }}
                                 className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                                  selectedId === r.id ? "border-primary/50 bg-primary/[0.07]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
+                                  selectedId === r.id ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                                 }`}
                               >
                                 <Disc3 className={`h-8 w-8 shrink-0 ${selectedId === r.id ? "text-primary" : "text-white/30"}`} />
