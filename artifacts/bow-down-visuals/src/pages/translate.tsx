@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Languages, Loader2, Upload, Play, Download, AlertTriangle, Check,
@@ -38,6 +39,7 @@ const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function Translate({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -341,7 +343,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
                       onClick={() => setVoiceId(v.voice_id)}
                       className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm transition ${
                         voiceId === v.voice_id
-                          ? "border-amber-400/60 bg-amber-400/10 text-amber-100"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/10 bg-black/40 text-white/65 hover:border-white/25"
                       }`}
                     >
