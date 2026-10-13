@@ -8,6 +8,7 @@ import {
 } from "@/components/discovery/cards";
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
 import { ShareMenu } from "@/components/discovery/ShareMenu";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /genre/:genre — one sound's whole world ─────────────────────────────
    Creators AND their tracks AND their videos — everything links both ways. */
@@ -33,6 +34,7 @@ export default function GenrePage() {
   const [, params] = useRoute("/genre/:genre");
   const [location] = useLocation();
   const genre = decodeURIComponent(params?.genre ?? "");
+  usePageTitle(genre ? `${genre} Music` : "Genre");
   const vertical = useMemo(() => {
     const m = /[?&]vertical=([^&]*)/.exec(location);
     return m ? decodeURIComponent(m[1]) : null;

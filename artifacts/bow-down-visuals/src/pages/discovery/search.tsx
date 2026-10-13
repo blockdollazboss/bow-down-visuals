@@ -10,6 +10,7 @@ import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton"
 import { ShareMenu } from "@/components/discovery/ShareMenu";
 import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib/verticals";
 import { resolveMedia, formatCount } from "@/lib/streaming";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /search — one box across the whole creator universe ─────────────────
    Creators, audio, videos, playlists. Vertical + genre filter chips.
@@ -82,6 +83,7 @@ function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
 }
 
 export default function Search() {
+  usePageTitle("Search");
   const [location] = useLocation();
   const initialQ = useMemo(() => {
     const m = /[?&]q=([^&]*)/.exec(location);

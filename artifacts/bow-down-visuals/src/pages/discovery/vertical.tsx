@@ -10,6 +10,7 @@ import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton"
 import { ShareMenu } from "@/components/discovery/ShareMenu";
 import { VERTICAL_META, isVerticalKey } from "@/lib/verticals";
 import { formatCount } from "@/lib/streaming";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /vertical/:vertical — one lane's home base ──────────────────────────
    Top creators, top audio, top videos, fresh drops, rising — plus a live
@@ -39,6 +40,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 export default function VerticalPage() {
   const [, params] = useRoute("/vertical/:vertical");
   const vertical = (params?.vertical ?? "").toLowerCase();
+  usePageTitle(vertical ? `For ${vertical}` : "For Creators");
   const valid = isVerticalKey(vertical);
   const [data, setData] = useState<VerticalPayload | null>(null);
   const [loading, setLoading] = useState(true);

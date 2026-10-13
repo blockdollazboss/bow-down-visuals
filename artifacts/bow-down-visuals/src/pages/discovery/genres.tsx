@@ -5,6 +5,7 @@ import { CardSkeleton, EmptyState } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
 import { VERTICALS, VERTICAL_META, type VerticalKey } from "@/lib/verticals";
 import { formatCount } from "@/lib/streaming";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /genres — every sound and style, counted ──────────────────────────── */
 
@@ -14,6 +15,7 @@ interface GenreRow {
 }
 
 export default function Genres() {
+  usePageTitle("Genres", "Explore every genre hub — facts, sounds, and the AI pipeline for each.");
   const [genres, setGenres] = useState<GenreRow[] | null>(null);
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
 

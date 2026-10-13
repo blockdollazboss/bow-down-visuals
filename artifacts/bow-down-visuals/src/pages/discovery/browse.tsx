@@ -8,6 +8,7 @@ import { VERTICALS, VERTICAL_META, type VerticalKey } from "@/lib/verticals";
 import { formatCount } from "@/lib/streaming";
 import { CardSkeleton } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /browse — every lane on the platform ────────────────────────────────
    Vertical landing grid. Each card links to /vertical/:key. */
@@ -33,6 +34,7 @@ interface VerticalStat {
 }
 
 export default function Browse() {
+  usePageTitle("Browse", "Browse what creators are making on Bow Down Visuals.");
   const [stats, setStats] = useState<VerticalStat[] | null>(null);
 
   useEffect(() => {

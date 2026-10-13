@@ -11,6 +11,7 @@ import {
 } from "@/components/discovery/cards";
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
 import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib/verticals";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /charts — where the next big creator gets found ─────────────────────
    Tabs: Charts (Top creators / Top audio / Top videos per vertical) |
@@ -193,6 +194,7 @@ function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: nu
 }
 
 export default function Charts() {
+  usePageTitle("Charts", "The hottest tracks, videos, and creators on Bow Down Visuals right now.");
   const [tab, setTab] = useState<Tab>("charts");
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
   const [window, setWindow] = useState<WindowKey>("week");
