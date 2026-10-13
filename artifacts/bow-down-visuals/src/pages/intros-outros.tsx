@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -52,6 +53,7 @@ interface RecentSting {
 }
 
 export function IntrosOutrosTool() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -217,7 +219,7 @@ export function IntrosOutrosTool() {
                     onClick={() => setType(opt.key)}
                     className={`rounded-xl border px-4 py-3.5 text-left transition ${
                       type === opt.key
-                        ? "border-primary/60 bg-primary/[0.08]"
+                        ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                         : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                     }`}
                   >
