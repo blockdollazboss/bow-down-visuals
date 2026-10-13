@@ -349,7 +349,7 @@ export function StreamPackTool() {
           <button
             onClick={generatePack}
             disabled={!channelName.trim() || !user || busy || selectedAssets.length === 0}
-            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${(!channelName.trim() || !user || selectedAssets.length === 0) && !busy ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {busy ? (
               <span className="inline-flex items-center gap-2">
