@@ -15,6 +15,7 @@ import {
  type AcademyLevel,
 } from "@/lib/academy-courses";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Guides from "@/pages/guides";
 import CopyrightAssistant from "@/pages/copyright";
@@ -90,10 +91,10 @@ function saveJson(key: string, value: unknown) {
  }
 }
 
-const LEVEL_META: Record<AcademyLevel, { labelKey: string; cls: string }> = {
- beginner: { labelKey: "academy.levels.beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
- intermediate: { labelKey: "academy.levels.intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
- advanced: { labelKey: "academy.levels.advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+const LEVEL_META: Record<AcademyLevel, { labelKey: string; cls: string; clsLight: string }> = {
+ beginner: { labelKey: "academy.levels.beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300", clsLight: "border-emerald-600/40 bg-emerald-500/15 text-emerald-700" },
+ intermediate: { labelKey: "academy.levels.intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300", clsLight: "border-amber-600/40 bg-amber-500/15 text-amber-700" },
+ advanced: { labelKey: "academy.levels.advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300", clsLight: "border-red-600/40 bg-red-500/15 text-red-700" },
 };
 
 /* ─── Course catalog visuals: per-category gradient banner + watermark icon ──
@@ -144,6 +145,7 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
 }
 
 function AcademyMain() {
+ const isLight = useIsLightTheme();
  const { t } = useTranslation();
  usePageTitle(t("academy.pageTitle"), t("academy.pageDescription"));
  const { user, getAccessToken, refreshProfile } = useAuth();
@@ -546,7 +548,7 @@ function AcademyMain() {
  <button
  key={course.id}
  onClick={() => { setSelectedCourseId(course.id); setActiveLessonKey(null); setError(null); window.scrollTo({ top: 0 }); }}
- className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] text-left transition hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.05] hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"
+ className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70 hover:shadow-[0_16px_48px_rgba(122,90,18,0.25)]" : "border-white/10 bg-white/[0.03] hover:border-primary/50 hover:bg-primary/[0.05] hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"}`}
  >
  {/* ── Visual header: per-category gradient banner + watermark icon ── */}
  <div className={`relative h-24 overflow-hidden bg-gradient-to-br md:h-28 ${visuals.gradient}`}>
@@ -558,7 +560,7 @@ function AcademyMain() {
  <CatIcon className="h-3.5 w-3.5" aria-hidden="true" />
  {t(visuals.labelKey)}
  </span>
- <span className={`absolute right-4 top-3 rounded-full border px-3 py-1 text-[11px] font-bold backdrop-blur-sm ${badge.cls}`}>
+ <span className={`absolute right-4 top-3 rounded-full border px-3 py-1 text-[11px] font-bold backdrop-blur-sm ${isLight ? badge.clsLight : badge.cls}`}>
  {t(badge.labelKey)}
  </span>
  </div>
@@ -575,7 +577,7 @@ function AcademyMain() {
  <p className="mt-2 text-sm leading-relaxed text-white/50">{course.description}</p>
  {prog.done > 0 && (
  <div className="mt-4">
- <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+ <div className={`h-1.5 overflow-hidden rounded-full ${isLight ? "bg-[#C9A84C]/25" : "bg-white/10"}`}>
  <div
  className="h-full rounded-full bg-gradient-to-r from-primary to-[#f5d67b]"
  style={{ width: `${pct}%` }}
@@ -629,6 +631,7 @@ interface CourseDetailProps {
 }
 
 function CourseDetail(props: CourseDetailProps) {
+ const isLight = useIsLightTheme();
  const {
  course, progress, lessonCache, activeLesson, activeLessonKey, lessonLoading,
  coachThreads, coachInput, coachLoading, user, error, outOfCredits,
@@ -648,7 +651,7 @@ function CourseDetail(props: CourseDetailProps) {
  </button>
 
  <div className="flex flex-wrap items-center gap-3">
- <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>{t(badge.labelKey)}</span>
+ <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${isLight ? badge.clsLight : badge.cls}`}>{t(badge.labelKey)}</span>
  <span className="flex items-center gap-1 text-xs text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
  </span>
@@ -665,7 +668,7 @@ function CourseDetail(props: CourseDetailProps) {
 
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
- <p className="mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+ <p className={`mt-4 max-w-md rounded-xl border px-4 py-3 text-sm ${isLight ? "border-red-600/30 bg-red-500/10 text-red-700" : "border-red-500/30 bg-red-500/10 text-red-300"}`}>
  {error}
  </p>
  )}
