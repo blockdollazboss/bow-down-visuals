@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -1373,6 +1374,8 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
   isActive: boolean;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const hasMedia = !!(vault.reference_image_url || vault.reference_video_url);
   const G = (o: number) => `rgba(201,168,76,${o})`;
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -1392,11 +1395,11 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
     )}
     <div style={{
       borderRadius: 20,
-      border: isActive ? `2px solid ${G(0.55)}` : "1px solid rgba(255,255,255,0.07)",
+      border: isActive ? `2px solid ${G(0.55)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.07)",
       boxShadow: isActive ? `0 0 50px ${G(0.15)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
       overflow: "hidden",
       transition: "all 0.2s ease",
-      background: isActive ? "#0d0900" : "#0a0a0a",
+      background: isLight ? (isActive ? "#F7ECD2" : "#FCF7EA") : isActive ? "#0d0900" : "#0a0a0a",
     }}>
       {/* Full-photo top section — click to enlarge */}
       <div
@@ -1405,9 +1408,13 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
         height: 300,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) top center/cover no-repeat`
-          : isActive
-            ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
-            : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+          : isLight
+            ? isActive
+              ? "linear-gradient(135deg, #F1E3BC 0%, #EFE6D0 100%)"
+              : "linear-gradient(135deg, #F7F1E3 0%, #EFE6D0 100%)"
+            : isActive
+              ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
+              : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
         cursor: vault.reference_image_url ? "zoom-in" : "default",
       }}>
@@ -1437,12 +1444,12 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
           }}>
             <div style={{
               width: 72, height: 72, borderRadius: "50%",
-              background: isActive ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
+              background: isActive ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : isLight ? "rgba(201,168,76,0.12)" : "rgba(255,255,255,0.06)",
               border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: isActive ? `0 0 28px ${G(0.3)}` : "none",
             }}>
-              <span style={{ fontFamily: "Georgia, serif", fontSize: 24, fontWeight: 900, color: isActive ? GOLD : "rgba(255,255,255,0.4)" }}>{initials}</span>
+              <span style={{ fontFamily: "Georgia, serif", fontSize: 24, fontWeight: 900, color: isLight ? (isActive ? "#7A5A12" : "#8A7A56") : isActive ? GOLD : "rgba(255,255,255,0.4)" }}>{initials}</span>
             </div>
           </div>
         )}
@@ -1464,7 +1471,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
         {/* Name strip at very bottom of photo */}
         <div style={{
           position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2,
-          background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
+          background: !hasMedia && isLight ? "linear-gradient(to bottom, transparent 0%, rgba(247,236,210,0.97) 100%)" : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
           padding: "36px 14px 12px",
         }}>
           <p style={{
@@ -1473,9 +1480,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             fontWeight: 900, color: TC,
             letterSpacing: isActive ? "0.04em" : "0",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+            textShadow: !hasMedia && isLight ? "none" : "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
-            <p style={{ fontSize: 9.5, color: isActive ? themeAlpha(TC, 0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <p style={{ fontSize: 9.5, color: !hasMedia && isLight && !isActive ? "#8A7A56" : isActive ? themeAlpha(TC, 0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
             </p>
         </div>
@@ -1497,9 +1504,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             width: "100%",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "8px 0", borderRadius: 10,
-            border: isActive ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.1)",
-            background: isActive ? G(0.1) : "rgba(255,255,255,0.03)",
-            color: isActive ? GOLD : "rgba(255,255,255,0.5)",
+            border: isActive ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.35)" : "1px solid rgba(255,255,255,0.1)",
+            background: isActive ? G(0.1) : isLight ? "#F7ECD2" : "rgba(255,255,255,0.03)",
+            color: isActive ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.5)",
             fontSize: 11.5, fontWeight: 800,
             cursor: "pointer", letterSpacing: "0.04em",
             boxShadow: isActive ? `0 0 12px ${G(0.1)}` : "none",
@@ -1514,9 +1521,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             width: "100%",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "8px 0", borderRadius: 10,
-            border: `1px solid ${G(0.25)}`,
-            background: G(0.06),
-            color: GOLD, fontSize: 11.5, fontWeight: 800,
+            border: `1px solid ${G(isLight ? 0.45 : 0.25)}`,
+            background: G(isLight ? 0.12 : 0.06),
+            color: isLight ? "#7A5A12" : GOLD, fontSize: 11.5, fontWeight: 800,
             cursor: "pointer", letterSpacing: "0.04em",
           }}>
             <Lock className="h-3.5 w-3.5" /> {t("artistVault.lockConsistency")}
@@ -1531,26 +1538,26 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
               <button key={label} onClick={fn} style={{
                 display: "flex", alignItems: "center", gap: 5,
                 padding: "6px 12px", borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.03)",
-                color: "rgba(255,255,255,0.55)",
+                border: isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                background: isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
+                color: isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}>{icon} {label}</button>
             ))}
             <button onClick={onShare} title={vault.team_id ? t("artistVault.unshareTitle") : t("artistVault.shareTitle")} style={{
               display: "flex", alignItems: "center", gap: 5,
               padding: "6px 12px", borderRadius: 8,
-              border: vault.team_id ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.08)",
-              background: vault.team_id ? G(0.1) : "rgba(255,255,255,0.03)",
-              color: vault.team_id ? GOLD : "rgba(255,255,255,0.55)",
+              border: vault.team_id ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
+              background: vault.team_id ? G(0.1) : isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
+              color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
               fontSize: 11, fontWeight: 600, cursor: "pointer",
             }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
             <button onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
               background: "transparent",
-              color: "rgba(255,255,255,0.3)",
+              color: isLight ? "rgba(122,90,18,0.55)" : "rgba(255,255,255,0.3)",
               cursor: "pointer", marginLeft: "auto",
             }}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
@@ -1564,6 +1571,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("artistVault.pageTitle"), t("artistVault.pageDescription"));
   const { getAccessToken, user } = useAuth();
@@ -2075,7 +2083,7 @@ export default function ArtistVault() {
         </div>
 
         {/* Form card */}
-        <div id="new-artist-form" className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden scroll-mt-24">
+        <div id="new-artist-form" className={`rounded-2xl border overflow-hidden scroll-mt-24 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/50" : "border-white/[0.07] bg-white/[0.02]"}`}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05] bg-white/[0.01]">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -2118,8 +2126,12 @@ export default function ArtistVault() {
                       onClick={() => setValue("artistType", t)}
                       className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
                         active
-                          ? `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
-                          : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
+                          ? isLight
+                            ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12] ring-2 ring-[#C9A84C]/40 scale-[1.02]"
+                            : `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
+                          : isLight
+                            ? "border-[#C9A84C]/25 bg-white/60 hover:border-[#C9A84C]/50"
+                            : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
                       }`}
                     >
                       <span className="flex items-center gap-2">
