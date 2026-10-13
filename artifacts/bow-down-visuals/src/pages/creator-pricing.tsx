@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useSearch } from "wouter";
 import {
   Check, Crown, Loader2, ArrowLeft, ArrowRight, Sparkles,
@@ -52,6 +53,7 @@ function useQuery() {
 }
 
 export default function CreatorPricing() {
+  const isLight = useIsLightTheme();
   usePageTitle("Creator Plans — Go Pro, Keep More of Your Money | Bow Down Visuals");
   const query = useQuery();
   const { user, getAccessToken } = useAuth();
@@ -139,7 +141,7 @@ export default function CreatorPricing() {
         {upgrade === "cancelled" && (
           <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-white/60">
             Checkout cancelled — no charge, nothing changed. Your Free tier keeps earning at the standard fee.
-            <Link href={returnTo} className="ml-2 font-bold text-amber-300 hover:text-amber-200">
+            <Link href={returnTo} className={`ml-2 font-bold ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-amber-300 hover:text-amber-200"}`}>
               Back to creating →
             </Link>
           </div>
@@ -147,11 +149,11 @@ export default function CreatorPricing() {
 
         {/* hero */}
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
+          <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400/30 bg-amber-400/10 text-amber-300"}`}>
             <Crown className="h-3.5 w-3.5" /> Creator plans
           </div>
           <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">
-            Go pro. <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent">Keep more of your money.</span>
+            Go pro. <span className={isLight ? "bg-gradient-to-b from-[#A97F1F] to-[#7A5A12] bg-clip-text text-transparent" : "bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent"}>Keep more of your money.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
             Free earns from day one. Paid tiers keep <em className="text-white/80 not-italic font-bold">more of every single sale</em> —
@@ -164,9 +166,9 @@ export default function CreatorPricing() {
         <SocialProofBand vertical="music" className="mt-10 rounded-3xl" />
 
         {/* money math — the cheat code, spelled out */}
-        <section id="money-math" className="mt-12 rounded-3xl border border-amber-400/25 bg-gradient-to-br from-amber-400/10 via-black to-black p-6 sm:p-8">
+        <section id="money-math" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-br from-[#C9A84C]/[0.10] via-[#FBF6E9] to-[#F4E7C3] text-[#2A1E07]" : "border-amber-400/25 bg-gradient-to-br from-amber-400/10 via-black to-black"}`}>
           <h2 className="text-2xl font-black">
-            <Sparkles className="mr-2 inline h-5 w-5 text-amber-300" />
+            <Sparkles className={`mr-2 inline h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`} />
             The money math
           </h2>
           <p className="mt-2 text-sm text-white/55">
@@ -180,8 +182,12 @@ export default function CreatorPricing() {
                 onClick={() => setVolume(v)}
                 className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${
                   volume === v
-                    ? "border-amber-300 bg-amber-400/20 text-amber-200"
-                    : "border-white/15 text-white/60 hover:border-white/35 hover:text-white"
+                    ? isLight
+                      ? "border-[#C9A84C] bg-[#C9A84C]/25 text-[#7A5A12]"
+                      : "border-amber-300 bg-amber-400/20 text-amber-200"
+                    : isLight
+                      ? "border-[#C9A84C]/35 text-[#6B5B36] hover:border-[#C9A84C]/60 hover:text-[#2A1E07]"
+                      : "border-white/15 text-white/60 hover:border-white/35 hover:text-white"
                 }`}
               >
                 ${v.toLocaleString()}/mo
@@ -193,12 +199,12 @@ export default function CreatorPricing() {
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {plans.map((p) => (
-                <div key={p.tier} className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <div key={p.tier} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-white/10 bg-black/40"}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-black">{p.name}</span>
-                    <span className="text-xs font-bold text-amber-300">{p.feePct} fee</span>
+                    <span className={`text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`}>{p.feePct} fee</span>
                   </div>
-                  <div className="mt-3 text-3xl font-black text-emerald-300">
+                  <div className={`mt-3 text-3xl font-black ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
                     ${savings(p).toLocaleString()}
                     <span className="text-sm font-semibold text-white/40"> extra kept / mo</span>
                   </div>
@@ -227,8 +233,12 @@ export default function CreatorPricing() {
               key={p.tier}
               className={`flex flex-col rounded-3xl border p-6 ${
                 p.tier === "pro"
-                  ? "border-amber-400/60 bg-gradient-to-b from-amber-400/15 to-black shadow-[0_0_40px_rgba(251,191,36,0.15)]"
-                  : "border-white/10 bg-white/[0.03]"
+                  ? isLight
+                    ? "border-[#C9A84C]/70 bg-gradient-to-b from-[#C9A84C]/25 to-[#F4E7C3] text-[#2A1E07] shadow-[0_0_40px_rgba(201,168,76,0.25)]"
+                    : "border-amber-400/60 bg-gradient-to-b from-amber-400/15 to-black shadow-[0_0_40px_rgba(251,191,36,0.15)]"
+                  : isLight
+                    ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]"
+                    : "border-white/10 bg-white/[0.03]"
               }`}
             >
               {p.tier === "pro" && (
@@ -248,14 +258,14 @@ export default function CreatorPricing() {
                   </>
                 )}
               </div>
-              <div className="mt-1 text-sm font-bold text-amber-300">{p.feePct} platform fee on every sale</div>
+              <div className={`mt-1 text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`}>{p.feePct} platform fee on every sale</div>
               <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                 {p.features.map((f) => (
                   <li key={f.label} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isLight ? "text-emerald-700" : "text-emerald-300"}`} />
                     <span className="text-white/75">
                       {f.label}{" "}
-                      <Link href={f.detailsUrl} className="whitespace-nowrap text-xs font-semibold text-amber-300/90 hover:text-amber-200">
+                      <Link href={f.detailsUrl} className={`whitespace-nowrap text-xs font-semibold ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-amber-300/90 hover:text-amber-200"}`}>
                         details →
                       </Link>
                     </span>
@@ -266,7 +276,7 @@ export default function CreatorPricing() {
                 {p.tier === "free" ? (
                   <Link
                     href="/dashboard"
-                    className="block rounded-full border border-white/25 py-2.5 text-center text-sm font-black text-white transition hover:border-white/50"
+                    className={`block rounded-full border py-2.5 text-center text-sm font-black transition ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07] hover:border-[#C9A84C]" : "border-white/25 text-white hover:border-white/50"}`}
                   >
                     Start free
                   </Link>
@@ -294,7 +304,7 @@ export default function CreatorPricing() {
         )}
 
         {/* difficulty ladder → tier mapping, visible */}
-        <section id="stars" className="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+        <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.03]"}`}>
           <h2 className="text-2xl font-black">Higher tiers unlock higher stars</h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
             The 6-star difficulty ladder stays simple by default. When you want the deep controls,
@@ -306,7 +316,7 @@ export default function CreatorPricing() {
               const stars = i + 1;
               const tierNeeded = stars <= 3 ? "Free" : stars <= 5 ? "Pro" : "Elite";
               return (
-                <div key={rank} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div key={rank} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-white/10 bg-black/40"}`}>
                   <div className="flex items-center gap-1" aria-label={`${stars} stars`}>
                     {Array.from({ length: 6 }).map((_, s) => (
                       <Star key={s} className={`h-4 w-4 ${s < stars ? "fill-amber-400 text-amber-400" : "text-white/15"}`} />
@@ -315,8 +325,9 @@ export default function CreatorPricing() {
                   <div className="mt-2 font-black">{stars}★ {rank}</div>
                   <div className="text-sm text-white/50">{STAR_BLURBS[i]}</div>
                   <div className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-xs font-black uppercase tracking-wider ${
-                    tierNeeded === "Free" ? "border-white/20 text-white/60"
-                    : tierNeeded === "Pro" ? "border-amber-400/40 text-amber-300"
+                    tierNeeded === "Free"
+                    ? isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/20 text-white/60"
+                    : isLight ? "border-[#C9A84C]/60 text-[#7A5A12]" : tierNeeded === "Pro" ? "border-amber-400/40 text-amber-300"
                     : "border-amber-300/60 text-amber-200"
                   }`}>
                     {tierNeeded}
@@ -329,27 +340,27 @@ export default function CreatorPricing() {
 
         {/* feature detail anchors — link targets for "details →" rows */}
         <section className="mt-12 space-y-8 text-sm text-white/60">
-          <div id="feature-site" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">Your site</h3>
             <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Pro connects your own custom domain with verification — your brand, your URL, same checkout.</p>
           </div>
-          <div id="feature-streaming" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-streaming" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">Streaming</h3>
             <p className="mt-1">Livestream to your fans on every tier. Tips and paid access split with the same honest fee as everything else.</p>
           </div>
-          <div id="feature-themes" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-themes" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">Themes</h3>
             <p className="mt-1">Basic themes are free forever. Premium gold-luxury themes are a Pro move — they make your site look like money because it is.</p>
           </div>
-          <div id="feature-boosts" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-boosts" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">AI promotion boosts</h3>
             <p className="mt-1">AI-written promo pushes for your releases: 3/month free, 25 on Pro, 100 on Elite. More boosts, more ears, more sales.</p>
           </div>
-          <div id="feature-discovery" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-discovery" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">Discovery priority</h3>
             <p className="mt-1">Elite creators get priority placement in discovery — first look for new fans scrolling the platform.</p>
           </div>
-          <div id="feature-support" className="scroll-mt-24 rounded-2xl border border-white/10 p-5">
+          <div id="feature-support" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
             <h3 className="font-black text-white">Elite support</h3>
             <p className="mt-1">Dedicated support badge on your profile and priority support when something breaks before a drop.</p>
           </div>
