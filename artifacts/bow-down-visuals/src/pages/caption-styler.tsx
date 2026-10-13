@@ -324,7 +324,7 @@ export default function CaptionStyler() {
           <button
             onClick={startStyling}
             disabled={!file || !user || busy}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-6 py-3 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold transition disabled:cursor-not-allowed ${(!file || !user) && !busy ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-r from-amber-400 to-yellow-600 text-black hover:brightness-110"}`}
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {busy ? statusLabel[status] ?? t("captionStyler.statusWorking") : t("captionStyler.styleButton", { n: CREDIT_COST })}
