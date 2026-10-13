@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
-import { ensureTomFriendship } from "../lib/tom-friendship";
+import { ensureKingsWelcome } from "../lib/kings-welcome";
 
 declare global {
   namespace Express {
@@ -97,7 +97,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       // their profile row is first provisioned). The Tom move: Thy Cheat
       // Code becomes their first friend, both directions. Idempotent and
       // never throws, so auth can't fail over it.
-      await ensureTomFriendship(user.id);
+      await ensureKingsWelcome(user.id);
     }
   }
 

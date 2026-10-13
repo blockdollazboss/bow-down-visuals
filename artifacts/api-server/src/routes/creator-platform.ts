@@ -22,7 +22,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
-import { ensureTomFriendship } from "../lib/tom-friendship";
+import { ensureKingsWelcome } from "../lib/kings-welcome";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
 function adminEmails(): string[] {
@@ -644,7 +644,7 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     // The Tom move: a creator profile now exists, so Thy Cheat Code can
     // follow back (and the user follows Thy if anything missed it).
     // Idempotent, never throws.
-    await ensureTomFriendship(userId);
+    await ensureKingsWelcome(userId);
     res.status(201).json({ profile: { ...toPublicProfile(created), ...(await profileExtras(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");

@@ -1,15 +1,15 @@
 /**
- * tom-friendship.ts — the Tom move 🦈
+ * kings-welcome.ts — the King's Welcome 🦈
  *
  * Thy Cheat Code is the official Bow Down Visuals profile (creator_profiles
  * row flagged is_official, slug "thy-cheat-code", seeded by migration 0125)
- * and every creator's first friend — MySpace-Tom style:
+ * and every creator's first friend — the King's Welcome:
  *
  *   direction 1: the user follows Thy  → his posts land in their feed
  *                (/api/feed reads the follows table)
  *   direction 2: Thy follows the user back → mutual from day one
  *
- * ensureTomFriendship(userId) is idempotent (insert-or-nothing + count
+ * ensureKingsWelcome(userId) is idempotent (insert-or-nothing + count
  * bumps only on rows actually inserted) and NEVER throws — it is called
  * from auth/profile provisioning paths that must not fail over a social
  * nicety. Call sites:
@@ -66,12 +66,12 @@ async function insertFollow(followerUserId: string, profileId: string): Promise<
 
 /** Make Thy Cheat Code the given user's first friend (mutual). Safe to
     call any number of times, for any user, at any point in their life. */
-export async function ensureTomFriendship(userId: string): Promise<void> {
+export async function ensureKingsWelcome(userId: string): Promise<void> {
   try {
     if (!userId || userId === THY_CHEAT_CODE_USER_ID) return;
     const thy = await getOfficialProfile();
     if (!thy) {
-      logger.warn("tom-friendship: no official profile found (migration 0125 not applied yet?)");
+      logger.warn("kings-welcome: no official profile found (migration 0125 not applied yet?)");
       return;
     }
     // Direction 1: the user follows Thy — his posts land in their feed.
@@ -89,6 +89,6 @@ export async function ensureTomFriendship(userId: string): Promise<void> {
   } catch (err) {
     // Social graph is a nicety, never a blocker: provisioning and
     // profile creation must succeed even if this fails.
-    logger.warn({ err, userId }, "tom-friendship: ensure failed (non-fatal)");
+    logger.warn({ err, userId }, "kings-welcome: ensure failed (non-fatal)");
   }
 }
