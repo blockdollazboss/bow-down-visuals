@@ -354,8 +354,8 @@ export function MysteryCrate() {
             )}
 
             <Button
-              onClick={handleOpen}
-              disabled={!ready}
+              onClick={loadError ? () => { void loadStatus(); } : handleOpen}
+              disabled={loadError ? false : !ready}
               size="lg"
               className="bg-[#c9a84c] text-black hover:bg-[#e8c766] text-lg px-8 py-5 w-full"
             >
@@ -363,6 +363,8 @@ export function MysteryCrate() {
                 <><Sparkles className="h-5 w-5 mr-2 animate-spin" /> Shaking…</>
               ) : phase === "opening" ? (
                 <><Sparkles className="h-5 w-5 mr-2 animate-pulse" /> Opening…</>
+              ) : loadError ? (
+                <><Package className="h-5 w-5 mr-2" /> Couldn't load — tap to retry</>
               ) : !prizesLoaded ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading…</>
               ) : cooldown > 0 ? (

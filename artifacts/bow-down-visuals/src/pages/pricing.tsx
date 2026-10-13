@@ -611,7 +611,7 @@ export default function Pricing() {
             <HelpCircle className="h-5 w-5 text-primary" />
             <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">{t("pricing.faq.title")}</h2>
           </div>
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 md:px-8">
+          <div className={`rounded-2xl border px-6 md:px-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {FAQ.map((item) => <FaqItem key={item.q} q={item.q} a={item.a} />)}
           </div>
         </section>
