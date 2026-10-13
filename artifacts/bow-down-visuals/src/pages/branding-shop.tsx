@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -131,6 +132,7 @@ function productByKey(key: ProductKey): Product {
 }
 
 export default function BrandingShop() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>(() => {
@@ -532,7 +534,7 @@ export default function BrandingShop() {
               <Sparkles className="h-3.5 w-3.5" /> {t("brandingShop.heroBadge")}
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-              {t("brandingShop.title")} <span className="branding-shop-title bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">{t("brandingShop.titleAccent")}</span>
+              {t("brandingShop.title")} <span className={`branding-shop-title bg-gradient-to-r bg-clip-text text-transparent ${isLight ? "from-[#C9A84C] to-[#7A5A12]" : "from-amber-400 to-yellow-200"}`}>{t("brandingShop.titleAccent")}</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/50">
               {t("brandingShop.subtitle")}
@@ -617,7 +619,7 @@ export default function BrandingShop() {
             </div>
 
             {shopCat === "smart" && (
-              <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+              <div className={`overflow-hidden rounded-2xl border border-primary/25 ${isLight ? "bg-gradient-to-br from-[#F7ECD2] via-[#FCF7EA] to-[#F7ECD2]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
                 <div className="grid gap-0 md:grid-cols-2">
                   <div className="flex items-center justify-center p-10">
                     <div className="flex h-44 w-72 items-center justify-center rounded-2xl border border-primary/40 bg-gradient-to-br from-zinc-900 to-black shadow-[0_0_40px_rgba(234,179,8,0.15)]">
@@ -644,7 +646,7 @@ export default function BrandingShop() {
             )}
 
             {shopCat === "jewelry" && (
-              <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+              <div className={`overflow-hidden rounded-2xl border border-primary/25 ${isLight ? "bg-gradient-to-br from-[#F7ECD2] via-[#FCF7EA] to-[#F7ECD2]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
                 <div className="grid gap-0 md:grid-cols-2">
                   <div className="flex items-center justify-center p-10">
                     <div
