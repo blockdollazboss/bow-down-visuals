@@ -269,28 +269,28 @@ export default function JewelryStudio() {
   };
 
   const goldBtn =
-    "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-400 px-6 py-3 font-bold text-black hover:from-yellow-400 hover:to-amber-300 disabled:opacity-50 transition";
+    "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#C9A84C] px-6 py-3 font-bold text-black hover:from-[#DDBB62] hover:to-[#DDBB62] disabled:opacity-50 transition";
   const ghostBtn =
-    isLight ? "inline-flex items-center gap-2 rounded-xl border border-[#C9A84C]/40 px-5 py-3 text-[#7A5A12] hover:bg-[#C9A84C]/10 transition" : "inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 px-5 py-3 text-yellow-200 hover:bg-yellow-500/10 transition";
-  const card = isLight ? "rounded-2xl border border-[#C9A84C]/30 bg-[#F7ECD2]/70 p-5" : "rounded-2xl border border-yellow-500/20 bg-black/60 p-5 backdrop-blur";
+    isLight ? "inline-flex items-center gap-2 rounded-xl border border-[#C9A84C]/40 px-5 py-3 text-[#7A5A12] hover:bg-[#C9A84C]/10 transition" : "inline-flex items-center gap-2 rounded-xl border border-[#C9A84C]/30 px-5 py-3 text-[#E3C566] hover:bg-[#C9A84C]/10 transition";
+  const card = isLight ? "rounded-2xl border border-[#C9A84C]/30 bg-[#F7ECD2]/70 p-5" : "rounded-2xl border border-[#C9A84C]/20 bg-black/60 p-5 backdrop-blur";
 
   const optGrid = "grid grid-cols-2 gap-2 sm:grid-cols-3";
   const optBtn = (active: boolean) =>
     `rounded-xl border px-3 py-2.5 text-left text-sm transition ${
       active
-        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-yellow-400 bg-yellow-500/15 text-yellow-100 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
-        : isLight ? "border-[#C9A84C]/25 bg-white/50 text-[#2A1E07] hover:border-[#C9A84C]/50" : "border-white/10 bg-white/5 text-zinc-300 hover:border-yellow-500/40"
+        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-[#DDBB62] bg-[#C9A84C]/15 text-[#F0D98C] shadow-[0_0_12px_rgba(201,168,76,0.25)]"
+        : isLight ? "border-[#C9A84C]/25 bg-white/50 text-[#2A1E07] hover:border-[#C9A84C]/50" : "border-white/10 bg-white/5 text-zinc-300 hover:border-[#C9A84C]/40"
     }`;
 
   return (
     <div className={`${isLight ? "min-h-screen text-[#2A1E07]" : "min-h-screen bg-black text-zinc-100"}`}>
       {/* Header */}
-      <div className="border-b border-yellow-500/20 bg-gradient-to-b from-yellow-950/40 to-black px-4 py-8 text-center">
+      <div className="border-b border-[#C9A84C]/20 bg-gradient-to-b from-[#171208]/40 to-black px-4 py-8 text-center">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-yellow-300">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-[#E8CE7A]">
             <Gem className="h-3.5 w-3.5" /> {t("jewelry.headerBadge")}
           </div>
-          <h1 className="text-3xl font-black text-transparent sm:text-4xl bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-200 bg-clip-text">
+          <h1 className="text-3xl font-black text-transparent sm:text-4xl bg-gradient-to-r from-[#E3C566] via-[#C9A84C] to-[#E3C566] bg-clip-text">
             {t("jewelry.headerTitle")}
           </h1>
           <p className={`${isLight ? "mt-2 text-[#6B5B36]" : "mt-2 text-zinc-400"}`}>
@@ -300,7 +300,7 @@ export default function JewelryStudio() {
       </div>
 
       {/* Stepper */}
-      <div className={`${isLight ? "sticky top-0 z-20 border-b border-[#C9A84C]/25 bg-[#FCF7EA]/90 backdrop-blur" : "sticky top-0 z-20 border-b border-yellow-500/15 bg-black/90 backdrop-blur"}`}>
+      <div className={`${isLight ? "sticky top-0 z-20 border-b border-[#C9A84C]/25 bg-[#FCF7EA]/90 backdrop-blur" : "sticky top-0 z-20 border-b border-[#C9A84C]/15 bg-black/90 backdrop-blur"}`}>
         <div className="mx-auto flex max-w-5xl items-center gap-1 overflow-x-auto px-4 py-3">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
@@ -313,9 +313,9 @@ export default function JewelryStudio() {
                 disabled={i > step}
                 className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                   active
-                    ? isLight ? "bg-[#C9A84C]/15 text-[#7A5A12]" : "bg-yellow-500/20 text-yellow-200"
+                    ? isLight ? "bg-[#C9A84C]/15 text-[#7A5A12]" : "bg-[#C9A84C]/20 text-[#E3C566]"
                     : done
-                      ? "text-yellow-500 hover:bg-yellow-500/10"
+                      ? "text-[#C9A84C] hover:bg-[#C9A84C]/10"
                       : "text-zinc-600"
                 }`}
               >
@@ -343,19 +343,19 @@ export default function JewelryStudio() {
         {/* ── STEP 1: LOGO ── */}
         {step === 0 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.dropLogo")}</h2>
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.dropLogo")}</h2>
             <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.logoHint")}
             </p>
             <button
               onClick={() => fileRef.current?.click()}
-              className="mx-auto mt-6 flex h-56 w-full max-w-md flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-yellow-500/40 bg-yellow-500/5 transition hover:border-yellow-400 hover:bg-yellow-500/10"
+              className="mx-auto mt-6 flex h-56 w-full max-w-md flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#C9A84C]/40 bg-[#C9A84C]/5 transition hover:border-[#DDBB62] hover:bg-[#C9A84C]/10"
             >
               {logoPreview ? (
                 <img src={logoPreview} alt={t("jewelry.uploadedLogoAlt")} className="max-h-48 max-w-full object-contain" />
               ) : (
                 <>
-                  <Upload className="h-10 w-10 text-yellow-500" />
+                  <Upload className="h-10 w-10 text-[#C9A84C]" />
                   <span className={`${isLight ? "text-sm text-[#2A1E07]" : "text-sm text-zinc-300"}`}>{t("jewelry.uploadLogo")}</span>
                   <span className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.uploadFormats")}</span>
                 </>
@@ -369,7 +369,7 @@ export default function JewelryStudio() {
               onChange={(e) => onLogoPicked(e.target.files?.[0])}
             />
             {logoPreview && (
-              <button onClick={() => fileRef.current?.click()} className="mt-3 text-sm text-yellow-400 hover:underline">
+              <button onClick={() => fileRef.current?.click()} className="mt-3 text-sm text-[#DDBB62] hover:underline">
                 {t("jewelry.chooseDifferent")}
               </button>
             )}
@@ -389,7 +389,7 @@ export default function JewelryStudio() {
                           onLogoPicked(f);
                         } catch { /* fetch failed — user can upload manually */ }
                       }}
-                      className="h-16 w-16 overflow-hidden rounded-xl border border-yellow-500/30 hover:border-yellow-400 transition"
+                      className="h-16 w-16 overflow-hidden rounded-xl border border-[#C9A84C]/30 hover:border-[#DDBB62] transition"
                       title={l.label}
                     >
                       <img src={l.url} alt={l.label} className="h-full w-full object-cover" />
@@ -402,12 +402,12 @@ export default function JewelryStudio() {
             <h3 className={`${isLight ? "mt-8 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.whatMaking")}</h3>
             <div className="mx-auto mt-3 grid max-w-md grid-cols-2 gap-3">
               <button onClick={() => setCategory("jewelry")} className={optBtn(category === "jewelry") + " !p-4 text-center"}>
-                <Gem className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
+                <Gem className="mx-auto mb-1 h-6 w-6 text-[#DDBB62]" />
                 <div className="font-bold">{t("jewelry.jewelry")}</div>
                 <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.jewelryBlurb")}</div>
               </button>
               <button onClick={() => setCategory("apparel")} className={optBtn(category === "apparel") + " !p-4 text-center"}>
-                <Shirt className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
+                <Shirt className="mx-auto mb-1 h-6 w-6 text-[#DDBB62]" />
                 <div className="font-bold">{t("jewelry.apparel")}</div>
                 <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.apparelBlurb")}</div>
               </button>
@@ -418,7 +418,7 @@ export default function JewelryStudio() {
         {/* ── STEP 2: DESIGN ── */}
         {step === 1 && catalog && (
           <div className={card}>
-            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-[#E3C566]"}`}>
               {t("jewelry.designTitle", { item: t(category === "jewelry" ? "jewelry.designPiece" : "jewelry.designGarment") })}
             </h2>
             <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
@@ -469,10 +469,10 @@ export default function JewelryStudio() {
                     </div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-4">
+                <div className="rounded-xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 p-4">
                   <label className="flex cursor-pointer items-center justify-between gap-3">
                     <div>
-                      <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-yellow-100"}`}>
+                      <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-[#F0D98C]"}`}>
                         <Nfc className="h-4 w-4" /> {t("jewelry.nfcTitle")}
                       </div>
                       <p className={`${isLight ? "mt-1 text-xs text-[#6B5B36]" : "mt-1 text-xs text-zinc-400"}`}>
@@ -483,7 +483,7 @@ export default function JewelryStudio() {
                       type="checkbox"
                       checked={jOpts.nfc}
                       onChange={(e) => setJOpts({ ...jOpts, nfc: e.target.checked })}
-                      className="h-6 w-6 accent-yellow-500"
+                      className="h-6 w-6 accent-[#C9A84C]"
                     />
                   </label>
                   {jOpts.nfc && (
@@ -571,13 +571,13 @@ export default function JewelryStudio() {
         {/* ── STEP 3: PREVIEW ── */}
         {step === 2 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.aiPreview")}</h2>
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.aiPreview")}</h2>
             <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.previewDesc", { cost: catalog?.previewCreditCost ?? 2 })}
             </p>
-            <div className="mx-auto mt-6 flex h-80 max-w-md items-center justify-center overflow-hidden rounded-2xl border border-yellow-500/25 bg-black/80">
+            <div className="mx-auto mt-6 flex h-80 max-w-md items-center justify-center overflow-hidden rounded-2xl border border-[#C9A84C]/25 bg-black/80">
               {previewBusy ? (
-                <div className="flex flex-col items-center gap-3 text-yellow-300">
+                <div className="flex flex-col items-center gap-3 text-[#E8CE7A]">
                   <Loader2 className="h-10 w-10 animate-spin" />
                   <span className="text-sm">{t("jewelry.casting")}</span>
                 </div>
@@ -585,7 +585,7 @@ export default function JewelryStudio() {
                 <img src={previewUrl} alt={t("jewelry.previewAlt")} className="h-full w-full object-cover" />
               ) : (
                 <div className={`${isLight ? "px-6 text-sm text-[#8A7A56]" : "px-6 text-sm text-zinc-500"}`}>
-                  {t("jewelry.previewCtaHit")} <span className="font-semibold text-yellow-300">{t("jewelry.generatePreview")}</span> {t("jewelry.previewCtaRest", { material: t(category === "jewelry" ? "jewelry.goldWord" : "jewelry.merchWord") })}
+                  {t("jewelry.previewCtaHit")} <span className="font-semibold text-[#E8CE7A]">{t("jewelry.generatePreview")}</span> {t("jewelry.previewCtaRest", { material: t(category === "jewelry" ? "jewelry.goldWord" : "jewelry.merchWord") })}
                 </div>
               )}
             </div>
@@ -609,12 +609,12 @@ export default function JewelryStudio() {
         {/* ── STEP 4: FILES ── */}
         {step === 3 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.mfgFile")}</h2>
+            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.mfgFile")}</h2>
             {category === "apparel" ? (
               <div className="mt-4 text-center">
-                <Info className="mx-auto h-8 w-8 text-yellow-500" />
+                <Info className="mx-auto h-8 w-8 text-[#C9A84C]" />
                 <p className={`${isLight ? "mt-3 text-sm text-[#2A1E07]" : "mt-3 text-sm text-zinc-300"}`}>
-                  {t("jewelry.apparelNoStl")} <span className={`${isLight ? "font-semibold text-[#7A5A12]" : "font-semibold text-yellow-200"}`}>{t("jewelry.apparelRender")}</span> {t("jewelry.apparelNoStlRest")}
+                  {t("jewelry.apparelNoStl")} <span className={`${isLight ? "font-semibold text-[#7A5A12]" : "font-semibold text-[#E3C566]"}`}>{t("jewelry.apparelRender")}</span> {t("jewelry.apparelNoStlRest")}
                 </p>
                 {previewUrl && (
                   <a href={previewUrl} download="logo-apparel-preview.png" className={`${goldBtn} mt-5`}>
@@ -633,8 +633,8 @@ export default function JewelryStudio() {
                     {stlBusy ? t("jewelry.buildingStl") : t("jewelry.exportStl", { cost: catalog?.stlCreditCost ?? 4 })}
                   </button>
                 ) : (
-                  <div className="mt-5 rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-5 text-left">
-                    <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-yellow-100"}`}>
+                  <div className="mt-5 rounded-xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 p-5 text-left">
+                    <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-[#F0D98C]"}`}>
                       <CheckCircle2 className="h-5 w-5 text-green-400" /> {t("jewelry.stlReady")}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
@@ -664,20 +664,20 @@ export default function JewelryStudio() {
         {/* ── STEP 5: ESTIMATE ── */}
         {step === 4 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.costTitle")}</h2>
+            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.costTitle")}</h2>
             <p className={`${isLight ? "mt-1 text-center text-sm text-[#6B5B36]" : "mt-1 text-center text-sm text-zinc-400"}`}>
               {t("jewelry.costHint")}
             </p>
             {estimateBusy && (
-              <div className="mt-6 flex items-center justify-center gap-2 text-yellow-300">
+              <div className="mt-6 flex items-center justify-center gap-2 text-[#E8CE7A]">
                 <Loader2 className="h-5 w-5 animate-spin" /> {t("jewelry.crunching")}
               </div>
             )}
             {estimate && !estimateBusy && (
               <div className="mt-5">
-                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-center">
+                <div className="rounded-xl border border-[#C9A84C]/30 bg-[#C9A84C]/10 p-5 text-center">
                   <div className={`${isLight ? "text-xs uppercase tracking-widest text-[#6B5B36]" : "text-xs uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.estimatedTotal")}</div>
-                  <div className="mt-1 text-3xl font-black text-yellow-300">
+                  <div className="mt-1 text-3xl font-black text-[#E8CE7A]">
                     {money(estimate.totalLowUSD)} – {money(estimate.totalHighUSD)}
                   </div>
                   <div className={`${isLight ? "mt-1 text-xs text-[#8A7A56]" : "mt-1 text-xs text-zinc-500"}`}>
@@ -690,7 +690,7 @@ export default function JewelryStudio() {
                     <div key={l.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="flex items-center justify-between text-sm">
                         <span className={`${isLight ? "font-semibold text-[#2A1E07]" : "font-semibold text-zinc-100"}`}>{l.label}</span>
-                        <span className="font-bold text-yellow-300">{money(l.lowUSD)} – {money(l.highUSD)}</span>
+                        <span className="font-bold text-[#E8CE7A]">{money(l.lowUSD)} – {money(l.highUSD)}</span>
                       </div>
                       <p className={`${isLight ? "mt-1 text-xs text-[#8A7A56]" : "mt-1 text-xs text-zinc-500"}`}>{l.note}</p>
                     </div>
@@ -710,7 +710,7 @@ export default function JewelryStudio() {
         {/* ── STEP 6: GET IT MADE ── */}
         {step === 5 && (
           <div className={card}>
-            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.getItMade")}</h2>
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.getItMade")}</h2>
             <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.getItMadeDesc")}
             </p>
@@ -727,23 +727,23 @@ export default function JewelryStudio() {
                     }));
                   } catch { /* storage unavailable */ }
                 }}
-                className="flex items-center justify-between gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 transition hover:bg-yellow-500/20"
+                className="flex items-center justify-between gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-4 transition hover:bg-[#C9A84C]/20"
               >
                 <div>
-                  <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-yellow-200"}`}>{t("jewelry.ratherUs")}</div>
+                  <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-[#E3C566]"}`}>{t("jewelry.ratherUs")}</div>
                   <p className={`${isLight ? "mt-0.5 text-xs text-[#6B5B36]" : "mt-0.5 text-xs text-zinc-400"}`}>
                     {t("jewelry.ratherUsDesc")}
                   </p>
                 </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-yellow-300" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-[#E8CE7A]" />
               </Link>
               {guide
                 .filter((s) =>
                   category === "jewelry" ? !s.title.includes("Apparel") : s.title.includes("Apparel"),
                 )
                 .map((s) => (
-                  <details key={s.title} className="group rounded-xl border border-white/10 bg-white/[0.03] open:border-yellow-500/30">
-                    <summary className={`${isLight ? "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-[#2A1E07]" : "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-yellow-100"}`}>
+                  <details key={s.title} className="group rounded-xl border border-white/10 bg-white/[0.03] open:border-[#C9A84C]/30">
+                    <summary className={`${isLight ? "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-[#2A1E07]" : "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-[#F0D98C]"}`}>
                       {s.title}
                       <ChevronRight className="h-4 w-4 shrink-0 transition group-open:rotate-90" />
                     </summary>
@@ -760,7 +760,7 @@ export default function JewelryStudio() {
             {category === "apparel" ? (
               <div className="text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
-                <h2 className={`${isLight ? "mt-3 text-xl font-bold text-[#7A5A12]" : "mt-3 text-xl font-bold text-yellow-200"}`}>{t("jewelry.doneTitle")}</h2>
+                <h2 className={`${isLight ? "mt-3 text-xl font-bold text-[#7A5A12]" : "mt-3 text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.doneTitle")}</h2>
                 <p className={`${isLight ? "mt-2 text-sm text-[#2A1E07]" : "mt-2 text-sm text-zinc-300"}`}>
                   {t("jewelry.doneDesc", { product: aOpts.product })}
                 </p>
@@ -770,7 +770,7 @@ export default function JewelryStudio() {
               </div>
             ) : (
               <div>
-                <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.nfcTitle")}</h2>
+                <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-[#E3C566]"}`}>{t("jewelry.nfcTitle")}</h2>
                 <p className={`${isLight ? "mt-1 text-center text-sm text-[#6B5B36]" : "mt-1 text-center text-sm text-zinc-400"}`}>
                   {t("jewelry.nfcSetupDesc", { verb: t(jOpts.nfc ? "jewelry.nfcHas" : "jewelry.nfcCanHave") })}
                 </p>
@@ -788,7 +788,7 @@ export default function JewelryStudio() {
                     { titleKey: "jewelry.nfcSeat", desc: t("jewelry.nfcSeatDesc") },
                   ].map((s, i) => (
                     <li key={s.titleKey} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-500/20 text-sm font-bold text-yellow-300">{i + 1}</span>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/20 text-sm font-bold text-[#E8CE7A]">{i + 1}</span>
                       <div>
                         <div className={`${isLight ? "text-sm font-semibold text-[#2A1E07]" : "text-sm font-semibold text-zinc-100"}`}>{t(s.titleKey)}</div>
                         <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>{s.desc}</p>
@@ -831,16 +831,16 @@ export default function JewelryStudio() {
       {/* Consultant floating button + drawer */}
       <button
         onClick={() => setConsultOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.5)] transition hover:scale-105"
+        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#DDBB62] to-amber-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.5)] transition hover:scale-105"
         title={t("jewelry.consultTitleAttr")}
       >
         <MessageCircle className="h-6 w-6" />
       </button>
       {consultOpen && (
-        <div className={`${isLight ? "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-[#C9A84C]/30 bg-[#FCF7EA] shadow-2xl" : "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-yellow-500/30 bg-zinc-950 shadow-2xl"}`}>
-          <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
+        <div className={`${isLight ? "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-[#C9A84C]/30 bg-[#FCF7EA] shadow-2xl" : "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-[#C9A84C]/30 bg-zinc-950 shadow-2xl"}`}>
+          <div className="flex items-center justify-between border-b border-[#C9A84C]/20 bg-[#C9A84C]/10 px-4 py-3">
             <div>
-              <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-yellow-200"}`}> {t("jewelry.consultName")}</div>
+              <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-[#E3C566]"}`}> {t("jewelry.consultName")}</div>
               <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
             </div>
             <button onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
@@ -854,14 +854,14 @@ export default function JewelryStudio() {
               </p>
             )}
             {consultMsgs.map((m, i) => (
-              <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role === "user" ? (isLight ? "ml-auto bg-yellow-500/20 text-[#7A5A12]" : "ml-auto bg-yellow-500/20 text-yellow-100") : (isLight ? "bg-[#C9A84C]/10 text-[#2A1E07]" : "bg-white/5 text-zinc-200")}`}>
+              <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role === "user" ? (isLight ? "ml-auto bg-[#C9A84C]/20 text-[#7A5A12]" : "ml-auto bg-[#C9A84C]/20 text-[#F0D98C]") : (isLight ? "bg-[#C9A84C]/10 text-[#2A1E07]" : "bg-white/5 text-zinc-200")}`}>
                 {m.content}
               </div>
             ))}
             {consultBusy && <div className={`${isLight ? "text-sm text-[#8A7A56]" : "text-sm text-zinc-500"}`}><Loader2 className="inline h-4 w-4 animate-spin" /> {t("jewelry.thinking")}</div>}
             <div ref={consultEndRef} />
           </div>
-          <div className="flex gap-2 border-t border-yellow-500/20 p-3">
+          <div className="flex gap-2 border-t border-[#C9A84C]/20 p-3">
             <input
               value={consultInput}
               onChange={(e) => setConsultInput(e.target.value)}
@@ -869,7 +869,7 @@ export default function JewelryStudio() {
               placeholder={t("jewelry.consultPlaceholder")}
               className="flex-1 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-zinc-600"
             />
-            <button onClick={sendConsult} disabled={consultBusy || !consultInput.trim()} className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-black disabled:opacity-50">
+            <button onClick={sendConsult} disabled={consultBusy || !consultInput.trim()} className="rounded-lg bg-[#C9A84C] px-4 py-2 text-sm font-bold text-black disabled:opacity-50">
               {t("jewelry.send")}
             </button>
           </div>
