@@ -1,11 +1,27 @@
 # Bow Down Visuals
 
-> AI-powered creative studio for music artists, producers, directors, and labels. Generate song lyrics, music video treatments, promo content, and thumbnails in seconds.
+> The AI content-creation studio for all creators — YouTubers, streamers, TikTokers, podcasters, and musicians. Make songs, music videos, promo clips, thumbnails, branding, and business assets in one connected workflow (Create → Brand → Promote → Get Paid), paid for in Visual Bucs credits. Home of Thy Cheat Code, the King Shark host.
 
 ## Public Pages
 
-- [Home](/): Overview of Bow Down Visuals, how it works, available tools, and pricing.
-- [Pricing](/pricing): Credit packs and pricing for AI generation tools.
-- [Waitlist](/waitlist): Join the waitlist for early access to Pro and Label plans.
+- [Home](/): Overview of Bow Down Visuals, how it works, the studios, and pricing.
+- [Pricing](/pricing): Visual Bucs credit packs ($9–$249) and what each unlocks.
+- [Features](/features): Every AI studio and tool, in one searchable list.
+- [Explore](/explore): Trending shorts, rising creators, hot posts, events, and groups.
+- [Winners' Circle](/winners): Challenge champions and the hall of fame.
+- [Charts](/charts): The hottest tracks, videos, and creators right now.
+- [Browse](/browse): Browse what creators are making.
+- [Genres](/genres): Genre hubs with real facts (BPM, origins, signature sounds) and the AI pipeline for each sound.
+- [Academy](/academy): Creator Academy — guides, copyright, LLC, and community playbooks.
+- [Monetization Coach](/coach): The Money Room coach — turn content into income, step by step.
+- [Tools](/tools): Standalone AI tool pages (song maker, thumbnail maker, hook generator, caption generator, clip maker, music video maker).
+- [Templates](/templates): Template galleries for videos, thumbnails, hooks, and captions.
+- [Showcase](/showcase): Work made with Bow Down Visuals.
+- [Download](/download): Get the Android app and the Chrome extension.
+- [Extension](/extension): Thy Cheat Code browser extension — the whole studio in one popup.
+- [Waitlist](/waitlist): Join the waitlist for early access.
 - [Beta Access](/beta-access): Request access to the current beta program.
 - [Contact](/contact): Contact and support information.
+- [Terms](/terms): Terms of service.
+- [Privacy](/privacy): Privacy policy.
+- [Refund Policy](/refund-policy): Refund policy.
