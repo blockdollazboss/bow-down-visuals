@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -48,6 +49,7 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:pointer-events-none";
 
 export default function MyShop() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
@@ -545,7 +547,7 @@ export default function MyShop() {
                   </div>
 
                   {showProductForm && (
-                    <div className="mt-4 rounded-xl border border-amber-400/25 bg-black/40 p-5">
+                    <div className={`mt-4 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40" : "border-amber-400/25 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm">{editingProduct ? t("myShop.editProduct") : t("myShop.newProduct")}</h3>
                         <button className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
@@ -616,7 +618,7 @@ export default function MyShop() {
                   ) : (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {products.map((p) => (
-                        <div key={p.id} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
+                        <div key={p.id} className={`flex gap-3 rounded-xl border p-3 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                           {p.image_url ? (
                             <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-white/10 shrink-0" />
                           ) : (
@@ -668,6 +670,7 @@ function DomainManager({
   onUpdate: (s: Shop) => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [domain, setDomain] = useState(shop.custom_domain ?? "");
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -723,7 +726,7 @@ function DomainManager({
   }
 
   return (
-    <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-5">
+    <div className={`mt-6 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
       <div className="flex items-center gap-2">
         <Globe className="w-5 h-5 text-amber-300" />
         <div className="text-sm font-bold">{t("myShop.customDomain")}</div>
@@ -762,7 +765,7 @@ function DomainManager({
           <p className="font-mono text-xs text-white/70">
             {t("myShop.txtRecordPrefix")} <span className="text-amber-300">bdv-verify.{shop.custom_domain}</span>:
           </p>
-          <div className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-black/60 p-3">
+          <div className={`flex items-start justify-between gap-2 rounded-lg border p-3 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/60"}`}>
             <code className="break-all font-mono text-xs text-amber-300">{token ?? "••••••••"}</code>
             {token && (
               <button onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title={t("myShop.copyToken")}>
@@ -801,6 +804,7 @@ function AnalyticsCard({
   authed: (path: string, init?: RequestInit) => Promise<Response>;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [data, setData] = useState<{
     totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number };
     dailyViews: Array<{ day: string; views: number }>;
@@ -841,7 +845,7 @@ function AnalyticsCard({
               { label: t("myShop.statGross"), value: centsToDisplay(data.totals.gross_cents) },
               { label: t("myShop.statYouKeep"), value: centsToDisplay(data.totals.seller_net_cents), gold: true },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-white/10 bg-black/40 p-4">
+              <div key={s.label} className={`rounded-xl border p-4 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                 <div className={`text-xl font-black ${s.gold ? "text-amber-300" : ""}`}>{s.value}</div>
                 <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{s.label}</div>
               </div>
@@ -873,7 +877,7 @@ function AnalyticsCard({
             ) : (
               <div className="mt-2 space-y-2">
                 {data.sales.slice(0, 10).map((sale) => (
-                  <div key={sale.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm">
+                  <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                     <div className="min-w-0">
                       <div className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</div>
                       <div className="text-[11px] text-white/40">
