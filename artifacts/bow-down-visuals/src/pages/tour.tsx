@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -59,6 +60,7 @@ interface ApiError {
 }
 
 export default function Tour() {
+  const isLight = useIsLightTheme();
   usePageTitle("Tour Planner", "Plan your tour dates, cities, and routing.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -305,7 +307,7 @@ export default function Tour() {
         {/* ── composer ─────────────────────────────────────────────── */}
         <div
           id="tour-composer"
-          className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"
+          className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}
         >
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
@@ -474,7 +476,7 @@ export default function Tour() {
         </div>
 
         {/* ── optimizer ────────────────────────────────────────────── */}
-        <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Route className="h-5 w-5" aria-hidden="true" />
@@ -570,7 +572,7 @@ export default function Tour() {
         {plan && (
           <div id="tour-plan" className="relative mt-8 space-y-8">
             {/* routing */}
-            <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+            <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold">
                   <Route className="h-5 w-5 text-primary" aria-hidden="true" />{t("tour.routeTitle")}</h2>
@@ -617,7 +619,7 @@ export default function Tour() {
             </div>
 
             {/* budget */}
-            <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+            <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Wallet className="h-5 w-5 text-primary" aria-hidden="true" />{t("tour.budgetTitle")}</h2>
               <p className="mt-1 text-sm text-white/45">{t("tour.budgetSub")}</p>
