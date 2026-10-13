@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -56,6 +57,7 @@ const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", 
 const FALLBACK_CREDIT_COST = 1;
 
 export function StreamPackTool() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -266,7 +268,7 @@ export function StreamPackTool() {
                   onClick={() => setThemeId(theme.id)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     themeId === theme.id
-                      ? "border-primary/60 bg-primary/[0.08]"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
@@ -317,7 +319,7 @@ export function StreamPackTool() {
                             key={a.key}
                             className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition ${
                               selected.has(a.key)
-                                ? "border-primary/40 bg-primary/[0.06]"
+                                ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                                 : "border-white/[0.06] opacity-50"
                             }`}
                           >
