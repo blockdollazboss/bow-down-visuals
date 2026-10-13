@@ -56,6 +56,7 @@ export default function LinkToHitPanel() {
   const [description, setDescription] = useState("");
   const [hasUpload, setHasUpload] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [commentInput, setCommentInput] = useState("");
   const [comments, setComments] = useState<string[]>([]);
   const [genre, setGenre] = useState("Comedy Pop");
@@ -77,10 +78,20 @@ export default function LinkToHitPanel() {
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) {
-      setHasUpload(true);
-      setFileName(f.name);
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("video/")) {
+      setError("That file isn't a video — choose a video file.");
+      return;
     }
+    if (f.size > 80 * 1024 * 1024) {
+      setError("That video is over 80 MB — trim it or pick a smaller file.");
+      return;
+    }
+    setError(null);
+    setUploadFile(f);
+    setHasUpload(true);
+    setFileName(f.name);
   }
 
   async function generate() {
@@ -90,6 +101,24 @@ export default function LinkToHitPanel() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
+      // The picked file REALLY uploads (it used to go nowhere — the
+      // analysis ran on the filename alone). Hosted via /api/upload-clip,
+      // its URL rides along with the analyze request.
+      let effectiveUrl = url.trim();
+      if (uploadFile) {
+        const form = new FormData();
+        form.append("clip", uploadFile, uploadFile.name);
+        const upRes = await fetch("/api/upload-clip", {
+          method: "POST",
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: form,
+        });
+        const upData = (await upRes.json().catch(() => ({}))) as { url?: string; message?: string; error?: string };
+        if (!upRes.ok || !upData.url) {
+          throw new Error(upData.message || upData.error || "Video upload failed — try again.");
+        }
+        effectiveUrl = upData.url;
+      }
       const res = await confirmedFetch("/api/link-to-hit/analyze", {
         method: "POST",
         headers: {
@@ -99,7 +128,7 @@ export default function LinkToHitPanel() {
         overrideCost: COST,
         overrideFeature: "Link-to-Hit",
         body: JSON.stringify({
-          url: url.trim(),
+          url: effectiveUrl,
           description: description.trim() || (hasUpload ? `Uploaded video: ${fileName}` : ""),
           comments,
           genre: finalGenre,
