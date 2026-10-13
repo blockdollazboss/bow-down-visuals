@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   Scale, Sparkles, Loader2, Send, CheckCircle2, Circle, ChevronDown,
   DollarSign, MapPin, FileText, Landmark, Wallet, BookOpen,
@@ -63,6 +64,8 @@ function SectionLabel({ icon: Icon, children }: { icon: typeof Scale; children: 
 }
 
 export default function LlcGuide() {
+  const isLight = useIsLightTheme();
+  const sectionCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/10 bg-white/[0.02]";
   const { t } = useTranslation();
   usePageTitle(t("llcGuide.pageTitle"), t("llcGuide.pageDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -528,7 +531,7 @@ export default function LlcGuide() {
         </section>
 
         {/* ── Free: interactive checklist ──────────────────────────── */}
-        <section className="relative mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <section className={`relative mt-8 rounded-3xl border p-6 md:p-8 ${sectionCls}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <SectionLabel icon={CheckCircle2}>{t("llcGuide.checklistLabel")}</SectionLabel>
@@ -588,7 +591,7 @@ export default function LlcGuide() {
         </section>
 
         {/* ── Free: state fee explorer + cost estimator ─────────────── */}
-        <section className="relative mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <section className={`relative mt-8 rounded-3xl border p-6 md:p-8 ${sectionCls}`}>
           <SectionLabel icon={MapPin}>{t("llcGuide.feesLabel")}</SectionLabel>
           <h2 className="text-2xl font-black tracking-tight">{t("llcGuide.feesTitleStart")}<span className="text-primary">{t("llcGuide.feesTitleEnd")}</span></h2>
           <p className="mt-2 text-sm text-white/55">
@@ -635,7 +638,7 @@ export default function LlcGuide() {
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{t("llcGuide.statEin")}</p>
-                  <p className="font-display mt-1 text-xl font-black text-emerald-400">{t("llcGuide.freeStat")}</p>
+                  <p className={`font-display mt-1 text-xl font-black ${isLight ? "text-emerald-600" : "text-emerald-400"}`}>{t("llcGuide.freeStat")}</p>
                 </div>
                 <div className="rounded-xl border border-primary/40 bg-primary/10 p-3.5 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70">{t("llcGuide.statYearOne")}</p>
@@ -698,7 +701,7 @@ export default function LlcGuide() {
         </section>
 
         {/* ── Free: FAQ ────────────────────────────────────────────── */}
-        <section className="relative mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <section className={`relative mt-8 rounded-3xl border p-6 md:p-8 ${sectionCls}`}>
           <SectionLabel icon={BookOpen}>{t("llcGuide.faqLabel")}</SectionLabel>
           <h2 className="text-2xl font-black tracking-tight">{t("llcGuide.faqTitleStart")}<span className="text-primary">{t("llcGuide.faqTitleEnd")}</span></h2>
           <div className="mt-5 grid gap-2.5">
