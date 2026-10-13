@@ -348,7 +348,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
           <button
             onClick={alignLyrics}
             disabled={aligning || !user}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+            className={`mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition disabled:cursor-not-allowed ${!user && !aligning ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {aligning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {aligning ? t("lyricVideo.listening") : t("lyricVideo.alignLyrics", { credits: ALIGN_CREDITS })}
@@ -497,7 +497,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
             <button
               onClick={renderVideo}
               disabled={rendering || !user}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition disabled:cursor-not-allowed ${!user && !rendering ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
             >
               {rendering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               {rendering ? t("lyricVideo.rendering") : t("lyricVideo.renderButton", { credits: RENDER_CREDITS })}
