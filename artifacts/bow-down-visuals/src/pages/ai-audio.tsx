@@ -75,6 +75,7 @@ interface GeneratedBeat {
 }
 
 function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -228,7 +229,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         <Button
           onClick={generate}
           disabled={generating || !vibe.trim()}
-          className="w-full h-12 rounded-xl bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-50"
+          className={`w-full h-12 rounded-xl font-bold disabled:cursor-not-allowed ${!vibe.trim() && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:bg-primary/90"}`}
         >
           {generating ? (
             <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t("beatMaker.cookingButton")}</>
@@ -1273,6 +1274,7 @@ interface Sample {
 }
 
 function SamplesPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -1571,7 +1573,7 @@ function SamplesPanel() {
           <button
             onClick={generate}
             disabled={generating || !user}
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black hover:brightness-110 disabled:opacity-50"
+            className={`mt-7 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold disabled:cursor-not-allowed ${!user && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AudioWaveform className="h-4 w-4" />}
             {generating ? t("samples.cooking") : t("samples.generate", { cost })}

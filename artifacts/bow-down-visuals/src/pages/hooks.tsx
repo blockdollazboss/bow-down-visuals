@@ -447,7 +447,7 @@ function TitlesTab() {
  type="button"
  onClick={generate}
  disabled={loading || !user || !topic.trim()}
- className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+ className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${(!user || !topic.trim()) && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
  >
  {loading ? (
  <>
@@ -1581,7 +1581,7 @@ export default function HookStudio() {
  <button
  onClick={generateCaptions}
  disabled={capLoading || !capTopic.trim()}
- className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+ className={`mt-8 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!capTopic.trim() && !capLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
  >
  {capLoading ? (
  <><Loader2 className="h-5 w-5 animate-spin" /> {t("hooks.writing")}</>
@@ -1744,7 +1744,7 @@ export default function HookStudio() {
  <button
  onClick={generateCtas}
  disabled={ctaLoading || !ctaTopic.trim()}
- className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+ className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${!ctaTopic.trim() && !ctaLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
  >
  {ctaLoading ? (
  <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
