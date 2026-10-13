@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Loader2, Download, PartyPopper, ReceiptText, Music2, Share2, User, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /store/success — the "you just got paid" moment (buyer edition) ─────
    Verifies the Stripe session server-side, records the sale idempotently,
@@ -28,6 +29,7 @@ interface VerifyResult {
 }
 
 export default function StoreSuccess() {
+  usePageTitle("Order Confirmed");
   const { getAccessToken } = useAuth();
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [result, setResult] = useState<VerifyResult | null>(null);

@@ -7,6 +7,7 @@ import {
   goldInput, goldButton, ghostButton,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /events — upcoming streams, drops, premieres ─────────────────────────
    Public list. Creators can host (never gated). Money path: ticket links
@@ -26,6 +27,7 @@ interface EventItem {
 }
 
 export default function Events() {
+  usePageTitle("Events", "Streams, drops, and premieres — RSVP free.");
   const api = useCommunityApi();
   const { user } = useAuth();
   const [events, setEvents] = useState<EventItem[]>([]);

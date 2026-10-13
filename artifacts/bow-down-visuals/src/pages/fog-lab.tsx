@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FogSprites } from "@/components/fog-lab/FogSprites";
 import { FogCanvas } from "@/components/fog-lab/FogCanvas";
 import { FogSettled } from "@/components/SettledFog";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─────────── /fog-lab — hero fog comparison lab ─────────── */
@@ -58,6 +59,7 @@ function StageBackdrop() {
 }
 
 export default function FogLab() {
+  usePageTitle("Fog Lab");
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("settled");
 

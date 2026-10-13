@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── AI Interview Prep ───────────────────────────────────────────────────
    Media training with AI. Pick an interview type, describe the artist, and
@@ -93,6 +94,7 @@ function scoreBarColor(score: number): string {
 }
 
 export default function InterviewPrep() {
+  usePageTitle("Interview Prep");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 

@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* Mobile page opened by scanning a QR login code.
    Logged-in user confirms to sign in the desktop session. */
 export default function QRLoginApprove() {
+  usePageTitle("QR Sign-In");
   const [, setLocation] = useLocation();
   const { user, getAccessToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);

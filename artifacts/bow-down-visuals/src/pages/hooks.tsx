@@ -31,6 +31,7 @@ import {
  tagsCopyString,
 } from "@/lib/title-studio";
 import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
  Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -968,6 +969,7 @@ function RandomizerDice() {
 }
 
 export default function HookStudio() {
+  usePageTitle("Hook Studio");
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();

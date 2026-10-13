@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Brand Deal Calculator ─────────────────────────────────────────────
    Know what to charge brands: AI-calculated fair rate ranges, per-post
@@ -99,6 +100,7 @@ function fmtRange(low: number, high: number): string {
 }
 
 export default function BrandDealCalculator() {
+  usePageTitle("Brand Deal Calculator");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 

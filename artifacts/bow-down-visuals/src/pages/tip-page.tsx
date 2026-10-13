@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useRoute, Link } from "wouter";
 import {
   HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft,
@@ -30,6 +31,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function TipPage() {
+  usePageTitle("Tips");
   const { t } = useTranslation();
   const [, params] = useRoute("/tips/:handle");
   const handle = (params?.handle ?? "").toLowerCase();

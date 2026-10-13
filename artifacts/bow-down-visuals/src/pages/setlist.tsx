@@ -23,6 +23,7 @@ import {
   type SetSong,
   type FlowOrderItem,
 } from "@/lib/setlist";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Setlist Builder ───────────────────────────────────────
    Plan a live show: pull songs from the user's library or add them manually,
@@ -51,6 +52,7 @@ interface FlowResponse {
 }
 
 export default function SetlistBuilder() {
+  usePageTitle("Setlist Builder");
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
 

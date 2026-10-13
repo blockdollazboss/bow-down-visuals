@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBucs } from "@/lib/visual-bucs";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
    /shorts — vertical full-screen snap feed. Every element is tappable to
@@ -71,6 +72,7 @@ async function apiGet(path: string) {
 }
 
 export default function ShortsFeed() {
+  usePageTitle("Shorts");
   const search = useSearch();
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();

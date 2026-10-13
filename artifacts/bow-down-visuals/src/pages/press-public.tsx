@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Link, useParams } from "wouter";
 import { Loader2, MapPin, Mail, Globe, ExternalLink, Music2, Quote, Trophy, Camera, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,7 @@ interface PressKit {
 }
 
 export default function PublicPressKit() {
+  usePageTitle("Press Kit");
   const params = useParams<{ handle: string }>();
   const handle = params.handle ?? "";
   const { t } = useTranslation();

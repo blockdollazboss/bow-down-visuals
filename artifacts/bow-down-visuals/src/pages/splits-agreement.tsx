@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { Users, Loader2, AlertTriangle, FileText, CalendarDays } from "lucide-react";
 import { roleLabel } from "@/lib/distribution";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Public split agreement page (/splits/:slug) ────────────────────────────
    No auth required — this page is shared with collaborators so everyone can
@@ -30,6 +31,7 @@ export default function SplitsAgreement() {
   const slug = params?.slug ?? "";
 
   const [data, setData] = useState<AgreementData | null>(null);
+  usePageTitle(data?.title ?? "Splits Agreement");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

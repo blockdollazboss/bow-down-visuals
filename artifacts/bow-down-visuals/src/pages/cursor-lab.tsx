@@ -3,6 +3,7 @@ import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from 
 import { useTranslation } from "react-i18next";
 import { useCursorPalette } from "@/components/CustomCursor";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Cursor Settings ───
    Permanent page where visitors choose their cursor.
@@ -184,6 +185,7 @@ function CursorPreview({ id }: { id: CursorId }) {
 }
 
 export default function CursorLab() {
+  usePageTitle("Cursor Lab");
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [clicks, setClicks] = useState({ gold: 0, ghost: 0, link: 0 });

@@ -22,6 +22,7 @@ import {
   buildPromoChecklist,
 } from "@/lib/tour";
 import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ interface ApiError {
 }
 
 export default function Tour() {
+  usePageTitle("Tour Planner");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [dates, setDates] = useState<TourDate[]>([]);

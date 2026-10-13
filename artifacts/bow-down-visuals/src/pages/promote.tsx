@@ -11,6 +11,7 @@ import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
    Pick a feature, pick a format and tone, and get ready-to-post marketing
@@ -102,6 +103,7 @@ function ResultBlock({ label, text }: { label: string; text: string }) {
 }
 
 export default function Promote() {
+  usePageTitle("Promote");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<"copy" | "bio">("copy");

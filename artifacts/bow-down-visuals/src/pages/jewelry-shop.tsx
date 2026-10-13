@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatMoney,
 } from "@/lib/jewelry";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Custom Jewelry Shop ───────────────────────────────────────────────
    Made-to-order branded jewelry (dropship).
@@ -32,6 +33,7 @@ interface JewelryOrder {
 }
 
 export default function JewelryShop() {
+  usePageTitle("Jewelry Shop");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

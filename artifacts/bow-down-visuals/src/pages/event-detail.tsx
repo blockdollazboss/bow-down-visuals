@@ -7,6 +7,7 @@ import {
   goldButton, ghostButton,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /events/:id — event detail ────────────────────────────────────────────
    RSVP (never gated), live countdown, .ics add-to-calendar, host profile
@@ -51,6 +52,7 @@ export default function EventDetailPage() {
   const api = useCommunityApi();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventDetail | null>(null);
+  usePageTitle(event?.title ?? "Event");
   const [host, setHost] = useState<Host | null>(null);
   const [rsvped, setRsvped] = useState(false);
   const [hostIsViewer, setHostIsViewer] = useState(false);

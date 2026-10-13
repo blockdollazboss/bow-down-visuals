@@ -9,6 +9,7 @@ import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
   type CartLine,
 } from "@/lib/shops";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
@@ -43,6 +44,7 @@ export default function ShopStorefront() {
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
+  usePageTitle(shop?.name ?? "Shop");
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);

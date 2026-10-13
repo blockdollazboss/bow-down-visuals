@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useRoute } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Mail, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -17,6 +18,7 @@ interface JoinList {
 }
 
 export default function JoinList() {
+  usePageTitle("Join");
   const { t } = useTranslation();
   const [, params] = useRoute("/join/:handle");
   const handle = params?.handle ?? "";

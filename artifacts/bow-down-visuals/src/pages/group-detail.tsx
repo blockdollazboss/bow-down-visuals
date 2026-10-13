@@ -7,6 +7,7 @@ import {
   goldInput, goldButton, ghostButton,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /groups/:slug — group detail ─────────────────────────────────────────
    About / feed / members. Join & chat never gated (1 star). Moderation tools
@@ -30,6 +31,7 @@ export default function GroupDetail() {
   const api = useCommunityApi();
   const { user } = useAuth();
   const [group, setGroup] = useState<GroupDetail | null>(null);
+  usePageTitle(group?.name ?? "Group");
   const [ownerProfile, setOwnerProfile] = useState<{ slug: string; displayName: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);

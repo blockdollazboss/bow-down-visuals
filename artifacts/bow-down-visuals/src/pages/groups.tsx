@@ -7,6 +7,7 @@ import {
   goldInput, goldButton, ghostButton,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /groups — browse creator crews ──────────────────────────────────────
    Public grid. Signed-in users can start a group (never gated — 1 star).
@@ -18,6 +19,7 @@ interface Group {
 }
 
 export default function Groups() {
+  usePageTitle("Groups", "Crews and communities on Bow Down Visuals.");
   const api = useCommunityApi();
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);

@@ -7,6 +7,7 @@ import {
   PartyPopper, Copy, Check, BellRing,
 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
    HyperFollow-level: no auth required — this page is meant to be shared
@@ -64,6 +65,7 @@ export default function PresaveLanding() {
   const slug = params?.slug ?? "";
 
   const [data, setData] = useState<PresaveRelease | null>(null);
+  usePageTitle(data?.title ? `${data.title} — Presave` : "Presave");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

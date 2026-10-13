@@ -5,6 +5,7 @@ import {
   BadgeCheck, Link2Off,
 } from "lucide-react";
 import { downloadVCard, type NfcProfile } from "@/lib/nfc-cards";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── Public digital business card ──────────────────────────────────────
@@ -13,6 +14,7 @@ import { useTranslation } from "react-i18next";
    sees when they tap the physical card or scan the QR. */
 
 export default function NfcCardProfile() {
+  usePageTitle("Creator Card");
   const { t } = useTranslation();
   const params = useParams<{ slug: string }>();
   const [profile, setProfile] = useState<NfcProfile | null>(null);
