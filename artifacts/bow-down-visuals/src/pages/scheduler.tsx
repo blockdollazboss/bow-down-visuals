@@ -1729,6 +1729,10 @@ function ComposerModal(props: {
       setError(t("scheduler.error.videoOnly"));
       return;
     }
+    if (file.size > 80 * 1024 * 1024) {
+      setError(t("scheduler.error.videoTooLarge", { defaultValue: "That video is over 80 MB — trim it or pick a smaller file." }));
+      return;
+    }
     setError(null);
     setUploading(true);
     try {

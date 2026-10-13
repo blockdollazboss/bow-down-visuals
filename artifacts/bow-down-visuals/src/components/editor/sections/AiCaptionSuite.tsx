@@ -688,7 +688,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e) => { setFile(e.target.files?.[0] ?? null); setVideoUrl(null); }}
+                onChange={(e) => { const f = e.target.files?.[0] ?? null; if (f && f.size > 80 * 1024 * 1024) { setGenError("That video is over 80 MB — trim it or pick a smaller file."); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }}
               />
               <button
                 type="button"
@@ -697,7 +697,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                 onDrop={(e) => {
                   e.preventDefault();
                   const f = e.dataTransfer.files?.[0];
-                  if (f && f.type.startsWith("video/")) { setFile(f); setVideoUrl(null); }
+                  if (f && f.type.startsWith("video/")) { if (f.size > 80 * 1024 * 1024) { setGenError("That video is over 80 MB — trim it or pick a smaller file."); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }
                 }}
                 className="w-full rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center hover:border-[#E8C468]/50 transition-colors"
               >

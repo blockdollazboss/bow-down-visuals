@@ -770,6 +770,10 @@ export function TimelineDock({
     const sceneId = replaceTargetId;
     setReplaceTargetId(null);
     if (!file || !sceneId || !onReplaceClipVideo) return;
+    if (file.size > 80 * 1024 * 1024) {
+      toast({ title: "That clip is over 80 MB — trim it or pick a smaller file.", variant: "destructive" });
+      return;
+    }
     try {
       toast({ title: "Uploading replacement clip…" });
       let token: string | null = null;

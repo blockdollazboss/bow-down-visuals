@@ -387,6 +387,11 @@ export function ClipGeneratorSection({
     const file = e.target.files?.[0];
     if (!file) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (file.size > 80 * 1024 * 1024) {
+      setUploadError("That clip is over 80 MB — trim it or pick a smaller file.");
+      setUploadStatus("error");
+      return;
+    }
 
     /* The clip attaches to the selected scene in place — it never creates a
        new scene, so timing, captions and effects are untouched. */

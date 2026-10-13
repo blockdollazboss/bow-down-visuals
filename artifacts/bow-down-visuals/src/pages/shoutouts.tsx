@@ -278,6 +278,10 @@ export default function Shoutouts() {
      attached; if the request is already in progress it's marked delivered
      in the same step. */
   async function uploadDeliveryVideo(id: string, currentStatus: string, file: File) {
+    if (file.size > 80 * 1024 * 1024) {
+      setUploadError((e) => ({ ...e, [id]: t("shoutouts.errorUploadTooLarge", { defaultValue: "That video is over 80 MB — trim it or pick a smaller file." }) }));
+      return;
+    }
     setUploading((u) => ({ ...u, [id]: true }));
     setUploadError((e) => ({ ...e, [id]: "" }));
     try {
