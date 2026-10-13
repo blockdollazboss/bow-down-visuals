@@ -70,6 +70,17 @@ type SceneLike = Record<string, unknown>;
  * Returns a new scenes array with recovered `demoClipUrl` values rewritten
  * to Supabase storage refs. Scenes that cannot be recovered are unchanged.
  */
+/** True when any scene is missing a clip or carries an expired legacy GCS URL. */
+export function scenesNeedClipRecovery(scenes: SceneLike[]): boolean {
+  return scenes.some(
+    (s) =>
+      typeof s["demoClipUrl"] !== "string" ||
+      !s["demoClipUrl"] ||
+      (isLegacyGcsUrl(s["demoClipUrl"] as string) &&
+        isExpiredGcsUrl(s["demoClipUrl"] as string)),
+  );
+}
+
 export async function recoverExpiredClipsViaReplit(
   accessToken: string,
   projectId: string,

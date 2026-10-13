@@ -6,11 +6,46 @@ import { refundCredits } from "../lib/credits";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
+import { recoverExpiredClipsViaReplit, scenesNeedClipRecovery } from "../lib/clipRecovery";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 /* TEMPORARY (2026-09-22): clip recovery via Replit backend — REMOVE AFTER USE */
-import { recoverExpiredClipsViaReplit } from "../lib/clipRecovery";
-
 const router = Router();
+
+/* One-time heal for legacy projects (built 2026-10-13, owner report: the
+   June 23 project's character clips show as missing): scenes whose clips were
+   Replit-GCS URLs lost them when those signed URLs expired on 2026-07-14, and
+   the recovery helper built for exactly this was never wired in. On read, if
+   any scene needs recovery, fetch fresh URLs via the Replit backend, re-host
+   the clips in Supabase Storage, persist the healed scenes, and return them
+   re-signed. Best-effort: any failure returns the project unchanged. */
+async function healProjectClips(
+  req: { accessToken?: string; userId?: string; userSupabase?: any },
+  project: { id: string; output_data: any },
+): Promise<any> {
+  try {
+    const output = project.output_data;
+    const scenes = output?.scenes;
+    if (!req.accessToken || !Array.isArray(scenes) || scenes.length === 0) return output;
+    if (!scenesNeedClipRecovery(scenes)) return output;
+    const healed = await recoverExpiredClipsViaReplit(req.accessToken, project.id, scenes);
+    if (healed === scenes) return output;
+    const healedOutput = { ...output, scenes: healed };
+    const { error } = await req.userSupabase
+      .from("projects")
+      .update({ output_data: healedOutput })
+      .eq("id", project.id)
+      .eq("user_id", req.userId);
+    if (error) {
+      console.error(`[clipRecovery] persist failed for project ${project.id}: ${error.message}`);
+      return output;
+    }
+    console.log(`[clipRecovery] healed legacy clips for project ${project.id}`);
+    return await refreshSupabaseStorageUrlsDeep(healedOutput);
+  } catch (err) {
+    console.error(`[clipRecovery] heal attempt failed for project ${project.id}:`, err);
+    return project.output_data;
+  }
+}
 
 const SaveProjectSchema = z.object({
   projectType:  z.string().min(1),
@@ -93,10 +128,11 @@ router.get("/projects", requireAuth, async (req, res) => {
 
   /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
   const refreshedProjects = await Promise.all(
-    (projects ?? []).map(async (project) => ({
-      ...project,
-      output_data: await refreshSupabaseStorageUrlsDeep(project.output_data),
-    })),
+    (projects ?? []).map(async (project) => {
+      const refreshed = await refreshSupabaseStorageUrlsDeep(project.output_data);
+      const healed = await healProjectClips(req as any, { id: project.id, output_data: project.output_data });
+      return { ...project, output_data: healed !== project.output_data ? healed : refreshed };
+    }),
   );
 
   res.json({ projects: refreshedProjects });
@@ -119,6 +155,7 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
 
   /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
   project.output_data = await refreshSupabaseStorageUrlsDeep(project.output_data);
+  project.output_data = await healProjectClips(req as any, project);
 
   res.json({ project });
 });
