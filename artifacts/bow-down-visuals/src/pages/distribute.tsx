@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Disc3, Sparkles, Loader2, Plus, Trash2, Rocket, CheckCircle2,
@@ -279,6 +280,7 @@ function NewReleaseWizard(props: {
   refreshProfile: () => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const { pricing, authFetch, onDone, onError, onOutOfCredits, refreshProfile } = props;
   const { project } = useHubProject();
 
@@ -515,7 +517,7 @@ function NewReleaseWizard(props: {
           "{done.release.title}" is queued for delivery. Track every platform below.
         </p>
         {done.notice && (
-          <p className="mx-auto mt-4 max-w-md rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/70">
+          <p className={`mx-auto mt-4 max-w-md rounded-2xl border p-4 text-sm ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36]" : "border-white/10 bg-black/40 text-white/70"}`}>
             {done.notice}
           </p>
         )}
@@ -575,7 +577,7 @@ function NewReleaseWizard(props: {
           {songsLoading ? (
             <p className="py-6 text-center text-sm text-white/40"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></p>
           ) : songs.length === 0 ? (
-            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/40">{t("distribute.no_songs_in_your_library_yet_gen")}</p>
+            <p className={`rounded-2xl border p-4 text-sm ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>{t("distribute.no_songs_in_your_library_yet_gen")}</p>
           ) : (
             <ul className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {songs.map((s) => (
@@ -583,7 +585,7 @@ function NewReleaseWizard(props: {
                   <button
                     onClick={() => selectSong(songId === s.id ? null : s)}
                     className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                      songId === s.id ? "border-primary/60 bg-primary/[0.08]" : "border-white/10 bg-black/40 hover:border-white/25"
+                      songId === s.id ? "border-primary/60 bg-primary/[0.08]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                     }`}
                   >
                     <Disc3 className={`h-7 w-7 shrink-0 ${songId === s.id ? "text-primary" : "text-white/30"}`} />
@@ -639,7 +641,7 @@ function NewReleaseWizard(props: {
                   key={tc.type}
                   onClick={() => setReleaseType(tc.type as DistributionTier)}
                   className={`rounded-2xl border p-4 text-left transition ${
-                    releaseType === tc.type ? "border-primary/60 bg-primary/[0.08]" : "border-white/10 bg-black/40 hover:border-white/25"
+                    releaseType === tc.type ? "border-primary/60 bg-primary/[0.08]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                   }`}
                 >
                   <p className="flex items-center justify-between text-sm font-black">
@@ -705,7 +707,7 @@ function NewReleaseWizard(props: {
             <div className="space-y-2">
               {tracks.map((tr, i) => (
                 <div key={i} className="flex gap-2">
-                  <span className="flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/40 text-xs font-bold text-white/40">
+                  <span className={`flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>
                     {i + 1}
                   </span>
                   <input
@@ -764,7 +766,7 @@ function NewReleaseWizard(props: {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-primary/25 bg-black/40 p-5">
+          <div className={`mt-6 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
             <p className={`${labelClass} flex items-center gap-2`}>
               <Sparkles className="h-3.5 w-3.5 text-primary" />{t("distribute.or_generate_with_ai")}</p>
             <textarea
@@ -865,7 +867,7 @@ function NewReleaseWizard(props: {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-5">
+          <div className={`mt-6 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
             <p className={labelClass}>{t("distribute.release_checklist")}</p>
             <ul className="space-y-1.5">
               {validation.map((v, vi) => (
@@ -920,6 +922,7 @@ function ReleaseMetadataManager(props: {
   onNotice: (msg: string) => void;
   onSendToPresave: () => Promise<void>;
 }) {
+  const isLight = useIsLightTheme();
   const { release, authFetch, onUpdate, onError, onNotice, onSendToPresave } = props;
   const isDraft = release.status === "draft";
 
@@ -1126,7 +1129,7 @@ function ReleaseMetadataManager(props: {
       action={<span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-bold text-white/50">Free</span>}
     >
       {/* UPC / EAN */}
-      <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
         <label className={labelClass}>UPC / EAN</label>
         <div className="flex flex-wrap gap-2">
           <input
@@ -1250,7 +1253,7 @@ function ReleaseMetadataManager(props: {
       </div>
 
       {/* Territories */}
-      <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+      <div className={`mt-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
         <label className={labelClass}>Territories</label>
         <div className="flex flex-wrap gap-2">
           {([["worldwide", "Worldwide"], ["include", "Include list"], ["exclude", "Exclude list"]] as const).map(([v, label]) => (
@@ -1312,7 +1315,7 @@ function ReleaseMetadataManager(props: {
         <div className="space-y-2">
           {tracks.map((tr, i) => (
             <div key={i} className="flex gap-2">
-              <span className="flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/40 text-xs font-bold text-white/40">
+              <span className={`flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>
                 {i + 1}
               </span>
               <input
@@ -1402,6 +1405,7 @@ function PresaveManager(props: {
   onNotice: (msg: string) => void;
   copyPresave: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const { release, presaveUrl, copied, authFetch, onError, onNotice, copyPresave } = props;
 
   const [stats, setStats] = useState<PresaveStats | null>(null);
@@ -1494,7 +1498,7 @@ function PresaveManager(props: {
 
           {/* recent fans */}
           {stats && stats.recentFollows.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+            <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Latest fans</p>
               <ul className="space-y-1.5">
                 {stats.recentFollows.slice(0, 5).map((f) => (
@@ -1525,7 +1529,7 @@ function PresaveManager(props: {
               <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content
             </button>
           ) : (
-            <div className="space-y-4 rounded-2xl border border-primary/25 bg-black/40 p-5">
+            <div className={`space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
               <div>
                 <label className={labelClass}>Headline</label>
                 <input
@@ -1589,6 +1593,7 @@ function ReleaseDetail(props: {
   vaulted: boolean;
   onVaulted: (releaseId: string) => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { release, pricing, authFetch, onUpdate, onDelete, onError, onNotice, onOutOfCredits, refreshProfile, vaulted, onVaulted } = props;
   const { addAsset } = useHubProject();
@@ -2059,7 +2064,7 @@ function ReleaseDetail(props: {
           <div id="release-checklist" className="scroll-mt-24">
           <ul className="space-y-2">
             {release.checklist.map((c) => (
-              <li key={c.key} className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-black/40 p-3.5">
+              <li key={c.key} className={`flex items-start gap-3 rounded-2xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.07] bg-black/40"}`}>
                 {c.ok
                   ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
                   : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />}
@@ -2088,7 +2093,7 @@ function ReleaseDetail(props: {
           <>
             <div className="grid gap-2.5 sm:grid-cols-2">
               {release.platformStatuses.map((ps) => (
-                <div key={ps.platform} className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.07] bg-black/40 p-3.5">
+                <div key={ps.platform} className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.07] bg-black/40"}`}>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{platformLabel(ps.platform)}</p>
                     {ps.detail && <p className="mt-0.5 truncate text-xs text-white/40">{ps.detail}</p>}
@@ -2199,7 +2204,7 @@ function ReleaseDetail(props: {
           className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
         >
           <Plus className="h-3.5 w-3.5" />{t("distribute.add_collaborator")}</button>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 p-4">
+        <div className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
           <div>
             <p className={`text-sm font-bold ${valid ? "text-emerald-300" : "text-amber-300"}`}>
               Total: {Number.isFinite(total) ? total : 0}% {valid ? "— splits are balanced" : "— must equal 100%"}
@@ -2347,7 +2352,7 @@ function ReleaseDetail(props: {
             </div>
 
             {meta?.titleOptions && (
-              <div className="mt-6 space-y-4 rounded-2xl border border-primary/25 bg-black/40 p-5">
+              <div className={`mt-6 space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
                 <div>
                   <p className={labelClass}>{t("distribute.title_options")}</p>
                   <ul className="space-y-1.5">
@@ -2394,7 +2399,7 @@ function ReleaseDetail(props: {
             </button>
 
             {strat?.timing && (
-              <div className="mt-6 space-y-4 rounded-2xl border border-primary/25 bg-black/40 p-5">
+              <div className={`mt-6 space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
                 <div>
                   <p className={labelClass}>{t("distribute.timing")}</p>
                   <p className="text-sm leading-relaxed text-white/70">{strat.timing}</p>
@@ -2940,6 +2945,7 @@ function ReleasePlanTab() {
 /* ── page ────────────────────────────────────────────────────────────────── */
 
 export default function Distribute({ initialTab }: { initialTab?: "releases" | "new" | "plan" }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -3191,7 +3197,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
                               <button
                                 onClick={() => { setSelectedId(r.id); clearBanners(); }}
                                 className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                                  selectedId === r.id ? "border-primary/50 bg-primary/[0.07]" : "border-white/10 bg-black/40 hover:border-white/25"
+                                  selectedId === r.id ? "border-primary/50 bg-primary/[0.07]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 hover:border-white/25"
                                 }`}
                               >
                                 <Disc3 className={`h-8 w-8 shrink-0 ${selectedId === r.id ? "text-primary" : "text-white/30"}`} />
