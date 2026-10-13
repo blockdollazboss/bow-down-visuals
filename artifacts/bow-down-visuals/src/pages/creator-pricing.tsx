@@ -196,6 +196,10 @@ export default function CreatorPricing() {
           </div>
           {loading ? (
             <div className="mt-6 flex items-center gap-2 text-white/50"><Loader2 className="h-5 w-5 animate-spin" /> Loading plans…</div>
+          ) : plans.length === 0 ? (
+            <p className={`mt-6 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              The plan math is warming up — the tiers are below. Free keeps 90% of every sale, Pro keeps 93%, Elite keeps even more.
+            </p>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {plans.map((p) => (
