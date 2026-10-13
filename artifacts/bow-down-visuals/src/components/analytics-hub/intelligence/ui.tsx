@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import type { ReactNode } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -122,10 +123,11 @@ export function StepCard({
   doneSummary?: ReactNode;
   children: ReactNode;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <section
       id={id}
-      className="relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black"
+      className={`${isLight ? "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black"}`}
     >
       <div className="p-6 md:p-8">
         <div className="flex items-start gap-4">
