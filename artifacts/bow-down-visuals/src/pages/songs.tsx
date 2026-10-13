@@ -376,7 +376,7 @@ export default function SongsPage() {
               }`}
             >
               <div className="flex items-center justify-between gap-3 mb-2">
-                <p className="text-sm font-bold truncate">{s.title}</p>
+                <p className="text-sm font-bold truncate min-w-0 flex-1">{s.title}</p>
                 <span className="text-[11px] uppercase tracking-wider text-white/40 border border-white/10 rounded-full px-2 py-0.5 shrink-0">
                   {t(SOURCE_LABEL_KEYS[s.source] ?? s.source)}
                 </span>

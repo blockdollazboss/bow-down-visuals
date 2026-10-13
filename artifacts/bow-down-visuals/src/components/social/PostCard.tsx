@@ -194,7 +194,7 @@ export function PostCard({
         <Avatar author={post.author} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <Link href={profileHref(post.author)} className="truncate text-sm font-bold text-white hover:text-[#d4af37]">
+            <Link href={profileHref(post.author)} className="truncate min-w-0 text-sm font-bold text-white hover:text-[#d4af37]">
               {post.author?.display_name ?? "Creator"}
             </Link>
             {post.author?.is_verified && <BadgeCheck className="h-4 w-4 shrink-0 text-[#d4af37]" aria-label="Verified" />}

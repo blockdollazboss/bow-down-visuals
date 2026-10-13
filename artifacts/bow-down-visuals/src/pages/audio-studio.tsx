@@ -1503,7 +1503,7 @@ function StemsPanel() {
 
         {/* Mode toggle: full 4-stem split vs vocals-only preset */}
         <div className="mt-6 flex justify-center">
-          <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5" role="tablist" aria-label={t("stems.modeLabel", { defaultValue: "Separation mode" })}>
+          <div className="inline-flex flex-wrap justify-center max-w-full rounded-2xl border border-white/10 bg-white/[0.03] p-1.5" role="tablist" aria-label={t("stems.modeLabel", { defaultValue: "Separation mode" })}>
             <button
               role="tab"
               aria-selected={stemMode === "full"}
