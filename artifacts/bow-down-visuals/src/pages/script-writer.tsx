@@ -332,7 +332,7 @@ export default function ScriptWriter() {
           <button
             onClick={generate}
             disabled={!topic.trim() || generating || !user}
-            className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-8 py-3.5 font-bold text-black hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={`w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 font-bold transition-all disabled:cursor-not-allowed ${(!topic.trim() || !user) && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-r from-amber-400 to-yellow-500 text-black hover:brightness-110"}`}
           >
             {generating ? (
               <>
