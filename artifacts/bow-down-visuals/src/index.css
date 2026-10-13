@@ -304,8 +304,8 @@ html, body {
 }
 
 /* ── 3. Frosted ivory glass: dark translucents become light ── */
-.light .bg-black\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
-.light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.92); }
+.light .bg-black\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
+.light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.92); }
 .light .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
 .light .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.78); }
 .light .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.68); }
@@ -314,7 +314,7 @@ html, body {
 .light .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.36); }
 .light .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.24); }
 .light .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.14); }
-.light .bg-zinc-900\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.92); }
+.light .bg-zinc-900\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.92); }
 .light .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
 .light .bg-zinc-900\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.78); }
 .light .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.68); }
@@ -755,9 +755,9 @@ html, body {
 
 /* Arbitrary dark hex with opacity (jackpot banner, etc.) */
 .light .bg-\[\#0a0a0a\]\/95:not([data-dark-lock]):not([data-dark-lock] *),
-.light .bg-\[\#0a0a0a\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.94); }
+.light .bg-\[\#0a0a0a\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
 .light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *),
-.light .bg-\[\#0d0d0f\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.94); }
+.light .bg-\[\#0d0d0f\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
 
 /* to-black gradients: fade to ivory instead */
 .light .to-black:not([data-dark-lock]):not([data-dark-lock] *) {
@@ -861,11 +861,11 @@ html, body {
   background-color: #FFFFFF;
 }
 /* Dark hex with opacity → frosted ivory */
-.light .bg-\[\#0a0a0a\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
-.light .bg-\[\#0d0b08\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
-.light .bg-\[\#0c0a06\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
-.light .bg-\[\#161616\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
-.light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.96); }
+.light .bg-\[\#0a0a0a\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
+.light .bg-\[\#0d0b08\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
+.light .bg-\[\#0c0a06\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
+.light .bg-\[\#161616\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
+.light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 .light .bg-\[\#0d0d0d\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
 
 /* Missing text-white opacity variants → readable warm grays */
@@ -877,7 +877,7 @@ html, body {
 .light .text-white\/35:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A7266; }
 
 /* Missing bg-black opacity variant */
-.light .bg-black\/92:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.94); }
+.light .bg-black\/92:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
 
 /* Missing to-black gradient opacity variants → fade to ivory */
 .light .to-black\/80:not([data-dark-lock]):not([data-dark-lock] *),
