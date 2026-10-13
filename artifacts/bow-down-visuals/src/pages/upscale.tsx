@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -61,6 +62,7 @@ interface UpscaleJobResponse {
 }
 
 function VideoUpscaleTool() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -249,7 +251,7 @@ function VideoUpscaleTool() {
                   onClick={() => setTarget(tg.key)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     target === tg.key
-                      ? "border-primary/60 bg-primary/[0.08]"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
@@ -328,6 +330,7 @@ const GENERATIVE_UPSCALE_CREDIT_COST = 1500; // PLACEHOLDER — needs user price
 type GenerativeModeStatus = "idle" | "checking" | "ready" | "unconfigured";
 
 function GenerativeUpscaleTool() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [modeStatus, setModeStatus] = useState<GenerativeModeStatus>("idle");
   const [genTarget, setGenTarget] = useState<TargetKey>("1080p");
@@ -375,7 +378,7 @@ function GenerativeUpscaleTool() {
               onClick={() => setGenTarget(tg.key)}
               className={`rounded-xl border px-4 py-3.5 text-left transition ${
                 genTarget === tg.key
-                  ? "border-primary/60 bg-primary/[0.08]"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                   : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
               }`}
             >
@@ -434,6 +437,7 @@ function GenerativeUpscaleTool() {
 type VideoUpscaleMode = "classic" | "generative";
 
 function VideoUpscaleWithModes() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [mode, setMode] = useState<VideoUpscaleMode>("classic");
   return (
@@ -454,7 +458,7 @@ function VideoUpscaleWithModes() {
             onClick={() => setMode(m.key)}
             className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
               mode === m.key
-                ? "border-primary/50 bg-primary/[0.07]"
+                ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                 : "border-white/10 bg-white/[0.02] hover:border-white/25"
             }`}
           >
@@ -494,6 +498,7 @@ interface ImageUpscaleResponse {
 }
 
 function ImageUpscaleTool() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -684,7 +689,7 @@ function ImageUpscaleTool() {
                   onClick={() => setScale(s.key)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     scale === s.key
-                      ? "border-primary/60 bg-primary/[0.08]"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
@@ -822,6 +827,7 @@ interface EnhanceJobResponse {
 }
 
 function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -1036,7 +1042,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
                   onClick={() => setPreset(p.key)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     preset === p.key
-                      ? "border-primary/60 bg-primary/[0.08]"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
