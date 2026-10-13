@@ -1378,7 +1378,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
 }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
-  const hasMedia = !!(vault.reference_image_url || vault.reference_video_url);
+  const [imgFailed, setImgFailed] = useState(false);
+  const photoUrl = vault.reference_image_url && !imgFailed ? vault.reference_image_url : null;
+  const hasMedia = !!(photoUrl || vault.reference_video_url);
   const G = (o: number) => `rgba(201,168,76,${o})`;
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -1389,9 +1391,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
 
   return (
     <>
-    {lightboxOpen && vault.reference_image_url && (
+    {lightboxOpen && photoUrl && (
       <PhotoLightbox
-        photoUrl={vault.reference_image_url}
+        photoUrl={photoUrl}
         artistName={vault.artist_name}
         onClose={() => setLightboxOpen(false)}
       />
@@ -1406,12 +1408,10 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
     }}>
       {/* Full-photo top section — click to enlarge */}
       <div
-        onClick={() => vault.reference_image_url && setLightboxOpen(true)}
+        onClick={() => photoUrl && setLightboxOpen(true)}
         style={{
         height: 300,
-        background: vault.reference_image_url
-          ? `url(${vault.reference_image_url}) top center/cover no-repeat`
-          : isLight
+        background: isLight
             ? isActive
               ? "linear-gradient(135deg, #F1E3BC 0%, #EFE6D0 100%)"
               : "linear-gradient(135deg, #F7F1E3 0%, #EFE6D0 100%)"
@@ -1419,11 +1419,21 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
               ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
               : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
-        cursor: vault.reference_image_url ? "zoom-in" : "default",
+        cursor: photoUrl ? "zoom-in" : "default",
       }}>
+        {photoUrl && (
+          <img
+            src={photoUrl}
+            alt=""
+            aria-hidden
+            draggable={false}
+            onError={() => setImgFailed(true)}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
+          />
+        )}
         {/* Living portrait video — when there's no still photo but a video exists.
             Anchored top so the subject's head stays in frame. */}
-        {!vault.reference_image_url && vault.reference_video_url && (
+        {!photoUrl && vault.reference_video_url && (
           <video
             src={vault.reference_video_url}
             autoPlay
@@ -1440,7 +1450,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
           />
         )}
         {/* Initials avatar (no photo or video) */}
-        {!vault.reference_image_url && !vault.reference_video_url && (
+        {!photoUrl && !vault.reference_video_url && (
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
