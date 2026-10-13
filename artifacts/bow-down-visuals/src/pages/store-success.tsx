@@ -31,7 +31,7 @@ interface VerifyResult {
 
 export default function StoreSuccess() {
   const isLight = useIsLightTheme();
-  usePageTitle("Order Confirmed");
+  usePageTitle("Order Confirmed", "Order confirmed — your purchase details and next steps on Bow Down Visuals.");
   const { getAccessToken } = useAuth();
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [result, setResult] = useState<VerifyResult | null>(null);

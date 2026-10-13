@@ -124,7 +124,7 @@ async function authedFetch(
 
 export default function LabelPitch() {
   const isLight = useIsLightTheme();
-  usePageTitle("Label Pitch");
+  usePageTitle("Label Pitch", "Build a label pitch package — one-sheet, top tracks and stats, ready to send to labels and partners.");
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();

@@ -66,7 +66,7 @@ const APP_BADGE: Record<string, string> = {
 
 export default function SponsorDashboard() {
   const isLight = useIsLightTheme();
-  usePageTitle("Sponsor Dashboard");
+  usePageTitle("Sponsor Dashboard", "Your sponsorship dashboard — track deals, deliverables and earnings on Bow Down Visuals.");
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"deals" | "applications" | "earnings">("deals");

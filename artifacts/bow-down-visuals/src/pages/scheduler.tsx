@@ -201,7 +201,7 @@ function decodeSharedSchedule(raw: string): SharedSchedule | null {
 }
 
 export default function Scheduler() {
-  usePageTitle("Scheduler");
+  usePageTitle("Scheduler", "Schedule posts and releases across your platforms with the Bow Down Visuals content calendar.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();

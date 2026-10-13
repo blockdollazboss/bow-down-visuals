@@ -57,7 +57,7 @@ function slugify(s: string): string {
 
 export default function Publish() {
   const isLight = useIsLightTheme();
-  usePageTitle("Publish");
+  usePageTitle("Publish", "Publish your content to your connected platforms from Bow Down Visuals.");
   const [, navigate] = useLocation();
   const { getAccessToken, user } = useAuth();
   const { toast } = useToast();

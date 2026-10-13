@@ -185,7 +185,7 @@ function CursorPreview({ id }: { id: CursorId }) {
 }
 
 export default function CursorLab() {
-  usePageTitle("Cursor Lab");
+  usePageTitle("Cursor Lab", "Cursor Lab — preview and tune the site's custom cursor styles.");
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [clicks, setClicks] = useState({ gold: 0, ghost: 0, link: 0 });

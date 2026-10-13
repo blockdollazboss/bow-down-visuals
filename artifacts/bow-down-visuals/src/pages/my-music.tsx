@@ -31,7 +31,7 @@ interface Purchase {
 
 export default function MyMusic() {
   const isLight = useIsLightTheme();
-  usePageTitle("My Music");
+  usePageTitle("My Music", "My Music — every song you've made or saved on Bow Down Visuals, in one library.");
   const { getAccessToken } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);

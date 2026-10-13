@@ -24,7 +24,7 @@ interface Conv {
 interface Msg { id: string; senderUserId: string; body: string; created_at: string }
 
 export default function Messages() {
-  usePageTitle("Messages");
+  usePageTitle("Messages", "Your Bow Down Visuals messages — chat with creators, collaborators and brands.");
   const api = useCommunityApi();
   const { user } = useAuth();
   const [inbox, setInbox] = useState<Conv[]>([]);

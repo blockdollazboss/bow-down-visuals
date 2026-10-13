@@ -59,7 +59,7 @@ function StageBackdrop() {
 }
 
 export default function FogLab() {
-  usePageTitle("Fog Lab");
+  usePageTitle("Fog Lab", "Fog Lab — preview the site's ambient fog and atmosphere effects.");
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("settled");
 

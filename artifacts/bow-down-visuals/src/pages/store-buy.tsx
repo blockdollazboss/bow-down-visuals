@@ -43,7 +43,7 @@ interface ItemData {
 
 export default function StoreBuy() {
   const isLight = useIsLightTheme();
-  usePageTitle("Checkout");
+  usePageTitle("Checkout", "Complete your purchase securely on Bow Down Visuals.");
   const params = useParams<{ kind: string; id: string }>();
   const [, navigate] = useLocation();
   const { user, getAccessToken } = useAuth();

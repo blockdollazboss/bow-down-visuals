@@ -8,7 +8,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 /* Mobile page opened by scanning a QR login code.
    Logged-in user confirms to sign in the desktop session. */
 export default function QRLoginApprove() {
-  usePageTitle("QR Sign-In");
+  usePageTitle("QR Sign-In", "Sign in to Bow Down Visuals by scanning a QR code from a signed-in device.");
   const [, setLocation] = useLocation();
   const { user, getAccessToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);

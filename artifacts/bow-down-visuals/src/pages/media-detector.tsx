@@ -143,7 +143,7 @@ let idCounter = 0;
 const nextId = () => `q${Date.now()}_${idCounter++}`;
 
 export default function MediaDetector() {
-  usePageTitle("Media Detector");
+  usePageTitle("Media Detector", "Detect AI-generated media — check images, audio and video for synthetic fingerprints.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

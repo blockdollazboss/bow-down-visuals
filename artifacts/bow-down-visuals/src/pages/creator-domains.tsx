@@ -305,7 +305,7 @@ function DomainCard({
 }
 
 export default function CreatorDomainsPage() {
-  usePageTitle("Creator Domains");
+  usePageTitle("Creator Domains", "Connect a custom domain to your Bow Down Visuals creator site and storefront.");
   const { getAccessToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [domains, setDomains] = useState<CustomDomain[]>([]);

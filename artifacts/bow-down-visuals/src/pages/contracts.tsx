@@ -88,7 +88,7 @@ function termIcon(a: string) {
 }
 
 export default function Contracts() {
-  usePageTitle("Contracts");
+  usePageTitle("Contracts", "Creator contracts on Bow Down Visuals — generate and manage agreements for brand deals, features and collaborations.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

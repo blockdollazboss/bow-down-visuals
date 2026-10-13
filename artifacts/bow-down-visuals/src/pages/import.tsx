@@ -58,7 +58,7 @@ function formatBytes(
 }
 
 export default function MediaImport() {
-  usePageTitle("Import Media");
+  usePageTitle("Import Media", "Import your existing media into Bow Down Visuals and turn it into new content.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();

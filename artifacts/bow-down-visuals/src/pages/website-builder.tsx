@@ -96,7 +96,7 @@ function loadJsZip(): Promise<any> {
 }
 
 export default function WebsiteBuilder() {
-  usePageTitle("Website Builder");
+  usePageTitle("Website Builder", "Describe the site you want and the AI builds it — preview it privately, then export your website package.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
