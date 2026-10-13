@@ -101,7 +101,7 @@ export function RateMyMix() {
         </p>
 
         <div className="mb-4">
-          <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed px-5 py-6 transition ${file ? "border-primary/60 bg-primary/[0.05]" : "border-white/15 hover:border-white/30"}`}>
+          <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed px-5 py-6 transition ${file ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/15 hover:border-white/30"}`}>
             {file ? <Check className="h-5 w-5 text-primary" /> : <Upload className="h-5 w-5 text-white/40" />}
             <div>
               <p className="text-sm font-bold text-white">{file ? file.name : t("rateMyMix.uploadCta", { defaultValue: "Drop your mix" })}</p>
