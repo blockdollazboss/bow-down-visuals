@@ -588,9 +588,12 @@ html, body {
 
 /* ── 17. Dark-spot sweep: pages & components that bypassed the theme ── */
 
-/* Content panel (App.tsx main frame + pricing page): marble invitation card */
+/* Content panel (App.tsx main frame + pricing page): marble invitation card.
+   2026-10-12: the fill was 94% PURE WHITE — a white slab floating on the
+   ivory palace backdrop (worst on the legal pages, which are one big panel).
+   Now the warm ivory/champagne gradient every other light surface uses. */
 .light .content-panel:not([data-dark-lock]):not([data-dark-lock] *) {
-  background: rgb(255 255 255 / 0.94);
+  background: linear-gradient(180deg, rgb(252 247 234 / 0.95), rgb(244 231 195 / 0.93));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid #E7D9BC;
