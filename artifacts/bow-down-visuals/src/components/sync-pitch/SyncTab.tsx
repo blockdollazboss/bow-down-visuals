@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
   Sparkles, Loader2, Copy, Check, Mail, ClipboardList, Plus, Trash2,
@@ -156,6 +157,7 @@ export default function SyncTab({
   library: LibrarySong[];
   initialSongTitle?: string;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [subTab, setSubTab] = useState<SubTab>("onesheet");
@@ -514,7 +516,7 @@ export default function SyncTab({
       {/* ═══ ONE-SHEET TAB ═══ */}
       {subTab === "onesheet" && (
         <div id="sync-onesheet-generator" className="relative mt-6">
-          <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
             <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("syncPitch.yourSong")}
             </p>
@@ -803,7 +805,7 @@ export default function SyncTab({
           </div>
 
           {showBriefForm && (
-            <div className="mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6">
+            <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input
                   value={newBrief.title}
@@ -993,7 +995,7 @@ export default function SyncTab({
           </div>
 
           {showAddForm && (
-            <div className="mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6">
+            <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input
                   value={newPitch.songTitle}
@@ -1144,6 +1146,7 @@ function OneSheetView({
   shared: boolean;
   onAddToTracker: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const c = sheet.content;
   return (
@@ -1169,7 +1172,7 @@ function OneSheetView({
       </div>
 
       {/* the one-sheet */}
-      <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary">
           {t("syncPitch.oneSheetBadge")}
         </p>
@@ -1256,7 +1259,7 @@ function OneSheetView({
       </div>
 
       {/* pitch email */}
-      <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-lg font-black">
             <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
