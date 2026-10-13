@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Music4, Loader2, Sparkles, Upload, ListMusic, Type, SlidersHorizontal,
@@ -62,6 +63,7 @@ const ASPECTS: { key: LyricVideoAspect; label: string; icon: typeof MonitorPlay 
 ];
 
 export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -285,7 +287,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
             {t("lyricVideo.step1Title")}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
+            <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
               <Upload className="h-6 w-6 text-primary" />
               <span className="text-sm font-semibold">
                 {audioFile ? audioFile.name : t("lyricVideo.uploadAudio")}
@@ -301,7 +303,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                 }}
               />
             </label>
-            <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+            <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <ListMusic className="h-4 w-4 text-primary" /> {t("lyricVideo.fromLibrary")}
               </div>
@@ -378,7 +380,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                   <div
                     key={i}
                     className={`flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center ${
-                      line.matched ? "border-white/10 bg-black/40" : "border-amber-400/40 bg-amber-400/5"
+                      line.matched ? (isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40") : "border-amber-400/40 bg-amber-400/5"
                     }`}
                   >
                     <div className="flex-1">
@@ -462,7 +464,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                   }`}
                 >
                   <div className="h-16" style={{ background: STYLE_META[key].swatch }} />
-                  <div className="bg-black/60 p-3">
+                  <div className={`p-3 ${isLight ? "bg-[#F7ECD2]/80" : "bg-black/60"}`}>
                     <div className="flex items-center gap-1.5 text-sm font-bold">
                       {style === key && <Check className="h-3.5 w-3.5 text-primary" />}
                       {STYLE_META[key].label}
@@ -506,7 +508,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
             </p>
 
             {job && (
-              <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4">
+              <div className={`mt-5 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 {job.status === "done" && job.outputUrl ? (
                   <div>
                     <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-300">
