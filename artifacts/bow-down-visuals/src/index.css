@@ -1017,6 +1017,13 @@ html, body {
 .light .hover\:text-amber-300:hover:not([data-dark-lock]):not([data-dark-lock] *),
 .light .hover\:text-yellow-300:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
 .light .hover\:text-amber-400:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5A12; }
+/* Group-hover states use a different selector shape, so the plain
+   hover remaps never reached them: card titles set to brighten to
+   white (or pale gold) when their card is hovered went invisible on
+   ivory. They now land on ink / deep bronze like their hover kin. */
+.light .group:hover .group-hover\:text-white:not([data-dark-lock]):not([data-dark-lock] *) { color: #1C1712; }
+.light .group:hover .group-hover\:text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
+.light .group:hover .group-hover\:text-amber-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
 
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
