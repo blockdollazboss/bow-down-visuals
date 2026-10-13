@@ -142,11 +142,13 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
 
   return (
     <section className="ap-hero relative overflow-hidden">
-      {profile.banner_url && (
+      {(profile.banner_url || profile.is_official) && (
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url(${profile.banner_url})`,
+            /* The King's throne room: the official house profile wears the
+               palace as its banner unless it ever sets its own. */
+            backgroundImage: `url(${profile.banner_url ?? "/images/king-throne-room.webp"})`,
             opacity: 1 - profile.theme_config.banner.overlayOpacity,
           }}
         />
