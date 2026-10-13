@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -597,6 +598,7 @@ interface QuoteResult {
 }
 
 function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
   const [step, setStep] = useState<"form" | "quote" | "done">("form");
@@ -745,7 +747,7 @@ function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) 
 
         {step === "quote" && quote && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-white/10 bg-black/40 p-4 space-y-2 text-sm">
+            <div className={`rounded-lg border p-4 space-y-2 text-sm ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <div className="flex justify-between"><span className="text-white/60">{quote.quantity} × 6"×9" paperback ({quote.pageCount} pages)</span><span className="text-white font-bold">${quote.printCostUsd.toFixed(2)}</span></div>
               <div>
                 <Label className="text-white/60 text-xs">Shipping</Label>
