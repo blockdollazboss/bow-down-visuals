@@ -1202,11 +1202,14 @@ function ThumbnailAbTester() {
   }, []);
 
   function addFiles(list: FileList | File[]) {
-    const combined = [...files, ...filterImageFiles(Array.from(list), MAX_FILES)].slice(0, MAX_FILES);
+    const raw = Array.from(list);
+    const sized = raw.filter((f) => f.size <= 10 * 1024 * 1024);
+    const combined = [...files, ...filterImageFiles(sized, MAX_FILES)].slice(0, MAX_FILES);
+    const skipped = raw.length - (combined.length - files.length);
     setFiles(combined);
     setPreviews(combined.map((f) => URL.createObjectURL(f)));
     setResult(null);
-    setError(null);
+    setError(skipped > 0 ? t("thumbnailTest.filesSkipped", { count: skipped, max: MAX_FILES }) : null);
   }
 
   function removeFile(i: number) {

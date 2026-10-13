@@ -250,6 +250,7 @@ export default function MilestoneTracker() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setCsvText(String(reader.result ?? ""));
+    reader.onerror = () => setError(t("milestones.importFailed"));
     reader.readAsText(file);
   }
 

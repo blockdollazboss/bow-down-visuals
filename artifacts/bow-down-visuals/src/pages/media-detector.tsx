@@ -152,13 +152,15 @@ export default function MediaDetector() {
   const [dragOver, setDragOver] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [skipNotice, setSkipNotice] = useState<string | null>(null);
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const items: QueueItem[] = [];
+    let skipped = 0;
     for (const file of Array.from(files)) {
       const kind = kindOf(file);
-      if (!kind) continue;
-      if (file.size > MAX_FILE_BYTES) continue;
+      if (!kind) { skipped++; continue; }
+      if (file.size > MAX_FILE_BYTES) { skipped++; continue; }
       items.push({
         id: nextId(),
         file,
@@ -168,7 +170,8 @@ export default function MediaDetector() {
       });
     }
     if (items.length) setQueue((q) => [...q, ...items]);
-  }, []);
+    setSkipNotice(skipped > 0 ? t("mediaDetector.filesSkipped", { count: skipped }) : null);
+  }, [t]);
 
   const addUrl = useCallback(() => {
     const url = urlInput.trim();
@@ -314,6 +317,10 @@ export default function MediaDetector() {
             onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ""; }}
           />
         </div>
+
+        {skipNotice && (
+          <p className="text-sm text-red-300 mb-4">{skipNotice}</p>
+        )}
 
         {/* URL paste */}
         <div className="flex gap-2 mb-8">

@@ -2642,13 +2642,15 @@ function MixPanel() {
 
   function addFiles(list: FileList | File[] | undefined) {
     if (!list) return;
-    const incoming = Array.from(list).filter(isAudioFile);
-    if (incoming.length === 0) { setError(t("mixMaster.errorNotAudio")); return; }
+    const audioFiles = Array.from(list).filter(isAudioFile);
+    if (audioFiles.length === 0) { setError(t("mixMaster.errorNotAudio")); return; }
+    const incoming = audioFiles.filter((f) => f.size <= MASTER_MAX_FILE_BYTES);
+    if (incoming.length === 0) { setError(t("mixMaster.errorFileTooLarge")); return; }
     setStems((prev) => {
       const merged = [...prev, ...incoming].slice(0, MASTER_MAX_STEMS);
       return merged;
     });
-    setError(null);
+    setError(incoming.length < audioFiles.length ? t("mixMaster.errorFileTooLarge") : null);
     setResult(null);
     setJobId(null);
     setStatus("idle");

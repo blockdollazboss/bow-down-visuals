@@ -969,6 +969,7 @@ export default function AnalyticsHub() {
      (header optional). Bad rows are skipped and counted. */
   function handleCsvFile(file: File) {
     const reader = new FileReader();
+    reader.onerror = () => setCsvNote({ ok: false, text: t("analyticsHub.csvReadError") });
     reader.onload = () => {
       const text = String(reader.result ?? "");
       const rows = text.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
