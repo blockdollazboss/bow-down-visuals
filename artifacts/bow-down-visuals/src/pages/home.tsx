@@ -916,6 +916,7 @@ function BuiltForCreators({ isLight }: { isLight: boolean }) {
 
 function StudioShowcase() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   return (
     <section
       id="tools"
@@ -958,7 +959,7 @@ function StudioShowcase() {
                     key={ti}
                     className={`relative group flex flex-col p-7 rounded-2xl lux-card-lift ${
                       tool.featured
-                        ? "royal-border bg-primary/10 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
+                        ? `royal-border shadow-[0_0_30px_rgba(218,165,32,0.18)] ${isLight ? "bg-primary/10" : "bg-[#171106]/90"}`
                         : "lux-panel"
                     }`}
                   >
