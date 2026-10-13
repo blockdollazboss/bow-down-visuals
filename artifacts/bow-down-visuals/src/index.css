@@ -400,6 +400,17 @@ html, body {
 .light .text-yellow-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
 .light .text-amber-400\/50:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-yellow-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.72); }
+/* Pale 200-step accent text had no light deepening at all: success and
+   info banners (distribute, label-pitch, shoutouts, presave) set their
+   copy in emerald-200 / sky-200 / violet-200 on faint same-hue tints —
+   on ivory those tints vanish and the pale text goes with them. Each
+   200 now deepens to its family's readable 700 step in light. */
+.light .text-emerald-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #047857; }
+.light .text-sky-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0369A1; }
+.light .text-cyan-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0E7490; }
+.light .text-violet-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #6D28D9; }
+.light .text-orange-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #C2410C; }
+.light .text-lime-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #4D7C0F; }
 .light .text-\[\#C9A84C\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#e8c86a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
