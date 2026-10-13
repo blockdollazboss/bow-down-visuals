@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -43,6 +44,7 @@ const ghostBtn =
 interface DraftProduct { name: string; price: string; description: string; }
 
 export default function StorefrontBuilder() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("storefrontBuilder.pageTitle"));
   const { user, getAccessToken } = useAuth();
@@ -332,7 +334,7 @@ export default function StorefrontBuilder() {
                 <p className="mt-1 text-sm text-white/50">{t("storefrontBuilder.step4SubtitleA")} <Link href="/my-shop"><span className="cursor-pointer text-amber-300 underline">{t("storefrontBuilder.myShopLink")}</span></Link>.</p>
                 <div className="mt-4 space-y-3">
                   {products.map((p, i) => (
-                    <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t("storefrontBuilder.productNumber", { n: i + 1 })}</span>
                         {products.length > 1 && (
@@ -369,7 +371,7 @@ export default function StorefrontBuilder() {
                   {t("storefrontBuilder.step5SubtitleB")}
                 </p>
 
-                <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-5">
+                <div className={`mt-5 rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <div className="flex items-center gap-2 text-sm font-bold"><Globe className="h-4 w-4 text-amber-300" /> {t("storefrontBuilder.customDomain")}</div>
                   {!domainInfo ? (
                     <div className="mt-3 flex gap-2">
@@ -378,7 +380,7 @@ export default function StorefrontBuilder() {
                     </div>
                   ) : (
                     <div className="mt-3 space-y-3 text-sm">
-                      <div className="rounded-lg border border-white/10 bg-black/60 p-3">
+                      <div className={`rounded-lg border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs uppercase tracking-wider text-white/40">{t("storefrontBuilder.dnsStep1")}</span>
                           <button className="text-xs font-bold text-amber-300 hover:text-amber-200" onClick={() => copy(domainInfo.verification.value, "txt")}>
@@ -388,7 +390,7 @@ export default function StorefrontBuilder() {
                         <p className="mt-1 font-mono text-xs text-white/80">{t("storefrontBuilder.hostLabel")}: <span className="text-amber-300">{domainInfo.verification.host}</span></p>
                         <p className="mt-1 break-all font-mono text-xs text-white/80">{t("storefrontBuilder.valueLabel")}: <span className="text-amber-300">{domainInfo.verification.value}</span></p>
                       </div>
-                      <div className="rounded-lg border border-white/10 bg-black/60 p-3">
+                      <div className={`rounded-lg border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
                         <div className="text-xs uppercase tracking-wider text-white/40">{t("storefrontBuilder.dnsStep2")}</div>
                         <p className="mt-1 font-mono text-xs text-white/80">{t("storefrontBuilder.hostLabel")}: <span className="text-amber-300">@</span> → <span className="text-amber-300">cname.bowdownvisuals.com</span></p>
                       </div>
