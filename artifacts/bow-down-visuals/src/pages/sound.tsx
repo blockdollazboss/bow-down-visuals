@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Music2, Play, Pause, Loader2, ArrowLeft, BadgeDollarSign, Wand2, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Sound page — /sound/:id ──────────────────────────────────────────────
@@ -35,6 +36,7 @@ export default function SoundPage() {
   const [data, setData] = useState<SoundData | null>(null);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
+  usePageTitle(data?.sound.title ? `${data.sound.title} — Sound` : "Sound");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {

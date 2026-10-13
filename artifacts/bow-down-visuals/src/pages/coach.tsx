@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
@@ -105,6 +106,7 @@ export default function MonetizationCoach() {
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
+ usePageTitle("Monetization Coach", "The Money Room coach: turn your content into income, step by step.");
 
  const PLATFORM_OPTS: PlatformOpt[] = [
   { key: "youtube", label: t("coach.platformYouTube"), icon: Play, blurb: t("coach.platformYouTubeBlurb") },

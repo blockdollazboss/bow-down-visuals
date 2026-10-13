@@ -6,6 +6,7 @@ import {
   FEATURE_CATEGORIES,
   type FeatureCategory,
 } from "@/data/features";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── Features — the showcase ─────────────────────────────────────────────
@@ -24,6 +25,7 @@ export default function Features() {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  usePageTitle("Features", "Every AI studio and tool in Bow Down Visuals, in one searchable list.");
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

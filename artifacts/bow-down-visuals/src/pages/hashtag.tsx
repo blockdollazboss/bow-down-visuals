@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Hash, Loader2, ArrowLeft, Music2, Clapperboard, Trophy } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Hashtag hub — /hashtag/:tag ───────────────────────────────────────────
    Every tag is a doorway: shorts + videos + tracks + challenges, all linked.
@@ -35,6 +36,7 @@ export default function HashtagPage() {
   const tag = params?.tag ? decodeURIComponent(params.tag) : "";
   const [data, setData] = useState<HashtagData | null>(null);
   const [loading, setLoading] = useState(true);
+  usePageTitle(tag ? `#${tag}` : "Hashtag");
 
   useEffect(() => {
     let cancelled = false;

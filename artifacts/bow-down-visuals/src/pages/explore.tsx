@@ -5,6 +5,7 @@ import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink, timeAgo,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /explore — the best of everything ───────────────────────────────────
    Blended grid: trending shorts, rising creators, hot posts, upcoming
@@ -41,6 +42,7 @@ export default function Explore() {
   const [data, setData] = useState<ExploreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  usePageTitle("Explore", "The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place.");
 
   async function load() {
     setLoading(true); setError(null);
