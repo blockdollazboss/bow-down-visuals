@@ -102,6 +102,7 @@ export default function InterviewPrep() {
 
   /* setup */
   const [interviewType, setInterviewType] = useState<InterviewType>("podcast");
+  const activeType = TYPE_OPTIONS.find((o) => o.value === interviewType) ?? TYPE_OPTIONS[0];
   const [artistName, setArtistName] = useState("");
   const [genre, setGenre] = useState("");
   const [latestProject, setLatestProject] = useState("");
@@ -259,12 +260,13 @@ export default function InterviewPrep() {
                   key={opt.value}
                   type="button"
                   onClick={() => setInterviewType(opt.value)}
-                  className={`rounded-2xl border p-4 text-left transition ${
+                  className={`relative rounded-2xl border p-4 text-left transition ${
                     active
-                      ? "border-primary/60 bg-primary/[0.08] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.14] shadow-[0_0_0_1px_rgba(212,175,55,0.6),0_0_24px_rgba(212,175,55,0.20)]")
                       : "border-white/10 bg-white/[0.03] hover:border-primary/30"
                   }`}
                 >
+                  {active && (<span className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A84C] text-black shadow-md"><Check className="h-3 w-3" strokeWidth={3.5} /></span>)}
                   <Icon className={`h-5 w-5 ${active ? "text-primary" : "text-white/50"}`} />
                   <p className="mt-2 text-sm font-bold text-white">{t(opt.labelKey)}</p>
                   <p className="mt-1 text-xs leading-relaxed text-white/45">{t(opt.blurbKey)}</p>
@@ -273,6 +275,11 @@ export default function InterviewPrep() {
             })}
           </div>
         </div>
+
+        <p aria-live="polite" className={`mt-3 text-center text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+          <span className={`font-bold ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>{t(activeType.labelKey)}</span>
+          {" \u2014 "}{t(activeType.blurbKey)}
+        </p>
 
         {/* artist profile */}
         <div className="relative mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
