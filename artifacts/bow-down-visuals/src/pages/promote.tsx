@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -90,9 +91,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 function ResultBlock({ label, text }: { label: string; text: string }) {
+  const isLight = useIsLightTheme();
   if (!text.trim()) return null;
   return (
-    <div className="rounded-xl border border-white/10 bg-black/50 p-5">
+    <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/50"}`}>
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <span className="text-[11px] font-bold uppercase tracking-widest text-primary">{label}</span>
         <CopyButton text={text} label={label} />
@@ -103,6 +105,7 @@ function ResultBlock({ label, text }: { label: string; text: string }) {
 }
 
 export default function Promote() {
+  const isLight = useIsLightTheme();
   usePageTitle("Promote", "Promote your content — campaigns, shoutouts, and spotlight placements.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -177,7 +180,7 @@ export default function Promote() {
       : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white");
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <section className="relative overflow-hidden">
         <div
@@ -373,7 +376,7 @@ export default function Promote() {
               ))}
               {result.cta && <ResultBlock label={t("promote.results.cta")} text={result.cta} />}
               {(result.hashtags ?? []).length > 0 && (
-                <div className="rounded-xl border border-white/10 bg-black/50 p-5">
+                <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/50"}`}>
                   <div className="mb-2.5 flex items-center justify-between gap-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
                       <Hash className="h-3.5 w-3.5" /> {t("promote.results.hashtags")}
