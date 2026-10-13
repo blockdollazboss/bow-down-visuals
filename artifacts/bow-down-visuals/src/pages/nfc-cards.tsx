@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -52,6 +53,7 @@ const HOW_IT_WORKS = [
 const HOW_ICONS = { pencil: Pencil, zap: Zap, truck: Truck } as const;
 
 export default function NfcCards() {
+  const isLight = useIsLightTheme();
   usePageTitle("NFC Cards");
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -208,7 +210,7 @@ export default function NfcCards() {
     "w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-white placeholder-zinc-600 focus:border-amber-500/60 focus:outline-none";
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       {/* ── Hero ── */}
       <div className="relative overflow-hidden">
         <div
@@ -216,7 +218,7 @@ export default function NfcCards() {
           style={{ background: "radial-gradient(800px 400px at 50% 0%, rgba(212,175,55,0.15), transparent 70%)" }}
         />
         <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-400/10 px-4 py-1.5 text-amber-300 text-sm mb-6">
+          <div className={`${isLight ? "inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-400/10 px-4 py-1.5 text-[#7A5A12] text-sm mb-6" : "inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-400/10 px-4 py-1.5 text-amber-300 text-sm mb-6"}`}>
             <Nfc className="w-4 h-4" /> {t("nfcCards.heroBadge")}
           </div>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight">
@@ -225,7 +227,7 @@ export default function NfcCards() {
               {t("nfcCards.heroTitleAccent")}
             </span>
           </h1>
-          <p className="mt-5 text-zinc-400 text-lg max-w-2xl mx-auto">
+          <p className={`${isLight ? "mt-5 text-[#6B5B36] text-lg max-w-2xl mx-auto" : "mt-5 text-zinc-400 text-lg max-w-2xl mx-auto"}`}>
             {t("nfcCards.heroDescription")}
           </p>
 
@@ -234,10 +236,10 @@ export default function NfcCards() {
             {HOW_IT_WORKS.map((s, i) => {
               const Icon = HOW_ICONS[s.icon];
               return (
-                <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+                <div key={i} className={`${isLight ? "rounded-2xl border p-5 border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5"}`}>
                   <Icon className="w-6 h-6 text-amber-400 mb-3" />
                   <h3 className="font-semibold">{t(s.tk)}</h3>
-                  <p className="text-sm text-zinc-400 mt-1">{t(s.dk)}</p>
+                  <p className={`${isLight ? "text-sm text-[#6B5B36] mt-1" : "text-sm text-zinc-400 mt-1"}`}>{t(s.dk)}</p>
                 </div>
               );
             })}
@@ -247,12 +249,12 @@ export default function NfcCards() {
 
       <div className="max-w-5xl mx-auto px-5 pb-20">
         {/* ── Order wizard ── */}
-        <div className="rounded-3xl border border-amber-500/25 bg-gradient-to-b from-zinc-900 to-black p-6 md:p-10">
+        <div className={`rounded-3xl border border-amber-500/25 p-6 md:p-10 ${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "bg-gradient-to-b from-zinc-900 to-black"}`}>
           {orderResult ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
               <h2 className="text-3xl font-bold">{t("nfcCards.reservedTitle")}</h2>
-              <p className="text-zinc-400 mt-3 max-w-lg mx-auto">
+              <p className={`${isLight ? "text-[#6B5B36] mt-3 max-w-lg mx-auto" : "text-zinc-400 mt-3 max-w-lg mx-auto"}`}>
                 {t("nfcCards.reservedDescription")}
               </p>
               {orderResult.url ? (
@@ -265,14 +267,14 @@ export default function NfcCards() {
                   {t("nfcCards.viewDigitalCard")} <ChevronRight className="w-4 h-4" />
                 </a>
               ) : (
-                <p className="text-sm text-zinc-500 mt-6 max-w-md mx-auto">
+                <p className={`${isLight ? "text-sm text-[#8A7A56] mt-6 max-w-md mx-auto" : "text-sm text-zinc-500 mt-6 max-w-md mx-auto"}`}>
                   {t("nfcCards.alreadyReserved")}
                 </p>
               )}
               <div className="mt-4">
                 <button
                   onClick={() => { setOrderResult(null); setStep("style"); }}
-                  className="text-amber-400 hover:text-amber-300 text-sm"
+                  className={`${isLight ? "text-[#7A5A12] hover:text-[#C9A84C] text-sm" : "text-amber-400 hover:text-amber-300 text-sm"}`}
                 >
                   {t("nfcCards.orderAnother")}
                 </button>
@@ -287,9 +289,9 @@ export default function NfcCards() {
                     <div key={s} className="flex items-center">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center font-semibold ${
                         step === s ? "bg-amber-400 text-black" :
-                        (["style", "details", "shipping", "review"].indexOf(step) > i ? "bg-amber-400/30 text-amber-300" : "bg-zinc-800 text-zinc-500")
+                        (["style", "details", "shipping", "review"].indexOf(step) > i ? isLight ? "bg-amber-400/30 text-[#7A5A12]" : "bg-amber-400/30 text-amber-300" : isLight ? "bg-[#C9A84C]/15 text-[#8A7A56]" : "bg-zinc-800 text-zinc-500")
                       }`}>{i + 1}</div>
-                      {i < 3 && <div className="w-4 h-px bg-zinc-800" />}
+                      {i < 3 && <div className={`${isLight ? "w-4 h-px bg-[#C9A84C]/40" : "w-4 h-px bg-zinc-800"}`} />}
                     </div>
                   ))}
                 </div>
@@ -309,41 +311,41 @@ export default function NfcCards() {
                         <div className="h-20 rounded-xl mb-4 border border-white/10" style={{ background: s.swatch }} />
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold">{s.label}</h3>
-                          <span className="text-amber-300 font-bold">{formatMoney(s.priceCents)}</span>
+                          <span className={`${isLight ? "text-[#7A5A12] font-bold" : "text-amber-300 font-bold"}`}>{formatMoney(s.priceCents)}</span>
                         </div>
-                        <p className="text-sm text-zinc-400 mt-1">{s.blurb}</p>
+                        <p className={`${isLight ? "text-sm text-[#6B5B36] mt-1" : "text-sm text-zinc-400 mt-1"}`}>{s.blurb}</p>
                       </button>
                     ))}
                   </div>
                   <div className="mt-6 flex items-center gap-4">
-                    <label className="text-sm text-zinc-400">{t("nfcCards.quantity")}</label>
+                    <label className={`${isLight ? "text-sm text-[#6B5B36]" : "text-sm text-zinc-400"}`}>{t("nfcCards.quantity")}</label>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">−</button>
+                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>−</button>
                       <span className="w-8 text-center font-bold">{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(100, quantity + 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">+</button>
+                      <button onClick={() => setQuantity(Math.min(100, quantity + 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>+</button>
                     </div>
-                    <span className="ml-auto text-lg">{t("nfcCards.total")}: <span className="text-amber-300 font-bold">{formatMoney(total)}</span></span>
+                    <span className="ml-auto text-lg">{t("nfcCards.total")}: <span className={`${isLight ? "text-[#7A5A12] font-bold" : "text-amber-300 font-bold"}`}>{formatMoney(total)}</span></span>
                   </div>
                 </div>
               )}
 
               {step === "details" && (
                 <div className="space-y-4 max-w-xl">
-                  <p className="text-zinc-400 text-sm">{t("nfcCards.detailsHint")}</p>
+                  <p className={`${isLight ? "text-[#6B5B36] text-sm" : "text-zinc-400 text-sm"}`}>{t("nfcCards.detailsHint")}</p>
                   <input className={inputCls} placeholder={t("nfcCards.displayNamePlaceholder")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
                   <input className={inputCls} placeholder={t("nfcCards.titlePlaceholder")} value={title} onChange={(e) => setTitle(e.target.value)} />
                   <textarea className={inputCls} rows={3} placeholder={t("nfcCards.bioPlaceholder")} value={bio} onChange={(e) => setBio(e.target.value)} />
                   <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">{t("nfcCards.linksLabel")}</label>
+                    <label className={`${isLight ? "text-sm text-[#6B5B36] mb-2 block" : "text-sm text-zinc-400 mb-2 block"}`}>{t("nfcCards.linksLabel")}</label>
                     {links.map((l, i) => (
                       <div key={i} className="flex gap-2 mb-2">
                         <input className={inputCls} placeholder={t("nfcCards.linkLabelPlaceholder")} value={l.label} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
                         <input className={inputCls} placeholder="https://…" value={l.url} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
-                        <button onClick={() => setLinks(links.filter((_, j) => j !== i))} className="px-3 text-zinc-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => setLinks(links.filter((_, j) => j !== i))} className={`${isLight ? "px-3 text-[#8A7A56] hover:text-red-500" : "px-3 text-zinc-500 hover:text-red-400"}`}><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
                     {links.length < 12 && (
-                      <button onClick={() => setLinks([...links, { label: "", url: "" }])} className="text-amber-400 text-sm flex items-center gap-1 hover:text-amber-300">
+                      <button onClick={() => setLinks([...links, { label: "", url: "" }])} className={`${isLight ? "text-[#7A5A12] text-sm flex items-center gap-1 hover:text-[#C9A84C]" : "text-amber-400 text-sm flex items-center gap-1 hover:text-amber-300"}`}>
                         <Plus className="w-4 h-4" /> {t("nfcCards.addLink")}
                       </button>
                     )}
@@ -364,7 +366,7 @@ export default function NfcCards() {
                     <input className={inputCls} placeholder={t("nfcCards.statePlaceholder")} value={state_} onChange={(e) => setState_(e.target.value)} />
                     <input className={inputCls} placeholder={t("nfcCards.zipPlaceholder")} value={zip} onChange={(e) => setZip(e.target.value)} />
                   </div>
-                  <p className="text-xs text-zinc-500 flex items-center gap-2">
+                  <p className={`${isLight ? "text-xs text-[#8A7A56] flex items-center gap-2" : "text-xs text-zinc-500 flex items-center gap-2"}`}>
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     {t("nfcCards.shippingPrivacy")}
                   </p>
@@ -373,17 +375,17 @@ export default function NfcCards() {
 
               {step === "review" && (
                 <div className="max-w-xl space-y-4">
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-zinc-400">{t("nfcCards.reviewStyle")}</span><span className="font-medium">{style.label}</span></div>
-                    <div className="flex justify-between"><span className="text-zinc-400">{t("nfcCards.reviewQuantity")}</span><span className="font-medium">{quantity}</span></div>
-                    <div className="flex justify-between"><span className="text-zinc-400">{t("nfcCards.reviewDigitalCardFor")}</span><span className="font-medium">{displayName}</span></div>
-                    <div className="flex justify-between"><span className="text-zinc-400">{t("nfcCards.reviewShipTo")}</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
+                  <div className={`${isLight ? "rounded-2xl border p-5 space-y-2 text-sm border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-2 text-sm"}`}>
+                    <div className="flex justify-between"><span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("nfcCards.reviewStyle")}</span><span className="font-medium">{style.label}</span></div>
+                    <div className="flex justify-between"><span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("nfcCards.reviewQuantity")}</span><span className="font-medium">{quantity}</span></div>
+                    <div className="flex justify-between"><span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("nfcCards.reviewDigitalCardFor")}</span><span className="font-medium">{displayName}</span></div>
+                    <div className="flex justify-between"><span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("nfcCards.reviewShipTo")}</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
                     <div className="flex justify-between pt-2 border-t border-zinc-800">
-                      <span className="text-zinc-400">{t("nfcCards.reviewTotal")}</span>
-                      <span className="text-amber-300 font-bold text-lg">{formatMoney(total)}</span>
+                      <span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("nfcCards.reviewTotal")}</span>
+                      <span className={`${isLight ? "text-[#7A5A12] font-bold text-lg" : "text-amber-300 font-bold text-lg"}`}>{formatMoney(total)}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-zinc-400 flex items-start gap-2">
+                  <p className={`${isLight ? "text-sm text-[#6B5B36] flex items-start gap-2" : "text-sm text-zinc-400 flex items-start gap-2"}`}>
                     <CreditCard className="w-4 h-4 mt-0.5 text-amber-400 shrink-0" />
                     {t("nfcCards.reserveFreeNote")}
                   </p>
@@ -423,8 +425,8 @@ export default function NfcCards() {
                 )}
               </div>
               {!user && (
-                <p className="mt-4 text-center text-sm text-zinc-500">
-                  {t("nfcCards.signInPromptPrefix")} <Link href="/login" className="text-amber-400 hover:text-amber-300">{t("nfcCards.signIn")}</Link> {t("nfcCards.signInPromptSuffix")}
+                <p className={`${isLight ? "mt-4 text-center text-sm text-[#8A7A56]" : "mt-4 text-center text-sm text-zinc-500"}`}>
+                  {t("nfcCards.signInPromptPrefix")} <Link href="/login" className={`${isLight ? "text-[#7A5A12] hover:text-[#C9A84C]" : "text-amber-400 hover:text-amber-300"}`}>{t("nfcCards.signIn")}</Link> {t("nfcCards.signInPromptSuffix")}
                 </p>
               )}
             </>
@@ -440,33 +442,33 @@ export default function NfcCards() {
             {loadingMine ? (
               <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
             ) : profiles.length === 0 && orders.length === 0 ? (
-              <p className="text-zinc-500">{t("nfcCards.noCardsYet")}</p>
+              <p className={`${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{t("nfcCards.noCardsYet")}</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {profiles.map((p) => (
-                  <div key={p.slug} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+                  <div key={p.slug} className={`${isLight ? "rounded-2xl border p-5 border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5"}`}>
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-lg">{p.display_name}</h3>
                         <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-amber-400/90 text-sm hover:text-amber-300">
                           bowdownvisuals.com/c/{p.slug}
                         </a>
-                        <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
+                        <p className={`${isLight ? "text-xs text-[#8A7A56] mt-1 flex items-center gap-1" : "text-xs text-zinc-500 mt-1 flex items-center gap-1"}`}>
                           <BarChart3 className="w-3 h-3" /> {t("nfcCards.taps", { count: p.tap_count })}
                         </p>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button onClick={() => setEditing({ ...p, links: [...p.links] })}
-                        className="text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1">
+                        className={`${isLight ? "text-xs rounded-lg border border-[#C9A84C]/40 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1" : "text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1"}`}>
                         <Pencil className="w-3 h-3" /> {t("nfcCards.editCard")}
                       </button>
                       <a href={`/api/nfc-cards/qr/${p.slug}.svg`} download={`${p.slug}-qr.svg`}
-                        className="text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1">
+                        className={`${isLight ? "text-xs rounded-lg border border-[#C9A84C]/40 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1" : "text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1"}`}>
                         <Download className="w-3 h-3" /> {t("nfcCards.qrSvg")}
                       </a>
                       <a href={p.url} target="_blank" rel="noopener noreferrer"
-                        className="text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1">
+                        className={`${isLight ? "text-xs rounded-lg border border-[#C9A84C]/40 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1" : "text-xs rounded-lg border border-zinc-700 px-3 py-2 hover:border-amber-500/50 flex items-center gap-1"}`}>
                         <QrCode className="w-3 h-3" /> {t("nfcCards.preview")}
                       </a>
                     </div>
@@ -476,13 +478,13 @@ export default function NfcCards() {
             )}
             {orders.length > 0 && (
               <div className="mt-6">
-                <h3 className="font-semibold mb-2 text-zinc-300">{t("nfcCards.orderHistory")}</h3>
+                <h3 className={`${isLight ? "font-semibold mb-2 text-[#2A1E07]" : "font-semibold mb-2 text-zinc-300"}`}>{t("nfcCards.orderHistory")}</h3>
                 <div className="space-y-2">
                   {orders.map((o) => (
                     <div key={o.id} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm">
                       <span>{nfcStyleByKey(o.card_style)?.label ?? o.card_style} × {o.quantity}</span>
-                      <span className="text-zinc-400">{formatMoney(o.total_cents)}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${o.status === "received" ? "bg-amber-400/10 text-amber-300" : "bg-zinc-800 text-zinc-300"}`}>
+                      <span className={`${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{formatMoney(o.total_cents)}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${o.status === "received" ? isLight ? "bg-amber-400/10 text-[#7A5A12]" : "bg-amber-400/10 text-amber-300" : isLight ? "bg-[#C9A84C]/15 text-[#6B5B36]" : "bg-zinc-800 text-zinc-300"}`}>
                         {o.status.replace("_", " ")}
                       </span>
                     </div>
@@ -498,12 +500,12 @@ export default function NfcCards() {
           <h2 className="text-2xl font-bold mb-5">{t("nfcCards.questions")}</h2>
           <div className="space-y-3">
             {FAQS.map((f, i) => (
-              <details key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 group">
+              <details key={i} className={`${isLight ? "rounded-2xl border px-5 py-4 group border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 group"}`}>
                 <summary className="font-medium cursor-pointer list-none flex justify-between items-center">
                   {t(f.qk)}
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-open:rotate-90 transition" />
+                  <ChevronRight className={`${isLight ? "w-4 h-4 text-[#8A7A56] group-open:rotate-90 transition" : "w-4 h-4 text-zinc-500 group-open:rotate-90 transition"}`} />
                 </summary>
-                <p className="text-sm text-zinc-400 mt-2 leading-relaxed">{t(f.ak)}</p>
+                <p className={`${isLight ? "text-sm text-[#6B5B36] mt-2 leading-relaxed" : "text-sm text-zinc-400 mt-2 leading-relaxed"}`}>{t(f.ak)}</p>
               </details>
             ))}
           </div>
@@ -513,7 +515,7 @@ export default function NfcCards() {
       {/* ── Edit drawer ── */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 p-4" onClick={() => setEditing(null)}>
-          <div className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className={`${isLight ? "w-full max-w-lg rounded-3xl border p-6 space-y-4 border-[#C9A84C]/30 bg-[#FCF7EA]" : "w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-4"}`} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold">{t("nfcCards.editDigitalCard")}</h3>
             <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" value={editing.display_name}
               onChange={(e) => setEditing({ ...editing, display_name: e.target.value })} placeholder={t("nfcCards.displayName")} />
@@ -528,7 +530,7 @@ export default function NfcCards() {
                 <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.url}
                   onChange={(e) => setEditing({ ...editing, links: editing.links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) })} placeholder="https://…" />
                 <button onClick={() => setEditing({ ...editing, links: editing.links.filter((_, j) => j !== i) })}
-                  className="text-zinc-500 hover:text-red-400 px-2"><Trash2 className="w-4 h-4" /></button>
+                  className={`${isLight ? "text-[#8A7A56] hover:text-red-500 px-2" : "text-zinc-500 hover:text-red-400 px-2"}`}><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
             {editing.links.length < 12 && (
@@ -536,7 +538,7 @@ export default function NfcCards() {
                 className="text-amber-400 text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> {t("nfcCards.addLink")}</button>
             )}
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-xl border border-zinc-700 text-zinc-300">{t("nfcCards.cancel")}</button>
+              <button onClick={() => setEditing(null)} className={`${isLight ? "px-5 py-2.5 rounded-xl border border-[#C9A84C]/40 text-[#2A1E07]" : "px-5 py-2.5 rounded-xl border border-zinc-700 text-zinc-300"}`}>{t("nfcCards.cancel")}</button>
               <button onClick={saveEdit} disabled={savingEdit}
                 className="px-5 py-2.5 rounded-xl bg-amber-400 text-black font-semibold disabled:opacity-50 flex items-center gap-2">
                 {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />} {t("nfcCards.save")}
