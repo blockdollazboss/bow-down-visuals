@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2 } from "lucide-react";
@@ -41,6 +42,7 @@ interface ItemData {
 }
 
 export default function StoreBuy() {
+  const isLight = useIsLightTheme();
   usePageTitle("Checkout");
   const params = useParams<{ kind: string; id: string }>();
   const [, navigate] = useLocation();
@@ -129,7 +131,7 @@ export default function StoreBuy() {
         </div>
 
         {error ? (
-          <div className="mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-10 text-center">
+          <div className={`mt-8 rounded-2xl border border-amber-500/30 p-10 text-center ${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "bg-gradient-to-b from-[#171204] to-black"}`}>
             <div className="text-4xl">{notWired ? "🛠️" : "🔒"}</div>
             <h1 className="mt-4 text-2xl font-bold text-amber-300">Not available right now</h1>
             <p className="mt-2 text-amber-100/70">{error}</p>
@@ -139,7 +141,7 @@ export default function StoreBuy() {
             <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
           </div>
         ) : (
-          <div className="mt-8 overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black shadow-[0_0_60px_rgba(201,162,39,0.15)]">
+          <div className={`mt-8 overflow-hidden rounded-2xl border border-amber-500/30 shadow-[0_0_60px_rgba(201,162,39,0.15)] ${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "bg-gradient-to-b from-[#171204] to-black"}`}>
             {data.item.artworkUrl ? (
               <img src={data.item.artworkUrl} alt={data.item.title} className="h-64 w-full object-cover" />
             ) : (
