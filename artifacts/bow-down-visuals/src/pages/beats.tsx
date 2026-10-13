@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -64,6 +65,7 @@ function priceFor(beat: Beat, tier: string): number {
 }
 
 export default function Beats() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -519,7 +521,7 @@ export default function Beats() {
       {/* License modal */}
       {licenseBeat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setLicenseBeat(null)}>
-          <div className="w-full max-w-md rounded-2xl border border-yellow-500/30 bg-[#0a0a0a] p-6" onClick={(e) => e.stopPropagation()}>
+          <div className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-yellow-500/30 bg-[#0a0a0a]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
               <button onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
