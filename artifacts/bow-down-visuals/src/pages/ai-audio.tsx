@@ -177,7 +177,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 [&>*]:min-w-0">
           <div>
             <Label className="text-white/70 text-sm mb-2 flex items-center gap-1.5">
               <Timer className="w-3.5 h-3.5" /> {t("beatMaker.bpmLabel")}
@@ -185,7 +185,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
             <Input
               type="number" min={60} max={200} value={bpm}
               onChange={(e) => setBpm(Math.min(200, Math.max(60, Number(e.target.value) || 140)))}
-              className={beatInputClass}
+              className={`${beatInputClass} w-full`}
             />
           </div>
           <div>
@@ -216,7 +216,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("beatMaker.titlePlaceholder")}
-              className={beatInputClass}
+              className={`${beatInputClass} w-full`}
             />
           </div>
         </div>
