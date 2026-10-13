@@ -54,7 +54,7 @@ function useQuery() {
 
 export default function CreatorPricing() {
   const isLight = useIsLightTheme();
-  usePageTitle("Creator Plans — Go Pro, Keep More of Your Money");
+  usePageTitle("Creator Plans — Go Pro, Keep More of Your Money", "Creator plans for every level: compare ranks, Visual Buc rates, automation and control — go pro and keep more of your money.");
   const query = useQuery();
   const { user, getAccessToken } = useAuth();
   const returnTo = query.get("returnTo") && query.get("returnTo")!.startsWith("/") ? query.get("returnTo")! : "/dashboard";

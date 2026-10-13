@@ -87,7 +87,7 @@ function moneyCents(cents: number | null): string {
 
 export default function SponsorDealDetail() {
   const isLight = useIsLightTheme();
-  usePageTitle("Sponsor Deal");
+  usePageTitle("Sponsor Deal", "Review this sponsorship deal on Bow Down Visuals — the offer, deliverables and terms, all in one place.");
   const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();

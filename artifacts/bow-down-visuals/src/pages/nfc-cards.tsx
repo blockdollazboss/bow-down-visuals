@@ -54,7 +54,7 @@ const HOW_ICONS = { pencil: Pencil, zap: Zap, truck: Truck } as const;
 
 export default function NfcCards() {
   const isLight = useIsLightTheme();
-  usePageTitle("NFC Cards");
+  usePageTitle("NFC Cards", "NFC smart business cards for creators: one tap shares your profile, music, videos and links — premium cards carrying your brand.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

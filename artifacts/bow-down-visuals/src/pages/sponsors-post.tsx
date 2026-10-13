@@ -22,7 +22,7 @@ const sectionLabel =
 
 export default function SponsorPost() {
   const isLight = useIsLightTheme();
-  usePageTitle("Post a Sponsorship");
+  usePageTitle("Post a Sponsorship", "Post a sponsorship opportunity on Bow Down Visuals and reach creators ready to promote your brand.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

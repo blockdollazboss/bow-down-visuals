@@ -91,7 +91,7 @@ function viralityColor(s: number): string {
 }
 
 export default function Movies() {
-  usePageTitle("Movies & Web Series");
+  usePageTitle("Movies & Web Series", "Create, publish and promote AI-assisted movies and web series with the Bow Down Visuals creator studio.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
