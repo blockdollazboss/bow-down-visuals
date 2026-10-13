@@ -11,6 +11,7 @@ import {
   JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatMoney,
 } from "@/lib/jewelry";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Custom Jewelry Shop ───────────────────────────────────────────────
    Made-to-order branded jewelry (dropship).
@@ -37,6 +38,7 @@ export default function JewelryShop() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
 
   const [step, setStep] = useState<Step>("piece");
   const [productKey, setProductKey] = useState(JEWELRY_PRODUCTS[0].key);
@@ -182,7 +184,7 @@ export default function JewelryShop() {
       </div>
 
       <div className="max-w-5xl mx-auto px-5 pb-20">
-        <div className="rounded-3xl border border-amber-500/25 bg-gradient-to-b from-zinc-900 to-black p-6 md:p-10">
+        <div className={`rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-amber-500/25 bg-gradient-to-b from-zinc-900 to-black"}`}>
           {done ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
@@ -222,7 +224,7 @@ export default function JewelryShop() {
                         key={p.key}
                         onClick={() => pickProduct(p.key)}
                         className={`rounded-2xl border p-5 text-left transition ${
-                          productKey === p.key ? "border-amber-400 bg-amber-400/5" : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                          productKey === p.key ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-amber-400 bg-amber-400/10 shadow-[0_0_0_1px_rgba(251,191,36,0.6)]") : (isLight ? "border-[#E3D5B8] bg-white/70 hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700")
                         }`}
                       >
                         <div className="h-24 rounded-xl mb-4 border border-white/10 flex items-center justify-center" style={{ background: p.swatch }}>
@@ -249,7 +251,7 @@ export default function JewelryShop() {
                           key={f.key}
                           onClick={() => setFinish(f.key)}
                           className={`rounded-xl border p-3 text-center transition ${
-                            finish === f.key ? "border-amber-400 bg-amber-400/5" : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                            finish === f.key ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-amber-400 bg-amber-400/10 shadow-[0_0_0_1px_rgba(251,191,36,0.6)]") : (isLight ? "border-[#E3D5B8] bg-white/70 hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700")
                           }`}
                         >
                           <div className="h-10 rounded-lg mb-2 border border-white/10" style={{ background: f.swatch }} />
@@ -266,7 +268,7 @@ export default function JewelryShop() {
                           key={s}
                           onClick={() => setSizeOption(s)}
                           className={`rounded-lg border px-4 py-2 text-sm transition ${
-                            sizeOption === s ? "border-amber-400 bg-amber-400/10 text-amber-200" : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                            sizeOption === s ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-amber-400 bg-amber-400/10 text-amber-200") : (isLight ? "border-[#E3D5B8] text-[#6B5B36] hover:border-[#C9A84C]/60" : "border-zinc-800 text-zinc-400 hover:border-zinc-600")
                           }`}
                         >
                           {s}
@@ -324,14 +326,14 @@ export default function JewelryShop() {
 
               {step === "review" && (
                 <div className="max-w-xl space-y-4">
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-2 text-sm">
+                  <div className={`rounded-2xl border p-5 space-y-2 text-sm ${isLight ? "border-[#E3D5B8] bg-[#F3EAD3]" : "border-zinc-800 bg-zinc-900/60"}`}>
                     <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewPiece")}</span><span className="font-medium">{product.label}</span></div>
                     <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewFinish")}</span><span className="font-medium">{JEWELRY_FINISHES.find((f) => f.key === finish)?.label}</span></div>
                     <div className="flex justify-between"><span className="text-zinc-400">{product.sizeLabel}</span><span className="font-medium">{sizeOption}</span></div>
                     {engraving.trim() && <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewEngraving")}</span><span className="font-medium">“{engraving.trim()}”</span></div>}
                     <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewQuantity")}</span><span className="font-medium">{quantity}</span></div>
                     <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewShipTo")}</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
-                    <div className="flex justify-between pt-2 border-t border-zinc-800">
+                    <div className={`flex justify-between pt-2 border-t ${isLight ? "border-[#E3D5B8]" : "border-zinc-800"}`}>
                       <span className="text-zinc-400">{t("jewelryShop.reviewTotal")}</span>
                       <span className="text-amber-300 font-bold text-lg">{formatMoney(total)}</span>
                     </div>
@@ -392,7 +394,7 @@ export default function JewelryShop() {
             ) : (
               <div className="space-y-2">
                 {orders.map((o) => (
-                  <div key={o.id} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm">
+                  <div key={o.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#E3D5B8] bg-white/70" : "border-zinc-800 bg-zinc-900/40"}`}>
                     <span>{jewelryProductByKey(o.product_key)?.label ?? o.product_key} · {o.size_option} × {o.quantity}</span>
                     <span className="text-zinc-400">{formatMoney(o.total_cents)}</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-300">
