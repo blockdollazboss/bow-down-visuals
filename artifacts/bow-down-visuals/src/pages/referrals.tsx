@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,6 +133,7 @@ function useCountdown(endsAt: string | null) {
 }
 
 function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData; mySignupsThisMonth: number }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [copiedWin, setCopiedWin] = useState<number | null>(null);
   const { d, h, m, s } = useCountdown(contest.endsAt);
@@ -179,7 +181,7 @@ function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData;
             { v: pad(m), l: t("referrals.contest.mins") },
             { v: pad(s), l: t("referrals.contest.secs") },
           ].map((u, i) => (
-            <div key={i} className="rounded-lg bg-black/50 border border-primary/25 px-3 py-2 text-center min-w-[56px]">
+            <div key={i} className={`rounded-lg border px-3 py-2 text-center min-w-[56px] ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40" : "bg-black/50 border-primary/25"}`}>
               <p className="text-xl font-black text-primary tabular-nums">{u.v}</p>
               <p className="text-[10px] text-white/40 uppercase">{u.l}</p>
             </div>
@@ -191,7 +193,7 @@ function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData;
           <p className="text-xs text-white/45 uppercase tracking-widest mb-2 text-center">{t("referrals.contest.prizesTitle")}</p>
           <div className="grid grid-cols-3 gap-2">
             {contest.prizes.map((p) => (
-              <div key={p.rank} className="rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-center">
+              <div key={p.rank} className={`rounded-lg  px-3 py-2.5 text-center border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}>
                 <p className="text-lg font-black text-primary">#{p.rank}</p>
                 <p className="text-sm font-bold text-white">{p.prizeCredits.toLocaleString("en-US")} VB</p>
               </div>
@@ -225,7 +227,7 @@ function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData;
                 return (
                   <div
                     key={e.rank}
-                    className="flex items-center gap-3 rounded-lg bg-black/40 border border-white/10 px-3 py-2"
+                    className={`flex items-center gap-3 rounded-lg  px-3 py-2 border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}
                   >
                     <span className={`text-sm font-black w-7 text-center ${e.rank <= 3 ? "text-primary" : "text-white/40"}`}>
                       {e.rank}
@@ -289,6 +291,7 @@ function ContestSection({ contest, mySignupsThisMonth }: { contest: ContestData;
 
 /* ─── Leaderboard ────────────────────────────────────────────────────────── */
 function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [window, setWindow] = useState<"weekly" | "monthly" | "alltime">("monthly");
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
@@ -319,7 +322,7 @@ function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
         <p className="text-xs text-white/45 uppercase tracking-widest flex items-center gap-1.5">
           <TrendingUp className="h-3.5 w-3.5" /> {t("referrals.leaderboard.title")}
         </p>
-        <div className="flex gap-1 rounded-lg bg-black/40 border border-white/10 p-1">
+        <div className={`flex gap-1 rounded-lg  p-1 border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}>
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -352,7 +355,7 @@ function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
               <div
                 key={e.rank}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 border ${
-                  isMe ? "bg-primary/10 border-primary/40" : "bg-black/40 border-white/10"
+                  isMe ? "bg-primary/10 border-primary/40" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"
                 }`}
               >
                 <span className={`text-sm font-black w-7 text-center ${e.rank <= 3 ? "text-primary" : "text-white/40"}`}>
@@ -379,6 +382,7 @@ function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
 
 /* ─── Share kit — one-click blast ────────────────────────────────────────── */
 function ShareKitSection({ referralLink, reward }: { referralLink: string; reward: number }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -412,7 +416,7 @@ function ShareKitSection({ referralLink, reward }: { referralLink: string; rewar
       <p className="text-xs text-white/40 mb-4">{t("referrals.sharekit.subtitle")}</p>
       <div className="space-y-3">
         {templates.map((tpl) => (
-          <div key={tpl.key} className="rounded-lg bg-black/40 border border-white/10 p-3">
+          <div key={tpl.key} className={`rounded-lg  p-3 border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold text-white/60 uppercase tracking-widest">{tpl.label}</p>
               <button
@@ -445,6 +449,7 @@ function ShareKitSection({ referralLink, reward }: { referralLink: string; rewar
 }
 
 export default function Referrals() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [info, setInfo] = useState<ReferralInfo | null>(null);
@@ -574,7 +579,7 @@ export default function Referrals() {
                     { label: t("referrals.rank.thisMonth"), rank: info.ranks.monthly },
                     { label: t("referrals.rank.allTime"), rank: info.ranks.alltime },
                   ].map((w) => (
-                    <div key={w.label} className="rounded-lg bg-black/40 border border-white/10 px-3 py-1.5">
+                    <div key={w.label} className={`rounded-lg  px-3 py-1.5 border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}>
                       <p className="text-[10px] text-white/40 uppercase tracking-widest">{w.label}</p>
                       <p className="text-sm font-black text-primary">
                         {w.rank != null ? `#${w.rank}` : t("referrals.rank.unranked")}
@@ -635,7 +640,7 @@ export default function Referrals() {
             <div className="lux-card p-5 mb-6">
               <p className="text-xs text-white/45 uppercase tracking-widest mb-3">{t("referrals.link.title")}</p>
               <div className="flex gap-2">
-                <code className="flex-1 min-w-0 truncate rounded-lg bg-black/50 border border-white/10 px-3 py-2.5 text-sm text-primary">
+                <code className={`flex-1 min-w-0 truncate rounded-lg border px-3 py-2.5 text-sm ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40 text-[#7A5A12]" : "bg-black/50 border-white/10 text-primary"}`}>
                   {referralLink}
                 </code>
                 <button
@@ -686,7 +691,7 @@ export default function Referrals() {
                   {info.referrals.map((r, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-3 rounded-lg bg-black/40 border border-white/10 px-4 py-3"
+                      className={`flex items-center justify-between gap-3 rounded-lg  px-4 py-3 border ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"}`}
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-white">
@@ -736,8 +741,8 @@ export default function Referrals() {
                         isCurrent
                           ? "bg-primary/10 border-primary/40"
                           : unlocked
-                            ? "bg-black/40 border-white/10"
-                            : "bg-black/20 border-white/5 opacity-60"
+                            ? isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "bg-black/40 border-white/10"
+                            : isLight ? "bg-[#F7ECD2]/40 border-[#C9A84C]/15 opacity-60" : "bg-black/20 border-white/5 opacity-60"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
