@@ -54,7 +54,7 @@ function useQuery() {
 
 export default function CreatorPricing() {
   const isLight = useIsLightTheme();
-  usePageTitle("Creator Plans — Go Pro, Keep More of Your Money | Bow Down Visuals");
+  usePageTitle("Creator Plans — Go Pro, Keep More of Your Money");
   const query = useQuery();
   const { user, getAccessToken } = useAuth();
   const returnTo = query.get("returnTo") && query.get("returnTo")!.startsWith("/") ? query.get("returnTo")! : "/dashboard";

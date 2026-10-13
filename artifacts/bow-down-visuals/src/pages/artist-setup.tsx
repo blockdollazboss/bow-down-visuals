@@ -190,7 +190,7 @@ function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose:
 }
 
 export default function ArtistSetup() {
-  usePageTitle("Artist Setup — Bow Down Visuals", "Build your creator profile: AI page designer, themes, sections, and publishing.");
+  usePageTitle("Artist Setup", "Build your creator profile: AI page designer, themes, sections, and publishing.");
   const { toast } = useToast();
   const { profile: authProfile, user } = useAuth();
   const [tab, setTab] = useState<TabId>("designer");
