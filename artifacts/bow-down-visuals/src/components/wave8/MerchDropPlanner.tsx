@@ -4,6 +4,7 @@ import { Loader2, Sparkles, Shirt, CalendarCheck, Check, ArrowRight } from "luci
 import { useTranslation } from "react-i18next";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Wave 8: Merch Drop Planner ──────────────────────────────────────────
    Docked in the branding shop's merch section. The AI plans 3 merch
@@ -53,6 +54,7 @@ function nextMondayISO(): string {
 }
 
 export default function MerchDropPlanner() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -168,7 +170,7 @@ export default function MerchDropPlanner() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+    <div className={`overflow-hidden rounded-2xl border border-primary/25 ${isLight ? "bg-gradient-to-br from-[#F7ECD2] via-[#FCF7EA] to-[#F7ECD2]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
       <div className="p-6 md:p-8">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
           <Sparkles className="h-3.5 w-3.5" /> {t("wave8.merchDrop.badge")}
