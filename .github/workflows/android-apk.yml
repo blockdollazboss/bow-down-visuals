@@ -59,6 +59,17 @@ jobs:
           sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
           grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml || { echo "BACKUP DISABLE FAILED"; exit 1; }
 
+      # The generated platform ships Capacitor's DEFAULT launcher icon (blue
+      # glyph) — the app had no Bow Down Visuals logo on the home screen.
+      # resources/android-res/ holds the King Shark launcher set (legacy,
+      # round, and adaptive foregrounds at every density), generated from
+      # resources/icon.png. Copy it over the generated res/ before building.
+      - name: Apply Bow Down Visuals launcher icon
+        run: |
+          test -f resources/android-res/mipmap-xxxhdpi/ic_launcher.png || { echo "ICON SOURCE MISSING"; exit 1; }
+          cp -r resources/android-res/. android/app/src/main/res/
+          ls android/app/src/main/res/mipmap-xxxhdpi/
+
       - name: Set up release signing
         working-directory: artifacts/bow-down-visuals/android
         run: |
