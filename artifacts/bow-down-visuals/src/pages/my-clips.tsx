@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -82,6 +83,7 @@ interface AttachModalProps {
 }
 
 function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -253,7 +255,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                       onClick={() => { setSelectedProject(p); setSelectedScene(null); }}
                       className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
                         selectedProject?.id === p.id
-                          ? "border-primary/40 bg-primary/10 text-white"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
                       }`}
                     >
@@ -302,7 +304,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                           onClick={() => setSelectedScene(scene)}
                           className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
                             selectedScene?.id === scene.id
-                              ? "border-primary/40 bg-primary/10 text-white"
+                              ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                               : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
                           }`}
                         >
