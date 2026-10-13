@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -64,6 +65,7 @@ interface GuideSection { title: string; body: string }
 const money = (n: number) => "$" + Math.round(n).toLocaleString();
 
 export default function JewelryStudio() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -269,19 +271,19 @@ export default function JewelryStudio() {
   const goldBtn =
     "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-400 px-6 py-3 font-bold text-black hover:from-yellow-400 hover:to-amber-300 disabled:opacity-50 transition";
   const ghostBtn =
-    "inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 px-5 py-3 text-yellow-200 hover:bg-yellow-500/10 transition";
-  const card = "rounded-2xl border border-yellow-500/20 bg-black/60 p-5 backdrop-blur";
+    isLight ? "inline-flex items-center gap-2 rounded-xl border border-[#C9A84C]/40 px-5 py-3 text-[#7A5A12] hover:bg-[#C9A84C]/10 transition" : "inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 px-5 py-3 text-yellow-200 hover:bg-yellow-500/10 transition";
+  const card = isLight ? "rounded-2xl border border-[#C9A84C]/30 bg-[#F7ECD2]/70 p-5" : "rounded-2xl border border-yellow-500/20 bg-black/60 p-5 backdrop-blur";
 
   const optGrid = "grid grid-cols-2 gap-2 sm:grid-cols-3";
   const optBtn = (active: boolean) =>
     `rounded-xl border px-3 py-2.5 text-left text-sm transition ${
       active
-        ? "border-yellow-400 bg-yellow-500/15 text-yellow-100 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
-        : "border-white/10 bg-white/5 text-zinc-300 hover:border-yellow-500/40"
+        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-yellow-400 bg-yellow-500/15 text-yellow-100 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+        : isLight ? "border-[#C9A84C]/25 bg-white/50 text-[#2A1E07] hover:border-[#C9A84C]/50" : "border-white/10 bg-white/5 text-zinc-300 hover:border-yellow-500/40"
     }`;
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100">
+    <div className={`${isLight ? "min-h-screen text-[#2A1E07]" : "min-h-screen bg-black text-zinc-100"}`}>
       {/* Header */}
       <div className="border-b border-yellow-500/20 bg-gradient-to-b from-yellow-950/40 to-black px-4 py-8 text-center">
         <div className="mx-auto max-w-4xl">
@@ -291,14 +293,14 @@ export default function JewelryStudio() {
           <h1 className="text-3xl font-black text-transparent sm:text-4xl bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-200 bg-clip-text">
             {t("jewelry.headerTitle")}
           </h1>
-          <p className="mt-2 text-zinc-400">
+          <p className={`${isLight ? "mt-2 text-[#6B5B36]" : "mt-2 text-zinc-400"}`}>
             {t("jewelry.headerDesc")}
           </p>
         </div>
       </div>
 
       {/* Stepper */}
-      <div className="sticky top-0 z-20 border-b border-yellow-500/15 bg-black/90 backdrop-blur">
+      <div className={`${isLight ? "sticky top-0 z-20 border-b border-[#C9A84C]/25 bg-[#FCF7EA]/90 backdrop-blur" : "sticky top-0 z-20 border-b border-yellow-500/15 bg-black/90 backdrop-blur"}`}>
         <div className="mx-auto flex max-w-5xl items-center gap-1 overflow-x-auto px-4 py-3">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
@@ -311,7 +313,7 @@ export default function JewelryStudio() {
                 disabled={i > step}
                 className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                   active
-                    ? "bg-yellow-500/20 text-yellow-200"
+                    ? isLight ? "bg-[#C9A84C]/15 text-[#7A5A12]" : "bg-yellow-500/20 text-yellow-200"
                     : done
                       ? "text-yellow-500 hover:bg-yellow-500/10"
                       : "text-zinc-600"
@@ -341,8 +343,8 @@ export default function JewelryStudio() {
         {/* ── STEP 1: LOGO ── */}
         {step === 0 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.dropLogo")}</h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.dropLogo")}</h2>
+            <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.logoHint")}
             </p>
             <button
@@ -354,8 +356,8 @@ export default function JewelryStudio() {
               ) : (
                 <>
                   <Upload className="h-10 w-10 text-yellow-500" />
-                  <span className="text-sm text-zinc-300">{t("jewelry.uploadLogo")}</span>
-                  <span className="text-xs text-zinc-500">{t("jewelry.uploadFormats")}</span>
+                  <span className={`${isLight ? "text-sm text-[#2A1E07]" : "text-sm text-zinc-300"}`}>{t("jewelry.uploadLogo")}</span>
+                  <span className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.uploadFormats")}</span>
                 </>
               )}
             </button>
@@ -373,7 +375,7 @@ export default function JewelryStudio() {
             )}
             {hubLogos.length > 0 && !logoPreview && (
               <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">{t("jewelry.useMyLogo", { defaultValue: "Or use a logo you already made" })}</p>
+                <p className={`${isLight ? "text-xs font-semibold uppercase tracking-widest text-[#8A7A56] mb-2" : "text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2"}`}>{t("jewelry.useMyLogo", { defaultValue: "Or use a logo you already made" })}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {hubLogos.slice(0, 6).map((l) => (
                     <button
@@ -397,17 +399,17 @@ export default function JewelryStudio() {
               </div>
             )}
 
-            <h3 className="mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.whatMaking")}</h3>
+            <h3 className={`${isLight ? "mt-8 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mt-8 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.whatMaking")}</h3>
             <div className="mx-auto mt-3 grid max-w-md grid-cols-2 gap-3">
               <button onClick={() => setCategory("jewelry")} className={optBtn(category === "jewelry") + " !p-4 text-center"}>
                 <Gem className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
                 <div className="font-bold">{t("jewelry.jewelry")}</div>
-                <div className="text-xs text-zinc-500">{t("jewelry.jewelryBlurb")}</div>
+                <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.jewelryBlurb")}</div>
               </button>
               <button onClick={() => setCategory("apparel")} className={optBtn(category === "apparel") + " !p-4 text-center"}>
                 <Shirt className="mx-auto mb-1 h-6 w-6 text-yellow-400" />
                 <div className="font-bold">{t("jewelry.apparel")}</div>
-                <div className="text-xs text-zinc-500">{t("jewelry.apparelBlurb")}</div>
+                <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.apparelBlurb")}</div>
               </button>
             </div>
           </div>
@@ -416,17 +418,17 @@ export default function JewelryStudio() {
         {/* ── STEP 2: DESIGN ── */}
         {step === 1 && catalog && (
           <div className={card}>
-            <h2 className="text-xl font-bold text-yellow-200">
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>
               {t("jewelry.designTitle", { item: t(category === "jewelry" ? "jewelry.designPiece" : "jewelry.designGarment") })}
             </h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.designHint")}
             </p>
 
             {category === "jewelry" ? (
               <div className="mt-6 space-y-6">
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.piece")}</h3>
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.piece")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.pieces).map(([k, v]) => (
                       <button key={k} onClick={() => setJOpts({ ...jOpts, piece: k })} className={optBtn(jOpts.piece === k)}>
@@ -436,7 +438,7 @@ export default function JewelryStudio() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.metal")}</h3>
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.metal")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.metals).map(([k, v]) => (
                       <button key={k} onClick={() => setJOpts({ ...jOpts, metal: k })} className={optBtn(jOpts.metal === k)}>
@@ -447,7 +449,7 @@ export default function JewelryStudio() {
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.stones")}</h3>
+                    <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.stones")}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(catalog.stones).map(([k, v]) => (
                         <button key={k} onClick={() => setJOpts({ ...jOpts, stone: k })} className={optBtn(jOpts.stone === k)}>
@@ -457,7 +459,7 @@ export default function JewelryStudio() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.style")}</h3>
+                    <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.style")}</h3>
                     <div className="grid grid-cols-1 gap-2">
                       {Object.entries(catalog.styles).map(([k, v]) => (
                         <button key={k} onClick={() => setJOpts({ ...jOpts, style: k })} className={optBtn(jOpts.style === k)}>
@@ -470,10 +472,10 @@ export default function JewelryStudio() {
                 <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-4">
                   <label className="flex cursor-pointer items-center justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2 font-semibold text-yellow-100">
+                      <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-yellow-100"}`}>
                         <Nfc className="h-4 w-4" /> {t("jewelry.nfcTitle")}
                       </div>
-                      <p className="mt-1 text-xs text-zinc-400">
+                      <p className={`${isLight ? "mt-1 text-xs text-[#6B5B36]" : "mt-1 text-xs text-zinc-400"}`}>
                         {t("jewelry.nfcDesc")}
                       </p>
                     </div>
@@ -494,7 +496,7 @@ export default function JewelryStudio() {
                   )}
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
                   <textarea
@@ -509,7 +511,7 @@ export default function JewelryStudio() {
             ) : (
               <div className="mt-6 space-y-6">
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.garment")}</h3>
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.garment")}</h3>
                   <div className={optGrid}>
                     {Object.entries(catalog.apparel).map(([k, v]) => (
                       <button key={k} onClick={() => setAOpts({ ...aOpts, product: k })} className={optBtn(aOpts.product === k)}>
@@ -520,7 +522,7 @@ export default function JewelryStudio() {
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.decoration")}</h3>
+                    <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.decoration")}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(catalog.decoMethods).map(([k, v]) => (
                         <button key={k} onClick={() => setAOpts({ ...aOpts, deco: k })} className={optBtn(aOpts.deco === k)}>
@@ -530,7 +532,7 @@ export default function JewelryStudio() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">{t("jewelry.garmentColor")}</h3>
+                    <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.garmentColor")}</h3>
                     <input
                       value={aOpts.color}
                       onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })}
@@ -540,7 +542,7 @@ export default function JewelryStudio() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.unitsLabel")} <span className="text-zinc-600">{t("jewelry.unitsNote")}</span>
                   </h3>
                   <input
@@ -550,7 +552,7 @@ export default function JewelryStudio() {
                   />
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400">
+                  <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
                   <textarea
@@ -569,8 +571,8 @@ export default function JewelryStudio() {
         {/* ── STEP 3: PREVIEW ── */}
         {step === 2 && (
           <div className={`${card} mx-auto max-w-2xl text-center`}>
-            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.aiPreview")}</h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.aiPreview")}</h2>
+            <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.previewDesc", { cost: catalog?.previewCreditCost ?? 2 })}
             </p>
             <div className="mx-auto mt-6 flex h-80 max-w-md items-center justify-center overflow-hidden rounded-2xl border border-yellow-500/25 bg-black/80">
@@ -582,7 +584,7 @@ export default function JewelryStudio() {
               ) : previewUrl ? (
                 <img src={previewUrl} alt={t("jewelry.previewAlt")} className="h-full w-full object-cover" />
               ) : (
-                <div className="px-6 text-sm text-zinc-500">
+                <div className={`${isLight ? "px-6 text-sm text-[#8A7A56]" : "px-6 text-sm text-zinc-500"}`}>
                   {t("jewelry.previewCtaHit")} <span className="font-semibold text-yellow-300">{t("jewelry.generatePreview")}</span> {t("jewelry.previewCtaRest", { material: t(category === "jewelry" ? "jewelry.goldWord" : "jewelry.merchWord") })}
                 </div>
               )}
@@ -598,7 +600,7 @@ export default function JewelryStudio() {
                 </button>
               )}
             </div>
-            <p className="mt-3 text-xs text-zinc-500">
+            <p className={`${isLight ? "mt-3 text-xs text-[#8A7A56]" : "mt-3 text-xs text-zinc-500"}`}>
               {t("jewelry.previewNote")}
             </p>
           </div>
@@ -607,12 +609,12 @@ export default function JewelryStudio() {
         {/* ── STEP 4: FILES ── */}
         {step === 3 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.mfgFile")}</h2>
+            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.mfgFile")}</h2>
             {category === "apparel" ? (
               <div className="mt-4 text-center">
                 <Info className="mx-auto h-8 w-8 text-yellow-500" />
-                <p className="mt-3 text-sm text-zinc-300">
-                  {t("jewelry.apparelNoStl")} <span className="font-semibold text-yellow-200">{t("jewelry.apparelRender")}</span> {t("jewelry.apparelNoStlRest")}
+                <p className={`${isLight ? "mt-3 text-sm text-[#2A1E07]" : "mt-3 text-sm text-zinc-300"}`}>
+                  {t("jewelry.apparelNoStl")} <span className={`${isLight ? "font-semibold text-[#7A5A12]" : "font-semibold text-yellow-200"}`}>{t("jewelry.apparelRender")}</span> {t("jewelry.apparelNoStlRest")}
                 </p>
                 {previewUrl && (
                   <a href={previewUrl} download="logo-apparel-preview.png" className={`${goldBtn} mt-5`}>
@@ -622,7 +624,7 @@ export default function JewelryStudio() {
               </div>
             ) : (
               <div className="mt-4 text-center">
-                <p className="text-sm text-zinc-400">
+                <p className={`${isLight ? "text-sm text-[#6B5B36]" : "text-sm text-zinc-400"}`}>
                   {t("jewelry.stlDescription", { nfc: jOpts.nfc ? t("jewelry.stlNfcCavity") : "", cost: catalog?.stlCreditCost ?? 4 })}
                 </p>
                 {!stlInfo ? (
@@ -632,18 +634,18 @@ export default function JewelryStudio() {
                   </button>
                 ) : (
                   <div className="mt-5 rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-5 text-left">
-                    <div className="flex items-center gap-2 font-semibold text-yellow-100">
+                    <div className={`${isLight ? "flex items-center gap-2 font-semibold text-[#2A1E07]" : "flex items-center gap-2 font-semibold text-yellow-100"}`}>
                       <CheckCircle2 className="h-5 w-5 text-green-400" /> {t("jewelry.stlReady")}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.facets")}</div><div className="font-bold">{stlInfo.facetCount.toLocaleString()}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.size")}</div><div className="font-bold">{stlInfo.widthMm} × {stlInfo.heightMm} mm</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.estWeight")}</div><div className="font-bold">{stlInfo.weightG} g {stlInfo.metal.split(" ")[0]}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.nfcCavity")}</div><div className="font-bold">{stlInfo.nfcPocket ? t("jewelry.nfcYes") : t("jewelry.nfcNo")}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.metal")}</div><div className="font-bold">{stlInfo.metal}</div></div>
-                      <div className="rounded-lg bg-black/50 p-2"><div className="text-xs text-zinc-500">{t("jewelry.format")}</div><div className="font-bold">{t("jewelry.binaryStl")}</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.facets")}</div><div className="font-bold">{stlInfo.facetCount.toLocaleString()}</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.size")}</div><div className="font-bold">{stlInfo.widthMm} × {stlInfo.heightMm} mm</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.estWeight")}</div><div className="font-bold">{stlInfo.weightG} g {stlInfo.metal.split(" ")[0]}</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.nfcCavity")}</div><div className="font-bold">{stlInfo.nfcPocket ? t("jewelry.nfcYes") : t("jewelry.nfcNo")}</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.metal")}</div><div className="font-bold">{stlInfo.metal}</div></div>
+                      <div className={`${isLight ? "rounded-lg bg-[#C9A84C]/15 p-2" : "rounded-lg bg-black/50 p-2"}`}><div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.format")}</div><div className="font-bold">{t("jewelry.binaryStl")}</div></div>
                     </div>
-                    <p className="mt-3 text-xs text-zinc-400">{stlInfo.pieceNote}</p>
+                    <p className={`${isLight ? "mt-3 text-xs text-[#6B5B36]" : "mt-3 text-xs text-zinc-400"}`}>{stlInfo.pieceNote}</p>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <a href={stlInfo.url} download="logo-pendant.stl" className={goldBtn}>
                         <Download className="h-4 w-4" /> {t("jewelry.downloadStl")}
@@ -662,8 +664,8 @@ export default function JewelryStudio() {
         {/* ── STEP 5: ESTIMATE ── */}
         {step === 4 && (
           <div className={`${card} mx-auto max-w-2xl`}>
-            <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.costTitle")}</h2>
-            <p className="mt-1 text-center text-sm text-zinc-400">
+            <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.costTitle")}</h2>
+            <p className={`${isLight ? "mt-1 text-center text-sm text-[#6B5B36]" : "mt-1 text-center text-sm text-zinc-400"}`}>
               {t("jewelry.costHint")}
             </p>
             {estimateBusy && (
@@ -674,11 +676,11 @@ export default function JewelryStudio() {
             {estimate && !estimateBusy && (
               <div className="mt-5">
                 <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-center">
-                  <div className="text-xs uppercase tracking-widest text-zinc-400">{t("jewelry.estimatedTotal")}</div>
+                  <div className={`${isLight ? "text-xs uppercase tracking-widest text-[#6B5B36]" : "text-xs uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.estimatedTotal")}</div>
                   <div className="mt-1 text-3xl font-black text-yellow-300">
                     {money(estimate.totalLowUSD)} – {money(estimate.totalHighUSD)}
                   </div>
-                  <div className="mt-1 text-xs text-zinc-500">
+                  <div className={`${isLight ? "mt-1 text-xs text-[#8A7A56]" : "mt-1 text-xs text-zinc-500"}`}>
                     {t("jewelry.turnaround", { low: estimate.turnaroundWeeks[0], high: estimate.turnaroundWeeks[1] })}
                     {category === "apparel" && <> · {t("jewelry.units", { qty })}</>}
                   </div>
@@ -687,10 +689,10 @@ export default function JewelryStudio() {
                   {estimate.lines.map((l) => (
                     <div key={l.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-zinc-100">{l.label}</span>
+                        <span className={`${isLight ? "font-semibold text-[#2A1E07]" : "font-semibold text-zinc-100"}`}>{l.label}</span>
                         <span className="font-bold text-yellow-300">{money(l.lowUSD)} – {money(l.highUSD)}</span>
                       </div>
-                      <p className="mt-1 text-xs text-zinc-500">{l.note}</p>
+                      <p className={`${isLight ? "mt-1 text-xs text-[#8A7A56]" : "mt-1 text-xs text-zinc-500"}`}>{l.note}</p>
                     </div>
                   ))}
                 </div>
@@ -708,8 +710,8 @@ export default function JewelryStudio() {
         {/* ── STEP 6: GET IT MADE ── */}
         {step === 5 && (
           <div className={card}>
-            <h2 className="text-xl font-bold text-yellow-200">{t("jewelry.getItMade")}</h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-yellow-200"}`}>{t("jewelry.getItMade")}</h2>
+            <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>
               {t("jewelry.getItMadeDesc")}
             </p>
             <div className="mt-5 space-y-3">
@@ -728,8 +730,8 @@ export default function JewelryStudio() {
                 className="flex items-center justify-between gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 transition hover:bg-yellow-500/20"
               >
                 <div>
-                  <div className="text-sm font-bold text-yellow-200">{t("jewelry.ratherUs")}</div>
-                  <p className="mt-0.5 text-xs text-zinc-400">
+                  <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-yellow-200"}`}>{t("jewelry.ratherUs")}</div>
+                  <p className={`${isLight ? "mt-0.5 text-xs text-[#6B5B36]" : "mt-0.5 text-xs text-zinc-400"}`}>
                     {t("jewelry.ratherUsDesc")}
                   </p>
                 </div>
@@ -741,11 +743,11 @@ export default function JewelryStudio() {
                 )
                 .map((s) => (
                   <details key={s.title} className="group rounded-xl border border-white/10 bg-white/[0.03] open:border-yellow-500/30">
-                    <summary className="flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-yellow-100">
+                    <summary className={`${isLight ? "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-[#2A1E07]" : "flex cursor-pointer items-center justify-between gap-2 p-4 text-sm font-semibold text-yellow-100"}`}>
                       {s.title}
                       <ChevronRight className="h-4 w-4 shrink-0 transition group-open:rotate-90" />
                     </summary>
-                    <p className="whitespace-pre-line px-4 pb-4 text-sm leading-relaxed text-zinc-300">{s.body}</p>
+                    <p className={`${isLight ? "whitespace-pre-line px-4 pb-4 text-sm leading-relaxed text-[#2A1E07]" : "whitespace-pre-line px-4 pb-4 text-sm leading-relaxed text-zinc-300"}`}>{s.body}</p>
                   </details>
                 ))}
             </div>
@@ -758,8 +760,8 @@ export default function JewelryStudio() {
             {category === "apparel" ? (
               <div className="text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
-                <h2 className="mt-3 text-xl font-bold text-yellow-200">{t("jewelry.doneTitle")}</h2>
-                <p className="mt-2 text-sm text-zinc-300">
+                <h2 className={`${isLight ? "mt-3 text-xl font-bold text-[#7A5A12]" : "mt-3 text-xl font-bold text-yellow-200"}`}>{t("jewelry.doneTitle")}</h2>
+                <p className={`${isLight ? "mt-2 text-sm text-[#2A1E07]" : "mt-2 text-sm text-zinc-300"}`}>
                   {t("jewelry.doneDesc", { product: aOpts.product })}
                 </p>
                 <button onClick={() => go(0)} className={`${goldBtn} mt-5`}>
@@ -768,8 +770,8 @@ export default function JewelryStudio() {
               </div>
             ) : (
               <div>
-                <h2 className="text-center text-xl font-bold text-yellow-200">{t("jewelry.nfcTitle")}</h2>
-                <p className="mt-1 text-center text-sm text-zinc-400">
+                <h2 className={`${isLight ? "text-center text-xl font-bold text-[#7A5A12]" : "text-center text-xl font-bold text-yellow-200"}`}>{t("jewelry.nfcTitle")}</h2>
+                <p className={`${isLight ? "mt-1 text-center text-sm text-[#6B5B36]" : "mt-1 text-center text-sm text-zinc-400"}`}>
                   {t("jewelry.nfcSetupDesc", { verb: t(jOpts.nfc ? "jewelry.nfcHas" : "jewelry.nfcCanHave") })}
                 </p>
                 {!jOpts.nfc && (
@@ -788,8 +790,8 @@ export default function JewelryStudio() {
                     <li key={s.titleKey} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-500/20 text-sm font-bold text-yellow-300">{i + 1}</span>
                       <div>
-                        <div className="text-sm font-semibold text-zinc-100">{t(s.titleKey)}</div>
-                        <p className="mt-1 text-sm text-zinc-400">{s.desc}</p>
+                        <div className={`${isLight ? "text-sm font-semibold text-[#2A1E07]" : "text-sm font-semibold text-zinc-100"}`}>{t(s.titleKey)}</div>
+                        <p className={`${isLight ? "mt-1 text-sm text-[#6B5B36]" : "mt-1 text-sm text-zinc-400"}`}>{s.desc}</p>
                       </div>
                     </li>
                   ))}
@@ -797,7 +799,7 @@ export default function JewelryStudio() {
                 <div className="mt-6 rounded-xl border border-green-500/30 bg-green-950/30 p-5 text-center">
                   <CheckCircle2 className="mx-auto h-10 w-10 text-green-400" />
                   <h3 className="mt-2 font-bold text-green-200">{t("jewelry.pipelineComplete")}</h3>
-                  <p className="mt-1 text-sm text-zinc-300">
+                  <p className={`${isLight ? "mt-1 text-sm text-[#2A1E07]" : "mt-1 text-sm text-zinc-300"}`}>
                     {t("jewelry.pipelineDesc")}
                   </p>
                   <button onClick={() => go(0)} className={`${goldBtn} mt-4`}>
@@ -821,7 +823,7 @@ export default function JewelryStudio() {
                 : <>{t("jewelry.continue")} <ArrowRight className="h-4 w-4" /></>}
             </button>
           ) : (
-            <div className="text-sm text-zinc-500"> {t("jewelry.kingShark")}</div>
+            <div className={`${isLight ? "text-sm text-[#8A7A56]" : "text-sm text-zinc-500"}`}> {t("jewelry.kingShark")}</div>
           )}
         </div>
       </div>
@@ -835,28 +837,28 @@ export default function JewelryStudio() {
         <MessageCircle className="h-6 w-6" />
       </button>
       {consultOpen && (
-        <div className="fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-yellow-500/30 bg-zinc-950 shadow-2xl">
+        <div className={`${isLight ? "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-[#C9A84C]/30 bg-[#FCF7EA] shadow-2xl" : "fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-yellow-500/30 bg-zinc-950 shadow-2xl"}`}>
           <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
             <div>
-              <div className="text-sm font-bold text-yellow-200"> {t("jewelry.consultName")}</div>
-              <div className="text-xs text-zinc-500">{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
+              <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-yellow-200"}`}> {t("jewelry.consultName")}</div>
+              <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
             </div>
-            <button onClick={() => setConsultOpen(false)} className="text-zinc-400 hover:text-white">
+            <button onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
               <X className="h-5 w-5" />
             </button>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {consultMsgs.length === 0 && (
-              <p className="text-sm text-zinc-500">
+              <p className={`${isLight ? "text-sm text-[#8A7A56]" : "text-sm text-zinc-500"}`}>
                 {t("jewelry.consultIntro")}
               </p>
             )}
             {consultMsgs.map((m, i) => (
-              <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role === "user" ? "ml-auto bg-yellow-500/20 text-yellow-100" : "bg-white/5 text-zinc-200"}`}>
+              <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role === "user" ? (isLight ? "ml-auto bg-yellow-500/20 text-[#7A5A12]" : "ml-auto bg-yellow-500/20 text-yellow-100") : (isLight ? "bg-[#C9A84C]/10 text-[#2A1E07]" : "bg-white/5 text-zinc-200")}`}>
                 {m.content}
               </div>
             ))}
-            {consultBusy && <div className="text-sm text-zinc-500"><Loader2 className="inline h-4 w-4 animate-spin" /> {t("jewelry.thinking")}</div>}
+            {consultBusy && <div className={`${isLight ? "text-sm text-[#8A7A56]" : "text-sm text-zinc-500"}`}><Loader2 className="inline h-4 w-4 animate-spin" /> {t("jewelry.thinking")}</div>}
             <div ref={consultEndRef} />
           </div>
           <div className="flex gap-2 border-t border-yellow-500/20 p-3">
