@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
@@ -55,6 +56,7 @@ function slugify(s: string): string {
 }
 
 export default function Publish() {
+  const isLight = useIsLightTheme();
   usePageTitle("Publish");
   const [, navigate] = useLocation();
   const { getAccessToken, user } = useAuth();
@@ -739,7 +741,7 @@ export default function Publish() {
               <p className="mt-1 text-xs text-white/50">Create it now — 10 seconds, then everything you publish goes live on it.</p>
               {showCreateProfile || true ? (
                 <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                  <div className="flex flex-1 items-center rounded-xl border border-white/10 bg-black/40 px-3">
+                  <div className={`flex flex-1 items-center rounded-xl border px-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80" : "border-white/10 bg-black/40"}`}>
                     <span className="text-xs text-white/35">bowdownvisuals.com/artist/</span>
                     <input
                       value={newSlug}
@@ -1051,7 +1053,7 @@ export default function Publish() {
                 ))}
               </div>
               {priceMode === "paid" && (
-                <div className="mt-2 flex items-center rounded-xl border border-white/10 bg-black/40 px-3 focus-within:border-amber-400/60">
+                <div className={`mt-2 flex items-center rounded-xl border px-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80 focus-within:border-[#C9A84C]" : "border-white/10 bg-black/40 focus-within:border-amber-400/60"}`}>
                   <DollarSign className="h-4 w-4 text-white/35" />
                   <input
                     value={priceDollars}
