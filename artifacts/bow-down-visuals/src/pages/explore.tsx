@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Clapperboard, Users, CalendarPlus, Flame, TrendingUp, MessageSquare } from "lucide-react";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink, timeAgo,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /explore — the best of everything ───────────────────────────────────
@@ -47,7 +48,7 @@ export default function Explore() {
       const d = (await api.get("/api/explore")) as unknown as ExploreData;
       setData(d);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load Explore.");
+      setError(friendlyLoadError(e, "Explore"));
     } finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);

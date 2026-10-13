@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox,
   goldInput, goldButton, ghostButton,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /groups — browse creator crews ──────────────────────────────────────
@@ -43,7 +44,7 @@ export default function Groups() {
         setMyIds(new Set(m.groups.map((g) => g.id)));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load groups.");
+      setError(friendlyLoadError(e, "groups"));
     } finally { setLoading(false); }
   }
 

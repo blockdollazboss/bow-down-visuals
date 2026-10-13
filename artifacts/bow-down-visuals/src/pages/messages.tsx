@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, Loading, ErrorBox, profileLink, timeAgo,
   goldInput, goldButton, ghostButton,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /messages — DMs ──────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ export default function Messages() {
       const d = (await api.get("/api/dm/conversations")) as { inbox: Conv[]; requests: Conv[] };
       setInbox(d.inbox); setRequests(d.requests);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load your DMs.");
+      setError(friendlyLoadError(e, "your messages"));
     } finally { setLoading(false); }
   }
 
@@ -55,7 +56,7 @@ export default function Messages() {
       setMsgs(d.messages); setStatus(d.status);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't load messages.");
+      setNotice(friendlyLoadError(e, "these messages"));
     } finally { setThreadLoading(false); }
   }
 

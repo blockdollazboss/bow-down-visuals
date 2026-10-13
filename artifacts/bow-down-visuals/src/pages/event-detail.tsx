@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Countdown, Loading, ErrorBox, profileLink,
   goldButton, ghostButton,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /events/:id — event detail ────────────────────────────────────────────
@@ -73,7 +74,7 @@ export default function EventDetailPage() {
         } catch { /* stats are a bonus, not a blocker */ }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load the event.");
+      setError(friendlyLoadError(e, "this event"));
     } finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);

@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink, timeAgo,
   goldInput, goldButton, ghostButton,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /groups/:slug — group detail ─────────────────────────────────────────
@@ -54,7 +55,7 @@ export default function GroupDetail() {
       setPosts(f.posts);
       if (f.viewer_role) setViewerRole(f.viewer_role);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load the group.");
+      setError(friendlyLoadError(e, "this group"));
     } finally { setLoading(false); }
   }
 

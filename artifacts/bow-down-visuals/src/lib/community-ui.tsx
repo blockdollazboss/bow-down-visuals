@@ -119,6 +119,21 @@ export function Loading({ label = "Loading" }: { label?: string }) {
   );
 }
 
+/* Page-load failures get friendly, actionable copy — never the server's raw
+ * error string. A bare "Unauthorized" (or an internal message) as the whole
+ * page is a dead end for a visitor. Action errors (join, post, create) do
+ * NOT use this: they keep their server copy, which is user-facing validation. */
+export function friendlyLoadError(e: unknown, what: string): string {
+  const raw = e instanceof Error ? e.message : "";
+  if (/unauthori|not authenticated|invalid jwt|jwt expired|session/i.test(raw)) {
+    return `Your session needs a refresh — please sign in again to see ${what}.`;
+  }
+  if (/not found/i.test(raw)) {
+    return `That ${what} couldn't be found — it may have been moved or removed.`;
+  }
+  return `Couldn't load ${what} right now — check your connection and try again.`;
+}
+
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="mx-auto max-w-xl rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center">

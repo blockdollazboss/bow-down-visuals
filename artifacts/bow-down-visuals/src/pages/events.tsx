@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink,
   goldInput, goldButton, ghostButton,
+  friendlyLoadError,
 } from "@/lib/community-ui";
 
 /* ─── /events — upcoming streams, drops, premieres ─────────────────────────
@@ -45,7 +46,7 @@ export default function Events() {
       const d = (await api.get("/api/events")) as { events: EventItem[] };
       setEvents(d.events);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load events.");
+      setError(friendlyLoadError(e, "events"));
     } finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
