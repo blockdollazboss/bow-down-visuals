@@ -2951,3 +2951,16 @@ html:not(.light) .text-white { color: #f7f1de; }
 /* Dark warmth, round 6: list dividers join the gold-veined system. */
 html:not(.light) .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(201 168 76 / 0.16); }
 html:not(.light) .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(201 168 76 / 0.12); }
+
+/* Dark warmth, round 7: the neutral scale joins zinc — cold neutral
+   text warms to bronze-gray steps in dark, neutral panels/borders go
+   walnut. And the bg-black utility itself: in dark theme the page
+   ground utility renders the warm ground black, not pure #000 (alpha
+   variants untouched — scrims over media stay true black). */
+html:not(.light) .text-neutral-300 { color: #ddd3ba; }
+html:not(.light) .text-neutral-400 { color: #b3a68a; }
+html:not(.light) .text-neutral-500 { color: #8d8168; }
+html:not(.light) .bg-neutral-900 { background-color: #171208; }
+html:not(.light) .bg-neutral-800 { background-color: #241c0e; }
+html:not(.light) .border-neutral-800 { border-color: #2e2412; }
+html:not(.light) .bg-black { background-color: #0d0a04; }
