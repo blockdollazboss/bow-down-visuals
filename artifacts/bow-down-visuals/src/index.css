@@ -995,6 +995,15 @@ html, body {
 .light .hover\:text-white\/50:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
 .light .hover\:text-white\/45:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
 .light .hover\:text-white\/40:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6B6257; }
+/* Gold hover states had no light remap: links whose base color correctly
+   deepens to bronze would flash pale straw (amber-200/300 raw) at the
+   exact moment of hover. Hovers now deepen a step past the base bronze
+   so the feedback reads as emphasis, not disappearance. */
+.light .hover\:text-amber-200:hover:not([data-dark-lock]):not([data-dark-lock] *),
+.light .hover\:text-amber-100:hover:not([data-dark-lock]):not([data-dark-lock] *),
+.light .hover\:text-amber-300:hover:not([data-dark-lock]):not([data-dark-lock] *),
+.light .hover\:text-yellow-300:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
+.light .hover\:text-amber-400:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5A12; }
 
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
