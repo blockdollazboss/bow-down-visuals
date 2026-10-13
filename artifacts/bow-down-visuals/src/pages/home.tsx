@@ -1425,8 +1425,10 @@ function MusicVideoTeaser({ isLight }: { isLight: boolean }) {
             className="pointer-events-none absolute inset-0 lux-vignette"
             aria-hidden="true"
           />
-          {/* Copy */}
-          <div className="absolute inset-0 flex flex-col items-center justify-end px-5 pb-14 text-center sm:pb-16">
+          {/* Copy — data-dark-lock: the copy sits on the dark teaser video in
+              BOTH themes; without the lock the light ink remap darkened the
+              text-white/55 subtitle to near-black on the black band. */}
+          <div data-dark-lock className="absolute inset-0 flex flex-col items-center justify-end px-5 pb-14 text-center sm:pb-16">
             <MarketingBadge variant="kicker" className="mb-4">
               {t("home.teaserKicker")}
             </MarketingBadge>
