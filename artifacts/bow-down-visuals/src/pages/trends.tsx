@@ -375,7 +375,7 @@ export default function TrendPredictor() {
             <button
               onClick={predictTrends}
               disabled={loading || !user}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-black uppercase tracking-widest transition disabled:cursor-not-allowed ${!user && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] hover:brightness-110"}`}
             >
               {loading ? (
                 <>
