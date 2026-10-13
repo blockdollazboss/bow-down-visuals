@@ -77,7 +77,7 @@ export default function PlanPublic() {
 
   const plan = payload?.plan;
   usePageTitle(
-    payload ? `${payload.title} — Content Plan | Bow Down Visuals` : "Content Plan | Bow Down Visuals",
+    payload ? `${payload.title} — Content Plan` : "Content Plan",
     payload && plan
       ? `${plan.idea || payload.title} — a content plan by ${payload.creatorName}: validated idea, winning hook, niche verdict, competitor gaps, and a 7-day launch week.`
       : "A creator's content plan — validated idea, winning hook, niche analysis, and launch calendar."

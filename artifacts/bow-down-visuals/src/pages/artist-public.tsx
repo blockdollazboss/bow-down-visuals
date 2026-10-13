@@ -80,7 +80,7 @@ export default function ArtistPublic() {
   }, [slug]);
 
   usePageTitle(
-    profile ? `${profile.display_name} — Bow Down Visuals` : "Creator Profile — Bow Down Visuals",
+    profile ? `${profile.display_name}` : "Creator Profile",
     profile ? `${profile.display_name}. ${profile.bio?.split("\n")[0] ?? "Music, videos, merch, and more — all in one place."}` : "A creator profile on Bow Down Visuals."
   );
 
