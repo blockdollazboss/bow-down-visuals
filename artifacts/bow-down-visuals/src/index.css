@@ -428,6 +428,22 @@ html, body {
 .light .text-green-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #15803D; }
 .light .text-green-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.88); }
 .light .text-green-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.78); }
+/* Amber-200 escaped the gold deepening that covered yellow-200: it is
+   the selected-chip and warning-title color across caption-styler,
+   go-live and dozens more (138 uses) and rendered pale straw on ivory.
+   It now joins the bronze family; the 300-step info accents (sky,
+   cyan, violet, orange, lime) deepen to their 600 steps the same way. */
+.light .text-amber-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-amber-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-amber-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
+.light .text-amber-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
+.light .text-amber-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.82); }
+.light .text-amber-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
+.light .text-sky-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0284C7; }
+.light .text-cyan-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0891B2; }
+.light .text-violet-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #7C3AED; }
+.light .text-orange-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #EA580C; }
+.light .text-lime-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #65A30D; }
 .light .text-sky-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0369A1; }
 .light .text-cyan-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0E7490; }
 .light .text-violet-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #6D28D9; }
