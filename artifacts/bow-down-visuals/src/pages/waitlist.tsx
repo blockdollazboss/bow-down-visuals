@@ -13,6 +13,7 @@ import {
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── data ─── */
 
@@ -65,8 +66,6 @@ const WAITLIST_CONTACT_JSON_LD = {
   },
 };
 
-const inputClass = "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm";
-const selectClass = "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors";
 
 /* ─── form state ─── */
 
@@ -82,6 +81,13 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function Waitlist() {
+  const isLight = useIsLightTheme();
+  const inputClass = isLight
+    ? "h-11 bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm"
+    : "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm";
+  const selectClass = isLight
+    ? "h-11 w-full bg-white/70 border border-[#C9A84C]/40 text-[#2A1E07] rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors"
+    : "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors";
   const { t } = useTranslation();
   usePageTitle(t("waitlist.pageTitle"), t("waitlist.pageDescription"));
   const [form, setForm] = useState<FormValues>({
@@ -233,7 +239,7 @@ export default function Waitlist() {
             </div>
             )
           ) : (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 md:p-9">
+            <div className={`rounded-2xl border p-7 md:p-9 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
               {inviterCode && (
                 <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
                   <Gift className="h-5 w-5 text-primary shrink-0" />
@@ -349,7 +355,7 @@ export default function Waitlist() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {TOOLS.map((tool) => (
-              <div key={tool.labelKey} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex items-start gap-3">
+              <div key={tool.labelKey} className={`rounded-2xl border p-5 flex items-start gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
                 <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
                   <tool.icon className="h-4 w-4 text-primary" />
                 </div>
@@ -376,7 +382,7 @@ export default function Waitlist() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {BENEFITS.map((b) => (
-              <div key={b.titleKey} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 hover:border-primary/20 transition-colors">
+              <div key={b.titleKey} className={`rounded-2xl border p-6 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/[0.07] bg-white/[0.02] hover:border-primary/20"}`}>
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
                   <b.icon className="h-5 w-5 text-primary" />
                 </div>
