@@ -162,7 +162,7 @@ export default function Login() {
           <p className={`rounded-xl border px-4 py-3 text-center text-sm font-medium backdrop-blur-xl ${
             isLight
               ? "border-[#c9a84c]/50 bg-[#FDFBF5]/90 text-[#6b5320]"
-              : "border-[#c9a84c]/40 bg-black/70 text-[#e8c86a]"
+              : "border-[#c9a84c]/40 bg-[#171208]/70 text-[#e8c86a]"
           }`}>
             Your session expired — please sign in again.
           </p>
@@ -187,7 +187,7 @@ export default function Login() {
       <main className="flex-1 relative z-10" aria-hidden />
 
       {/* Bottom sign-in toolbar */}
-      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-[#171208]/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-4xl">
           {(error || form.formState.errors.email || form.formState.errors.password) && !resetMode && (
             <p className="mb-2 text-center text-xs text-destructive">

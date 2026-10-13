@@ -2926,3 +2926,10 @@ html:not(.light) .bg-zinc-900 { background-color: #171208; }
 html:not(.light) .bg-zinc-800 { background-color: #241c0e; }
 html:not(.light) .border-zinc-800 { border-color: #2e2412; }
 html:not(.light) .border-zinc-700 { border-color: #3a2d16; }
+
+/* Dark warmth, round 4: Firefox scrollbar + gold caret (dark only).
+   WebKit got the royal-gold scrollbar years ago; Firefox uses the
+   standard properties and was left with the OS default gray. Inputs
+   get the brand-gold caret so typing feels owned in dark theme. */
+html:not(.light) { scrollbar-color: hsl(43 80% 38%) hsl(36 24% 5%); scrollbar-width: thin; }
+html:not(.light) input, html:not(.light) textarea, html:not(.light) select { caret-color: #C9A84C; }

@@ -171,7 +171,7 @@ export default function Signup() {
           className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
         />
         <main className="flex-1 relative z-10 flex items-center justify-center px-4">
-          <div className="w-full max-w-md text-center space-y-6 bg-black/65 backdrop-blur-xl border border-[#c9a84c]/25 rounded-2xl p-8">
+          <div className="w-full max-w-md text-center space-y-6 bg-[#171208]/65 backdrop-blur-xl border border-[#c9a84c]/25 rounded-2xl p-8">
             <h1 className="text-4xl font-black text-white">{t("signup.checkEmailTitle")}</h1>
             <p className="text-white/60 text-lg">
               {t("signup.checkEmailDesc")}
@@ -227,7 +227,7 @@ export default function Signup() {
       />
 
       {/* Bottom sign-up toolbar */}
-      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-[#171208]/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-5xl">
           {firstError && (
             <p className="mb-2 text-center text-xs text-destructive">
