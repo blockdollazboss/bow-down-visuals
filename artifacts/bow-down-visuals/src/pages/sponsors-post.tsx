@@ -4,6 +4,7 @@ import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/post — brands post a sponsorship deal ─────────────────────
@@ -19,6 +20,7 @@ const sectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 export default function SponsorPost() {
+  usePageTitle("Post a Sponsorship");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

@@ -6,6 +6,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
@@ -95,6 +96,7 @@ function loadJsZip(): Promise<any> {
 }
 
 export default function WebsiteBuilder() {
+  usePageTitle("Website Builder");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

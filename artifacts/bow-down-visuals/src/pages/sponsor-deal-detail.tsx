@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/:id — deal detail ──────────────────────────────────────────
@@ -84,6 +85,7 @@ function moneyCents(cents: number | null): string {
 }
 
 export default function SponsorDealDetail() {
+  usePageTitle("Sponsor Deal");
   const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();

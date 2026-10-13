@@ -7,6 +7,7 @@ import {
   goldInput, goldButton, ghostButton,
   friendlyLoadError,
 } from "@/lib/community-ui";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /messages — DMs ──────────────────────────────────────────────────────
    Inbox + requests tabs, thread view, rate-limited sends. Every thread
@@ -23,6 +24,7 @@ interface Conv {
 interface Msg { id: string; senderUserId: string; body: string; created_at: string }
 
 export default function Messages() {
+  usePageTitle("Messages");
   const api = useCommunityApi();
   const { user } = useAuth();
   const [inbox, setInbox] = useState<Conv[]>([]);

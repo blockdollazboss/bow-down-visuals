@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBudgetRange } from "@/lib/sponsors";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/dashboard — my deals, my applications, my earnings ─────────
@@ -63,6 +64,7 @@ const APP_BADGE: Record<string, string> = {
 };
 
 export default function SponsorDashboard() {
+  usePageTitle("Sponsor Dashboard");
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"deals" | "applications" | "earnings">("deals");

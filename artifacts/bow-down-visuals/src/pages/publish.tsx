@@ -13,6 +13,7 @@ import {
   type PublishVertical,
 } from "@/components/publish/PublishToProfileButton";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Vertical config (all nine creator verticals) ───────────────────────── */
 const VERTICAL_META: Record<PublishVertical, { label: string; icon: typeof Music2; hint: string }> = {
@@ -54,6 +55,7 @@ function slugify(s: string): string {
 }
 
 export default function Publish() {
+  usePageTitle("Publish");
   const [, navigate] = useLocation();
   const { getAccessToken, user } = useAuth();
   const { toast } = useToast();

@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SyncTab from "@/components/sync-pitch/SyncTab";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Label Pitch ─────────────────────────────────────────────────────────
    AI helps artists pitch demos to record labels:
@@ -121,6 +122,7 @@ async function authedFetch(
 }
 
 export default function LabelPitch() {
+  usePageTitle("Label Pitch");
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();

@@ -14,6 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useHubProject } from "@/lib/hub-project";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── NFC Smart Business Cards ──────────────────────────────────────────
    Product page + order wizard + buyer card management.
@@ -51,6 +52,7 @@ const HOW_IT_WORKS = [
 const HOW_ICONS = { pencil: Pencil, zap: Zap, truck: Truck } as const;
 
 export default function NfcCards() {
+  usePageTitle("NFC Cards");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for creators going long-form:
@@ -90,6 +91,7 @@ function viralityColor(s: number): string {
 }
 
 export default function Movies() {
+  usePageTitle("Movies & Web Series");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── AI Media Detector ──────────────────────────────────────────────────
    Upload an image, video, or audio file (or paste a URL) → GPT-6 Sol
@@ -142,6 +143,7 @@ let idCounter = 0;
 const nextId = () => `q${Date.now()}_${idCounter++}`;
 
 export default function MediaDetector() {
+  usePageTitle("Media Detector");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Media Importer ────────────────────────────────────────────────────
    Paste a link — YouTube, SoundCloud, TikTok, Instagram, X, Vimeo, or a
@@ -57,6 +58,7 @@ function formatBytes(
 }
 
 export default function MediaImport() {
+  usePageTitle("Import Media");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();

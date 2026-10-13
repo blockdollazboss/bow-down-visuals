@@ -44,6 +44,7 @@ import {
   type ScheduledPostShape,
   type SchedulerPlatformKey,
 } from "@/lib/scheduler";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Content Scheduler ──────────────────────────────────────────────────
    One calendar to schedule video posts across Instagram Reels, TikTok, and
@@ -199,6 +200,7 @@ function decodeSharedSchedule(raw: string): SharedSchedule | null {
 }
 
 export default function Scheduler() {
+  usePageTitle("Scheduler");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();

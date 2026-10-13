@@ -10,6 +10,7 @@ import {
   dnsInstructionsFor,
   type CustomDomain, type VerifyResult, type DnsInstructions,
 } from "@/lib/domains";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Creator Domains — Worker 10: the "own website" flagship ────────────────
    DIFFICULTY LADDER (standing): 1-star simple by default — type your domain,
@@ -304,6 +305,7 @@ function DomainCard({
 }
 
 export default function CreatorDomainsPage() {
+  usePageTitle("Creator Domains");
   const { getAccessToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [domains, setDomains] = useState<CustomDomain[]>([]);

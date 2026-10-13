@@ -3,6 +3,7 @@ import { Link, useParams, useLocation } from "wouter";
 import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /store/buy/:kind/:id — the drop page ─────────────────────────────────
    Sell ANY digital content: a track, a video course, a series pass, a sample
@@ -40,6 +41,7 @@ interface ItemData {
 }
 
 export default function StoreBuy() {
+  usePageTitle("Checkout");
   const params = useParams<{ kind: string; id: string }>();
   const [, navigate] = useLocation();
   const { user, getAccessToken } = useAuth();

@@ -4,6 +4,7 @@ import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
 import { shareDrop } from "@/lib/share-drop";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /my-music — the buyer's library ─────────────────────────────────────
    Every digital drop you've bought: re-download with a fresh secure link,
@@ -28,6 +29,7 @@ interface Purchase {
 }
 
 export default function MyMusic() {
+  usePageTitle("My Music");
   const { getAccessToken } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
