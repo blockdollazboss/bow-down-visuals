@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
@@ -72,6 +73,7 @@ function cleanNotes(notes: string): string {
 }
 
 export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -227,7 +229,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
   const weekLabel = `${prettyDay(days[0].date)} – ${prettyDay(days[6].date)}`;
 
   return (
-    <div ref={panelRef} className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+    <div ref={panelRef} className={`${isLight ? "mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           <Sparkles className="h-5 w-5" aria-hidden="true" />

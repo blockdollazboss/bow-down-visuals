@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Droplets, Loader2, Plus, Check, Music2 } from "lucide-react";
@@ -37,6 +38,7 @@ const DRIP_CAPTIONS = [
 ];
 
 export default function VaultDripSection() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -138,7 +140,7 @@ export default function VaultDripSection() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
         <div className="flex items-center gap-2 mb-1">
           <Droplets className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("vaultDrip.title", { defaultValue: "Vault Drip" })}</h3>
