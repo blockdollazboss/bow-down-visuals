@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { QrCode, X, Loader2, CheckCircle } from "lucide-react";
 import { QRCodeImage } from "./QRCode";
 import { getSupabase } from "@/lib/supabase";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* QR Login component for the login page.
    Desktop generates a token, shows QR, polls until mobile approves, then
@@ -11,6 +12,7 @@ import { getSupabase } from "@/lib/supabase";
    establishes its own real Supabase session via verifyOtp. */
 export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -102,8 +104,8 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center bg-black/80 p-4 pt-[12vh] overflow-y-auto" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center my-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center p-4 pt-[12vh] overflow-y-auto" style={{ backgroundColor: "rgba(16,12,4,0.78)" }} onClick={() => setOpen(false)}>
+          <div className={`border rounded-2xl p-6 max-w-sm w-full text-center my-auto ${isLight ? "bg-[#FBF6E9] border-[#C9A84C]/50 shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "bg-[#171208] border-primary/30 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">{t("qrLogin.title")}</h3>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-accent/10 rounded">

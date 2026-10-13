@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { QrCode, X } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Simple QR code via qrserver API - no dependency needed */
 export function QRCodeImage({ data, size = 200 }: { data: string; size?: number }) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&bgcolor=1a1a1a&color=d4af37`;
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=141414`;
   return <img src={url} alt="QR Code" width={size} height={size} className="rounded-lg" />;
 }
 
 export function QRCodeModal({ data, title }: { data: string; title: string }) {
   const [open, setOpen] = useState(false);
+  const isLight = useIsLightTheme();
 
   return (
     <>
@@ -21,8 +23,8 @@ export function QRCodeModal({ data, title }: { data: string; title: string }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-primary/30 rounded-2xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(16,12,4,0.78)" }} onClick={() => setOpen(false)}>
+          <div className={`border rounded-2xl p-6 max-w-sm w-full text-center ${isLight ? "bg-[#FBF6E9] border-[#C9A84C]/50 shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "bg-[#171208] border-primary/30 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">{title}</h3>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-accent/10 rounded">
