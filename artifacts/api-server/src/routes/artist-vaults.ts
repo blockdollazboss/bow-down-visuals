@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
 import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
@@ -67,6 +68,9 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  /* Mirror-on-save: an external photo URL is re-hosted into permanent
+     storage so the character's photo can never expire (2026-10-13). */
+  d.referenceImageUrl = await mirrorExternalMediaUrl(d.referenceImageUrl, { kind: "image", ownerKey: req.userId! });
 
   try {
     /* New vaults go to the end of the user's spotlight order. */
@@ -160,6 +164,7 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  d.referenceImageUrl = await mirrorExternalMediaUrl(d.referenceImageUrl, { kind: "image", ownerKey: req.userId! });
 
   await db
     .update(artistVaultsTable)

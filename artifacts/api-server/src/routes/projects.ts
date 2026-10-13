@@ -7,6 +7,7 @@ import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
 import { recoverExpiredClipsViaReplit, scenesNeedClipRecovery } from "../lib/clipRecovery";
+import { mirrorExternalMediaUrl, mirrorProjectScenes } from "../lib/mirrorMedia";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 /* TEMPORARY (2026-09-22): clip recovery via Replit backend — REMOVE AFTER USE */
 const router = Router();
@@ -79,7 +80,7 @@ router.post("/projects", requireAuth, async (req, res) => {
       genre:        d.genre      ?? null,
       mood:         d.mood       ?? null,
       input_data:   d.inputData,
-      output_data:  d.outputData,
+      output_data:  await mirrorProjectScenes(d.outputData, req.userId!),
       credits_used: d.creditsUsed,
     })
     .select("id")
@@ -177,11 +178,14 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
   }
 
   const current = (existing.output_data as Record<string, unknown>) ?? {};
-  const updatedOutputData: Record<string, unknown> = {
-    ...current,
-    ...(body.outputData ?? {}),
-    ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
-  };
+  const updatedOutputData: Record<string, unknown> = await mirrorProjectScenes(
+    {
+      ...current,
+      ...(body.outputData ?? {}),
+      ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
+    },
+    req.userId!,
+  );
 
   /* Update output_data in place. Previously this did a delete-then-insert, which could
    * permanently lose the project if the insert failed (or if two saves raced) between the
@@ -256,6 +260,11 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
      bucket (e.g. the 1-day preview URL from the generate poll) — readers
      re-sign fresh URLs from it on every read. */
   resolvedClipUrl = normalizeToStorageRef(resolvedClipUrl) ?? resolvedClipUrl;
+  /* Mirror-on-save: an external provider clip URL is re-hosted into
+     permanent storage so the scene's clip can never expire (2026-10-13). */
+  resolvedClipUrl =
+    (await mirrorExternalMediaUrl(resolvedClipUrl, { kind: "video", ownerKey: req.userId! })) ??
+    resolvedClipUrl;
 
   /* ── Fetch project ── */
   const { data: existing, error: fetchErr } = await req.userSupabase!
