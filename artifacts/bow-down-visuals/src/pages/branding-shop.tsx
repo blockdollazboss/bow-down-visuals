@@ -608,7 +608,7 @@ export default function BrandingShop() {
                     onClick={() => setShopCat(c.key)}
                     className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
                       shopCat === c.key
-                        ? "border-primary bg-primary/15 text-primary"
+                        ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-primary bg-primary/20 text-primary shadow-[0_0_0_1px_rgba(212,175,55,0.5)]")
                         : "border-white/10 text-white/50 hover:border-white/25 hover:text-white"
                     }`}
                   >
@@ -693,7 +693,7 @@ export default function BrandingShop() {
                   key={p.key}
                   className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-primary/30"
                 >
-                  <div className="flex h-44 items-center justify-center bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+                  <div className={`flex h-44 items-center justify-center ${isLight ? "bg-gradient-to-br from-[#F1E5C8] via-[#E9DCBC] to-[#DFCFA3]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
                     <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10">
                       <Icon className="h-10 w-10 text-primary" />
                     </div>
@@ -714,7 +714,7 @@ export default function BrandingShop() {
                           title={c.label}
                           onClick={() => setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], color: c.key } }))}
                           className={`h-7 w-7 rounded-full border-2 ${c.swatch} ${
-                            s.color === c.key ? "ring-2 ring-primary ring-offset-2 ring-offset-black" : ""
+                            s.color === c.key ? (isLight ? "ring-2 ring-primary ring-offset-2 ring-offset-white" : "ring-2 ring-primary ring-offset-2 ring-offset-black") : ""
                           }`}
                         />
                       ))}
@@ -728,7 +728,7 @@ export default function BrandingShop() {
                             onClick={() => setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], size: sz } }))}
                             className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
                               s.size === sz
-                                ? "border-primary bg-primary/15 text-primary"
+                                ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-primary bg-primary/20 text-primary shadow-[0_0_0_1px_rgba(212,175,55,0.5)]")
                                 : "border-white/10 text-white/50 hover:border-white/25"
                             }`}
                           >
@@ -883,7 +883,7 @@ export default function BrandingShop() {
                         onClick={() => toggleDesignProduct(p.key)}
                         className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
                           designProducts.includes(p.key)
-                            ? "border-primary bg-primary/15 text-primary"
+                            ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-primary bg-primary/20 text-primary shadow-[0_0_0_1px_rgba(212,175,55,0.5)]")
                             : "border-white/10 text-white/50 hover:border-white/25"
                         }`}
                       >
