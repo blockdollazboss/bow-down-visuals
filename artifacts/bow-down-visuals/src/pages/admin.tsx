@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import {
   Loader2, ShieldCheck, Trophy, Delete, RotateCcw,
@@ -41,6 +42,7 @@ function toDatetimeLocal(d: Date): string {
 }
 
 function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [events, setEvents] = useState<JackpotEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +160,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       </p>
 
       {/* Create a manual event */}
-      <div className="rounded-xl bg-black/40 border border-white/10 p-4 mb-4">
+      <div className={`rounded-xl border p-4 mb-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
         <p className="text-sm font-semibold text-white mb-3">{t("admin.jackpot.runSpecialEvent")}</p>
         <div className="grid gap-3 sm:grid-cols-2 mb-4">
           <label className="block">
@@ -276,7 +278,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
           {events.map((ev) => {
             const phase = phaseOf(ev);
             return (
-              <div key={ev.id} className="rounded-xl bg-black/40 border border-white/10 p-3 flex flex-wrap items-center gap-3">
+              <div key={ev.id} className={`rounded-xl border p-3 flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="flex-1 min-w-[160px]">
                   <p className="text-sm font-semibold text-white">{ev.name}</p>
                   <p className="text-xs text-white/40">
