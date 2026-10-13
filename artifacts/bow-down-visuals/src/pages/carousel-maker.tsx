@@ -249,12 +249,13 @@ export default function CarouselMaker() {
                 <button
                   key={tpl.id}
                   onClick={() => { setTemplateId(tpl.id); setStep("edit"); }}
-                  className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-1 ${
+                  className={`relative rounded-2xl border p-4 text-left transition-all hover:-translate-y-1 ${
                     templateId === tpl.id
-                      ? "border-primary/60 bg-primary/[0.07] shadow-[0_0_24px_rgba(212,175,55,0.15)]"
+                      ? "border-primary bg-primary/[0.13] shadow-[0_0_0_1px_rgba(212,175,55,0.65),0_0_28px_rgba(212,175,55,0.22)]"
                       : "border-white/[0.07] bg-white/[0.02] hover:border-primary/30"
                   }`}
                 >
+                  {templateId === tpl.id && (<span className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A84C] text-black shadow-md"><Check className="h-3 w-3" strokeWidth={3.5} /></span>)}
                   <div
                     className="h-20 rounded-xl mb-3 flex items-center justify-center text-2xl font-black"
                     style={{
