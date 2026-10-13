@@ -4422,14 +4422,12 @@ function MasterPreviewPlayer({
   const prevClip = useCallback(() => {
     const offs = sceneOffsetsRef2.current;
     const ct   = currentTimeRef2.current;
-    console.log('[PrevScene] clicked — ct:', ct.toFixed(3), 'offsets:', offs, 'duration:', duration);
     let idx = 0;
     for (let i = offs.length - 1; i >= 0; i--) { if (ct >= (offs[i] ?? 0)) { idx = i; break; } }
     const activeStart = offs[idx] ?? 0;
     const target = ct > activeStart + 1.0
       ? activeStart
       : idx > 0 ? (offs[idx - 1] ?? 0) : 0;
-    console.log('[PrevScene] idx:', idx, 'activeStart:', activeStart.toFixed(3), '→ target:', target.toFixed(3));
     setSkipDebug({ action: 'prev', before: ct, target, idx, count: offs.length });
     seek(target);
   }, [seek, duration]);
@@ -4437,12 +4435,9 @@ function MasterPreviewPlayer({
   const nextClip = useCallback(() => {
     const offs = sceneOffsetsRef2.current;
     const ct   = currentTimeRef2.current;
-    console.log('[NextScene] clicked — ct:', ct.toFixed(3), 'offsets:', offs, 'duration:', duration);
-    if (offs.length === 0) { console.log('[NextScene] no offsets, aborting'); return; }
     let idx = 0;
     for (let i = offs.length - 1; i >= 0; i--) { if (ct >= (offs[i] ?? 0)) { idx = i; break; } }
     const target = idx < offs.length - 1 ? (offs[idx + 1] ?? 0) : (offs[offs.length - 1] ?? 0);
-    console.log('[NextScene] idx:', idx, '→ target:', target.toFixed(3));
     setSkipDebug({ action: 'next', before: ct, target, idx, count: offs.length });
     seek(target);
   }, [seek, duration]);

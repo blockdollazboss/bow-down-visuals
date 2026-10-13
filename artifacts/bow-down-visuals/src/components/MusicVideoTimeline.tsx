@@ -218,7 +218,7 @@
             };
 
             if (IS_DEV) {
-              console.log("[Runway] poll:", data.status, data.progress ?? "");
+              if (IS_DEV) console.log("[Runway] poll:", data.status, data.progress ?? "");
             }
 
             if (data.status === "succeeded" && data.url) {
