@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -593,6 +594,7 @@ interface VocalJobResponse {
 }
 
 function VocalOnlyPreset() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -948,7 +950,7 @@ function VocalOnlyPreset() {
                 </button>
               </div>
               <audio ref={karaokeAudioRef} src={instrumentalUrl} className="hidden" />
-              <div className="max-h-64 overflow-y-auto rounded-xl bg-black/40 px-4 py-4 leading-loose">
+              <div className={`max-h-64 overflow-y-auto rounded-xl px-4 py-4 leading-loose ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                 <p className="text-lg">
                   {words.map((w, i) => (
                     <span
@@ -2089,6 +2091,7 @@ function JobResult({
   kindLabel: string;
   onReset: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -2230,7 +2233,7 @@ function JobResult({
               { label: t("mixMaster.statTruePeakIn", { defaultValue: "True peak in" }), value: fmtDb(stats.inputTruePeak) },
               { label: t("mixMaster.statTruePeakOut", { defaultValue: "True peak out" }), value: fmtDb(stats.outputTruePeak ?? stats.targetTruePeak) },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-black/40 border border-white/[0.06] px-3 py-2.5">
+              <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "bg-black/40 border-white/[0.06]"}`}>
                 <p className="text-[10px] text-white/35 uppercase tracking-wider">{s.label}</p>
                 <p className="text-sm font-black text-amber-300 mt-1 font-mono">{s.value}</p>
               </div>
@@ -2866,6 +2869,7 @@ interface QuickMasterJobResponse {
 }
 
 function QuickMasterPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -3175,7 +3179,7 @@ function QuickMasterPanel() {
                   { label: t("mastering.truePeakMix"), value: typeof stats.inputTruePeak === "number" ? `${stats.inputTruePeak.toFixed(1)} dBTP` : "—" },
                   { label: t("mastering.targetCeiling"), value: typeof stats.targetTruePeak === "number" ? `${stats.targetTruePeak.toFixed(1)} dBTP` : "—" },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-xl bg-black/40 border border-white/[0.06] px-3 py-2.5">
+                  <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "bg-black/40 border-white/[0.06]"}`}>
                     <p className="text-[10px] text-white/35 uppercase tracking-wider">{s.label}</p>
                     <p className="text-sm font-black text-amber-300 mt-1 font-mono">{s.value}</p>
                   </div>
@@ -3337,6 +3341,7 @@ const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> =
 ];
 
 export default function AudioStudio() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [tab, setTab] = useState<StudioTab>(() => {
     try {
@@ -3365,7 +3370,7 @@ export default function AudioStudio() {
   const activeDesc = STUDIO_TABS.find((tb) => tb.id === tab)?.descKey ?? "";
 
   return (
-    <div className="min-h-screen bg-black text-white lux-page">
+    <div className={`min-h-screen lux-page ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-[#d4a017]/[0.07] rounded-full blur-[120px]" />
