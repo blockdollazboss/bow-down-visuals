@@ -569,7 +569,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           (owner screenshot). The mask dissolves the fog into the fixed
           stage backdrop below instead. */}
       <FogCanvas
-        className="inset-x-0 bottom-0 z-[4] h-[46%] [mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)] [-webkit-mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)]"
+        className="inset-x-0 bottom-0 z-[2] h-[46%] [mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)] [-webkit-mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)]"
         ceilingFrac={0.55}
         buoyancy={-10}
         waterMode={isLight}
