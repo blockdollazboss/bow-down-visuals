@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   MAX_COMMENTS,
   parseCommentLines,
@@ -457,6 +458,10 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
 export default function CommunityManager() {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
+  const isLight = useIsLightTheme();
+  const panelCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/85" : "border-zinc-800 bg-zinc-950/80";
+  const innerCls = isLight ? "bg-[#C9A84C]/10" : "bg-black/40";
+  const accentTx = isLight ? "text-[#7A5A12]" : "text-amber-300";
   const [tab, setTab] = useState<TabKey>(() => {
     try { return new URLSearchParams(window.location.search).get("tab") === "replies" ? "replies" : "moderate"; } catch { return "moderate"; }
   });
@@ -553,8 +558,12 @@ export default function CommunityManager() {
 
   const verdictBadge = (v: FlaggedComment["verdict"]) =>
     v === "remove"
-      ? "border-red-500/40 bg-red-500/10 text-red-300"
-      : "border-amber-500/40 bg-amber-500/10 text-amber-300";
+      ? isLight
+        ? "border-red-500/40 bg-red-500/10 text-red-700"
+        : "border-red-500/40 bg-red-500/10 text-red-300"
+      : isLight
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-700"
+        : "border-amber-500/40 bg-amber-500/10 text-amber-300";
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -562,7 +571,7 @@ export default function CommunityManager() {
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-amber-300">
             <Users className="h-3.5 w-3.5" />{t("community.ai_community_manager")}</div>
-          <h1 className="text-4xl font-black tracking-tight md:text-5xl">{t("community.your_audience")}<span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("community.managed")}</span>
+          <h1 className="text-4xl font-black tracking-tight md:text-5xl">{t("community.your_audience")}{" "}<span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("community.managed")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">{t("community.ai_moderation_queue_smart_reply")}</p>
           <Link href="/messages" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("community.messagesLink", { defaultValue: "Open direct messages →" })}</Link>
@@ -576,7 +585,9 @@ export default function CommunityManager() {
               onClick={() => { setTab(tb.key); setError(null); }}
               className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 tab === tb.key
-                  ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+                  ? isLight
+                    ? "border-[#C9A84C]/70 bg-[#C9A84C]/25 text-[#7A5A12]"
+                    : "border-amber-400/60 bg-amber-400/15 text-amber-200"
                   : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
               }`}
             >
@@ -588,12 +599,12 @@ export default function CommunityManager() {
         </div>
 
         {/* Comment input (shared) */}
-        <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
+        <div className={`mb-6 rounded-2xl border p-5 ${panelCls}`}>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-semibold text-zinc-200">{t("community.paste_comments")}</label>
+            <label className={`text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-zinc-200"}`}>{t("community.paste_comments")}</label>
             <button
               onClick={() => setPaste(SAMPLE_COMMENTS)}
-              className="text-xs text-amber-300/80 hover:text-amber-200"
+              className={`text-xs ${isLight ? "text-[#7A5A12] hover:text-[#5C430C]" : "text-amber-300/80 hover:text-amber-200"}`}
             >{t("community.load_sample")}</button>
           </div>
           <textarea
@@ -601,7 +612,7 @@ export default function CommunityManager() {
             onChange={(e) => setPaste(e.target.value)}
             rows={5}
             placeholder={"One per line — @fan: loved this!\nPaste up to 200 comments."}
-            className="w-full rounded-xl border border-zinc-800 bg-black/60 p-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none"
+            className={`w-full rounded-xl border bg-black/60 p-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none ${isLight ? "border-[#E0CFA8]" : "border-zinc-800"}`}
           />
           <p className="mt-2 text-xs text-zinc-500">
             {parsePastedComments(paste).length} comments ready · copying and viewing is always free
@@ -609,7 +620,7 @@ export default function CommunityManager() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>
+          <div className={`mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm ${isLight ? "text-red-700" : "text-red-300"}`}>{error}</div>
         )}
         {outOfCredits && (
           <div className="mx-auto mb-4 max-w-md"><OutOfCredits /></div>
@@ -631,7 +642,7 @@ export default function CommunityManager() {
                 <span className="font-bold text-amber-300">{flags.length}</span>{t("community.flagged_for_your_review")}</p>
             )}
             {flags.length === 0 && moderatedCount > 0 && (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+              <div className={`flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
                 <CheckCircle2 className="h-5 w-5" />{t("community.clean_nothing_needs_your_attenti")}</div>
             )}
             <div className="space-y-3">
@@ -646,9 +657,9 @@ export default function CommunityManager() {
                         <p className="mt-1 text-sm text-zinc-300">“{f.text}”</p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {f.reasons.map((r) => (
-                            <span key={r} className="rounded-full bg-black/40 px-2 py-0.5 text-[11px]">{r}</span>
+                            <span key={r} className={`rounded-full px-2 py-0.5 text-[11px] ${innerCls}`}>{r}</span>
                           ))}
-                          <span className="rounded-full bg-black/40 px-2 py-0.5 text-[11px]">severity {f.severity}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] ${innerCls}`}>severity {f.severity}</span>
                         </div>
                       </div>
                       {!done ? (
@@ -693,29 +704,29 @@ export default function CommunityManager() {
             </button>
             {sentiment && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
+                <div className={`rounded-2xl border p-5 ${panelCls}`}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-zinc-300">{t("community.overall_sentiment")}</span>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                      sentiment.overall === "positive" ? "bg-emerald-500/15 text-emerald-300"
-                      : sentiment.overall === "negative" ? "bg-red-500/15 text-red-300"
-                      : "bg-amber-500/15 text-amber-300"
+                      sentiment.overall === "positive" ? `bg-emerald-500/15 ${isLight ? "text-emerald-700" : "text-emerald-300"}`
+                      : sentiment.overall === "negative" ? `bg-red-500/15 ${isLight ? "text-red-700" : "text-red-300"}`
+                      : `bg-amber-500/15 ${isLight ? "text-amber-700" : "text-amber-300"}`
                     }`}>{sentiment.overall}</span>
                   </div>
-                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-zinc-800">
+                  <div className={`mt-3 h-3 overflow-hidden rounded-full ${isLight ? "bg-[#E5D3A3]" : "bg-zinc-800"}`}>
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all"
                       style={{ width: `${Math.max(0, Math.min(100, sentiment.score))}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-right text-2xl font-black text-amber-300">{sentiment.score}<span className="text-sm text-zinc-500">/100</span></p>
+                  <p className={`mt-2 text-right text-2xl font-black ${accentTx}`}>{sentiment.score}<span className="text-sm text-zinc-500">/100</span></p>
                 </div>
                 {sentiment.themes && sentiment.themes.length > 0 && (
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
-                    <h3 className="mb-3 text-sm font-bold text-zinc-200">{t("community.what_fans_are_saying")}</h3>
+                  <div className={`rounded-2xl border p-5 ${panelCls}`}>
+                    <h3 className={`mb-3 text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-zinc-200"}`}>{t("community.what_fans_are_saying")}</h3>
                     <div className="space-y-2">
                       {sentiment.themes.map((th, i) => (
-                        <div key={i} className="rounded-xl bg-black/40 p-3">
+                        <div key={i} className={`rounded-xl p-3 ${innerCls}`}>
                           <p className="text-sm font-semibold text-white">{th.theme}
                             <span className="ml-2 text-xs font-normal text-zinc-400">{th.sentiment}</span>
                           </p>
@@ -730,7 +741,7 @@ export default function CommunityManager() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {sentiment.wins && sentiment.wins.length > 0 && (
                     <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-                      <h3 className="mb-2 text-sm font-bold text-emerald-300">{t("community.wins")}</h3>
+                      <h3 className={`mb-2 text-sm font-bold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{t("community.wins")}</h3>
                       <ul className="space-y-1 text-sm text-zinc-300">
                         {sentiment.wins.map((w, i) => <li key={i}>· {w}</li>)}
                       </ul>
@@ -738,7 +749,7 @@ export default function CommunityManager() {
                   )}
                   {sentiment.risks && sentiment.risks.length > 0 && (
                     <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
-                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-red-300">
+                      <h3 className={`mb-2 flex items-center gap-1.5 text-sm font-bold ${isLight ? "text-red-700" : "text-red-300"}`}>
                         <AlertTriangle className="h-4 w-4" />{t("community.watch_out")}</h3>
                       <ul className="space-y-1 text-sm text-zinc-300">
                         {sentiment.risks.map((r, i) => <li key={i}>· {r}</li>)}
@@ -767,9 +778,9 @@ export default function CommunityManager() {
                 <div key={s.author} className="rounded-xl border border-amber-400/25 bg-gradient-to-br from-amber-400/10 to-transparent p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-white">
-                      <span className="mr-2 text-amber-300">#{i + 1}</span>@{s.author}
+                      <span className={`mr-2 ${accentTx}`}>#{i + 1}</span>@{s.author}
                     </p>
-                    <span className="text-xs font-bold text-amber-300">{s.score}/100</span>
+                    <span className={`text-xs font-bold ${accentTx}`}>{s.score}/100</span>
                   </div>
                   <p className="mt-1 text-sm text-zinc-300">{s.why}</p>
                   <p className="mt-1 text-xs text-zinc-500">{s.commentCount} comments in this batch</p>
@@ -783,8 +794,8 @@ export default function CommunityManager() {
         )}
 
         {/* ── ALERT RULES (free) ── */}
-        <div className="mt-10 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-zinc-200">
+        <div className={`mt-10 rounded-2xl border p-5 ${panelCls}`}>
+          <h3 className={`mb-1 flex items-center gap-2 text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-zinc-200"}`}>
             <Bell className="h-4 w-4 text-amber-300" />{t("community.alert_rules")}<span className="text-xs font-normal text-zinc-500">{t("community.free")}</span>
           </h3>
           <p className="mb-4 text-xs text-zinc-500">{t("community.get_notified_when_the_ai_spots_s")}</p>
@@ -796,9 +807,9 @@ export default function CommunityManager() {
                 { key: "superfan", label: "Superfan alert", desc: "A top supporter showed up — say thanks" },
               ] as const
             ).map((a) => (
-              <label key={a.key} className="flex cursor-pointer items-center justify-between rounded-xl bg-black/40 p-3">
+              <label key={a.key} className={`flex cursor-pointer items-center justify-between rounded-xl p-3 ${innerCls}`}>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-100">{t(`community.alerts.${a.key}.label`, { defaultValue: a.label })}</p>
+                  <p className={`text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-zinc-100"}`}>{t(`community.alerts.${a.key}.label`, { defaultValue: a.label })}</p>
                   <p className="text-xs text-zinc-500">{t(`community.alerts.${a.key}.desc`, { defaultValue: a.desc })}</p>
                 </div>
                 <input
