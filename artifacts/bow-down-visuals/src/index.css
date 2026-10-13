@@ -1860,43 +1860,10 @@ html {
   }
 }
 
-/* ─── Grand entrance — artist selection reveal choreography ─── */
-@keyframes bd-entrance-rise {
-  from { opacity: 0; transform: translateY(34px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes bd-entrance-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes bd-entrance-spotlight {
-  from { opacity: 0; }
-  to { opacity: var(--bd-spotlight-opacity, 1); }
-}
-@keyframes bd-dust-drift {
-  0%, 100% { transform: translateY(0px); opacity: 0.15; }
-  50% { transform: translateY(-16px); opacity: 0.65; }
-}
-@keyframes bd-curtain-glow {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 0.9; }
-}
-
-@keyframes bd-carpet-sheen {
-  0% { transform: translateX(-130%) skewX(-12deg); }
-  55%, 100% { transform: translateX(260%) skewX(-12deg); }
-}
-
-.animate-bd-entrance { animation: bd-entrance-rise 1.05s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-bd-entrance-fade { animation: bd-entrance-fade 1.5s ease both; }
-.animate-bd-spotlight { animation: bd-entrance-spotlight 1.8s ease both; }
-.animate-bd-dust { animation: bd-dust-drift 7s ease-in-out infinite; }
-.animate-bd-curtain { animation: bd-curtain-glow 6s ease-in-out infinite; }
-.animate-bd-carpet-sheen {
-  animation: bd-carpet-sheen 7s ease-in-out infinite;
-  width: 45%;
-  background: linear-gradient(to right, transparent, rgba(255, 248, 220, 0.30), transparent);
-}
+/* Grand-entrance choreography (bd-entrance / bd-dust / bd-curtain /
+   bd-carpet-sheen keyframes + .animate-bd-* classes) removed 2026-10-12:
+   zero references anywhere in the codebase — residue of the deleted
+   curtain-era hero. */
 
 /* Woven gold premiere carpet */
 
@@ -1920,15 +1887,9 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-bd-entrance,
-  .animate-bd-entrance-fade,
-  .animate-bd-spotlight,
-  .animate-bd-dust,
-  .animate-bd-curtain,
   .pixel-blink,
   .pixel-coin-burst,
-  .pixel-overlay-pop,
-  .animate-bd-carpet-sheen {
+  .pixel-overlay-pop {
     animation: none;
   }
 }
