@@ -449,7 +449,7 @@ export default function Contests() {
                 <button
                   onClick={createContest}
                   disabled={creating || !title.trim() || !prize.trim() || methods.size === 0}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110 disabled:opacity-40"
+                  className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed ${(!title.trim() || !prize.trim() || methods.size === 0) && !creating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
                 >
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
                   Launch contest — free
