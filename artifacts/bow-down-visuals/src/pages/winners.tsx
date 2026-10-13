@@ -195,7 +195,7 @@ export default function WinnersPage() {
   return (
     <>
       <JsonLd data={jsonLd} />
-      <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
+      <div className="min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8">
         <Link href={perChallenge ? `/challenge/${slug}` : "/shorts"}
           className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
           <ArrowLeft className="h-4 w-4" /> {perChallenge ? "Back to challenge" : "Back to Shorts"}
