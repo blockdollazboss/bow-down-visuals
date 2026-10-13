@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import CommentToVideoSection from "@/components/hooks/CommentToVideoSection";
@@ -742,6 +743,7 @@ function pickRandom<T>(items: T[], except?: T): T {
 }
 
 function RandomizerDice() {
+  const isLight = useIsLightTheme();
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
@@ -873,7 +875,7 @@ function RandomizerDice() {
  <p className="mt-2.5 text-xs text-white/35">{t("randomizer.freeForever")}</p>
 
  {freeIdea && (
- <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-primary/30 bg-black/60 p-5 text-left">
+ <div className={`mx-auto mt-6 max-w-xl rounded-2xl border border-primary/30 p-5 text-left ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/60"}`}>
  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
  <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("randomizer.yourRoll")}
  </p>
@@ -969,6 +971,7 @@ function RandomizerDice() {
 }
 
 export default function HookStudio() {
+  const isLight = useIsLightTheme();
   usePageTitle("Hook Studio", "Write scroll-stopping hooks for your videos with AI.");
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
@@ -1247,7 +1250,7 @@ export default function HookStudio() {
  const activeVideoType = VIDEO_TYPES.find((v) => v.key === videoType)!;
 
  return (
- <div className="min-h-screen bg-black text-white">
+ <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
  <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}
@@ -1943,7 +1946,7 @@ export default function HookStudio() {
  {/* scorecard */}
  {scorecard && typeof scorecard.score === "number" && (
  <div id="preflight-results" className="mt-8">
- <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-center">
+ <div className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.viralReadiness")}
  </p>
