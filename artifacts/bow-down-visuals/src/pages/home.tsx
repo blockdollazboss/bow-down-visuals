@@ -421,28 +421,26 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           stay at the top and scroll away naturally — they never follow
           you down the page.
           z-[2]: above the backdrop grain, BELOW the hero copy (text stays
-          on top) and below the curtain overlay (curtains drape over the
-          beams). */}
+          on top) and below the studio set and the King. */}
       <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
 
       {/* Hero grid — no z-index here on purpose: the shark and the copy
-          stack independently against the fixed curtain overlay (z-[5]).
-          The shark (z-[4]) slides BEHIND the curtain drapes when scrolling;
-          the copy (z-10) stays on top. */}
+          stack independently (backdrop → beams z-[2] → studio set z-[3]
+          → King z-[4] → copy z-10). The copy stays on top of everything. */}
       {/* minmax(0,1fr) at base (2026-10-12): with no explicit template the
           single mobile track sized to MAX-CONTENT — the logo's w-[480px] —
           so the whole hero (copy included) laid out 480px wide on a 390px
           phone and the headline/badges clipped off the right edge. */}
       <div className="relative mx-auto w-full max-w-7xl grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-2 pr-[16%] sm:pr-[10%] lg:pr-[4%]">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page.
-            z-[4]: below the fixed curtain overlay (z-[5]) so the King scrolls
-            behind the drapes when the hero scrolls away; above the beams. */}
+            z-[4]: above the beams and the studio set; the copy (z-10) sits
+            above him. */}
         <div className="relative z-[4] flex min-w-0 justify-center">
           <HeroLogo3D />
         </div>
 
         {/* Copy — right side. z-10: headline, subtext and buttons stay
-            above the fixed curtain overlay (z-[5]).
+            above every other hero layer.
             data-dark-lock on the whole column: the copy sits on the hero
             photo + scrim, so in light mode it keeps its dark-theme
             treatment end to end (owner directive 2026-10-12 — light hero

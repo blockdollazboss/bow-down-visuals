@@ -7,10 +7,9 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    top of the page and scroll away naturally — they never follow the
    visitor down the page.
 
-   Layering: hero copy sits ABOVE the beams (text stays on top), the
-   curtain overlay sits above the beams too (beams read as shining from
-   behind the drapes). The Shark King sits just below the curtain
-   overlay — he scrolls behind the drapes, not over them.
+   Layering: the beams sit low in the hero stack — the studio set,
+   the Shark King, and the hero copy all sit ABOVE them (text stays on
+   top, beams wash over the backdrop only).
 
    Each beam: lamp glow → smooth cone → light pool where it lands.
 
