@@ -180,13 +180,14 @@ function StepHeader({ number, label, done }: { number: number; label: string; do
 }
 
 function ChipBtn({ label, sub, selected, onClick }: { label: string; sub?: string; selected: boolean; onClick: () => void }) {
+  const isLight = useIsLightTheme();
   return (
     <button
       type="button"
       onClick={onClick}
       className={`flex flex-col items-start text-left rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-all ${
         selected
-          ? "border-primary/60 bg-primary/[0.08] text-white"
+          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
           : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white"
       }`}
     >
@@ -226,6 +227,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("promo-clip.pageTitle"), t("promo-clip.pageDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -769,7 +771,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                       onClick={() => setPlatform(p.id)}
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
                         platform === p.id
-                          ? "border-primary/60 bg-primary/[0.08] text-white"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white"
                       }`}
                     >
