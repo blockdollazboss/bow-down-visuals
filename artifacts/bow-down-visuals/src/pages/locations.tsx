@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Upload, MapPin, Link2, Trash2, Plus, Disc3 } from "lucide-react";
@@ -14,6 +15,7 @@ interface LocationRecord {
 }
 
 export default function LocationsPage({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("locations.pageTitle"), t("locations.pageDescription"));
   const { getAccessToken } = useAuth();
@@ -118,7 +120,7 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
   }
 
   return (
-    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white px-4 py-8 max-w-5xl mx-auto"}>
+    <div className={embedded ? "text-white" : isLight ? "min-h-screen text-[#2A1E07] px-4 py-8 max-w-5xl mx-auto" : "min-h-screen bg-black text-white px-4 py-8 max-w-5xl mx-auto"}>
       {/* Hero (standalone page only; the shell provides it when embedded) */}
       {!embedded && (
       <>

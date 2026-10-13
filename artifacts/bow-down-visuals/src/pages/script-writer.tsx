@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import {
   ScrollText, Loader2, Copy, Check, AlertTriangle,
@@ -76,6 +77,7 @@ const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(2
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset, latestOfKind, project } = useHubProject();
   const { user } = useAuth();
@@ -184,7 +186,7 @@ export default function ScriptWriter() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30">
