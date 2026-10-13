@@ -341,7 +341,7 @@ export function ThyCheatCodeChat() {
         style={{ bottom: "max(7rem, calc(env(safe-area-inset-bottom, 0px) + 6rem))" }}
       >
         <div
-          className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-4 border-[#C9A84C] bg-black"
+          className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border-4 border-[#C9A84C] ${isLight ? "bg-[#FDFBF5]" : "bg-[#14100a]"}`}
           style={{
             boxShadow: "0 12px 48px rgba(0,0,0,0.8), 0 0 24px rgba(201,168,76,0.2)",
             imageRendering: "pixelated",
