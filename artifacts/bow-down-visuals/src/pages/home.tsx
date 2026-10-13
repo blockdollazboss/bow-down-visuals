@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { StudioSetStrip } from "@/components/StudioSetStrip";
@@ -1195,6 +1196,7 @@ function PricingSection() {
 
 function FAQSection() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
@@ -1218,8 +1220,12 @@ function FAQSection() {
               key={i}
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                 openIndex === i
-                  ? "border-primary/30 bg-primary/5"
-                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
+                  ? isLight
+                    ? "border-[#C9A84C]/50 bg-[#F1E3BC]/80"
+                    : "border-primary/30 bg-primary/5"
+                  : isLight
+                    ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50"
+                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
               }`}
             >
               <button
