@@ -433,6 +433,9 @@ html, body {
    go-live and dozens more (138 uses) and rendered pale straw on ivory.
    It now joins the bronze family; the 300-step info accents (sky,
    cyan, violet, orange, lime) deepen to their 600 steps the same way. */
+.light .text-amber-100:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-amber-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
 .light .text-amber-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-amber-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
