@@ -196,6 +196,7 @@ function TitleCopyButton({ text, label }: { text: string; label: string }) {
 }
 
 function TitlesTab() {
+  const isLight = useIsLightTheme();
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
@@ -352,7 +353,7 @@ function TitlesTab() {
  )}
 
  {/* input card */}
- <div className="relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="mb-6 flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -480,7 +481,7 @@ function TitlesTab() {
  {result && result.titles && result.titles.length > 0 && (
  <div id="titles-results" className="mt-8 space-y-8">
  {/* titles */}
- <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
  <h2 className="text-lg font-black">
  {t("titles.titlesHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.titlesSub")}</span>
@@ -532,7 +533,7 @@ function TitlesTab() {
 
  {/* description */}
  {result.description && (
- <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
  <h2 className="text-lg font-black">
  {t("titles.descriptionHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.descriptionReady", { platform: t(selectedPlatform.labelKey) })}</span>
@@ -545,7 +546,7 @@ function TitlesTab() {
 
  {/* tags */}
  {result.tags && result.tags.length > 0 && (
- <section className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
  <h2 className="text-lg font-black">
  {t("titles.tagsHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.tagsOptimized", { count: result.tags.length })}</span>
@@ -852,7 +853,7 @@ function RandomizerDice() {
  </div>
 
  {/* main panel */}
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <ActiveIcon className="h-5 w-5" aria-hidden="true" />
@@ -1310,7 +1311,7 @@ export default function HookStudio() {
 
  {/* ── HOOK GENERATOR ─────────────────────────────────────────── */}
  {tab === "hooks" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Zap className="h-5 w-5" aria-hidden="true" />
@@ -1513,7 +1514,7 @@ export default function HookStudio() {
  <TitlesTab />
  )}
  {tab === "captions" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Megaphone className="h-5 w-5" aria-hidden="true" />
@@ -1660,7 +1661,7 @@ export default function HookStudio() {
 
  {/* ── CTA GENERATOR ──────────────────────────────────────────── */}
  {tab === "cta" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <MousePointerClick className="h-5 w-5" aria-hidden="true" />
@@ -1840,7 +1841,7 @@ export default function HookStudio() {
 
  {/* ── VIRALITY PRE-FLIGHT ────────────────────────────────────── */}
  {tab === "preflight" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Gauge className="h-5 w-5" aria-hidden="true" />
