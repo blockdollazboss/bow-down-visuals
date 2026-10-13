@@ -73,11 +73,13 @@ const TONES: Array<{ id: Tone; labelKey: string; blurbKey: string }> = [
 const CREDIT_COST = 200;
 const PICK =
   "rounded-xl border px-4 py-3 text-left transition-all cursor-pointer";
-const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(251,191,36,0.15)]";
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
   const isLight = useIsLightTheme();
+  const pickActive = isLight
+    ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]"
+    : "border-amber-400 bg-amber-400/[0.16] shadow-[0_0_0_1px_rgba(251,191,36,0.65),0_0_22px_rgba(251,191,36,0.20)]";
   const { t } = useTranslation();
   const { addAsset, latestOfKind, project } = useHubProject();
   const { user } = useAuth();
@@ -251,7 +253,7 @@ export default function ScriptWriter() {
                   <button
                     key={p.id}
                     onClick={() => setPlatform(p.id)}
-                    className={`${PICK} ${platform === p.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    className={`${PICK} ${platform === p.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <p.icon className="w-4 h-4 text-amber-300" />
@@ -269,7 +271,7 @@ export default function ScriptWriter() {
                   <button
                     key={l.id}
                     onClick={() => setLength(l.id)}
-                    className={`${PICK} ${length === l.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    className={`${PICK} ${length === l.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Clock className="w-4 h-4 text-amber-300" />
@@ -287,7 +289,7 @@ export default function ScriptWriter() {
                   <button
                     key={tn.id}
                     onClick={() => setTone(tn.id)}
-                    className={`${PICK} ${tone === tn.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    className={`${PICK} ${tone === tn.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Zap className="w-4 h-4 text-amber-300" />
