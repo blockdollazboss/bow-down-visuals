@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
   Video, Loader2, Sparkles, Settings2, Inbox, BarChart3, CheckCircle2,
@@ -83,6 +84,7 @@ const inputCls = "w-full bg-black border border-white/10 rounded-lg px-3 py-2 te
 const labelCls = "block text-xs font-semibold text-white/50 uppercase tracking-wide mb-1.5";
 
 export default function Shoutouts() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"request" | "creator">("request");
@@ -321,7 +323,7 @@ export default function Shoutouts() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
           <Video className="w-7 h-7 text-yellow-400" />
@@ -388,7 +390,7 @@ export default function Shoutouts() {
                 <h2 className="text-xl font-bold mb-1">{t("shoutouts.shoutoutFrom", { name: selected.displayName })}</h2>
                 <p className="text-sm text-white/40 mb-6">{t("shoutouts.priceTurnaround", { price: money(selected.priceDollars), days: selected.turnaroundDays })}</p>
                 {selected.guidelines && (
-                  <div className="mb-5 p-3 rounded-xl border border-white/10 bg-black/40 text-xs text-white/60">
+                  <div className={`mb-5 p-3 rounded-xl border text-xs text-white/60 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                     <span className="font-semibold text-white/80">{t("shoutouts.creatorGuidelines")} </span>{selected.guidelines}
                   </div>
                 )}
@@ -496,7 +498,7 @@ export default function Shoutouts() {
                           { labelKey: "shoutouts.statGross", value: money(revenue.grossDollars), icon: BadgeDollarSign },
                           { labelKey: "shoutouts.statYouKeep", value: money(revenue.netDollars), icon: Sparkles },
                         ].map((st) => (
-                          <div key={st.labelKey} className="rounded-xl border border-white/10 bg-black/40 p-3">
+                          <div key={st.labelKey} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                             <st.icon className="w-4 h-4 text-yellow-400 mb-1" />
                             <p className="text-xl font-black">{st.value}</p>
                             <p className="text-[11px] text-white/40">{t(st.labelKey)}</p>
@@ -525,7 +527,7 @@ export default function Shoutouts() {
                     ) : (
                       <div className="space-y-3">
                         {requests.map((r) => (
-                          <div key={r.id} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                          <div key={r.id} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="font-semibold">{r.fanName} <span className="text-white/40 font-normal text-sm">· {r.occasion}</span></p>

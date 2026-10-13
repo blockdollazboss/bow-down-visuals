@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -81,6 +82,7 @@ async function api(path: string, token: string | null, init?: RequestInit) {
 }
 
 export default function Memberships() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tiers, setTiers] = useState<Tier[]>([]);
@@ -275,7 +277,7 @@ export default function Memberships() {
     n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary mb-4">
@@ -490,7 +492,7 @@ export default function Memberships() {
                 {suggestions.length > 0 && (
                   <div className="grid md:grid-cols-3 gap-4 pt-2">
                     {suggestions.map((s, i) => (
-                      <div key={i} className="rounded-2xl border border-primary/20 bg-black/40 p-5">
+                      <div key={i} className={`rounded-2xl border border-primary/20 p-5 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                         <div className="font-black">{s.name}</div>
                         <div className="text-primary font-bold">{fmt$(s.priceDollars)}<span className="text-white/40 text-sm font-normal">/mo</span></div>
                         <ul className="mt-2 space-y-1">

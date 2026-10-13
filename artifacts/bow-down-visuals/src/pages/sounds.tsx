@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -98,6 +99,7 @@ function moodColor(mood: string): string {
 }
 
 export default function ViralSoundFinder() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -232,7 +234,7 @@ export default function ViralSoundFinder() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
@@ -528,7 +530,7 @@ export default function ViralSoundFinder() {
               </p>
               <div className="grid gap-4 md:grid-cols-3">
                 {matches.map((m, i) => (
-                  <div key={`match-${i}`} className="rounded-2xl border border-primary/25 bg-black/60 p-5">
+                  <div key={`match-${i}`} className={`rounded-2xl border border-primary/25 p-5 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/60"}`}>
                     <div className="flex items-center gap-2.5">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
                         {i + 1}

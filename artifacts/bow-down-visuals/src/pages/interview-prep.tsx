@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import {
   Mic2, Newspaper, Star, Radio, Loader2, Sparkles, Copy, Check,
@@ -94,6 +95,7 @@ function scoreBarColor(score: number): string {
 }
 
 export default function InterviewPrep() {
+  const isLight = useIsLightTheme();
   usePageTitle("Interview Prep", "Prep for interviews and press with AI-coached answers.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -224,7 +226,7 @@ export default function InterviewPrep() {
   const activeQuestion = practiceIdx !== null && session ? session.questions[practiceIdx] ?? null : null;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
@@ -415,7 +417,7 @@ export default function InterviewPrep() {
                 {feedback && (
                   <div className="mt-6 space-y-4">
                     {/* score */}
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                    <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold uppercase tracking-wider text-white/50">{t("interviewPrep.coachScore")}</p>
                         <p className={`text-2xl font-black ${scoreColor(feedback.score)}`}>{feedback.score}<span className="text-sm text-white/40">{t("interviewPrep.of100")}</span></p>
@@ -445,7 +447,7 @@ export default function InterviewPrep() {
                       </ul>
                     </div>
                     {/* model answer */}
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                    <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold uppercase tracking-wider text-white/50">{t("interviewPrep.sharperVersion")}</p>
                         <CopyButton text={feedback.modelAnswer} />
