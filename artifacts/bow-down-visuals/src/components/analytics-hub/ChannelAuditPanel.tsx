@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -100,6 +101,7 @@ const labelClass =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 export default function ChannelAuditPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -188,7 +190,7 @@ export default function ChannelAuditPanel() {
         </div>
 
         {/* ── Input form ── */}
-        <div className="mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <div className={`${isLight ? "mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <p className={labelClass}>{t("audit.nicheLabel")}</p>
@@ -350,7 +352,7 @@ export default function ChannelAuditPanel() {
             </div>
 
             {/* Top priorities */}
-            <div className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+            <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Target className="h-5 w-5 text-primary" aria-hidden="true" />
                 {t("audit.topPrioritiesTitle")}

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Star, Sparkles, Download, Copy, Check } from "lucide-react";
@@ -30,6 +31,7 @@ function Stars({ n, size = "h-7 w-7" }: { n: number; size?: string }) {
 }
 
 export default function LevelUpModal({ level, onClose }: { level: number; onClose: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const clamped = Math.min(6, Math.max(1, level)) as StarLevel;
@@ -149,7 +151,7 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
     >
       <ConfettiBurst count={110} />
       <div
-        className="relative w-[min(94vw,460px)] my-8 rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-7 pt-8 text-center shadow-[0_0_70px_rgba(201,168,76,0.4)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+        className={`${isLight ? "relative w-[min(94vw,460px)] my-8 rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-7 pt-8 text-center shadow-[0_0_70px_rgba(201,168,76,0.4)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]" : "relative w-[min(94vw,460px)] my-8 rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-7 pt-8 text-center shadow-[0_0_70px_rgba(201,168,76,0.4)] animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -206,7 +208,7 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
         ) : (
           <>
             {/* Share card preview */}
-            <div className="rounded-2xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#14100a] to-black p-6">
+            <div className={`${isLight ? "rounded-2xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-2xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
               <p className="text-[10px] font-bold tracking-[0.25em] text-[#C9A84C]/80 uppercase">Bow Down Visuals</p>
               <p className="font-display mt-2 text-3xl font-black text-[#e8c86a]">{t("retentionDelight.levelUp_title")}</p>
               <div className="mt-3"><Stars n={clamped} size="h-5 w-5" /></div>

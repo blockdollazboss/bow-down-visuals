@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic2, Loader2, Sparkles, Copy, Check } from "lucide-react";
@@ -26,6 +27,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none";
 
 export default function AIInterviewSection() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -112,7 +114,7 @@ export default function AIInterviewSection() {
     <div className="space-y-6">
       <div className="overflow-hidden rounded-3xl border border-primary/25 bg-black">
         {/* ── Header: mic + title + cost ── */}
-        <div className="bg-gradient-to-b from-[#1a1408] to-[#0a0803] px-6 md:px-8 pt-6 pb-5 border-b border-primary/15">
+        <div className={`${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] px-6 md:px-8 pt-6 pb-5 border-b border-primary/15" : "bg-gradient-to-b from-[#1a1408] to-[#0a0803] px-6 md:px-8 pt-6 pb-5 border-b border-primary/15"}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] shadow-[0_0_24px_rgba(201,168,76,0.35)]">
               <Mic2 className="h-5 w-5 text-black" />
@@ -195,7 +197,7 @@ export default function AIInterviewSection() {
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]">
                 <Mic2 className="h-4 w-4 text-black" />
               </div>
-              <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#14100a] to-black px-5 py-4">
+              <div className={`${isLight ? "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] px-5 py-4" : "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#14100a] to-black px-5 py-4"}`}>
                 <p className="text-[15px] font-semibold leading-relaxed text-white">{questions[currentQ]}</p>
               </div>
             </div>
@@ -266,7 +268,7 @@ export default function AIInterviewSection() {
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2">{t("aiInterview.quoteCards", { defaultValue: "Quote cards" })}</p>
             <div className="grid gap-2 md:grid-cols-3">
               {pkg.quoteCards.map((q, i) => (
-                <div key={i} className="rounded-xl border border-primary/30 bg-gradient-to-b from-[#14100a] to-black p-5 text-center">
+                <div key={i} className={`${isLight ? "rounded-xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 text-center" : "rounded-xl border border-primary/30 bg-gradient-to-b from-[#14100a] to-black p-5 text-center"}`}>
                   <p className="text-sm font-black text-primary leading-snug">“{q}”</p>
                 </div>
               ))}
