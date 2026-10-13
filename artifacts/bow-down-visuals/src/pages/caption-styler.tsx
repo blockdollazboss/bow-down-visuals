@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,7 @@ interface StylerJobResponse {
 }
 
 export default function CaptionStyler() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -204,9 +206,9 @@ export default function CaptionStyler() {
   const busy = ["uploading", "queued", "transcribing", "rendering"].includes(status);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="mx-auto max-w-3xl px-4 py-10">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-amber-300">
+        <Link href="/dashboard" className={`inline-flex items-center gap-2 text-sm ${isLight ? "text-[#6B5B36] hover:text-[#7A5A12]" : "text-zinc-400 hover:text-amber-300"}`}>
           <ArrowLeft className="h-4 w-4" /> {t("captionStyler.backToDashboard")}
         </Link>
 
@@ -216,13 +218,13 @@ export default function CaptionStyler() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {t("captionStyler.titleAi")} <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">{t("captionStyler.title")}</span>
+              {t("captionStyler.titleAi")} <span className={`bg-gradient-to-r bg-clip-text text-transparent ${isLight ? "from-[#C9A84C] to-[#7A5A12]" : "from-amber-300 to-yellow-500"}`}>{t("captionStyler.title")}</span>
             </h1>
-            <p className="text-sm text-zinc-400">{t("captionStyler.subtitle")}</p>
+            <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>{t("captionStyler.subtitle")}</p>
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-amber-500/20 bg-zinc-950 p-6">
+        <div className={`mt-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/20 bg-zinc-950"}`}>
           {/* Upload */}
           <div
             onClick={() => fileInputRef.current?.click()}
@@ -230,7 +232,7 @@ export default function CaptionStyler() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
             className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${
-              dragOver ? "border-amber-400 bg-amber-400/5" : "border-zinc-700 hover:border-amber-500/50"
+              dragOver ? "border-amber-400 bg-amber-400/5" : isLight ? "border-[#C9A84C]/40 hover:border-[#C9A84C]/70" : "border-zinc-700 hover:border-amber-500/50"
             }`}
           >
             <input
@@ -242,11 +244,11 @@ export default function CaptionStyler() {
             />
             <Upload className="mx-auto h-8 w-8 text-amber-400" />
             <p className="mt-3 font-medium">{file ? file.name : t("captionStyler.dropPrompt")}</p>
-            <p className="mt-1 text-xs text-zinc-500">{t("captionStyler.fileHint")}</p>
+            <p className={`mt-1 text-xs ${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{t("captionStyler.fileHint")}</p>
           </div>
 
           {/* Style presets */}
-          <p data-min-stars="2" className="mt-6 text-sm font-semibold text-zinc-300">{t("captionStyler.styleLabel")}</p>
+          <p data-min-stars="2" className={`mt-6 text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-zinc-300"}`}>{t("captionStyler.styleLabel")}</p>
           <div data-min-stars="2" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {STYLES.map((s) => (
               <button
@@ -254,12 +256,12 @@ export default function CaptionStyler() {
                 onClick={() => setStyle(s.key)}
                 className={`rounded-xl border p-3 text-left transition ${
                   style === s.key
-                    ? "border-amber-400 bg-amber-400/10"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
+                    ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10" : "border-amber-400 bg-amber-400/10"
+                    : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
                 }`}
               >
                 <p className="text-sm font-semibold">{s.label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{s.blurb}</p>
+                <p className={`mt-0.5 text-xs ${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{s.blurb}</p>
               </button>
             ))}
           </div>
@@ -267,7 +269,7 @@ export default function CaptionStyler() {
           {/* Position + size */}
           <div data-min-stars="3" className="mt-4 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm font-semibold text-zinc-300">{t("captionStyler.positionLabel")}</p>
+              <p className={`text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-zinc-300"}`}>{t("captionStyler.positionLabel")}</p>
               <div className="mt-2 flex gap-2">
                 {POSITIONS.map((p) => (
                   <button
@@ -275,8 +277,8 @@ export default function CaptionStyler() {
                     onClick={() => setPosition(p.key)}
                     className={`flex-1 rounded-lg border px-3 py-2 text-sm transition ${
                       position === p.key
-                        ? "border-amber-400 bg-amber-400/10 text-amber-200"
-                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
+                        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400 bg-amber-400/10 text-amber-200"
+                        : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
                     {p.label}
@@ -285,7 +287,7 @@ export default function CaptionStyler() {
               </div>
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-300">{t("captionStyler.fontSizeLabel")}</p>
+              <p className={`text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-zinc-300"}`}>{t("captionStyler.fontSizeLabel")}</p>
               <div className="mt-2 flex gap-2">
                 {FONT_SIZES.map((f) => (
                   <button
@@ -293,8 +295,8 @@ export default function CaptionStyler() {
                     onClick={() => setFontSize(f.key)}
                     className={`flex-1 rounded-lg border px-3 py-2 text-sm transition ${
                       fontSize === f.key
-                        ? "border-amber-400 bg-amber-400/10 text-amber-200"
-                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
+                        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400 bg-amber-400/10 text-amber-200"
+                        : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
                     {f.label}
@@ -305,7 +307,7 @@ export default function CaptionStyler() {
           </div>
 
           {/* Emoji toggle */}
-          <label data-min-stars="3" className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+          <label data-min-stars="3" className={`mt-4 flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-zinc-800 bg-zinc-900"}`}>
             <input
               type="checkbox"
               checked={withEmoji}
@@ -314,7 +316,7 @@ export default function CaptionStyler() {
             />
             <span className="text-sm">
               <span className="font-semibold">{t("captionStyler.autoEmoji")}</span>{" "}
-              <span className="text-zinc-500">{t("captionStyler.autoEmojiHint")}</span>
+              <span className={isLight ? "text-[#8A7A56]" : "text-zinc-500"}>{t("captionStyler.autoEmojiHint")}</span>
             </span>
           </label>
 
@@ -328,13 +330,13 @@ export default function CaptionStyler() {
             {busy ? statusLabel[status] ?? t("captionStyler.statusWorking") : t("captionStyler.styleButton", { n: CREDIT_COST })}
           </button>
           {!user && (
-            <p className="mt-2 text-center text-xs text-zinc-500">
-              <Link href="/login" className="text-amber-300 underline">{t("captionStyler.signIn")}</Link> {t("captionStyler.signInToStyle")}
+            <p className={`mt-2 text-center text-xs ${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>
+              <Link href="/login" className={isLight ? "text-[#7A5A12] underline" : "text-amber-300 underline"}>{t("captionStyler.signIn")}</Link> {t("captionStyler.signInToStyle")}
             </p>
           )}
 
           {error && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            <div className={`mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm ${isLight ? "text-red-800" : "text-red-200"}`}>
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -342,7 +344,7 @@ export default function CaptionStyler() {
 
           {status === "done" && outputUrl && (
             <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold text-green-200">
+              <p className={`flex items-center gap-2 text-sm font-semibold ${isLight ? "text-green-800" : "text-green-200"}`}>
                 <CheckCircle2 className="h-4 w-4" /> {t("captionStyler.doneTitle")}
               </p>
               <video src={outputUrl} controls className="mt-3 w-full rounded-lg" />
@@ -357,12 +359,12 @@ export default function CaptionStyler() {
           )}
 
           {typeof creditsRemaining === "number" && (
-            <p className="mt-3 text-center text-xs text-zinc-500">{t("captionStyler.creditsRemaining", { n: creditsRemaining })}</p>
+            <p className={`mt-3 text-center text-xs ${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{t("captionStyler.creditsRemaining", { n: creditsRemaining })}</p>
           )}
         </div>
 
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs text-zinc-500">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+        <div className={`mt-4 flex items-start gap-2 rounded-xl border p-4 text-xs ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36]" : "border-zinc-800 bg-zinc-950 text-zinc-500"}`}>
+          <Info className={`mt-0.5 h-4 w-4 shrink-0 ${isLight ? "text-[#7A5A12]" : "text-amber-400"}`} />
           <p>
             {t("captionStyler.infoText")}
           </p>
