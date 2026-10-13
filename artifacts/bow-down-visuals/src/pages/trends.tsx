@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import {
   TrendingUp, Loader2, Sparkles, Lightbulb, Bookmark, BookmarkCheck,
@@ -104,6 +105,7 @@ function loadWatchlist(): TrackedTrend[] {
 }
 
 export default function TrendPredictor() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -257,7 +259,7 @@ export default function TrendPredictor() {
   const finalNiche = (customNiche.trim() || niche).slice(0, 120);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
@@ -501,7 +503,7 @@ export default function TrendPredictor() {
 
                   {/* ideas panel */}
                   {ideasFor === trend.trend && (
-                    <div className="mt-5 rounded-2xl border border-primary/25 bg-black/50 p-5">
+                    <div className={`mt-5 rounded-2xl border border-primary/25 p-5 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/50"}`}>
                       <div className="flex items-center justify-between">
                         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
                           <Sparkles className="h-3 w-3" aria-hidden="true" /> {t("trends.contentIdeas")}
@@ -581,7 +583,7 @@ export default function TrendPredictor() {
                       {wt.earlySignals.slice(0, 3).map((s, si) => (
                         <span
                           key={si}
-                          className="rounded-full border border-white/10 bg-black/40 px-2.5 py-0.5 text-[11px] text-white/50"
+                          className={`rounded-full border px-2.5 py-0.5 text-[11px] text-white/50 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}
                         >
                           {s}
                         </span>
