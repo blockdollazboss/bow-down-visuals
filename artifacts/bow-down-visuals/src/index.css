@@ -1416,6 +1416,22 @@ html, body {
   background-image: none;
 }
 
+/* One backdrop per page (owner: "double backgrounds", 2026-10-13).
+   The paint rules above put the whole throne room on EVERY
+   bg-background element and EVERY min-h-screen container — so any
+   page that nests them (a full-height section, a bg-background panel
+   inside a min-h-screen page) painted the scene twice: the King on
+   the page ground AND the King again inside the panel. The scene now
+   paints on the outermost container only; nested painters keep their
+   base ground color but lose the image. Dark-locked areas (the hero
+   copy column) are excluded — their locked backdrop is deliberate. */
+[class*="min-h-screen"] [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *),
+[class*="min-h-screen"] .bg-background:not([data-dark-lock]):not([data-dark-lock] *),
+.bg-background [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *),
+.bg-background .bg-background:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-image: none !important;
+}
+
 
 /* ─── Ambient royal glow — very subtle, just enough to feel warm ─── */
 body::before {
