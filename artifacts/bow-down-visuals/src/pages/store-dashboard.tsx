@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
@@ -1141,6 +1142,7 @@ async function digitalAuthed(path: string, token: string | null, init?: RequestI
 }
 
 function DigitalSalesTab() {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { stars } = useUserMode();
   const [data, setData] = useState<DigitalSalesData | null>(null);
@@ -1319,7 +1321,7 @@ function DigitalSalesTab() {
                   <div
                     key={s.id}
                     className={`flex items-center gap-4 rounded-xl border p-4 ${
-                      s.done ? "border-green-500/30 bg-green-950/20" : "border-amber-500/15 bg-black/40"
+                      s.done ? "border-green-500/30 bg-green-950/20" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/15 bg-black/40"
                     }`}
                   >
                     {s.done ? (
@@ -1368,7 +1370,7 @@ function DigitalSalesTab() {
             </p>
 
             {products && products.products.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-amber-500/20 bg-black/40 p-6 text-center">
+              <div className={`mt-4 rounded-xl border p-6 text-center ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/20 bg-black/40"}`}>
                 <div className="text-4xl">💰</div>
                 <h3 className="mt-2 text-lg font-bold text-amber-200">List your first product</h3>
                 <p className="mx-auto mt-2 max-w-md text-sm text-amber-100/60">
@@ -1398,7 +1400,7 @@ function DigitalSalesTab() {
                   const custom = customPrices[key] ?? "";
                   const customCents = Math.round(Number(custom) * 100);
                   return (
-                    <div key={key} className="rounded-xl border border-amber-500/10 bg-black/40 p-4">
+                    <div key={key} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/10 bg-black/40"}`}>
                       <div className="flex items-center gap-3">
                         {p.artworkUrl ? (
                           <img src={p.artworkUrl} alt={p.title} className="h-12 w-12 rounded-lg object-cover" />
@@ -1500,7 +1502,7 @@ function DigitalSalesTab() {
                 </div>
               </div>
 
-              <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-black/40 p-4 text-xs text-amber-100/60">
+              <div className={`mt-4 flex items-start gap-2 rounded-xl border p-4 text-xs ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36]" : "border-amber-500/20 bg-black/40 text-amber-100/60"}`}>
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                 <span>
                   {data.payoutNote} Real money, real dollars — completely separate from Visual Bucs (AI credits).
@@ -1514,7 +1516,7 @@ function DigitalSalesTab() {
                   </h2>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     {data.byKind.map((k) => (
-                      <div key={k.kind} className="rounded-xl border border-amber-500/10 bg-black/40 p-4">
+                      <div key={k.kind} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/10 bg-black/40"}`}>
                         <div className="text-xs uppercase tracking-widest text-amber-400/70">
                           {(KIND_LABELS as Record<string, string>)[k.kind] ?? k.kind}
                         </div>
@@ -1540,7 +1542,7 @@ function DigitalSalesTab() {
                 ) : (
                   <div className="mt-4 space-y-3">
                     {data.sales.map((s) => (
-                      <div key={s.id} className="flex items-center gap-4 rounded-xl border border-amber-500/10 bg-black/40 p-4">
+                      <div key={s.id} className={`flex items-center gap-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/10 bg-black/40"}`}>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs uppercase tracking-widest text-amber-400/70">
                             {(KIND_LABELS as Record<string, string>)[s.itemKind] ?? s.itemKind}
