@@ -1240,6 +1240,17 @@ html, body {
     background-color: hsl(222 18% 5%);
   }
 
+  /* Native controls follow the SITE theme, not the OS: without this, select
+     dropdown lists, date/time pickers, media control chrome and autofill
+     render in OS colors — a white dropdown bursting out of the dark palace
+     (or a black one on the ivory palace) whenever OS and site themes differ. */
+  :root {
+    color-scheme: dark;
+  }
+  html.light {
+    color-scheme: light;
+  }
+
   /* Royal gold scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: hsl(222 18% 5%); }
