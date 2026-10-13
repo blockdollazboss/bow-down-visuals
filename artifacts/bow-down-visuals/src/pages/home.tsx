@@ -475,7 +475,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         {/* Clearance badge */}
         <Link href="/beta-access">
           <div
-            className="inline-flex items-center gap-2 bg-primary/10 border border-primary/50 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer shimmer"
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold transition-colors cursor-pointer shimmer border ${isLight ? "bg-[#F7ECD2]/90 border-[#C9A84C] text-[#7A5A12] hover:bg-[#F3E5BE]" : "bg-primary/10 border-primary/50 text-primary hover:bg-primary/20"}`}
             style={{ boxShadow: "0 0 18px rgba(212,160,23,0.25)" }}
           >
             <KeyRound className="h-3.5 w-3.5" />
@@ -484,13 +484,13 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         </Link>
         {/* Refer & Earn badge — gentle attention nudge, links to /referrals */}
         <Link href="/referrals">
-          <div className="refer-nudge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold text-primary border border-primary/40 bg-primary/10 hover:bg-primary/20 transition cursor-pointer">
+          <div className={`refer-nudge inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold border transition cursor-pointer ${isLight ? "bg-[#F7ECD2]/90 border-[#C9A84C] text-[#7A5A12] hover:bg-[#F3E5BE]" : "text-primary border-primary/40 bg-primary/10 hover:bg-primary/20"}`}>
             <Gift className="h-3.5 w-3.5" />
             {t("home.referEarnBadge")}
           </div>
         </Link>
         {/* Zero skills required badge */}
-        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold text-primary border border-primary/40 bg-primary/10">
+        <div className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold border ${isLight ? "bg-[#F7ECD2]/90 border-[#C9A84C] text-[#7A5A12] hover:bg-[#F3E5BE]" : "text-primary border-primary/40 bg-primary/10"}`}>
           <Sparkles className="h-3.5 w-3.5" />
           {t("home.zeroSkillsBadge", { defaultValue: "Zero creator skills required" })}
         </div>
