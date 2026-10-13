@@ -2964,3 +2964,29 @@ html:not(.light) .bg-neutral-900 { background-color: #171208; }
 html:not(.light) .bg-neutral-800 { background-color: #241c0e; }
 html:not(.light) .border-neutral-800 { border-color: #2e2412; }
 html:not(.light) .bg-black { background-color: #0d0a04; }
+
+/* Dark warmth, round 8: browser autofill, the amber text scale, and
+   hover-state hairlines. Chrome paints autofilled fields pale blue
+   with dark text — on the dark auth forms that read as a foreign slab;
+   the inset-shadow trick keeps the field on-palette in both themes.
+   Amber text (800+ instances) was the old generic-yellow accent; in
+   dark it steps onto the brand gold ramp. Hover borders take the same
+   gold vein as the static hairlines from round 5. */
+input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill {
+  -webkit-text-fill-color: #f7f1de;
+  caret-color: #C9A84C;
+  box-shadow: 0 0 0 100px #171208 inset;
+  transition: background-color 999999s ease-in-out 0s;
+}
+.light input:-webkit-autofill, .light textarea:-webkit-autofill, .light select:-webkit-autofill {
+  -webkit-text-fill-color: #2A1E07;
+  box-shadow: 0 0 0 100px #FDFBF5 inset;
+}
+html:not(.light) .text-amber-100 { color: #F0D98C; }
+html:not(.light) .text-amber-200 { color: #E3C566; }
+html:not(.light) .text-amber-300 { color: #DDBB62; }
+html:not(.light) .text-amber-400 { color: #C9A84C; }
+html:not(.light) .hover\:border-white\/10:hover { border-color: rgb(201 168 76 / 0.16); }
+html:not(.light) .hover\:border-white\/20:hover { border-color: rgb(201 168 76 / 0.28); }
+html:not(.light) .hover\:border-white\/30:hover { border-color: rgb(201 168 76 / 0.38); }
+html:not(.light) .group:hover .group-hover\:border-white\/20 { border-color: rgb(201 168 76 / 0.28); }
