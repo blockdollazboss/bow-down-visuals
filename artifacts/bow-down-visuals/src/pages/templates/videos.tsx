@@ -6,6 +6,7 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRight, Check, Clapperboard, Link2, Sparkles } from "lucide-react";
@@ -27,6 +28,7 @@ const ASPECT_CLASS: Record<string, string> = {
 };
 
 export default function VideoTemplates() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
   const { user, getAccessToken } = useAuth();
@@ -156,11 +158,11 @@ export default function VideoTemplates() {
             <LuxReveal key={tpl.key} delay={Math.min(i * 0.05, 0.3)}>
               <article
                 id={`vt-${tpl.key}`}
-                className={`group rounded-2xl border bg-white/[0.03] p-6 transition-colors h-full flex flex-col ${
-                  highlightKey === tpl.key
-                    ? "border-[#e8c86a]/70 shadow-[0_0_32px_rgba(232,200,106,0.15)]"
-                    : "border-white/10 hover:border-[#e8c86a]/40"
-                }`}
+                className={`group rounded-2xl border p-6 transition-colors h-full flex flex-col ${
+                  isLight
+                    ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70"
+                    : "border-white/10 bg-white/[0.03] hover:border-[#e8c86a]/40"
+                } ${highlightKey === tpl.key ? "ring-2 ring-[#e8c86a]/70 shadow-[0_0_32px_rgba(232,200,106,0.15)]" : ""}`}
               >
                 {/* Animated preview */}
                 <div className={`relative ${ASPECT_CLASS[tpl.aspect]} w-full max-h-56 mx-auto overflow-hidden rounded-xl bg-gradient-to-br from-[#141414] via-[#0a0a0a] to-[#1c1408] border border-white/5 mb-5`}>
@@ -185,17 +187,17 @@ export default function VideoTemplates() {
                 <div className="flex items-start justify-between mb-2">
                   <h2 className="text-xl font-bold">{tpl.name}</h2>
                 </div>
-                <p className="text-sm text-white/50 mb-3 flex-1">{tpl.description}</p>
-                <div className="rounded-xl bg-black/40 border border-white/[0.07] px-4 py-3 mb-5">
-                  <p className="text-[11px] uppercase tracking-wider text-white/35 mb-1">
+                <p className={`text-sm mb-3 flex-1 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{tpl.description}</p>
+                <div className={`rounded-xl border px-4 py-3 mb-5 ${isLight ? "bg-[#C9A84C]/[0.10] border-[#C9A84C]/30" : "bg-black/40 border-white/[0.07]"}`}>
+                  <p className={`text-[11px] uppercase tracking-wider mb-1 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>
                     {t("videoTemplatesPage.outcomeLabel")}
                   </p>
-                  <p className="text-sm font-bold text-[#e8c86a]">{tpl.outcome}</p>
+                  <p className={`text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{tpl.outcome}</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-white/40 mb-4">
-                  <Clapperboard className="h-3.5 w-3.5 text-[#e8c86a]" />
+                <div className={`flex items-center gap-2 text-xs mb-4 ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>
+                  <Clapperboard className={`h-3.5 w-3.5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                   {t("videoTemplatesPage.slotsLabel", { count: tpl.slotCount })}
-                  <span className="rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#e8c86a] ml-auto">
+                  <span className={`rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-2.5 py-0.5 text-[11px] font-medium ml-auto ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                     {tpl.category}
                   </span>
                 </div>
@@ -212,7 +214,7 @@ export default function VideoTemplates() {
                     size="icon"
                     onClick={() => copyShareLink(tpl.key)}
                     title={t("videoTemplatesPage.copyShareLink")}
-                    className="border-white/15 text-white/60 hover:border-[#e8c86a]/50 hover:text-[#e8c86a] shrink-0"
+                    className={`${isLight ? "border-[#C9A84C]/50 text-[#6B5B36] hover:border-[#C9A84C] hover:text-[#7A5A12]" : "border-white/15 text-white/60 hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"} shrink-0`}
                   >
                     {copiedKey === tpl.key ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
                   </Button>
@@ -225,7 +227,7 @@ export default function VideoTemplates() {
         {/* Bottom CTA */}
         <div className="mt-16 text-center rounded-2xl border border-[#c9a84c]/25 bg-gradient-to-b from-[#c9a84c]/[0.07] to-transparent p-10">
           <h2 className="text-2xl font-bold mb-3">{t("videoTemplatesPage.ctaTitle")}</h2>
-          <p className="text-white/50 mb-6 max-w-xl mx-auto text-sm">
+          <p className={`mb-6 max-w-xl mx-auto text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             {t("videoTemplatesPage.ctaSub")}
           </p>
           <Link href="/video-editor?tab=templates">

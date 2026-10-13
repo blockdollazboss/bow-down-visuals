@@ -6,6 +6,7 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight, Sparkles } from "lucide-react";
 import {
   CAPTION_PACKS,
@@ -25,6 +26,7 @@ const PLATFORM_LABEL: Record<string, string> = {
 };
 
 export default function CaptionPacks() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
     "Social Media Caption Packs — Free Ideas & AI Generator | Bow Down Visuals",
@@ -95,29 +97,29 @@ export default function CaptionPacks() {
             <LuxReveal key={pack.slug} delay={Math.min(i * 0.05, 0.3)}>
               <article
                 id={pack.slug}
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-[#e8c86a]/40 transition-colors h-full flex flex-col"
+                className={`group rounded-2xl border p-6 transition-colors h-full flex flex-col ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-white/[0.03] hover:border-[#e8c86a]/40"}`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <span className="text-4xl">{pack.emoji}</span>
-                  <span className="rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1 text-xs font-medium text-[#e8c86a]">
+                  <span className={`rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1 text-xs font-medium ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                     {pack.category}
                   </span>
                 </div>
                 <h2 className="text-xl font-bold mb-2">{pack.title}</h2>
-                <p className="text-sm text-white/50 mb-4 flex-1">{pack.blurb}</p>
-                <div className="rounded-xl bg-black/40 border border-white/[0.07] px-4 py-3 mb-3">
-                  <p className="text-[11px] uppercase tracking-wider text-white/35 mb-1">
+                <p className={`text-sm mb-4 flex-1 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{pack.blurb}</p>
+                <div className={`rounded-xl border px-4 py-3 mb-3 ${isLight ? "bg-[#C9A84C]/[0.10] border-[#C9A84C]/30" : "bg-black/40 border-white/[0.07]"}`}>
+                  <p className={`text-[11px] uppercase tracking-wider mb-1 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>
                     Topic starter
                   </p>
-                  <p className="text-sm font-bold text-white/90">
+                  <p className={`text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white/90"}`}>
                     “{pack.topic}”
                   </p>
                 </div>
                 <div className="flex gap-2 mb-5">
-                  <span className="rounded-full bg-white/[0.06] px-3 py-1 text-[11px] text-white/60">
+                  <span className={`rounded-full px-3 py-1 text-[11px] ${isLight ? "bg-[#C9A84C]/15 text-[#6B5B36]" : "bg-white/[0.06] text-white/60"}`}>
                     {PLATFORM_LABEL[pack.platform] ?? pack.platform}
                   </span>
-                  <span className="rounded-full bg-white/[0.06] px-3 py-1 text-[11px] text-white/60">
+                  <span className={`rounded-full px-3 py-1 text-[11px] ${isLight ? "bg-[#C9A84C]/15 text-[#6B5B36]" : "bg-white/[0.06] text-white/60"}`}>
                     {pack.tone}
                   </span>
                 </div>
