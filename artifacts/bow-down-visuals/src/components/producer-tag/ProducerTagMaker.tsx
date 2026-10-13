@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -87,6 +88,7 @@ function loadLibrary(): SavedTag[] {
 }
 
 export function ProducerTagMaker() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { refreshProfile, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -427,7 +429,7 @@ export function ProducerTagMaker() {
                 <div
                   key={tag.id}
                   className={`rounded-xl border p-3 transition-colors ${
-                    current?.id === tag.id ? "border-primary/50 bg-primary/[0.07]" : "border-white/10 bg-black/30"
+                    current?.id === tag.id ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/10 bg-black/30"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
