@@ -412,7 +412,7 @@ export function CheatCodeJackpot() {
  <div
  role="status"
  className={cn(
- "sticky top-0 z-[60] border-b overflow-hidden",
+ "relative z-[60] border-b overflow-hidden",
  bannerBody.accent
  ? isLight ? "border-[#C9A84C]/60 bg-[#F7F1E3]" : "border-[#C9A84C]/60 bg-black"
  : isLight ? "border-[#c9a84c]/25 bg-[#F7F1E3]" : "border-white/10 bg-[#0a0a0a]",

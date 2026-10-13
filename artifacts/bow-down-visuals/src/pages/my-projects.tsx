@@ -393,7 +393,7 @@ function ProjectCard({
       {/* ── Visual header: type-tinted banner always; filmstrip videos overlay it
            when scene clips exist (if the videos fail to load, the colored band
            still shows instead of an empty strip) ── */}
-      <div className={`relative overflow-hidden bg-gradient-to-br ${headerGradient} ${clipUrls.length > 0 ? "h-28 md:h-32" : "h-24 md:h-28"}`}>
+      <div className={`relative overflow-hidden bg-gradient-to-br ${headerGradient} ${clipUrls.length > 0 ? "h-28 md:h-32" : "h-20 md:h-24"}`}>
         {clipUrls.length > 0 && (
           <div
             className={`absolute inset-0 flex ${isLight ? "bg-gradient-to-br from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]" : "bg-black"}`}
@@ -412,13 +412,14 @@ function ProjectCard({
                 muted
                 playsInline
                 preload="metadata"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
                 className="flex-1 min-w-0 h-full object-cover relative"
               />
             ))}
           </div>
         )}
         {clipUrls.length === 0 && (
-          <div className="absolute right-3 bottom-3 text-white opacity-[0.12] [&>svg]:h-12 [&>svg]:w-12">
+          <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isLight ? "text-[#8a6d2f] opacity-[0.22]" : "text-white opacity-[0.16]"} [&>svg]:h-12 [&>svg]:w-12`}>
             {icon}
           </div>
         )}
@@ -431,15 +432,15 @@ function ProjectCard({
       <div className="p-4 md:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span className="text-xs text-white/30">{date}</span>
+            <div className="flex items-center gap-2 mb-1.5 flex-nowrap">
+              <span className="text-xs text-white/30 whitespace-nowrap">{date}</span>
               {project.credits_used > 0 && (
-                <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
+                <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1 shrink-0 whitespace-nowrap">
                   {formatBucs(project.credits_used * 100)}
                 </Badge>
               )}
             </div>
-            <h3 className="text-base font-bold text-white truncate">{displayTitle}</h3>
+            <h3 className="text-base font-bold text-white line-clamp-2 break-words">{displayTitle}</h3>
             {(project.genre || project.mood) && (
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 {project.genre && (
