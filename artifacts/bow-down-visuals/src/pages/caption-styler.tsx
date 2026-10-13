@@ -256,7 +256,7 @@ export default function CaptionStyler() {
                 onClick={() => setStyle(s.key)}
                 className={`rounded-xl border p-3 text-left transition ${
                   style === s.key
-                    ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10" : "border-amber-400 bg-amber-400/10"
+                    ? isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C]" : "border-amber-400 bg-amber-400/[0.16] shadow-[0_0_0_1px_rgba(251,191,36,0.55)]"
                     : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
                 }`}
               >
@@ -277,7 +277,7 @@ export default function CaptionStyler() {
                     onClick={() => setPosition(p.key)}
                     className={`flex-1 rounded-lg border px-3 py-2 text-sm transition ${
                       position === p.key
-                        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400 bg-amber-400/10 text-amber-200"
+                        ? isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-amber-400 bg-amber-400/[0.16] text-amber-200 shadow-[0_0_0_1px_rgba(251,191,36,0.55)]"
                         : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
@@ -295,7 +295,7 @@ export default function CaptionStyler() {
                     onClick={() => setFontSize(f.key)}
                     className={`flex-1 rounded-lg border px-3 py-2 text-sm transition ${
                       fontSize === f.key
-                        ? isLight ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400 bg-amber-400/10 text-amber-200"
+                        ? isLight ? "border-[#C9A84C] bg-[#F7ECD2] text-[#7A5A12] shadow-[0_0_0_1px_#C9A84C]" : "border-amber-400 bg-amber-400/[0.16] text-amber-200 shadow-[0_0_0_1px_rgba(251,191,36,0.55)]"
                         : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/60" : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
