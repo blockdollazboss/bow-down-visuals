@@ -585,7 +585,7 @@ export default function SetlistBuilder() {
       {libraryOpen && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLibraryOpen(false)}>
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0c0c0c] p-6 max-h-[80vh] overflow-y-auto"
+            className={`w-full max-w-lg rounded-2xl border p-6 max-h-[80vh] overflow-y-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/10 bg-[#0c0c0c]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
