@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -418,6 +419,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 /* ─── All-steps view: the advanced map ────────────────────────────────────── */
 
 function AllStepsView() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { project, setProjectType, hasKind } = useHubProject();
   const workflow = getWorkflow(project.type);
@@ -463,7 +465,7 @@ function AllStepsView() {
               onClick={() => setActiveStep(s.key)}
               className={`relative rounded-2xl border p-4 text-left transition-all shrink-0 w-[132px] sm:w-auto sm:shrink sm:flex-1 ${
                 active
-                  ? "border-primary bg-primary/[0.08] shadow-[0_0_24px_rgba(218,165,32,0.15)]"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55),0_0_24px_rgba(212,175,55,0.18)]")
                   : "border-white/10 bg-white/[0.03] hover:border-white/25"
               } ${isNext ? "ring-1 ring-primary/40" : ""}`}
             >
