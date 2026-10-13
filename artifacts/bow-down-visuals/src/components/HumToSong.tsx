@@ -187,6 +187,10 @@ export function HumToSong() {
   }
 
   function acceptFile(file: File) {
+    if (file.size > 25 * 1024 * 1024) {
+      setError("That recording is over 25 MB — keep it short and try again.");
+      return;
+    }
     setError(null);
     setResult(null);
     setSongAsset(null);

@@ -134,6 +134,10 @@ export default function JewelryStudio() {
   /* ─── Step 1: logo upload ─── */
   const onLogoPicked = (f: File | undefined) => {
     if (!f) return;
+    if (f.size > 10 * 1024 * 1024) {
+      setError("That logo is over 10 MB — pick a smaller file.");
+      return;
+    }
     setLogoFile(f);
     setLogoPreview(URL.createObjectURL(f));
     setPreviewUrl(null);

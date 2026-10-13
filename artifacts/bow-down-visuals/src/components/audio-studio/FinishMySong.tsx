@@ -39,7 +39,13 @@ export function FinishMySong() {
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setFile(f);
+    if (!f) return;
+    if (f.size > 25 * 1024 * 1024) {
+      setError("That demo is over 25 MB — pick a smaller file.");
+      return;
+    }
+    setError(null);
+    setFile(f);
   }
 
   async function finish() {

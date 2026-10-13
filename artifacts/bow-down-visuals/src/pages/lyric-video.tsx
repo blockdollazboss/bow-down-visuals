@@ -298,7 +298,13 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                 accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac"
                 className="hidden"
                 onChange={(e) => {
-                  setAudioFile(e.target.files?.[0] ?? null);
+                  const f = e.target.files?.[0] ?? null;
+                  if (f && f.size > 25 * 1024 * 1024) {
+                    setError(t("lyricVideo.errorAudioTooLarge", { defaultValue: "That audio file is over 25 MB — pick a smaller one." }));
+                    e.target.value = "";
+                    return;
+                  }
+                  setAudioFile(f);
                   setSelectedSongId("");
                 }}
               />
