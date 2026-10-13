@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
    sees when they tap the physical card or scan the QR. */
 
 export default function NfcCardProfile() {
-  usePageTitle("Creator Card");
+  usePageTitle("Creator Card", "Creator profile — tap in to connect.");
   const { t } = useTranslation();
   const params = useParams<{ slug: string }>();
   const [profile, setProfile] = useState<NfcProfile | null>(null);

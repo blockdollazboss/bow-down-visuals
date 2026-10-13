@@ -100,7 +100,7 @@ function fmtRange(low: number, high: number): string {
 }
 
 export default function BrandDealCalculator() {
-  usePageTitle("Brand Deal Calculator");
+  usePageTitle("Brand Deal Calculator", "Estimate what to charge brands for sponsored posts and deals.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 

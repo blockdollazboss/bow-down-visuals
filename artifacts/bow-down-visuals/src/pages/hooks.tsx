@@ -969,7 +969,7 @@ function RandomizerDice() {
 }
 
 export default function HookStudio() {
-  usePageTitle("Hook Studio");
+  usePageTitle("Hook Studio", "Write scroll-stopping hooks for your videos with AI.");
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();

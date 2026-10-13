@@ -94,7 +94,7 @@ function scoreBarColor(score: number): string {
 }
 
 export default function InterviewPrep() {
-  usePageTitle("Interview Prep");
+  usePageTitle("Interview Prep", "Prep for interviews and press with AI-coached answers.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 

@@ -59,7 +59,7 @@ interface ApiError {
 }
 
 export default function Tour() {
-  usePageTitle("Tour Planner");
+  usePageTitle("Tour Planner", "Plan your tour dates, cities, and routing.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [dates, setDates] = useState<TourDate[]>([]);

@@ -103,7 +103,7 @@ function ResultBlock({ label, text }: { label: string; text: string }) {
 }
 
 export default function Promote() {
-  usePageTitle("Promote");
+  usePageTitle("Promote", "Promote your content — campaigns, shoutouts, and spotlight placements.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<"copy" | "bio">("copy");

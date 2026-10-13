@@ -18,7 +18,7 @@ interface JoinList {
 }
 
 export default function JoinList() {
-  usePageTitle("Join");
+  usePageTitle("Join", "Join Bow Down Visuals — the content creator's cheat code.");
   const { t } = useTranslation();
   const [, params] = useRoute("/join/:handle");
   const handle = params?.handle ?? "";

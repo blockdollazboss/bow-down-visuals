@@ -72,7 +72,7 @@ async function apiGet(path: string) {
 }
 
 export default function ShortsFeed() {
-  usePageTitle("Shorts");
+  usePageTitle("Shorts", "Watch creator shorts on Bow Down Visuals.");
   const search = useSearch();
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();

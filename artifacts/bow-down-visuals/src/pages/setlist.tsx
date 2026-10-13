@@ -52,7 +52,7 @@ interface FlowResponse {
 }
 
 export default function SetlistBuilder() {
-  usePageTitle("Setlist Builder");
+  usePageTitle("Setlist Builder", "Build your live setlist and plan the show.");
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
 

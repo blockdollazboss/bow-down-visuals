@@ -30,7 +30,7 @@ interface PressKit {
 }
 
 export default function PublicPressKit() {
-  usePageTitle("Press Kit");
+  usePageTitle("Press Kit", "Official press kit — bio, photos, music, and booking info.");
   const params = useParams<{ handle: string }>();
   const handle = params.handle ?? "";
   const { t } = useTranslation();

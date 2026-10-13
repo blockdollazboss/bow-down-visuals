@@ -33,7 +33,7 @@ interface JewelryOrder {
 }
 
 export default function JewelryShop() {
-  usePageTitle("Jewelry Shop");
+  usePageTitle("Jewelry Shop", "The Bow Down Visuals jewelry line — signature pieces for creators.");
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
