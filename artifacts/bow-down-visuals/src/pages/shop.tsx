@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
@@ -40,6 +41,7 @@ interface PublicProduct {
 }
 
 export default function ShopStorefront() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
@@ -262,7 +264,7 @@ export default function ShopStorefront() {
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#0c0c0c] overflow-hidden"
+            className={`w-full max-w-lg rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/15 bg-[#0c0c0c]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
@@ -300,7 +302,7 @@ export default function ShopStorefront() {
         <div className="fixed inset-0 z-50" onClick={() => setCartOpen(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <aside
-            className="absolute right-0 top-0 h-full w-full max-w-md bg-[#0c0c0c] border-l border-white/10 p-6 flex flex-col"
+            className={`absolute right-0 top-0 h-full w-full max-w-md border-l p-6 flex flex-col ${isLight ? "border-[#C9A84C]/40 bg-[#FCF7EA]" : "bg-[#0c0c0c] border-white/10"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
