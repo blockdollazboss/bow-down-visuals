@@ -600,6 +600,7 @@ function CalendarTab(props: {
   onCancel: (p: ScheduledPostShape) => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const { gridCells, monthLabel, monthCursor, setMonthCursor, byDay } = props;
   const today = todayLocal();
 
@@ -609,7 +610,7 @@ function CalendarTab(props: {
   }
 
   return (
-    <div>
+    <div className={`rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-xl font-black">{monthLabel}</h2>
         <div className="flex gap-2">
@@ -630,7 +631,7 @@ function CalendarTab(props: {
 
       <div className="grid grid-cols-7 gap-1.5">
         {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => (
-          <div key={d} className="pb-1 text-center text-[11px] font-bold uppercase tracking-widest text-white/30">{t(`scheduler.days.${d}`)}</div>
+          <div key={d} className="pb-1 text-center text-[11px] font-bold uppercase tracking-widest text-white/45">{t(`scheduler.days.${d}`)}</div>
         ))}
         {gridCells.map((cell, i) => {
           if (!cell.date) return <div key={i} className="min-h-[88px] rounded-xl" />;
@@ -659,7 +660,7 @@ function CalendarTab(props: {
               } ${isPast ? "cursor-default opacity-50" : ""}`}
               title={isPast ? undefined : t("scheduler.calendar.dayTitle")}
             >
-              <div className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-white/50"}`}>
+              <div className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-white/75"}`}>
                 {Number(cell.date.slice(8))}
               </div>
               <div className="mt-1 space-y-1">
@@ -690,7 +691,7 @@ function CalendarTab(props: {
           );
         })}
       </div>
-      <p className="mt-3 text-[13px] text-white/35">
+      <p className="mt-3 text-[13px] text-white/55">
         {t("scheduler.calendar.hint")}
       </p>
     </div>

@@ -205,7 +205,7 @@ export default function BetaAccess() {
                 </div>
               </>
             ) : (
-            <div className="rounded-2xl border border-primary/25 bg-primary/5 p-10 text-center">
+            <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-primary/5" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
               <h3 className="text-2xl font-semibold text-white mb-3">{t("betaAccess.successTitle")}</h3>
               <p className="text-white/55 text-base mb-6 max-w-sm mx-auto leading-relaxed">
@@ -231,7 +231,7 @@ export default function BetaAccess() {
             </div>
             )
           ) : (
-            <div className={`rounded-2xl border p-7 md:p-9 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
+            <div className={`rounded-2xl border p-7 md:p-9 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               {inviterCode && (
                 <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
                   <Gift className="h-5 w-5 text-primary shrink-0" />
@@ -364,7 +364,7 @@ export default function BetaAccess() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {TOOLS.map((tool) => (
-              <div key={tool.labelKey} className={`rounded-2xl border p-5 flex items-start gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
+              <div key={tool.labelKey} className={`rounded-2xl border p-5 flex items-start gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
                   <tool.icon className="h-4 w-4 text-primary" />
                 </div>
@@ -391,7 +391,7 @@ export default function BetaAccess() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {PERKS.map((p) => (
-              <div key={p.titleKey} className={`rounded-2xl border p-6 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/[0.07] bg-white/[0.02] hover:border-primary/20"}`}>
+              <div key={p.titleKey} className={`rounded-2xl border p-6 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/20"}`}>
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
                   <p.icon className="h-5 w-5 text-primary" />
                 </div>
