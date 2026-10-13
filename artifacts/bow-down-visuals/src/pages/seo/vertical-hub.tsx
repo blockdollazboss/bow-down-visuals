@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   SeoPageShell,
   SeoHero,
@@ -25,6 +26,7 @@ import {
 const SITE = "https://bowdownvisuals.com";
 
 export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
+  const isLight = useIsLightTheme();
   const tools = vertical.toolSlugs
     .map((s) => TOOL_PAGE_MAP[s])
     .filter(Boolean)
@@ -96,7 +98,7 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
             <Link
               key={t.href}
               href={t.href}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-[#e8c86a]/40"
+              className={`group rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
             >
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h3 className="font-bold group-hover:text-[#e8c86a] transition-colors">
@@ -126,7 +128,7 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
       />
 
       {/* Live creators — honest link to real data, never fabricated */}
-      <section className="mb-14 rounded-3xl border border-white/10 bg-white/[0.02] p-8 sm:p-10 text-center">
+      <section className={`mb-14 rounded-3xl border p-8 sm:p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.02]"}`}>
         <h2 className="text-2xl font-bold sm:text-3xl mb-3">
           See who's creating now
         </h2>
@@ -136,7 +138,7 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
         </p>
         <Link
           href={vertical.discoveryHref}
-          className="inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/40 px-7 py-3 font-semibold text-[#e8c86a] transition hover:bg-[#e8c86a]/10"
+          className={`inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/40 px-7 py-3 font-semibold transition hover:bg-[#e8c86a]/10 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
         >
           {vertical.discoveryLabel} <ArrowRight className="h-4 w-4" />
         </Link>

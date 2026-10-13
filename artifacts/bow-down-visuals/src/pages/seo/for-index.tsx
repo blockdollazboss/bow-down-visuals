@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight, Users } from "lucide-react";
 import {
   SeoPageShell,
@@ -17,6 +18,7 @@ const DESCRIPTION =
 /* ─── /for — directory of creator vertical hubs (SEO index page) ───────── */
 
 export default function ForIndex() {
+  const isLight = useIsLightTheme();
   return (
     <SeoPageShell
       title={TITLE}
@@ -53,7 +55,7 @@ export default function ForIndex() {
             <Link
               key={v.slug}
               href={v.path}
-              className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-[#e8c86a]/40"
+              className={`group flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#e8c86a]/12">
                 <Users className="h-5 w-5 text-[#e8c86a]" />

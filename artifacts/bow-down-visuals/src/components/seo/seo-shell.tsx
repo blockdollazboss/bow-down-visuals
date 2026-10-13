@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { ArrowRight, ChevronRight, Check } from "lucide-react";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   THUMBNAIL_TEMPLATES,
@@ -193,6 +194,7 @@ export function SeoFeatureGrid({
   items: SeoFeature[];
   numbered?: boolean;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <section className="mb-14">
       <h2 className="text-2xl font-bold sm:text-3xl mb-8 text-center">{heading}</h2>
@@ -200,16 +202,16 @@ export function SeoFeatureGrid({
         {items.map((item, i) => (
           <div
             key={item.title}
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
           >
             <div className="flex items-center gap-3 mb-3">
               {numbered ? (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8c86a]/15 text-sm font-bold text-[#e8c86a]">
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8c86a]/15 text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                   {i + 1}
                 </span>
               ) : (
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8c86a]/15">
-                  <Check className="h-4 w-4 text-[#e8c86a]" />
+                  <Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                 </span>
               )}
               <h3 className="font-bold">{item.title}</h3>
@@ -239,6 +241,7 @@ export function SeoTemplateGrid({
   galleryHref: string;
   galleryLabel: string;
 }) {
+  const isLight = useIsLightTheme();
   const templates = resolveTemplates(kind, slugs);
   if (templates.length === 0) return null;
   return (
@@ -249,13 +252,13 @@ export function SeoTemplateGrid({
         {templates.map((t) => (
           <article
             key={t.key}
-            className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-[#e8c86a]/40"
+            className={`flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
           >
             <div className="flex items-start justify-between mb-4">
               <span className="text-4xl" aria-hidden="true">
                 {t.emoji}
               </span>
-              <span className="rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1 text-xs font-medium text-[#e8c86a]">
+              <span className={`rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1 text-xs font-medium ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                 {t.tag}
               </span>
             </div>
@@ -263,7 +266,7 @@ export function SeoTemplateGrid({
             <p className="text-sm text-white/50 mb-5 flex-1">{t.blurb}</p>
             <Link
               href={t.deepLink}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#e8c86a] hover:text-[#f5d67f]"
+              className={`inline-flex items-center gap-1.5 text-sm font-semibold ${isLight ? "text-[#7A5A12] hover:text-[#A97F1F]" : "text-[#e8c86a] hover:text-[#f5d67f]"}`}
             >
               Use this template <ArrowRight className="h-4 w-4" />
             </Link>
@@ -273,7 +276,7 @@ export function SeoTemplateGrid({
       <div className="text-center mt-8">
         <Link
           href={galleryHref}
-          className="inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/40 px-6 py-2.5 text-sm font-semibold text-[#e8c86a] transition hover:bg-[#e8c86a]/10"
+          className={`inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/40 px-6 py-2.5 text-sm font-semibold transition hover:bg-[#e8c86a]/10 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
         >
           Browse all {galleryLabel} <ArrowRight className="h-4 w-4" />
         </Link>
@@ -285,6 +288,7 @@ export function SeoTemplateGrid({
 /* ── FAQ ── */
 
 export function SeoFaq({ faqs }: { faqs: SeoFaq[] }) {
+  const isLight = useIsLightTheme();
   if (faqs.length === 0) return null;
   return (
     <section className="mb-14">
@@ -295,7 +299,7 @@ export function SeoFaq({ faqs }: { faqs: SeoFaq[] }) {
         {faqs.map((f) => (
           <div
             key={f.q}
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
           >
             <h3 className="font-bold mb-2">{f.q}</h3>
             <p className="text-sm text-white/55 leading-relaxed">{f.a}</p>
@@ -315,6 +319,7 @@ export function SeoSiblingNav({
   heading: string;
   links: { label: string; href: string; blurb: string }[];
 }) {
+  const isLight = useIsLightTheme();
   return (
     <section className="mb-14">
       <h2 className="text-2xl font-bold sm:text-3xl mb-8 text-center">{heading}</h2>
@@ -323,7 +328,7 @@ export function SeoSiblingNav({
           <Link
             key={l.href}
             href={l.href}
-            className="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-colors hover:border-[#e8c86a]/40"
+            className={`group rounded-2xl border p-5 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
           >
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-bold group-hover:text-[#e8c86a] transition-colors">

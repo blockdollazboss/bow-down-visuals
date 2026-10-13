@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight } from "lucide-react";
 import {
   SeoPageShell,
@@ -26,6 +27,7 @@ import {
 const SITE = "https://bowdownvisuals.com";
 
 export function GenreHubSeo({ genre }: { genre: GenreSeo }) {
+  const isLight = useIsLightTheme();
   const tools = genre.toolSlugs
     .map((s) => TOOL_PAGE_MAP[s])
     .filter(Boolean)
@@ -88,7 +90,7 @@ export function GenreHubSeo({ genre }: { genre: GenreSeo }) {
           {genre.facts.map((f) => (
             <div
               key={f.label}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+              className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
             >
               <p className="text-[11px] uppercase tracking-widest text-[#e8c86a]/80 mb-1.5">
                 {f.label}
@@ -122,7 +124,7 @@ export function GenreHubSeo({ genre }: { genre: GenreSeo }) {
             <Link
               key={t.href}
               href={t.href}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-[#e8c86a]/40"
+              className={`group rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8c86a]/15 text-sm font-bold text-[#e8c86a] mb-4">
                 {i + 1}
@@ -140,7 +142,7 @@ export function GenreHubSeo({ genre }: { genre: GenreSeo }) {
       </section>
 
       {/* Live tracks & creators — honest link to real data */}
-      <section className="mb-14 rounded-3xl border border-white/10 bg-white/[0.02] p-8 sm:p-10 text-center">
+      <section className={`mb-14 rounded-3xl border p-8 sm:p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.02]"}`}>
         <JsonLd
           data={{
             "@context": "https://schema.org",
