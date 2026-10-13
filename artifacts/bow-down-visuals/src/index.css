@@ -2890,3 +2890,25 @@ html:not(.light) .text-white\/25 { color: rgb(255 255 255 / 0.42); }
 html:not(.light) .text-white\/30 { color: rgb(255 255 255 / 0.48); }
 html:not(.light) .text-white\/35 { color: rgb(255 255 255 / 0.54); }
 html:not(.light) .border-white\/5 { border-color: rgb(255 255 255 / 0.12); }
+
+/* ── Dark warmth, round 2 (owner dark stack, Oct 13) ─────────────────
+   (a) Flat near-black hex panels were cold gray-black; in dark theme
+   they shift to walnut black at the same lightness. (b) The cold
+   white-glass fills and hovers take a gold tint at identical alpha,
+   so every dark glass surface warms without changing hierarchy.
+   (c) Dark placeholders get a readability floor. Light untouched. */
+html:not(.light) .bg-\[\#0a0a0a\] { background-color: #171208; }
+html:not(.light) .bg-\[\#0d0d0d\] { background-color: #1a1409; }
+html:not(.light) .bg-\[\#0c0c0c\] { background-color: #171208; }
+html:not(.light) .bg-\[\#080808\] { background-color: #140f06; }
+html:not(.light) .bg-\[\#1a1a1a\] { background-color: #201809; }
+html:not(.light) .bg-\[\#141414\] { background-color: #1c150a; }
+html:not(.light) .bg-\[\#0d0d0f\] { background-color: #1a1409; }
+html:not(.light) .bg-\[\#0b0b0d\] { background-color: #171208; }
+html:not(.light) .bg-white\/5 { background-color: rgb(201 168 76 / 0.06); }
+html:not(.light) .bg-white\/\[0\.03\] { background-color: rgb(201 168 76 / 0.04); }
+html:not(.light) .bg-white\/\[0\.02\] { background-color: rgb(201 168 76 / 0.03); }
+html:not(.light) .hover\:bg-white\/5:hover { background-color: rgb(201 168 76 / 0.07); }
+html:not(.light) .hover\:bg-white\/10:hover { background-color: rgb(201 168 76 / 0.12); }
+html:not(.light) .placeholder\:text-white\/30::placeholder { color: rgb(255 255 255 / 0.45); }
+html:not(.light) .placeholder\:text-white\/25::placeholder { color: rgb(255 255 255 / 0.42); }

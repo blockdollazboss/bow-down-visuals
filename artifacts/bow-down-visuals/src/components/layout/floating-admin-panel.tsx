@@ -26,7 +26,7 @@ export function FloatingAdminPanel() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`h-11 w-11 rounded-full border border-primary/40 ${isLight ? "bg-[#FBF6E9]" : "bg-black/90"} text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors`}
+          className={`h-11 w-11 rounded-full border border-primary/40 ${isLight ? "bg-[#FBF6E9]" : "bg-[#171208]/90"} text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors`}
           title="Admin quick actions"
           data-testid="floating-admin-toggle"
         >
@@ -36,7 +36,7 @@ export function FloatingAdminPanel() {
 
       {open && (
         <div
-          className={`fixed z-[9998] right-4 bottom-36 w-64 rounded-2xl border ${isLight ? "border-[#C9A84C]/60 bg-[#FBF6E9]/95" : "border-primary/40 bg-black/95"} shadow-[0_0_24px_rgba(218,165,32,0.4)] backdrop-blur p-3 max-h-[70vh] overflow-y-auto`}
+          className={`fixed z-[9998] right-4 bottom-36 w-64 rounded-2xl border ${isLight ? "border-[#C9A84C]/60 bg-[#FBF6E9]/95" : "border-primary/40 bg-[#171208]/95"} shadow-[0_0_24px_rgba(218,165,32,0.4)] backdrop-blur p-3 max-h-[70vh] overflow-y-auto`}
           data-testid="floating-admin-panel"
         >
           <div className="flex items-center justify-between mb-2">

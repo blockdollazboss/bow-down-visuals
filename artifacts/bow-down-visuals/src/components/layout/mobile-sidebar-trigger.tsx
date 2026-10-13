@@ -20,7 +20,7 @@ export function MobileSidebarTrigger() {
       aria-label="Open navigation"
       data-testid="btn-open-sidebar-mobile"
       className="fixed bottom-24 left-5 z-[9999] flex h-12 w-12 items-center justify-center rounded-full md:hidden
-        border border-primary/40 bg-black/85 text-primary backdrop-blur
+        border border-primary/40 bg-[#171208]/85 text-primary backdrop-blur
         shadow-[0_0_20px_rgba(218,165,32,0.35)]
         transition-all duration-200 hover:bg-primary hover:text-black active:scale-95"
     >
