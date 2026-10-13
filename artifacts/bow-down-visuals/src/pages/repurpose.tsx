@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Recycle, Loader2, Upload, Link2, Copy, Check, Download,
@@ -180,6 +181,7 @@ interface StreamCutJobResponse {
 }
 
 function StreamVodClips() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -405,7 +407,7 @@ function StreamVodClips() {
           {t("clipMaker.step1Title")}
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
+          <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
             <Upload className="h-6 w-6 text-primary" />
             <span className="text-sm font-semibold">{file ? file.name : t("clipMaker.chooseFile")}</span>
             <span className="text-xs text-white/40">{t("clipMaker.fileHint")}</span>
@@ -419,7 +421,7 @@ function StreamVodClips() {
               }}
             />
           </label>
-          <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-6">
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-6 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
             <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
               <Link2 className="h-4 w-4 text-primary" /> {t("clipMaker.orPasteUrl")}
             </span>
@@ -448,7 +450,7 @@ function StreamVodClips() {
                   className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
                     clipLength === len
                       ? "border-primary bg-primary/15 text-primary"
-                      : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
                   }`}
                 >
                   {t("clipMaker.secondsLabel", { n: len })}
@@ -480,7 +482,7 @@ function StreamVodClips() {
                   className={`flex-1 rounded-xl border px-2 py-2.5 text-xs font-bold transition ${
                     vibe === v.key
                       ? "border-primary bg-primary/15 text-primary"
-                      : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
                   }`}
                 >
                   {v.label}
@@ -554,7 +556,7 @@ function StreamVodClips() {
                   key={h.id}
                   onClick={() => toggleHighlight(h.id)}
                   className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition ${
-                    on ? "border-primary/60 bg-primary/[0.07]" : "border-white/10 bg-black/40 opacity-70 hover:opacity-100"
+                    on ? "border-primary/60 bg-primary/[0.07]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 opacity-70 hover:opacity-100" : "border-white/10 bg-black/40 opacity-70 hover:opacity-100"
                   }`}
                 >
                   <span
@@ -624,7 +626,7 @@ function StreamVodClips() {
           {job?.status === "done" && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {job.clips?.map((c, i) => (
-                <div key={i} className="overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                <div key={i} className={`overflow-hidden rounded-xl border ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
                   {c.outputUrl ? (
                     <video src={c.outputUrl} controls playsInline className="aspect-[9/16] w-full bg-black" />
                   ) : (
@@ -695,6 +697,7 @@ function StreamVodClips() {
 }
 
 export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
@@ -1011,7 +1014,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
         <section className={`${cardClass} mt-10`}>
           <SectionHeader icon={Upload} step={1} title={t("repurpose.step1.title")} blurb={t("repurpose.step1.blurb")} />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
+            <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
               <Upload className="h-6 w-6 text-primary" />
               <span className="text-sm font-semibold">{file ? file.name : t("repurpose.step1.chooseFile")}</span>
               <span className="text-xs text-white/40">{t("repurpose.step1.fromCameraRoll")}</span>
@@ -1025,7 +1028,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
                 }}
               />
             </label>
-            <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-6">
+            <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-6 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
                 <Link2 className="h-4 w-4 text-primary" /> {t("repurpose.step1.orPasteUrl")}
               </span>
