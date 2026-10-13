@@ -687,7 +687,7 @@ function CourseDetail(props: CourseDetailProps) {
  <div
  key={lesson.id}
  className={`overflow-hidden rounded-2xl border transition ${
- isActive ? "border-primary/60 bg-primary/[0.05]" : "border-white/10 bg-white/[0.03]"
+ isActive ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/10 bg-white/[0.03]"
  }`}
  >
  <div className="flex items-center gap-3.5 p-4">
