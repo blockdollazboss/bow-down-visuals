@@ -170,6 +170,9 @@ const inputClass =
 const labelClass = "mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40";
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
+const goldBtnGated = (isLight: boolean) =>
+  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed " +
+  (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12]" : "border border-primary/30 bg-primary/20 text-primary/70");
 const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-primary/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -792,7 +795,7 @@ function NewReleaseWizard(props: {
                   </button>
                 ))}
               </div>
-              <button onClick={generateArtwork} disabled={artWorking || !artPrompt.trim()} className={goldBtn}>
+              <button onClick={generateArtwork} disabled={artWorking || !artPrompt.trim()} className={!artPrompt.trim() && !artWorking ? goldBtnGated(isLight) : goldBtn}>
                 {artWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Generate art
               </button>
@@ -2213,7 +2216,7 @@ function ReleaseDetail(props: {
               Editing splits creates a new agreement version — changes apply to future earnings only.
             </p>
           </div>
-          <button onClick={saveSplits} disabled={splitsSaving || !valid || splits.length === 0} className={goldBtn}>
+          <button onClick={saveSplits} disabled={splitsSaving || !valid || splits.length === 0} className={(!valid || splits.length === 0) && !splitsSaving ? goldBtnGated(isLight) : goldBtn}>
             {splitsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save splits · free
           </button>
