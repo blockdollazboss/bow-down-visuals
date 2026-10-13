@@ -393,7 +393,7 @@ function CleanupPanel() {
             <button
               onClick={startCleanup}
               disabled={!file || !user}
-              className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
             >
               {t("audioCleanup.cleanupButton", { cost: CLEANUP_CREDIT_COST * 100 })}
             </button>
@@ -869,7 +869,7 @@ function VocalOnlyPreset() {
           <button
             onClick={startRemoval}
             disabled={!file || !user}
-            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {t("vocalRemoval.removeButton", { cost: VOCAL_CREDIT_COST })}
           </button>
@@ -1002,6 +1002,7 @@ function VocalOnlyPreset() {
    poll GET /api/stems/:jobId, deliverable arrives as `instrumental`. */
 
 function InstrumentalPreset() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset } = useHubProject();
@@ -1172,7 +1173,7 @@ function InstrumentalPreset() {
           <button
             onClick={startSplit}
             disabled={!file || !user}
-            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {t("stems.instrumentalSplitButton", { cost: STEMS_INSTRUMENTAL_CREDIT_COST * 100 })}
           </button>
@@ -1228,6 +1229,7 @@ function InstrumentalPreset() {
 }
 
 function StemsPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   /* Translated stem labels/blurbs for display; keys stay stable. */
   const stemsList = STEM_DEFS.map((s) => ({
@@ -1607,7 +1609,7 @@ function StemsPanel() {
             <button
               onClick={startSplit}
               disabled={!file || !user}
-              className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
             >
               {t("stems.splitButton", { cost: STEMS_CREDIT_COST * 100 })}
             </button>
@@ -2597,6 +2599,7 @@ function MasterPanel() {
 /* ── AI Mix (stems) panel ─────────────────────────────────────────── */
 
 function MixPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -2793,7 +2796,7 @@ function MixPanel() {
             type="button"
             onClick={start}
             disabled={stems.length === 0 || !user}
-            className="w-full rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] py-3.5 font-black text-black hover:brightness-110 active:scale-[0.99] transition disabled:opacity-30 disabled:cursor-not-allowed"
+            className={`w-full rounded-xl py-3.5 font-black transition disabled:cursor-not-allowed ${stems.length === 0 || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black hover:brightness-110 active:scale-[0.99]"}`}
           >
             {!user
               ? t("mastering.signInToMaster")
