@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 
 /* ─── Copyright Filing Assistant ────────────────────────────────────────────
@@ -92,6 +93,9 @@ function uid(): string {
 
 export default function CopyrightAssistant() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const cardCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/10 bg-white/[0.03]";
+  const darkPanelCls = isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9]" : "border-white/10 bg-black/50";
   usePageTitle(t("copyright.metaTitle"), t("copyright.metaDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -279,9 +283,13 @@ export default function CopyrightAssistant() {
 
   const statusBadge = (s: RegStatus) =>
     s === "filed"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      ? isLight
+        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
       : s === "prepared"
-        ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+        ? isLight
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-700"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-300"
         : "border-white/15 bg-white/[0.04] text-white/50";
 
   return (
@@ -291,13 +299,13 @@ export default function CopyrightAssistant() {
         <div className="text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
             <Scale className="h-4 w-4" aria-hidden="true" />{t("copyright.protect_the_catalog")}</div>
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("copyright.copyright")}<span className="bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] bg-clip-text text-transparent">{t("copyright.filing_assistant")}</span>
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("copyright.copyright")}{" "}<span className="bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] bg-clip-text text-transparent">{t("copyright.filing_assistant")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/60">
             You own your music the second you create it — registration is what lets you{" "}
             <span className="text-white">{t("copyright.enforce")}</span> it. Our AI drafts your application
             description and filing notes, then hands you a checklist to file at{" "}
-            <span className="text-white">copyright.gov</span>{t("copyright.in_minutes")}</p>
+            <span className="text-white">copyright.gov</span>{" "}{t("copyright.in_minutes")}</p>
         </div>
 
         {/* ── EXPLAINER ── */}
@@ -319,7 +327,7 @@ export default function CopyrightAssistant() {
               body: "$65 Standard Application or $45 Single Application online. Standard processing: ~1–4 months. Confirm fees at copyright.gov.",
             },
           ].map((c) => (
-            <div key={c.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div key={c.title} className={`rounded-2xl border p-5 ${cardCls}`}>
               <c.icon className="mb-3 h-6 w-6 text-primary" aria-hidden="true" />
               <h3 className="font-bold text-white">{c.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-white/55">{c.body}</p>
@@ -403,13 +411,13 @@ export default function CopyrightAssistant() {
             <p className="mt-2.5 text-xs text-white/35">{DRAFT_CREDIT_COST} Visual Buc per draft · powered by Thy Cheat Code</p>
             {draftOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {draftError && !draftOutOfCredits && (
-              <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{draftError}</p>
+              <p className={`mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm ${isLight ? "text-red-700" : "text-red-300"}`}>{draftError}</p>
             )}
           </div>
 
           {draft && (
             <div id="draft-result" className="mt-8 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/50 p-5">
+              <div className={`rounded-2xl border p-5 ${darkPanelCls}`}>
                 <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><FileText className="h-5 w-5" aria-hidden="true" />{t("copyright.description_of_work")}</h3>
                 <p className="text-sm leading-relaxed text-white/75">{draft.description}</p>
                 <button
@@ -431,7 +439,7 @@ export default function CopyrightAssistant() {
                 >
                   <Download className="h-3.5 w-3.5" aria-hidden="true" />{t("copyright.download_draft", { defaultValue: "Download draft" })}</button>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/50 p-5">
+              <div className={`rounded-2xl border p-5 ${darkPanelCls}`}>
                 <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><ListChecks className="h-5 w-5" aria-hidden="true" />{t("copyright.filing_notes")}</h3>
                 <ul className="space-y-2 text-sm leading-relaxed text-white/75">
                   {draft.filingNotes.map((n, i) => (
@@ -444,7 +452,7 @@ export default function CopyrightAssistant() {
         </section>
 
         {/* ── FILING CHECKLIST ── */}
-        <section className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+        <section className={`mt-10 rounded-3xl border p-6 sm:p-8 ${cardCls}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-2xl font-black">{t("copyright.your_filing_checklist")}</h2>
             <button
@@ -454,7 +462,7 @@ export default function CopyrightAssistant() {
               <Copy className="h-4 w-4" aria-hidden="true" /> {copied ? "Copied!" : "Copy checklist"}
             </button>
           </div>
-          <p className="mt-1 text-sm text-white/50">{t("copyright.take_this_to")}<span className="text-white">copyright.gov/eco</span>{t("copyright.we_prepare_everything_you_file_v")}</p>
+          <p className="mt-1 text-sm text-white/50">{t("copyright.take_this_to")}{" "}<span className="text-white">copyright.gov/eco</span>{" "}{t("copyright.we_prepare_everything_you_file_v")}</p>
           <ol className="mt-4 space-y-3">
             {checklist.map((s, i) => (
               <li key={i} className="flex gap-3 text-sm leading-relaxed text-white/70">
@@ -480,7 +488,7 @@ export default function CopyrightAssistant() {
           ) : (
             <div className="mt-4 space-y-2.5">
               {regs.map((r) => (
-                <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div key={r.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${cardCls}`}>
                   <div className="min-w-0">
                     <p className="truncate font-bold text-white">{r.title}</p>
                     <p className="text-xs text-white/40">{r.workType} · added {new Date(r.createdAt).toLocaleDateString()}</p>
@@ -519,12 +527,12 @@ export default function CopyrightAssistant() {
             </div>
           </div>
 
-          <div className="mt-5 max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/50 p-4">
+          <div className={`mt-5 max-h-96 space-y-3 overflow-y-auto rounded-2xl border p-4 ${darkPanelCls}`}>
             {qaMessages.length === 0 && (
               <p className="text-center text-sm text-white/35">{t("copyright.try_should_i_register_my_song_be")}</p>
             )}
             {qaMessages.map((m, i) => (
-              <div key={i} className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "ml-auto bg-primary/20 text-white" : "bg-white/[0.05] text-white/80"}`}>
+              <div key={i} className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "ml-auto bg-primary/20 text-white" : isLight ? "bg-[#C9A84C]/10 text-white/80" : "bg-white/[0.05] text-white/80"}`}>
                 {m.content}
               </div>
             ))}
