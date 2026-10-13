@@ -315,7 +315,7 @@ export default function InterviewPrep() {
           <button
             onClick={generateSession}
             disabled={loading || !user}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold transition disabled:cursor-not-allowed ${!user && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] hover:brightness-110"}`}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {loading ? t("interviewPrep.buildingSession") : t("interviewPrep.generateSession", { cost: SESSION_COST })}
@@ -407,7 +407,7 @@ export default function InterviewPrep() {
                   <button
                     onClick={submitAnswer}
                     disabled={feedbackLoading || !user}
-                    className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed ${!user && !feedbackLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
                   >
                     {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
                     {feedbackLoading ? t("interviewPrep.scoring") : t("interviewPrep.getCoached", { cost: FEEDBACK_COST })}
