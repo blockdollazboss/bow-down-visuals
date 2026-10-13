@@ -23,7 +23,7 @@
  * Unfollowing stays fully possible: nothing re-adds a follow after the
  * one-time provisioning hooks above have fired for a user.
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, creatorProfilesTable, followsTable } from "@workspace/db";
 import { logger } from "./logger";
 
@@ -41,10 +41,18 @@ let cachedOfficial: OfficialProfileRef | null = null;
 
 async function getOfficialProfile(): Promise<OfficialProfileRef | null> {
   if (cachedOfficial) return cachedOfficial;
+  // Pinned to the house account specifically (migration 0126): trusting
+  // ANY profile flagged official would crown a squatter who held the
+  // slug when 0125's repair pass ran. Both conditions must hold.
   const [row] = await db
     .select({ id: creatorProfilesTable.id, userId: creatorProfilesTable.userId })
     .from(creatorProfilesTable)
-    .where(eq(creatorProfilesTable.isOfficial, true))
+    .where(
+      and(
+        eq(creatorProfilesTable.isOfficial, true),
+        eq(creatorProfilesTable.userId, THY_CHEAT_CODE_USER_ID),
+      ),
+    )
     .limit(1);
   if (row) cachedOfficial = row;
   return row ?? null;
