@@ -755,6 +755,22 @@ export function parseSupabaseStorageRefBucketed(
       return objectPath.length > 0 ? { bucket, objectPath } : null;
     }
   }
+  // R2 presigned URLs (virtual-hosted S3 endpoint):
+  // https://<physical-bucket>.<account>.r2.cloudflarestorage.com/<bucket>/<objectPath>?X-Amz-…
+  // These were minted by earlier reads and sometimes SAVED BACK into rows
+  // by editor save flows; their signatures die in 24h. Parsing them here
+  // lets every read re-sign fresh and every save normalize to the ref.
+  try {
+    const u = new URL(value);
+    if (u.hostname.endsWith(".r2.cloudflarestorage.com")) {
+      const parts = u.pathname.replace(/^\/+/, "").split("/");
+      const bucket = parts[0] ?? "";
+      if ((KNOWN_STORAGE_BUCKETS as readonly string[]).includes(bucket)) {
+        const objectPath = decodeURIComponent(parts.slice(1).join("/"));
+        if (objectPath.length > 0) return { bucket, objectPath };
+      }
+    }
+  } catch { /* not a URL — fall through */ }
   const supabaseUrl = (
     process.env["SUPABASE_URL"] ??
     process.env["VITE_SUPABASE_URL"] ??
@@ -803,6 +819,9 @@ export function normalizeToStorageRef(
   }
   const parsed = parseSupabaseStorageRefBucketed(value);
   if (!parsed) return value;
+  if (value.includes(".r2.cloudflarestorage.com")) {
+    return `${R2_STORAGE_REF_PREFIX}${parsed.bucket}/${parsed.objectPath}`;
+  }
   return `supabase://${parsed.bucket}/${parsed.objectPath}`;
 }
 

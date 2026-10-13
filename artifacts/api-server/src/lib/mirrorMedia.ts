@@ -18,7 +18,7 @@
  * already permanent (r2://, supabase://), site-relative ("/videos/…"),
  * or non-URL pass through untouched.
  */
-import { uploadMediaToSupabaseStorage } from "./objectStorage";
+import { normalizeToStorageRef, uploadMediaToSupabaseStorage } from "./objectStorage";
 
 const MAX_BYTES = 200 * 1024 * 1024; // same cap the clip-recovery path used
 
@@ -68,7 +68,15 @@ export async function mirrorExternalMediaUrl(
   value: string | null | undefined,
   opts: { kind: "image" | "video" | "audio"; ownerKey: string },
 ): Promise<string | null | undefined> {
-  if (!isExternalHttpUrl(value) || isPermanentMediaValue(value)) return value;
+  if (isPermanentMediaValue(value)) return value;
+  /* A URL pointing at OUR OWN storage (e.g. a presigned R2/Supabase URL a
+     client echoed back on save) normalizes to its permanent ref — no
+     download needed, and the stored value can never expire. */
+  if (typeof value === "string") {
+    const ref = normalizeToStorageRef(value);
+    if (ref && ref !== value) return ref;
+  }
+  if (!isExternalHttpUrl(value)) return value;
   const url = (value as string).trim();
   try {
     const res = await fetch(url, {
