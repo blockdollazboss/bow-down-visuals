@@ -11,14 +11,24 @@
    ground fog/smoke (z-2) and in front of the hero's lower rows in the
    seam overlap, like foreground film equipment. The smoke layer sits
    below the set and below the text. The headline copy (z-10) does not
-   geometrically overlap the set; where the set's -240px pull-up crosses
-   the hero's bottom rows, the set now paints over them by the owner's
-   explicit order.
+   geometrically overlap the set; where the set's pull-up crosses the
+   hero's bottom rows, the set paints over them by the owner's explicit
+   order.
+   SIZE (owner directive 2026-10-13, later the same day): "make the
+   studio set taller — like triple its size." The strip goes from
+   210/240px to 630/720px and the scene is re-authored on a 1440x720
+   canvas: each equipment group is scaled up around the shared floor
+   line (lights x2.8, camera x2.2, chair x1.9 — furniture stays
+   furniture-sized, stands and the camera become the tall presence he
+   asked for). Every foot still lands exactly on the floor (y=720) and
+   the whole set still fits the frame at every width.
    FIT (owner directive 2026-10-12): preserveAspectRatio is "meet", NEVER
-   "slice" — slice scaled the 1440-wide viewBox to cover and cropped it:
-   the softbox tops on wide screens, BOTH lights clean off the edges on
+   "slice" — slice scaled the viewBox to cover and cropped it: the
+   softbox tops on wide screens, BOTH lights clean off the edges on
    phones ("chopped off", owner's words). Meet keeps the whole set in
-   frame at every width, anchored to the floor (YMax).
+   frame at every width, anchored to the floor (YMax). (The left light's
+   soft glow halo may bleed a few units past the left edge — a halo is
+   light, not equipment; every silhouette stays in frame.)
    Pure decoration: pointer-events-none, aria-hidden. */
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
@@ -28,7 +38,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-[20] -mt-[240px] h-[210px] w-full sm:-mt-[272px] sm:h-[240px]"
+      className="pointer-events-none relative z-[20] -mt-[600px] h-[630px] w-full sm:-mt-[688px] sm:h-[720px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
@@ -41,7 +51,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         }}
       />
       <svg
-        viewBox="0 0 1440 240"
+        viewBox="0 0 1440 720"
         preserveAspectRatio="xMidYMax meet"
         className="absolute inset-0 h-full w-full"
         style={{
@@ -52,23 +62,25 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         }}
       >
         {/* floor shadow */}
-        <ellipse cx="720" cy="230" rx="690" ry="9" fill={isLight ? "rgba(90,66,16,0.30)" : "rgba(0,0,0,0.55)"} />
+        <ellipse cx="720" cy="712" rx="690" ry="9" fill={isLight ? "rgba(90,66,16,0.30)" : "rgba(0,0,0,0.55)"} />
 
-        {/* key light glow + softbox (left) */}
-        <ellipse cx="238" cy="66" rx="86" ry="52" fill={glow} />
-        <g>
-          <rect x="243" y="86" width="7" height="128" fill="currentColor" />
-          <polygon points="246,214 214,232 232,232 248,220" fill="currentColor" />
-          <polygon points="247,214 252,220 268,232 284,232 252,214" fill="currentColor" />
-          <g transform="rotate(24 246 66)">
-            <polygon points="212,38 280,38 292,84 200,84" fill="currentColor" />
-            <polygon points="220,44 272,44 280,78 212,78" fill={panel} />
+        {/* key light glow + softbox (left) — scaled x2.8 about the floor */}
+        <g transform="translate(-442.8, 70.4) scale(2.8)">
+          <ellipse cx="238" cy="66" rx="86" ry="52" fill={glow} />
+          <g>
+            <rect x="243" y="86" width="7" height="128" fill="currentColor" />
+            <polygon points="246,214 214,232 232,232 248,220" fill="currentColor" />
+            <polygon points="247,214 252,220 268,232 284,232 252,214" fill="currentColor" />
+            <g transform="rotate(24 246 66)">
+              <polygon points="212,38 280,38 292,84 200,84" fill="currentColor" />
+              <polygon points="220,44 272,44 280,78 212,78" fill={panel} />
+            </g>
+            <rect x="240" y="80" width="14" height="10" rx="2" fill="currentColor" />
           </g>
-          <rect x="240" y="80" width="14" height="10" rx="2" fill="currentColor" />
         </g>
 
-        {/* cinema camera on tripod (center-left, facing right) */}
-        <g>
+        {/* cinema camera on tripod (center-left, facing right) — x2.2 */}
+        <g transform="translate(-692.4, 214) scale(2.2)">
           <polygon points="560,148 516,230 534,230 562,168" fill="currentColor" />
           <polygon points="566,148 574,230 592,230 574,166" fill="currentColor" />
           <polygon points="572,148 622,230 640,230 580,164" fill="currentColor" />
@@ -89,8 +101,8 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <circle cx="606" cy="92" r="4" fill="#E8B33C" />
         </g>
 
-        {/* director's chair (center-right) */}
-        <g>
+        {/* director's chair (center-right) — x1.9, stays furniture-sized */}
+        <g transform="translate(-864, 294.4) scale(1.9)">
           <polygon points="928,168 990,224 1000,224 940,168" fill="currentColor" />
           <polygon points="990,168 928,224 938,224 998,168" fill="currentColor" />
           <rect x="920" y="158" width="86" height="10" rx="3" fill="currentColor" />
@@ -99,17 +111,19 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <rect x="920" y="98" width="78" height="14" rx="4" fill="currentColor" />
         </g>
 
-        {/* fill light + boom mic (right) */}
-        <ellipse cx="1180" cy="80" rx="76" ry="46" fill={glow} />
-        <g>
-          <rect x="1176" y="98" width="7" height="116" fill="currentColor" />
-          <polygon points="1179,214 1148,232 1166,232 1181,220" fill="currentColor" />
-          <polygon points="1180,214 1186,220 1202,232 1218,232 1185,214" fill="currentColor" />
-          <g transform="rotate(-22 1180 78)">
-            <polygon points="1148,52 1212,52 1222,94 1138,94" fill="currentColor" />
-            <polygon points="1155,58 1205,58 1213,88 1147,88" fill={panel} />
+        {/* fill light + boom mic (right) — scaled x2.8 about the floor */}
+        <g transform="translate(-2124, 70.4) scale(2.8)">
+          <ellipse cx="1180" cy="80" rx="76" ry="46" fill={glow} />
+          <g>
+            <rect x="1176" y="98" width="7" height="116" fill="currentColor" />
+            <polygon points="1179,214 1148,232 1166,232 1181,220" fill="currentColor" />
+            <polygon points="1180,214 1186,220 1202,232 1218,232 1185,214" fill="currentColor" />
+            <g transform="rotate(-22 1180 78)">
+              <polygon points="1148,52 1212,52 1222,94 1138,94" fill="currentColor" />
+              <polygon points="1155,58 1205,58 1213,88 1147,88" fill={panel} />
+            </g>
+            <rect x="1173" y="92" width="14" height="10" rx="2" fill="currentColor" />
           </g>
-          <rect x="1173" y="92" width="14" height="10" rx="2" fill="currentColor" />
         </g>
       </svg>
     </div>
