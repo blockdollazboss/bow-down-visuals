@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -86,6 +87,7 @@ const ghostBtn =
 type Tab = "products" | "overlay" | "dashboard";
 
 export default function LiveShopping() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -586,7 +588,7 @@ export default function LiveShopping() {
                                 onClick={() => pinProduct(activeStream.pinned_product_id === p.id ? null : p.id)}
                                 className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition ${
                                   activeStream.pinned_product_id === p.id
-                                    ? "border-primary/60 bg-primary/10"
+                                    ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                                     : "border-white/10 bg-white/[0.02] hover:border-primary/40"
                                 }`}
                               >
