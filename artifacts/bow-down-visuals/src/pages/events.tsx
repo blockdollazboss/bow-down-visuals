@@ -94,7 +94,7 @@ export default function Events() {
           )}
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           {KINDS.map((k) => (
             <button key={k.key} type="button" onClick={() => setKind(k.key)}
               className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition ${kind === k.key ? "bg-[#e8c86a] text-black" : "border border-white/20 text-white/70 hover:border-[#e8c86a]/50"}`}>

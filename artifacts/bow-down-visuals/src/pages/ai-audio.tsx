@@ -1181,7 +1181,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
   return (
     <div className="space-y-6">
 
-      <div className="flex gap-2 p-1 rounded-xl bg-white/[0.04] border border-white/10 w-fit">
+      <div className="flex flex-wrap gap-2 p-1 rounded-xl bg-white/[0.04] border border-white/10 max-w-full">
         <button
           type="button"
           onClick={() => setTab("ai")}

@@ -874,7 +874,7 @@ export default function MyProjects() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 mb-8 border-b border-white/[0.06] pb-0">
+        <div className="flex items-center gap-1 mb-8 border-b border-white/[0.06] pb-0 flex-wrap">
           {TABS.map((tabItem) => (
             <button
               key={tabItem.id}

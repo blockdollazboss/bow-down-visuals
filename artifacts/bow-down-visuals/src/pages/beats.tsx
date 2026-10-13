@@ -288,7 +288,7 @@ export default function Beats() {
         </div>
 
         {/* Tabs */}
-        <div className="flex justify-center gap-2 mb-8">
+        <div className="flex justify-center gap-2 mb-8 flex-wrap">
           {([
             { key: "browse", labelKey: "beats.tabBrowse", icon: Search },
             { key: "sell", labelKey: "beats.tabSell", icon: Plus },

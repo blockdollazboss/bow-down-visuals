@@ -497,7 +497,7 @@ export default function ScriptWriter() {
 
             {result.teleprompter && (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <h3 className="text-lg font-bold">{t("scriptWriter.teleprompterTitle")}</h3>
                   <div className="flex gap-2">
                     <button

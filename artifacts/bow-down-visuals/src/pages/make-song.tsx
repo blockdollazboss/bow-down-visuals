@@ -417,7 +417,7 @@ export function MakeSongModule() {
         )}
 
         {/* Create / Mashup tabs — Mashup is docked inside Song Maker (no separate page) */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <button
             type="button"
             onClick={() => setMashupTab("create")}

@@ -398,7 +398,7 @@ export default function LiveShopping() {
         ) : (
           <>
             {/* tabs */}
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-2 flex-wrap">
               {(
                 [
                   { key: "products", label: t("liveShopping.tabProducts"), icon: ShoppingBag },

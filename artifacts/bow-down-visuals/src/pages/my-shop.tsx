@@ -456,7 +456,7 @@ export default function MyShop() {
             {activeShop && (
               <div className="space-y-8">
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <h2 className="text-lg font-bold">{t("myShop.shopDetails")}</h2>
                     <div className="flex items-center gap-2">
                       <Link href={`/shop/${activeShop.handle}`} className={ghostBtn}>
