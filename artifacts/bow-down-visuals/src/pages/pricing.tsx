@@ -438,7 +438,7 @@ export default function Pricing() {
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
             {t("pricing.hero.titleLine1")}<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E3C566] via-primary to-[#F0D98C]">
               {t("pricing.hero.titleLine2")}
             </span>
           </h1>

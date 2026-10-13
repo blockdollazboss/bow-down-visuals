@@ -163,7 +163,7 @@ export default function LabelPitch() {
   };
 
   const TYPE_META: Record<string, { label: string; cls: string }> = {
-    major: { label: t("labelPitch.typeMajor"), cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" },
+    major: { label: t("labelPitch.typeMajor"), cls: "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#E3C566]" },
     imprint: { label: t("labelPitch.typeImprint"), cls: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
     indie: { label: t("labelPitch.typeIndependent"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
   };

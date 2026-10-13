@@ -102,11 +102,11 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "Make a Song":        "text-yellow-400",
+  "Make a Song":        "text-[#C9A84C]",
   "Make a Music Video": "text-blue-400",
   "Make Song + Video":  "text-pink-400",
   "Promo Clip Maker":   "text-green-400",
-  "Thumbnail Maker":    "text-yellow-400",
+  "Thumbnail Maker":    "text-[#C9A84C]",
 };
 const TYPE_GRADIENTS: Record<string, string> = {
   "Make a Song":        "from-yellow-500/30 via-amber-600/10 to-black/40",

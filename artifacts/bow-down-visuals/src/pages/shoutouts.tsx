@@ -326,7 +326,7 @@ export default function Shoutouts() {
     <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
-          <Video className="w-7 h-7 text-yellow-400" />
+          <Video className="w-7 h-7 text-[#C9A84C]" />
           <h1 className="text-3xl md:text-4xl font-black tracking-tight">{t("shoutouts.pageTitle")}</h1>
         </div>
         <p className="text-white/50 mb-3 max-w-2xl">
@@ -342,7 +342,7 @@ export default function Shoutouts() {
             <button key={tb.key} onClick={() => setTab(tb.key)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                 tab === tb.key
-                  ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-200"
+                  ? "bg-[#C9A84C]/15 border-yellow-500/40 text-yellow-200"
                   : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
               }`}>
               <tb.icon className="w-4 h-4" /> {t(tb.labelKey)}
@@ -353,7 +353,7 @@ export default function Shoutouts() {
         {tab === "request" && (
           <>
             {creatorsLoading ? (
-              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-yellow-400" /></div>
+              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
             ) : creators.length === 0 ? (
               <div className="text-center py-16 text-white/40">
                 <Megaphone className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -365,10 +365,10 @@ export default function Shoutouts() {
                   <button key={c.id} onClick={() => { setSelected(c); setSubmitted(false); setError(""); }}
                     className="text-left rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:border-yellow-500/40 transition-colors">
                     <h3 className="font-bold text-lg">{c.displayName}</h3>
-                    <p className="text-yellow-300 font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">{t("shoutouts.perShoutout")}</span></p>
+                    <p className="text-[#E3C566] font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">{t("shoutouts.perShoutout")}</span></p>
                     <p className="text-xs text-white/40 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("shoutouts.turnaroundDays", { days: c.turnaroundDays })}</p>
                     {c.guidelines && <p className="text-xs text-white/50 mt-2 line-clamp-2">{c.guidelines}</p>}
-                    <span className="inline-flex items-center gap-1 mt-3 text-sm text-yellow-300 font-semibold">{t("shoutouts.requestButton")} <Send className="w-3.5 h-3.5" /></span>
+                    <span className="inline-flex items-center gap-1 mt-3 text-sm text-[#E3C566] font-semibold">{t("shoutouts.requestButton")} <Send className="w-3.5 h-3.5" /></span>
                   </button>
                 ))}
               </div>
@@ -417,7 +417,7 @@ export default function Shoutouts() {
                     <div className="flex items-center justify-between mb-1.5">
                       <label className={`${labelCls} !mb-0`}>{t("shoutouts.messageLabel")}</label>
                       <button onClick={polishMessage} disabled={aiBusy}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-300 border border-yellow-500/30 rounded-lg px-2.5 py-1 hover:bg-yellow-500/10 disabled:opacity-50">
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#E3C566] border border-yellow-500/30 rounded-lg px-2.5 py-1 hover:bg-[#C9A84C]/10 disabled:opacity-50">
                         {aiBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
                         {t("shoutouts.aiPolishButton")}
                       </button>
@@ -430,7 +430,7 @@ export default function Shoutouts() {
                   </div>
                   {error && <p className="text-sm text-red-400">{error}</p>}
                   <button onClick={submitRequest} disabled={submitting || !fanName.trim() || !message.trim()}
-                    className={`w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${(!fanName.trim() || !message.trim()) && !submitting ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-yellow-500 text-black hover:bg-yellow-400"}`}>
+                    className={`w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${(!fanName.trim() || !message.trim()) && !submitting ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-[#C9A84C] text-black hover:bg-[#DDBB62]"}`}>
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     {t("shoutouts.submitRequestButton", { price: money(selected.priceDollars) })}
                   </button>
@@ -449,11 +449,11 @@ export default function Shoutouts() {
                 {t("shoutouts.creatorSignInPrompt")}
               </div>
             ) : settingsLoading ? (
-              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-yellow-400" /></div>
+              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 h-fit">
-                  <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-yellow-400" /> {t("shoutouts.yourShoutoutPage")}</h2>
+                  <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.yourShoutoutPage")}</h2>
                   <div className="space-y-4">
                     <div>
                       <label className={labelCls}>{t("shoutouts.displayNameLabel")}</label>
@@ -480,7 +480,7 @@ export default function Shoutouts() {
                       <span className="text-white/70">{t("shoutouts.acceptingLabel")}</span>
                     </label>
                     <button onClick={saveSettings} disabled={saving || !displayName.trim()}
-                      className={`w-full px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${!displayName.trim() && !saving ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-yellow-500 text-black hover:bg-yellow-400"}`}>
+                      className={`w-full px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${!displayName.trim() && !saving ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-[#C9A84C] text-black hover:bg-[#DDBB62]"}`}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t("shoutouts.saveButton")}
                     </button>
                     <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 10 })}</p>
@@ -489,7 +489,7 @@ export default function Shoutouts() {
 
                 <div className="lg:col-span-2 space-y-6">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                    <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-yellow-400" /> {t("shoutouts.revenueTitle")}</h2>
+                    <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.revenueTitle")}</h2>
                     {revenue ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
@@ -499,7 +499,7 @@ export default function Shoutouts() {
                           { labelKey: "shoutouts.statYouKeep", value: money(revenue.netDollars), icon: Sparkles },
                         ].map((st) => (
                           <div key={st.labelKey} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
-                            <st.icon className="w-4 h-4 text-yellow-400 mb-1" />
+                            <st.icon className="w-4 h-4 text-[#C9A84C] mb-1" />
                             <p className="text-xl font-black">{st.value}</p>
                             <p className="text-[11px] text-white/40">{t(st.labelKey)}</p>
                           </div>
@@ -513,7 +513,7 @@ export default function Shoutouts() {
 
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-yellow-400" /> {t("shoutouts.incomingRequests")}</h2>
+                      <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.incomingRequests")}</h2>
                       <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); }}
                         className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80">
                         <option value="">{t("shoutouts.allStatuses")}</option>
@@ -521,7 +521,7 @@ export default function Shoutouts() {
                       </select>
                     </div>
                     {reqLoading ? (
-                      <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-yellow-400" /></div>
+                      <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" /></div>
                     ) : requests.length === 0 ? (
                       <p className="text-sm text-white/40 py-6 text-center">{t("shoutouts.noRequests")}</p>
                     ) : (
@@ -534,7 +534,7 @@ export default function Shoutouts() {
                                 <p className="text-sm text-white/60 mt-1">“{r.message}”</p>
                                 <p className="text-[11px] text-white/35 mt-1">{money(r.priceDollars)} · {new Date(r.createdAt).toLocaleDateString()}</p>
                                 {r.deliveryUrl && (
-                                  <a href={r.deliveryUrl} target="_blank" rel="noreferrer" className="text-xs text-yellow-300 underline mt-1 inline-block">{t("shoutouts.viewDeliveredVideo")}</a>
+                                  <a href={r.deliveryUrl} target="_blank" rel="noreferrer" className="text-xs text-[#E3C566] underline mt-1 inline-block">{t("shoutouts.viewDeliveredVideo")}</a>
                                 )}
                               </div>
                               <span className={`shrink-0 text-[11px] font-semibold border rounded-full px-2.5 py-1 ${STATUS_CLASS[r.status] ?? ""}`}>
@@ -544,7 +544,7 @@ export default function Shoutouts() {
                             <div className="flex flex-wrap items-center gap-2 mt-3">
                               {r.status === "pending_payment" && (
                                 <button onClick={() => updateRequest(r.id, "accepted")} disabled={!!acting}
-                                  className="px-3 py-1.5 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-200 text-xs font-bold hover:bg-yellow-500/25">{t("shoutouts.acceptButton")}</button>
+                                  className="px-3 py-1.5 rounded-lg bg-[#C9A84C]/15 border border-yellow-500/40 text-yellow-200 text-xs font-bold hover:bg-[#C9A84C]/25">{t("shoutouts.acceptButton")}</button>
                               )}
                               {r.status === "accepted" && (
                                 <button onClick={() => updateRequest(r.id, "in_progress")} disabled={!!acting}

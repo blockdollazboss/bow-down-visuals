@@ -270,11 +270,11 @@ export default function Beats() {
       <main className="max-w-7xl mx-auto px-5 md:px-8 py-10">
         {/* Hero */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-300 text-xs font-semibold mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#E3C566] text-xs font-semibold mb-4">
             <Disc3 className="w-3.5 h-3.5" /> {t("beats.badge")}
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-            {t("beats.heroTitle1")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">{t("beats.heroTitle2")}</span>
+            {t("beats.heroTitle1")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E3C566] to-[#C9A84C]">{t("beats.heroTitle2")}</span>
           </h1>
           <p className="text-white/50 mt-3 max-w-xl mx-auto">
             {t("beats.heroSubtitle")}
@@ -299,7 +299,7 @@ export default function Beats() {
               onClick={() => setTab(tb.key)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                 tab === tb.key
-                  ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-200"
+                  ? "bg-[#C9A84C]/15 border-[#C9A84C]/50 text-[#E3C566]"
                   : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
               }`}
             >
@@ -327,13 +327,13 @@ export default function Beats() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("beats.searchPlaceholder")}
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[140px] placeholder:text-white/25" />
               <button onClick={fetchBeats}
-                className="px-4 py-1.5 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400">
+                className="px-4 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]">
                 {t("beats.filterButton")}
               </button>
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-yellow-400" /></div>
+              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
             ) : beats.length === 0 ? (
               <div className="text-center py-16 text-white/40">
                 <Music2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -344,11 +344,11 @@ export default function Beats() {
                 <p className="text-white/40 text-sm mb-4">{t("beats.beatCount", { count: filteredCount })}</p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {beats.map((beat) => (
-                    <div key={beat.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 hover:border-yellow-500/30 transition-colors">
+                    <div key={beat.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 hover:border-[#C9A84C]/40 transition-colors">
                       <div className="flex items-start gap-3">
                         <button
                           onClick={() => togglePlay(beat)}
-                          className="shrink-0 w-12 h-12 rounded-full bg-yellow-500 text-black flex items-center justify-center hover:bg-yellow-400"
+                          className="shrink-0 w-12 h-12 rounded-full bg-[#C9A84C] text-black flex items-center justify-center hover:bg-[#DDBB62]"
                           aria-label={playingId === beat.id ? t("beats.pausePreview") : t("beats.playPreview")}
                         >
                           {playingId === beat.id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
@@ -368,10 +368,10 @@ export default function Beats() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-4">
-                        <span className="text-sm text-yellow-200 font-semibold">{t("beats.fromPrice", { price: centsToDollars(beat.basic_price_cents) })}</span>
+                        <span className="text-sm text-[#E3C566] font-semibold">{t("beats.fromPrice", { price: centsToDollars(beat.basic_price_cents) })}</span>
                         <button
                           onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseMsg(null); }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]"
                         >
                           <BadgeDollarSign className="w-4 h-4" /> {t("beats.licenseButton")}
                         </button>
@@ -386,7 +386,7 @@ export default function Beats() {
 
         {tab === "sell" && (
           <div className="max-w-2xl mx-auto rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-            <h2 className="text-xl font-bold mb-1 flex items-center gap-2"><Store className="w-5 h-5 text-yellow-400" /> {t("beats.sellTitle")}</h2>
+            <h2 className="text-xl font-bold mb-1 flex items-center gap-2"><Store className="w-5 h-5 text-[#C9A84C]" /> {t("beats.sellTitle")}</h2>
             <p className="text-white/40 text-sm mb-6">{t("beats.sellSubtitle")}</p>
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.titleLabel")}</label>
@@ -422,7 +422,7 @@ export default function Beats() {
               <input value={moodTags} onChange={(e) => setMoodTags(e.target.value)} placeholder={t("beats.moodTagsPlaceholder")}
                 className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
               <button onClick={runAiTags} title={t("beats.aiTagsTooltip")}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-yellow-500/40 text-yellow-200 text-sm font-semibold hover:bg-yellow-500/10">
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-sm font-semibold hover:bg-[#C9A84C]/10">
                 <Sparkles className="w-4 h-4" /> {t("beats.aiTagsButton")}
               </button>
             </div>
@@ -456,7 +456,7 @@ export default function Beats() {
             )}
 
             <button onClick={submitListing} disabled={listing}
-              className="w-full py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+              className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {listing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}
               {t("beats.listButton")}
             </button>
@@ -478,7 +478,7 @@ export default function Beats() {
                       { labelKey: "beats.statYourCut", value: centsToDollars(stats.netCents) },
                     ].map((s) => (
                       <div key={s.labelKey} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
-                        <p className="text-2xl font-black text-yellow-200">{s.value}</p>
+                        <p className="text-2xl font-black text-[#E3C566]">{s.value}</p>
                         <p className="text-xs text-white/40 mt-1">{t(s.labelKey)}</p>
                       </div>
                     ))}
@@ -505,7 +505,7 @@ export default function Beats() {
                       <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm">
                         <span className="text-white/70 capitalize">{t("beats.licenseRow", { tier: s.tier })}</span>
                         <span className="text-white/40">{centsToDollars(s.price_cents)}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-yellow-500/15 text-yellow-300"}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
                           {s.status === "pending_payment" ? t("beats.paymentComingSoon") : s.status}
                         </span>
                       </div>
@@ -521,7 +521,7 @@ export default function Beats() {
       {/* License modal */}
       {licenseBeat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setLicenseBeat(null)}>
-          <div className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-yellow-500/30 bg-[#0a0a0a]"}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-[#C9A84C]/40 bg-[#171208]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
               <button onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
@@ -535,7 +535,7 @@ export default function Beats() {
                     disabled={soldOut}
                     onClick={() => setLicenseTier(tier.key)}
                     className={`w-full text-left rounded-xl border p-3 transition-colors ${
-                      licenseTier === tier.key ? "border-yellow-500/60 bg-yellow-500/10" : "border-white/10 hover:border-white/25"
+                      licenseTier === tier.key ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
                     } ${soldOut ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
                     <div className="flex items-center justify-between">
@@ -555,7 +555,7 @@ export default function Beats() {
               <p className="text-sm mb-3 flex items-center gap-2 text-green-300"><CheckCircle2 className="w-4 h-4" />{licenseMsg}</p>
             )}
             <button onClick={reserveLicense} disabled={licensing}
-              className="w-full py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+              className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
               {t("beats.reserveLicenseButton", { tier: t(LICENSE_TIERS.find((x) => x.key === licenseTier)?.labelKey ?? "") })}
             </button>
@@ -633,7 +633,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
             ))}
           </div>
           <button onClick={applySuggestion} disabled={applying}
-            className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-50 inline-flex items-center gap-1">
+            className="text-xs px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center gap-1">
             {applying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
             {t("beats.applyToBeat")}
           </button>
