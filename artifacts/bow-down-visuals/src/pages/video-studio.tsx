@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { callGenerateApi } from "@/lib/generate-api";
+import { r2UploadFile } from "@/lib/r2-storage";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
@@ -102,6 +103,7 @@ export default function VideoStudio() {
   const [duration, setDuration] = useState(5);
   const [aspect, setAspect] = useState<string>("16:9");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [generating, setGenerating] = useState(false);
   const [videos, setVideos] = useState<GeneratedVideo[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +118,7 @@ export default function VideoStudio() {
       if (!winner) return;
       localStorage.removeItem("wave8_thumbnail_winner");
       setMode("image");
+      setReferenceFile(null);
       setReferenceImage(winner);
     } catch {
       /* storage unavailable — ignore */
@@ -136,6 +139,7 @@ export default function VideoStudio() {
       if (hook && !prompt.trim()) setPrompt(`Cinematic visual for: ${hook}`);
     } else if (asset.kind === "thumbnail" || asset.kind === "image") {
       setMode("image");
+      setReferenceFile(null);
       setReferenceImage(asset.url);
     }
   }
@@ -149,10 +153,19 @@ export default function VideoStudio() {
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setReferenceImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith("image/")) {
+      setError(t("videoStudio.errorNotImage", { defaultValue: "That file isn't an image — choose a photo." }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("videoStudio.errorImageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
+    setError(null);
+    setReferenceFile(file);
+    setReferenceImage(URL.createObjectURL(file));
   }
 
   async function handleGenerate() {
@@ -164,12 +177,22 @@ export default function VideoStudio() {
       const cameraPrompt = CAMERA_MOVEMENTS.find((c) => c.id === camera)?.prompt || "";
       const fullPrompt = `${prompt.trim()}, ${cameraPrompt}`;
 
+      // A picked photo uploads to real storage first — it used to ride
+      // the request as an unbounded base64 data URL.
+      let referenceUrl = referenceImage;
+      if (mode === "image" && referenceFile) {
+        const key = `video-studio-refs/${Date.now()}-${referenceFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        referenceUrl = await r2UploadFile(key, referenceFile, referenceFile.type, token);
+        setReferenceImage(referenceUrl);
+        setReferenceFile(null);
+      }
+
       // Use existing video generation API
       const result = await callGenerateApi("/api/generate-video", {
         prompt: fullPrompt,
         duration,
         aspectRatio: aspect,
-        referenceImage: mode === "image" ? referenceImage : undefined,
+        referenceImage: mode === "image" ? (referenceUrl ?? undefined) : undefined,
       }, token);
 
       const videoUrl = (result as unknown as { url?: string })?.url || result?.thumbnailImageUrl;
@@ -299,7 +322,7 @@ export default function VideoStudio() {
                   <div className="relative inline-block">
                     <img src={referenceImage} alt="Reference" className="h-32 rounded-xl border border-white/10" />
                     <button
-                      onClick={() => setReferenceImage(null)}
+                      onClick={() => { setReferenceImage(null); setReferenceFile(null); }}
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center"
                     >
                       <X className="h-3 w-3" />

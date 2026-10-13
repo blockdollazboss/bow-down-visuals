@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { r2UploadFile } from "@/lib/r2-storage";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -102,6 +103,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
   const [duration, setDuration] = useState<5 | 10>(5);
   const [aspect, setAspect] = useState<"16:9" | "9:16">("16:9");
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   // ── generation state ──
   const [busy, setBusy] = useState(false);
@@ -245,10 +247,19 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
   // ── Tab 3: cartoonize a photo (existing image pipeline, 200 VB) ──
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setUploadPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith("image/")) {
+      setError(t("cartoonStudio.errorNotImage", { defaultValue: "That file isn't an image — choose a photo." }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("cartoonStudio.errorImageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
+    setError(null);
+    setUploadFile(file);
+    setUploadPreview(URL.createObjectURL(file));
   }
 
   async function cartoonizePhoto() {
@@ -257,6 +268,15 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
     setBusy(true);
     try {
       const token = await getAccessToken();
+      // A picked photo uploads to real storage first — it used to ride
+      // the request as an unbounded base64 data URL.
+      let referenceUrl = uploadPreview;
+      if (uploadFile) {
+        const key = `cartoon-studio-refs/${Date.now()}-${uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        referenceUrl = await r2UploadFile(key, uploadFile, uploadFile.type, token);
+        setUploadPreview(referenceUrl);
+        setUploadFile(null);
+      }
       const fullPrompt =
         `Redraw the attached photo as a cartoon in ${style.direction}. ` +
         `Keep the same subject, pose, composition and likeness — only the art style changes. ` +
@@ -267,7 +287,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
         body: JSON.stringify({
           promptText: fullPrompt,
           model: "gen4_image",
-          referenceImageUrl: uploadPreview,
+          referenceImageUrl: referenceUrl,
         }),
         overrideCost: IMAGE_COST,
         overrideFeature: t("cartoonStudio.cartoonizeFeatureName"),
@@ -554,7 +574,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
                   />
                   <button
                     type="button"
-                    onClick={() => setUploadPreview(null)}
+                    onClick={() => { setUploadPreview(null); setUploadFile(null); }}
                     className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-black border border-white/20 flex items-center justify-center text-white/70 hover:text-white"
                     aria-label={t("cartoonStudio.removePhoto")}
                   >
