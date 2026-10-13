@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -122,6 +123,7 @@ async function authedFetch(
 }
 
 export default function LabelPitch() {
+  const isLight = useIsLightTheme();
   usePageTitle("Label Pitch");
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
@@ -653,19 +655,19 @@ export default function LabelPitch() {
                     &ldquo;{kit.analysis.oneLiner}&rdquo;
                   </p>
                   <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                    <div className="rounded-xl bg-black/40 p-3">
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                       <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisGenre")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.genre}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                       <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisMood")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.mood}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                       <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisEnergy")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.energy}/100 · {kit.analysis.tempoFeel}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                       <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisSoundsLike")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.comparableArtists.join(" · ") || "—"}</dd>
                     </div>
@@ -693,7 +695,7 @@ export default function LabelPitch() {
                     </h3>
                     <CopyButton text={`Subject: ${kit.submissionEmail.subject}\n\n${kit.submissionEmail.body}`} label={t("labelPitch.labelEmail")} />
                   </div>
-                  <p className="mb-3 rounded-xl bg-black/40 p-3 text-sm font-semibold text-white/90">
+                  <p className={`mb-3 rounded-xl p-3 text-sm font-semibold ${isLight ? "bg-[#F7ECD2]/70 text-[#2A1E07]" : "bg-black/40 text-white/90"}`}>
                     <span className="text-white/40">{t("labelPitch.subjectLabel")}</span>{kit.submissionEmail.subject}
                   </p>
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">
@@ -832,7 +834,7 @@ export default function LabelPitch() {
                         </span>
                       ))}
                     </div>
-                    <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/40 p-3.5">
+                    <div className={`mt-4 rounded-xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.07] bg-black/40"}`}>
                       <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.howToSubmit")}</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-white/75">{label.submitVia}</p>
                     </div>
@@ -1128,6 +1130,7 @@ async function playlistAuthedFetch(
 }
 
 function PlaylistsPitchTab() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<PlaylistInnerTab>("kit");
@@ -1580,7 +1583,7 @@ function PlaylistsPitchTab() {
                     { label: t("playlistPitch.statEnergy"), value: `${kit.analysis.energy}/100` },
                     { label: t("playlistPitch.statTempo"), value: kit.analysis.tempoFeel },
                   ].map((s) => (
-                    <div key={s.label} className="rounded-2xl border border-white/10 bg-black/40 p-3.5">
+                    <div key={s.label} className={`rounded-2xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{s.label}</p>
                       <p className="mt-1 text-sm font-semibold text-white">{s.value}</p>
                     </div>
@@ -1623,11 +1626,11 @@ function PlaylistsPitchTab() {
                   <PlaylistCopyButton text={`${t("playlistPitch.subjectPrefix")}${kit.pitchEmail.subject}\n\n${kit.pitchEmail.body}`} labelKey="playlistPitch.copyEmailLabel" />
                 </div>
                 <p className="mt-4 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.subjectLabel")}</p>
-                <p className="mt-1 rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm font-semibold text-white">
+                <p className={`mt-1 rounded-xl border px-4 py-3 text-sm font-semibold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#2A1E07]" : "border-white/10 bg-black/50 text-white"}`}>
                   {kit.pitchEmail.subject}
                 </p>
                 <p className="mt-4 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.bodyLabel")}</p>
-                <p className="mt-1 whitespace-pre-wrap rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm leading-relaxed text-white/80">
+                <p className={`mt-1 whitespace-pre-wrap rounded-xl border px-4 py-3 text-sm leading-relaxed ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#2A1E07]" : "border-white/10 bg-black/50 text-white/80"}`}>
                   {kit.pitchEmail.body}
                 </p>
               </div>
