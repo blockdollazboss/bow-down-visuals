@@ -1110,6 +1110,7 @@ function TemplatesBand() {
 }
 
 function PricingSection() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   return (
     <section id="pricing" className="scroll-mt-20 py-20 md:py-28 px-5">
@@ -1127,11 +1128,11 @@ function PricingSection() {
         </div>
 
         {/* Test mode notice */}
-        <div className="flex items-center justify-center gap-2 mb-10 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
-          <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
-          <span className="text-sm text-yellow-200/70">
+        <div className={`flex items-center justify-center gap-2 mb-10 px-4 py-3 rounded-xl border max-w-lg mx-auto ${isLight ? "border-[#C9A84C]/60 bg-[#F7ECD2]" : "border-yellow-500/20 bg-yellow-500/[0.06]"}`}>
+          <AlertCircle className={`h-4 w-4 shrink-0 ${isLight ? "text-[#7A5A12]" : "text-yellow-400"}`} />
+          <span className={`text-sm ${isLight ? "text-[#7A5A12]" : "text-yellow-200/70"}`}>
             {t("home.testModeBefore")}{" "}
-            <strong className="text-yellow-300">{t("home.testModeStrong")}</strong>{t("home.testModeAfter")}
+            <strong className={isLight ? "text-[#2A1E07]" : "text-yellow-300"}>{t("home.testModeStrong")}</strong>{t("home.testModeAfter")}
           </span>
         </div>
 
@@ -1140,7 +1141,7 @@ function PricingSection() {
             <div
               key={pack.packKey}
               className={`relative flex flex-col p-6 rounded-2xl lux-card-lift ${
-                pack.featured ? "royal-border bg-primary/[0.08]" : "lux-panel"
+                pack.featured ? (isLight ? "royal-border bg-gradient-to-b from-[#F3DFA7] to-[#EAD08D]" : "royal-border bg-primary/[0.08]") : "lux-panel"
               }`}
             >
               {pack.featured && (
@@ -1149,10 +1150,10 @@ function PricingSection() {
                 </div>
               )}
               <div className="mb-5">
-                <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">
+                <p className={`text-sm font-bold uppercase tracking-widest mb-1 ${pack.featured && isLight ? "text-[#7A5A12]" : "text-white/40"}`}>
                   {t(`home.creditPacks.${pi}.credits`)}
                 </p>
-                <div className="text-3xl font-black text-primary mb-1">
+                <div className={`text-3xl font-black mb-1 ${pack.featured && isLight ? "text-[#2A1E07]" : "text-primary"}`}>
                   {pack.price}
                 </div>
               </div>
@@ -1163,9 +1164,9 @@ function PricingSection() {
                   return (
                     <li
                       key={perk}
-                      className="flex items-center gap-2.5 text-sm text-white/60"
+                      className={`flex items-center gap-2.5 text-sm ${pack.featured && isLight ? "text-[#4A3B22]" : "text-white/60"}`}
                     >
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/60" />
+                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${pack.featured && isLight ? "text-[#7A5A12]" : "text-primary/60"}`} />
                       {perk}
                     </li>
                   );
