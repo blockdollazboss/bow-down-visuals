@@ -68,19 +68,19 @@ export function SiteFooter() {
   const isLight = useIsLightTheme();
   /* Theme-aware text tones: warm bronze on cream (light), white washes on black (dark). */
   const T = {
-    label: isLight ? "text-[#8a6d2f]" : "text-white/20",
-    link: isLight ? "text-[#4A3B22] hover:text-[#8a6d2f]" : "text-white/45 hover:text-white",
+    label: isLight ? "text-[#8a6d2f]" : "text-white/50",
+    link: isLight ? "text-[#4A3B22] hover:text-[#8a6d2f]" : "text-white/60 hover:text-white",
     body: isLight ? "text-[#4A3B22]/80" : "text-white/35",
     muted: isLight ? "text-[#8a6d2f]/70 hover:text-primary" : "text-white/40 hover:text-primary",
-    copy: isLight ? "text-[#8a6d2f]/70" : "text-white/20",
-    fine: isLight ? "text-[#8a6d2f]/50" : "text-white/15",
+    copy: isLight ? "text-[#8a6d2f]/70" : "text-white/45",
+    fine: isLight ? "text-[#8a6d2f]/50" : "text-white/35",
     icon: isLight ? "text-[#8a6d2f]" : "text-white/50",
-    border: isLight ? "border-[#c9a84c]/25" : "border-white/[0.05]",
-    socialBorder: isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5]" : "border-white/10 bg-white/[0.03]",
+    border: isLight ? "border-[#c9a84c]/25" : "border-[#C9A84C]/20",
+    socialBorder: isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5]" : "border-[#C9A84C]/30 bg-[#C9A84C]/[0.05]",
   };
 
   return (
-    <footer className={`relative z-[2] border-t py-12 px-5 ${isLight ? "bg-gradient-to-b from-[#F7F1E3] to-[#EFE6D0] border-[#c9a84c]/25" : "bg-black border-transparent"}`}>
+    <footer className={`relative z-[2] border-t py-12 px-5 ${isLight ? "bg-gradient-to-b from-[#F7F1E3] to-[#EFE6D0] border-[#c9a84c]/25" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04] border-[#C9A84C]/25"}`}>
       {/* z-[2]: the homepage lives in an isolated z-[1] stacking context whose
           fixed full-viewport stage backdrop would otherwise paint over the
           footer and swallow it. The footer must sit above the page root. */}

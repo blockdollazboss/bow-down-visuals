@@ -2912,3 +2912,17 @@ html:not(.light) .hover\:bg-white\/5:hover { background-color: rgb(201 168 76 / 
 html:not(.light) .hover\:bg-white\/10:hover { background-color: rgb(201 168 76 / 0.12); }
 html:not(.light) .placeholder\:text-white\/30::placeholder { color: rgb(255 255 255 / 0.45); }
 html:not(.light) .placeholder\:text-white\/25::placeholder { color: rgb(255 255 255 / 0.42); }
+
+/* Dark warmth, round 3: the zinc scale is the old cold neutral. In dark
+   theme it shifts warm (same steps, bronze-gray hues) so zinc text,
+   panels, and borders stop reading blue-gray against the walnut
+   ground. Light theme remaps zinc itself and is untouched. */
+html:not(.light) .text-zinc-200 { color: #e8dfc8; }
+html:not(.light) .text-zinc-300 { color: #ddd3ba; }
+html:not(.light) .text-zinc-400 { color: #b3a68a; }
+html:not(.light) .text-zinc-500 { color: #8d8168; }
+html:not(.light) .text-zinc-600 { color: #6b6250; }
+html:not(.light) .bg-zinc-900 { background-color: #171208; }
+html:not(.light) .bg-zinc-800 { background-color: #241c0e; }
+html:not(.light) .border-zinc-800 { border-color: #2e2412; }
+html:not(.light) .border-zinc-700 { border-color: #3a2d16; }
