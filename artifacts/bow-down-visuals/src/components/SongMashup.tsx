@@ -551,7 +551,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
               onClick={() => setStyle(key)}
               className={`flex flex-col items-start gap-1.5 p-4 rounded-2xl border text-left transition-all ${
                 style === key
-                  ? "border-primary/60 bg-primary/[0.08] shadow-[0_0_24px_-6px_hsl(45_95%_50%/0.4)]"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                   : "border-white/10 bg-black/40 hover:border-white/25"
               }`}
             >
