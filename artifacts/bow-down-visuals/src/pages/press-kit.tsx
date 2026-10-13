@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -61,6 +62,7 @@ const inputCls =
   "w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-[#d4af37]/60 focus:outline-none";
 
 export default function PressKitBuilder() {
+  const isLight = useIsLightTheme();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { t } = useTranslation();
@@ -347,7 +349,7 @@ export default function PressKitBuilder() {
               className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab
                   ? "bg-[#d4af37] text-black"
-                  : "border border-white/15 text-white/60 hover:text-white hover:border-white/30"
+                  : isLight ? "border border-[#C9A84C]/40 text-[#6B5B36] hover:text-[#2A1E07] hover:border-[#C9A84C]/70" : "border border-white/15 text-white/60 hover:text-white hover:border-white/30"
               }`}
             >
               {t(`press-kit.tabs.${tab}`)}
@@ -361,7 +363,7 @@ export default function PressKitBuilder() {
         </section>
 
         {activeTab === "release" ? (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-white/10 bg-white/[0.02]"}`}>
             <PressReleasePanel kit={selectedKit} onKitUpdated={handleReleaseKitUpdated} />
           </section>
         ) : (
@@ -374,7 +376,7 @@ export default function PressKitBuilder() {
         <div className="grid lg:grid-cols-[280px_1fr] gap-8">
           {/* kit list */}
           <aside>
-            <Button onClick={resetForm} variant="outline" className="w-full mb-4 border-[#d4af37]/40 text-[#d4af37] hover:bg-[#d4af37]/10">
+            <Button onClick={resetForm} variant="outline" className={`w-full mb-4 ${isLight ? "border-[#C9A84C]/70 text-[#7A5A12] hover:bg-[#C9A84C]/10" : "border-[#d4af37]/40 text-[#d4af37] hover:bg-[#d4af37]/10"}`}>
               <Plus className="h-4 w-4 mr-2" /> {t("press-kit.newPressKit")}
             </Button>
             <div className="space-y-2">
@@ -385,21 +387,21 @@ export default function PressKitBuilder() {
                   className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
                     selectedKit?.id === k.id
                       ? "border-[#d4af37]/60 bg-[#d4af37]/10"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                      : isLight ? "border-[#C9A84C]/25 bg-white/50 hover:border-[#C9A84C]/50" : "border-white/10 bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
                   <div className="font-medium text-sm truncate">{k.artist_name}</div>
-                  <div className="text-xs text-white/40 truncate">/press/{k.handle}</div>
+                  <div className={`text-xs truncate ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>/press/{k.handle}</div>
                 </button>
               ))}
               {kits.length === 0 && (
-                <p className="text-sm text-white/30">{t("press-kit.emptyKits")}</p>
+                <p className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/30"}`}>{t("press-kit.emptyKits")}</p>
               )}
             </div>
           </aside>
 
           {/* main panel */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-white/10 bg-white/[0.02]"}`}>
             {selectedKit && !editing ? (
               /* ── preview / manage ── */
               <div>
@@ -412,14 +414,14 @@ export default function PressKitBuilder() {
                     </a>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={copyLink} className="border-white/15">
+                    <Button size="sm" variant="outline" onClick={copyLink} className={isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15"}>
                       {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
                       {copied ? t("press-kit.copied") : t("press-kit.copyLink")}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={downloadPdf} className="border-white/15">
+                    <Button size="sm" variant="outline" onClick={downloadPdf} className={isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15"}>
                       <Download className="h-4 w-4 mr-1" /> {t("press-kit.pdf")}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="border-white/15">
+                    <Button size="sm" variant="outline" onClick={() => setEditing(true)} className={isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15"}>
                       <Pencil className="h-4 w-4 mr-1" /> {t("press-kit.edit")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={handleDelete}
@@ -662,7 +664,7 @@ export default function PressKitBuilder() {
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         {t("press-kit.form.saveChanges")}
                       </Button>
-                      <Button variant="outline" onClick={() => setEditing(false)} className="border-white/15">{t("press-kit.form.cancel")}</Button>
+                      <Button variant="outline" onClick={() => setEditing(false)} className={isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15"}>{t("press-kit.form.cancel")}</Button>
                     </>
                   ) : (
                     <Button onClick={handleGenerate} disabled={generating}

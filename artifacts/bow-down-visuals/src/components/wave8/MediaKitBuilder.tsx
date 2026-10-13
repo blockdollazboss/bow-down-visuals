@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Loader2, Sparkles, Download, Link2, Check, Copy, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -153,6 +154,7 @@ function buildMediaKitPdf(kit: MediaKit): jsPDF {
 }
 
 export default function MediaKitBuilder() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -238,13 +240,13 @@ export default function MediaKitBuilder() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+    <div className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-br from-[#FCF7EA] via-[#F7ECD2] to-[#EDDCAC]" : "border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
       <div className="p-6 md:p-8">
-        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <div className={`mb-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#7A5A12]" : "border-primary/30 bg-primary/10 text-primary"}`}>
           <Sparkles className="h-3.5 w-3.5" /> {t("wave8.mediaKit.badge")}
         </div>
         <h2 className="text-2xl font-black">{t("wave8.mediaKit.title")}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-white/50">{t("wave8.mediaKit.subtitle")}</p>
+        <p className={`mt-2 max-w-2xl text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("wave8.mediaKit.subtitle")}</p>
 
         {outOfCredits && (
           <div className="mt-4">
@@ -260,11 +262,11 @@ export default function MediaKitBuilder() {
         <div className="mt-6 flex flex-wrap items-end gap-4">
           {vaults.length > 0 && (
             <div className="min-w-[220px]">
-              <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("wave8.mediaKit.vaultLabel")}</label>
+              <label className={`mb-1.5 block text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>{t("wave8.mediaKit.vaultLabel")}</label>
               <select
                 value={vaultId}
                 onChange={(e) => setVaultId(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black px-4 py-2.5 text-sm text-white focus:border-[#d4af37]/60 focus:outline-none"
+                className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none ${isLight ? "border-[#C9A84C]/40 bg-white text-[#2A1E07] focus:border-[#C9A84C]" : "border-white/10 bg-black text-white focus:border-[#d4af37]/60"}`}
               >
                 <option value="">{t("wave8.mediaKit.vaultNone")}</option>
                 {vaults.map((v) => (
@@ -276,7 +278,7 @@ export default function MediaKitBuilder() {
           <button
             onClick={handleBuild}
             disabled={building}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
           >
             {building ? (
               <>
@@ -355,7 +357,7 @@ export default function MediaKitBuilder() {
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 onClick={downloadPdf}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
               >
                 <Download className="h-4 w-4" /> {t("wave8.mediaKit.downloadPdf")}
               </button>
