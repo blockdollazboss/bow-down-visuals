@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { downloadVCard, type NfcProfile } from "@/lib/nfc-cards";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 
 /* ─── Public digital business card ──────────────────────────────────────
@@ -14,6 +15,7 @@ import { useTranslation } from "react-i18next";
    sees when they tap the physical card or scan the QR. */
 
 export default function NfcCardProfile() {
+  const isLight = useIsLightTheme();
   usePageTitle("Creator Card", "Creator profile — tap in to connect.");
   const { t } = useTranslation();
   const params = useParams<{ slug: string }>();
@@ -96,7 +98,7 @@ export default function NfcCardProfile() {
         </div>
 
         {/* card */}
-        <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-b from-zinc-900 to-black p-8 text-center shadow-[0_0_60px_rgba(212,175,55,0.12)]">
+        <div className={`rounded-3xl border p-8 text-center shadow-[0_0_60px_rgba(212,175,55,0.12)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-amber-500/30 bg-gradient-to-b from-zinc-900 to-black"}`}>
           {profile.avatar_url ? (
             <img
               src={profile.avatar_url}
