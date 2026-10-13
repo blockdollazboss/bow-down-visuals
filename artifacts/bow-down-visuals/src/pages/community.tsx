@@ -114,6 +114,7 @@ const replyInputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string; onRestoreComments: (text: string) => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -248,7 +249,7 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
   return (
     <div>
       {/* ── composer card ── */}
-      <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+      <div className={`${isLight ? "overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
             <MessageCircleReply className="h-5 w-5" aria-hidden="true" />
@@ -349,7 +350,7 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
 
       {/* ── results ── */}
       {results && (
-        <div id="replies-results" className="mt-8 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+        <div id="replies-results" className={`${isLight ? "mt-8 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-8 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-xl font-bold">{t("commentReplies.yourReplies")}</h2>
             <div className="flex items-center gap-2 flex-wrap">

@@ -289,7 +289,7 @@ export default function LlcGuide() {
         </div>
 
         {/* ── AI Q&A ─────────────────────────────────────────────── */}
-        <section className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+        <section className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
           <SectionLabel icon={Sparkles}>{t("llcGuide.qaLabel")}</SectionLabel>
           <h2 className="text-2xl font-black tracking-tight">
             {t("llcGuide.askTitleStart")}<span className="text-primary">{t("llcGuide.askTitleAnything")}</span>
@@ -383,7 +383,7 @@ export default function LlcGuide() {
         </section>
 
         {/* ── AI filing plan ─────────────────────────────────────── */}
-        <section className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+        <section className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
           <SectionLabel icon={FileText}>{t("llcGuide.planLabel")}</SectionLabel>
           <h2 className="text-2xl font-black tracking-tight">
             {t("llcGuide.planTitleStart")}<span className="text-primary">{t("llcGuide.planTitleEnd")}</span>

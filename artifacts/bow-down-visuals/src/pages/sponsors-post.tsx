@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
@@ -20,6 +21,7 @@ const sectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
 export default function SponsorPost() {
+  const isLight = useIsLightTheme();
   usePageTitle("Post a Sponsorship");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -113,7 +115,7 @@ export default function SponsorPost() {
             </Link>
           </div>
         ) : (
-          <div className="mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+          <div className={`${isLight ? "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.brandNameLabel")}</p>

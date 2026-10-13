@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Download, PartyPopper, ReceiptText, Music2, Share2, User, ExternalLink } from "lucide-react";
@@ -29,6 +30,7 @@ interface VerifyResult {
 }
 
 export default function StoreSuccess() {
+  const isLight = useIsLightTheme();
   usePageTitle("Order Confirmed");
   const { getAccessToken } = useAuth();
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
@@ -88,7 +90,7 @@ export default function StoreSuccess() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-xl px-4 py-16">
-        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-10 text-center shadow-[0_0_60px_rgba(201,162,39,0.15)]">
+        <div className={`${isLight ? "rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center shadow-[0_0_60px_rgba(201,162,39,0.15)]" : "rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-10 text-center shadow-[0_0_60px_rgba(201,162,39,0.15)]"}`}>
           {state === "loading" && (
             <>
               <Loader2 className="mx-auto h-10 w-10 animate-spin text-amber-400" />

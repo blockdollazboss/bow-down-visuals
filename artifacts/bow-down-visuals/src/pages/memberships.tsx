@@ -427,7 +427,7 @@ export default function Memberships() {
               {tiers.length > 0 && (
                 <div className="mt-4 grid md:grid-cols-3 gap-4">
                   {tiers.map((tier) => (
-                    <div key={tier.id} className="rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-black p-5">
+                    <div key={tier.id} className={`${isLight ? "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-black p-5"}`}>
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="font-black text-lg">{tier.name}</div>

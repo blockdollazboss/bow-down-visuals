@@ -364,7 +364,7 @@ function AcademyMain() {
  </div>
 
  {/* ── AI LEARNING PATH ─────────────────────────────────── */}
- <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.pathBadge", { credits: CREDIT_COST })}
  </p>
@@ -790,7 +790,7 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
 
  {/* ask the coach */}
- <div className="mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+ <div className={`${isLight ? "mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
  <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.coachHeader", { credits: CREDIT_COST })}
  </p>
