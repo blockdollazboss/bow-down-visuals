@@ -6,11 +6,14 @@
    screenshots, 2026-10-12). The owner asked for the seam to be covered by
    "a camera set up / light set up" — so the set stands on the seam and
    the floor gradient melts both edges away underneath it.
-   LAYERING (owner directive 2026-10-12): the set sits at z-[3] — above
-   the backdrop (z-0), grain (z-1) and spotlight beams (z-2), but BEHIND
-   the King (z-4) and behind ALL hero text (copy column z-10). It used
-   to ride at z-30 and drew its silhouettes over the proof/share rows;
-   the owner ordered it behind the text. Do not raise it back.
+   LAYERING (owner directive 2026-10-13, supersedes the 2026-10-12
+   behind-the-text order): the set rides at z-[20] — in front of the
+   ground fog/smoke (z-2) and in front of the hero's lower rows in the
+   seam overlap, like foreground film equipment. The smoke layer sits
+   below the set and below the text. The headline copy (z-10) does not
+   geometrically overlap the set; where the set's -240px pull-up crosses
+   the hero's bottom rows, the set now paints over them by the owner's
+   explicit order.
    FIT (owner directive 2026-10-12): preserveAspectRatio is "meet", NEVER
    "slice" — slice scaled the 1440-wide viewBox to cover and cropped it:
    the softbox tops on wide screens, BOTH lights clean off the edges on
