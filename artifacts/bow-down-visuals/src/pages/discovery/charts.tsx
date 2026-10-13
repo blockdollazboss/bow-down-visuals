@@ -287,8 +287,10 @@ export default function Charts() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-5 flex justify-center gap-2">
+      {/* Tabs — flex-wrap: the four pills total ~510px; centered without
+          wrapping they overflowed BOTH edges of a 390px phone, leaving the
+          Charts and For Brands pills clipped and unreachable. */}
+      <div className="mb-5 flex flex-wrap justify-center gap-2">
         {(
           [
             { key: "charts", label: "Charts", icon: <Trophy className="h-4 w-4" /> },
@@ -300,7 +302,7 @@ export default function Charts() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-black transition-all ${
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black transition-all sm:px-5 ${
               tab === t.key
                 ? "bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black shadow-[0_0_24px_rgba(232,200,106,0.35)]"
                 : "border border-white/15 bg-white/5 text-white/60 hover:border-[#e8c86a]/40 hover:text-white"
