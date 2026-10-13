@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ interface SpendRow {
 }
 
 export default function TeamPage() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("team.pageTitle"));
   const { getAccessToken } = useAuth();
@@ -335,7 +337,7 @@ export default function TeamPage() {
               maxLength={80}
               className="bg-white/[0.05] border-white/10 text-white"
             />
-            <Button onClick={() => void handleCreate()} disabled={creating || !newTeamName.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold shrink-0">
+            <Button onClick={() => void handleCreate()} disabled={creating || !newTeamName.trim()} className={`font-bold shrink-0 ${!newTeamName.trim() && !creating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none disabled:opacity-100" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none disabled:opacity-100") : "bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90"}`}>
               {creating ? t("team.creating") : t("team.createTeam")}
             </Button>
           </div>
