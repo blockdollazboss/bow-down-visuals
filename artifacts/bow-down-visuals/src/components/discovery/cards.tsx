@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Play, Eye, Heart, Users, Flame, Sparkles, SearchX, Radio } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { formatCount, resolveMedia } from "@/lib/streaming";
 import { verticalLabel } from "@/lib/verticals";
 import { ShareMenu } from "./ShareMenu";
@@ -257,8 +258,9 @@ export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) 
 /* ─── Skeletons ─────────────────────────────────────────────────────────── */
 
 export function CardSkeleton() {
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-white/10 bg-white/[0.03]"}`}>
       <Skeleton className="mx-auto mb-3 h-20 w-20 rounded-full" />
       <Skeleton className="mx-auto mb-2 h-4 w-3/4" />
       <Skeleton className="mx-auto h-3 w-1/2" />
@@ -267,8 +269,9 @@ export function CardSkeleton() {
 }
 
 export function RowSkeleton() {
+  const isLight = useIsLightTheme();
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <div className={`flex items-center gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-white/10 bg-white/[0.03]"}`}>
       <Skeleton className="h-8 w-8 rounded-full" />
       <Skeleton className="h-12 w-12 rounded-lg" />
       <div className="flex-1">
