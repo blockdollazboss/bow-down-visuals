@@ -505,6 +505,18 @@ html, body {
 .light .border-neutral-800:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
 .light .divide-white\/10:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: #EDE3CB; }
 .light .divide-white\/5:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: rgb(237 227 203 / 0.6); }
+/* Arbitrary-alpha white hairlines (border-white/[0.05] etc.) are distinct
+   Tailwind classes the named rungs above cannot match — same champagne
+   treatment, mapped to their nearest named rung. */
+.light .border-white\/\[0\.05\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(237 227 203 / 0.6); }
+.light .border-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .border-white\/\[0\.10\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
+.light .border-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+.light .divide-white\/\[0\.04\]:not([data-dark-lock]):not([data-dark-lock] *) > * + *,
+.light .divide-white\/\[0\.05\]:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: rgb(237 227 203 / 0.6); }
+.light .divide-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: #EDE3CB; }
 
 /* ── 7. Warm shadows: black shadows become soft golden ambience ── */
 .light .shadow-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { --tw-shadow-color: rgb(138 107 31 / 0.16); }
