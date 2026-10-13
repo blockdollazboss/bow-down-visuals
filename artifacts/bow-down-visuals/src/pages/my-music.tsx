@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink } from "lucide-react";
@@ -29,6 +30,7 @@ interface Purchase {
 }
 
 export default function MyMusic() {
+  const isLight = useIsLightTheme();
   usePageTitle("My Music");
   const { getAccessToken } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -118,7 +120,7 @@ export default function MyMusic() {
             {error}
           </div>
         ) : purchases.length === 0 ? (
-          <div className="mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-12 text-center">
+          <div className={`${isLight ? "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-12 text-center" : "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-12 text-center"}`}>
             <Music2 className="mx-auto h-12 w-12 text-amber-400/60" />
             <h2 className="mt-4 text-xl font-bold text-amber-200">Nothing here yet</h2>
             <p className="mt-2 text-amber-100/60">
@@ -130,7 +132,7 @@ export default function MyMusic() {
             {purchases.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-4"
+                className={`${isLight ? "flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-4" : "flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-4"}`}
               >
                 {p.artworkUrl ? (
                   <img src={p.artworkUrl} alt={p.title} className="h-16 w-16 rounded-xl object-cover" />

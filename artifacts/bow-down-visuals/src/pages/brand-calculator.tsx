@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -100,6 +101,7 @@ function fmtRange(low: number, high: number): string {
 }
 
 export default function BrandDealCalculator() {
+  const isLight = useIsLightTheme();
   usePageTitle("Brand Deal Calculator", "Estimate what to charge brands for sponsored posts and deals.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -215,7 +217,7 @@ export default function BrandDealCalculator() {
         </p>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
-        <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
           {/* platform */}
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             {t("brandCalculator.sectionPlatform")}
@@ -379,7 +381,7 @@ export default function BrandDealCalculator() {
         {result && (
           <div id="rate-result" className="mt-10">
             {/* rate card */}
-            <div className="rate-card-print overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171207] to-black">
+            <div className={`${isLight ? "rate-card-print overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "rate-card-print overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171207] to-black"}`}>
               <div className="border-b border-primary/20 p-6 md:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
