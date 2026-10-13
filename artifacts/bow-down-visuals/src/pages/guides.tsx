@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Guides & Services ─────────────────────────────────────────────────
    The business side of being a creator — free-to-read guides:
@@ -20,6 +21,7 @@ const GUIDES = [
 
 export default function Guides() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   useEffect(() => {
     document.title = t("guides.pageTitle");
   }, [t]);
@@ -49,7 +51,7 @@ export default function Guides() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {GUIDES.map((g) => (
             <Link key={g.href} href={g.href}>
-              <div className="group relative rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-primary/40 hover:bg-gradient-to-b hover:from-primary/[0.08] hover:to-transparent transition-all p-6 flex flex-col h-full cursor-pointer hover:shadow-[0_0_60px_rgba(218,165,32,0.12)]">
+              <div className={`group relative rounded-2xl border hover:border-primary/40 hover:bg-gradient-to-b hover:from-primary/[0.08] hover:to-transparent transition-all p-6 flex flex-col h-full cursor-pointer hover:shadow-[0_0_60px_rgba(218,165,32,0.12)] ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/[0.08] bg-white/[0.02]"}`}>
                 <div className="flex items-start justify-between mb-5">
                   <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
                     <g.icon className="h-6 w-6 text-primary" />
