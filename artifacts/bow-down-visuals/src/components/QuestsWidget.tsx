@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2 } from "lucide-react";
@@ -37,6 +38,7 @@ export default function QuestsWidget({
   onBalanceChange?: () => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [data, setData] = useState<QuestsData | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(() => {
@@ -157,7 +159,7 @@ export default function QuestsWidget({
             const canClaim = q.completed && !q.claimed;
             return (
               <div key={q.key} className={`rounded-2xl border p-3.5 flex items-center gap-3 transition-colors ${
-                canClaim ? "border-primary/50 bg-primary/[0.08]" : "border-white/[0.08] bg-white/[0.02]"
+                canClaim ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/[0.08] bg-white/[0.02]"
               }`}>
                 <div className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 ${
                   q.claimed ? "bg-emerald-500/[0.10] border-emerald-500/25 text-emerald-400"
