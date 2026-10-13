@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -94,6 +95,7 @@ function VoicePicker({
   label: string;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [previewing, setPreviewing] = useState<string | null>(null);
 
   function togglePreview(v: Voice) {
@@ -128,7 +130,7 @@ function VoicePicker({
               key={v.voice_id}
               className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
                 value === v.voice_id
-                  ? "border-primary/60 bg-primary/[0.07]"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                   : "border-white/10 bg-black/40 hover:border-white/25"
               }`}
             >
