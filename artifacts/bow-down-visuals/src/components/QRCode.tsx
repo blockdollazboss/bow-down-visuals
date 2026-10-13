@@ -4,7 +4,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Simple QR code via qrserver API - no dependency needed */
 export function QRCodeImage({ data, size = 200 }: { data: string; size?: number }) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=141414`;
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&bgcolor=1a1a1a&color=d4af37`;
   return <img src={url} alt="QR Code" width={size} height={size} className="rounded-lg" />;
 }
 
