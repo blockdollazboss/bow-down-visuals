@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -99,6 +100,7 @@ const sectionTitle =
   "mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80";
 
 export default function NicheAnalyzerPanel() {
+  const isLight = useIsLightTheme();
   const { user, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -203,7 +205,7 @@ export default function NicheAnalyzerPanel() {
   }
 
   return (
-    <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+    <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
       {/* inputs */}
       <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
         The niche to dissect

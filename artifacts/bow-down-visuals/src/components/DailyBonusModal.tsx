@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ interface ClaimResult {
 type RungState = "claimed" | "claimable" | "locked";
 
 export function DailyBonusModal() {
+  const isLight = useIsLightTheme();
  const { t } = useTranslation();
  const { user, getAccessToken } = useAuth();
  const [visible, setVisible] = useState(false);
@@ -222,7 +224,7 @@ export function DailyBonusModal() {
  return (
  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
  {claimed?.milestone && <ConfettiBurst count={110} />}
- <div className="relative w-full max-w-sm rounded-2xl border-2 border-[#c9a84c] bg-gradient-to-b from-[#1a1a1a] to-black p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.4)] animate-[fadeSlideIn_0.5s_ease-out] max-h-[92vh] overflow-y-auto">
+ <div className={`${isLight ? "relative w-full max-w-sm rounded-2xl border-2 border-[#c9a84c] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.4)] animate-[fadeSlideIn_0.5s_ease-out] max-h-[92vh] overflow-y-auto" : "relative w-full max-w-sm rounded-2xl border-2 border-[#c9a84c] bg-gradient-to-b from-[#1a1a1a] to-black p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.4)] animate-[fadeSlideIn_0.5s_ease-out] max-h-[92vh] overflow-y-auto"}`}>
  <button
  onClick={() => setVisible(false)}
  className="absolute top-3 right-3 text-muted-foreground hover:text-white"

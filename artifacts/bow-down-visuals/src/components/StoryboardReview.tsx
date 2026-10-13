@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Check, X, Clapperboard, Clock, MapPin, Video, Lightbulb, Sparkles } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
@@ -14,6 +15,7 @@ interface StoryboardReviewProps {
  * and the AI prompt. Nothing generates until the user approves each scene.
  */
 export function StoryboardReview({ scenes, onApprove, creditsPerSecond = 2 }: StoryboardReviewProps) {
+  const isLight = useIsLightTheme();
   const [approvedIds, setApprovedIds] = useState<Set<string>>(
     new Set(scenes.filter((s) => s.approved).map((s) => s.id))
   );
@@ -42,7 +44,7 @@ export function StoryboardReview({ scenes, onApprove, creditsPerSecond = 2 }: St
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6">
+      <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
         <div className="flex items-center gap-3 mb-2">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <Clapperboard className="h-5 w-5" />

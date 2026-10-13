@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import popupArt from "@/assets/bow-winner-popup.webp";
 
@@ -26,6 +27,7 @@ export function SecretChallengePopup({
   credits: number;
   onClaim: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const [imgFailed, setImgFailed] = useState(false);
   // Cover the baked-in amount only when the real award differs from it.
   const needsAmountOverlay = credits !== BAKED_IN_CREDITS;
@@ -39,7 +41,7 @@ export function SecretChallengePopup({
     >
       {imgFailed ? (
         /* Fallback card — no image dependency, always tappable. */
-        <div className="w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]">
+        <div className={`${isLight ? "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]" : "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]"}`}>
           <div className="text-5xl" aria-hidden="true">
             👑
           </div>

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
   Plus, X, Loader2, AlertTriangle, Handshake, Sparkles, Copy, Check,
@@ -55,6 +56,7 @@ function fmtMoney(cents: number): string {
 }
 
 export default function SponsorPipeline() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -356,7 +358,7 @@ export default function SponsorPipeline() {
       </div>
 
       {showForm && (
-        <div className="mt-5 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6">
+        <div className={`${isLight ? "mt-5 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-5 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
           <p className={sectionTitle}>{t("wave8.sponsors.addDeal")}</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>

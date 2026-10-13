@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Check, Loader2, Send, Sparkles, Zap } from "lucide-react";
@@ -25,6 +26,7 @@ interface HookRewriterProps {
 const SCHEDULER_DRAFT_KEY = "wave8_scheduler_draft";
 
 export default function HookRewriter({ onUseAsTopic }: HookRewriterProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -89,7 +91,7 @@ export default function HookRewriter({ onUseAsTopic }: HookRewriterProps) {
   }
 
   return (
-    <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+    <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           <Zap className="h-5 w-5" aria-hidden="true" />

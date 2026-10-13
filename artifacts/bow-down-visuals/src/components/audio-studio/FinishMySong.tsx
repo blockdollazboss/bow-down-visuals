@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Music2, Loader2, Sparkles, Upload, Check } from "lucide-react";
@@ -24,6 +25,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none";
 
 export function FinishMySong() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -80,7 +82,7 @@ export function FinishMySong() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
         <div className="flex items-center gap-2 mb-1">
           <Music2 className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("finishMySong.title", { defaultValue: "Finish My Song" })}</h3>
