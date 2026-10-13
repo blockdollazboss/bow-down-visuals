@@ -173,7 +173,7 @@ export default function Login() {
       <video
         ref={bgVideoRef}
         key={isLight ? "light" : "dark"}
-        src={mediaUrl(isLight ? "videos/signin-light-action-web.mp4" : "videos/signin-drone-bg-web.mp4")}
+        src={mediaUrl(isLight ? "videos/signin-light-action.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"

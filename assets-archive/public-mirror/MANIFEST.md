@@ -82,3 +82,6 @@ After the compression pass (commit 29498104), the 13 original MP4s below were re
 | thy-cheat-code-making-8bit-light-v2.mp4 | 6.91 MB |
 | thy-cheat-code-idle-8bit.mp4 | 4.88 MB |
 | official-teaser.mp4 | 3.31 MB |
+
+## Addendum 2026-10-13 — compression REVERSED (owner directive: "Stop lowering the quality of my videos")
+The 13 CRF 30/32 `-web.mp4` variants from the Oct 12 speed pass were removed from `public/` and preserved under `assets-archive/public-mirror/compressed-variants/`. The archived ORIGINALS were copied back into `public/` and all source references reverted from `-web.mp4` to the original filenames (8 files). Quality-first is the standing rule: bandwidth problems get solved with hosting (R2), never by re-encoding the owner's videos down.
