@@ -120,33 +120,28 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
             draggable={false}
             className="h-full w-full object-cover object-[center_52%]"
             style={{
-              maskImage:
-                "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+              maskImage: isLight
+                ? "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)"
+                : "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+              WebkitMaskImage: isLight
+                ? "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)"
+                : "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
             }}
           />
         </div>
       </div>
 
-      {/* Light-theme ivory toner — softens the artwork's blown sunbeam
-          hotspot toward the ivory palette so no stark white sits behind
-          or beside the wordmark (owner, Oct 13). */}
-      {isLight && (
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#F3E5C3]/20" />
-      )}
-
       {/* Blend scrims — dissolve the seams into the page background */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-2/5"
+        className={`pointer-events-none absolute inset-x-0 top-0 ${isLight ? "h-[10%]" : "h-2/5"}`}
         style={{
           background: `linear-gradient(to bottom, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+        className={`pointer-events-none absolute inset-x-0 bottom-0 ${isLight ? "h-[12%]" : "h-1/2"}`}
         style={{
           background: `linear-gradient(to top, ${MELT} 0%, transparent 100%)`,
         }}
@@ -154,14 +149,14 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       {/* Side vignettes — boundless edges */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-1/4"
+        className={`pointer-events-none absolute inset-y-0 left-0 ${isLight ? "w-[6%]" : "w-1/4"}`}
         style={{
           background: `linear-gradient(to right, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 w-1/4"
+        className={`pointer-events-none absolute inset-y-0 right-0 ${isLight ? "w-[6%]" : "w-1/4"}`}
         style={{
           background: `linear-gradient(to left, ${MELT} 0%, transparent 100%)`,
         }}
