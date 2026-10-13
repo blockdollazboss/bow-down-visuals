@@ -449,7 +449,7 @@ export default function LabelPitch() {
         {/* ═══ DEMO KIT TAB ═══ */}
         {tab === "kit" && (
           <div className="relative mt-8">
-            <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+            <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
               {/* song source */}
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("labelPitch.yourSong")}
@@ -1395,7 +1395,7 @@ function PlaylistsPitchTab() {
       {/* ═══ PITCH KIT TAB ═══ */}
       {tab === "kit" && (
         <div className="relative mt-8">
-          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
             {/* song source */}
             <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("playlistPitch.yourSong")}
@@ -1617,7 +1617,7 @@ function PlaylistsPitchTab() {
               </div>
 
               {/* pitch email */}
-              <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+              <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-lg font-black">
                     <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -1754,7 +1754,7 @@ function PlaylistsPitchTab() {
           </div>
 
           {showAddForm && (
-            <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
+            <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input
                   value={newPitch.songTitle}

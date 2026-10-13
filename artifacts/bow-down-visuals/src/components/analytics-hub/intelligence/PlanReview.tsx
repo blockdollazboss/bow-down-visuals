@@ -185,7 +185,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
   }
 
   return (
-    <section id="intel-plan" className={`${isLight ? "relative scroll-mt-24 overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "relative scroll-mt-24 overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-black"}`}>
+    <section id="intel-plan" className={`${isLight ? "relative scroll-mt-24 overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "relative scroll-mt-24 overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-[#0d0a04]"}`}>
       <div className="p-6 md:p-8">
         <div className="flex items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary bg-primary/15 text-primary">

@@ -281,7 +281,7 @@ export default function ShowFinder() {
         </div>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           {/* location + genre */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -465,7 +465,7 @@ export default function ShowFinder() {
                 return (
                   <div
                     key={i}
-                    className={`${isLight ? "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black"}`}
+                    className={`${isLight ? "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between gap-3">

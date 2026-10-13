@@ -460,7 +460,7 @@ export default function MoneyTrackerPanel() {
 
           {/* ── add entry form ──────────────────────────────────────── */}
           {showForm && (
-            <div className={`mt-6 rounded-3xl border border-primary/25 p-6 md:p-8 ${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "bg-gradient-to-b from-[#14100a] to-black"}`}>
+            <div className={`mt-6 rounded-3xl border border-primary/25 p-6 md:p-8 ${isLight ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className={sectionTitle}>{t("moneyTracker.newEntry")}</p>
               {invoicePrefill && (
                 <p className="mb-4 flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/[0.08] px-4 py-2.5 text-xs font-semibold text-primary">

@@ -348,7 +348,7 @@ export function ThyCheatCodeChat() {
           }}
         >
           {/* Header */}
-          <div className={`${isLight ? "border-b-4 border-[#C9A84C]/60 bg-gradient-to-r from-[#F7ECD2] to-[#FCF7EA] px-4 py-3" : "border-b-4 border-[#C9A84C]/60 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3"}`}>
+          <div className={`${isLight ? "border-b-4 border-[#C9A84C]/60 bg-gradient-to-r from-[#F7ECD2] to-[#FCF7EA] px-4 py-3" : "border-b-4 border-[#C9A84C]/60 bg-gradient-to-r from-[#1a1405] to-[#0d0a04] px-4 py-3"}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div

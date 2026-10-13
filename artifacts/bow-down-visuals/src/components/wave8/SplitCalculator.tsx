@@ -455,7 +455,7 @@ export default function SplitCalculator() {
       </div>
 
       {showForm && (
-        <div className={`${isLight ? "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+        <div className={`${isLight ? "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
           <p className={sectionTitle}>{t("wave8.splits.newSheet")}</p>
           <div>
             <label className={labelClass}>{t("wave8.splits.songTitle")}</label>

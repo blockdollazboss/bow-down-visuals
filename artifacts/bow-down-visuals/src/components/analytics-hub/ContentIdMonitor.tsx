@@ -374,7 +374,7 @@ export default function ContentIdMonitor() {
 
   if (!user) {
     return (
-      <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-10 text-center"}`}>
+      <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-10 text-center"}`}>
         <ShieldCheck className="mx-auto h-10 w-10 text-primary" aria-hidden="true" />
         <h2 className="mt-4 font-display text-2xl font-black">Content ID Monitor</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-white/55">
@@ -393,7 +393,7 @@ export default function ContentIdMonitor() {
   return (
     <div className="relative mt-6 space-y-6">
       {/* ── HONESTY BANNER (always visible) ── */}
-      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#171106] to-black p-6"}`}>
+      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#171106] to-[#0d0a04] p-6"}`}>
         <div className="flex items-start gap-3">
           <ShieldAlert className="mt-0.5 h-6 w-6 shrink-0 text-amber-400" aria-hidden="true" />
           <div>
@@ -412,7 +412,7 @@ export default function ContentIdMonitor() {
       </div>
 
       {/* ── EDUCATIONAL PANEL ── */}
-      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black"}`}>
+      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <button
           onClick={() => setShowEdu((v) => !v)}
           className="flex w-full items-center justify-between p-6 text-left"
@@ -447,7 +447,7 @@ export default function ContentIdMonitor() {
       </div>
 
       {loading ? (
-        <div className={`${isLight ? "flex items-center justify-center rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-16" : "flex items-center justify-center rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-16"}`}>
+        <div className={`${isLight ? "flex items-center justify-center rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-16" : "flex items-center justify-center rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-16"}`}>
           <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
           <span className="sr-only">Loading Content ID monitor…</span>
         </div>
@@ -463,19 +463,19 @@ export default function ContentIdMonitor() {
         <>
           {/* ── STATS ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Tracks opted in
               </p>
               <p className="mt-2 font-display text-4xl font-black text-white">{optedInCount}</p>
             </div>
-            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Pending partner
               </p>
               <p className="mt-2 font-display text-4xl font-black text-amber-300">{pendingCount}</p>
             </div>
-            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+            <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Detected uses
               </p>
@@ -484,7 +484,7 @@ export default function ContentIdMonitor() {
           </div>
 
           {/* ── OPTED-IN TRACKS ── */}
-          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <ShieldPlus className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -603,7 +603,7 @@ export default function ContentIdMonitor() {
           </div>
 
           {/* ── DETECTED-USE LOG ── */}
-          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <YouTubeGlyph />
@@ -706,7 +706,7 @@ export default function ContentIdMonitor() {
           </div>
 
           {/* ── REVENUE ATTRIBUTION ── */}
-          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <CircleDollarSign className="h-5 w-5 text-primary" aria-hidden="true" />

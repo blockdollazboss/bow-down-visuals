@@ -532,7 +532,7 @@ export default function LiveShopping() {
                               <Square className="h-3.5 w-3.5" /> {t("liveShopping.endStream")}
                             </button>
                           </div>
-                          <div className="relative mt-4 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#141414] to-black">
+                          <div className="relative mt-4 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#141414] to-[#0d0a04]">
                             <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold">
                               <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> {t("liveShopping.liveBadge")}
                             </div>

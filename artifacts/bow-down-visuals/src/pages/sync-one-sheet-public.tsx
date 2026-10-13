@@ -116,7 +116,7 @@ export default function SyncOneSheetPublic() {
           )}
         </div>
 
-        <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+        <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
           <p className="border-l-2 border-primary/60 pl-4 text-lg italic leading-relaxed text-white/85">
             “{c.logline}”
           </p>
@@ -185,7 +185,7 @@ export default function SyncOneSheetPublic() {
         </p>
 
         {/* viral surface: every supervisor view can become a signup */}
-        <div className={`${isLight ? "relative mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 text-center" : "relative mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 text-center"}`}>
+        <div className={`${isLight ? "relative mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 text-center" : "relative mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 text-center"}`}>
           <p className="flex items-center justify-center gap-2 text-sm font-black text-white">
             <Music2 className="h-4 w-4 text-primary" aria-hidden="true" />
             {t("syncPitch.publicCta")}

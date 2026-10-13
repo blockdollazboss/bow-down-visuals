@@ -281,7 +281,7 @@ export default function TrendPredictor() {
         </div>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           {/* niche */}
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("trends.yourNiche")}
@@ -416,7 +416,7 @@ export default function TrendPredictor() {
               {forecast.trends.map((trend, i) => (
                 <div
                   key={`${trend.trend}-${i}`}
-                  className={`${isLight ? "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black p-6"}`}
+                  className={`${isLight ? "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">

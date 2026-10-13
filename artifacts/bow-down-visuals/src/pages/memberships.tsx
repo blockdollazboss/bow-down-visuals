@@ -67,7 +67,7 @@ const GOLD_BTN_GATED = (isLight: boolean) =>
   "inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-base font-black transition active:scale-95 disabled:cursor-not-allowed " +
   (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12]" : "border border-primary/30 bg-primary/20 text-primary/70");
 const CARD =
-  "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6";
+  "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
 const INPUT =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none";
 
@@ -430,7 +430,7 @@ export default function Memberships() {
               {tiers.length > 0 && (
                 <div className="mt-4 grid md:grid-cols-3 gap-4">
                   {tiers.map((tier) => (
-                    <div key={tier.id} className={`${isLight ? "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-black p-5"}`}>
+                    <div key={tier.id} className={`${isLight ? "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-5"}`}>
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="font-black text-lg">{tier.name}</div>

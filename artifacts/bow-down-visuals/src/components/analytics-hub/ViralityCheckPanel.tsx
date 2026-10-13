@@ -274,7 +274,7 @@ export default function ViralityCheckPanel() {
  </div>
 
  {/* form card */}
- <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+ <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Gauge className="h-5 w-5" aria-hidden="true" />

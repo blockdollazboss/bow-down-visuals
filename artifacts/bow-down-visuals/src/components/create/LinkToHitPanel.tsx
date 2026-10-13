@@ -134,7 +134,7 @@ export default function LinkToHitPanel() {
 
   return (
     <div className="space-y-6">
-      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
         <div className="flex items-center gap-2 mb-1">
           <Link2 className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("linkToHit.title", { defaultValue: "Link-to-Hit" })}</h3>
@@ -274,7 +274,7 @@ export default function LinkToHitPanel() {
           </div>
 
           {/* Funny song (from comments) */}
-          <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+          <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
             <div className="flex items-start justify-between gap-2 mb-2">
               <p className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
                 <Music2 className="h-3.5 w-3.5" /> {t("linkToHit.song", { defaultValue: "The funny song" })} · {finalGenre}

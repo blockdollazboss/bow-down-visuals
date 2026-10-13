@@ -1299,7 +1299,7 @@ function DigitalSalesTab() {
           <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
         </div>
       ) : error ? (
-        <div className={`${isLight ? "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-black p-10 text-center"}`}>
+        <div className={`${isLight ? "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-[#0d0a04] p-10 text-center"}`}>
           <div className="text-4xl">🎤</div>
           <h2 className="mt-4 text-xl font-bold text-amber-200">No creator profile yet</h2>
           <p className="mt-2 text-amber-100/60">
@@ -1310,7 +1310,7 @@ function DigitalSalesTab() {
         <>
           {/* ── GET PAID CHECKLIST — the finale, leading the dashboard ── */}
           {checklist && (
-            <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]" : "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#1d1606] to-black p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]"}`}>
+            <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]" : "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#1d1606] to-[#0d0a04] p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]"}`}>
               <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
                 <ListChecks className="h-5 w-5" />
                 Get Paid Checklist
@@ -1356,7 +1356,7 @@ function DigitalSalesTab() {
           )}
 
           {/* ── PRICING — difficulty ladder ── */}
-          <div id="pricing" className={`${isLight ? "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-6"}`}>
+          <div id="pricing" className={`${isLight ? "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-6"}`}>
             <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
               <Tag className="h-5 w-5" /> Price your content
             </h2>
@@ -1480,21 +1480,21 @@ function DigitalSalesTab() {
           {data && (
             <>
               <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-5"}`}>
+                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-5"}`}>
                   <div className="text-xs uppercase tracking-widest text-amber-400/70">Sales</div>
                   <div className="mt-1 text-2xl font-bold text-amber-200">{data.totals.sales}</div>
                 </div>
-                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-5"}`}>
+                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-5"}`}>
                   <div className="text-xs uppercase tracking-widest text-amber-400/70">Gross</div>
                   <div className="mt-1 text-2xl font-bold text-amber-200">{data.totals.gross}</div>
                 </div>
-                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-5"}`}>
+                <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-5"}`}>
                   <div className="text-xs uppercase tracking-widest text-amber-400/70">
                     Platform fee ({data.platformFeePct}%)
                   </div>
                   <div className="mt-1 text-2xl font-bold text-amber-100/70">{data.totals.platformFee}</div>
                 </div>
-                <div className={`${isLight ? "rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 shadow-[0_0_30px_rgba(201,162,39,0.15)]" : "rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#1d1606] to-black p-5 shadow-[0_0_30px_rgba(201,162,39,0.15)]"}`}>
+                <div className={`${isLight ? "rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 shadow-[0_0_30px_rgba(201,162,39,0.15)]" : "rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#1d1606] to-[#0d0a04] p-5 shadow-[0_0_30px_rgba(201,162,39,0.15)]"}`}>
                   <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-amber-300">
                     <PiggyBank className="h-4 w-4" /> Your cut · pending payout
                   </div>
@@ -1510,7 +1510,7 @@ function DigitalSalesTab() {
               </div>
 
               {data.byKind.length > 0 && (
-                <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-6"}`}>
+                <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-6"}`}>
                   <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
                     <Sparkles className="h-5 w-5" /> What's selling
                   </h2>
@@ -1530,7 +1530,7 @@ function DigitalSalesTab() {
                 </div>
               )}
 
-              <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-black p-6"}`}>
+              <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-6"}`}>
                 <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
                   <BadgeDollarSign className="h-5 w-5" /> Recent sales
                 </h2>

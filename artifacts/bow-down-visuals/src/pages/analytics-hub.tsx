@@ -1393,7 +1393,7 @@ export default function AnalyticsHub() {
 
         {/* ── OVERVIEW ROW ─────────────────────────────────────────── */}
         <div className="relative mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Users className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.totalFollowers")}
             </p>
@@ -1402,7 +1402,7 @@ export default function AnalyticsHub() {
             </p>
             <p className="mt-1 text-xs text-white/35">{t("analyticsHub.acrossPlatforms")}</p>
           </div>
-          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Eye className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.totalViews30d")}
             </p>
@@ -1411,7 +1411,7 @@ export default function AnalyticsHub() {
             </p>
             <p className="mt-1 text-xs text-white/35">{t("analyticsHub.last30Days")}</p>
           </div>
-          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
+          <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Crown className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.bestEngagement")}
             </p>
@@ -1427,7 +1427,7 @@ export default function AnalyticsHub() {
         </div>
 
         {/* ── GROWTH CHART ─────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-xl font-bold">
@@ -1498,7 +1498,7 @@ export default function AnalyticsHub() {
               return (
                 <div
                   key={key}
-                  className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}
+                  className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1631,7 +1631,7 @@ export default function AnalyticsHub() {
         </div>
 
         {/* ── AI INSIGHTS ──────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -1751,7 +1751,7 @@ export default function AnalyticsHub() {
             the top-post stat from their hub numbers), picks a platform +
             niche, and POST /api/ai-coach explains WHY posts won/lost with
             actionable next steps. 100 Visual Bucs via confirmedFetch. */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Lightbulb className="h-5 w-5" aria-hidden="true" />
@@ -2068,7 +2068,7 @@ export default function AnalyticsHub() {
 
         {/* ── COMPETITOR TRACKER ─────────────────────────────────── */}
         {hubTab === "competitor" && (
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Swords className="h-5 w-5" aria-hidden="true" />

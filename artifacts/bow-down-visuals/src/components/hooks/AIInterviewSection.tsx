@@ -197,7 +197,7 @@ export default function AIInterviewSection() {
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]">
                 <Mic2 className="h-4 w-4 text-black" />
               </div>
-              <div className={`${isLight ? "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] px-5 py-4" : "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#14100a] to-black px-5 py-4"}`}>
+              <div className={`${isLight ? "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] px-5 py-4" : "max-w-[85%] rounded-2xl rounded-tl-md border border-primary/20 bg-gradient-to-b from-[#14100a] to-[#0d0a04] px-5 py-4"}`}>
                 <p className="text-[15px] font-semibold leading-relaxed text-white">{questions[currentQ]}</p>
               </div>
             </div>
@@ -268,7 +268,7 @@ export default function AIInterviewSection() {
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2">{t("aiInterview.quoteCards", { defaultValue: "Quote cards" })}</p>
             <div className="grid gap-2 md:grid-cols-3">
               {pkg.quoteCards.map((q, i) => (
-                <div key={i} className={`${isLight ? "rounded-xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 text-center" : "rounded-xl border border-primary/30 bg-gradient-to-b from-[#14100a] to-black p-5 text-center"}`}>
+                <div key={i} className={`${isLight ? "rounded-xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 text-center" : "rounded-xl border border-primary/30 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5 text-center"}`}>
                   <p className="text-sm font-black text-primary leading-snug">“{q}”</p>
                 </div>
               ))}

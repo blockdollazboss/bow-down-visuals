@@ -398,7 +398,7 @@ function HubTabFallback() {
  ) : (
  <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}
- <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+ <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  {/* niche */}
  <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("coach.yourNiche")}

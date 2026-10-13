@@ -66,7 +66,7 @@ export default function CoverInMotionPanel() {
 
   return (
     <div className="space-y-6">
-      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+      <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
         <div className="flex items-center gap-2 mb-1">
           <Play className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-black text-white">{t("coverInMotion.title", { defaultValue: "Cover in Motion" })}</h3>

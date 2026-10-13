@@ -224,7 +224,7 @@ export default function PresaveLanding() {
     s: Math.floor((remaining / 1000) % 60),
   } : null;
 
-  const cardCls = "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-8 text-center md:p-12";
+  const cardCls = "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-8 text-center md:p-12";
 
   return (
     <div className="min-h-screen bg-black text-white">

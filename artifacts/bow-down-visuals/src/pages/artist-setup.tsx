@@ -137,7 +137,7 @@ function RevealOverlay({ profile, onClose }: { profile: CreatorProfile; onClose:
       <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-white/50 hover:text-white">
         <X className="h-6 w-6" />
       </button>
-      <div className={`${isLight ? "w-full max-w-lg rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]" : "w-full max-w-lg rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#1a1408] to-black p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]"}`}>
+      <div className={`${isLight ? "w-full max-w-lg rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]" : "w-full max-w-lg rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#1a1408] to-[#0d0a04] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]"}`}>
         <PartyPopper className="mx-auto h-12 w-12 text-amber-400" />
         <h2 className="mt-4 font-black text-3xl text-white" style={{ fontFamily: "'Cinzel', serif" }}>
           Your cheat code is LIVE.

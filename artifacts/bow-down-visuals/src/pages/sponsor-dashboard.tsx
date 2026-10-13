@@ -133,7 +133,7 @@ export default function SponsorDashboard() {
 
         {/* earnings banner */}
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
+          <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Banknote className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("sponsorDashboard.earnedAsCreator")}
             </p>

@@ -64,7 +64,7 @@ export default function ExtensionPromoModal() {
  onClick={close}
  >
  <div
- className={`relative w-full max-w-md overflow-hidden rounded-3xl border p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.25)] ${isLight ? "border-[#C9A84C]/50 bg-gradient-to-b from-[#FBF6E9] to-[#F4E7C3]" : "border-[#C9A84C]/40 bg-gradient-to-b from-[#171206] to-black"}`}
+ className={`relative w-full max-w-md overflow-hidden rounded-3xl border p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.25)] ${isLight ? "border-[#C9A84C]/50 bg-gradient-to-b from-[#FBF6E9] to-[#F4E7C3]" : "border-[#C9A84C]/40 bg-gradient-to-b from-[#171206] to-[#0d0a04]"}`}
  onClick={(e) => e.stopPropagation()}
  >
  <button

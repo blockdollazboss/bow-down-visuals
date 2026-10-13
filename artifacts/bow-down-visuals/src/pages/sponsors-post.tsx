@@ -115,7 +115,7 @@ export default function SponsorPost() {
             </Link>
           </div>
         ) : (
-          <div className={`${isLight ? "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+          <div className={`${isLight ? "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-8 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.brandNameLabel")}</p>

@@ -127,7 +127,7 @@ export function StepCard({
   return (
     <section
       id={id}
-      className={`${isLight ? "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black"}`}
+      className={`${isLight ? "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "relative scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
     >
       <div className="p-6 md:p-8">
         <div className="flex items-start gap-4">

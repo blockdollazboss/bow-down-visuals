@@ -67,7 +67,7 @@ export function CatalogVaultPanel(props: {
   }
 
   return (
-    <section className={`${isLight ? "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-black p-6 md:p-8"}`}>
+    <section className={`${isLight ? "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-6 md:p-8"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h3 className="flex items-center gap-2 font-display text-xl font-black text-white">
           <Vault className="h-5 w-5 text-primary" aria-hidden="true" />

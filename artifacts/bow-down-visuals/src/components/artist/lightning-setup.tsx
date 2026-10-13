@@ -457,7 +457,7 @@ export default function LightningSetup({
       {step === 2 && live && (
         <div>
           <ConfettiBurst />
-          <div className={`${isLight ? "rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]" : "rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#1a1408] to-black p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]"}`}>
+          <div className={`${isLight ? "rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]" : "rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#1a1408] to-[#0d0a04] p-8 text-center shadow-[0_0_80px_rgba(212,175,55,0.25)]"}`}>
             <Sparkles className="mx-auto h-12 w-12 text-amber-400" />
             <h1 className="mt-4 font-black text-4xl text-white" style={{ fontFamily: "'Cinzel', serif" }}>
               Your profile is LIVE.

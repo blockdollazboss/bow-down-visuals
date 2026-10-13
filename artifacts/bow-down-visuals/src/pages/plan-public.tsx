@@ -140,7 +140,7 @@ export default function PlanPublic() {
 
         <div className="relative mt-10 grid gap-4">
           {plan.verdict && (
-            <div className={`${isLight ? "rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black p-6"}`}>
+            <div className={`${isLight ? "rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-primary/80">{t("planPublic.validatedIdea")}</p>
               <p className="text-lg font-black uppercase tracking-widest text-white">
                 {plan.verdict}
@@ -215,7 +215,7 @@ export default function PlanPublic() {
           </p>
         )}
 
-        <div className={`${isLight ? "relative mt-6 rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 text-center md:p-8" : "relative mt-6 rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-black p-6 text-center md:p-8"}`}>
+        <div className={`${isLight ? "relative mt-6 rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 text-center md:p-8" : "relative mt-6 rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-6 text-center md:p-8"}`}>
           <p className="font-display text-xl font-black text-white md:text-2xl">{t("planPublic.ctaTitle")}</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">{t("planPublic.ctaBody")}</p>
           <Link

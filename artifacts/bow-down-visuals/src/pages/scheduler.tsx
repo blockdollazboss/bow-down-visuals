@@ -1025,7 +1025,7 @@ function CommunityPostsTab(props: {
   const activeLimit = platforms.find((p) => p.id === platform)?.charLimit ?? 280;
 
   return (
-    <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+    <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
       <div className="flex items-center gap-2">
         <Megaphone className="h-5 w-5 text-primary" />
         <h2 className="font-display text-2xl font-black">{t("scheduler.communityPosts.title")}</h2>
@@ -1323,7 +1323,7 @@ function BestTimeOptimizer(props: {
     <section
       id="best-time-optimizer"
       data-min-stars="3"
-      className={`${isLight ? "relative mt-14 scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-14 scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}
+      className={`${isLight ? "relative mt-14 scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-14 scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}
     >
       <div
         className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-yellow-600/10 blur-[100px]"
@@ -1851,7 +1851,7 @@ function ComposerModal(props: {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm" onClick={props.onClose}>
       <div
-        className={`${isLight ? "relative my-8 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative my-8 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}
+        className={`${isLight ? "relative my-8 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative my-8 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button onClick={props.onClose} className="absolute right-4 top-4 rounded-lg p-2 text-white/50 hover:text-white" aria-label={t("scheduler.composer.close")}>

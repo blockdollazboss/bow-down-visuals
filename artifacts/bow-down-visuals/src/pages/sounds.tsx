@@ -355,7 +355,7 @@ export default function ViralSoundFinder() {
                 return (
                   <article
                     key={s.id}
-                    className={`${isLight ? "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 transition hover:border-primary/40" : "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black p-5 transition hover:border-primary/40"}`}
+                    className={`${isLight ? "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 transition hover:border-primary/40" : "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5 transition hover:border-primary/40"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -426,7 +426,7 @@ export default function ViralSoundFinder() {
         </section>
 
         {/* ── AI SOUND MATCH ─────────────────────────────────────────────── */}
-        <section className={`${isLight ? "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+        <section className={`${isLight ? "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Sparkles className="h-5 w-5" aria-hidden="true" />

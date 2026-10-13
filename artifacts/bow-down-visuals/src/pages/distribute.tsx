@@ -1954,7 +1954,7 @@ function ReleaseDetail(props: {
   return (
     <div className="space-y-6">
       {/* ── header card ── */}
-      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
+      <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             {release.artworkUrl ? (
@@ -2435,7 +2435,7 @@ function ReleaseDetail(props: {
           </Section>
 
           {/* ── submit / pay ── */}
-          <section className={`${isLight ? "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-black p-6 md:p-8"}`}>
+          <section className={`${isLight ? "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/30 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-6 md:p-8"}`}>
             <h3 className="flex items-center gap-2 font-display text-xl font-black">
               <Rocket className="h-5 w-5 text-primary" />{t("distribute.submit_this_release")}</h3>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">{t("distribute.pay_the")}<strong className="text-white/85">{tierLabel(release.releaseType)}</strong> submission fee of{" "}
@@ -2699,7 +2699,7 @@ function ReleasePlanTab() {
   return (
     <div className="relative mx-auto max-w-4xl">
       {/* ── INPUTS ─────────────────────────────────────────────────── */}
-      <div className={`${isLight ? "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10"}`}>
+      <div className={`${isLight ? "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
         {/* release type */}
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
           {t("release.whatDropping")}
