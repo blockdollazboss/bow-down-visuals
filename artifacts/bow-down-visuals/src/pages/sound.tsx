@@ -36,7 +36,7 @@ export default function SoundPage() {
   const [data, setData] = useState<SoundData | null>(null);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
-  usePageTitle(data?.sound.title ? `${data.sound.title} — Sound` : "Sound");
+  usePageTitle(data?.sound.title ? `${data.sound.title} — Sound` : "Sound", "Listen and use this sound in your next video.");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {

@@ -44,7 +44,7 @@ export default function ShopStorefront() {
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
-  usePageTitle(shop?.name ?? "Shop");
+  usePageTitle(shop?.name ?? "Shop", "A creator storefront on Bow Down Visuals.");
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);

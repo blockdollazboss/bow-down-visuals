@@ -31,7 +31,7 @@ export default function GroupDetail() {
   const api = useCommunityApi();
   const { user } = useAuth();
   const [group, setGroup] = useState<GroupDetail | null>(null);
-  usePageTitle(group?.name ?? "Group");
+  usePageTitle(group?.name ?? "Group", "A creator community on Bow Down Visuals.");
   const [ownerProfile, setOwnerProfile] = useState<{ slug: string; displayName: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);

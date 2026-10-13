@@ -61,7 +61,7 @@ const FAQS = [
 export default function Download() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  usePageTitle(t("download.metaTitle"));
+  usePageTitle(t("download.metaTitle"), "Download Bow Down Visuals for Android and the Thy Cheat Code Chrome extension.");
   const onAndroid = typeof navigator !== "undefined" && isAndroidDevice();
   const onIOS = typeof navigator !== "undefined" && isIOSDevice();
   const onChromeMobile = typeof navigator !== "undefined" && isChromeMobile();

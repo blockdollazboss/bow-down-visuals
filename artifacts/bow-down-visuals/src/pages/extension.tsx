@@ -79,7 +79,7 @@ export default function Extension() {
   const inputClass = isLight
     ? "h-12 bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60 focus:border-primary/50 rounded-xl text-sm"
     : "h-12 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
-  usePageTitle(t("extension.metaTitle"));
+  usePageTitle(t("extension.metaTitle"), "Thy Cheat Code for Chrome — the whole Bow Down Visuals studio in one popup.");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");

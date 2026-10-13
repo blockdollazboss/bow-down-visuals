@@ -52,7 +52,7 @@ export default function EventDetailPage() {
   const api = useCommunityApi();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventDetail | null>(null);
-  usePageTitle(event?.title ?? "Event");
+  usePageTitle(event?.title ?? "Event", "An event on Bow Down Visuals — streams, drops, and premieres.");
   const [host, setHost] = useState<Host | null>(null);
   const [rsvped, setRsvped] = useState(false);
   const [hostIsViewer, setHostIsViewer] = useState(false);

@@ -65,7 +65,7 @@ export default function PresaveLanding() {
   const slug = params?.slug ?? "";
 
   const [data, setData] = useState<PresaveRelease | null>(null);
-  usePageTitle(data?.title ? `${data.title} — Presave` : "Presave");
+  usePageTitle(data?.title ? `${data.title} — Presave` : "Presave", "Pre-save the upcoming release on Bow Down Visuals.");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

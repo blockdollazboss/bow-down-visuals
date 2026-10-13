@@ -31,7 +31,7 @@ export default function SplitsAgreement() {
   const slug = params?.slug ?? "";
 
   const [data, setData] = useState<AgreementData | null>(null);
-  usePageTitle(data?.title ?? "Splits Agreement");
+  usePageTitle(data?.title ?? "Splits Agreement", "A royalty splits agreement on Bow Down Visuals.");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

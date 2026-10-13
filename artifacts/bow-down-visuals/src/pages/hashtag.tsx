@@ -36,7 +36,7 @@ export default function HashtagPage() {
   const tag = params?.tag ? decodeURIComponent(params.tag) : "";
   const [data, setData] = useState<HashtagData | null>(null);
   const [loading, setLoading] = useState(true);
-  usePageTitle(tag ? `#${tag}` : "Hashtag");
+  usePageTitle(tag ? `#${tag}` : "Hashtag", "Posts and videos under this hashtag on Bow Down Visuals.");
 
   useEffect(() => {
     let cancelled = false;
