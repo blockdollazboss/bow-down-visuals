@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
 import { installSessionGuard, registerSessionHooks } from "@/lib/session-guard";
@@ -80,6 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Mirror of `user` for the session guard: the guard must know whether
+   * anyone is signed in BEFORE it treats a 401 as a dead session —
+   * anonymous visitors get 401s on public pages and must never be
+   * bounced to /login for them. */
+  const userRef = useRef<User | null>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   /* Session-death path (NOT user-initiated sign-out): the server rejected the
    * token and a refresh didn't revive it. Clear everything and land on /login
@@ -118,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerSessionHooks({
       getClient: () => supabase,
       onSessionDead: () => { void handleSessionDeath(); },
+      isSignedIn: () => userRef.current !== null,
     });
 
     if (!supabase) {

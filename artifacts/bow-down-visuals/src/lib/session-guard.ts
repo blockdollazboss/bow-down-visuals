@@ -14,11 +14,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
    Legitimate non-auth 403s (tier gates, permission errors like
    "Only the crew leads…") pass through untouched. Normal 2xx/4xx/5xx
-   responses are never modified. Only intervenes on auth failures. */
+   responses are never modified. Only intervenes on auth failures.
+
+   ANONYMOUS VISITORS ARE NEVER INTERVENED ON: session death requires a
+   session. When nobody is signed in (hooks.isSignedIn() === false), a
+   401/403 is returned untouched — public pages call auth-gated endpoints
+   all the time, and bouncing signed-out visitors to /login for them
+   walls off the entire public site. */
 
 interface SessionHooks {
   getClient: () => SupabaseClient | null;
   onSessionDead: () => void;
+  /** True while the app believes a user is signed in. Session death can
+   *  only happen to someone who HAS a session — an anonymous visitor's
+   *  401 from an auth-gated endpoint is not a dead session. */
+  isSignedIn?: () => boolean;
 }
 
 let hooks: SessionHooks | null = null;
@@ -96,6 +106,15 @@ export function installSessionGuard() {
     const res = await originalFetch(input, init);
     if (res.status !== 401 && res.status !== 403) return res;
     if (!(await isSessionError(res))) return res;
+
+    /* Anonymous pass-through: session death requires a session. Public
+     * pages fire /api calls that legitimately answer 401 for signed-out
+     * visitors (auth-gated data on the homepage, explore, winners,
+     * artist profiles…). Treating those as a dead session bounced every
+     * logged-out visitor to /login and walled off the public site.
+     * Only run the refresh/death path when the app believes someone is
+     * signed in; everyone else just receives the response as-is. */
+    if (hooks?.isSignedIn && !hooks.isSignedIn()) return res;
 
     /* Auth failure on our API — attempt one refresh, then retry once. */
     const client = hooks?.getClient?.() ?? null;
