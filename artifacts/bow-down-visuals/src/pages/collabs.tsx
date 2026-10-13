@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -85,6 +86,7 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-white disabled:opacity-50";
 
 export default function CollabFinder() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<Tab>("browse");
@@ -588,7 +590,7 @@ export default function CollabFinder() {
         {/* proposal modal */}
         {proposalTo && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setProposalTo(null)}>
-            <div className="w-full max-w-lg rounded-2xl border border-amber-400/30 bg-[#0d0d0d] p-6" onClick={(e) => e.stopPropagation()}>
+            <div className={`w-full max-w-lg rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-amber-400/30 bg-[#0d0d0d]"}`} onClick={(e) => e.stopPropagation()}>
               <h3 className="mb-1 text-xl font-extrabold">{t("collabs.proposeTitle")} <span className="ml-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">{t("collabs.freeBadge")}</span></h3>
               <p className="mb-4 text-sm text-white/50">{t("collabs.proposalSubtitle", { name: proposalTo.displayName })}</p>
               <div className="mb-3 flex flex-wrap gap-2">
