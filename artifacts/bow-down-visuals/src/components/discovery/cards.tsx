@@ -183,7 +183,7 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
       <Link href={href} className="relative h-12 w-12 shrink-0 cursor-pointer">
         {track.artwork_url ? (
           <img
-            src={resolveMedia(track.artwork_url)}
+            src={resolveMedia(track.artwork_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
             alt=""
             className="h-12 w-12 rounded-lg object-cover"
             loading="lazy"
@@ -225,7 +225,7 @@ export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) 
         <div className="relative aspect-video bg-black/40">
           {video.thumbnail_url ? (
             <img
-              src={resolveMedia(video.thumbnail_url)}
+              src={resolveMedia(video.thumbnail_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
               alt=""
               className="h-full w-full object-cover"
               loading="lazy"

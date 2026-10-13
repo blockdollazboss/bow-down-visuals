@@ -39,9 +39,9 @@ function MediaThumb({ item }: { item: ShowcaseItem }) {
     return (
       <div className="relative aspect-video bg-black/60 overflow-hidden">
         {item.thumbnail_url ? (
-          <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+          <img src={item.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <video src={item.media_url} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+          <video src={item.media_url} onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" preload="metadata" muted playsInline />
         )}
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="rounded-full bg-black/60 p-3 border border-white/20">
@@ -60,7 +60,7 @@ function MediaThumb({ item }: { item: ShowcaseItem }) {
   }
   return (
     <div className="relative aspect-video bg-black/60 overflow-hidden">
-      <img src={item.media_url} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+      <img src={item.media_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
     </div>
   );
 }

@@ -86,7 +86,7 @@ function WinnerCard({ w, showChallenge }: { w: WinnerItem; showChallenge: boolea
         </div>
         {w.video.thumbnail_url && (
           <Link href={`/shorts?start=${w.video.id}`} className="hidden shrink-0 sm:block">
-            <img src={w.video.thumbnail_url} alt={w.video.title}
+            <img src={w.video.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={w.video.title}
               className="h-20 w-14 rounded-lg object-cover" loading="lazy" />
           </Link>
         )}

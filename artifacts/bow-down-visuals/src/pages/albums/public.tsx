@@ -181,7 +181,7 @@ export default function PublicAlbumPage() {
             <div className="shrink-0 mx-auto sm:mx-0">
               {album.cover_art_url ? (
                 <img
-                  src={album.cover_art_url}
+                  src={album.cover_art_url} onError={(e) => { e.currentTarget.style.display = "none"; }}
                   alt={`${album.title} cover art`}
                   className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl object-cover border border-[#c9a84c]/30 shadow-[0_0_60px_rgba(201,168,76,0.15)]"
                 />

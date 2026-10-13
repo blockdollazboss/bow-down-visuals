@@ -184,7 +184,7 @@ export default function ShopStorefront() {
             style={{ background: shop.banner_image_url ? undefined : `linear-gradient(135deg, ${shop.banner_color}, #000)` }}
           >
             {shop.banner_image_url && (
-              <img src={shop.banner_image_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+              <img src={shop.banner_image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
             <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14">
@@ -238,7 +238,7 @@ export default function ShopStorefront() {
                     className="text-left rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden hover:border-white/25 transition group"
                   >
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
+                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
                     ) : (
                       <div className="h-56 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                         <ShoppingBag className="w-10 h-10 text-white/20" />
@@ -268,7 +268,7 @@ export default function ShopStorefront() {
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
-              <img src={selected.image_url} alt={selected.name} className="h-64 w-full object-cover" />
+              <img src={selected.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={selected.name} className="h-64 w-full object-cover" />
             ) : (
               <div className="h-40 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                 <ShoppingBag className="w-10 h-10 text-white/20" />
@@ -318,7 +318,7 @@ export default function ShopStorefront() {
                 cartDetailed.map((l) => (
                   <div key={l.productId} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
                     {l.product!.image_url ? (
-                      <img src={l.product!.image_url} alt={l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                      <img src={l.product!.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="h-14 w-14 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">
                         <ShoppingBag className="w-5 h-5 text-white/25" />

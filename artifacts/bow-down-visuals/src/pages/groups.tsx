@@ -140,7 +140,7 @@ export default function Groups() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((g) => (
               <div key={g.id} className="group rounded-xl border border-white/10 bg-[#0d0a02] p-5 transition hover:border-[#e8c86a]/40">
-                {g.cover_url && <img src={g.cover_url} alt="" className="mb-4 h-32 w-full rounded-lg object-cover" />}
+                {g.cover_url && <img src={g.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-4 h-32 w-full rounded-lg object-cover" />}
                 <div className="flex items-start justify-between gap-2">
                   <Link href={`/groups/${g.slug}`} className="text-lg font-bold hover:text-[#e8c86a]">{g.name}</Link>
                   {g.is_public

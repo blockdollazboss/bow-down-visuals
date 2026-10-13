@@ -146,7 +146,7 @@ function QueueRow({ item, active, position }: { item: QueueItem; active: boolean
       }}
     >
       {item.artwork ? (
-        <img src={item.artwork} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
+        <img src={item.artwork} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
       ) : (
         <div className="h-10 w-10 rounded bg-[#e8c86a]/10 flex items-center justify-center shrink-0">
           <Music2 className="h-5 w-5 text-[#e8c86a]/50" />
@@ -243,7 +243,7 @@ export function StreamingPlayerBar() {
             <div className="flex items-center gap-3 px-3 py-2">
               <button onClick={() => setExpanded(true)} className="flex items-center gap-3 flex-1 min-w-0 text-left" aria-label="Expand player">
                 {current.artwork ? (
-                  <img src={current.artwork} alt="" className="h-10 w-10 rounded object-cover" />
+                  <img src={current.artwork} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-10 w-10 rounded object-cover" />
                 ) : (
                   <div className="h-10 w-10 rounded bg-[#e8c86a]/10 flex items-center justify-center">
                     <Music2 className="h-5 w-5 text-[#e8c86a]/60" />
@@ -273,7 +273,7 @@ export function StreamingPlayerBar() {
             </button>
             <div className="flex items-center gap-3 mt-1">
               {current.artwork ? (
-                <img src={current.artwork} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                <img src={current.artwork} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-14 w-14 rounded-lg object-cover" />
               ) : (
                 <div className="h-14 w-14 rounded-lg bg-[#e8c86a]/10 flex items-center justify-center">
                   <Music2 className="h-7 w-7 text-[#e8c86a]/60" />
@@ -313,7 +313,7 @@ export function StreamingPlayerBar() {
         <div className="flex items-center gap-4 px-5 py-2.5">
           <Link href={trackPath} className="flex items-center gap-3 min-w-0 w-64 group">
             {current.artwork ? (
-              <img src={current.artwork} alt="" className="h-12 w-12 rounded-md object-cover" />
+              <img src={current.artwork} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-12 w-12 rounded-md object-cover" />
             ) : (
               <div className="h-12 w-12 rounded-md bg-[#e8c86a]/10 flex items-center justify-center">
                 <Music2 className="h-6 w-6 text-[#e8c86a]/60" />

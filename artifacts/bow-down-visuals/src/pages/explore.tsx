@@ -76,7 +76,7 @@ export default function Explore() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.shorts.slice(0, 6).map((s) => (
               <div key={s.id} className={card}>
-                {s.thumbnail_url && <img src={s.thumbnail_url} alt="" className="mb-3 h-36 w-full rounded-lg object-cover" />}
+                {s.thumbnail_url && <img src={s.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-36 w-full rounded-lg object-cover" />}
                 <Link href={profileLink(s.creator.slug)} className="font-bold hover:text-[#e8c86a]">{s.title}</Link>
                 <p className="mt-1 text-xs text-white/50">
                   {s.view_count.toLocaleString()} views · {s.duration_sec}s · by{" "}
@@ -128,7 +128,7 @@ export default function Explore() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.events.slice(0, 6).map((e) => (
               <div key={e.id} className={card}>
-                {e.cover_url && <img src={e.cover_url} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
+                {e.cover_url && <img src={e.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
                 <span className="inline-block rounded-full bg-[#e8c86a]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e8c86a]">{e.kind}</span>
                 <Link href={`/events/${e.id}`} className="mt-1 block font-bold hover:text-[#e8c86a]">{e.title}</Link>
                 <p className="mt-1 text-xs text-white/50">
@@ -149,7 +149,7 @@ export default function Explore() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.groups.slice(0, 6).map((g) => (
               <div key={g.id} className={card}>
-                {g.cover_url && <img src={g.cover_url} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
+                {g.cover_url && <img src={g.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
                 <Link href={`/groups/${g.slug}`} className="font-bold hover:text-[#e8c86a]">{g.name}</Link>
                 <p className="mt-1 line-clamp-2 text-xs text-white/50">{g.description}</p>
                 <p className="mt-1 text-xs text-white/50">{g.member_count.toLocaleString()} members</p>

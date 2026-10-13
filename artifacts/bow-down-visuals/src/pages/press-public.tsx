@@ -89,7 +89,7 @@ export default function PublicPressKit() {
         {/* hero */}
         <div className="text-center mb-10">
           {kit.photo_urls[0] && (
-            <img src={kit.photo_urls[0]} alt={kit.artist_name}
+            <img src={kit.photo_urls[0]} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={kit.artist_name}
                  className="w-40 h-40 rounded-full object-cover mx-auto mb-6 border-2 border-[#d4af37]/60 shadow-[0_0_40px_rgba(212,175,55,0.25)]" />
           )}
           <p className="text-xs uppercase tracking-[0.3em] text-[#d4af37] mb-2">{t("press-public.epkLabel")}</p>
@@ -166,7 +166,7 @@ export default function PublicPressKit() {
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {kit.photo_urls.slice(1).map((u, i) => (
-                <img key={i} src={u} alt={t("press-public.photoAlt", { name: kit.artist_name, index: i + 1 })}
+                <img key={i} src={u} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={t("press-public.photoAlt", { name: kit.artist_name, index: i + 1 })}
                      className="aspect-square object-cover rounded-xl border border-white/10" />
               ))}
             </div>
