@@ -1071,6 +1071,7 @@ export default function MyProjects() {
                           controls
                           playsInline
                           preload="metadata"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
                           className="w-full max-h-56 object-contain"
                         />
                       </div>
@@ -1082,6 +1083,7 @@ export default function MyProjects() {
                         <img
                           src={row.thumbnail_url}
                           alt={typeLabel}
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
                           className="w-full max-h-56 object-contain"
                         />
                       </div>
