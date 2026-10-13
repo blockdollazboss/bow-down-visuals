@@ -19,8 +19,8 @@ import { getThemeBeat } from "@/lib/theme-analyser";
       horizontally. Still works while the beat drives the swell.
    3. BEAT SYNC (rAF) — when the theme song is playing, every detected
       kick drum hit swells all six beams together, then they ease back.
-      Subtle and calm: peaks are capped low (opacity 0.66, brightness
-      1.15×) so kicks read as a soft light dance, never a strobe. The
+      Subtle and calm: peaks are capped low (opacity 0.56, brightness
+      1.08×) so kicks read as a soft light dance, never a strobe. The
       idle shimmer is switched off while the beat drives (CSS animations
       would otherwise override it), and returns when the song stops.
       Real light-rig feel, locked to the tempo.
@@ -98,8 +98,8 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       const driving = !!beat && nowMs - lastPulseAt < 1500;
       if (driving && beat) {
         // pulse 1 → gentle swell, decaying back toward the idle level.
-        // Subtle and calm: peaks are capped low (opacity 0.66, brightness
-        // 1.15×) so kick hits read as a soft light dance, never a strobe.
+        // Subtle and calm: peaks are capped low (opacity 0.56, brightness
+        // 1.08×) so kick hits read as a soft light dance, never a strobe.
         // Slight per-beam stagger (12ms apart) reads as a wave rolling
         // across the rig while still landing on the beat.
         for (let i = 0; i < beams.length; i++) {
@@ -108,8 +108,8 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
           if (el.style.animation !== "none") el.style.animation = "none";
           const stagger = Math.max(0, beat.pulse - i * 0.06);
           const boost = Math.min(1, stagger * 1.15);
-          el.style.opacity = (0.42 + boost * 0.24).toFixed(3);
-          el.style.filter = boost > 0.03 ? `brightness(${(1 + boost * 0.15).toFixed(3)})` : "";
+          el.style.opacity = (0.4 + boost * 0.16).toFixed(3);
+          el.style.filter = boost > 0.03 ? `brightness(${(1 + boost * 0.08).toFixed(3)})` : "";
         }
       } else if (beams.length) {
         // No beat (song paused/stopped) — hand brightness back to CSS.
@@ -161,34 +161,34 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                      Fading each beam out at its left/right edges lets
                      overlaps cross-blend like real light at every width. */
                   maskImage:
-                    "linear-gradient(to right, transparent 0%, black 24%, black 76%, transparent 100%)",
+                    "linear-gradient(to right, transparent 0%, black 34%, black 66%, transparent 100%)",
                   WebkitMaskImage:
-                    "linear-gradient(to right, transparent 0%, black 24%, black 76%, transparent 100%)",
+                    "linear-gradient(to right, transparent 0%, black 34%, black 66%, transparent 100%)",
                 }}
               >
                 {/* Lamp source glow */}
                 <div
-                  className="absolute left-1/2 top-0 h-[7%] w-44 -translate-x-1/2 rounded-[50%]"
+                  className="absolute left-1/2 top-0 h-[7%] w-44 -translate-x-1/2 rounded-[50%] blur-[6px]"
                   style={{
                     background:
-                      "radial-gradient(ellipse at center, rgba(255,252,230,1) 0%, rgba(255,228,140,0.95) 45%, transparent 70%)",
+                      "radial-gradient(ellipse at center, rgba(255,252,230,0.92) 0%, rgba(255,228,140,0.78) 52%, transparent 72%)",
                   }}
                 />
                 {/* Beam cone — shorter, landing near the King's feet */}
                 <div
-                  className="absolute left-1/2 top-[1%] h-[80%] w-[360px] -translate-x-1/2"
+                  className="absolute left-1/2 top-[1%] h-[80%] w-[360px] -translate-x-1/2 blur-[7px]"
                   style={{
                     clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                     background:
-                      "linear-gradient(to bottom, rgba(255,226,130,0.78) 0%, rgba(255,210,100,0.38) 55%, transparent 94%)",
+                      "linear-gradient(to bottom, rgba(255,226,130,0.58) 0%, rgba(255,210,100,0.27) 55%, transparent 94%)",
                   }}
                 />
                 {/* Light pool where the beam lands — at the King's feet */}
                 <div
-                  className="absolute left-1/2 top-[75%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%]"
+                  className="absolute left-1/2 top-[75%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%] blur-[9px]"
                   style={{
                     background:
-                      "radial-gradient(ellipse at center, rgba(255,224,128,0.7) 0%, rgba(255,206,98,0.3) 55%, transparent 72%)",
+                      "radial-gradient(ellipse at center, rgba(255,224,128,0.48) 0%, rgba(255,206,98,0.2) 55%, transparent 72%)",
                   }}
                 />
               </div>
