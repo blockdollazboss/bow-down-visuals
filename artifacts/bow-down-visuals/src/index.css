@@ -3052,3 +3052,33 @@ html:not(.light) .from-yellow-500 { --tw-gradient-from: #C9A84C var(--tw-gradien
 html:not(.light) .to-yellow-400 { --tw-gradient-to: #DDBB62 var(--tw-gradient-to-position); }
 html:not(.light) .to-yellow-500 { --tw-gradient-to: #C9A84C var(--tw-gradient-to-position); }
 html:not(.light) .to-yellow-600 { --tw-gradient-to: #A8842F var(--tw-gradient-to-position); }
+
+/* Hero headline accent — owner-picked option B (2026-10-13).
+   Scoped to the hero's second line only: a deeper bronze-foil gradient
+   with bright gold at the center and a tight warm drop shadow, so the
+   line keeps its edges over the light robe and palace. Other
+   gold-text-shine headings keep their existing treatment. */
+.gold-text-shine.hero-line-pop {
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.42));
+}
+.light .gold-text-shine.hero-line-pop,
+.light .no-throne-bg .gold-text-shine.hero-line-pop {
+  background: linear-gradient(90deg,
+    #3b2502 0%,
+    #79500a 24%,
+    #c89218 44%,
+    #ffe680 50%,
+    #d9a62b 57%,
+    #79500a 78%,
+    #3b2502 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: gold-shine 4s linear infinite;
+  filter:
+    drop-shadow(0 4px 5px rgba(64, 39, 0, 0.46))
+    drop-shadow(0 1px 0 rgba(255, 246, 205, 0.22));
+  text-shadow: none;
+}

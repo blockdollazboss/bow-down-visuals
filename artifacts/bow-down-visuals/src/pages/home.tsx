@@ -499,7 +499,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
         {/* Headline */}
         <h1 data-dark-lock className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
           {t("home.heroHeadlineA")}{" "}
-          <span className="gold-text-shine">{t("home.heroHeadlineB")}</span>
+          <span className="gold-text-shine hero-line-pop">{t("home.heroHeadlineB")}</span>
         </h1>
 
         {/* Slogan */}
