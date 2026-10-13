@@ -159,11 +159,11 @@ export default function ChallengePage() {
   };
 
   if (loading) {
-    return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center ${isLight ? "" : "bg-black"}`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   if (!data || !challenge) {
     return (
-      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center ${isLight ? "" : "bg-black"}`}>
+      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center`}>
         <Trophy className={`h-12 w-12 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
         <h1 className={`text-xl font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>No challenge by that name.</h1>
         <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>Start it yourself — the crown's empty.</p>
@@ -178,7 +178,7 @@ export default function ChallengePage() {
   const canVote = challenge.status === "live" || challenge.status === "judging";
 
   return (
-    <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 ${isLight ? "" : "bg-black"}`}>
+    <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8`}>
       <Link href="/shorts" className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
         <ArrowLeft className="h-4 w-4" /> Back to Shorts
       </Link>
