@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   X, Play, Pause, Timer, Sparkles, Download, Copy, Check,
   AlertTriangle, Rocket, RotateCcw, Undo2, Music4, Trash2,
@@ -73,6 +74,7 @@ function fmtClock(sec: number): string {
 }
 
 export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
@@ -596,7 +598,7 @@ export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
                     <button
                       onClick={downloadLrc}
                       disabled={!validation.ok}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-40"
+                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed ${!validation.ok ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
                     >
                       <Download className="h-4 w-4" /> {t("lrcExport.download")}
                     </button>
