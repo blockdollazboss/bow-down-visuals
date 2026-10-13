@@ -185,6 +185,7 @@ function ConsistencyModal({
   vault: ArtistVaultRecord; onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [mode, setMode] = useState<DetailLevel>("video_safe");
   const prompt = generateConsistencyPrompt(vault, mode);
   const [copied, setCopied] = useState(false);
@@ -223,7 +224,7 @@ function ConsistencyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label={t("artistVault.closeDialog")} tabIndex={-1} />
-      <div className="relative w-full max-w-xl rounded-2xl border border-primary/30 bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
+      <div className={`relative w-full max-w-xl rounded-2xl border p-6 md:p-8 shadow-2xl my-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-primary/30 bg-[#0a0a0a]"}`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -1247,10 +1248,11 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
   wardrobeRefreshKey: number; onGenerateOutfit: () => void;
 }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label={t("artistVault.closeDialog")} tabIndex={-1} />
-      <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
+      <div className={`relative w-full max-w-2xl rounded-2xl border p-6 md:p-8 shadow-2xl my-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/[0.08] bg-[#0a0a0a]"}`}>
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0">
