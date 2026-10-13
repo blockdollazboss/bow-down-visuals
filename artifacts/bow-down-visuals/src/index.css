@@ -348,6 +348,14 @@ html, body {
 .light .text-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { color: #A39A89; }
 
 /* Zinc/neutral/gray text scales → warm readable grays */
+/* The 100 step was missing from this scale: the jewelry storefront sets
+   its page text in text-zinc-100 on a bg-black wrapper — in light the
+   wrapper remaps to cream but the text stayed near-white, leaving the
+   page unreadable. 100 now deepens like its siblings. */
+.light .text-zinc-100:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-neutral-100:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-gray-100:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-stone-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #242019; }
 .light .text-zinc-200:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-neutral-200:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-gray-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #3A352C; }
