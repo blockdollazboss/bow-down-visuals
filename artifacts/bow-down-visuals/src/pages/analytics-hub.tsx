@@ -1649,7 +1649,7 @@ export default function AnalyticsHub() {
               <button
                 onClick={getGrowthPlan}
                 disabled={insightsLoading || !hasData}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${!hasData && !insightsLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
               >
                 {insightsLoading ? (
                   <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
@@ -1925,7 +1925,7 @@ export default function AnalyticsHub() {
               <button
                 onClick={askAiCoach}
                 disabled={coachLoading || coachPosts.length === 0}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${coachPosts.length === 0 && !coachLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
               >
                 {coachLoading ? (
                   <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
