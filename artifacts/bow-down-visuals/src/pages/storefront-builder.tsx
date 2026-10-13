@@ -38,6 +38,9 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40";
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none";
+const goldBtnGated = (isLight: boolean) =>
+  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:pointer-events-none " +
+  (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12]" : "border border-primary/30 bg-primary/20 text-primary/70");
 const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:pointer-events-none";
 
@@ -317,7 +320,7 @@ export default function StorefrontBuilder() {
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.sellWhatLabel")}</label>
                   <input className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("storefrontBuilder.sellWhatPlaceholder")} maxLength={120} />
                 </div>
-                <button className={`${goldBtn} mt-3`} onClick={generateDescription} disabled={busy || !name.trim()}>
+                <button className={!name.trim() && !busy ? `${goldBtnGated(isLight)} mt-3` : `${goldBtn} mt-3`} onClick={generateDescription} disabled={busy || !name.trim()}>
                   <Sparkles className="h-4 w-4" /> {t("storefrontBuilder.generateAi")} <span className="text-[11px] font-semibold opacity-70">{t("storefrontBuilder.step3Cost")}</span>
                 </button>
                 <div className="mt-4">
@@ -376,7 +379,7 @@ export default function StorefrontBuilder() {
                   {!domainInfo ? (
                     <div className="mt-3 flex gap-2">
                       <input className={inputClass} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("storefrontBuilder.domainPlaceholder")} />
-                      <button className={goldBtn} onClick={attachDomain} disabled={busy || !domain.trim()}>{t("storefrontBuilder.connect")}</button>
+                      <button className={!domain.trim() && !busy ? goldBtnGated(isLight) : goldBtn} onClick={attachDomain} disabled={busy || !domain.trim()}>{t("storefrontBuilder.connect")}</button>
                     </div>
                   ) : (
                     <div className="mt-3 space-y-3 text-sm">
@@ -424,11 +427,11 @@ export default function StorefrontBuilder() {
                   <ArrowLeft className="h-4 w-4" /> {t("storefrontBuilder.back")}
                 </button>
                 {step < 3 ? (
-                  <button className={goldBtn} onClick={() => setStep(step + 1)} disabled={step === 0 && !canNext1 || !user}>
+                  <button className={(step === 0 && !canNext1) || !user ? goldBtnGated(isLight) : goldBtn} onClick={() => setStep(step + 1)} disabled={step === 0 && !canNext1 || !user}>
                     {t("storefrontBuilder.continue")} <ArrowRight className="h-4 w-4" />
                   </button>
                 ) : (
-                  <button className={goldBtn} onClick={createShop} disabled={busy || !user}>
+                  <button className={!user && !busy ? goldBtnGated(isLight) : goldBtn} onClick={createShop} disabled={busy || !user}>
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
                     {t("storefrontBuilder.createShop")}
                   </button>
