@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays, Clock3, Loader2, Sparkles, Plus, X, Upload, Video,
@@ -947,6 +948,7 @@ function CommunityPostsTab(props: {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
+  const isLight = useIsLightTheme();
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState("x");
   const [tone, setTone] = useState("hyped");
@@ -1139,7 +1141,7 @@ function CommunityPostsTab(props: {
           )}
           <div className="mt-4 grid gap-4">
             {variants.map((v, i) => (
-              <div key={i} className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div key={i} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("scheduler.communityPosts.variants", { num: i + 1 })}
@@ -1198,6 +1200,7 @@ function BestTimeOptimizer(props: {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const { project: hubProject } = useHubProject();
   const { timezone, onUseSlot, onOutOfCredits } = props;
@@ -1502,7 +1505,7 @@ function BestTimeOptimizer(props: {
               {topSlots.map((s, i) => (
                 <div
                   key={`${s.platform}-${s.date}-${s.time}`}
-                  className="rounded-2xl border border-white/10 bg-black/40 p-4 transition hover:border-primary/40"
+                  className={`rounded-2xl border p-4 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/60" : "border-white/10 bg-black/40 hover:border-primary/40"}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-white">{prettyDay(s.date)}</span>
@@ -1615,11 +1618,12 @@ function BestTimeOptimizer(props: {
    the sharer's referral code (organic reach with attribution). */
 
 function SharedScheduleView(props: { shared: SharedSchedule; ctaHref: string; ctaLabel: string }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { shared, ctaHref, ctaLabel } = props;
   const best = shared.s[0]!;
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-b from-[#1a1408] via-black to-black p-6 md:p-10">
+    <div className={`relative overflow-hidden rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] via-[#F7ECD2] to-[#EDDCAC]" : "border-primary/30 bg-gradient-to-b from-[#1a1408] via-black to-black"}`}>
       <div
         className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-yellow-600/15 blur-[100px]"
         aria-hidden="true"
