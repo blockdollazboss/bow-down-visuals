@@ -3,6 +3,7 @@ import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { r2List } from "@/lib/r2-storage";
 import {
   ARTIST_IMAGE_MODELS,
@@ -33,6 +34,7 @@ interface Props {
 interface RecentImage { name: string; url: string; path: string }
 
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -396,7 +398,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
             disabled={generating || !prompt.trim() || (isShoot && !hasReferencePhoto)}
             data-testid="btn-generate-artist-image"
             title={isShoot && !hasReferencePhoto ? "Save an Artist Photo first" : undefined}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition-all disabled:opacity-50 gold-glow"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed ${(!prompt.trim() || (isShoot && !hasReferencePhoto)) && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110 gold-glow"}`}
           >
             {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating…{progress !== null ? ` ${Math.round(progress * 100)}%` : ""}</>) : (<><Sparkles className="h-4 w-4" /> Generate · {effectiveCredits} Visual Bucs</>)}
           </button>

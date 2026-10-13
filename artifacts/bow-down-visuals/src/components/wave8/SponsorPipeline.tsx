@@ -410,7 +410,7 @@ export default function SponsorPipeline() {
           <button
             onClick={handleSave}
             disabled={saving || !fName.trim()}
-            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-3 text-sm font-black text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`mt-5 inline-flex items-center gap-2 rounded-2xl px-8 py-3 text-sm font-black transition active:scale-95 disabled:cursor-not-allowed ${!fName.trim() && !saving ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] hover:scale-[1.03]"}`}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
             {saving ? t("wave8.sponsors.saving") : t("wave8.sponsors.saveDeal")}

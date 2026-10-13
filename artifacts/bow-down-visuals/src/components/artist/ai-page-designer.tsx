@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   Sparkles, Wand2, RefreshCw, Check, Loader2, Image as ImageIcon,
   Palette, ArrowRight, ArrowLeft, Zap,
@@ -37,6 +38,7 @@ export default function AiPageDesigner({
   onApply: (patch: Partial<CreatorProfile>) => void;
   onGoTab?: (tab: "content" | "publish" | "basics") => void;
 }) {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
   const [step, setStep] = useState(0);
@@ -314,7 +316,7 @@ export default function AiPageDesigner({
             <button
               onClick={() => void generate(false)}
               disabled={generating || vibe.trim().length < 10}
-              className="flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-40"
+              className={`flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed ${vibe.trim().length < 10 && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-amber-400 text-black hover:scale-105"}`}
             >
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               Design my page — 400 Visual Bucs

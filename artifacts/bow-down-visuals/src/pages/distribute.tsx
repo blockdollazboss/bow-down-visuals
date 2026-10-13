@@ -898,7 +898,7 @@ function NewReleaseWizard(props: {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setStep(3)} className={ghostBtn} disabled={creating}><ArrowLeft className="h-4 w-4" />{t("distribute.back")}</button>
-              <button onClick={createAndSubmit} disabled={creating || !canSubmit} className={goldBtn}>
+              <button onClick={createAndSubmit} disabled={creating || !canSubmit} className={!canSubmit && !creating ? goldBtnGated(isLight) : goldBtn}>
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
                 Create & pay {tierPrice} Visual Bucs
               </button>

@@ -2009,7 +2009,7 @@ function SfxPanel() {
             type="button"
             onClick={generate}
             disabled={loading || !user}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f7dd7f] to-[#C9A84C] px-6 py-3.5 text-sm font-black uppercase tracking-widest text-black transition hover:brightness-110 active:scale-[0.99] disabled:opacity-40"
+            className={`mt-8 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-black uppercase tracking-widest transition active:scale-[0.99] disabled:cursor-not-allowed ${!user && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-r from-[#f7dd7f] to-[#C9A84C] text-black hover:brightness-110"}`}
           >
             {loading ? (
               <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("sfx.generatingLabel")}</>
