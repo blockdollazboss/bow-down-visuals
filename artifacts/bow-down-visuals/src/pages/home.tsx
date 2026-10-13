@@ -429,11 +429,15 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           stack independently against the fixed curtain overlay (z-[5]).
           The shark (z-[4]) slides BEHIND the curtain drapes when scrolling;
           the copy (z-10) stays on top. */}
-      <div className="relative mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[16%] sm:pr-[10%] lg:pr-[4%]">
+      {/* minmax(0,1fr) at base (2026-10-12): with no explicit template the
+          single mobile track sized to MAX-CONTENT — the logo's w-[480px] —
+          so the whole hero (copy included) laid out 480px wide on a 390px
+          phone and the headline/badges clipped off the right edge. */}
+      <div className="relative mx-auto w-full max-w-7xl grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-2 pr-[16%] sm:pr-[10%] lg:pr-[4%]">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page.
             z-[4]: below the fixed curtain overlay (z-[5]) so the King scrolls
             behind the drapes when the hero scrolls away; above the beams. */}
-        <div className="relative z-[4] flex justify-center">
+        <div className="relative z-[4] flex min-w-0 justify-center">
           <HeroLogo3D />
         </div>
 
@@ -445,7 +449,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             text must look like the dark hero). Locking the column (not
             each element) matters: §16's base-ink rule would white-out
             any element carrying the lock itself, gold accents included. */}
-        <div data-dark-lock className="relative z-10 text-center lg:text-left space-y-5 lg:pt-[10%]">
+        <div data-dark-lock className="relative z-10 min-w-0 text-center lg:text-left space-y-5 lg:pt-[10%]">
         {/* Readability scrim — soft dark halo behind the copy so the raised
             fog never washes out the text. Lives inside the copy's z-10
             stacking context at z-[-1]: behind the words, above the fog. */}

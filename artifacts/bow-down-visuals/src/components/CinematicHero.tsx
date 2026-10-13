@@ -181,7 +181,7 @@ export function HeroLogo3D() {
   const base = import.meta.env.BASE_URL;
 
   return (
-    <div ref={sectionRef} className="relative w-[480px] max-w-full aspect-square">
+    <div ref={sectionRef} className="relative w-full max-w-[480px] aspect-square">
       {/* Standing-shark poster: instant paint + fallback if sprites fail.
           Hidden the moment the canvas paints so it never ghosts behind
           bowed frames. */}
