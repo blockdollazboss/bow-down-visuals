@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
@@ -85,6 +86,7 @@ function moneyCents(cents: number | null): string {
 }
 
 export default function SponsorDealDetail() {
+  const isLight = useIsLightTheme();
   usePageTitle("Sponsor Deal");
   const { t } = useTranslation();
   const params = useParams<{ id: string }>();
@@ -335,7 +337,7 @@ export default function SponsorDealDetail() {
               </div>
 
               {/* escrow box */}
-              <div className="mt-6 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5">
+              <div className={`${isLight ? "mt-6 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "mt-6 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-5"}`}>
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
                   <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t("sponsorDealDetail.escrow")}
                 </p>
@@ -440,7 +442,7 @@ export default function SponsorDealDetail() {
 
             {/* ── creator: work actions ── */}
             {isCreator && (
-              <div className="mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+              <div className={`${isLight ? "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-6 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"}`}>
                 <h2 className="font-display text-xl font-black">{t("sponsorDealDetail.yourDeal")}</h2>
                 <p className="mt-2 text-sm text-white/55">
                   {deal.status === "funded" && t("sponsorDealDetail.statusFundedNote")}
