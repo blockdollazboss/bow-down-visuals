@@ -444,6 +444,19 @@ html, body {
 .light .text-violet-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #7C3AED; }
 .light .text-orange-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #EA580C; }
 .light .text-lime-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #65A30D; }
+/* The 400-step accents complete the table: outreach statuses in
+   brand-deals, risk levels in contracts and category accents run at
+   400 — bright enough for dark glass, washed on ivory. Each deepens
+   to its 600 step in light. */
+.light .text-sky-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #0284C7; }
+.light .text-cyan-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #0891B2; }
+.light .text-violet-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #7C3AED; }
+.light .text-purple-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #9333EA; }
+.light .text-indigo-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #4F46E5; }
+.light .text-rose-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #E11D48; }
+.light .text-fuchsia-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #C026D3; }
+.light .text-orange-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #EA580C; }
+.light .text-lime-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #65A30D; }
 .light .text-sky-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0369A1; }
 .light .text-cyan-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0E7490; }
 .light .text-violet-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #6D28D9; }
