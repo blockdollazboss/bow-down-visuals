@@ -368,8 +368,30 @@ html, body {
 .light .text-primary:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-amber-400:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-200:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-yellow-300:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-yellow-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+/* Opacity-stepped gold text escaped the rule above (distinct class names):
+   the homepage test-mode notice and the pricing cancelled banner set their
+   body copy in text-yellow-200/70 and /80 — pale cream on ivory, nearly
+   invisible, while the <strong> beside it deepened correctly. Cover the
+   stepped family the same way; dark untouched. */
+.light .text-yellow-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
+.light .text-yellow-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.85); }
+.light .text-amber-300\/90:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-amber-400\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.95); }
+.light .text-amber-300\/80:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-amber-400\/80:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
+.light .text-amber-300\/70:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-amber-400\/70:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.85); }
+.light .text-amber-300\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-amber-400\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-300\/60:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-400\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-amber-400\/50:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-yellow-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.72); }
 .light .text-\[\#C9A84C\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#e8c86a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
