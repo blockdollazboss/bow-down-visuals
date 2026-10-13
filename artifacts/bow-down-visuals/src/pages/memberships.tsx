@@ -63,6 +63,9 @@ interface SuggestedTier {
 
 const GOLD_BTN =
   "inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-6 py-3 text-base font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50";
+const GOLD_BTN_GATED = (isLight: boolean) =>
+  "inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-base font-black transition active:scale-95 disabled:cursor-not-allowed " +
+  (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12]" : "border border-primary/30 bg-primary/20 text-primary/70");
 const CARD =
   "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6";
 const INPUT =
@@ -412,7 +415,7 @@ export default function Memberships() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <button className={GOLD_BTN} disabled={saving || !name.trim()} onClick={saveTier}>
+                  <button className={!name.trim() && !saving ? GOLD_BTN_GATED(isLight) : GOLD_BTN} disabled={saving || !name.trim()} onClick={saveTier}>
                     {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                     {editingId ? t("memberships.saveTier") : t("memberships.createTier")}
                   </button>
@@ -484,7 +487,7 @@ export default function Memberships() {
                     ))}
                   </div>
                 </div>
-                <button className={GOLD_BTN} disabled={suggesting || !niche.trim()} onClick={suggestTiers}>
+                <button className={!niche.trim() && !suggesting ? GOLD_BTN_GATED(isLight) : GOLD_BTN} disabled={suggesting || !niche.trim()} onClick={suggestTiers}>
                   {suggesting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                   {t("memberships.suggestButton")}
                 </button>
