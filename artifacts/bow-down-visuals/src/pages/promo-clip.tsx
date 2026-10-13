@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -202,6 +203,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
   name: string; placeholder: string; options: string[]; ids?: string[]; value: string; onChange: (v: string) => void;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select
@@ -211,9 +213,9 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
         className={selectClass}
         style={{ colorScheme: "dark" }}
       >
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o, i) => (
-          <option key={o} value={ids ? ids[i] : o} style={{ background: "#111" }}>{o}</option>
+          <option key={o} value={ids ? ids[i] : o} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{o}</option>
         ))}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />

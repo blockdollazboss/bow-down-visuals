@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -83,6 +84,7 @@ export interface SongMashupProps {
 }
 
 export default function SongMashup({ preselectA, preselectB }: SongMashupProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -447,11 +449,11 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           className="h-11 w-full rounded-xl bg-white/[0.04] border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-primary/60 cursor-pointer"
           style={{ colorScheme: "dark" }}
         >
-          <option value="" style={{ background: "#111" }}>
+          <option value="" style={{ background: isLight ? "#FAF6ED" : "#111" }}>
             {loadingSongs ? "…" : t("mashup.pickFromLibrary")}
           </option>
           {others.map((s) => (
-            <option key={s.id} value={s.id} style={{ background: "#111" }}>
+            <option key={s.id} value={s.id} style={{ background: isLight ? "#FAF6ED" : "#111" }}>
               {s.title}
             </option>
           ))}
@@ -763,9 +765,9 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                   className="h-10 flex-1 rounded-xl bg-white/[0.04] border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-primary/60 cursor-pointer"
                   style={{ colorScheme: "dark" }}
                 >
-                  <option value="" style={{ background: "#111" }}>{t("mashup.albumPick")}</option>
+                  <option value="" style={{ background: isLight ? "#FAF6ED" : "#111" }}>{t("mashup.albumPick")}</option>
                   {albums.map((a) => (
-                    <option key={a.id} value={a.id} style={{ background: "#111" }}>{a.title}</option>
+                    <option key={a.id} value={a.id} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{a.title}</option>
                   ))}
                 </select>
                 <input

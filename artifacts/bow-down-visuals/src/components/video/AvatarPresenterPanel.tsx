@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { User, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
@@ -39,6 +40,7 @@ interface AvatarPresenterPanelProps {
 }
 
 export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,11 +154,11 @@ export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelPr
               className="mt-1.5 h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none cursor-pointer"
               style={{ colorScheme: "dark" }}
             >
-              <option value="" disabled style={{ background: "#111" }}>
+              <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>
                 {t("avatarPresenter.avatarPlaceholder", { defaultValue: "Choose an avatar…" })}
               </option>
               {catalog.map((a) => (
-                <option key={a.id} value={a.id} style={{ background: "#111" }}>
+                <option key={a.id} value={a.id} style={{ background: isLight ? "#FAF6ED" : "#111" }}>
                   {a.name} — {a.style}
                 </option>
               ))}

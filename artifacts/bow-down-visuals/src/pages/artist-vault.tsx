@@ -359,13 +359,14 @@ function StyledSelect({
   name: string; placeholder: string; options: string[];
   value: string; onChange: (v: string) => void;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selectClass} style={{ colorScheme: "dark" }}>
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => (
-          <option key={o} value={o} style={{ background: "#111" }}>{o}</option>
+          <option key={o} value={o} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{o}</option>
         ))}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
