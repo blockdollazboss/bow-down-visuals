@@ -2933,3 +2933,17 @@ html:not(.light) .border-zinc-700 { border-color: #3a2d16; }
    get the brand-gold caret so typing feels owned in dark theme. */
 html:not(.light) { scrollbar-color: hsl(43 80% 38%) hsl(36 24% 5%); scrollbar-width: thin; }
 html:not(.light) input, html:not(.light) textarea, html:not(.light) select { caret-color: #C9A84C; }
+
+/* Dark warmth, round 5: the white/10-20 system. In dark theme the
+   mid-strength white glass fills take the same gold tint as the /5
+   family, the white hairline borders go gold-veined (the exact effect
+   the token comments always promised), and bare text-white warms from
+   cold pure white to the theme's warm white. Alphas unchanged —
+   hierarchy untouched. Light theme untouched. */
+html:not(.light) .bg-white\/10 { background-color: rgb(201 168 76 / 0.10); }
+html:not(.light) .bg-white\/15 { background-color: rgb(201 168 76 / 0.15); }
+html:not(.light) .bg-white\/20 { background-color: rgb(201 168 76 / 0.20); }
+html:not(.light) .border-white\/10 { border-color: rgb(201 168 76 / 0.16); }
+html:not(.light) .border-white\/15 { border-color: rgb(201 168 76 / 0.22); }
+html:not(.light) .border-white\/20 { border-color: rgb(201 168 76 / 0.28); }
+html:not(.light) .text-white { color: #f7f1de; }
