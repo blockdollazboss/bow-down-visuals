@@ -178,6 +178,10 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
   }
 
   async function handleUpload(side: "A" | "B", file: File) {
+    if (file.size > 25 * 1024 * 1024) {
+      setError("That song is over 25 MB — pick a smaller file.");
+      return;
+    }
     setUploading(side);
     setError(null);
     try {

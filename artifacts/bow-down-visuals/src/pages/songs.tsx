@@ -194,6 +194,10 @@ export default function SongsPage() {
   }, [loading, songs]);
 
   async function handleUpload(file: File) {
+    if (file.size > 25 * 1024 * 1024) {
+      setError(t("songs.errorTooLarge", { defaultValue: "That song is over 25 MB — pick a smaller file." }));
+      return;
+    }
     setUploading(true);
     setError(null);
     try {

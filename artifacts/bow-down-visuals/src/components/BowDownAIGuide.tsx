@@ -262,6 +262,10 @@ function PlaylistTracks() {
 
   const handleFile = useCallback(
     async (file: File) => {
+      if (file.size > 25 * 1024 * 1024) {
+        setError("That track is over 25 MB — pick a smaller file.");
+        return;
+      }
       setUploading(true);
       setError(null);
       try {

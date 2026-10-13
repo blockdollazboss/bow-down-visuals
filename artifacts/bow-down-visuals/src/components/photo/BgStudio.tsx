@@ -161,6 +161,10 @@ export function BgStudio() {
       setError(t("bgStudio.uploadNotImage", { defaultValue: "Please choose an image file." }));
       return;
     }
+    if (f.size > 5 * 1024 * 1024) {
+      setError(t("bgStudio.uploadTooLarge", { defaultValue: "That image is over 5 MB — pick a smaller one." }));
+      return;
+    }
     setError(null);
     setUploading(true);
     try {

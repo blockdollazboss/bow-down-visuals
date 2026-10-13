@@ -597,6 +597,10 @@ export function LipSyncSection({
 
   /* ── Upload vocal stem ── */
   async function uploadVocalStem(file: File) {
+    if (file.size > 100 * 1024 * 1024) {
+      setStemUploadError("That stem is over 100 MB — pick a smaller file.");
+      return;
+    }
     setStemUploading(true);
     setStemUploadError(null);
     try {

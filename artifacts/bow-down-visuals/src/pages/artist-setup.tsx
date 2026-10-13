@@ -61,6 +61,10 @@ function ImageField({
 
   const pick = async (f: File | undefined) => {
     if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Profile images can be up to 5 MB.", variant: "destructive" });
+      return;
+    }
     setBusy(true);
     try {
       const url = await uploadImage(kind, f);

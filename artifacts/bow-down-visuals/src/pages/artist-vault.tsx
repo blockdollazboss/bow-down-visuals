@@ -432,11 +432,19 @@ function LockedVoiceSection({ vault, onChanged }: {
 
   async function handleCloneFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const valid = Array.from(files).filter((f) => f.size <= 25 * 1024 * 1024);
+    if (valid.length === 0) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "Those recordings are over 25 MB each — pick smaller files." }));
+      return;
+    }
     setBusy(true);
     setError(null);
+    if (valid.length < files.length) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "Recordings over 25 MB were skipped." }));
+    }
     try {
       const form = new FormData();
-      Array.from(files).slice(0, 3).forEach((f) => form.append("files", f));
+      valid.slice(0, 3).forEach((f) => form.append("files", f));
       const res = await fetch(`/api/artist-vaults/${vault.id}/voice/clone`, {
         method: "POST",
         headers: await authHeaders(),
@@ -454,6 +462,10 @@ function LockedVoiceSection({ vault, onChanged }: {
   }
 
   async function handleFromSong(fileOrId: File | string) {
+    if (fileOrId instanceof File && fileOrId.size > 25 * 1024 * 1024) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "That song is over 25 MB — pick a smaller file." }));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -1024,6 +1036,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
 
   const uploadOutfitImage = async (file: File, outfitLabel: string) => {
     if (!user) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("artistVault.imageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
     setUploading(true);
     setError(null);
     try {

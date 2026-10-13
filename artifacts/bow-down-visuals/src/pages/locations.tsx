@@ -75,6 +75,10 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
   }
 
   async function handleUpload(file: File) {
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("locations.errImageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
     if (!label.trim()) {
       setError(t("locations.errNameFirst"));
       return;

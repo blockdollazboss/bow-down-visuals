@@ -196,6 +196,7 @@ export default function TemplatesTabPanel({
   }
 
   async function uploadFile(file: File, folder: string): Promise<string> {
+    if (file.size > 80 * 1024 * 1024) throw new Error("That file is over 80 MB — pick a smaller one.");
     const token = await getAccessToken().catch(() => null);
     const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().slice(0, 8);
     const path = `${user?.id ?? "anon"}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

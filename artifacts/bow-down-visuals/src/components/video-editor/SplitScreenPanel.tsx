@@ -224,6 +224,7 @@ export default function SplitScreenPanel({
 
   /* ── Cell media ── */
   async function uploadFile(file: File): Promise<string> {
+    if (file.size > 80 * 1024 * 1024) throw new Error("That file is over 80 MB — pick a smaller one.");
     const token = await getAccessToken().catch(() => null);
     const ext = (file.name.split(".").pop() ?? "mp4").toLowerCase().slice(0, 8);
     const path = `${user?.id ?? "anon"}/split-screen/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
