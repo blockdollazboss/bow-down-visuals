@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { Link } from "wouter";
@@ -387,6 +388,7 @@ const connCardClass =
   "rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm";
 
 function ConnectedAccountsTab() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -653,25 +655,25 @@ function ConnectedAccountsTab() {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-black/40 p-3">
+                <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                   <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
                     <Users className="h-3 w-3" /> {t("analytics.statFollowers")}
                   </p>
                   <p className="mt-1 font-display text-2xl font-black text-primary">{connFmt(s?.followers ?? null)}</p>
                 </div>
-                <div className="rounded-xl bg-black/40 p-3">
+                <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                   <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
                     <FileVideo className="h-3 w-3" /> {t("analytics.statPosts")}
                   </p>
                   <p className="mt-1 font-display text-2xl font-black">{connFmt(s?.mediaCount ?? null)}</p>
                 </div>
-                <div className="rounded-xl bg-black/40 p-3">
+                <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                   <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
                     <Heart className="h-3 w-3" /> {t("analytics.statTotalLikes")}
                   </p>
                   <p className="mt-1 font-display text-2xl font-black">{connFmt(s?.totalLikes ?? null)}</p>
                 </div>
-                <div className="rounded-xl bg-black/40 p-3">
+                <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
                   <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/40">
                     <TrendingUp className="h-3 w-3" /> {t("analytics.statFollowing")}
                   </p>
@@ -765,14 +767,14 @@ function ConnectedAccountsTab() {
 
           {insights && (
             <div id="ai-insights" className="mt-6 space-y-4">
-              <div className="rounded-xl border border-primary/25 bg-black/50 p-5">
+              <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/50"}`}>
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">{t("analytics.headline")}</p>
                 <p className="mt-2 text-lg font-semibold leading-relaxed">{insights.headline}</p>
               </div>
               {insights.movers.length > 0 && (
                 <div className="grid gap-3 md:grid-cols-2">
                   {insights.movers.map((m, i) => (
-                    <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                       <p className="text-xs font-bold uppercase tracking-widest text-primary">{m.platform ?? t("analytics.platformFallback")}</p>
                       <p className="mt-1.5 text-sm text-white/85">{m.observation}</p>
                       {m.why && <p className="mt-1 text-[13px] text-white/50">{m.why}</p>}
@@ -781,7 +783,7 @@ function ConnectedAccountsTab() {
                 </div>
               )}
               {insights.bestWindow && (
-                <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+                <div className={`flex items-start gap-3 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.bestWindow")}</p>
@@ -790,7 +792,7 @@ function ConnectedAccountsTab() {
                 </div>
               )}
               {insights.recommendations.length > 0 && (
-                <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.next3Moves")}</p>
                   <ol className="space-y-2">
                     {insights.recommendations.map((r, i) => (
@@ -810,7 +812,7 @@ function ConnectedAccountsTab() {
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.makeTheseNext")}</p>
               <div className="grid gap-3 md:grid-cols-2">
                 {suggestions.map((s, i) => (
-                  <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                     <p className="font-display text-base font-bold">{s.title}</p>
                     <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">{s.format}</p>
                     <p className="mt-2 text-[13px] text-white/60">{s.why}</p>
@@ -829,6 +831,7 @@ function ConnectedAccountsTab() {
 }
 
 export default function AnalyticsHub() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
     t("analyticsHub.pageTitle"),
@@ -1532,13 +1535,13 @@ export default function AnalyticsHub() {
                         { label: t("analyticsHub.statTopPost"), value: fmt(data.stats.topPostViews) },
                       ] as { label: string; value: string }[]
                     ).map((s) => (
-                      <div key={s.label} className="rounded-xl border border-white/10 bg-black/50 px-3.5 py-3">
+                      <div key={s.label} className={`rounded-xl border px-3.5 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/50"}`}>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{s.label}</p>
                         <p className="mt-1 font-display text-xl font-black text-white">{s.value}</p>
                       </div>
                     ))}
                     {/* sparkline tile */}
-                    <div className="rounded-xl border border-white/10 bg-black/50 px-3.5 py-3">
+                    <div className={`rounded-xl border px-3.5 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/50"}`}>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{t("analyticsHub.trendLabel")}</p>
                       <div className="mt-1 h-[42px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1577,7 +1580,7 @@ export default function AnalyticsHub() {
                     />
                   </button>
                   {editing && draft && (
-                    <div className="mt-3 rounded-2xl border border-primary/20 bg-black/50 p-4">
+                    <div className={`mt-3 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/20 bg-black/50"}`}>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {FIELD_LABELS.map(({ key: field, labelKey, hintKey, isPercent }) => (
                           <div key={field}>
