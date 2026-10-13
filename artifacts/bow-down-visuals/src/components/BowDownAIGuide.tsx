@@ -474,14 +474,20 @@ function saveOpen(v: boolean) {
 function ThemePlayerRow() {
   const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
   const loaded      = status === "ready" || status === "playing";
-  const unavailable = status === "missing" || status === "error";
+  const missing     = status === "missing";
+  const failed      = status === "error";
+  const unavailable = missing || failed;
 
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-black text-white/60 uppercase tracking-widest flex items-center gap-1.5">
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : unavailable ? "bg-red-400/60" : "bg-yellow-400/60"}`} />
+        <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : failed ? "bg-red-400/60" : missing ? "bg-[#C9A84C]/70" : "bg-yellow-400/60"}`} />
         Theme Song
-        {unavailable && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— not found</span>}
+        {/* "missing" = no theme song chosen yet (an expected state, not a
+            failure) — it used to render a red "— not found" that read like
+            a site error to every visitor. Red is reserved for real errors. */}
+        {missing && <span className="text-[#C9A84C]/80 font-normal normal-case tracking-normal ml-1">— coming soon</span>}
+        {failed && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
       </p>
       {!unavailable && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
