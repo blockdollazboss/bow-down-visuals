@@ -480,7 +480,7 @@ export default function Shoutouts() {
                       <span className="text-white/70">{t("shoutouts.acceptingLabel")}</span>
                     </label>
                     <button onClick={saveSettings} disabled={saving || !displayName.trim()}
-                      className="w-full px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-40">
+                      className={`w-full px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${!displayName.trim() && !saving ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-yellow-500 text-black hover:bg-yellow-400"}`}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t("shoutouts.saveButton")}
                     </button>
                     <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 10 })}</p>
