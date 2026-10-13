@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -196,6 +197,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function GamersHub() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -403,7 +405,7 @@ export default function GamersHub() {
 
             {/* results */}
             <div className="mt-8 grid gap-5 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-cyan-300">
                     <Radio className="h-4 w-4" aria-hidden="true" />{t("gamers.stream_titles")}</h3>
@@ -420,7 +422,7 @@ export default function GamersHub() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-fuchsia-300">
                     <Clapperboard className="h-4 w-4" aria-hidden="true" />{t("gamers.video_ideas")}</h3>
@@ -438,7 +440,7 @@ export default function GamersHub() {
                 </ul>
               </div>
             </div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-5">
+            <div className={`mt-5 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-lime-300">
                   <Tag className="h-4 w-4" aria-hidden="true" />{t("gamers.tags")}</h3>
@@ -492,7 +494,7 @@ export default function GamersHub() {
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {SETUP_OF_THE_DAY.parts.map((p) => (
-                <div key={p.item} className="flex items-start gap-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div key={p.item} className={`flex items-start gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <span className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-2.5">
                     <p.icon className="h-5 w-5 text-cyan-300" aria-hidden="true" />
                   </span>
