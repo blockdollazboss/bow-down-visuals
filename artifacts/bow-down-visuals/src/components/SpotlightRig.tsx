@@ -44,10 +44,20 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
     // Fit the 1440px stage to narrow viewports (width only — beams stay
     // full height). Without this, each 460px beam is wider than a phone
     // screen and they read as giant blobs instead of light shafts.
+    // On phones the scaled cones also pack too tight: six 360px cones at
+    // 240px spacing overlap into near-continuous gold with darker seams —
+    // bold vertical stripes instead of light shafts. Below 640px the rig
+    // runs three beams (every other one hidden): the spacing doubles and
+    // the shafts read as spotlights again.
     const fit = () => {
       if (!stage) return;
       const s = Math.min(1, window.innerWidth / 1440);
       stage.style.transform = `scaleX(${s.toFixed(3)})`;
+      const narrow = window.innerWidth < 640;
+      beamsRef.current.forEach((beam, i) => {
+        const wrap = beam?.parentElement;
+        if (wrap) wrap.style.display = narrow && i % 2 === 1 ? "none" : "";
+      });
     };
     fit();
     window.addEventListener("resize", fit);
