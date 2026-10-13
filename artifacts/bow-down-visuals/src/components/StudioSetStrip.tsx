@@ -1,34 +1,39 @@
-/* StudioSetStrip — a film-set silhouette (cinema camera on tripod, two
-   softbox light stands, a boom mic, a director's chair) standing on a soft
-   stage-floor gradient. It straddles the seam between the hero and the
-   social-proof band: the hero's backdrop/fog edges and the band's top edge
-   used to print two ruler-straight lines across the smoke (owner
-   screenshots, 2026-10-12). The owner asked for the seam to be covered by
-   "a camera set up / light set up" — so the set stands on the seam and
-   the floor gradient melts both edges away underneath it.
-   LAYERING (owner directive 2026-10-13, supersedes the 2026-10-12
-   behind-the-text order): the set rides at z-[20] — in front of the
-   ground fog/smoke (z-2) and in front of the hero's lower rows in the
-   seam overlap, like foreground film equipment. The smoke layer sits
-   below the set and below the text. The headline copy (z-10) does not
-   geometrically overlap the set; where the set's pull-up crosses the
-   hero's bottom rows, the set paints over them by the owner's explicit
-   order.
+/* StudioSetStrip — a film-set silhouette standing on a soft stage-floor
+   gradient across the seam between the hero and the social-proof band.
+   The hero's backdrop/fog edges and the band's top edge used to print two
+   ruler-straight lines across the smoke (owner screenshots, 2026-10-12);
+   the owner asked for the seam to be covered by "a camera set up / light
+   set up" — so the set stands on the seam and the floor gradient melts
+   both edges away underneath it.
+   LAYERING (owner directive 2026-10-13): the set rides at z-[20] — in
+   front of the ground fog/smoke (z-2) and in front of the hero's lower
+   rows in the seam overlap, like foreground film equipment. The smoke
+   layer sits below the set and below the text. The headline copy (z-10)
+   does not geometrically overlap the set; where the set's pull-up
+   crosses the hero's bottom rows, the set paints over them by the
+   owner's explicit order.
    SIZE (owner directive 2026-10-13, later the same day): "make the
-   studio set taller — like triple its size." The strip goes from
-   210/240px to 630/720px and the scene is re-authored on a 1440x720
-   canvas: each equipment group is scaled up around the shared floor
-   line (lights x2.8, camera x2.2, chair x1.9 — furniture stays
-   furniture-sized, stands and the camera become the tall presence he
-   asked for). Every foot still lands exactly on the floor (y=720) and
-   the whole set still fits the frame at every width.
-   FIT (owner directive 2026-10-12): preserveAspectRatio is "meet", NEVER
-   "slice" — slice scaled the viewBox to cover and cropped it: the
-   softbox tops on wide screens, BOTH lights clean off the edges on
-   phones ("chopped off", owner's words). Meet keeps the whole set in
-   frame at every width, anchored to the floor (YMax). (The left light's
-   soft glow halo may bleed a few units past the left edge — a halo is
-   light, not equipment; every silhouette stays in frame.)
+   studio set taller — like triple its size." Strip 210/240px ->
+   630/720px, scene re-authored on a 1440x720 canvas; each equipment
+   group scales up around the shared floor line (lights x2.8, camera
+   x2.2, chair x1.9). Every foot lands exactly on the floor (y=720) and
+   the whole set fits the frame at every width.
+   REDESIGN (owner directive 2026-10-13, evening): at the tripled size
+   the original strip-drawn camera read as "a blob with a cone" (owner:
+   "I don't know what this supposed to be — we gonna have to redesign
+   that"). The artwork is now drawn to be READ at full size: a cinema
+   camera with a sloped film magazine, top handle, eyepiece, a real
+   lens cylinder with rings and a flagged matte box, on a two-stage
+   tripod with a mid-spreader and pan handle; softboxes drawn as
+   tilted lit panels on stands; and the boom mic the set always claimed
+   to have, reaching in over the right light. Silhouette language
+   unchanged (one color + a lit panel tone + the tally light).
+   FIT (owner directive 2026-10-12): preserveAspectRatio is "meet",
+   NEVER "slice" — slice cropped the softbox tops on wide screens and
+   BOTH lights clean off the edges on phones ("chopped off"). Meet
+   keeps the whole set in frame at every width, anchored to the floor
+   (YMax). (The glows may bleed a few units past the side edges — a
+   halo is light, not equipment; every silhouette stays in frame.)
    Pure decoration: pointer-events-none, aria-hidden. */
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
@@ -64,41 +69,67 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         {/* floor shadow */}
         <ellipse cx="720" cy="712" rx="690" ry="9" fill={isLight ? "rgba(90,66,16,0.30)" : "rgba(0,0,0,0.55)"} />
 
-        {/* key light glow + softbox (left) — scaled x2.8 about the floor */}
+        {/* boom mic — reaches in over the right side of the set (drawn in
+            scene coordinates, over the right light's airspace only, so
+            it never crosses the headline) */}
+        <g>
+          <polygon points="1432,26 1440,44 1096,196 1088,182" fill="currentColor" />
+          <rect x="1420" y="8" width="18" height="30" rx="6" transform="rotate(24 1429 23)" fill="currentColor" />
+          <polygon points="1092,182 1084,214 1098,216 1102,190" fill="currentColor" />
+          <rect x="1078" y="212" width="12" height="30" rx="6" transform="rotate(8 1084 227)" fill="currentColor" />
+          <circle cx="1084" cy="246" r="5" fill="currentColor" />
+        </g>
+
+        {/* key light (left) — tilted softbox panel on a stand, x2.8 */}
         <g transform="translate(-442.8, 70.4) scale(2.8)">
           <ellipse cx="238" cy="66" rx="86" ry="52" fill={glow} />
-          <g>
-            <rect x="243" y="86" width="7" height="128" fill="currentColor" />
-            <polygon points="246,214 214,232 232,232 248,220" fill="currentColor" />
-            <polygon points="247,214 252,220 268,232 284,232 252,214" fill="currentColor" />
-            <g transform="rotate(24 246 66)">
-              <polygon points="212,38 280,38 292,84 200,84" fill="currentColor" />
-              <polygon points="220,44 272,44 280,78 212,78" fill={panel} />
-            </g>
-            <rect x="240" y="80" width="14" height="10" rx="2" fill="currentColor" />
+          {/* stand: pole + three splayed feet */}
+          <rect x="243" y="92" width="7" height="122" fill="currentColor" />
+          <polygon points="246,200 208,232 224,232 247,214" fill="currentColor" />
+          <polygon points="247,200 243,232 257,232 250,214" fill="currentColor" />
+          <polygon points="247,200 288,232 272,232 248,214" fill="currentColor" />
+          {/* yoke */}
+          <rect x="238" y="82" width="18" height="12" rx="3" fill="currentColor" />
+          {/* softbox: outer shell + lit inner panel, tilted toward set */}
+          <g transform="rotate(18 246 58)">
+            <polygon points="198,26 294,26 306,92 186,92" fill="currentColor" />
+            <polygon points="208,34 284,34 293,84 199,84" fill={panel} />
+            <polygon points="198,26 294,26 297,36 195,36" fill="currentColor" />
           </g>
         </g>
 
         {/* cinema camera on tripod (center-left, facing right) — x2.2 */}
         <g transform="translate(-692.4, 214) scale(2.2)">
-          <polygon points="560,148 516,230 534,230 562,168" fill="currentColor" />
-          <polygon points="566,148 574,230 592,230 574,166" fill="currentColor" />
-          <polygon points="572,148 622,230 640,230 580,164" fill="currentColor" />
-          <circle cx="566" cy="146" r="9" fill="currentColor" />
-          <rect x="540" y="128" width="10" height="22" fill="currentColor" />
+          {/* tripod: two-stage legs, mid-spreader, pan handle */}
+          <polygon points="556,150 512,232 526,232 566,168" fill="currentColor" />
+          <polygon points="576,150 586,232 600,232 584,168" fill="currentColor" />
+          <polygon points="588,150 648,232 634,232 578,168" fill="currentColor" />
+          <polygon points="540,196 612,196 614,202 538,202" fill="currentColor" />
+          <polygon points="556,142 498,112 494,120 552,152" fill="currentColor" />
+          <rect x="478" y="106" width="24" height="9" rx="4" transform="rotate(28 490 110)" fill="currentColor" />
+          <circle cx="572" cy="146" r="11" fill="currentColor" />
+          <rect x="548" y="128" width="12" height="22" fill="currentColor" />
           {/* body */}
-          <rect x="498" y="82" width="118" height="54" rx="9" fill="currentColor" />
-          {/* film magazine */}
-          <rect x="522" y="64" width="58" height="20" rx="8" fill="currentColor" />
+          <rect x="506" y="80" width="132" height="58" rx="10" fill="currentColor" />
+          <polygon points="506,80 638,80 638,94 506,100" fill="currentColor" opacity="0.55" />
+          {/* film magazine — sloped hump on top */}
+          <path d="M 524,80 L 532,54 Q 534,45 545,45 L 588,45 Q 599,45 601,55 L 606,80 Z" fill="currentColor" />
           {/* top handle */}
-          <rect x="536" y="56" width="34" height="7" rx="3" fill="currentColor" />
-          {/* viewfinder */}
-          <rect x="482" y="94" width="18" height="14" rx="3" fill="currentColor" />
-          {/* lens + matte box */}
-          <polygon points="616,94 656,88 656,130 616,124" fill="currentColor" />
-          <rect x="656" y="82" width="16" height="54" rx="3" fill="currentColor" />
+          <rect x="540" y="34" width="40" height="8" rx="4" fill="currentColor" />
+          <rect x="546" y="42" width="7" height="6" fill="currentColor" />
+          <rect x="568" y="42" width="7" height="6" fill="currentColor" />
+          {/* eyepiece extending back */}
+          <rect x="480" y="96" width="28" height="13" rx="4" fill="currentColor" />
+          <circle cx="476" cy="102" r="8" fill="currentColor" />
+          {/* lens cylinder + focus rings */}
+          <rect x="638" y="90" width="30" height="38" rx="4" fill="currentColor" />
+          <rect x="646" y="90" width="4" height="38" fill={panel} />
+          <rect x="656" y="90" width="4" height="38" fill={panel} />
+          {/* matte box + top flag */}
+          <polygon points="668,84 702,76 702,140 668,134" fill="currentColor" />
+          <polygon points="666,84 704,74 708,82 670,92" fill="currentColor" />
           {/* tally light */}
-          <circle cx="606" cy="92" r="4" fill="#E8B33C" />
+          <circle cx="630" cy="90" r="4" fill="#E8B33C" />
         </g>
 
         {/* director's chair (center-right) — x1.9, stays furniture-sized */}
@@ -111,18 +142,21 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <rect x="920" y="98" width="78" height="14" rx="4" fill="currentColor" />
         </g>
 
-        {/* fill light + boom mic (right) — scaled x2.8 about the floor */}
+        {/* fill light (right) — tilted softbox panel on a stand, x2.8 */}
         <g transform="translate(-2124, 70.4) scale(2.8)">
           <ellipse cx="1180" cy="80" rx="76" ry="46" fill={glow} />
-          <g>
-            <rect x="1176" y="98" width="7" height="116" fill="currentColor" />
-            <polygon points="1179,214 1148,232 1166,232 1181,220" fill="currentColor" />
-            <polygon points="1180,214 1186,220 1202,232 1218,232 1185,214" fill="currentColor" />
-            <g transform="rotate(-22 1180 78)">
-              <polygon points="1148,52 1212,52 1222,94 1138,94" fill="currentColor" />
-              <polygon points="1155,58 1205,58 1213,88 1147,88" fill={panel} />
-            </g>
-            <rect x="1173" y="92" width="14" height="10" rx="2" fill="currentColor" />
+          {/* stand: pole + three splayed feet */}
+          <rect x="1176" y="104" width="7" height="110" fill="currentColor" />
+          <polygon points="1179,200 1142,232 1158,232 1180,214" fill="currentColor" />
+          <polygon points="1180,200 1176,232 1190,232 1183,214" fill="currentColor" />
+          <polygon points="1180,200 1220,232 1204,232 1181,214" fill="currentColor" />
+          {/* yoke */}
+          <rect x="1171" y="94" width="18" height="12" rx="3" fill="currentColor" />
+          {/* softbox: outer shell + lit inner panel, tilted toward set */}
+          <g transform="rotate(-18 1180 70)">
+            <polygon points="1132,38 1228,38 1240,104 1120,104" fill="currentColor" />
+            <polygon points="1142,46 1218,46 1227,96 1133,96" fill={panel} />
+            <polygon points="1132,38 1228,38 1231,48 1129,48" fill="currentColor" />
           </g>
         </g>
       </svg>
