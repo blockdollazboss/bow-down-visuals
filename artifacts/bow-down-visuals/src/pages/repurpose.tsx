@@ -556,7 +556,7 @@ function StreamVodClips() {
                   key={h.id}
                   onClick={() => toggleHighlight(h.id)}
                   className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition ${
-                    on ? "border-primary/60 bg-primary/[0.07]" : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 opacity-70 hover:opacity-100" : "border-white/10 bg-black/40 opacity-70 hover:opacity-100"
+                    on ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 opacity-70 hover:opacity-100" : "border-white/10 bg-black/40 opacity-70 hover:opacity-100"
                   }`}
                 >
                   <span
