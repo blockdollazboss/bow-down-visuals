@@ -142,7 +142,19 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
               <div
                 ref={(el) => { beamsRef.current[i] = el; }}
                 className="spotlight-beam absolute inset-0"
-                style={{ animationDelay: `${BEAM_DELAYS[i]}s` }}
+                style={{
+                  animationDelay: `${BEAM_DELAYS[i]}s`,
+                  /* Edge fade: the cone's clip-path sides are HARD edges, and
+                     on narrow viewports the 1440px stage scales down until
+                     the six 360px cones overlap — the stacked hard edges
+                     read as bold vertical stripes across the phone hero.
+                     Fading each beam out at its left/right edges lets
+                     overlaps cross-blend like real light at every width. */
+                  maskImage:
+                    "linear-gradient(to right, transparent 0%, black 24%, black 76%, transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, transparent 0%, black 24%, black 76%, transparent 100%)",
+                }}
               >
                 {/* Lamp source glow */}
                 <div
