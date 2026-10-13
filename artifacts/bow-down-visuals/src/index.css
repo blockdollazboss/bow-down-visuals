@@ -405,6 +405,17 @@ html, body {
    copy in emerald-200 / sky-200 / violet-200 on faint same-hue tints —
    on ivory those tints vanish and the pale text goes with them. Each
    200 now deepens to its family's readable 700 step in light. */
+.light .text-red-200:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-red-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #B91C1C; }
+.light .text-red-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.92); }
+.light .text-red-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.88); }
+.light .text-red-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.82); }
+.light .text-red-200\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.72); }
+.light .text-rose-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #E11D48; }
+.light .text-fuchsia-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #C026D3; }
+.light .text-purple-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #9333EA; }
+.light .text-indigo-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #4F46E5; }
+.light .text-teal-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0D9488; }
 .light .text-emerald-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #047857; }
 .light .text-sky-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0369A1; }
 .light .text-cyan-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #0E7490; }
