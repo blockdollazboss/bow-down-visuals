@@ -261,7 +261,7 @@ function ConsistencyModal({
               onClick={() => setMode("high_detail")}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                 mode === "high_detail"
-                  ? "border-white/30 bg-white/[0.07] text-white"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                   : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
               }`}
             >
@@ -2367,7 +2367,7 @@ export default function ArtistVault() {
                   onClick={() => setDetailLevel("high_detail")}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
                     detailLevel === "high_detail"
-                      ? "border-white/30 bg-white/[0.07] text-white"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
                   }`}
                 >
