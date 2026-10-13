@@ -1432,6 +1432,34 @@ html, body {
   background-image: none !important;
 }
 
+/* Modal scrims stay scrims (owner: QR sign-in white-out, 2026-10-13).
+   The light remaps repaint every bg-black/* utility to a cream tint —
+   right for panels, wrong for a backdrop. A full-cover layer at 60%+
+   black exists to DIM the page behind a modal; in light theme it
+   white-fogged the page instead (60 hand-rolled overlays surveyed:
+   credit confirm, checkout, share, editor, promos). Full-cover scrims
+   (fixed overlays and their absolute split-backdrop children) now keep
+   a warm-dark dim in light theme too. Low-opacity decorative tints
+   are untouched; dark theme never remapped these in the first place. */
+.light .fixed.inset-0.bg-black\/60,
+.light .absolute.inset-0.bg-black\/60 { background-color: rgb(16 12 4 / 0.60) !important; }
+.light .fixed.inset-0.bg-black\/65,
+.light .absolute.inset-0.bg-black\/65 { background-color: rgb(16 12 4 / 0.65) !important; }
+.light .fixed.inset-0.bg-black\/70,
+.light .absolute.inset-0.bg-black\/70 { background-color: rgb(16 12 4 / 0.70) !important; }
+.light .fixed.inset-0.bg-black\/75,
+.light .absolute.inset-0.bg-black\/75 { background-color: rgb(16 12 4 / 0.75) !important; }
+.light .fixed.inset-0.bg-black\/80,
+.light .absolute.inset-0.bg-black\/80 { background-color: rgb(16 12 4 / 0.80) !important; }
+.light .fixed.inset-0.bg-black\/85,
+.light .absolute.inset-0.bg-black\/85 { background-color: rgb(16 12 4 / 0.85) !important; }
+.light .fixed.inset-0.bg-black\/90,
+.light .absolute.inset-0.bg-black\/90 { background-color: rgb(16 12 4 / 0.90) !important; }
+.light .fixed.inset-0.bg-black\/92,
+.light .absolute.inset-0.bg-black\/92 { background-color: rgb(16 12 4 / 0.92) !important; }
+.light .fixed.inset-0.bg-black\/95,
+.light .absolute.inset-0.bg-black\/95 { background-color: rgb(16 12 4 / 0.95) !important; }
+
 
 /* ─── Ambient royal glow — very subtle, just enough to feel warm ─── */
 body::before {
