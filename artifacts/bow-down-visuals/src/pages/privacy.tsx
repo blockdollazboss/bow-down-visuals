@@ -1,15 +1,17 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 function PolicyNav() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
+    <header className={`${isLight ? "sticky top-0 z-40 border-b border-[#C9A84C]/20 bg-[#FCF7EA]/90 backdrop-blur-xl" : "sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl"}`}>
       <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between">
         <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg">
           <img src={`${import.meta.env.BASE_URL}logo-static.webp`} alt="Bow Down Visuals" className="h-10 w-auto" />

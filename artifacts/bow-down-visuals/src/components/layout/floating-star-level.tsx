@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Star } from "lucide-react";
 import { useUserMode, type StarLevel } from "@/contexts/UserModeContext";
@@ -11,6 +12,7 @@ import { DraggableWidget } from "@/components/draggable-widget";
  * Tap to expand and switch the creator level (1–6).
  */
 export function FloatingStarLevel() {
+  const isLight = useIsLightTheme();
   const { stars, maxStars, setStars } = useUserMode();
   const { profile } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -26,7 +28,7 @@ export function FloatingStarLevel() {
       zIndex={9999}
     >
       <div
-        className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-black/90 px-2.5 py-2 shadow-[0_0_20px_rgba(218,165,32,0.4)] backdrop-blur"
+        className={`flex flex-col items-center gap-1 rounded-2xl border border-primary/40 px-2.5 py-2 shadow-[0_0_20px_rgba(218,165,32,0.4)] backdrop-blur ${isLight ? "bg-[#FBF6E9]/95" : "bg-black/90"}`}
         data-testid="floating-star-level"
         title="Creator level — drag to move, tap to change level"
         onClick={() => setExpanded((v) => !v)}
