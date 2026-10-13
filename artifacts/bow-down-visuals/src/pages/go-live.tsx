@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -48,6 +49,7 @@ import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 type LiveTab = "golive" | "shows" | "discord" | "shopping" | "gamers" | "copilot";
 
 function GoLiveMain() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("goLive.pageTitle"), t("goLive.pageDescription"));
   const { getAccessToken } = useAuth();
@@ -371,7 +373,7 @@ function GoLiveMain() {
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/40 px-4 py-8 text-center">
+            <div className={`rounded-xl border border-dashed px-4 py-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-white/15 bg-black/40"}`}>
               <CalendarPlus className="h-8 w-8 text-[#fbbf24]/50 mx-auto mb-2" />
               <p className="text-sm font-bold text-white/70">{t("goLive.noUpcomingTitle", { defaultValue: "No streams scheduled yet" })}</p>
               <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("goLive.noUpcomingDesc", { defaultValue: "Set a date above and your next stream will show up here." })}</p>
@@ -390,7 +392,7 @@ function GoLiveMain() {
               <h2 className="text-lg font-black mt-1">{t("goLive.recentStreams")}</h2>
             </div>
             {recent.map((s) => (
-              <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/40 px-4 py-3 transition hover:border-white/15">
+              <div key={s.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/5 bg-black/40 hover:border-white/15"}`}>
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{s.title}</p>
                   <p className="text-xs text-white/40 mt-0.5">

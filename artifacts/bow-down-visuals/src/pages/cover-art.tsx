@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
@@ -29,6 +30,7 @@ interface GenerateResponse extends CoverArtResult {
 }
 
 export default function CoverArt() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addAsset, project } = useHubProject();
@@ -387,7 +389,7 @@ export default function CoverArt() {
                   </button>
                 </div>
                 {result.typography && (
-                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/40 p-3">
+                  <div className={`mt-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.08] bg-black/40"}`}>
                     <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary/90 mb-1">
                       <Type className="h-3 w-3" />{t("cover-art.typography_direction")}</p>
                     <p className="text-xs text-white/55 leading-relaxed">{result.typography}</p>
