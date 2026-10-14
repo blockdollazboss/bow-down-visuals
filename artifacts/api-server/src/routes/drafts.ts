@@ -8,6 +8,18 @@ import { isExternalHttpUrl, isPermanentMediaValue, mirrorExternalMediaUrl } from
 
 const router = Router();
 
+/* Only plain objects may be walked (mirrors lib/objectStorage.ts): a
+   non-plain object (Date, Buffer, class instance) is a leaf and passes
+   through untouched — Object.entries on a Date yields nothing, so
+   walking one would rebuild it as {} and destroy the value. Today's
+   payloads are JSON-parsed req.body values (all plain), but the guard
+   keeps server-built values safe if a caller ever changes. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 /* Mirror-on-save, write-time half (2026-10-13 law): draft_data is an
    untyped client-assembled blob, so arbitrary links inside it can't be
    told apart from media — but any value pointing at OUR OWN storage is
@@ -15,16 +27,16 @@ const router = Router();
    is documented "use at WRITE time"), so a stored signed URL can never
    expire. External provider URLs are handled by the typed-key convention
    below (mirrorDraftMediaDeep). */
-function normalizeDraftRefsDeep<T>(value: T): T {
+export function normalizeDraftRefsDeep<T>(value: T): T {
   if (typeof value === "string") {
     return (normalizeToStorageRef(value) ?? value) as T;
   }
   if (Array.isArray(value)) {
     return value.map((v) => normalizeDraftRefsDeep(v)) as T;
   }
-  if (value && typeof value === "object") {
+  if (isPlainObject(value)) {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, normalizeDraftRefsDeep(v)]),
+      Object.entries(value).map(([k, v]) => [k, normalizeDraftRefsDeep(v)]),
     ) as T;
   }
   return value;
@@ -66,14 +78,14 @@ const DRAFT_MEDIA_KEYS: Record<string, "image" | "video" | "audio"> = {
   locationImageUrl: "image",
 };
 
-async function mirrorDraftMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
+export async function mirrorDraftMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
   if (Array.isArray(value)) {
     return (await Promise.all(
       value.map((v) => mirrorDraftMediaDeep(v, ownerKey)),
     )) as T;
   }
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>;
+  if (isPlainObject(value)) {
+    const obj = value;
     const hasStoragePathSibling = typeof obj["storagePath"] === "string";
     const entries = await Promise.all(
       Object.entries(obj).map(async ([key, v]) => {

@@ -125,7 +125,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb };
 });
 
-import router from "../creator-platform";
+import router, { mirrorProfileMediaDeep } from "../creator-platform";
 
 const realFetch = globalThis.fetch;
 let server: any;
@@ -235,5 +235,21 @@ describe("GET /api/creator-profiles/:slug — public profile contract", () => {
     const { status } = await get("/creator-profiles/no-such-creator");
 
     expect(status).toBe(404);
+  });
+});
+
+describe("mirrorProfileMediaDeep — plain-object guard", () => {
+  /* The walker receives JSON-parsed bodies today (Dates cannot exist in
+     them), but the guard is insurance: if a caller ever feeds it a
+     server-built value, a Date must survive as a Date — Object.entries
+     on a Date yields nothing, so an unguarded walk would rebuild it
+     as {} and silently destroy it. */
+  it("passes a nested Date through untouched", async () => {
+    const when = new Date("2026-10-14T12:00:00.000Z");
+    const out = await mirrorProfileMediaDeep({ kit: { releasedAt: when }, stamps: [when] }, "user-1");
+
+    expect(out.kit.releasedAt).toBe(when);
+    expect(out.kit.releasedAt).toBeInstanceOf(Date);
+    expect(out.stamps[0]).toBe(when);
   });
 });

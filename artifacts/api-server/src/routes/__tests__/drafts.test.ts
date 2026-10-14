@@ -197,7 +197,7 @@ vi.mock("../../lib/mirrorMedia", () => ({
   ),
 }));
 
-import router from "../drafts";
+import router, { normalizeDraftRefsDeep, mirrorDraftMediaDeep } from "../drafts";
 
 const USER_A = randomUUID();
 
@@ -413,5 +413,32 @@ describe("POST /drafts — typed-key media mirroring", () => {
     expect(read.audioUrl).toBe(`https://cdn.example.com/${stored.audioUrl}`);
     expect(read.scenes[0].demoClipUrl).toBe(`https://cdn.example.com/${stored.scenes[0].demoClipUrl}`);
     expect(read.formValues.specialInstructions).toBe("vibe like https://open.spotify.com/track/123");
+  });
+});
+
+describe("write-time walkers — plain-object guard", () => {
+  /* The walkers receive JSON-parsed bodies today (Dates cannot exist in
+     them), but the guard is insurance: if a caller ever feeds them a
+     server-built value, a Date must survive as a Date — Object.entries
+     on a Date yields nothing, so an unguarded walk would rebuild it
+     as {} and silently destroy it. */
+  it("normalizeDraftRefsDeep passes a nested Date through untouched", () => {
+    const when = new Date("2026-10-14T12:00:00.000Z");
+    const out = normalizeDraftRefsDeep({ meta: { at: when }, stamps: [when] });
+
+    expect(out.meta.at).toBe(when);
+    expect(out.meta.at).toBeInstanceOf(Date);
+    expect(out.stamps[0]).toBe(when);
+  });
+
+  it("mirrorDraftMediaDeep passes a nested Date through untouched, with no mirror call", async () => {
+    const when = new Date("2026-10-14T12:00:00.000Z");
+    const callsBefore = testState.mirrorCalls.length;
+    const out = await mirrorDraftMediaDeep({ meta: { at: when }, stamps: [when] }, "user-1");
+
+    expect(out.meta.at).toBe(when);
+    expect(out.meta.at).toBeInstanceOf(Date);
+    expect(out.stamps[0]).toBe(when);
+    expect(testState.mirrorCalls.length).toBe(callsBefore);
   });
 });

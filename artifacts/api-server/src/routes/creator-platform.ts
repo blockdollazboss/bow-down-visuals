@@ -46,7 +46,19 @@ function mediaKindForUrl(url: string): "image" | "video" | "audio" | null {
   return null;
 }
 
-async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
+/* Only plain objects may be walked (mirrors lib/objectStorage.ts): a
+   non-plain object (Date, Buffer, class instance) is a leaf and passes
+   through untouched — Object.entries on a Date yields nothing, so
+   walking one would rebuild it as {} and destroy the value. Today's
+   payloads are JSON-parsed req.body values (all plain), but the guard
+   keeps server-built values safe if a caller ever changes. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+export async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
   if (typeof value === "string") {
     if (isExternalHttpUrl(value) && !isPermanentMediaValue(value)) {
       const kind = mediaKindForUrl(value);
@@ -57,9 +69,9 @@ async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Promise<T>
   if (Array.isArray(value)) {
     return (await Promise.all(value.map((v) => mirrorProfileMediaDeep(v, ownerKey)))) as T;
   }
-  if (value && typeof value === "object") {
+  if (isPlainObject(value)) {
     const entries = await Promise.all(
-      Object.entries(value as Record<string, unknown>).map(
+      Object.entries(value).map(
         async ([k, v]) => [k, await mirrorProfileMediaDeep(v, ownerKey)] as const,
       ),
     );
