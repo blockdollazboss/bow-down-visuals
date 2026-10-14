@@ -29,6 +29,7 @@ const h = vi.hoisted(() => ({
   state: {
     profile: null as Record<string, unknown> | null,
     posts: [] as Array<Record<string, unknown>>,
+    stories: [] as Array<Record<string, unknown>>,
   },
 }));
 
@@ -138,7 +139,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   function rowsFor(table: unknown): unknown[] {
     if (table === creatorProfilesTable) return state.profile ? [state.profile] : [];
     if (table === postsTable) return state.posts;
-    if (table === storiesTable) return [];
+    if (table === storiesTable) return state.stories;
     return [];
   }
 
@@ -214,9 +215,27 @@ function postRow(): Record<string, unknown> {
   };
 }
 
+const STORY_ID = "33333333-3333-4333-8333-333333333333";
+const STORY_CREATED = new Date("2026-10-14T10:00:00.000Z");
+const STORY_EXPIRES = new Date("2026-10-15T10:00:00.000Z");
+
+function storyRow(): Record<string, unknown> {
+  return {
+    id: STORY_ID,
+    profileId: PROFILE_ID,
+    mediaUrl: "https://cdn.example.com/story.mp4",
+    mediaKind: "video",
+    caption: "Backstage 🦈",
+    viewCount: 42,
+    expiresAt: STORY_EXPIRES,
+    createdAt: STORY_CREATED,
+  };
+}
+
 beforeEach(() => {
   h.state.profile = profileRow();
   h.state.posts = [postRow()];
+  h.state.stories = [storyRow()];
 });
 
 async function get(path: string) {
@@ -275,5 +294,51 @@ describe("GET /api/posts/:id — post DTO contract", () => {
 
     expect(status).toBe(200);
     expectPostDto(json.post);
+  });
+});
+
+function expectStoryDto(story: any, withAuthor: boolean) {
+  expect(story.id).toBe(STORY_ID);
+  expect(story.profile_id).toBe(PROFILE_ID);
+  // The regression pins: StoryViewer reads expires_at / media_kind /
+  // media_url — all must exist under snake_case.
+  expect(story.media_url).toBe("https://cdn.example.com/story.mp4");
+  expect(story.media_kind).toBe("video");
+  expect(story.caption).toBe("Backstage 🦈");
+  expect(story.view_count).toBe(42);
+  expect(story.expires_at).toBe("2026-10-15T10:00:00.000Z");
+  expect(story.created_at).toBe("2026-10-14T10:00:00.000Z");
+  if (withAuthor) {
+    expect(story.author?.slug).toBe("some-creator");
+    expect(story.author?.display_name).toBe("Some Creator");
+  } else {
+    expect(story.author).toBeNull();
+  }
+  // The camelCase table keys must NOT leak through the DTO.
+  expect(story).not.toHaveProperty("profileId");
+  expect(story).not.toHaveProperty("mediaUrl");
+  expect(story).not.toHaveProperty("mediaKind");
+  expect(story).not.toHaveProperty("viewCount");
+  expect(story).not.toHaveProperty("expiresAt");
+  expect(story).not.toHaveProperty("createdAt");
+}
+
+describe("GET /api/stories/feed — story DTO contract", () => {
+  it("ships snake_case story fields (media_url, media_kind, expires_at)", async () => {
+    const { status, json } = await get("/stories/feed");
+
+    expect(status).toBe(200);
+    expect(json.stories).toHaveLength(1);
+    expectStoryDto(json.stories[0], true);
+  });
+});
+
+describe("GET /api/stories/by-profile/:profileId — story DTO contract", () => {
+  it("ships the same snake_case story DTO (profile page consumes Story[])", async () => {
+    const { status, json } = await get(`/stories/by-profile/${PROFILE_ID}`);
+
+    expect(status).toBe(200);
+    expect(json.stories).toHaveLength(1);
+    expectStoryDto(json.stories[0], false);
   });
 });

@@ -1199,6 +1199,28 @@ function pickProfile(p: typeof creatorProfilesTable.$inferSelect | undefined) {
   };
 }
 
+/* Story DTO, field-by-field: the frontend Story contract
+   (lib/social-api.ts) is snake_case — StoryViewer reads expires_at /
+   media_kind / media_url. A raw row spread shipped camelCase table
+   keys and the viewer silently broke. author is the pickProfile shape
+   (null where the endpoint never joined the author). */
+function toStoryDto(
+  s: typeof storiesTable.$inferSelect,
+  author: ReturnType<typeof pickProfile>,
+) {
+  return {
+    id: s.id,
+    profile_id: s.profileId,
+    media_url: s.mediaUrl,
+    media_kind: s.mediaKind,
+    caption: s.caption,
+    view_count: s.viewCount,
+    expires_at: s.expiresAt,
+    created_at: s.createdAt,
+    author,
+  };
+}
+
 function extractHashtags(body: string): string[] {
   const out = new Set<string>();
   const re = /(^|[\s(])#([A-Za-z0-9_]{2,40})/g;
@@ -1431,7 +1453,7 @@ router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => 
     ]);
     const pmap = new Map(profiles.map((p) => [p.id, p]));
     return res.json(await refreshSupabaseStorageUrlsDeep({
-      stories: rows.map((s) => ({ ...s, author: pickProfile(pmap.get(s.profileId)) })),
+      stories: rows.map((s) => toStoryDto(s, pickProfile(pmap.get(s.profileId)))),
     }));
   } catch (err) {
     return res.status(500).json({ error: "stories_feed_failed" });
@@ -1499,7 +1521,9 @@ router.get("/stories/by-profile/:profileId", async (req: Request, res: Response)
     const rows = await db.select().from(storiesTable)
       .where(and(eq(storiesTable.profileId, profileId), gt(storiesTable.expiresAt, new Date())))
       .orderBy(desc(storiesTable.createdAt)).limit(50);
-    return res.json({ stories: rows });
+    /* Same Story[] contract as the feed — the profile page's stories
+       section consumes this payload as snake_case Story objects. */
+    return res.json({ stories: rows.map((s) => toStoryDto(s, null)) });
   } catch {
     return res.status(500).json({ error: "stories_failed" });
   }
