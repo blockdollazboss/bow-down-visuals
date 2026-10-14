@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Mic, Upload, Loader2, Square, Music2, Share2, Wand2, Image as ImageIcon, Scissors, Check, RefreshCw } from "lucide-react";
+import { Mic, Upload, Loader2, Square, Music2, Share2, Wand2, Image as ImageIcon, Scissors, Check, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,16 @@ import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { downloadMidi } from "@/lib/midi-export";
 
 const HUM_PRICE = 500;
 const MAX_HUM_SECONDS = 65;
+
+interface MelodyNote {
+  midi: number;
+  startSec: number;
+  durationSec: number;
+}
 
 interface MelodyAnalysis {
   durationSec: number;
@@ -22,6 +29,8 @@ interface MelodyAnalysis {
   pitchConfidence: number;
   noteCount: number;
   confidence: "high" | "medium" | "low";
+  /** Segmented melody notes — absent on hums saved before they existed. */
+  notes?: MelodyNote[];
 }
 
 interface SongResult {
@@ -502,6 +511,21 @@ export function HumToSong() {
               )}
             </div>
             {analysis && <AnalysisBadges analysis={analysis} />}
+            {analysis?.notes && analysis.notes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => downloadMidi(analysis.notes!, analysis.tempoBpm, songTitle.trim() || undefined)}
+                  className="gap-2 border-white/15 text-white/70 hover:text-white"
+                >
+                  <Download className="h-4 w-4" /> Export MIDI
+                </Button>
+                <p className="text-xs text-white/30">
+                  Your hum's melody as a MIDI file — drop it into any music app. Free, yours to keep.
+                </p>
+              </div>
+            )}
             {humUrl && (
               <p className="text-xs text-white/30">
                 <Check className="h-3 w-3 inline mr-1 text-emerald-400" />

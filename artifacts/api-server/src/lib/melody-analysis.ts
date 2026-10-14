@@ -22,6 +22,16 @@ import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
+/** One segmented note quantized from the smoothed pitch track. */
+export interface MelodyNote {
+  /** MIDI note number (69 = A4 440 Hz). */
+  midi: number;
+  /** Seconds from the start of the analyzed audio. */
+  startSec: number;
+  /** Note length in seconds. */
+  durationSec: number;
+}
+
 export interface MelodyAnalysis {
   /** Trimmed audio length in seconds (cap: 60). */
   durationSec: number;
@@ -33,6 +43,12 @@ export interface MelodyAnalysis {
   pitchConfidence: number;
   /** Count of distinct voiced note segments. */
   noteCount: number;
+  /**
+   * The melody as a monophonic note list, segmented from the same
+   * smoothed pitch track (sub-~100 ms blips dropped; gaps are rests).
+   * Powers the client's MIDI export of the user's own hum.
+   */
+  notes: MelodyNote[];
   /** Overall trust level of the tempo/key estimates. */
   confidence: "high" | "medium" | "low";
 }
@@ -270,6 +286,51 @@ function countNotes(frames: PitchFrame[]): number {
   return notes;
 }
 
+/** Frame step of the pitch tracker (hop 1024 @ 16 kHz) in seconds. */
+const FRAME_HOP_SEC = 1024 / SAMPLE_RATE;
+/** Runs shorter than this are tracker blips, not intentional notes. */
+const MIN_NOTE_SEC = 0.1;
+
+/**
+ * Quantize the smoothed pitch track into a monophonic note list: each
+ * voiced frame maps to its nearest MIDI note and consecutive same-note
+ * frames merge into one note. An unvoiced frame closes the current note
+ * (the gap becomes a rest). Timing is frame-start based — a note's
+ * duration runs to the next note's (or rest's) first frame.
+ */
+function segmentNotes(frames: PitchFrame[]): MelodyNote[] {
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+  const notes: MelodyNote[] = [];
+  let openMidi: number | null = null;
+  let openFrame = 0;
+  const close = (endFrame: number) => {
+    if (openMidi === null) return;
+    const durationSec = (endFrame - openFrame) * FRAME_HOP_SEC;
+    if (durationSec >= MIN_NOTE_SEC) {
+      notes.push({
+        midi: openMidi,
+        startSec: round2(openFrame * FRAME_HOP_SEC),
+        durationSec: round2(durationSec),
+      });
+    }
+    openMidi = null;
+  };
+  frames.forEach((f, i) => {
+    const midi =
+      f.voiced && f.freq > 0 ? Math.round(69 + 12 * Math.log2(f.freq / 440)) : null;
+    if (midi === null) {
+      close(i);
+      return;
+    }
+    if (openMidi === midi) return;
+    close(i);
+    openMidi = midi;
+    openFrame = i;
+  });
+  close(frames.length);
+  return notes;
+}
+
 /**
  * Full melody analysis pipeline. Throws on undecodable audio — callers turn
  * that into a clear 400 ("we couldn't read that audio file").
@@ -302,6 +363,7 @@ export async function analyzeMelody(audio: Buffer): Promise<MelodyAnalysis> {
     keyEstimate,
     pitchConfidence: Math.round(pitchConfidence * 100) / 100,
     noteCount,
+    notes: segmentNotes(pitchFrames),
     confidence,
   };
 }
