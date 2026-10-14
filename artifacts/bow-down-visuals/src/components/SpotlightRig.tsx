@@ -191,15 +191,23 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                     <ellipse cx="32" cy="45" rx="9" ry="2.4" fill="#FFF9E0" />
                   </svg>
                 </div>
-                {/* Beam cone — shorter, landing near the King's feet */}
-                <div
-                  className="absolute left-1/2 top-[5%] h-[76%] w-[360px] -translate-x-1/2 blur-[7px]"
-                  style={{
-                    clipPath: "polygon(44% 0, 56% 0, 100% 100%, 0 100%)",
-                    background:
-                      "linear-gradient(to bottom, rgba(255,226,130,0.58) 0%, rgba(255,210,100,0.27) 55%, transparent 94%)",
-                  }}
-                />
+                {/* Beam cone — shorter, landing near the King's feet.
+                    Feathering: the blur lives on this WRAPPER, not on
+                    the cone itself. CSS applies an element's own filter
+                    BEFORE its clip-path, so a blur on the clipped cone
+                    never softened the polygon's diagonal sides — they
+                    painted as hard lines. Blurring the parent feathers
+                    the already-clipped cone, edges included. */}
+                <div className="absolute inset-0 blur-[7px]">
+                  <div
+                    className="absolute left-1/2 top-[5%] h-[76%] w-[360px] -translate-x-1/2"
+                    style={{
+                      clipPath: "polygon(44% 0, 56% 0, 100% 100%, 0 100%)",
+                      background:
+                        "linear-gradient(to bottom, rgba(255,226,130,0.58) 0%, rgba(255,210,100,0.27) 55%, transparent 94%)",
+                    }}
+                  />
+                </div>
                 {/* Light pool where the beam lands — at the King's feet */}
                 <div
                   className="absolute left-1/2 top-[75%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%] blur-[9px]"
