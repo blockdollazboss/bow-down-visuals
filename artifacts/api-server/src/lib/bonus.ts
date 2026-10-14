@@ -117,7 +117,45 @@ export async function addBonusCredits(userId: string, amount: number): Promise<v
   await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const expiresAt = new Date(Date.now() + BONUS_EXPIRY_HOURS * 3600 * 1000).toISOString();
-  // Read-modify-write: add to existing bonus pool, refresh expiry.
+
+  // Atomic path: the increment_bonus_credits RPC (supabase/migrations/0063)
+  // increments the pool and refreshes expiry inside Postgres — no
+  // lost-update window when two grants land concurrently (daily claim +
+  // hourly crate). Mirrors addCreditsAtomic / migration 0062 for `credits`.
+  try {
+    const { data, error } = await admin.rpc("increment_bonus_credits", {
+      p_user_id: userId,
+      p_amount: amount,
+      p_expires_at: expiresAt,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.new_bonus_credits !== "number") {
+      throw new Error(`increment_bonus_credits returned unexpected shape: ${JSON.stringify(data)}`);
+    }
+    logger.info({ userId, amount }, "[bonus] granted bonus credits");
+    return;
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    const haystack = `${e?.code ?? ""} ${e?.message ?? ""}`;
+    // Function missing (migration 0063 not yet run in Supabase) — fall back
+    // to read-modify-write with a loud warning, like addCreditsAtomic (0062).
+    // Any other failure propagates: it is NOT masked by the fallback.
+    if (
+      !/function.*increment_bonus_credits.*does not exist/i.test(haystack) &&
+      !/PGRST202/i.test(haystack)
+    ) {
+      throw err instanceof Error
+        ? err
+        : new Error(`Failed to grant bonus credits: ${e?.message ?? "unknown error"}`);
+    }
+    logger.warn(
+      { userId, amount },
+      "addBonusCredits: increment_bonus_credits RPC missing (run supabase/migrations/0063) — falling back to read-modify-write",
+    );
+  }
+
+  // Read-modify-write fallback: add to existing bonus pool, refresh expiry.
   const { data: profile } = await admin
     .from("profiles")
     .select("bonus_credits")
