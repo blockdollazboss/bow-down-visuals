@@ -75,7 +75,7 @@ export interface BgImageResult {
  * Generate a background plate image.
  *
  * TODO (needs user approval before any live call): implement the provider
- * submit — e.g. POST to the OpenAI Images API (gpt-image-1) with
+ * submit — e.g. POST to the OpenAI Images API (gpt-image-2.5-sunburst) with
  *   { model, prompt, size: "1536x1024", n: 1 }
  * using BG_IMAGE_API_KEY, upload the bytes to R2/Supabase storage, and
  * return the public URL. Do NOT charge credits until the user has approved

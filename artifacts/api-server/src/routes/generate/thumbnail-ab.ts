@@ -53,7 +53,7 @@ const VARIATIONS = [
 ] as const;
 
 async function generateImage(prompt: string, outputPath: string): Promise<void> {
-  const model = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst";
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {

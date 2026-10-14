@@ -6,7 +6,8 @@ import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
+import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { db, preproductionPacksTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import type {
@@ -21,6 +22,10 @@ const router = Router();
 
 const TEXT_CREDIT_COST = 100;
 const IMAGE_CREDIT_COST = 200;
+
+/** Image model (env-overridable, same constant as the sunburst fleet).
+ *  gpt-image-1 was retired by OpenAI on 2026-10-23 — never re-hardcode it. */
+const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
 
 interface VaultInput {
   artistType?: string | null;
@@ -316,7 +321,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       const lockedPrompt =
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size: "1536x1024",
@@ -325,7 +330,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       b64 = editResp.data?.[0]?.b64_json;
     } else {
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         prompt: imagePrompt,
         size: "1536x1024",
         n: 1,
@@ -385,7 +390,7 @@ interface PackRequestBody {
 
 async function generateBibleJson(prompt: string): Promise<PackBible> {
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     max_tokens: 2000,
     response_format: { type: "json_object" },
@@ -395,7 +400,7 @@ async function generateBibleJson(prompt: string): Promise<PackBible> {
 
 async function generateStoryboardJson(prompt: string): Promise<PackShot[]> {
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     max_tokens: 3000,
     response_format: { type: "json_object" },
@@ -457,7 +462,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
 
     /* 3 — Hero props + per-shot ingredients (one call). */
     const planCompletion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [{ role: "user", content:
 `You are the pre-production department for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
@@ -558,12 +563,19 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
   if (!pack) { res.status(404).json({ error: "Pack not found." }); return; }
   if (pack.status === "locked") { res.status(409).json({ error: "Pack is already locked in." }); return; }
 
-  const finalProps = (props ?? []).map((p) => ({
+  /* Mirror-on-save (2026-10-13 law): prop/asset images are re-hosted into
+     permanent storage before they're locked into the pack — the client
+     posts back the image endpoint's 1-day signed URL, which must never be
+     what the DB keeps. Ingredients' referenceAssetUrls derive from the
+     prop URLs below, so mirroring here covers them too. */
+  const finalProps = await Promise.all((props ?? []).map(async (p) => ({
     name: String(p.name ?? "Prop"),
     description: String(p.description ?? ""),
     shots: Array.isArray(p.shots) ? p.shots.map(Number) : [],
-    assetImageUrl: p.assetImageUrl ?? null,
-  }));
+    assetImageUrl: p.assetImageUrl
+      ? ((await mirrorExternalMediaUrl(p.assetImageUrl, { kind: "image", ownerKey: req.userId! })) ?? p.assetImageUrl)
+      : null,
+  })));
   const urlByName = new Map(finalProps.map((p) => [p.name.toLowerCase(), p.assetImageUrl].filter(Boolean) as [string, string | null]));
   // Resolve referenceAssetUrls from the prop names the ingredients recorded.
   const nameRefs: Record<number, string[]> = propNameRefs ?? {};
@@ -573,14 +585,16 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
       .map((n) => urlByName.get(String(n).toLowerCase()))
       .filter((u): u is string => !!u),
   }));
-  const finalAssets: PackAsset[] = (assets ?? []).map((a) => ({
+  const finalAssets: PackAsset[] = await Promise.all((assets ?? []).map(async (a) => ({
     id: a.id || randomUUID(),
     category: a.category || "Other",
     label: String(a.label ?? "Asset"),
     prompt: String(a.prompt ?? ""),
-    imageUrl: a.imageUrl ?? null,
+    imageUrl: a.imageUrl
+      ? ((await mirrorExternalMediaUrl(a.imageUrl, { kind: "image", ownerKey: req.userId! })) ?? a.imageUrl)
+      : null,
     createdAt: a.createdAt || new Date().toISOString(),
-  }));
+  })));
 
   const [updated] = await db
     .update(preproductionPacksTable)
@@ -595,7 +609,8 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
     .where(and(eq(preproductionPacksTable.id, id), eq(preproductionPacksTable.user_id, req.userId!)))
     .returning();
 
-  res.json({ pack: updated });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ pack: await refreshSupabaseStorageUrlsDeep(updated) });
 });
 
 /* ── List + fetch packs ──────────────────────────────────────────────────── */
@@ -610,7 +625,8 @@ router.get("/pre-production/packs", requireAuth, async (req, res) => {
     .where(where)
     .orderBy(desc(preproductionPacksTable.created_at))
     .limit(20);
-  res.json({ packs });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ packs: await refreshSupabaseStorageUrlsDeep(packs) });
 });
 
 router.get("/pre-production/pack/:id", requireAuth, async (req, res) => {
@@ -621,7 +637,8 @@ router.get("/pre-production/pack/:id", requireAuth, async (req, res) => {
     .where(and(eq(preproductionPacksTable.id, id), eq(preproductionPacksTable.user_id, req.userId!)))
     .limit(1);
   if (!rows[0]) { res.status(404).json({ error: "Pack not found." }); return; }
-  res.json({ pack: rows[0] });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ pack: await refreshSupabaseStorageUrlsDeep(rows[0]) });
 });
 
 /** Load a locked pack for scene generation. Throws on missing/unowned/unlocked. */
@@ -634,7 +651,9 @@ export async function getLockedPack(userId: string, packId: string) {
   const pack = rows[0];
   if (!pack) throw Object.assign(new Error("Pre-production pack not found."), { status: 404 });
   if (pack.status !== "locked") throw Object.assign(new Error("Pre-production pack is not locked in yet."), { status: 409 });
-  return pack;
+  /* Consumers feed the pack's image URLs to providers — hand them fresh
+     signed URLs, never the stored refs. */
+  return await refreshSupabaseStorageUrlsDeep(pack);
 }
 
 export default router;

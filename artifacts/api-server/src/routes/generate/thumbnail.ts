@@ -20,6 +20,10 @@ const IMAGE_CREDIT_COST = 200;
 /** Total credits required up-front to attempt a full generation (text + image). */
 const CREDIT_COST = TEXT_CREDIT_COST + IMAGE_CREDIT_COST;
 
+/** Image model (env-overridable, same constant as the sunburst fleet).
+ *  gpt-image-1 was retired by OpenAI on 2026-10-23 — never re-hardcode it. */
+const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
+
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
 You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
@@ -213,7 +217,7 @@ async function generateThumbnailImage(
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change ` +
         `their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size,
@@ -226,7 +230,7 @@ async function generateThumbnailImage(
         "[generate-thumbnail] no usable reference photo, falling back to text-to-image",
       );
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         prompt: imagePrompt.slice(0, 4000),
         size,
         n: 1,
