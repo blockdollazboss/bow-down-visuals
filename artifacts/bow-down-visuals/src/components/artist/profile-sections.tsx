@@ -147,8 +147,10 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             /* The King's throne room: the official house profile wears the
-               palace as its banner unless it ever sets its own. */
-            backgroundImage: `url(${profile.banner_url ?? "/images/king-throne-room.webp"})`,
+               palace as its banner unless it ever sets its own. Shark
+               armrests per the owner's correction (no lions) — the shark
+               version is the default since 2026-10-13. */
+            backgroundImage: `url(${profile.banner_url ?? "/images/king-throne-room-shark.webp"})`,
             opacity: 1 - profile.theme_config.banner.overlayOpacity,
           }}
         />
