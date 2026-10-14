@@ -459,7 +459,7 @@ export default function PressKitBuilder() {
                   <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">{selectedKit.bio}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
-                      href={`/sponsorship-outreach?bio=${encodeURIComponent(selectedKit.bio || "")}`}
+                      href={`/brand-deals?tab=pitch&bio=${encodeURIComponent(selectedKit.bio || "")}`}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
                     >
                       <Send className="h-4 w-4" />{t("press-kit.sendToOutreach", { defaultValue: "Use in outreach" })}

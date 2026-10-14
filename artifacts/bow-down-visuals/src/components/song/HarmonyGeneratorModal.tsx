@@ -662,7 +662,7 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
                   {artUrl ? t("harmony.coverArtReady") : t("harmony.coverArt")}
                 </button>
                 <Link
-                  href={`/songs?song=${encodeURIComponent(result.song.id)}&addToAlbum=1`}
+                  href={`/my-projects?tab=songs&song=${encodeURIComponent(result.song.id)}&addToAlbum=1`}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-sm font-semibold text-white/80 hover:text-white hover:border-primary/50 hover:bg-primary/5 transition-all"
                 >
                   <Disc3 className="h-4 w-4" />

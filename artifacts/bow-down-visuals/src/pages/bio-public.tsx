@@ -46,7 +46,7 @@ export default function BioPublic() {
   }, [slug]);
 
   usePageTitle(
-    page ? `${page.displayName} — Links | Bow Down Visuals` : t("linkInBio.public.title"),
+    page ? `${page.displayName} — Links` : t("linkInBio.public.title"),
     page ? `${page.displayName}${page.headline ? ` — ${page.headline}` : ""}. ${page.bio || "Links, music, and more."}` : t("linkInBio.public.description")
   );
 

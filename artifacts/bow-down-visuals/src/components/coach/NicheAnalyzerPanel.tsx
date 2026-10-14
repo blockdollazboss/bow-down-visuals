@@ -504,7 +504,7 @@ export default function NicheAnalyzerPanel() {
               </p>
               <div className="mt-auto pt-4">
                 <Link
-                  href={`/content-calendar?niche=${encodeURIComponent(analysis.niche)}`}
+                  href={`/scheduler?tab=calendar&niche=${encodeURIComponent(analysis.niche)}`}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
                 >
                   Build my calendar

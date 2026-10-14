@@ -330,7 +330,7 @@ export default function MediaImport() {
             {/* Next steps — the import no longer dead-ends at download */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link
-                href={mediaType === "audio" ? `/stems?audioUrl=${encodeURIComponent(outputUrl)}` : `/video-editor`}
+                href={mediaType === "audio" ? `/audio-studio?tab=stems&audioUrl=${encodeURIComponent(outputUrl)}` : `/video-editor`}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
               >
                 <Scissors className="h-4 w-4" /> {t("importPage.useInStems", { defaultValue: mediaType === "audio" ? "Split stems" : "Open in editor" })}

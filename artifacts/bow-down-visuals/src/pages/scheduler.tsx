@@ -746,7 +746,7 @@ function QueueTab(props: {
           <div className="flex shrink-0 gap-2">
             {/* Spine reverse handoff: scheduler → back to Promo Clips. */}
             <a
-              href={`/promo-clip?hook=${encodeURIComponent((p.caption ?? "").slice(0, 200))}`}
+              href={`/video-editor?tab=promo-clips&hook=${encodeURIComponent((p.caption ?? "").slice(0, 200))}`}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-primary"
               aria-label={t("scheduler.queue.remixLabel")}
               title={t("scheduler.queue.remixTitle")}

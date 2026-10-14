@@ -411,7 +411,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
             <Link href="/cover-art" className={ghostBtn}>
               <Palette className="h-3.5 w-3.5" /> {t("songRework.designCoverArt")}
             </Link>
-            <Link href={`/songs?song=${encodeURIComponent(result.id)}&addToAlbum=1`} className={ghostBtn}>
+            <Link href={`/my-projects?tab=songs&song=${encodeURIComponent(result.id)}&addToAlbum=1`} className={ghostBtn}>
               <Disc3 className="h-3.5 w-3.5" /> {t("songRework.addToAlbum")}
             </Link>
             <button type="button" onClick={() => void copyShare()} className={ghostBtn}>

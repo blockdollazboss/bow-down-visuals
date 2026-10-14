@@ -53,7 +53,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
   const hasCore = !!(ctx.idea && ctx.hook);
 
   const scriptHref =
-    `/script-writer?topic=${encodeURIComponent(ctx.idea.slice(0, 300))}` +
+    `/hooks?tab=scripts&topic=${encodeURIComponent(ctx.idea.slice(0, 300))}` +
     `&audience=${encodeURIComponent(ctx.audience.slice(0, 200))}` +
     `&platform=${SCRIPT_PLATFORM[ctx.platform]}` +
     `&hook=${encodeURIComponent(ctx.hook.slice(0, 600))}`;

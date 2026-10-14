@@ -482,7 +482,7 @@ export default function SongsPage() {
                         {t("songs.mashupWith")}
                       </Button>
                     </Link>
-                    <Link href={`/playlist-pitch?tab=sync&song=${encodeURIComponent(s.title)}`}>
+                    <Link href={`/label-pitch?mode=playlists&song=${encodeURIComponent(s.title)}`}>
                       <Button
                         size="sm"
                         variant="outline"

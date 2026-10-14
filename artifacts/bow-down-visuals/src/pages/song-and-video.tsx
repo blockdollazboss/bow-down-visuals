@@ -1633,7 +1633,7 @@ export function SongAndVideoModule() {
                 )}
 
                 {/* Generate Promo Clips — carries the song + artist so nothing is retyped */}
-                <Link href={`/promo-clip?song=${encodeURIComponent(watch("songTitle") || "")}&artist=${encodeURIComponent(activeArtist?.artist_name || watch("artistName") || "")}`}>
+                <Link href={`/video-editor?tab=promo-clips&song=${encodeURIComponent(watch("songTitle") || "")}&artist=${encodeURIComponent(activeArtist?.artist_name || watch("artistName") || "")}`}>
                   <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm cursor-pointer">
                     <Film className="h-4 w-4 shrink-0" /> {t("songAndVideo.generatePromoClips")}
                   </div>

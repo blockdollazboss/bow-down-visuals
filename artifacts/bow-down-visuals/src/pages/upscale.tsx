@@ -1151,7 +1151,14 @@ export default function Upscale({ embedded }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   usePageTitle(t("upscale.pageTitle"), t("upscale.pageDescription"));
   const [tab, setTab] = useState<TabKey>(() => {
-    try { return new URLSearchParams(window.location.search).get("tab") === "enhance" ? "enhance" : "video"; } catch { return "video"; }
+    /* Deep link to the Enhance (de-watermark) tool: ?sub=enhance when embedded
+       in the video editor (the editor owns ?tab=upscale there — same ?sub=
+       convention as Audio Studio), legacy ?tab=enhance from the old
+       standalone-page URLs. */
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get("sub") === "enhance" || q.get("tab") === "enhance" ? "enhance" : "video";
+    } catch { return "video"; }
   });
 
   return (

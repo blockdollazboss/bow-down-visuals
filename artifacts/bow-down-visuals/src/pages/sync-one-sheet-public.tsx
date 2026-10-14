@@ -68,7 +68,7 @@ export default function SyncOneSheetPublic() {
   }, [token]);
 
   usePageTitle(
-    sheet ? `${sheet.songTitle} — Sync One-Sheet | Bow Down Visuals` : t("syncPitch.publicTitle"),
+    sheet ? `${sheet.songTitle} — Sync One-Sheet` : t("syncPitch.publicTitle"),
     sheet ? `${sheet.content?.logline ?? ""} Sync licensing one-sheet for "${sheet.songTitle}".` : t("syncPitch.publicDescription"),
   );
 

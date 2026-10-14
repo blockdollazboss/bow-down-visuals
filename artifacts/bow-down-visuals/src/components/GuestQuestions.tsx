@@ -241,10 +241,10 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
 
   const scriptWriterUrl =
     result != null
-      ? `/script-writer?topic=${encodeURIComponent(
+      ? `/hooks?tab=scripts&topic=${encodeURIComponent(
           `Interview with ${result.guestName}: ${result.topic}`.slice(0, 300),
         )}&audience=${encodeURIComponent(result.guestName.slice(0, 200))}`
-      : "/script-writer";
+      : "/hooks?tab=scripts";
 
   async function generateIntro() {
     if (introLoading || !user) return;

@@ -44,7 +44,7 @@ export default function ShowcaseItemPage() {
   }, [slug]);
 
   usePageTitle(
-    item ? `${item.title} — Creator Showcase | Bow Down Visuals` : "Creator Showcase | Bow Down Visuals",
+    item ? `${item.title} — Creator Showcase` : "Creator Showcase",
     item ? `${item.description || item.title} — made by ${item.creator_name} with Bow Down Visuals.` : "Browse community creations made with Bow Down Visuals."
   );
 

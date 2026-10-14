@@ -390,7 +390,7 @@ export default function Movies() {
               </div>
 
               <Link
-                href={`/script-writer?topic=${encodeURIComponent(concept.title)}&hook=${encodeURIComponent(concept.pilotHook || "")}`}
+                href={`/hooks?tab=scripts&topic=${encodeURIComponent(concept.title)}&hook=${encodeURIComponent(concept.pilotHook || "")}`}
                 className="w-full py-3 rounded-xl font-bold bg-primary text-black hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
                 <PenLine className="h-4 w-4" /> {t("movies.writeScript", { defaultValue: "Write the script" })}

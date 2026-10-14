@@ -66,7 +66,7 @@ export default function PublicAlbumPage() {
 
   const typeLabel = album?.album_type === "ep" ? "EP" : "Album";
   usePageTitle(
-    album ? `${album.title} — ${typeLabel} | Bow Down Visuals` : "Album | Bow Down Visuals",
+    album ? `${album.title} — ${typeLabel}` : "Album",
     album
       ? `${album.title} — a ${typeLabel.toLowerCase()} with ${album.tracks.length} track${album.tracks.length === 1 ? "" : "s"}. Made with Bow Down Visuals.`
       : "Listen to albums and EPs made with Bow Down Visuals.",
