@@ -8,6 +8,9 @@ export interface GenerateMusicAudioRequest {
   songTitle?: string;
   /** Active artist vault — server swaps vocals to its locked voice if set. */
   artistVaultId?: string;
+  /** Persona singing voice (voice_id from GET /api/voices) — when no vault
+   * voice is locked, the server converts the vocals to this voice. */
+  personaVoiceId?: string;
   /** Custom lyrics (Suno-style custom mode). */
   lyrics?: string;
   /** Force instrumental, no vocals. */

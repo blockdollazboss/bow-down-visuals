@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles, Loader2, Music, AlertCircle, CheckCircle2, Disc3, Scissors,
   Layers, FileText, ChevronsRight, ChevronDown, Check, Upload, Save,
-  Trash2, Wand2, X,
+  Trash2, Wand2, X, Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,9 +16,9 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { defaultStemEffects, type EditorSettings, type AudioStem } from "@/lib/editor-settings";
 import { uploadStemFile, makeStem, readAudioDuration, removeStemFile } from "@/lib/audio-stems";
 import {
-  fetchLanePersonas, createLanePersona, deleteLanePersona,
+  fetchLanePersonas, createLanePersona, deleteLanePersona, fetchLaneVoices,
   loadLocalLaneSession, saveLocalLaneSession, fetchServerLaneSession, saveServerLaneSession,
-  type LanePersona, type LaneSession,
+  type LanePersona, type LaneSession, type LaneVoice,
 } from "@/lib/music-lane";
 
 interface GenerateAudioProps {
@@ -216,6 +216,13 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [personaName, setPersonaName] = useState("");
   const [savingPersona, setSavingPersona] = useState(false);
 
+  /* ── Singing voices: the account's voice library (GET /api/voices) and
+     the voice the next generation should sing in. A persona can carry a
+     voice binding; the picker below can also set one on its own. ── */
+  const [laneVoices, setLaneVoices] = useState<LaneVoice[]>([]);
+  const [voiceId, setVoiceId] = useState<string | null>(null);
+  const [voiceName, setVoiceName] = useState<string | null>(null);
+
   /* ── Phase B: upload-your-audio ── */
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadTrack, setUploadTrack] = useState<{ stem: AudioStem; file: File } | null>(null);
@@ -314,6 +321,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     setLengthSeconds(s.lengthSeconds || "60");
     setVariantCount(s.variantCount || "2");
     setActivePersonaId(s.personaId ?? null);
+    setVoiceId(s.voiceId ?? null);
+    setVoiceName(s.voiceName ?? null);
     setLastVariants(Array.isArray(s.variants) ? s.variants : []);
     setPickedLabel(s.pickedLabel || "A");
     if (s.pickedVersion) {
@@ -371,6 +380,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       lengthSeconds,
       variantCount,
       personaId: activePersonaId,
+      voiceId,
+      voiceName,
       pickedVersion: lastGenerated
         ? {
             url: lastGenerated.url,
@@ -395,7 +406,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     if (Date.now() < suppressSaveUntilRef.current) return;
     saveLocalLaneSession(currentSession());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createMode, prompt, style, laneTitle, lyrics, showLyrics, instrumental, vocalGender, lengthSeconds, variantCount, activePersonaId, lastGenerated, lastVariants, pickedLabel]);
+  }, [createMode, prompt, style, laneTitle, lyrics, showLyrics, instrumental, vocalGender, lengthSeconds, variantCount, activePersonaId, voiceId, voiceName, lastGenerated, lastVariants, pickedLabel]);
 
   /* Auto-save to the server draft (debounced 30 s, cross-session) */
   useEffect(() => {
@@ -414,7 +425,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createMode, prompt, style, laneTitle, lyrics, showLyrics, instrumental, vocalGender, lengthSeconds, variantCount, activePersonaId, lastGenerated, lastVariants, pickedLabel, user]);
+  }, [createMode, prompt, style, laneTitle, lyrics, showLyrics, instrumental, vocalGender, lengthSeconds, variantCount, activePersonaId, voiceId, voiceName, lastGenerated, lastVariants, pickedLabel, user]);
 
   /* ── Phase B: load personas (own + public templates) ── */
   useEffect(() => {
@@ -434,6 +445,24 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Load the voice library for the singing-voice picker ── */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const list = await fetchLaneVoices(token);
+        if (!cancelled) setLaneVoices(list);
+      } catch {
+        /* voices are optional — fetchLaneVoices already swallows errors */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function applyPersona(p: LanePersona) {
     const s = p.settings ?? {};
     if (s.stylePrompt) {
@@ -443,8 +472,18 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     if (s.vocalGender) setVocalGender(s.vocalGender);
     if (typeof s.instrumental === "boolean") setInstrumental(s.instrumental);
     if (s.lengthSeconds) setLengthSeconds(s.lengthSeconds);
+    // The persona's singing voice is part of its sound: applying the persona
+    // loads its bound voice — or clears the picker when it carries none, so
+    // a song never silently sings in a voice the persona doesn't hold.
+    setVoiceId(s.voiceId ?? null);
+    setVoiceName(s.voiceId ? (s.voiceName ?? null) : null);
     setActivePersonaId(p.id);
-    toast({ title: `Persona applied — ${p.name}`, description: "Its style and voice settings are loaded into the form." });
+    toast({
+      title: `Persona applied — ${p.name}`,
+      description: s.voiceId
+        ? `Style loaded — this song will be sung in ${s.voiceName ?? "the persona's voice"}.`
+        : "Its style and voice settings are loaded into the form.",
+    });
   }
 
   async function handleSavePersona() {
@@ -464,6 +503,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           vocalGender,
           instrumental,
           lengthSeconds,
+          // Carry the currently picked singing voice into the persona.
+          ...(voiceId ? { voiceId, voiceName: voiceName ?? undefined } : {}),
         },
       });
       setPersonas((prev) => [persona, ...prev.filter((p) => p.id !== persona.id)]);
@@ -564,6 +605,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         artistName,
         songTitle: effectiveTitle,
         artistVaultId,
+        personaVoiceId: !instrumental && voiceId ? voiceId : undefined,
         lyrics: formLyrics,
         instrumental,
         vocalGender: vocalGender === "auto" ? undefined : vocalGender,
@@ -593,7 +635,12 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setRemasterNote(null);
       setCaptionsDone(false);
       refreshProfile();
-      toast({ title: "Audio generated!", description: "Added to your stems — it'll play in Timeline Preview." });
+      toast({
+        title: "Audio generated!",
+        description: resp.voiceSwapped && voiceId
+          ? `Sung in ${voiceName ?? "your picked voice"} — added to your stems.`
+          : "Added to your stems — it'll play in Timeline Preview.",
+      });
     } catch (err) {
       handleApiError(err, "Could not generate audio.");
     } finally {
@@ -1259,7 +1306,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                 <option value="">No persona</option>
                 {personas.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}{p.isPublic && p.userId !== user?.id ? " · Template" : ""}
+                    {p.name}{p.isPublic && p.userId !== user?.id ? " · Template" : ""}{p.settings?.voiceName ? ` · Voice: ${p.settings.voiceName}` : ""}
                   </option>
                 ))}
               </select>
@@ -1275,6 +1322,53 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                 </button>
               )}
             </div>
+          </Field>
+        )}
+
+        {/* ── Singing voice picker ── */}
+        {(laneVoices.length > 0 || voiceId) && (
+          <Field
+            label="Singing voice"
+            hint={instrumental
+              ? "Instrumentals have no vocals — turn off Instrumental to use a voice"
+              : "The generated vocals are converted to this voice — melody and timing stay, the voice becomes theirs"}
+          >
+            <div className="flex items-center gap-1.5">
+              <Mic className="h-4 w-4 shrink-0 text-primary/70" />
+              <select
+                value={voiceId ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) {
+                    setVoiceId(null);
+                    setVoiceName(null);
+                    return;
+                  }
+                  const v = laneVoices.find((x) => x.voice_id === id);
+                  setVoiceId(id);
+                  setVoiceName(v?.name ?? voiceName ?? null);
+                }}
+                className="min-w-0 flex-1 rounded-xl bg-black/40 border border-white/10 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary/50 transition-colors"
+                style={{ colorScheme: "dark" }}
+                data-testid="select-persona-voice"
+              >
+                <option value="">AI voice (no conversion)</option>
+                {laneVoices.map((v) => (
+                  <option key={v.voice_id} value={v.voice_id}>
+                    {v.name}{v.category === "cloned" ? " · Your clone" : ""}
+                  </option>
+                ))}
+                {voiceId && !laneVoices.some((v) => v.voice_id === voiceId) && (
+                  <option value={voiceId}>{voiceName ?? "Persona voice"}</option>
+                )}
+              </select>
+            </div>
+            {voiceId && !instrumental && (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-white/45">
+                This song will be sung in {voiceName ?? "the picked voice"} — same price, the conversion is part of the song.
+                Save it inside a persona with “Save as Persona” and every song can wear it.
+              </p>
+            )}
           </Field>
         )}
 

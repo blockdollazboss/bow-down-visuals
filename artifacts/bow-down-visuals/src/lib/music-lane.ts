@@ -18,6 +18,34 @@ export interface LanePersonaSettings {
   vocalGender?: string;
   instrumental?: boolean;
   lengthSeconds?: string;
+  /** Singing voice binding: a voice_id from GET /api/voices (an account
+   * voice — a library voice or one the user cloned). When set, generated
+   * vocals are converted to this voice server-side (STS voice swap). */
+  voiceId?: string;
+  /** Display name captured alongside voiceId so the picker can label the
+   * binding even before the voice list loads. */
+  voiceName?: string;
+}
+
+/** One voice from GET /api/voices (the account's voice library). */
+export interface LaneVoice {
+  voice_id: string;
+  name: string;
+  preview_url: string | null;
+  category: string | null;
+}
+
+/** Load the account's voices for the persona voice picker. Voices are
+ * optional — any failure returns an empty list and the lane works as before. */
+export async function fetchLaneVoices(token: string | null): Promise<LaneVoice[]> {
+  try {
+    const res = await personaFetch(token, "/api/voices");
+    if (!res.ok) return [];
+    const data = (await res.json()) as { voices?: LaneVoice[] };
+    return Array.isArray(data.voices) ? data.voices : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface LanePersona {
@@ -85,6 +113,10 @@ export interface LaneSession {
   lengthSeconds: string;
   variantCount: string;
   personaId: string | null;
+  /** Singing voice selection (voice_id + display name), restored with the
+   * session so a picked voice survives reloads like the persona does. */
+  voiceId?: string | null;
+  voiceName?: string | null;
   pickedVersion: { url: string; storagePath: string; name: string; durationSec?: number } | null;
   variants: Array<{ url: string; storagePath: string; label: string }>;
   pickedLabel: string;

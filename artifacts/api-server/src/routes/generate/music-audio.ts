@@ -51,6 +51,12 @@ const generateMusicAudioSchema = z.object({
   artistName: z.string().optional(),
   songTitle: z.string().optional(),
   artistVaultId: z.string().optional(),
+  /** Persona singing voice (an ElevenLabs voice_id from GET /api/voices):
+   * when the active artist vault has no locked voice, the generated vocals
+   * are converted to this voice via the same STS swap (lib/voice-swap).
+   * The Music API itself takes no voice parameter — the voice is applied
+   * as a post-generation conversion, never faked into the prompt. */
+  personaVoiceId: z.string().optional(),
   /** Custom lyrics (Suno-style custom mode) — embedded into the music prompt. */
   lyrics: z.string().optional(),
   /** Force instrumental, no vocals. */
@@ -91,7 +97,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     return;
   }
   const { prompt, lengthSeconds, artistName, songTitle, artistVaultId,
-    lyrics, instrumental, vocalGender, variants } = parsed.data;
+    personaVoiceId, lyrics, instrumental, vocalGender, variants } = parsed.data;
 
   if (!prompt || !prompt.trim()) {
     res.status(400).json({ error: "A music prompt is required.", code: "missing_prompt" });
@@ -173,13 +179,18 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
       buffers.push(await generateOne());
     }
 
-    // Artist voice lock: if the active vault has a locked voice, swap each
-    // variant's vocals to it. Cost is baked into the song price.
-    // On any failure, fall back to the original mix — never fail the song.
+    // Singing-voice conversion: swap each variant's vocals to the target
+    // voice. The artist vault's locked voice wins when the active vault has
+    // one; otherwise the applied persona's voice (personaVoiceId) is used.
+    // Instrumentals have no vocals to convert, so the persona path skips
+    // them. Cost is baked into the song price (same precedent as the vault
+    // lock — see routes/artist-voices.ts). On any failure, fall back to
+    // the original mix — never fail the song.
     let voiceSwapped = false;
     const finalBuffers: Buffer[] = [];
     for (const buffer of buffers) {
       let finalBuffer: Buffer = buffer;
+      let targetVoiceId: string | null = null;
       if (artistVaultId) {
         try {
           const [vault] = await db
@@ -192,14 +203,25 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
               ),
             )
             .limit(1);
-          if (vault?.voice_id && process.env["ARTIST_VOICE_SWAP_ENABLED"] !== "false") {
-            finalBuffer = await swapSongVocalsToVoice(buffer, vault.voice_id, apiKey);
-            voiceSwapped = true;
-            req.log.info(
-              { vaultId: artistVaultId, voiceId: vault.voice_id },
-              "generate-music-audio: vocals swapped to locked artist voice",
-            );
-          }
+          if (vault?.voice_id) targetVoiceId = vault.voice_id;
+        } catch (lookupErr) {
+          req.log.error(
+            { err: lookupErr },
+            "generate-music-audio: vault voice lookup failed, using original mix",
+          );
+        }
+      }
+      if (!targetVoiceId && personaVoiceId && !forceInstrumental) {
+        targetVoiceId = personaVoiceId;
+      }
+      if (targetVoiceId && process.env["ARTIST_VOICE_SWAP_ENABLED"] !== "false") {
+        try {
+          finalBuffer = await swapSongVocalsToVoice(buffer, targetVoiceId, apiKey);
+          voiceSwapped = true;
+          req.log.info(
+            { vaultId: artistVaultId ?? null, voiceId: targetVoiceId },
+            "generate-music-audio: vocals swapped to singing voice",
+          );
         } catch (swapErr) {
           req.log.error(
             { err: swapErr },
