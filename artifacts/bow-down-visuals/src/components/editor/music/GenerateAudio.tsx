@@ -490,12 +490,15 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
      The sample rides the lane's established upload path (uploadStemFile →
      R2 public URL), because /api/clone-voice takes a sampleUrl it downloads
      server-side. Its 500 VB charge is server-side; confirmedFetch confirms
-     it via the CREDIT_COSTS registry entry. The route's response carries no
-     library voice id — on a true clone (`source: "elevenlabs"`) the voice
-     lands in GET /api/voices under the server-set name
-     `bdv-<userId8>-<name>`, which is how the fresh list is matched. On the
-     route's best-effort fallback (`source: "openai-match"`) no library
-     voice exists, so nothing is selected and the toast says so plainly. */
+     it via the CREDIT_COSTS registry entry. The route now sells ONLY a real
+     library voice: its success response carries the library voice id
+     (`voice.libraryVoiceId`), which is matched against the fresh
+     GET /api/voices list deterministically (name-matching remains as a
+     fallback for older responses). When the provider path can't produce a
+     library voice the route fails BEFORE charging (503 with an honest
+     message, surfaced in the form's error line) — the old silent
+     "openai-match" fallback, which charged full price for a profile that
+     could never sing, no longer exists on this route. */
   async function handleCloneVoice() {
     if (cloning) return;
     if (!user) {
@@ -526,7 +529,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
-        voice?: { name?: string; source?: string };
+        voice?: { name?: string; source?: string; libraryVoiceId?: string };
       };
       if (!res.ok) {
         if (res.status === 402 || data.error === "out_of_credits") {
@@ -540,7 +543,17 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setCloneName("");
       setCloneFile(null);
       setCloneConsent(false);
-      if (data.voice?.source === "elevenlabs") {
+      const libraryVoiceId = data.voice?.libraryVoiceId;
+      if (libraryVoiceId) {
+        /* Deterministic: the response names the exact library voice. Select
+           it even if the reloaded list lags a beat behind the provider. */
+        const match = list.find((v) => v.voice_id === libraryVoiceId);
+        setVoiceId(libraryVoiceId);
+        setVoiceName(match?.name ?? data.voice?.name ?? name);
+        toast({ title: "Voice cloned", description: `“${name}” is now your singing voice — bind it to a persona with “Save as Persona”.` });
+      } else if (data.voice?.source === "elevenlabs") {
+        /* Older response without the id: match the server-set library name
+           `bdv-<userId8>-<name>` in the fresh list. */
         const expectedName = `bdv-${user.id.slice(0, 8)}-${name}`.slice(0, 100);
         const match =
           list.find((v) => v.name === expectedName) ??

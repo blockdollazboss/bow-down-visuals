@@ -23,10 +23,17 @@ const execFileAsync = promisify(execFile);
 /* ─── AI voice cloning ───
    Create a custom voice profile from a 10s+ audio sample, then speak any
    text in that voice.
-   - ElevenLabs instant voice cloning when ELEVENLABS_API_KEY is set and the
-     account allows it (POST /v1/voices/add).
-   - Fallback: OpenAI TTS with a chosen base voice + stored sample analysis
-     (best-effort voice matching, not true cloning).
+   - POST /clone-voice creates a REAL library voice via ElevenLabs instant
+     voice cloning (POST /v1/voices/add) — the kind the music lane's
+     singing-voice picker can select. There is NO silent fallback on this
+     route: if the provider path cannot produce a library voice (no key, or
+     the account explicitly lacks instant cloning) the request fails with
+     503 BEFORE any charge, and a provider failure after charging refunds
+     in full. Charging the 500 VB clone price for a best-effort match
+     profile the user never asked for was the defect this replaced.
+   - Legacy rows with source "openai-match" (created before this change)
+     still exist in voice_clones and still work with /speak-as, whose
+     OpenAI-TTS fallback is that endpoint's own documented behavior.
    500 Visual Bucs to clone, 150 per speak-as generation. */
 
 const CLONE_COST = Number(process.env["VOICE_CLONE_CREDITS"]) || 500;
@@ -112,6 +119,18 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Availability gate — BEFORE any charge. This route only sells a real
+     library voice, so if the provider path definitively cannot produce
+     one we say so and charge nothing: no key at all, or the account
+     explicitly reports instant cloning off. (canUseInstantVoiceCloning
+     fails open on an inconclusive check; in that case the /voices/add
+     call below is the ground truth and its failure refunds in full.) */
+  const apiKey = elevenKey();
+  if (!apiKey || !(await canUseInstantVoiceCloning(apiKey))) {
+    res.status(503).json({ error: "Voice cloning isn't available on this account right now." });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CLONE_COST) {
     res.status(402).json({
@@ -159,35 +178,34 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
       "audio/mpeg",
     );
 
-    const apiKey = elevenKey();
-    let elevenlabsVoiceId: string | null = null;
-    let source: "elevenlabs" | "openai-match" = "openai-match";
-
-    if (apiKey && (await canUseInstantVoiceCloning(apiKey))) {
-      // ElevenLabs instant voice cloning: POST /v1/voices/add (multipart)
-      const form = new FormData();
-      form.append("name", `bdv-${req.userId!.slice(0, 8)}-${parsed.data.name}`.slice(0, 100));
-      if (parsed.data.description) form.append("description", parsed.data.description.slice(0, 500));
-      form.append("files", new Blob([sampleBuffer], { type: "audio/mpeg" }), "sample.mp3");
-      const elRes = await fetch("https://api.elevenlabs.io/v1/voices/add", {
-        method: "POST",
-        headers: { "xi-api-key": apiKey },
-        body: form,
-        signal: AbortSignal.timeout(180_000),
-      });
-      if (!elRes.ok) {
-        const body = await elRes.text().catch(() => "");
-        req.log.warn({ status: elRes.status, body: body.slice(0, 300) }, "[voice-clone] elevenlabs add failed, using fallback");
-      } else {
-        const data = (await elRes.json()) as { voice_id?: string };
-        if (data.voice_id) {
-          elevenlabsVoiceId = data.voice_id;
-          source = "elevenlabs";
-        }
-      }
-    } else {
-      req.log.info("[voice-clone] elevenlabs unavailable, using openai-match fallback");
+    // ElevenLabs instant voice cloning: POST /v1/voices/add (multipart).
+    // The gate above has already established the key exists; this call is
+    // the ground truth. Any failure here refunds in full via fail() and
+    // creates NOTHING — no fallback profile is minted on this route.
+    const form = new FormData();
+    form.append("name", `bdv-${req.userId!.slice(0, 8)}-${parsed.data.name}`.slice(0, 100));
+    if (parsed.data.description) form.append("description", parsed.data.description.slice(0, 500));
+    form.append("files", new Blob([sampleBuffer], { type: "audio/mpeg" }), "sample.mp3");
+    const elRes = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+      method: "POST",
+      headers: { "xi-api-key": apiKey },
+      body: form,
+      signal: AbortSignal.timeout(180_000),
+    });
+    if (!elRes.ok) {
+      const body = await elRes.text().catch(() => "");
+      req.log.warn({ status: elRes.status, body: body.slice(0, 300) }, "[voice-clone] elevenlabs add failed, refunding");
+      await fail(502, "The voice provider couldn't create that clone — your Visual Bucs were refunded.");
+      return;
     }
+    const elData = (await elRes.json().catch(() => ({}))) as { voice_id?: string };
+    if (!elData.voice_id) {
+      req.log.warn("[voice-clone] elevenlabs add returned no voice_id, refunding");
+      await fail(502, "The voice provider couldn't create that clone — your Visual Bucs were refunded.");
+      return;
+    }
+    const elevenlabsVoiceId: string = elData.voice_id;
+    const source = "elevenlabs" as const;
 
     const [voice] = await db
       .insert(voiceClonesTable)
@@ -210,6 +228,9 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
         description: voice!.description,
         source,
         baseVoice: voice!.baseVoice,
+        /* The provider library voice id — callers select the fresh voice
+           by this id instead of name-matching the library list. */
+        libraryVoiceId: elevenlabsVoiceId,
         createdAt: voice!.createdAt,
       },
       creditsRemaining: creditsAfter,
