@@ -3,6 +3,7 @@ import { getOpenAI } from "../lib/ai-clients";
 import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeAiLimiter } from "../lib/rate-limit";
 
 const router = Router();
 
@@ -45,7 +46,7 @@ const upload = multer({
   },
 });
 
-router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res) => {
+router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
@@ -75,7 +76,7 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
 });
 
 /** Transcribe an already-uploaded audio file by URL (Supabase storage). */
-router.post("/transcribe-url", requireAuth, async (req, res) => {
+router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
   const { audioUrl } = req.body as { audioUrl?: string };
 
   if (!audioUrl) {

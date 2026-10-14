@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeAiLimiter } from "../lib/rate-limit";
 import { z } from "zod";
 
 const router = Router();
@@ -9,7 +10,7 @@ const Schema = z.object({
   lyrics: z.string().min(10),
 });
 
-router.post("/analyze-sections", requireAuth, async (req, res) => {
+router.post("/analyze-sections", requireAuth, freeAiLimiter, async (req, res) => {
   const parsed = Schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Lyrics (min 10 chars) are required" });

@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeAiLimiter } from "../../lib/rate-limit";
 
 const router = Router();
 
@@ -45,7 +46,7 @@ const improvePromptSchema = z.object({
  * always covers the key creative elements. When an Artist Vault is provided, the
  * artist's identity and brand rules are baked into the result.
  */
-router.post("/improve-prompt", requireAuth, async (req, res) => {
+router.post("/improve-prompt", requireAuth, freeAiLimiter, async (req, res) => {
   const parsed = improvePromptSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeAiLimiter } from "../../lib/rate-limit";
 
 const router = Router();
 
@@ -22,7 +23,7 @@ const improveStyleSchema = z.object({
  * styles get their own endpoint rather than a mode flag over there.
  * Free, like /api/improve-prompt: no credit charge on either side.
  */
-router.post("/improve-style", requireAuth, async (req, res) => {
+router.post("/improve-style", requireAuth, freeAiLimiter, async (req, res) => {
   const parsed = improveStyleSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

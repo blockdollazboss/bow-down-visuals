@@ -1,6 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeAiLimiter } from "../../lib/rate-limit";
 import { z } from "zod";
 import { getTextModel } from "../../lib/ai-clients";
 
@@ -96,7 +97,7 @@ function buildFallbackPlan(input: Input): unknown {
   };
 }
 
-router.post("/auto-edit", requireAuth, async (req, res) => {
+router.post("/auto-edit", requireAuth, freeAiLimiter, async (req, res) => {
   const parsed = Schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "preset and at least one scene are required" });

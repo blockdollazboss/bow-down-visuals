@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeExpensiveAiLimiter } from "../../lib/rate-limit";
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const demoClipSchema = z.object({
   negativePrompt: z.string().trim().max(1000).optional().default(""),
 });
 
-router.post("/generate-demo-clip", requireAuth, async (req, res) => {
+router.post("/generate-demo-clip", requireAuth, freeExpensiveAiLimiter, async (req, res) => {
   const parsed = demoClipSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

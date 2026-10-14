@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Shared rate limiter for abuse-prone public endpoints.
@@ -30,4 +30,49 @@ export const generationLimiter = rateLimit({
     return userId || req.ip || "unknown";
   },
   message: { error: "Too many generations. Please wait a minute and try again." },
+});
+
+/**
+ * Per-user hourly limiter for FREE AI endpoints that still call paid
+ * provider models (prompt/style enhancers, section analysis, edit
+ * plans, transcription). These endpoints charge no credits, so
+ * without a cap one account can burn shared provider quota on a
+ * loop. 30 requests per hour per user — generous for humans,
+ * useless for scripts. Keys on userId, same as generationLimiter.
+ */
+export const freeAiLimiter = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+    const userId = (req as { userId?: string }).userId;
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: {
+    error: "You've hit the hourly limit for this free AI tool. Please try again later.",
+  },
+});
+
+/**
+ * Tighter per-user hourly limiter for FREE endpoints whose provider
+ * calls are expensive per request (video generation, lip-sync job
+ * creation, voice cloning). 5 requests per hour per user still lets
+ * a human experiment freely while capping scripted abuse at a
+ * handful of paid provider calls. Keys on userId, same as above.
+ */
+export const freeExpensiveAiLimiter = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+    const userId = (req as { userId?: string }).userId;
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: {
+    error: "You've hit the hourly limit for this free AI tool. Please try again later.",
+  },
 });

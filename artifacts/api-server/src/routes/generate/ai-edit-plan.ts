@@ -1,6 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeAiLimiter } from "../../lib/rate-limit";
 import { z } from "zod";
 import { getTextModel } from "../../lib/ai-clients";
 
@@ -111,7 +112,7 @@ Schema:
   "generatedAt": string
 }`;
 
-router.post("/generate/ai-edit-plan", requireAuth, async (req, res) => {
+router.post("/generate/ai-edit-plan", requireAuth, freeAiLimiter, async (req, res) => {
   const parsed = Schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });

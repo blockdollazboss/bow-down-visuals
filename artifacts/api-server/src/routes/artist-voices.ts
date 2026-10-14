@@ -20,6 +20,7 @@ import { promises as fs } from "node:fs";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeExpensiveAiLimiter } from "../lib/rate-limit";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
@@ -92,6 +93,7 @@ router.get("/voices", requireAuth, async (req, res) => {
 router.post(
   "/artist-vaults/:id/voice/clone",
   requireAuth,
+  freeExpensiveAiLimiter,
   upload.array("files", 3),
   async (req, res) => {
     const apiKey = elevenKey();
