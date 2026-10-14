@@ -190,6 +190,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [replacing, setReplacing] = useState(false);
   const [stemsPhase, setStemsPhase] = useState<StemsPhase>("idle");
   const [stemsNote, setStemsNote] = useState<string | null>(null);
+  /** Pro Stems tier: the split returns 6 tracks (adds Guitar + Piano)
+   * via `stems=pro` on the same /api/stems POST — same 400 VB charge. */
+  const [stemsPro, setStemsPro] = useState(false);
   const [remasterPhase, setRemasterPhase] = useState<RemasterPhase>("idle");
   const [remasterNote, setRemasterNote] = useState<string | null>(null);
   const remasterCancelRef = useRef(false);
@@ -800,6 +803,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       const fileName = `${(effectiveTitle || "song").replace(/[^\w-]+/g, "-")}.mp3`;
       const form = new FormData();
       form.append("audio", new File([blob], fileName, { type: blob.type || "audio/mpeg" }));
+      if (stemsPro) form.append("stems", "pro");
 
       const res = await confirmedFetch("/api/stems", { method: "POST", body: form });
       if (!res) { setStemsPhase("idle"); setStemsNote(null); return; } // user cancelled
@@ -816,7 +820,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       }
 
       setStemsPhase("splitting");
-      setStemsNote("Splitting into vocals, drums, bass and other — this can take a few minutes…");
+      setStemsNote(stemsPro
+        ? "Splitting into vocals, drums, bass, other, guitar and piano — this can take a few minutes…"
+        : "Splitting into vocals, drums, bass and other — this can take a few minutes…");
       const jobId = start.jobId;
       const deadline = Date.now() + 10 * 60 * 1000;
       let doneData: { stems?: Record<string, string | null> | null; durationSeconds?: number } | null = null;
@@ -844,6 +850,10 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         { key: "drums", label: "Drums", type: "Drums" },
         { key: "bass", label: "Bass", type: "808 / Bass" },
         { key: "other", label: "Other", type: "Other Stem" },
+        /* Pro tier only — the loop below skips keys the response doesn't
+           carry, so classic 4-stem results are unaffected. */
+        { key: "guitar", label: "Guitar", type: "Guitar" },
+        { key: "piano", label: "Piano", type: "Piano" },
       ];
       const base = effectiveTitle ? `${effectiveTitle} (AI Generated)` : "AI Generated Audio";
       const newStems: AudioStem[] = [];
@@ -859,7 +869,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setStemsPhase("done");
       setStemsNote(`${newStems.length} stems added to your tracks — mix them in the Library.`);
       refreshProfile();
-      toast({ title: "Stems ready", description: "Vocals, drums, bass and other are now separate tracks." });
+      toast({ title: "Stems ready", description: stemsPro
+        ? "Vocals, drums, bass, other, guitar and piano are now separate tracks."
+        : "Vocals, drums, bass and other are now separate tracks." });
     } catch (err) {
       setStemsPhase("failed");
       setStemsNote(null);
@@ -1341,6 +1353,16 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               </button>
               <button
                 type="button"
+                onClick={() => setStemsPro((v) => !v)}
+                disabled={stemsBusy}
+                className={actionBtn(stemsPro)}
+                data-testid="btn-toggle-pro-stems"
+                title="Pro Stems: the split returns 6 tracks — adds Guitar and Piano — for the same 400 Visual Bucs"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Pro Stems
+              </button>
+              <button
+                type="button"
                 onClick={() => void handleRemaster()}
                 disabled={remasterBusy}
                 className={actionBtn(remasterPhase === "done")}
@@ -1392,6 +1414,11 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             {stemsNote && (
               <p className={`text-[11px] leading-relaxed ${stemsPhase === "failed" ? "text-red-300" : stemsPhase === "done" ? "text-emerald-300" : "text-white/45"}`}>
                 {stemsNote}
+              </p>
+            )}
+            {stemsPro && !stemsNote && (
+              <p className="text-[11px] leading-relaxed text-white/45">
+                Pro Stems is on — the split returns 6 tracks, adding Guitar and Piano. Same 400 Visual Bucs.
               </p>
             )}
             {remasterNote && (

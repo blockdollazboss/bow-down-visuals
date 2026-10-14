@@ -30,6 +30,13 @@ const STEM_MAX_DURATION_SECONDS = 600; // 10 min ceiling: 4-stem Demucs on CPU i
 
 /** 4-stem Demucs model. htdemucs is the standard vocals/drums/bass/other model. */
 const STEM_DEMUCS_MODEL = process.env["STEM_SPLITTER_DEMUCS_MODEL"] ?? "htdemucs";
+/** Pro tier model: the 6-stem variant of the same model family — adds
+ * guitar + piano to the classic four. Selected per request (`stems=pro`);
+ * the classic default above is untouched. Like the classic model, its
+ * weights are fetched by Demucs itself on first use (the Docker image
+ * pre-installs none) — never at server boot, so a Pro job can never
+ * block startup or OOM the container before it even starts. */
+export const STEM_PRO_DEMUCS_MODEL = process.env["STEM_PRO_DEMUCS_MODEL"] ?? "htdemucs_6s";
 const STEM_DEMUCS_PYTHON = process.env["DEMUCS_PYTHON"] ?? "python3";
 /** 4-stem on CPU is slow — 30 min cap, env-overridable. */
 const STEM_DEMUCS_TIMEOUT_MS = Number(process.env["STEM_SPLITTER_TIMEOUT_MS"] ?? 1_800_000);
@@ -53,11 +60,39 @@ export function parseStemSplitMode(value: unknown): StemSplitMode | null {
   return null;
 }
 
+/**
+ * Stem tiers — an orthogonal per-request choice on top of the mode.
+ * - "standard" (default): the classic 4-stem model (STEM_DEMUCS_MODEL).
+ * - "pro": the 6-stem model (STEM_PRO_DEMUCS_MODEL) — adds guitar + piano.
+ * Same endpoint, same 400 VB charge as the classic full split.
+ * Requested as `stems=pro` (query or multipart field, mirroring `mode`).
+ */
+export type StemTier = "standard" | "pro";
+
+export function parseStemTier(value: unknown): StemTier | null {
+  if (value === undefined || value === null || value === "" || value === "standard") return "standard";
+  if (value === "pro") return "pro";
+  return null;
+}
+
 export const STEM_LABELS: Record<StemKey, string> = {
   vocals: "Vocals",
   drums: "Drums",
   bass: "Bass",
   other: "Melody / Other",
+};
+
+/** The two extra stems only the Pro tier's model emits. */
+export type ProStemKey = "guitar" | "piano";
+export type AnyStemKey = StemKey | ProStemKey;
+export const PRO_STEM_KEYS: ProStemKey[] = ["guitar", "piano"];
+/** Every stem key a job can produce: classic 4, then the Pro extras. */
+export const ALL_STEM_KEYS: AnyStemKey[] = [...STEM_KEYS, ...PRO_STEM_KEYS];
+
+export const ALL_STEM_LABELS: Record<AnyStemKey, string> = {
+  ...STEM_LABELS,
+  guitar: "Guitar",
+  piano: "Piano",
 };
 
 const upload = multer({
@@ -105,18 +140,24 @@ export function demucsStemDir(outDir: string, model: string, songPath: string): 
   return join(outDir, model, basename(songPath, extname(songPath)));
 }
 
-export function stemFilePath(stemDir: string, stem: StemKey): string {
+export function stemFilePath(stemDir: string, stem: AnyStemKey): string {
   return join(stemDir, `${stem}.wav`);
 }
 
 /**
  * Validate a remix level map. Each stem gets 0–2 (0 = muted, 1 = unity,
- * up to 2 = +6dB boost). Returns null when invalid.
+ * up to 2 = +6dB boost). Returns null when invalid. `keys` is the key
+ * set the job actually produced — the classic four by default, so the
+ * classic validation is unchanged; a Pro job's remix requires (and
+ * accepts) its guitar/piano levels too.
  */
-export function validateStemLevels(levels: unknown): Record<StemKey, number> | null {
+export function validateStemLevels(
+  levels: unknown,
+  keys: readonly AnyStemKey[] = STEM_KEYS,
+): Record<AnyStemKey, number> | null {
   if (typeof levels !== "object" || levels === null) return null;
-  const out = {} as Record<StemKey, number>;
-  for (const key of STEM_KEYS) {
+  const out = {} as Record<AnyStemKey, number>;
+  for (const key of keys) {
     const v = (levels as Record<string, unknown>)[key];
     if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 2) return null;
     out[key] = v;
@@ -129,24 +170,30 @@ export function validateStemLevels(levels: unknown): Record<StemKey, number> | n
  * sum (normalize=0 keeps our levels honest), then a limiter to catch
  * clipping when stems are boosted.
  */
-export function buildRemixFilter(levels: Record<StemKey, number>): string {
-  const vols = STEM_KEYS.map((k, i) => `[${i}:a]volume=${levels[k]}[s${i}]`).join(";");
-  const mix = STEM_KEYS.map((_, i) => `[s${i}]`).join("");
-  return `${vols};${mix}amix=inputs=4:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95`;
+export function buildRemixFilter(
+  levels: Partial<Record<AnyStemKey, number>>,
+  keys: readonly AnyStemKey[] = STEM_KEYS,
+): string {
+  const vols = keys.map((k, i) => `[${i}:a]volume=${levels[k]}[s${i}]`).join(";");
+  const mix = keys.map((_, i) => `[s${i}]`).join("");
+  return `${vols};${mix}amix=inputs=${keys.length}:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95`;
 }
 
 export function buildRemixArgs(
-  stemPaths: Record<StemKey, string>,
-  levels: Record<StemKey, number>,
+  stemPaths: Partial<Record<AnyStemKey, string>>,
+  levels: Partial<Record<AnyStemKey, number>>,
   outputPath: string,
+  keys: readonly AnyStemKey[] = STEM_KEYS,
 ): string[] {
   const args: string[] = ["-y", "-hide_banner", "-loglevel", "error"];
-  for (const key of STEM_KEYS) {
-    args.push("-i", stemPaths[key]);
+  for (const key of keys) {
+    const p = stemPaths[key];
+    if (!p) throw new Error(`Missing stem path for "${key}".`);
+    args.push("-i", p);
   }
   args.push(
     "-filter_complex",
-    buildRemixFilter(levels),
+    buildRemixFilter(levels, keys),
     "-c:a",
     "pcm_s16le",
     "-ar",
@@ -199,6 +246,10 @@ export interface StemUrls {
   drums: string;
   bass: string;
   other: string;
+  /** Pro tier only — absent (not null) on classic jobs, so the classic
+   * response keeps its exact 4-key shape. */
+  guitar?: string;
+  piano?: string;
 }
 
 export interface StemJob {
@@ -206,6 +257,9 @@ export interface StemJob {
   userId: string;
   status: StemJobStatus;
   mode: StemSplitMode;
+  /** Pro tier: 6-stem model, stems include guitar + piano. Orthogonal
+   * to mode (an instrumental job is never pro — the preset is classic). */
+  pro: boolean;
   sourceName: string;
   durationSeconds: number | null;
   stemUrls: StemUrls | null;
@@ -224,6 +278,12 @@ attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getStemJob(id: string): StemJob | undefined {
   return jobs.get(id);
+}
+
+/** The stem keys a given job produces: the classic four, or all six
+ * for a Pro job. Single source for the worker, remix, and validation. */
+export function jobKeySet(job: Pick<StemJob, "pro">): readonly AnyStemKey[] {
+  return job.pro ? ALL_STEM_KEYS : STEM_KEYS;
 }
 
 /** Test hook: clear the in-memory job store. */
@@ -346,17 +406,20 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
       );
     }
 
-    // Real Demucs 4-stem separation — never faked, never stubbed.
+    // Real Demucs separation — never faked, never stubbed. Pro jobs run
+    // the 6-stem model; classic jobs the 4-stem default, unchanged.
     // 2026-10-12 OOM fix: single-flight gate shared with lib/stem-separation —
     // two concurrent PyTorch children OOM-kill the 512MB container.
+    const model = job.pro ? STEM_PRO_DEMUCS_MODEL : STEM_DEMUCS_MODEL;
+    const keySet = jobKeySet(job);
     const outDir = join(workDir, "demucs-out");
-    await runGatedDemucs(() => runDemucs(inputPath, outDir, STEM_DEMUCS_MODEL));
+    await runGatedDemucs(() => runDemucs(inputPath, outDir, model));
 
-    const stemDir = demucsStemDir(outDir, STEM_DEMUCS_MODEL, inputPath);
+    const stemDir = demucsStemDir(outDir, model, inputPath);
     // 2026-10-12 OOM fix: verify each stem exists, but do NOT read them
     // into RAM — the old stemBuffers held all 4 WAVs + mix as Buffers
     // (~160MB+ for a 4-min song, off-heap). Uploads stream from disk.
-    for (const key of STEM_KEYS) {
+    for (const key of keySet) {
       await fs.access(stemFilePath(stemDir, key)); // throws a clear error if Demucs didn't emit this stem
     }
 
@@ -378,7 +441,7 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
     } else {
       const urls = {} as StemUrls;
       const refs = {} as StemUrls;
-      for (const key of STEM_KEYS) {
+      for (const key of keySet) {
         const objectName = `stems/${job.userId}/${job.id}/${key}.wav`;
         const ref = await uploadFileStreamToSupabaseStorage(
           SUPABASE_CLIPS_BUCKET,
@@ -419,19 +482,22 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
  */
 export async function runRemixJob(
   job: StemJob,
-  levels: Record<StemKey, number>,
+  levels: Partial<Record<AnyStemKey, number>>,
 ): Promise<{ url: string; ref: string }> {
   if (!job.stemUrls) throw new Error("Stems are not ready yet.");
+  const keySet = jobKeySet(job);
   const workDir = await fs.mkdtemp(join(tmpdir(), "stem-remix-"));
   try {
-    const stemPaths = {} as Record<StemKey, string>;
-    for (const key of STEM_KEYS) {
+    const stemPaths = {} as Partial<Record<AnyStemKey, string>>;
+    for (const key of keySet) {
+      const url = job.stemUrls[key];
+      if (!url) throw new Error(`Stem "${key}" is missing from this job.`);
       const p = join(workDir, `${key}.wav`);
-      await downloadToFile(job.stemUrls[key], p);
+      await downloadToFile(url, p);
       stemPaths[key] = p;
     }
     const outputPath = join(workDir, "remix.wav");
-    await runProcess("ffmpeg", buildRemixArgs(stemPaths, levels, outputPath), 300_000);
+    await runProcess("ffmpeg", buildRemixArgs(stemPaths, levels, outputPath, keySet), 300_000);
     const objectName = `stems/${job.userId}/${job.id}/remix-${Date.now()}.wav`;
     const ref = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, outputPath, "audio/wav");
     const url = await refreshSupabaseStorageUrl(ref);
@@ -455,6 +521,12 @@ export async function runRemixJob(
  * Instrumental mode (3 credits) runs the same Demucs split but delivers a
  * single WAV of drums+bass+other with the vocals removed — the cheap
  * ffmpeg mix, not a second Demucs pass.
+ *
+ * Optional tier (query or body field): `stems=pro` runs the 6-stem model
+ * in full mode — the classic four plus guitar and piano — at the same
+ * 400 VB. The GET response's `stems` object then carries two extra keys;
+ * classic responses are unchanged. `stems=pro` with the instrumental
+ * preset is rejected (400): that preset is defined on the classic four.
  */
 router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) {
@@ -468,9 +540,24 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     res.status(400).json({ error: "Invalid mode — use \"full\" or \"instrumental\"." });
     return;
   }
+  const rawTier = (req.query.stems as string | undefined) ?? (req.body as { stems?: unknown } | undefined)?.stems;
+  const tier = parseStemTier(rawTier);
+  if (!tier) {
+    res.status(400).json({ error: "Invalid stems tier — use \"pro\" for the 6-stem split, or omit it for the classic 4 stems." });
+    return;
+  }
+  if (tier === "pro" && mode === "instrumental") {
+    res.status(400).json({ error: "Pro Stems is a full split — the instrumental preset uses the classic four stems." });
+    return;
+  }
+  const pro = tier === "pro";
   const cost = mode === "instrumental" ? STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST : STEM_SPLITTER_CREDIT_COST;
   const action =
-    mode === "instrumental" ? "AI Stem Splitter (instrumental)" : "AI Stem Splitter (4-stem)";
+    mode === "instrumental"
+      ? "AI Stem Splitter (instrumental)"
+      : pro
+        ? "AI Stem Splitter (Pro 6-stem)"
+        : "AI Stem Splitter (4-stem)";
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -506,6 +593,7 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     userId: req.userId!,
     status: "queued",
     mode,
+    pro,
     sourceName: req.file.originalname,
     durationSeconds: null,
     stemUrls: null,
@@ -525,6 +613,7 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     jobId: job.id,
     status: job.status,
     mode: job.mode,
+    stemsTier: job.pro ? "pro" : "standard",
     creditsCharged: cost,
     creditsRemaining,
   });
@@ -548,6 +637,7 @@ router.get("/stems/:jobId", requireAuth, (req, res) => {
     jobId: job.id,
     status: job.status,
     mode: job.mode,
+    stemsTier: job.pro ? "pro" : "standard",
     sourceName: job.sourceName,
     durationSeconds: job.durationSeconds,
     stems: job.stemUrls,
@@ -561,8 +651,9 @@ router.get("/stems/:jobId", requireAuth, (req, res) => {
  * POST /api/stems/:jobId/remix
  *
  * Remix the separated stems at custom levels. Body: { levels: { vocals,
- * drums, bass, other } } with each 0–2. Free — the stems were already
- * paid for; this is a deterministic ffmpeg sum, not AI work.
+ * drums, bass, other } } with each 0–2 — a Pro job's levels must also
+ * carry guitar and piano (its remix sums all six). Free — the stems
+ * were already paid for; this is a deterministic ffmpeg sum, not AI work.
  */
 
 /** Request-body validation for POST /stems/:jobId/remix.
@@ -592,7 +683,7 @@ router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
     res.status(409).json({ error: "Stems are not ready yet — wait for the split to finish." });
     return;
   }
-  const levels = validateStemLevels(parsed.data.levels);
+  const levels = validateStemLevels(parsed.data.levels, jobKeySet(job));
   if (!levels) {
     res.status(400).json({
       error: "Invalid levels — each stem needs a number from 0 (muted) to 2 (+6dB).",
