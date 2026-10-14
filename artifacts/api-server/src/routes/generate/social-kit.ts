@@ -8,6 +8,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -51,9 +52,9 @@ const STYLES = [
 
 const ASSET_SPECS = [
   { id: "profile-picture", label: "Profile picture", width: 1024, height: 1024, genSize: "1024x1024" as const },
-  { id: "youtube-banner", label: "YouTube banner", width: 2560, height: 1440, genSize: "1792x1024" as const },
-  { id: "twitter-header", label: "Twitter/X header", width: 1500, height: 500, genSize: "1792x1024" as const },
-  { id: "highlight-covers", label: "Instagram highlight covers", width: 1080, height: 1920, genSize: "1024x1792" as const },
+  { id: "youtube-banner", label: "YouTube banner", width: 2560, height: 1440, genSize: "1536x1024" as const },
+  { id: "twitter-header", label: "Twitter/X header", width: 1500, height: 500, genSize: "1536x1024" as const },
+  { id: "highlight-covers", label: "Instagram highlight covers", width: 1080, height: 1920, genSize: "1024x1536" as const },
 ] as const;
 
 const socialKitSchema = z.object({
@@ -70,31 +71,27 @@ const socialKitSchema = z.object({
 
 const execFileAsync = promisify(execFile);
 
-async function generateImage(prompt: string, size: string, outputPath: string): Promise<void> {
+export async function generateImage(prompt: string, size: string, outputPath: string): Promise<void> {
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst";
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      prompt,
-      size,
-      quality: "standard",
-      n: 1,
-    }),
-    signal: AbortSignal.timeout(180_000),
-  });
-  if (!response.ok) throw new Error("Image generation failed.");
-  const data = (await response.json()) as { data?: Array<{ url?: string }> };
-  const imageUrl = data.data?.[0]?.url;
-  if (!imageUrl) throw new Error("No image URL returned.");
-
-  const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(120_000) });
-  if (!imgRes.ok) throw new Error("Could not download generated image.");
-  await writeFile(outputPath, Buffer.from(await imgRes.arrayBuffer()));
+  /* GPT Image models return base64 (b64_json), never a hosted URL — same
+     SDK call shape as the cover-art / thumbnail-generator fleet. */
+  let b64: string | undefined;
+  try {
+    const imageResp = await getOpenAI().images.generate(
+      {
+        model,
+        prompt,
+        size,
+        quality: "high",
+      },
+      { signal: AbortSignal.timeout(180_000) },
+    );
+    b64 = imageResp.data?.[0]?.b64_json;
+  } catch {
+    throw new Error("Image generation failed.");
+  }
+  if (!b64) throw new Error("No image data returned.");
+  await writeFile(outputPath, Buffer.from(b64, "base64"));
 }
 
 /** Resize/crop a generated image to exact platform dimensions (cover fit). */
@@ -210,7 +207,7 @@ router.post("/social-kit", requireAuth, async (req, res) => {
       `Wide YouTube channel banner art for "${brandName}". ${base} ` +
         `Render the exact text "${brandName}" as a large bold headline and the exact text "${tagline}" as a smaller subtitle beneath it. ` +
         `Keep the center area clear of critical elements so it is safe on all devices.`,
-      "1792x1024",
+      "1536x1024",
       2560,
       1440,
       "youtube-banner"
@@ -222,7 +219,7 @@ router.post("/social-kit", requireAuth, async (req, res) => {
       `Wide Twitter/X profile header banner for "${brandName}". ${base} ` +
         `Render the exact text "${brandName}" as a bold headline on the left side with the exact text "${tagline}" beneath it. ` +
         `Keep the left-center area clear for the profile photo overlap.`,
-      "1792x1024",
+      "1536x1024",
       1500,
       500,
       "twitter-header"
@@ -235,7 +232,7 @@ router.post("/social-kit", requireAuth, async (req, res) => {
         `highlight-cover-${i + 1}`,
         `Vertical 9:16 Instagram story highlight cover icon for "${name}". ${base} ` +
           `Simple centered icon-style design with the exact text "${name}" as a small bold label at the bottom. Minimal, readable at small sizes.`,
-        "1024x1792",
+        "1024x1536",
         1080,
         1920,
         `highlight-cover-${i + 1}`

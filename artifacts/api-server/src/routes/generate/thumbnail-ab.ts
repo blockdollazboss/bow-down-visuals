@@ -6,6 +6,7 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -52,31 +53,27 @@ const VARIATIONS = [
   },
 ] as const;
 
-async function generateImage(prompt: string, outputPath: string): Promise<void> {
+export async function generateImage(prompt: string, outputPath: string): Promise<void> {
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst";
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      prompt,
-      size: "1792x1024",
-      quality: "standard",
-      n: 1,
-    }),
-    signal: AbortSignal.timeout(180_000),
-  });
-  if (!response.ok) throw new Error("Image generation failed.");
-  const data = (await response.json()) as { data?: Array<{ url?: string }> };
-  const imageUrl = data.data?.[0]?.url;
-  if (!imageUrl) throw new Error("No image URL returned.");
-
-  const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(120_000) });
-  if (!imgRes.ok) throw new Error("Could not download generated image.");
-  await writeFile(outputPath, Buffer.from(await imgRes.arrayBuffer()));
+  /* GPT Image models return base64 (b64_json), never a hosted URL — same
+     SDK call shape as the cover-art / thumbnail-generator fleet. */
+  let b64: string | undefined;
+  try {
+    const imageResp = await getOpenAI().images.generate(
+      {
+        model,
+        prompt,
+        size: "1536x1024",
+        quality: "high",
+      },
+      { signal: AbortSignal.timeout(180_000) },
+    );
+    b64 = imageResp.data?.[0]?.b64_json;
+  } catch {
+    throw new Error("Image generation failed.");
+  }
+  if (!b64) throw new Error("No image data returned.");
+  await writeFile(outputPath, Buffer.from(b64, "base64"));
 }
 
 router.get("/thumbnail-ab/variations", requireAuth, (_req, res) => {
