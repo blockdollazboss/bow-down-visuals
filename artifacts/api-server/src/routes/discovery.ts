@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import rateLimit from "express-rate-limit";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
@@ -257,27 +258,27 @@ router.get("/charts", publicApiLimiter, asyncHandler(async (req, res) => {
     topVideos(q.window, q.vertical, q.genre, limit, q.days),
     topCreators(q.window, q.vertical, limit, q.days),
   ]);
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     window: q.window,
     vertical: q.vertical ?? null,
     vertical_label: q.vertical ? VERTICAL_LABELS[q.vertical] ?? q.vertical : null,
     tracks, videos, creators,
-  });
+  }));
 }));
 
 router.get("/charts/tracks", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = ChartsQuery.parse(req.query);
-  res.json({ window: q.window, vertical: q.vertical ?? null, tracks: await topTracks(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) });
+  res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, tracks: await topTracks(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) }));
 }));
 
 router.get("/charts/videos", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = ChartsQuery.parse(req.query);
-  res.json({ window: q.window, vertical: q.vertical ?? null, videos: await topVideos(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) });
+  res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, videos: await topVideos(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) }));
 }));
 
 router.get("/charts/creators", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = ChartsQuery.parse(req.query);
-  res.json({ window: q.window, vertical: q.vertical ?? null, creators: await topCreators(q.window, q.vertical, clampLimit(q.limit), q.days) });
+  res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, creators: await topCreators(q.window, q.vertical, clampLimit(q.limit), q.days) }));
 }));
 
 /* ─── Rising ("Breaking") ─────────────────────────────────────────────────
@@ -310,7 +311,7 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
     WHERE p.is_public ${vf ?? sql``} AND nf.nfollows >= 2
     ORDER BY nf.nfollows DESC, wp.wplays DESC NULLS LAST
     LIMIT ${limit}`);
-  res.json({ vertical: q.vertical ?? null, rising: rows });
+  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, rising: rows }));
 }));
 
 /* ─── Rising earners ────────────────────────────────────────────────────────
@@ -339,7 +340,7 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
     WHERE p.is_public ${vf ?? sql``}
     ORDER BY e.earned_cents DESC
     LIMIT ${limit}`);
-  res.json({ vertical: q.vertical ?? null, earners: rows });
+  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, earners: rows }));
 }));
 
 /* ─── For brands ("Work with creators") ───────────────────────────────────
@@ -364,11 +365,11 @@ router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
     WHERE p.is_public ${vf ?? sql``}
     ORDER BY p.follower_count DESC
     LIMIT ${limit}`);
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     vertical: q.vertical ?? null,
     note: "Read-only discovery. Start outreach from /brand-deals.",
     creators: rows,
-  });
+  }));
 }));
 
 /* ─── Search ──────────────────────────────────────────────────────────────
@@ -440,7 +441,7 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       ORDER BY pl.follower_count DESC
       LIMIT ${per}`)).rows;
   }
-  res.json(out);
+  res.json(await refreshSupabaseStorageUrlsDeep(out));
 }));
 
 /* ─── Verticals ───────────────────────────────────────────────────────────
@@ -510,13 +511,13 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
     WHERE p.is_public ${vf} AND nf.n >= 2
     ORDER BY nf.n DESC LIMIT ${limit}`)
   ).rows;
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     vertical,
     label: VERTICAL_LABELS[vertical],
     creators, tracks, videos,
     new_this_week: fresh,
     rising,
-  });
+  }));
 }));
 
 /* ─── Genres ──────────────────────────────────────────────────────────────
@@ -561,7 +562,7 @@ router.get("/genre/:genre", publicApiLimiter, asyncHandler(async (req, res) => {
         OR EXISTS (SELECT 1 FROM profile_videos v WHERE v.profile_id = p.id AND v.is_published AND v.genre ${gf})
       ) ORDER BY p.follower_count DESC LIMIT ${limit}`),
   ]);
-  res.json({ genre, vertical: vertical ?? null, tracks, videos, creators });
+  res.json(await refreshSupabaseStorageUrlsDeep({ genre, vertical: vertical ?? null, tracks, videos, creators }));
 }));
 
 /* ─── New this week ───────────────────────────────────────────────────────
@@ -583,7 +584,7 @@ router.get("/new-this-week", publicApiLimiter, asyncHandler(async (req, res) => 
      FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
      WHERE v.is_published AND p.is_public ${vf ?? sql``} AND v.created_at >= NOW() - INTERVAL '7 days')
     ORDER BY created_at DESC LIMIT ${limit}`)).rows;
-  res.json({ vertical: vertical ?? null, items: rows });
+  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: vertical ?? null, items: rows }));
 }));
 
 /* ─── Related ─────────────────────────────────────────────────────────────
@@ -610,7 +611,7 @@ router.get("/related/creators/:slug", publicApiLimiter, asyncHandler(async (req,
     WHERE p.is_public AND p.id != ${me.id} AND p.vertical = ${me.vertical}
     ORDER BY p.total_plays DESC
     LIMIT ${limit}`);
-  res.json({ slug, vertical: me.vertical, related: rows });
+  res.json(await refreshSupabaseStorageUrlsDeep({ slug, vertical: me.vertical, related: rows }));
 }));
 
 router.get("/related/track/:id", publicApiLimiter, asyncHandler(async (req, res) => {
@@ -638,7 +639,7 @@ router.get("/related/track/:id", publicApiLimiter, asyncHandler(async (req, res)
     WHERE t.is_published AND p.is_public AND t.id != ${me.id}::uuid ${gf}
     ORDER BY t.play_count DESC
     LIMIT ${limit}`);
-  res.json({ id, genre: me.genre, related: rows.rows });
+  res.json(await refreshSupabaseStorageUrlsDeep({ id, genre: me.genre, related: rows.rows }));
 }));
 
 /* ─── Follow status (auth) ────────────────────────────────────────────────
@@ -742,7 +743,7 @@ router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
        AND v.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
        AND v.created_at >= NOW() - INTERVAL '30 days')
     ORDER BY created_at DESC LIMIT ${limit}`)).rows;
-  res.json({ items, following: ids.length });
+  res.json(await refreshSupabaseStorageUrlsDeep({ items, following: ids.length }));
 }));
 
 /* ─── Notifications ───────────────────────────────────────────────────────

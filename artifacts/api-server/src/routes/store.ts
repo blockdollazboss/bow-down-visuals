@@ -46,6 +46,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 
 const router = Router();
@@ -596,7 +597,11 @@ router.get("/store/download/:token", publicApiLimiter, async (req, res) => {
     res.status(200).send(
       downloadPageHtml({
         ok: true,
-        fileUrl: String(row["file_url"]),
+        /* download_links.file_url is copied verbatim from the item's
+           stored media value, which is a permanent storage ref since
+           mirror-on-save — mint a fresh playable URL at serve time.
+           Non-ref legacy values pass through unchanged. */
+        fileUrl: await refreshSupabaseStorageUrl(String(row["file_url"])),
         title,
         artist: srow ? String(srow["artist_name"] ?? "") : undefined,
         usesLeft,

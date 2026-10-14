@@ -85,6 +85,10 @@ export default function Publish() {
 
   /* Artwork / thumbnail */
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  /* Permanent storage ref for the artwork when we have one (uploads
+     return it alongside the playable URL) — the ref is what gets saved;
+     artworkUrl stays the display/preview URL. */
+  const [artworkRef, setArtworkRef] = useState<string | null>(null);
   const [artUploading, setArtUploading] = useState(false);
   const [artGenerating, setArtGenerating] = useState(false);
 
@@ -146,7 +150,7 @@ export default function Publish() {
       const pTitle = params.get("title");
       if (pTitle) setTitle(pTitle);
       const pArt = params.get("artwork") ?? params.get("thumbnail");
-      if (pArt) setArtworkUrl(pArt);
+      if (pArt) { setArtworkUrl(pArt); setArtworkRef(null); }
       const pGenre = params.get("genre");
       if (pGenre) setGenre(pGenre);
       const pDesc = params.get("description");
@@ -185,6 +189,32 @@ export default function Publish() {
   async function authHeaders(): Promise<Record<string, string>> {
     const token = await getAccessToken();
     return { Authorization: `Bearer ${token ?? ""}` };
+  }
+
+  /* Mirror-on-save (client half): swap an http(s) media URL for its
+     permanent storage ref via POST /api/mirror-media before it is
+     stored, so a saved track/video can never rot on an expiring
+     signed URL or a provider URL. Refs, site-relative paths, and
+     empty values pass straight through; any failure falls back to
+     the original value so a save never breaks because mirroring
+     did — and the publish API mirrors again server-side regardless. */
+  async function mirrorForSave(
+    value: string | null | undefined,
+    kind: "audio" | "video" | "image",
+  ): Promise<string | null> {
+    if (!value || !/^https?:\/\//i.test(value)) return value ?? null;
+    try {
+      const res = await fetch("/api/mirror-media", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ url: value, kind }),
+      });
+      if (!res.ok) return value;
+      const j = (await res.json()) as { ref?: string };
+      return j.ref ?? value;
+    } catch {
+      return value;
+    }
   }
 
   async function loadProfile() {
@@ -308,8 +338,10 @@ export default function Publish() {
     probeDuration(f);
   }
 
-  /* ── XHR upload with progress bar ── */
-  function uploadWithProgress(f: File): Promise<string> {
+  /* ── XHR upload with progress bar ──
+     Resolves { url, ref }: url is the playable (signed) URL for
+     previews; ref is the permanent storage ref — the value to SAVE. */
+  function uploadWithProgress(f: File): Promise<{ url: string; ref: string | null }> {
     return new Promise(async (resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const fd = new FormData();
@@ -320,8 +352,8 @@ export default function Publish() {
       xhr.onload = () => {
         setUploadPct(null);
         try {
-          const j = JSON.parse(xhr.responseText) as { url?: string; error?: string; message?: string };
-          if (xhr.status >= 200 && xhr.status < 300 && j.url) resolve(j.url);
+          const j = JSON.parse(xhr.responseText) as { url?: string; ref?: string; error?: string; message?: string };
+          if (xhr.status >= 200 && xhr.status < 300 && j.url) resolve({ url: j.url, ref: j.ref ?? null });
           else reject(new Error(j.message ?? j.error ?? `Upload failed (${xhr.status})`));
         } catch {
           reject(new Error(`Upload failed (${xhr.status})`));
@@ -346,8 +378,9 @@ export default function Publish() {
     }
     setArtUploading(true);
     try {
-      const url = await uploadWithProgress(f);
-      setArtworkUrl(url);
+      const up = await uploadWithProgress(f);
+      setArtworkUrl(up.url);
+      setArtworkRef(up.ref);
     } catch (e) {
       toast({ title: "Artwork upload failed", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
@@ -377,6 +410,7 @@ export default function Publish() {
       const j = await res.json() as { url?: string; error?: string; message?: string };
       if (!res.ok || !j.url) throw new Error(j.message ?? j.error ?? `Generation failed (${res.status})`);
       setArtworkUrl(j.url);
+      setArtworkRef(null);
       toast({ title: "Artwork generated", description: "200 Visual Bucs — looking sharp." });
     } catch (e) {
       toast({ title: "Artwork generation failed", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
@@ -435,35 +469,42 @@ export default function Publish() {
       let finalMediaUrl = mediaUrl ?? null;
       if (file && !editingId) {
         setUploadPct(0);
-        finalMediaUrl = await uploadWithProgress(file);
+        const up = await uploadWithProgress(file);
+        /* Save the permanent ref, not the 24h signed URL. */
+        finalMediaUrl = up.ref ?? up.url;
       }
       // Editing a draft keeps its existing media unless a new file was dropped.
       const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
       const priceCents = priceMode === "paid" ? Math.round(Math.max(0, Number(priceDollars) || 0) * 100) : 0;
 
+      const isEdit = editingId !== null;
+      const existing = isEdit ? drafts.find((d) => d.id === editingId) : undefined;
+      const rawMediaUrl = finalMediaUrl ?? (existing ? existing.media_url : null);
+      /* Mirror-on-save: whatever lands in the row is the permanent
+         storage ref — deep-link prefills and AI artwork arrive as raw
+         URLs, and an edit echoes back a signed URL; all of them are
+         swapped for the ref here (best-effort, original on failure). */
+      const saveMediaUrl = await mirrorForSave(rawMediaUrl, contentType);
+      const saveArtworkUrl = await mirrorForSave(artworkRef ?? artworkUrl, "image");
+
       const body: Record<string, unknown> =
         contentType === "audio"
           ? {
-              profile_id: profile.id, title: title.trim(), audio_url: finalMediaUrl,
-              artwork_url: artworkUrl, genre: genre || undefined, category: vertical,
+              profile_id: profile.id, title: title.trim(), audio_url: saveMediaUrl,
+              artwork_url: saveArtworkUrl, genre: genre || undefined, category: vertical,
               tags, isrc: isrc || undefined, duration_sec: durationSec,
               download_price_cents: priceCents, is_published: publish,
             }
           : {
-              profile_id: profile.id, title: title.trim(), video_url: finalMediaUrl,
-              thumbnail_url: artworkUrl, category: vertical, duration_sec: durationSec,
+              profile_id: profile.id, title: title.trim(), video_url: saveMediaUrl,
+              thumbnail_url: saveArtworkUrl, category: vertical, duration_sec: durationSec,
               description: description || undefined, is_published: publish,
               season: season ? Number(season) : undefined,
               episode: episode ? Number(episode) : undefined,
             };
 
-      const isEdit = editingId !== null;
-      const existing = isEdit ? drafts.find((d) => d.id === editingId) : undefined;
       const endpoint = contentType === "audio" ? "track" : "video";
       const url = isEdit ? `/api/publish/${endpoint}/${editingId}` : `/api/publish/${endpoint}`;
-      if (isEdit && !finalMediaUrl && existing) {
-        body[contentType === "audio" ? "audio_url" : "video_url"] = existing.media_url;
-      }
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -542,7 +583,7 @@ export default function Publish() {
     setTitle(""); setDescription(""); setGenre(""); setTagsInput(""); setIsrc("");
     setSeason(""); setEpisode(""); setPriceMode("free"); setPriceDollars("");
     setFile(null); setPrefillUrl(null); setPrefillLabel(null);
-    setArtworkUrl(null); setDurationSec(null); setEditingId(null); setUploadError(null);
+    setArtworkUrl(null); setArtworkRef(null); setDurationSec(null); setEditingId(null); setUploadError(null);
   }
 
   function startEdit(d: DraftItem) {
@@ -558,6 +599,7 @@ export default function Publish() {
     setPriceMode((d.download_price_cents ?? 0) > 0 ? "paid" : "free");
     setPriceDollars((d.download_price_cents ?? 0) > 0 ? String((d.download_price_cents ?? 0) / 100) : "");
     setArtworkUrl(d.artwork_url ?? null);
+    setArtworkRef(null);
     setDurationSec(d.duration_sec ?? null);
     setFile(null);
     setPrefillUrl(d.media_url);
@@ -990,7 +1032,7 @@ export default function Publish() {
                 <div className="relative shrink-0">
                   <img src={artworkUrl} alt="artwork" className="h-24 w-24 rounded-xl object-cover border border-white/10" />
                   <button
-                    onClick={() => setArtworkUrl(null)}
+                    onClick={() => { setArtworkUrl(null); setArtworkRef(null); }}
                     className="absolute -top-2 -right-2 rounded-full bg-black/80 border border-white/15 p-1 text-white/60 hover:text-white"
                     title="Remove"
                   >

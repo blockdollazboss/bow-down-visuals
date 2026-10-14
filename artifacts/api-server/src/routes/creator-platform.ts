@@ -1204,7 +1204,7 @@ router.get("/media/track/:id", async (req, res) => {
       res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
       return;
     }
-    res.json({ track: enrichTrack(track, profile.slug), artist: artistRef(profile) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/track detail error");
     res.status(500).json({ error: "Couldn't load that audio. Try again." });
@@ -1225,7 +1225,7 @@ router.get("/media/video/:id", async (req, res) => {
       return;
     }
     const sounds = await soundMapFor([video], profile.slug);
-    res.json({ video: enrichVideo(video, profile.slug, sounds), artist: artistRef(profile) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/video detail error");
     res.status(500).json({ error: "Couldn't load that video. Try again." });
@@ -1249,13 +1249,13 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
         eq(profileVideosTable.isPublished, true),
       )).orderBy(desc(profileVideosTable.createdAt)).limit(limit);
       const sounds = await soundMapFor(rows, profile.slug);
-      res.json({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds)) });
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds)) }));
     } else {
       const rows = await db.select().from(profileTracksTable).where(and(
         eq(profileTracksTable.profileId, profile.id),
         eq(profileTracksTable.isPublished, true),
       )).orderBy(desc(profileTracksTable.createdAt)).limit(limit);
-      res.json({ items: rows.map((t) => enrichTrack(t, profile.slug)) });
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((t) => enrichTrack(t, profile.slug)) }));
     }
   } catch (err) {
     req.log.error({ err }, "profile media listing error");

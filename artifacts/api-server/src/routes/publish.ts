@@ -27,7 +27,9 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
+  refreshSupabaseStorageUrlsDeep,
 } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 
 const router = Router();
 
@@ -249,13 +251,25 @@ router.post("/track", requireAuth, async (req: Request, res: Response) => {
     const tags = cleanTags(b["tags"]);
     if (category && !tags.includes(category)) tags.unshift(category);
 
+    /* Mirror-on-save: a client-supplied URL (deep-link prefill from a
+       creation tool, an AI artwork result, an echoed signed URL) must
+       never be stored verbatim — it can expire or vanish. Store the
+       permanent storage ref; reads re-sign on every load. */
+    const ownerKey = req.userId!;
+    const storedAudioUrl =
+      (await mirrorExternalMediaUrl(audioUrl, { kind: "audio", ownerKey })) ?? audioUrl;
+    const rawArtworkUrl = cleanStr(b["artwork_url"], 2048);
+    const storedArtworkUrl = rawArtworkUrl
+      ? ((await mirrorExternalMediaUrl(rawArtworkUrl, { kind: "image", ownerKey })) ?? rawArtworkUrl)
+      : null;
+
     const result = await db.execute(sql`
       INSERT INTO profile_tracks
         (profile_id, title, audio_url, artwork_url, genre, tags, isrc,
          duration_sec, download_price_cents, is_published)
       VALUES
-        (${profileId}, ${title}, ${audioUrl},
-         ${cleanStr(b["artwork_url"], 2048)}, ${cleanStr(b["genre"], 60)},
+        (${profileId}, ${title}, ${storedAudioUrl},
+         ${storedArtworkUrl}, ${cleanStr(b["genre"], 60)},
          ${tags.length ? sql`ARRAY[${sql.join(tags.map((t) => sql`${t}`), sql`, `)}]` : sql`'{}'`},
          ${cleanStr(b["isrc"], 32)},
          ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null},
@@ -264,7 +278,7 @@ router.post("/track", requireAuth, async (req: Request, res: Response) => {
       RETURNING id, profile_id, title, audio_url, artwork_url, genre, tags,
                 isrc, duration_sec, download_price_cents, is_published
     `);
-    res.status(201).json({ track: result.rows[0] });
+    res.status(201).json({ track: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {
     publishError(res, req, err, "POST /publish/track");
   }
@@ -286,7 +300,7 @@ router.get("/tracks", requireAuth, async (req: Request, res: Response) => {
       ORDER BY id DESC
       LIMIT 200
     `);
-    res.json({ tracks: result.rows });
+    res.json({ tracks: await refreshSupabaseStorageUrlsDeep(result.rows) });
   } catch (err) {
     publishError(res, req, err, "GET /publish/tracks");
   }
@@ -311,11 +325,23 @@ router.put("/track/:id", requireAuth, async (req: Request, res: Response) => {
     const tags = cleanTags(b["tags"]);
     if (category && !tags.includes(category)) tags.unshift(category);
 
+    /* Mirror-on-save, same as POST: any replacement URL lands as a
+       permanent ref, never a verbatim client URL. Null = keep existing. */
+    const ownerKey = req.userId!;
+    const rawAudioUrl = cleanStr(b["audio_url"], 2048);
+    const storedAudioUrl = rawAudioUrl
+      ? ((await mirrorExternalMediaUrl(rawAudioUrl, { kind: "audio", ownerKey })) ?? rawAudioUrl)
+      : null;
+    const rawArtworkUrl = cleanStr(b["artwork_url"], 2048);
+    const storedArtworkUrl = rawArtworkUrl
+      ? ((await mirrorExternalMediaUrl(rawArtworkUrl, { kind: "image", ownerKey })) ?? rawArtworkUrl)
+      : null;
+
     const result = await db.execute(sql`
       UPDATE profile_tracks SET
         title = COALESCE(${cleanStr(b["title"], 160)}, title),
-        audio_url = COALESCE(${cleanStr(b["audio_url"], 2048)}, audio_url),
-        artwork_url = COALESCE(${cleanStr(b["artwork_url"], 2048)}, artwork_url),
+        audio_url = COALESCE(${storedAudioUrl}, audio_url),
+        artwork_url = COALESCE(${storedArtworkUrl}, artwork_url),
         genre = COALESCE(${cleanStr(b["genre"], 60)}, genre),
         tags = ${tags.length ? sql`ARRAY[${sql.join(tags.map((t) => sql`${t}`), sql`, `)}]` : sql`tags`},
         isrc = COALESCE(${cleanStr(b["isrc"], 32)}, isrc),
@@ -334,7 +360,7 @@ router.put("/track/:id", requireAuth, async (req: Request, res: Response) => {
       RETURNING id, profile_id, title, audio_url, artwork_url, genre, tags,
                 isrc, duration_sec, download_price_cents, is_published
     `);
-    res.json({ track: result.rows[0] });
+    res.json({ track: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {
     publishError(res, req, err, "PUT /publish/track/:id");
   }
@@ -381,6 +407,15 @@ router.post("/video", requireAuth, async (req: Request, res: Response) => {
     }
     await requireOwnedProfile(req, profileId);
 
+    /* Mirror-on-save (same law as tracks): store permanent refs. */
+    const ownerKey = req.userId!;
+    const storedVideoUrl =
+      (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey })) ?? videoUrl;
+    const rawThumbnailUrl = cleanStr(b["thumbnail_url"], 2048);
+    const storedThumbnailUrl = rawThumbnailUrl
+      ? ((await mirrorExternalMediaUrl(rawThumbnailUrl, { kind: "image", ownerKey })) ?? rawThumbnailUrl)
+      : null;
+
     const season = posInt(b["season"]);
     const episode = posInt(b["episode"]);
     const hasSeason = await profileVideosHasSeason();
@@ -391,8 +426,8 @@ router.post("/video", requireAuth, async (req: Request, res: Response) => {
             (profile_id, title, video_url, thumbnail_url, duration_sec,
              description, is_published, season, episode)
           VALUES
-            (${profileId}, ${title}, ${videoUrl},
-             ${cleanStr(b["thumbnail_url"], 2048)},
+            (${profileId}, ${title}, ${storedVideoUrl},
+             ${storedThumbnailUrl},
              ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null},
              ${cleanStr(b["description"], 2000)},
              ${b["is_published"] === true},
@@ -405,15 +440,15 @@ router.post("/video", requireAuth, async (req: Request, res: Response) => {
             (profile_id, title, video_url, thumbnail_url, duration_sec,
              description, is_published)
           VALUES
-            (${profileId}, ${title}, ${videoUrl},
-             ${cleanStr(b["thumbnail_url"], 2048)},
+            (${profileId}, ${title}, ${storedVideoUrl},
+             ${storedThumbnailUrl},
              ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null},
              ${cleanStr(b["description"], 2000)},
              ${b["is_published"] === true})
           RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
                     description, is_published
         `);
-    res.status(201).json({ video: result.rows[0] });
+    res.status(201).json({ video: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {
     publishError(res, req, err, "POST /publish/video");
   }
@@ -435,7 +470,7 @@ router.get("/videos", requireAuth, async (req: Request, res: Response) => {
       ORDER BY id DESC
       LIMIT 200
     `);
-    res.json({ videos: result.rows });
+    res.json({ videos: await refreshSupabaseStorageUrlsDeep(result.rows) });
   } catch (err) {
     publishError(res, req, err, "GET /publish/videos");
   }
@@ -456,6 +491,18 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
     }
     await requireOwnedProfile(req, row.profile_id as string);
 
+    /* Mirror-on-save, same as POST: replacement URLs land as permanent
+       refs. Null = keep existing. */
+    const ownerKey = req.userId!;
+    const rawVideoUrl = cleanStr(b["video_url"], 2048);
+    const storedVideoUrl = rawVideoUrl
+      ? ((await mirrorExternalMediaUrl(rawVideoUrl, { kind: "video", ownerKey })) ?? rawVideoUrl)
+      : null;
+    const rawThumbnailUrl = cleanStr(b["thumbnail_url"], 2048);
+    const storedThumbnailUrl = rawThumbnailUrl
+      ? ((await mirrorExternalMediaUrl(rawThumbnailUrl, { kind: "image", ownerKey })) ?? rawThumbnailUrl)
+      : null;
+
     const hasSeason = await profileVideosHasSeason();
     const season = posInt(b["season"]);
     const episode = posInt(b["episode"]);
@@ -463,8 +510,8 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
       ? await db.execute(sql`
           UPDATE profile_videos SET
             title = COALESCE(${cleanStr(b["title"], 160)}, title),
-            video_url = COALESCE(${cleanStr(b["video_url"], 2048)}, video_url),
-            thumbnail_url = COALESCE(${cleanStr(b["thumbnail_url"], 2048)}, thumbnail_url),
+            video_url = COALESCE(${storedVideoUrl}, video_url),
+            thumbnail_url = COALESCE(${storedThumbnailUrl}, thumbnail_url),
             duration_sec = COALESCE(${
               typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0
                 ? Math.round(b["duration_sec"])
@@ -481,8 +528,8 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
       : await db.execute(sql`
           UPDATE profile_videos SET
             title = COALESCE(${cleanStr(b["title"], 160)}, title),
-            video_url = COALESCE(${cleanStr(b["video_url"], 2048)}, video_url),
-            thumbnail_url = COALESCE(${cleanStr(b["thumbnail_url"], 2048)}, thumbnail_url),
+            video_url = COALESCE(${storedVideoUrl}, video_url),
+            thumbnail_url = COALESCE(${storedThumbnailUrl}, thumbnail_url),
             duration_sec = COALESCE(${
               typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0
                 ? Math.round(b["duration_sec"])
@@ -494,7 +541,7 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
           RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
                     description, is_published
         `);
-    res.json({ video: result.rows[0] });
+    res.json({ video: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {
     publishError(res, req, err, "PUT /publish/video/:id");
   }
