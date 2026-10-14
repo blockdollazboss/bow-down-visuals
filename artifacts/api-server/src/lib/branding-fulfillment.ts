@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { refreshSupabaseStorageUrl } from "./objectStorage";
+
+/* Mirror-on-save consumer (2026-10-13 law): order items store design
+   images as permanent storage refs — every fetch/provider handoff below
+   resolves them to a fresh signed URL first (Printful/PrintKK fetch the
+   design server-side and cannot read a ref). */
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { logger } from "./logger";
@@ -220,8 +226,9 @@ async function submitToProvider(
       if (!rug.designUrl) {
         throw new Error(`Rug item missing designUrl (logo) for order ${order.id}`);
       }
-      // Download logo from R2/URL
-      const logoRes = await fetch(rug.designUrl);
+      // Download logo from R2/URL (stored value may be a storage ref)
+      const logoUrl = await refreshSupabaseStorageUrl(rug.designUrl);
+      const logoRes = await fetch(logoUrl);
       if (!logoRes.ok) throw new Error(`Failed to download rug logo: ${rug.designUrl}`);
       const logoBuffer = Buffer.from(await logoRes.arrayBuffer());
       const fileName = `rug-logo-${order.id}.png`;
@@ -297,13 +304,15 @@ async function submitToProvider(
     };
   }
 
-  const items: PrintfulOrderItem[] = order.items.map((i) => ({
+  const items: PrintfulOrderItem[] = await Promise.all(order.items.map(async (i) => ({
     product: i.product,
     size: i.size,
     color: i.color,
     quantity: i.qty,
-    designUrl: i.designUrl,
-  }));
+    /* Printful fetches the design server-side — hand it a signed URL,
+       never a stored ref. */
+    designUrl: i.designUrl ? await refreshSupabaseStorageUrl(i.designUrl) : i.designUrl,
+  })));
 
   /* Adopt before submitting: ask Printful for an order already bound
      to our order id (sent as external_id on every submission). The

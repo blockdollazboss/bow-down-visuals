@@ -361,11 +361,14 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    /* Non-fatal: history + label for the generations library. */
+    /* Non-fatal: history + label for the generations library.
+       Store the stable storage ref (not the short-lived signed URL) — the
+       history reader mints a fresh URL on every read. Same pattern as
+       thumbnail.ts's recordThumbnailHistory call. */
     const label = [artistName, songTitle].filter(Boolean).join(" — ") || "Spotify Canvas";
     await recordCanvasHistory({
       userId: req.userId!,
-      videoUrl: url,
+      videoUrl: storageRef,
       creditsUsed: CANVAS_COST,
       title: `${label} (${CANVAS_STYLES[style].label})`,
       style,

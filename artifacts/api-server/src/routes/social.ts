@@ -28,7 +28,35 @@ import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } fro
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
-import { refreshSupabaseStorageUrl, isStorageRef } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+
+/* Mirror-on-save (2026-10-13 law): post attachments, story media and
+   highlight covers are re-hosted into permanent storage at save time.
+   Attachment media fields are url/thumb/artwork/image; the url kind
+   follows the attachment kind (track → audio, watch → video, else image). */
+const ATTACHMENT_URL_KIND: Record<string, "image" | "video" | "audio"> = {
+  track: "audio",
+  watch: "video",
+};
+
+async function mirrorAttachments<T extends Record<string, unknown>>(atts: T[], ownerKey: string): Promise<T[]> {
+  return Promise.all(
+    atts.map(async (att) => {
+      const out: Record<string, unknown> = { ...att };
+      const kind = ATTACHMENT_URL_KIND[String(att["kind"] ?? "")] ?? "image";
+      if (typeof out["url"] === "string") {
+        out["url"] = (await mirrorExternalMediaUrl(out["url"], { kind, ownerKey })) ?? out["url"];
+      }
+      for (const f of ["thumb", "artwork", "image"] as const) {
+        if (typeof out[f] === "string") {
+          out[f] = (await mirrorExternalMediaUrl(out[f] as string, { kind: "image", ownerKey })) ?? out[f];
+        }
+      }
+      return out as T;
+    }),
+  );
+}
 import {
   buildAuthUrl,
   buildFacebookAuthUrl,
@@ -1300,20 +1328,34 @@ async function enrichPosts(
     viewerVotes = new Map(vv.map((v) => [v.postId, v.optionId]));
   }
 
-  return rows.map((p) => ({
-    ...p,
-    author: pickProfile(pmap.get(p.profileId)),
-    viewer_emoji: viewerEmoji.get(p.id) ?? null,
-    viewer_saved: savedSet.has(p.id),
-    reaction_counts: countMap.get(p.id) ?? {},
-    quoted: p.quoteOf ? (qmap.get(p.quoteOf) ?? null) : null,
-    poll: pollMap.has(p.id)
-      ? {
-          options: (pollMap.get(p.id) ?? []).map((o) => ({ id: o.id, option_text: o.optionText, vote_count: o.voteCount })),
-          viewer_option_id: viewerVotes.get(p.id) ?? null,
-        }
-      : null,
-  })) as EnrichedPost[];
+  /* Stored media values may be storage refs (mirrored at save) — mint
+     fresh URLs for attachments + author avatars on every read. Quoted
+     posts arrive already refreshed via the recursive call above. */
+  return (await Promise.all(
+    rows.map(async (p) => {
+      const author = pickProfile(pmap.get(p.profileId));
+      return {
+        ...p,
+        mediaUrls: await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
+        author: author
+          ? {
+              ...author,
+              avatar_url: author.avatar_url ? await refreshSupabaseStorageUrl(author.avatar_url) : author.avatar_url,
+            }
+          : author,
+        viewer_emoji: viewerEmoji.get(p.id) ?? null,
+        viewer_saved: savedSet.has(p.id),
+        reaction_counts: countMap.get(p.id) ?? {},
+        quoted: p.quoteOf ? (qmap.get(p.quoteOf) ?? null) : null,
+        poll: pollMap.has(p.id)
+          ? {
+              options: (pollMap.get(p.id) ?? []).map((o) => ({ id: o.id, option_text: o.optionText, vote_count: o.voteCount })),
+              viewer_option_id: viewerVotes.get(p.id) ?? null,
+            }
+          : null,
+      };
+    }),
+  )) as EnrichedPost[];
 }
 
 function publishedOnly() {
@@ -1336,12 +1378,16 @@ router.post("/stories", requireAuth, w8WriteLimiter, async (req: Request, res: R
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
     const [story] = await db.insert(storiesTable).values({
       profileId: me.id,
-      mediaUrl: parsed.data.media_url,
+      mediaUrl:
+        (await mirrorExternalMediaUrl(parsed.data.media_url, {
+          kind: parsed.data.media_kind === "video" ? "video" : "image",
+          ownerKey: req.userId!,
+        })) ?? parsed.data.media_url,
       mediaKind: parsed.data.media_kind,
       caption: parsed.data.caption,
       expiresAt: new Date(Date.now() + 24 * 3600_000),
     }).returning();
-    return res.status(201).json({ story });
+    return res.status(201).json({ story: await refreshSupabaseStorageUrlsDeep(story) });
   } catch (err) {
     return res.status(500).json({ error: "story_failed", message: "Couldn't post that story." });
   }
@@ -1365,9 +1411,9 @@ router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => 
       db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, idArr)),
     ]);
     const pmap = new Map(profiles.map((p) => [p.id, p]));
-    return res.json({
+    return res.json(await refreshSupabaseStorageUrlsDeep({
       stories: rows.map((s) => ({ ...s, author: pickProfile(pmap.get(s.profileId)) })),
-    });
+    }));
   } catch (err) {
     return res.status(500).json({ error: "stories_feed_failed" });
   }
@@ -1455,7 +1501,7 @@ router.get("/stories/highlights", requireAuth, async (req: Request, res: Respons
     const rows = await db.select().from(storyHighlightsTable)
       .where(eq(storyHighlightsTable.profileId, profileId))
       .orderBy(desc(storyHighlightsTable.createdAt));
-    return res.json({ highlights: rows });
+    return res.json({ highlights: await refreshSupabaseStorageUrlsDeep(rows) });
   } catch {
     return res.status(500).json({ error: "highlights_failed" });
   }
@@ -1476,10 +1522,10 @@ router.post("/stories/highlights", requireAuth, w8WriteLimiter, async (req: Requ
     const [h] = await db.insert(storyHighlightsTable).values({
       profileId: me.id,
       title: parsed.data.title,
-      coverUrl: parsed.data.cover_url ?? null,
+      coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
       storyIds: parsed.data.story_ids,
     }).returning();
-    return res.status(201).json({ highlight: h });
+    return res.status(201).json({ highlight: await refreshSupabaseStorageUrlsDeep(h) });
   } catch {
     return res.status(500).json({ error: "highlight_failed" });
   }
@@ -1502,10 +1548,12 @@ router.put("/stories/highlights/:id", requireAuth, w8WriteLimiter, async (req: R
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
     const [updated] = await db.update(storyHighlightsTable).set({
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-      ...(parsed.data.cover_url !== undefined ? { coverUrl: parsed.data.cover_url } : {}),
+      ...(parsed.data.cover_url !== undefined
+        ? { coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.cover_url }
+        : {}),
       ...(parsed.data.story_ids !== undefined ? { storyIds: parsed.data.story_ids } : {}),
     }).where(eq(storyHighlightsTable.id, h.id)).returning();
-    return res.json({ highlight: updated });
+    return res.json({ highlight: await refreshSupabaseStorageUrlsDeep(updated) });
   } catch {
     return res.status(500).json({ error: "highlight_failed" });
   }
@@ -1532,7 +1580,7 @@ router.post("/stories/highlights/:id/stories", requireAuth, w8WriteLimiter, asyn
     const [updated] = await db.update(storyHighlightsTable)
       .set({ storyIds: merged })
       .where(eq(storyHighlightsTable.id, h.id)).returning();
-    return res.json({ highlight: updated });
+    return res.json({ highlight: await refreshSupabaseStorageUrlsDeep(updated) });
   } catch {
     return res.status(500).json({ error: "highlight_failed" });
   }
@@ -1574,7 +1622,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: d.body,
-      mediaUrls: d.media_urls as unknown as Attachment[],
+      mediaUrls: (await mirrorAttachments(d.media_urls, req.userId!)) as unknown as Attachment[],
       kind,
       replyTo: d.reply_to ?? null,
       quoteOf: d.quote_of ?? null,
@@ -1800,7 +1848,7 @@ router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: parsed.data.body,
-      mediaUrls: parsed.data.media_urls as unknown as Attachment[],
+      mediaUrls: (await mirrorAttachments(parsed.data.media_urls, req.userId!)) as unknown as Attachment[],
       kind: "quote",
       quoteOf: id,
     }).returning();

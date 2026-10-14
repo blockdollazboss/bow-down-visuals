@@ -10,6 +10,12 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): client-supplied release audio/artwork
+   is re-hosted into permanent storage at save time (song-library audio is
+   already permanent and passes through untouched); reads deep-refresh. */
 import {
   getAggregator,
   type AggregatorReleasePayload,
@@ -757,6 +763,12 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       songId = song.id;
       if (!audioUrl) audioUrl = song.audio_url;
     }
+    if (audioUrl) {
+      audioUrl = (await mirrorExternalMediaUrl(audioUrl, { kind: "audio", ownerKey: req.userId! })) ?? audioUrl;
+    }
+    const artworkUrl = d.artworkUrl?.trim()
+      ? ((await mirrorExternalMediaUrl(d.artworkUrl.trim(), { kind: "image", ownerKey: req.userId! })) ?? d.artworkUrl.trim())
+      : null;
     const id = randomUUID();
     const result = await db.execute(sql`
       INSERT INTO distribution_releases
@@ -769,7 +781,7 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       VALUES (
         ${id}, ${req.userId!}, ${d.title.trim()}, ${d.artistName.trim()}, ${d.releaseType},
         ${d.releaseDate?.trim() || null}, ${JSON.stringify(d.platforms ?? [])}::jsonb,
-        ${audioUrl}, ${d.artworkUrl?.trim() || null}, ${songId},
+        ${audioUrl}, ${artworkUrl}, ${songId},
         ${JSON.stringify(d.tracks ?? [])}::jsonb,
         ${d.isrc || null}, ${d.genre?.trim() || null}, ${d.explicit}, ${d.explicitDeclared},
         ${d.upc?.trim() || null}, ${d.upcKind ?? "internal"},
@@ -784,7 +796,7 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       )
       RETURNING ${RELEASE_COLUMNS}
     `);
-    res.status(201).json({ release: rowToRelease(result.rows[0] as unknown as ReleaseRow) });
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(result.rows[0] as unknown as ReleaseRow) }));
   } catch (err) {
     logger.error({ err }, "[distribution] create release failed");
     res.status(500).json({ error: "Couldn't save the release — try again." });
@@ -801,7 +813,7 @@ router.get("/distribution/releases", requireAuth, async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 200
     `);
-    res.json({ releases: (result.rows as unknown as ReleaseRow[]).map((r) => rowToRelease(r)) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ releases: (result.rows as unknown as ReleaseRow[]).map((r) => rowToRelease(r)) }));
   } catch (err) {
     logger.error({ err }, "[distribution] list releases failed");
     res.status(500).json({ error: "Couldn't load releases — try again." });
@@ -832,7 +844,7 @@ router.get("/distribution/releases/:id", requireAuth, async (req, res) => {
       return;
     }
     const splits = await loadSplits(row.id, req.userId!);
-    res.json({ release: rowToRelease(row, splits) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(row, splits) }));
   } catch (err) {
     logger.error({ err }, "[distribution] get release failed");
     res.status(500).json({ error: "Couldn't load the release — try again." });
@@ -868,6 +880,12 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
     if (d.upc !== undefined && d.upc && !isValidUpc(d.upc)) {
       res.status(400).json({ error: "That UPC/EAN looks invalid — 12-digit UPC-A or 13-digit EAN with a valid check digit." });
       return;
+    }
+    if (d.audioUrl) {
+      d.audioUrl = (await mirrorExternalMediaUrl(d.audioUrl.trim(), { kind: "audio", ownerKey: req.userId! })) ?? d.audioUrl;
+    }
+    if (d.artworkUrl) {
+      d.artworkUrl = (await mirrorExternalMediaUrl(d.artworkUrl.trim(), { kind: "image", ownerKey: req.userId! })) ?? d.artworkUrl;
     }
     /* Merge over the existing row, then write every column explicitly —
        keeps one static query shape (pg-mem-safe) instead of dynamic SETs. */
@@ -937,7 +955,7 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       RETURNING ${RELEASE_COLUMNS}
     `);
     const row = result.rows[0] as unknown as ReleaseRow;
-    res.json({ release: rowToRelease(row) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(row) }));
   } catch (err) {
     logger.error({ err }, "[distribution] update release failed");
     res.status(500).json({ error: "Couldn't update the release — try again." });
@@ -1029,7 +1047,7 @@ export async function resumeActiveDeliveries(): Promise<void> {
         const row = await getOwnedReleaseUnsafe(r.id);
         if (row) {
           try {
-            const sub = await aggregator.submitRelease(buildAggregatorPayload(row));
+            const sub = await aggregator.submitRelease(await buildAggregatorPayload(row));
             await db.execute(sql`
               UPDATE distribution_releases
               SET aggregator_release_id = ${sub.aggregatorReleaseId}, updated_at = now()
@@ -1057,11 +1075,15 @@ async function getOwnedReleaseUnsafe(id: string): Promise<ReleaseRow | null> {
   return (result.rows[0] as unknown as ReleaseRow) ?? null;
 }
 
-function buildAggregatorPayload(row: ReleaseRow): AggregatorReleasePayload {
+async function buildAggregatorPayload(row: ReleaseRow): Promise<AggregatorReleasePayload> {
+  /* The aggregator fetches these URLs server-side — resolve stored refs
+     (mirror-on-save) to fresh signed URLs at submission time. */
+  const audioUrl = row.audio_url ? await refreshSupabaseStorageUrl(row.audio_url) : "";
+  const artworkUrl = row.artwork_url ? await refreshSupabaseStorageUrl(row.artwork_url) : "";
   const tracks = (row.tracks ?? []).map((t) => ({
     title: t.title,
     isrc: t.isrc,
-    audioUrl: row.audio_url ?? "",
+    audioUrl,
     explicit: row.explicit ?? false,
   }));
   return {
@@ -1078,8 +1100,8 @@ function buildAggregatorPayload(row: ReleaseRow): AggregatorReleasePayload {
     copyrightLine: row.copyright_line ?? undefined,
     upc: row.upc ?? undefined,
     isrc: row.isrc ?? undefined,
-    tracks: tracks.length > 0 ? tracks : [{ title: row.title, audioUrl: row.audio_url ?? "", explicit: row.explicit ?? false }],
-    artworkUrl: row.artwork_url ?? "",
+    tracks: tracks.length > 0 ? tracks : [{ title: row.title, audioUrl, explicit: row.explicit ?? false }],
+    artworkUrl,
     platforms: row.platforms ?? [],
   };
 }
@@ -1194,7 +1216,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
     const aggregator = getAggregator();
     let aggregatorReleaseId: string;
     try {
-      const sub = await aggregator.submitRelease(buildAggregatorPayload(existing));
+      const sub = await aggregator.submitRelease(await buildAggregatorPayload(existing));
       aggregatorReleaseId = sub.aggregatorReleaseId;
     } catch (err) {
       try {

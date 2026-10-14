@@ -21,6 +21,8 @@ import { db, albumsTable, albumTracksTable, songsTable } from "@workspace/db";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -92,7 +94,18 @@ async function albumDetail(albumId: string) {
     .innerJoin(songsTable, eq(albumTracksTable.song_id, songsTable.id))
     .where(eq(albumTracksTable.album_id, albumId))
     .orderBy(asc(albumTracksTable.position));
-  return { ...album, tracks };
+  /* Stored media values may be storage refs (cover, mirrored at save) or
+     frozen signed URLs (track audio) — re-sign fresh on every read. */
+  return {
+    ...album,
+    cover_art_url: album.cover_art_url ? await refreshSupabaseStorageUrl(album.cover_art_url) : album.cover_art_url,
+    tracks: await Promise.all(
+      tracks.map(async (t) => ({
+        ...t,
+        audio_url: t.audio_url ? await refreshSupabaseStorageUrl(t.audio_url) : t.audio_url,
+      })),
+    ),
+  };
 }
 
 /* ── POST /api/albums — create a draft (free) ─────────────────────────── */
@@ -116,7 +129,9 @@ router.post("/albums", requireAuth, async (req, res) => {
         title: d.title,
         album_type: d.album_type,
         release_notes: d.release_notes ?? "",
-        cover_art_url: d.cover_art_url ?? null,
+        /* Mirror-on-save (2026-10-13 law): cover art is re-hosted into
+           permanent storage so the stored link can never expire. */
+        cover_art_url: (await mirrorExternalMediaUrl(d.cover_art_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
         status: "draft",
       })
       .returning();
@@ -142,7 +157,11 @@ router.get("/albums", requireAuth, async (req, res) => {
           .select({ count: sql<number>`count(*)::int` })
           .from(albumTracksTable)
           .where(eq(albumTracksTable.album_id, a.id));
-        return { ...a, track_count: count };
+        return {
+          ...a,
+          cover_art_url: a.cover_art_url ? await refreshSupabaseStorageUrl(a.cover_art_url) : a.cover_art_url,
+          track_count: count,
+        };
       }),
     );
     res.json({ albums: withCounts });
@@ -246,7 +265,7 @@ router.patch("/albums/:id", requireAuth, async (req, res) => {
     if (d.title !== undefined) updates.title = d.title;
     if (d.album_type !== undefined) updates.album_type = d.album_type;
     if (d.release_notes !== undefined) updates.release_notes = d.release_notes;
-    if (d.cover_art_url !== undefined) updates.cover_art_url = d.cover_art_url;
+    if (d.cover_art_url !== undefined) updates.cover_art_url = (await mirrorExternalMediaUrl(d.cover_art_url, { kind: "image", ownerKey: req.userId! })) ?? d.cover_art_url;
     await db.update(albumsTable).set(updates).where(eq(albumsTable.id, id));
     res.json({ album: await albumDetail(id) });
   } catch (err) {

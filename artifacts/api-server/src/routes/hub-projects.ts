@@ -4,6 +4,41 @@ import { db, hubProjectsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { recordCreation } from "../lib/retention";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): hub assets are kind-typed, so each
+   media asset's URL is re-hosted into permanent storage at save time,
+   following mirrorProjectScenes' per-field pattern. Script assets carry
+   data: text (passes through untouched); "other" is only normalized to
+   its storage ref when it points at our own buckets. */
+const ASSET_MIRROR_KIND: Record<string, "image" | "video" | "audio" | undefined> = {
+  beat: "audio",
+  stems: "audio",
+  song: "audio",
+  sfx: "audio",
+  video: "video",
+  clip: "video",
+  image: "image",
+  thumbnail: "image",
+};
+
+async function mirrorHubAssets(
+  assets: z.infer<typeof HubAssetSchema>[],
+  ownerKey: string,
+): Promise<z.infer<typeof HubAssetSchema>[]> {
+  return Promise.all(
+    assets.map(async (asset) => {
+      const kind = ASSET_MIRROR_KIND[asset.kind];
+      if (!kind) {
+        const normalized = normalizeToStorageRef(asset.url);
+        return normalized && normalized !== asset.url ? { ...asset, url: normalized } : asset;
+      }
+      const mirrored = await mirrorExternalMediaUrl(asset.url, { kind, ownerKey });
+      return mirrored && mirrored !== asset.url ? { ...asset, url: mirrored } : asset;
+    }),
+  );
+}
 
 const router = Router();
 
@@ -49,7 +84,8 @@ router.get("/hub/project", requireAuth, async (req, res) => {
     project: {
       name: row.name,
       type: row.type,
-      assets: Array.isArray(row.assets) ? row.assets : [],
+      /* Stored asset URLs may be storage refs — re-sign fresh on every read. */
+      assets: Array.isArray(row.assets) ? await refreshSupabaseStorageUrlsDeep(row.assets) : [],
       concept: row.concept ?? "",
       templateKey: row.templateKey ?? null,
       attribution: row.attribution ?? true,
@@ -67,6 +103,7 @@ router.put("/hub/project", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  const storedAssets = await mirrorHubAssets(d.assets, req.userId!);
 
   await db
     .insert(hubProjectsTable)
@@ -74,7 +111,7 @@ router.put("/hub/project", requireAuth, async (req, res) => {
       user_id: req.userId!,
       name: d.name,
       type: d.type,
-      assets: d.assets,
+      assets: storedAssets,
       concept: d.concept,
       templateKey: d.templateKey,
       attribution: d.attribution,
@@ -85,7 +122,7 @@ router.put("/hub/project", requireAuth, async (req, res) => {
       set: {
         name: d.name,
         type: d.type,
-        assets: d.assets,
+        assets: storedAssets,
         concept: d.concept,
         templateKey: d.templateKey,
         attribution: d.attribution,

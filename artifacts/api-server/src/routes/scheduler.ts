@@ -13,6 +13,17 @@ import {
   LedgerWriteError,
 } from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): scheduled media is re-hosted into
+   permanent storage at save time — a post firing weeks later must never
+   find a dead link. The publisher (lib/scheduler-jobs resolveMediaUrl)
+   already resolves storage refs at fire time; presenters re-sign here. */
+async function presentPost(p: ScheduledPost) {
+  const pub = toPublicPost(p);
+  return { ...pub, mediaUrl: pub.mediaUrl ? await refreshSupabaseStorageUrl(pub.mediaUrl) : pub.mediaUrl };
+}
 
 /* ─── Content Scheduler ──────────────────────────────────────────────────
    Schedule posts across Instagram, TikTok, and Facebook from one calendar.
@@ -136,7 +147,7 @@ router.get("/scheduler/posts", requireAuth, async (req: Request, res: Response) 
         .orderBy(desc(scheduledPostsTable.created_at))
         .limit(200);
     }
-    res.json({ posts: rows.map(toPublicPost) });
+    res.json({ posts: await Promise.all(rows.map(presentPost)) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[scheduler] list failed");
     res.status(500).json({ error: "list_failed", message: "Couldn't load your scheduled posts." });
@@ -198,13 +209,17 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     }
   }
 
+  const storedMediaUrl =
+    (await mirrorExternalMediaUrl(mediaUrl, { kind: mediaType === "image" ? "image" : "video", ownerKey: req.userId! })) ??
+    mediaUrl;
+
   try {
     const [row] = await db
       .insert(scheduledPostsTable)
       .values({
         user_id: req.userId!,
         status: wantsSchedule ? "scheduled" : "draft",
-        media_url: mediaUrl,
+        media_url: storedMediaUrl,
         media_type: mediaType,
         caption,
         hashtags,
@@ -215,7 +230,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
       })
       .returning();
     if (wantsSchedule) requestPollerTick(); // wake the worker for near-term posts
-    res.status(201).json({ post: toPublicPost(row) });
+    res.status(201).json({ post: await presentPost(row) });
   } catch (err) {
     /* The post wasn't created but the charge landed — refund immediately. */
     if (cost > 0) {
@@ -277,7 +292,13 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
   if (data.hashtags !== undefined) patch.hashtags = data.hashtags;
   if (data.platforms !== undefined) patch.platforms = [...data.platforms];
   if (data.accountIds !== undefined || data.platforms !== undefined) patch.account_ids = nextAccountIds;
-  if (data.mediaUrl !== undefined) patch.media_url = data.mediaUrl;
+  if (data.mediaUrl !== undefined) {
+    patch.media_url =
+      (await mirrorExternalMediaUrl(data.mediaUrl, {
+        kind: (data.mediaType ?? post.media_type) === "image" ? "image" : "video",
+        ownerKey: req.userId!,
+      })) ?? data.mediaUrl;
+  }
   if (data.mediaType !== undefined) patch.media_type = data.mediaType;
 
   if (data.scheduledAt !== undefined) {
@@ -334,7 +355,7 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
       .where(eq(scheduledPostsTable.id, post.id))
       .returning();
     if (updated.status === "scheduled") requestPollerTick();
-    res.json({ post: toPublicPost(updated) });
+    res.json({ post: await presentPost(updated) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[scheduler] update failed");
     res.status(500).json({ error: "update_failed", message: "Couldn't update the post." });

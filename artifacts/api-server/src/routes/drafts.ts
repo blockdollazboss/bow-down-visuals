@@ -3,9 +3,31 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, projectDraftsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
-import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
 
 const router = Router();
+
+/* Mirror-on-save, write-time half (2026-10-13 law): draft_data is an
+   untyped client-assembled blob, so arbitrary links inside it can't be
+   told apart from media — but any value pointing at OUR OWN storage is
+   normalized to its permanent ref before persisting (normalizeToStorageRef
+   is documented "use at WRITE time"), so a stored signed URL can never
+   expire. External provider URLs inside the blob remain a known remainder:
+   deep-mirroring an untyped blob would download arbitrary web links. */
+function normalizeDraftRefsDeep<T>(value: T): T {
+  if (typeof value === "string") {
+    return (normalizeToStorageRef(value) ?? value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => normalizeDraftRefsDeep(v)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, normalizeDraftRefsDeep(v)]),
+    ) as T;
+  }
+  return value;
+}
 
 const UpsertDraftSchema = z.object({
   workflowType: z.string().min(1).max(64),
@@ -21,6 +43,7 @@ router.post("/drafts", requireAuth, async (req, res) => {
     return;
   }
   const { workflowType, title, draftData } = parsed.data;
+  const storedDraftData = normalizeDraftRefsDeep(draftData);
 
   try {
     const [row] = await db
@@ -29,14 +52,14 @@ router.post("/drafts", requireAuth, async (req, res) => {
         user_id: req.userId!,
         workflow_type: workflowType,
         title: title ?? null,
-        draft_data: draftData,
+        draft_data: storedDraftData,
         updated_at: new Date(),
       })
       .onConflictDoUpdate({
         target: [projectDraftsTable.user_id, projectDraftsTable.workflow_type],
         set: {
           title: title ?? null,
-          draft_data: draftData,
+          draft_data: storedDraftData,
           updated_at: new Date(),
         },
       })

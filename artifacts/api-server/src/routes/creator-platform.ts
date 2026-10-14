@@ -22,6 +22,51 @@ import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
+import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): profile avatar/banner are re-hosted
+   into permanent storage at save time. The media-designated blobs
+   (featured_media, media_kit, sections) are deep-mirrored for values
+   that are plainly media files (media extension in the URL path) —
+   destination links and design data inside them are left untouched.
+   Reads deep-refresh so stored refs mint fresh signed URLs per read. */
+const MEDIA_EXT_KIND: Array<[RegExp, "image" | "video" | "audio"]> = [
+  [/\.(mp4|webm|mov|m4v)$/i, "video"],
+  [/\.(mp3|wav|m4a|ogg|flac)$/i, "audio"],
+  [/\.(jpe?g|png|webp|gif|avif|svg)$/i, "image"],
+];
+
+function mediaKindForUrl(url: string): "image" | "video" | "audio" | null {
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch { /* keep raw */ }
+  for (const [re, kind] of MEDIA_EXT_KIND) if (re.test(path)) return kind;
+  return null;
+}
+
+async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
+  if (typeof value === "string") {
+    if (isExternalHttpUrl(value) && !isPermanentMediaValue(value)) {
+      const kind = mediaKindForUrl(value);
+      if (kind) return ((await mirrorExternalMediaUrl(value, { kind, ownerKey })) ?? value) as T;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return (await Promise.all(value.map((v) => mirrorProfileMediaDeep(v, ownerKey)))) as T;
+  }
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(
+      Object.entries(value as Record<string, unknown>).map(
+        async ([k, v]) => [k, await mirrorProfileMediaDeep(v, ownerKey)] as const,
+      ),
+    );
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
@@ -402,13 +447,17 @@ async function resolvePlaylistItems(
       buyable: (v.downloadPriceCents ?? 0) > 0,
     });
   }
-  return playlists.map((p) => ({
-    ...p,
-    owner_profile_slug: profileSlug,
-    resolved_items: (p.items ?? [])
-      .map((item) => (item?.id ? byId.get(item.id) ?? null : null))
-      .filter((x): x is ResolvedPlaylistItem => x !== null),
-  }));
+  /* Stored media values may be storage refs (mirrored at save) — mint
+     fresh URLs for covers + resolved artwork on every read. */
+  return await refreshSupabaseStorageUrlsDeep(
+    playlists.map((p) => ({
+      ...p,
+      owner_profile_slug: profileSlug,
+      resolved_items: (p.items ?? [])
+        .map((item) => (item?.id ? byId.get(item.id) ?? null : null))
+        .filter((x): x is ResolvedPlaylistItem => x !== null),
+    })),
+  );
 }
 
 /** Rate limiter: 1 counted play per IP per media item per 60s window. */
@@ -465,7 +514,7 @@ router.get("/creator-profiles", requireAuth, async (req, res) => {
       res.json({});
       return;
     }
-    res.json(toPublicProfile(profile));
+    res.json(await refreshSupabaseStorageUrlsDeep(toPublicProfile(profile)));
   } catch (err) {
     req.log.error({ err }, "creator-profiles GET (me) error");
     res.status(500).json({ error: "Couldn't load your creator profile." });
@@ -515,7 +564,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
     /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
     const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
 
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
         id: profile.id,
         slug: profile.slug,
@@ -547,7 +596,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
       top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug)),
       top_videos: topVideos.map((v) => enrichVideo(v, profile.slug, sounds)),
       playlists: await resolvePlaylistItems(profilePlaylists, profile.slug),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "creator-profiles/:slug error");
     res.status(500).json({ error: "The profile wouldn't load. Give it another shot." });
@@ -618,14 +667,14 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
       displayName: data.display_name,
       vertical: data.vertical,
       streamSchedule: data.stream_schedule,
-      mediaKit: data.media_kit ?? null,
+      mediaKit: await mirrorProfileMediaDeep(data.media_kit ?? null, userId),
       bio: data.bio,
-      avatarUrl: data.avatar_url ?? null,
-      bannerUrl: data.banner_url ?? null,
+      avatarUrl: (await mirrorExternalMediaUrl(data.avatar_url ?? null, { kind: "image", ownerKey: userId })) ?? null,
+      bannerUrl: (await mirrorExternalMediaUrl(data.banner_url ?? null, { kind: "image", ownerKey: userId })) ?? null,
       themeId: data.theme_id,
       themeConfig: data.theme_config,
-      sections: data.sections,
-      featuredMedia: data.featured_media ?? null,
+      sections: await mirrorProfileMediaDeep(data.sections, userId),
+      featuredMedia: await mirrorProfileMediaDeep(data.featured_media ?? null, userId),
       socialLinks: data.social_links,
       topCreators: data.top_creators,
       tipJarEnabled: data.tip_jar_enabled,
@@ -637,7 +686,7 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     if (existing) {
       const [updated] = await db.update(creatorProfilesTable).set(values)
         .where(eq(creatorProfilesTable.id, existing.id)).returning();
-      res.json({ profile: { ...toPublicProfile(updated), ...(await profileExtras(updated)) }, created: false });
+      res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)) }, created: false });
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
@@ -645,7 +694,7 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     // follow back (and the user follows Thy if anything missed it).
     // Idempotent, never throws.
     await ensureKingsWelcome(userId);
-    res.status(201).json({ profile: { ...toPublicProfile(created), ...(await profileExtras(created)) }, created: true });
+    res.status(201).json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(created))), ...(await profileExtras(created)) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
     res.status(500).json({ error: "The save fumbled. Run it back." });
@@ -673,14 +722,14 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
     const patch: Partial<typeof creatorProfilesTable.$inferInsert> = { updatedAt: new Date() };
     if (data.vertical !== undefined) patch.vertical = data.vertical;
     if (data.stream_schedule !== undefined) patch.streamSchedule = data.stream_schedule;
-    if (data.media_kit !== undefined) patch.mediaKit = data.media_kit;
+    if (data.media_kit !== undefined) patch.mediaKit = await mirrorProfileMediaDeep(data.media_kit, userId);
     if (data.bio !== undefined) patch.bio = data.bio;
-    if (data.avatar_url !== undefined) patch.avatarUrl = data.avatar_url;
-    if (data.banner_url !== undefined) patch.bannerUrl = data.banner_url;
+    if (data.avatar_url !== undefined) patch.avatarUrl = (await mirrorExternalMediaUrl(data.avatar_url, { kind: "image", ownerKey: userId })) ?? data.avatar_url;
+    if (data.banner_url !== undefined) patch.bannerUrl = (await mirrorExternalMediaUrl(data.banner_url, { kind: "image", ownerKey: userId })) ?? data.banner_url;
     if (data.theme_id !== undefined) patch.themeId = data.theme_id;
     if (data.theme_config !== undefined) patch.themeConfig = data.theme_config;
-    if (data.sections !== undefined) patch.sections = data.sections;
-    if (data.featured_media !== undefined) patch.featuredMedia = data.featured_media;
+    if (data.sections !== undefined) patch.sections = await mirrorProfileMediaDeep(data.sections, userId);
+    if (data.featured_media !== undefined) patch.featuredMedia = await mirrorProfileMediaDeep(data.featured_media, userId);
     if (data.social_links !== undefined) patch.socialLinks = data.social_links;
     if (data.top_creators !== undefined) patch.topCreators = data.top_creators;
     if (data.tip_jar_enabled !== undefined) patch.tipJarEnabled = data.tip_jar_enabled;
@@ -690,7 +739,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();
-    res.json({ profile: { ...updated, ...(await profileExtras(updated)) } });
+    res.json({ profile: await refreshSupabaseStorageUrlsDeep({ ...updated, ...(await profileExtras(updated)) }) });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
@@ -1275,7 +1324,7 @@ router.post("/playlists", requireAuth, async (req, res) => {
       ownerProfileId: profile.id,
       title: body.title,
       description: body.description,
-      coverUrl: body.cover_url ?? null,
+      coverUrl: (await mirrorExternalMediaUrl(body.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
       isPublic: body.is_public,
       kind: body.kind,
       items: [],

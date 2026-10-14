@@ -13,6 +13,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    normalizeToStorageRef persists the stable ref; read-time:
    refreshSupabaseStorageUrl mints a fresh 1-day signed URL. */
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 
 const router = Router();
 
@@ -293,8 +294,13 @@ router.patch("/shoutouts/requests/:id", publicApiLimiter, requireAuth, async (re
     .update(shoutoutRequestsTable)
     .set({
       status,
-      /* Persist the stable storage ref (re-sign happens on read). */
-      delivery_url: deliveryUrl ? normalizeToStorageRef(deliveryUrl) : null,
+      /* Mirror-on-save (2026-10-13 law): a creator-supplied delivery URL
+         (provider CDN / expiring link) is re-hosted into permanent storage;
+         own-storage values normalize to their stable ref. Re-sign on read. */
+      delivery_url: deliveryUrl
+        ? ((await mirrorExternalMediaUrl(deliveryUrl, { kind: "video", ownerKey: req.userId! })) ??
+          normalizeToStorageRef(deliveryUrl))
+        : null,
       delivered_at: status === "delivered" ? new Date() : rows[0]!.delivered_at,
       updated_at: new Date(),
     })

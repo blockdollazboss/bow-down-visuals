@@ -63,6 +63,35 @@ import { logger } from "../lib/logger";
    per-tier rates in that module are PROPOSED and pending user approval, so
    the storefront uses the canonical base rate only. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): product media is re-hosted into
+   permanent storage at save time (kind inferred from the URL extension —
+   the helper honors the real content-type); presenters re-sign per read. */
+function mediaKindForStoreUrl(url: string): "image" | "video" | "audio" {
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch { /* keep raw */ }
+  if (/\.(mp4|webm|mov|m4v)$/i.test(path)) return "video";
+  if (/\.(mp3|wav|m4a|ogg)$/i.test(path)) return "audio";
+  return "image";
+}
+
+async function mirrorStoreMediaUrls(urls: string[], ownerKey: string): Promise<string[]> {
+  return Promise.all(
+    urls.map(async (u) => (await mirrorExternalMediaUrl(u, { kind: mediaKindForStoreUrl(u), ownerKey })) ?? u),
+  );
+}
+
+async function presentProduct(p: ProductRow) {
+  const pub = withLinks(p);
+  return {
+    ...pub,
+    mediaUrls: await Promise.all(pub.mediaUrls.map((u) => refreshSupabaseStorageUrl(u))),
+  };
+}
 
 /* Product kinds — canonical list also lives in lib/db/src/schema/storefront.ts
    (STORE_PRODUCT_KINDS). Defined locally here because lib/db's built dist is
@@ -264,7 +293,7 @@ router.get("/storefront/products", publicApiLimiter, async (req, res) => {
     `);
     res.json({
       profile: { id: profile.id, slug: profile.slug, displayName: profile.displayName },
-      products: (r.rows as unknown as ProductRow[]).map(withLinks),
+      products: await Promise.all((r.rows as unknown as ProductRow[]).map(presentProduct)),
       feeNote: `Real-money purchases via Stripe. Bow Down Visuals takes ${PLATFORM_FEE_PCT}% from the creator's cut — you pay the listed price, nothing extra. This is not Visual Bucs (AI credits).`,
     });
   } catch (err) {
@@ -288,7 +317,7 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
     }
     const { feeCents, creatorCents } = splitTotals(Number(p.price_cents));
     res.json({
-      product: withLinks(p),
+      product: await presentProduct(p),
       feeSplit: {
         priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
         platformFeeCents: feeCents, platformFee: money(feeCents),
@@ -360,7 +389,7 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
         (profile_id, kind, title, description, price_cents, compare_at_cents,
          inventory, media_urls, service_details, event_id, related_links, is_active)
       VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${d.priceCents},
-              ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(d.mediaUrls)}::jsonb,
+              ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
               ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
               ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
       RETURNING id
@@ -368,7 +397,7 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
     const id = String((r.rows[0] as Record<string, unknown>)["id"]);
     const p = await fetchProduct(id, false);
     logger.info({ userId: req.userId, productId: id, kind: d.kind }, "[storefront] product created");
-    res.status(201).json({ product: p ? withLinks(p) : { id } });
+    res.status(201).json({ product: p ? await presentProduct(p) : { id } });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[storefront] product create failed");
     res.status(500).json({ error: "Could not create this product." });
@@ -401,7 +430,7 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
     if (d.priceCents !== undefined) sets.push(sql`price_cents = ${d.priceCents}`);
     if (d.compareAtCents !== undefined) sets.push(sql`compare_at_cents = ${d.compareAtCents}`);
     if (d.inventory !== undefined) sets.push(sql`inventory = ${d.inventory}`);
-    if (d.mediaUrls !== undefined) sets.push(sql`media_urls = ${JSON.stringify(d.mediaUrls)}::jsonb`);
+    if (d.mediaUrls !== undefined) sets.push(sql`media_urls = ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb`);
     if (d.serviceDetails !== undefined)
       sets.push(sql`service_details = ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb`);
     if (d.eventId !== undefined) sets.push(sql`event_id = ${d.eventId}`);
@@ -422,7 +451,7 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       return;
     }
     const p = await fetchProduct(id, false);
-    res.json({ product: p ? withLinks(p) : { id } });
+    res.json({ product: p ? await presentProduct(p) : { id } });
   } catch (err) {
     logger.error({ err, id }, "[storefront] product update failed");
     res.status(500).json({ error: "Could not update this product." });
@@ -883,7 +912,9 @@ router.get("/storefront/deliver/:token", publicApiLimiter, async (req, res) => {
     const srow = sale.rows[0] as Record<string, unknown> | undefined;
     res.status(200).send(deliveryPageHtml({
       ok: true,
-      fileUrl: String(row["file_url"]),
+      /* The stored file value may be a storage ref (mirrored at save) —
+         mint a fresh download URL for the delivery page. */
+      fileUrl: await refreshSupabaseStorageUrl(String(row["file_url"])),
       title: srow ? String(srow["product_title"]) : undefined,
       usesLeft: DELIVERY_MAX_USES - Number(row["used_count"]),
       expiresAt: new Date(String(row["expires_at"])).toLocaleString(),

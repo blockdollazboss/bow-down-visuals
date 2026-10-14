@@ -4,6 +4,18 @@ import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { jewelryProductByKey, jewelryFinishByKey } from "@workspace/db";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): the engraving-reference avatar is
+   re-hosted into permanent storage at order time; every read (buyer list,
+   admin list, supplier CSV) mints a fresh signed URL from the stored ref. */
+async function presentJewelryOrder<T extends { avatar_url?: string | null }>(order: T): Promise<T> {
+  return {
+    ...order,
+    avatar_url: order.avatar_url ? await refreshSupabaseStorageUrl(order.avatar_url) : order.avatar_url,
+  };
+}
 
 const router = Router();
 
@@ -79,7 +91,9 @@ router.post("/jewelry/order", requireAuth, async (req: Request, res: Response) =
         finish: finish.key,
         size_option: body.sizeOption,
         engraving: body.engraving || null,
-        avatar_url: body.avatarUrl || null,
+        avatar_url: body.avatarUrl
+          ? ((await mirrorExternalMediaUrl(body.avatarUrl, { kind: "image", ownerKey: userId })) ?? body.avatarUrl)
+          : null,
         design_notes: body.designNotes || null,
         quantity: body.quantity,
         full_name: body.fullName,
@@ -94,7 +108,7 @@ router.post("/jewelry/order", requireAuth, async (req: Request, res: Response) =
       .select("id, status, total_cents, product_key, finish, size_option, quantity, avatar_url, created_at")
       .single();
     if (error) throw error;
-    res.json({ ok: true, order });
+    res.json({ ok: true, order: await presentJewelryOrder(order) });
   } catch (err) {
     console.error("[jewelry] order failed", err);
     res.status(500).json({ ok: false, error: "Order failed" });
@@ -114,7 +128,7 @@ router.get("/jewelry/orders", requireAuth, async (req: Request, res: Response) =
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
-  res.json({ ok: true, orders: data ?? [] });
+  res.json({ ok: true, orders: await Promise.all((data ?? []).map(presentJewelryOrder)) });
 });
 
 /* ── Admin ── */
@@ -131,7 +145,7 @@ router.get("/jewelry/admin/orders", requireAuth, requireAdmin, async (_req: Requ
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
-  res.json({ ok: true, orders: data ?? [] });
+  res.json({ ok: true, orders: await Promise.all((data ?? []).map(presentJewelryOrder)) });
 });
 
 /* GET /api/jewelry/admin/orders.csv — supplier data file. */
@@ -149,15 +163,17 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
     return;
   }
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const rows = (data ?? []).map((o: Record<string, unknown>) => {
+  const rows = await Promise.all((data ?? []).map(async (o: Record<string, unknown>) => {
     const addr = (o.shipping_address ?? {}) as Record<string, string>;
+    /* The supplier opens this link from the CSV — mint a fresh signed URL. */
+    const avatarUrl = o.avatar_url ? await refreshSupabaseStorageUrl(String(o.avatar_url)) : o.avatar_url;
     return [
-      o.id, o.product_key, o.finish, o.size_option, o.engraving, o.avatar_url, o.design_notes,
+      o.id, o.product_key, o.finish, o.size_option, o.engraving, avatarUrl, o.design_notes,
       o.quantity, o.full_name, o.email, o.phone,
       addr.street, addr.city, addr.state, addr.zip, addr.country,
       o.status, o.created_at,
     ].map(esc).join(",");
-  });
+  }));
   const header = "order_id,product,finish,size,engraving,avatar_url,design_notes,quantity,full_name,email,phone,street,city,state,zip,country,status,created_at";
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=jewelry-orders.csv");

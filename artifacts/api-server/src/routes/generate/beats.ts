@@ -14,6 +14,20 @@ import {
   isBeatLicenseTier,
   type BeatLicenseTier,
 } from "./beats-pricing";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
+   re-hosted into permanent storage at listing time; reads serve fresh
+   signed URLs minted from the stored ref (audio_path when present). */
+async function presentBeat<T extends { audio_url: string; audio_path: string | null; preview_url: string | null }>(row: T): Promise<T> {
+  const audioSource = row.audio_path ?? row.audio_url;
+  return {
+    ...row,
+    audio_url: audioSource ? await refreshSupabaseStorageUrl(audioSource) : row.audio_url,
+    preview_url: row.preview_url ? await refreshSupabaseStorageUrl(row.preview_url) : row.preview_url,
+  };
+}
 
 const router = Router();
 
@@ -59,7 +73,7 @@ router.get("/beats", async (req, res) => {
       .orderBy(desc(beatsTable.created_at))
       .limit(f.limit)
       .offset(f.offset);
-    res.json({ beats: rows });
+    res.json({ beats: await Promise.all(rows.map(presentBeat)) });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list beats";
     res.status(500).json({ error: msg });
@@ -84,7 +98,7 @@ router.get("/beats/:id", async (req, res) => {
         .set({ plays: sql`${beatsTable.plays} + 1` })
         .where(eq(beatsTable.id, id));
     } catch { /* ignore */ }
-    res.json({ beat: { ...beat, plays: beat.plays + 1 } });
+    res.json({ beat: await presentBeat({ ...beat, plays: beat.plays + 1 }) });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch beat";
     res.status(500).json({ error: msg });
@@ -103,12 +117,17 @@ router.post("/beats", requireAuth, generationLimiter, async (req, res) => {
   const m = parsed.data;
 
   try {
+    const storedAudioUrl =
+      (await mirrorExternalMediaUrl(m.audioUrl, { kind: "audio", ownerKey: req.userId! })) ?? m.audioUrl;
+    const storedPreviewUrl = m.previewUrl
+      ? ((await mirrorExternalMediaUrl(m.previewUrl, { kind: "audio", ownerKey: req.userId! })) ?? m.previewUrl)
+      : null;
     const rows = await db.insert(beatsTable).values({
       user_id: req.userId!,
       title: m.title,
-      audio_url: m.audioUrl,
-      audio_path: m.audioPath ?? null,
-      preview_url: m.previewUrl ?? null,
+      audio_url: storedAudioUrl,
+      audio_path: isStorageRef(storedAudioUrl) ? storedAudioUrl : (m.audioPath ?? null),
+      preview_url: storedPreviewUrl,
       genre: m.genre,
       bpm: m.bpm ?? null,
       musical_key: m.musicalKey ?? null,
@@ -118,7 +137,7 @@ router.post("/beats", requireAuth, generationLimiter, async (req, res) => {
       premium_price_cents: m.premiumPriceCents,
       exclusive_price_cents: m.exclusivePriceCents,
     }).returning();
-    res.status(201).json({ beat: rows[0] });
+    res.status(201).json({ beat: rows[0] ? await presentBeat(rows[0]) : rows[0] });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list beat";
     res.status(500).json({ error: msg });
@@ -146,7 +165,7 @@ router.get("/beats/mine/dashboard", requireAuth, async (req, res) => {
     const commissionCents = sales.reduce((s: number, l: { commission_cents: number }) => s + l.commission_cents, 0);
 
     res.json({
-      beats: myBeats,
+      beats: await Promise.all(myBeats.map(presentBeat)),
       sales,
       stats: {
         beatCount: myBeats.length,

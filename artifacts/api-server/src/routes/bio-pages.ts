@@ -6,6 +6,15 @@ import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } fro
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { db, bioPagesTable, bioLinkClicksTable, BIO_THEME_KEYS, BIO_LINK_ICON_KEYS } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): the page avatar is re-hosted into
+   permanent storage at save time; reads re-sign the stored ref fresh.
+   (links/socials/featured/tipJar are destination links, not media.) */
+async function presentAvatar(url: string | null | undefined): Promise<string | null | undefined> {
+  return url ? await refreshSupabaseStorageUrl(url) : url;
+}
 
 const router = Router();
 
@@ -121,13 +130,13 @@ router.get("/bio-pages/me", requireAuth, async (req: Request, res: Response) => 
       .orderBy(desc(bioPagesTable.updatedAt));
     res.json({
       ok: true,
-      pages: rows.map((r) => ({
+      pages: await Promise.all(rows.map(async (r) => ({
         id: r.id,
         slug: r.slug,
         displayName: r.displayName,
         headline: r.headline,
         bio: r.bio,
-        avatarUrl: r.avatarUrl,
+        avatarUrl: await presentAvatar(r.avatarUrl),
         links: r.links,
         socials: r.socials,
         theme: r.theme,
@@ -137,7 +146,7 @@ router.get("/bio-pages/me", requireAuth, async (req: Request, res: Response) => 
         viewCount: r.viewCount,
         url: publicUrl(r.slug),
         updatedAt: r.updatedAt,
-      })),
+      }))),
     });
   } catch (err) {
     req.log.error({ err }, "[bio-pages] list failed");
@@ -178,7 +187,7 @@ router.post("/bio-pages", requireAuth, async (req: Request, res: Response) => {
         displayName: d.displayName,
         headline: d.headline ?? "",
         bio: d.bio ?? "",
-        avatarUrl: d.avatarUrl ?? null,
+        avatarUrl: (await mirrorExternalMediaUrl(d.avatarUrl ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
         links: d.links.map((l) => ({ title: l.title, url: l.url, icon: l.icon ?? "link" })),
         socials: d.socials ?? {},
         theme: d.theme,
@@ -187,7 +196,7 @@ router.post("/bio-pages", requireAuth, async (req: Request, res: Response) => {
         isPublished: false,
       })
       .returning();
-    res.json({ ok: true, page: { ...toPublicPage(row as unknown as Record<string, unknown>), id: row.id, isPublished: false, url: publicUrl(slug) } });
+    res.json({ ok: true, page: { ...toPublicPage(row as unknown as Record<string, unknown>), avatarUrl: await presentAvatar(row.avatarUrl), id: row.id, isPublished: false, url: publicUrl(slug) } });
   } catch (err) {
     req.log.error({ err }, "[bio-pages] create failed");
     res.status(500).json({ ok: false, error: "Failed to create bio page" });
@@ -234,7 +243,7 @@ router.put("/bio-pages/:id", requireAuth, async (req: Request, res: Response) =>
         ...(d.displayName !== undefined ? { displayName: d.displayName } : {}),
         ...(d.headline !== undefined ? { headline: d.headline } : {}),
         ...(d.bio !== undefined ? { bio: d.bio } : {}),
-        ...(d.avatarUrl !== undefined ? { avatarUrl: d.avatarUrl } : {}),
+        ...(d.avatarUrl !== undefined ? { avatarUrl: (await mirrorExternalMediaUrl(d.avatarUrl, { kind: "image", ownerKey: req.userId! })) ?? d.avatarUrl } : {}),
         ...(d.links !== undefined ? { links: d.links.map((l) => ({ title: l.title, url: l.url, icon: l.icon ?? "link" })) } : {}),
         ...(d.socials !== undefined ? { socials: d.socials } : {}),
         ...(d.theme !== undefined ? { theme: d.theme } : {}),
@@ -245,7 +254,7 @@ router.put("/bio-pages/:id", requireAuth, async (req: Request, res: Response) =>
       })
       .where(eq(bioPagesTable.id, id))
       .returning();
-    res.json({ ok: true, page: { ...toPublicPage(row as unknown as Record<string, unknown>), id: row.id, isPublished: row.isPublished, url: publicUrl(row.slug) } });
+    res.json({ ok: true, page: { ...toPublicPage(row as unknown as Record<string, unknown>), avatarUrl: await presentAvatar(row.avatarUrl), id: row.id, isPublished: row.isPublished, url: publicUrl(row.slug) } });
   } catch (err) {
     req.log.error({ err }, "[bio-pages] update failed");
     res.status(500).json({ ok: false, error: "Failed to save bio page" });
@@ -391,7 +400,7 @@ router.get("/bio-pages/public/:slug", async (req: Request, res: Response) => {
         .maybeSingle();
       referralCode = (data as { code?: string } | null)?.code ?? null;
     } catch { /* non-fatal */ }
-    res.json({ ok: true, page: { ...toPublicPage(page as unknown as Record<string, unknown>), referralCode } });
+    res.json({ ok: true, page: { ...toPublicPage(page as unknown as Record<string, unknown>), avatarUrl: await presentAvatar(page.avatarUrl), referralCode } });
   } catch (err) {
     req.log.error({ err }, "[bio-pages] public fetch failed");
     res.status(500).json({ ok: false, error: "Failed to load page" });

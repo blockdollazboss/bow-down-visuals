@@ -15,6 +15,12 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): live-shop product images are re-hosted
+   into permanent storage at save time; the serializer mints a fresh signed
+   URL from the stored ref on every read. */
 
 /* ── Live Shopping (v1) ──────────────────────────────────────────────────
    Creators sell products during live streams: product catalog, selling
@@ -97,13 +103,13 @@ export function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function serializeProduct(row: typeof liveShopProductsTable.$inferSelect) {
+async function serializeProduct(row: typeof liveShopProductsTable.$inferSelect) {
   return {
     id: row.id,
     name: row.name,
     price_cents: row.price_cents,
     price: formatPrice(row.price_cents),
-    image_url: row.image_url,
+    image_url: row.image_url ? await refreshSupabaseStorageUrl(row.image_url) : row.image_url,
     external_url: row.external_url,
     description: row.description,
     is_active: row.is_active,
@@ -120,7 +126,7 @@ router.get("/live-shopping/catalog", requireAuth, async (req: Request, res: Resp
     .where(eq(liveShopProductsTable.user_id, req.userId!))
     .orderBy(desc(liveShopProductsTable.created_at));
   res.json({
-    products: rows.map(serializeProduct),
+    products: await Promise.all(rows.map(serializeProduct)),
     fee_bps: LIVE_SHOPPING_FEE_BPS,
     checkout_status: "coming_soon",
     note: "Platform checkout is coming soon — buy buttons link to your own checkout page, and sales recorded here are test sales.",
@@ -146,13 +152,15 @@ router.post(
         user_id: req.userId!,
         name: parsed.data.name,
         price_cents: parsed.data.price_cents,
-        image_url: parsed.data.image_url || null,
+        image_url: parsed.data.image_url
+          ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
+          : null,
         external_url: parsed.data.external_url || null,
         description: parsed.data.description ?? null,
         is_active: parsed.data.is_active ?? true,
       })
       .returning();
-    res.status(201).json({ product: serializeProduct(row!) });
+    res.status(201).json({ product: await serializeProduct(row!) });
   },
 );
 
@@ -194,7 +202,11 @@ router.patch(
     } = { updated_at: new Date() };
     if (parsed.data.name !== undefined) updates.name = parsed.data.name;
     if (parsed.data.price_cents !== undefined) updates.price_cents = parsed.data.price_cents;
-    if (parsed.data.image_url !== undefined) updates.image_url = parsed.data.image_url || null;
+    if (parsed.data.image_url !== undefined) {
+      updates.image_url = parsed.data.image_url
+        ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
+        : null;
+    }
     if (parsed.data.external_url !== undefined) updates.external_url = parsed.data.external_url || null;
     if (parsed.data.description !== undefined) updates.description = parsed.data.description ?? null;
     if (parsed.data.is_active !== undefined) updates.is_active = parsed.data.is_active;
@@ -203,7 +215,7 @@ router.patch(
       .set(updates)
       .where(eq(liveShopProductsTable.id, (req.params.id as string)))
       .returning();
-    res.json({ product: serializeProduct(row!) });
+    res.json({ product: await serializeProduct(row!) });
   },
 );
 

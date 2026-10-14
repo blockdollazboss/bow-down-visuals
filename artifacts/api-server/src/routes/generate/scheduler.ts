@@ -4,6 +4,16 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { db } from "@workspace/db";
 import { scheduledPostsTable } from "../../../../../lib/db/src/schema/scheduled-posts";
 import { eq, and, asc } from "drizzle-orm";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): scheduled media is re-hosted into
+   permanent storage at save time; reads re-sign the stored refs. This
+   writer carries no media_type, so the mirror kind is inferred from the
+   URL's extension (the helper still honors the real content-type). */
+function inferMediaKind(url: string): "image" | "video" {
+  return /\.(png|jpe?g|webp|gif|avif)(\?|#|$)/i.test(url) ? "image" : "video";
+}
 
 const router = Router();
 
@@ -46,7 +56,11 @@ router.post("/schedule-post", requireAuth, async (req, res) => {
       .values({
         user_id: req.userId!,
         status: "scheduled",
-        media_url: parsed.data.mediaUrl,
+        media_url:
+          (await mirrorExternalMediaUrl(parsed.data.mediaUrl, {
+            kind: inferMediaKind(parsed.data.mediaUrl),
+            ownerKey: req.userId!,
+          })) ?? parsed.data.mediaUrl,
         caption: parsed.data.content,
         hashtags: parsed.data.hashtags,
         platforms: [parsed.data.platform],
@@ -54,7 +68,7 @@ router.post("/schedule-post", requireAuth, async (req, res) => {
       })
       .returning();
 
-    res.status(201).json({ post });
+    res.status(201).json({ post: await refreshSupabaseStorageUrlsDeep(post) });
   } catch (err) {
     req.log.error({ err }, "[scheduler] schedule-post failed");
     res.status(500).json({ error: "Could not schedule the post." });
@@ -69,7 +83,7 @@ router.get("/scheduled-posts", requireAuth, async (req, res) => {
       .from(scheduledPostsTable)
       .where(eq(scheduledPostsTable.user_id, req.userId!))
       .orderBy(asc(scheduledPostsTable.scheduled_at));
-    res.json({ posts });
+    res.json({ posts: await refreshSupabaseStorageUrlsDeep(posts) });
   } catch (err) {
     req.log.error({ err }, "[scheduler] scheduled-posts list failed");
     res.status(500).json({ error: "Could not load scheduled posts." });
@@ -106,7 +120,7 @@ router.delete("/scheduled-posts/:id", requireAuth, async (req, res) => {
       .where(eq(scheduledPostsTable.id, row.id))
       .returning();
 
-    res.json({ post: cancelled });
+    res.json({ post: await refreshSupabaseStorageUrlsDeep(cancelled) });
   } catch (err) {
     req.log.error({ err }, "[scheduler] cancel failed");
     res.status(500).json({ error: "Could not cancel the scheduled post." });

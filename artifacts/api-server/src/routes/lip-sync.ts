@@ -9,6 +9,7 @@ import { existsSync, statSync, readFileSync, createReadStream } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeExpensiveAiLimiter } from "../lib/rate-limit";
 import { objectStorageClient } from "../lib/objectStorage";
 import {
   PROVIDER_LIMIT_SEC,
@@ -33,6 +34,7 @@ import { requestPollerTick } from "../lib/job-poller";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordLipSyncHistory } from "../lib/payment-record";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { logger } from "../lib/logger";
 import {
   createExportJob,
@@ -383,7 +385,7 @@ function invalidBody(res: import("express").Response, issues: { field: string; m
   res.status(400).json({ error: "Invalid request body.", details: issues });
 }
 
-router.post("/lip-sync/preview", requireAuth, async (req, res) => {
+router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req, res) => {
   /* Validate inputs synchronously, then fire-and-forget background processing.
      The HTTP response completes in < 1 s so the Replit proxy never times out. */
   try {
@@ -1196,7 +1198,8 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
   }
   /* Provider-direct recovery: our poller may have given up while Sync.so is
      still working. Check the provider job directly before failing the scene. */
-  const syncId = (await getLipSyncJob(subJobId))?.providerJobId;
+  const jobRow = await getLipSyncJob(subJobId);
+  const syncId = jobRow?.providerJobId;
   const apiKey = getLipSyncApiKey();
   if (syncId && apiKey) {
     const recoverUntil = Date.now() + 10 * 60 * 1000;
@@ -1206,8 +1209,16 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
         const pj = await syncLabsStatus(syncId, apiKey);
         const st = normalizeProviderStatus(pj);
         if (st === "completed" && pj.outputUrl) {
-          await completeLipSyncJob(subJobId, pj.outputUrl);
-          return pj.outputUrl;
+          /* Mirror-on-save (2026-10-13 law): never persist the provider's
+             raw CDN URL — re-host first, exactly like the job-poller's
+             completion path. */
+          const storedUrl =
+            (await mirrorExternalMediaUrl(pj.outputUrl, {
+              kind: "video",
+              ownerKey: jobRow?.userId ?? subJobId,
+            })) ?? pj.outputUrl;
+          await completeLipSyncJob(subJobId, storedUrl);
+          return storedUrl;
         }
         if (st === "failed")
           throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);

@@ -9,6 +9,7 @@ import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
+  refreshSupabaseStorageUrlsDeep,
   normalizeToStorageRef,
 } from "../../lib/objectStorage";
 
@@ -232,7 +233,7 @@ router.get("/contests", requireAuth, async (req, res) => {
       return { ...toContestJson(c), entryCount: count };
     }),
   );
-  res.json({ contests: withCounts });
+  res.json({ contests: await refreshSupabaseStorageUrlsDeep(withCounts) });
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -264,7 +265,7 @@ router.post("/contests", requireAuth, async (req, res) => {
       status: b.status,
     })
     .returning();
-  res.status(201).json({ contest: toContestJson(row!) });
+  res.status(201).json({ contest: await refreshSupabaseStorageUrlsDeep(toContestJson(row!)) });
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -288,11 +289,11 @@ router.get("/contests/:id", requireAuth, async (req, res) => {
     byMethod[e.entry_method] = (byMethod[e.entry_method] ?? 0) + 1;
     if (e.is_verified) verified += 1;
   }
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     contest: toContestJson(contest),
     entries,
     stats: { total: entries.length, verified, byMethod },
-  });
+  }));
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -430,11 +431,11 @@ router.post("/contests/:id/draw", requireAuth, async (req, res) => {
     })
     .where(eq(contestsTable.id, contest.id))
     .returning();
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     contest: toContestJson(updated!),
     winner,
     audit,
-  });
+  }));
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -536,9 +537,11 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
         "image/png",
       );
       const url = await refreshSupabaseStorageUrl(storageRef);
+      /* Mirror-on-save (2026-10-13 law): persist the permanent storage
+         ref, not the 24h signed URL — presenters re-sign per read. */
       await db
         .update(contestsTable)
-        .set({ announcement_image_url: url, updated_at: new Date() })
+        .set({ announcement_image_url: storageRef, updated_at: new Date() })
         .where(eq(contestsTable.id, contest.id));
       res.json({
         url,

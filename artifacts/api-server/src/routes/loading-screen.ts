@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, loadingScreenInquiriesTable, LOADING_SCREEN_OFFER } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 
 const router = Router();
 
@@ -35,10 +36,15 @@ router.post("/loading-screen/inquire", publicApiLimiter, async (req, res) => {
   const { name, email, videoUrl, targetUrl } = parsed.data;
 
   try {
+    /* Mirror-on-save (2026-10-13 law): the submitted creative is re-hosted
+       into permanent storage so the link can't die before the campaign. */
+    const storedVideoUrl =
+      (await mirrorExternalMediaUrl(videoUrl.trim(), { kind: "video", ownerKey: email.trim().toLowerCase() })) ??
+      videoUrl.trim();
     await db.insert(loadingScreenInquiriesTable).values({
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      videoUrl: videoUrl.trim(),
+      videoUrl: storedVideoUrl,
       targetUrl: targetUrl?.trim() || null,
     });
 

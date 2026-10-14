@@ -31,7 +31,23 @@ import {
   OutOfCreditsError,
 } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { SHOP_PRODUCTS_BUCKET } from "../../lib/objectStorage";
+import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+
+/* Mirror-on-save (2026-10-13 law): shop banners + product images are
+   re-hosted into permanent storage at save time; presenters mint fresh
+   signed URLs from the stored refs on every read. */
+async function presentShopRow<T extends { banner_image_url: string | null }>(row: T): Promise<T> {
+  return {
+    ...row,
+    banner_image_url: row.banner_image_url ? await refreshSupabaseStorageUrl(row.banner_image_url) : row.banner_image_url,
+  };
+}
+
+async function presentShopProductRow<T extends { image_url: string | null; image_path: string | null }>(row: T): Promise<T> {
+  const source = row.image_path ?? row.image_url;
+  return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
+}
 import { r2Upload, r2PublicUrl, isR2Configured } from "../../lib/r2-client";
 import { db } from "@workspace/db";
 import { requireProTier } from "./storefronts";
@@ -177,7 +193,7 @@ async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | n
     LIMIT 1
   `);
   const rows = result.rows as unknown as ShopRow[];
-  return rows[0] ?? null;
+  return rows[0] ? await presentShopRow(rows[0]) : null;
 }
 
 async function productCount(shopId: string): Promise<number> {
@@ -217,10 +233,12 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
     byShop.set(row.shop_id, row.n);
   }
   res.json({
-    shops: (result.rows as unknown as Array<{ id: string }>).map((s) => ({
-      ...s,
-      product_count: byShop.get(s.id) ?? 0,
-    })),
+    shops: await Promise.all(
+      (result.rows as unknown as Array<{ id: string; banner_image_url: string | null }>).map(async (s) => ({
+        ...(await presentShopRow(s)),
+        product_count: byShop.get(s.id) ?? 0,
+      })),
+    ),
   });
 });
 
@@ -272,6 +290,9 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  const bannerImageUrl = d.banner_image_url
+    ? ((await mirrorExternalMediaUrl(d.banner_image_url, { kind: "image", ownerKey: req.userId! })) ?? d.banner_image_url)
+    : null;
   await db.execute(sql`
     UPDATE shops SET
       name = COALESCE(${d.name ?? null}, name),
@@ -279,7 +300,7 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
       description = COALESCE(${d.description ?? null}, description),
       banner_color = COALESCE(${d.banner_color ?? null}, banner_color),
       accent_color = COALESCE(${d.accent_color ?? null}, accent_color),
-      banner_image_url = COALESCE(${d.banner_image_url ?? null}, banner_image_url),
+      banner_image_url = COALESCE(${bannerImageUrl}, banner_image_url),
       updated_at = NOW()
     WHERE id = ${shop.id}
   `);
@@ -322,7 +343,14 @@ router.get("/shops/handle/:handle", async (req, res) => {
     ORDER BY created_at ASC
     LIMIT 200
   `);
-  res.json({ shop, products: productsResult.rows });
+  res.json({
+    shop: await presentShopRow(shop),
+    products: await Promise.all(
+      (productsResult.rows as unknown as Array<{ image_url: string | null; image_path: string | null }>).map(
+        async (p) => ({ ...p, image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url }),
+      ),
+    ),
+  });
 });
 
 /* ── POST /api/shops/:id/products — add a product (free) ─────────────────── */
@@ -341,17 +369,21 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
     return;
   }
   const id = randomUUID();
+  const storedImageUrl = parsed.data.image_url
+    ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
+    : null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url)
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path)
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
-            ${parsed.data.description}, ${parsed.data.image_url || null})
+            ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null})
   `);
   const result = await db.execute(sql`
     SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
-  res.status(201).json({ product: (result.rows as unknown as ProductRow[])[0] });
+  const createdRow = (result.rows as unknown as ProductRow[])[0];
+  res.status(201).json({ product: createdRow ? await presentShopProductRow(createdRow) : createdRow });
 });
 
 /* ── PATCH /api/shops/:id/products/:productId (free) ─────────────────────── */
@@ -377,12 +409,16 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     return;
   }
   const d = parsed.data;
+  const storedImageUrl = d.image_url
+    ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
+    : null;
   await db.execute(sql`
     UPDATE shop_products SET
       name = COALESCE(${d.name ?? null}, name),
       price_cents = COALESCE(${d.price_cents ?? null}, price_cents),
       description = COALESCE(${d.description ?? null}, description),
-      image_url = COALESCE(${d.image_url ?? null}, image_url),
+      image_url = COALESCE(${storedImageUrl}, image_url),
+      image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
@@ -390,7 +426,8 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
-  res.json({ product: (result.rows as unknown as ProductRow[])[0] });
+  const updatedRow = (result.rows as unknown as ProductRow[])[0];
+  res.json({ product: updatedRow ? await presentShopProductRow(updatedRow) : updatedRow });
 });
 
 /* ── DELETE /api/shops/:id/products/:productId (free) ────────────────────── */

@@ -7,6 +7,7 @@ import { recordRunwayClipHistory } from "../lib/payment-record";
 import { refundCredits } from "../lib/credits";
 import { chargedTasks } from "./generate/runway-clip";
 import { refreshSupabaseStorageUrl, normalizeToStorageRef } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
@@ -38,10 +39,20 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
 
   /* Persist stable storage refs, never short-lived signed URLs — even if
      the client posts the 1-day preview URL from the generate poll response,
-     the DB ends up with the ref and readers mint fresh URLs per read. */
-  const storedVideoUrl = normalizeToStorageRef(d.videoUrl) ?? d.videoUrl;
-  const storedThumbnailUrl = d.thumbnailUrl
+     the DB ends up with the ref and readers mint fresh URLs per read.
+     Mirror-on-save (2026-10-13 law): a raw provider CDN URL is re-hosted
+     into permanent storage — same normalize-then-mirror pattern as
+     PATCH /projects/:id/scene-clip. */
+  const normalizedVideoUrl = normalizeToStorageRef(d.videoUrl) ?? d.videoUrl;
+  const storedVideoUrl =
+    (await mirrorExternalMediaUrl(normalizedVideoUrl, { kind: "video", ownerKey: req.userId! })) ??
+    normalizedVideoUrl;
+  const normalizedThumbnailUrl = d.thumbnailUrl
     ? (normalizeToStorageRef(d.thumbnailUrl) ?? d.thumbnailUrl)
+    : null;
+  const storedThumbnailUrl = normalizedThumbnailUrl
+    ? ((await mirrorExternalMediaUrl(normalizedThumbnailUrl, { kind: "image", ownerKey: req.userId! })) ??
+      normalizedThumbnailUrl)
     : null;
 
   try {

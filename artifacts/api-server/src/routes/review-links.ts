@@ -7,6 +7,8 @@ import { db, reviewLinksTable, reviewCommentsTable, generatedClipsTable } from "
 import { eq, and, desc, sql } from "drizzle-orm";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -156,10 +158,12 @@ async function resolveVideoUrl(link: ReviewLink): Promise<string> {
         .where(eq(generatedClipsTable.id, link.source_id))
         .limit(1);
       const fresh = rows[0]?.video_url;
-      if (fresh) return fresh;
+      /* Stored clip values are storage refs (mirror-on-save) — mint a
+         fresh playable URL from the ref. */
+      if (fresh) return await refreshSupabaseStorageUrl(fresh);
     } catch { /* fall through to stored snapshot */ }
   }
-  return link.video_url;
+  return await refreshSupabaseStorageUrl(link.video_url);
 }
 
 function publicCommentShape(c: typeof reviewCommentsTable.$inferSelect) {
@@ -218,6 +222,10 @@ router.post("/review-links", requireAuth, reviewCreateLimiter, async (req, res) 
   const d = parsed.data;
   const token = randomBytes(24).toString("base64url"); // 32 chars, unguessable
   const expiresAt = d.expiresInDays ? new Date(Date.now() + d.expiresInDays * 86_400_000) : null;
+  /* Mirror-on-save (2026-10-13 law): the snapshot URL is re-hosted into
+     permanent storage so the review page can never lose its video. */
+  const storedVideoUrl =
+    (await mirrorExternalMediaUrl(d.videoUrl, { kind: "video", ownerKey: req.userId! })) ?? d.videoUrl;
 
   try {
     const [row] = await db
@@ -226,7 +234,7 @@ router.post("/review-links", requireAuth, reviewCreateLimiter, async (req, res) 
         user_id: req.userId!,
         token_hash: hashToken(token),
         title: d.title,
-        video_url: d.videoUrl,
+        video_url: storedVideoUrl,
         source_type: d.sourceType,
         source_id: d.sourceId ?? null,
         password_hash: d.password ? await hashPassword(d.password) : null,
@@ -252,7 +260,7 @@ router.post("/review-links", requireAuth, reviewCreateLimiter, async (req, res) 
           user_id: req.userId!,
           token_hash: hashToken(token2),
           title: d.title,
-          video_url: d.videoUrl,
+          video_url: storedVideoUrl,
           source_type: d.sourceType,
           source_id: d.sourceId ?? null,
           password_hash: d.password ? await hashPassword(d.password) : null,

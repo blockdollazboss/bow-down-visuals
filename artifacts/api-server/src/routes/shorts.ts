@@ -15,6 +15,12 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { effectiveStatus } from "./challenge-engine";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): short videos/thumbnails/sounds and
+   challenge covers are re-hosted into permanent storage at save time;
+   read payloads are deep-refreshed so stored refs mint fresh URLs. */
 
 /* ─── Shorts / TikTok mechanics ────────────────────────────────────────────
    Vertical short-video feed, sounds, duets/stitches, challenges, hashtags.
@@ -259,10 +265,10 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
     const hasMore = rows.length > limit;
     const items = rows.slice(0, limit).map(shapeShort);
     const last = items[items.length - 1];
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       items,
       next_cursor: hasMore && last ? encodeCursor(last.score, last.id) : null,
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "shorts feed error");
     res.status(500).json({ error: "The feed glitched. Scroll again. 🦈" });
@@ -309,7 +315,7 @@ router.get("/shorts/:id", feedLimiter, async (req, res) => {
     }
     const r = rows[0]!;
     r.score = num(r.follow_mult) * num(r.bdv_mult) * num(r.base_score);
-    res.json({ short: shapeShort(r) });
+    res.json({ short: await refreshSupabaseStorageUrlsDeep(shapeShort(r)) });
   } catch (err) {
     req.log.error({ err }, "short detail error");
     res.status(500).json({ error: "Couldn't pull up that short." });
@@ -358,8 +364,10 @@ async function insertShort(
   const [inserted] = await db.insert(profileVideosTable).values({
     profileId: b.profile_id,
     title: b.title.trim(),
-    videoUrl: b.video_url,
-    thumbnailUrl: b.thumbnail_url ?? null,
+    videoUrl: (await mirrorExternalMediaUrl(b.video_url, { kind: "video", ownerKey: userId })) ?? b.video_url,
+    thumbnailUrl: b.thumbnail_url
+      ? ((await mirrorExternalMediaUrl(b.thumbnail_url, { kind: "image", ownerKey: userId })) ?? b.thumbnail_url)
+      : null,
     description: b.description ?? "",
     tags: b.tags ?? [],
     durationSec: b.duration_sec ?? 0,
@@ -368,7 +376,9 @@ async function insertShort(
     stitchWith: b.stitch_with ?? null,
     soundId,
     soundTitle: b.sound_title?.trim() || null,
-    soundUrl: b.sound_url ?? null,
+    soundUrl: b.sound_url
+      ? ((await mirrorExternalMediaUrl(b.sound_url, { kind: "audio", ownerKey: userId })) ?? b.sound_url)
+      : null,
     isPublished: b.is_published ?? true,
   }).returning();
 
@@ -402,7 +412,7 @@ async function insertShort(
     }
   }
 
-  return { short: inserted };
+  return { short: await refreshSupabaseStorageUrlsDeep(inserted) };
 }
 
 router.post("/shorts", requireAuth, writeLimiter, async (req, res) => {
@@ -491,7 +501,7 @@ async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Respo
         }).from(creatorProfilesTable).where(sql`${creatorProfilesTable.id} = ANY(${creatorIds}::uuid[])`)
       : [];
     const byId = new Map(creators.map((c) => [c.id, c]));
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       parent_id: parentId,
       kind,
       items: rows.map((r) => ({
@@ -499,7 +509,7 @@ async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Respo
         view_count: r.viewCount, like_count: r.likeCount, created_at: r.createdAt,
         creator: byId.get(r.profileId) ?? null,
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, `${kind} children error`);
     res.status(500).json({ error: "Couldn't load those." });
@@ -529,7 +539,7 @@ router.get("/sounds/trending", feedLimiter, async (req, res) => {
       ORDER BY (COUNT(*) FILTER (WHERE created_at > now() - interval '7 days') * 10 + COUNT(*)) DESC
       LIMIT ${limit}
     `);
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       sounds: (result.rows as Record<string, unknown>[]).map((r) => ({
         id: r["sound_id"],
         title: r["sound_title"],
@@ -540,7 +550,7 @@ router.get("/sounds/trending", feedLimiter, async (req, res) => {
         is_earning: Number(r["earning_count"] ?? 0) > 0,
         last_used_at: r["last_used_at"],
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "sounds trending error");
     res.status(500).json({ error: "The sounds went quiet. Try again." });
@@ -587,7 +597,7 @@ router.get("/sounds/:id", feedLimiter, async (req, res) => {
       creator: { slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
       created_at: r["created_at"],
     }));
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       sound: {
         id: soundId,
         title: m["sound_title"],
@@ -600,7 +610,7 @@ router.get("/sounds/:id", feedLimiter, async (req, res) => {
       earning_items: vids.filter((v) => v.for_sale).map((v) => ({
         id: v.id, title: v.title, price_cents: v.download_price_cents, creator: v.creator,
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "sound detail error");
     res.status(500).json({ error: "Couldn't load that sound." });
@@ -666,7 +676,7 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
         title: parsed.data.title.trim(),
         description: parsed.data.description ?? "",
         hashtag,
-        coverUrl: parsed.data.cover_url ?? null,
+        coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
         creatorProfileId: parsed.data.profile_id,
         prizeText: parsed.data.prize_text ?? "",
         status: startsAt && startsAt.getTime() > Date.now() ? "upcoming" : "live",
@@ -675,7 +685,7 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
         judgingEndsAt,
       }).onConflictDoNothing({ target: challengesTable.slug }).returning();
       if (inserted) {
-        res.status(201).json({ challenge: inserted });
+        res.status(201).json({ challenge: await refreshSupabaseStorageUrlsDeep(inserted) });
         return;
       }
     }
@@ -703,12 +713,12 @@ router.get("/challenges/trending", feedLimiter, async (req, res) => {
     }).from(challengesTable)
       .orderBy(desc(challengesTable.entryCount), desc(challengesTable.totalViews))
       .limit(limit);
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       challenges: rows.map((r) => ({
         ...r,
         effective_status: effectiveStatus(r),
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "challenges trending error");
     res.status(500).json({ error: "Couldn't load challenges." });
@@ -750,7 +760,7 @@ router.get("/challenges/:slug", feedLimiter, async (req, res) => {
       .select({ n: sql<number>`count(*)::int` })
       .from(challengeWinnersTable)
       .where(eq(challengeWinnersTable.challengeId, ch.id));
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       challenge: {
         id: ch.id, slug: ch.slug, title: ch.title, description: ch.description,
         hashtag: ch.hashtag, cover_url: ch.coverUrl, prize_text: ch.prizeText,
@@ -770,7 +780,7 @@ router.get("/challenges/:slug", feedLimiter, async (req, res) => {
         entered_at: r["entered_at"], created_at: r["created_at"],
         creator: { id: r["profile_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "challenge detail error");
     res.status(500).json({ error: "Couldn't load that challenge." });
@@ -870,7 +880,7 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
     }).from(challengesTable).where(eq(challengesTable.hashtag, tag)).limit(12);
 
     const vids = (videos.rows as Record<string, unknown>[]);
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       tag,
       shorts: vids.filter((r) => !!r["is_short"]).map((r) => ({
         id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
@@ -893,7 +903,7 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
         created_at: r["created_at"],
       })),
       challenges,
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "hashtag error");
     res.status(500).json({ error: "Couldn't load that tag." });

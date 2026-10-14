@@ -29,6 +29,11 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../../middlewares/require-auth";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+
+/* Read half of mirror-on-save (2026-10-13 law): shop banner/product image
+   values may be storage refs (mirrored at save in shops.ts) — payloads are
+   deep-refreshed so stored refs mint fresh signed URLs per read. */
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -172,7 +177,7 @@ router.get("/storefronts", async (req, res) => {
     ORDER BY s.created_at DESC
     LIMIT ${limit}
   `);
-  res.json({ shops: result.rows, platformFeePct: PLATFORM_FEE_PCT });
+  res.json({ shops: await refreshSupabaseStorageUrlsDeep(result.rows), platformFeePct: PLATFORM_FEE_PCT });
 });
 
 /* ── GET /api/storefronts/slug/:slug — public storefront + view ────────────
@@ -203,11 +208,11 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   const { user_id, ...publicShop } = shop;
   /* Fire-and-forget analytics — never blocks the page. */
   recordView(shop.id, user_id, req.ip);
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     shop: publicShop,
     products: productsResult.rows,
     platformFeePct: PLATFORM_FEE_PCT,
-  });
+  }));
 });
 
 /* ── GET /api/storefronts/:id/analytics — owner-only ─────────────────────── */

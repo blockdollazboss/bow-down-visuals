@@ -6,6 +6,12 @@ import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { nfcCardStyleByKey } from "@workspace/db";
 import { generateNfcQrSvg, nfcProfileUrl } from "../lib/nfc-qr";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): the card avatar is re-hosted into
+   permanent storage at save time; reads re-sign the stored ref fresh —
+   a tapped card can never show a dead avatar. */
 
 const router = Router();
 
@@ -194,7 +200,13 @@ router.get("/nfc-cards/profile/:slug", async (req: Request, res: Response) => {
     .update({ tap_count: (profile.tap_count ?? 0) + 1, updated_at: new Date().toISOString() })
     .eq("slug", param(req, "slug"))
     .then(() => undefined, () => undefined);
-  res.json({ ok: true, profile });
+  res.json({
+    ok: true,
+    profile: {
+      ...profile,
+      avatar_url: profile.avatar_url ? await refreshSupabaseStorageUrl(profile.avatar_url) : profile.avatar_url,
+    },
+  });
 });
 
 /* PUT /api/nfc-cards/profile/:slug — owner edits their digital card. */
@@ -214,6 +226,11 @@ router.put("/nfc-cards/profile/:slug", requireAuth, async (req: Request, res: Re
     res.status(404).json({ ok: false, error: "Card not found" });
     return;
   }
+  if (parsed.data.avatarUrl) {
+    parsed.data.avatarUrl =
+      (await mirrorExternalMediaUrl(parsed.data.avatarUrl, { kind: "image", ownerKey: req.userId! })) ??
+      parsed.data.avatarUrl;
+  }
   const { data, error } = await supabase
     .from("nfc_profiles")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
@@ -224,7 +241,12 @@ router.put("/nfc-cards/profile/:slug", requireAuth, async (req: Request, res: Re
     res.status(500).json({ ok: false, error: "Update failed" });
     return;
   }
-  res.json({ ok: true, profile: data });
+  res.json({
+    ok: true,
+    profile: data
+      ? { ...data, avatar_url: data.avatar_url ? await refreshSupabaseStorageUrl(data.avatar_url) : data.avatar_url }
+      : data,
+  });
 });
 
 /* GET /api/nfc-cards/my-profiles — buyer's cards. */

@@ -3085,12 +3085,20 @@ router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {
     return;
   }
   const { stage, progress } = describeJobProgress(job);
+  /* The stored result.url is a signed URL minted at completion (24h TTL) —
+     re-sign it from its storage bucket on every poll so a finished export's
+     download link can never expire (mirror-on-save law, read half). */
+  const result = job.result as { url?: unknown } | undefined;
+  const freshResult =
+    job.state === "done" && result && typeof result.url === "string"
+      ? { ...result, url: await refreshSupabaseStorageUrl(result.url) }
+      : result;
   res.json({
     jobId: job.id,
     status: job.state,
     stage,
     progress,
-    ...(job.state === "done" ? { result: job.result } : {}),
+    ...(job.state === "done" ? { result: freshResult } : {}),
     ...(job.state === "failed" ? { error: job.error } : {}),
   });
 });

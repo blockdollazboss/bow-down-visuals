@@ -20,6 +20,12 @@ import {
 import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { createClient } from "@supabase/supabase-js";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): group/event covers are re-hosted into
+   permanent storage at save time. Read payloads are deep-refreshed so
+   stored refs (covers, host avatars) mint fresh signed URLs per read. */
 
 const router = Router();
 
@@ -140,7 +146,14 @@ async function profileCards(userIds: string[]): Promise<Record<string, { slug: s
     .from(creatorProfilesTable)
     .where(inArray(creatorProfilesTable.userId, uniq));
   const out: Record<string, { slug: string; displayName: string; avatarUrl: string | null }> = {};
-  for (const r of rows) out[r.userId] = { slug: r.slug, displayName: r.displayName, avatarUrl: r.avatarUrl };
+  /* Avatar values may be storage refs (mirrored at save) — mint fresh URLs. */
+  for (const r of rows) {
+    out[r.userId] = {
+      slug: r.slug,
+      displayName: r.displayName,
+      avatarUrl: r.avatarUrl ? await refreshSupabaseStorageUrl(r.avatarUrl) : r.avatarUrl,
+    };
+  }
   return out;
 }
 
@@ -186,13 +199,13 @@ router.post("/groups", requireAuth, async (req, res) => {
       slug: body.slug,
       name: body.name,
       description: body.description ?? "",
-      coverUrl: body.cover_url ?? null,
+      coverUrl: (await mirrorExternalMediaUrl(body.cover_url ?? null, { kind: "image", ownerKey: userId })) ?? null,
       ownerProfileId: profile?.id ?? null,
       isPublic: body.is_public ?? true,
     }).returning();
     await db.insert(groupMembersTable).values({ groupId: group.id, userId, role: "owner" });
     await db.update(groupsTable).set({ memberCount: 1 }).where(eq(groupsTable.id, group.id));
-    res.status(201).json({ group });
+    res.status(201).json({ group: await refreshSupabaseStorageUrlsDeep(group) });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
     console.error("[community] POST /groups failed", err);
@@ -224,7 +237,7 @@ router.get("/groups", async (req, res) => {
       const pids = new Set(profiles.map((p) => p.id));
       rows = rows.filter((g) => g.ownerProfileId != null && pids.has(g.ownerProfileId));
     }
-    res.json({ groups: rows });
+    res.json({ groups: await refreshSupabaseStorageUrlsDeep(rows) });
   } catch (err) {
     console.error("[community] GET /groups failed", err);
     res.status(500).json({ error: "Couldn't load groups — try again." });
@@ -254,7 +267,7 @@ router.get("/groups/:slug", async (req, res) => {
       .from(groupMembersTable).where(eq(groupMembersTable.groupId, group.id))
       .orderBy(asc(groupMembersTable.joinedAt)).limit(24);
     const cards = await profileCards(memberRows.map((m) => m.userId));
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       group,
       owner_profile: ownerProfile,
       members: memberRows.map((m) => ({
@@ -262,7 +275,7 @@ router.get("/groups/:slug", async (req, res) => {
         profile: cards[m.userId] ?? null,
       })),
       viewer_role: viewerRole,
-    });
+    }));
   } catch (err) {
     console.error("[community] GET /groups/:slug failed", err);
     res.status(500).json({ error: "Couldn't load the group — try again." });
@@ -344,14 +357,14 @@ router.get("/groups/:slug/feed", async (req, res) => {
       .where(eq(groupPostsTable.groupId, group.id))
       .orderBy(desc(groupPostsTable.createdAt)).limit(50);
     const cards = await profileCards(posts.map((p) => p.authorUserId));
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       posts: posts.map((p) => ({
         id: p.id, body: p.body, like_count: p.likeCount, created_at: p.createdAt,
         author_user_id: p.authorUserId, author: cards[p.authorUserId] ?? null,
         can_delete: req.userId != null && (role === "owner" || role === "mod" || p.authorUserId === req.userId),
       })),
       viewer_role: role,
-    });
+    }));
   } catch (err) {
     console.error("[community] GET /groups/:slug/feed failed", err);
     res.status(500).json({ error: "Couldn't load the feed — try again." });
@@ -444,11 +457,11 @@ router.post("/events", requireAuth, async (req, res) => {
       description: body.description ?? "",
       startsAt: new Date(body.starts_at),
       kind: body.kind ?? "other",
-      coverUrl: body.cover_url ?? null,
+      coverUrl: (await mirrorExternalMediaUrl(body.cover_url ?? null, { kind: "image", ownerKey: userId })) ?? null,
       destinationUrl: body.destination_url ?? null,
       ticketUrl: body.ticket_url ?? null,
     }).returning();
-    res.status(201).json({ event });
+    res.status(201).json({ event: await refreshSupabaseStorageUrlsDeep(event) });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
     console.error("[community] POST /events failed", err);
@@ -470,12 +483,12 @@ router.get("/events", async (req, res) => {
       .innerJoin(creatorProfilesTable, eq(eventsTable.profileId, creatorProfilesTable.id))
       .where(gte(eventsTable.startsAt, now))
       .orderBy(asc(eventsTable.startsAt)).limit(60);
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       events: rows.map((r) => ({
         ...r.event,
         host: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
       })),
-    });
+    }));
   } catch (err) {
     console.error("[community] GET /events failed", err);
     res.status(500).json({ error: "Couldn't load events — try again." });
@@ -504,12 +517,12 @@ router.get("/events/:id", async (req, res) => {
         .where(and(eq(eventRsvpsTable.eventId, row.event.id), eq(eventRsvpsTable.userId, req.userId))).limit(1);
       rsvped = r.length > 0;
     }
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       event: row.event,
       host: { slug: row.hostSlug, display_name: row.hostName, avatar_url: row.hostAvatar },
       host_is_viewer: row.hostUserId === req.userId,
       rsvped,
-    });
+    }));
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid event id." }); return; }
     console.error("[community] GET /events/:id failed", err);
@@ -948,7 +961,7 @@ router.get("/explore", async (req, res) => {
       .where(eq(groupsTable.isPublic, true))
       .orderBy(desc(groupsTable.memberCount)).limit(8);
 
-    res.json({
+    res.json(await refreshSupabaseStorageUrlsDeep({
       shorts: shortRows.map((r) => ({
         id: r.video.id, title: r.video.title, thumbnail_url: r.video.thumbnailUrl,
         view_count: r.video.viewCount, duration_sec: r.video.durationSec,
@@ -972,7 +985,7 @@ router.get("/explore", async (req, res) => {
         id: g.id, slug: g.slug, name: g.name, description: g.description,
         cover_url: g.coverUrl, member_count: g.memberCount,
       })),
-    });
+    }));
   } catch (err) {
     console.error("[community] GET /explore failed", err);
     res.status(500).json({ error: "Couldn't load Explore — try again." });

@@ -488,10 +488,15 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
           throw e;
         }
       }
+      /* Mirror-on-save: the provider's output URL is a CDN link that can
+         vanish — re-host it into permanent storage before saving to the
+         vault, same as the reference photo above (2026-10-13 law). */
+      const storedVideoUrl =
+        (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey: req.userId! })) ?? videoUrl;
       /* Save to the vault. */
       await db
         .update(artistVaultsTable)
-        .set({ reference_video_url: videoUrl, updated_at: new Date() })
+        .set({ reference_video_url: storedVideoUrl, updated_at: new Date() })
         .where(
           and(
             eq(artistVaultsTable.id, id),
@@ -562,8 +567,12 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
     } catch (e) {
       /* If HEAD fails, fall through — the URL may still be valid. */
     }
-    /* Set the URL directly on the vault (no storage upload needed). */
-    const publicUrl = videoUrl;
+    /* Mirror-on-save: download + re-host into permanent storage so an
+       arbitrary external link can never expire under the vault (the same
+       law the reference photo follows). Best-effort — the helper returns
+       the original URL if the download fails. */
+    const publicUrl =
+      (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey: userId })) ?? videoUrl;
     await db
       .update(artistVaultsTable)
       .set({ reference_video_url: publicUrl, reference_video_path: null, updated_at: new Date() })

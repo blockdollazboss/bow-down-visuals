@@ -18,6 +18,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
 import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable } from "@workspace/db";
 import { eq, isNull, and, sql, desc } from "drizzle-orm";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -377,7 +378,9 @@ router.get("/admin/spotlight-inquiries", requireAuth, requireAdmin, async (req, 
       })
       .from(spotlightInquiriesTable)
       .orderBy(desc(spotlightInquiriesTable.createdAt));
-    res.json({ inquiries });
+    /* Stored video values may be storage refs (mirrored at submit) —
+       re-sign fresh on every read. */
+    res.json({ inquiries: await refreshSupabaseStorageUrlsDeep(inquiries) });
   } catch (err) {
     req.log.error({ err }, "admin: list spotlight inquiries failed");
     res.status(500).json({ error: "Could not load Spotlight inquiries." });

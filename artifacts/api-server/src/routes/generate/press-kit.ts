@@ -6,6 +6,26 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): kit photos are re-hosted into permanent
+   storage at save time; presenters re-sign the stored refs per read. */
+async function mirrorPhotoUrls(urls: string[], ownerKey: string): Promise<string[]> {
+  return Promise.all(
+    urls.map(async (u) => (await mirrorExternalMediaUrl(u, { kind: "image", ownerKey })) ?? u),
+  );
+}
+
+async function presentKit(row: typeof pressKitsTable.$inferSelect) {
+  const kit = toPublicKit(row);
+  return {
+    ...kit,
+    photo_urls: await Promise.all(
+      (kit.photo_urls ?? []).map(async (u) => (u ? await refreshSupabaseStorageUrl(u) : u)),
+    ),
+  };
+}
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
    Electronic press kits (EPKs): artists generate a professional bio with AI
@@ -251,14 +271,14 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
         spotify_url: parsed.data.spotify_url || null,
         achievements: parsed.data.achievements,
         press_quotes: parsed.data.press_quotes,
-        photo_urls: parsed.data.photo_urls,
+        photo_urls: await mirrorPhotoUrls(parsed.data.photo_urls, req.userId!),
         top_tracks: parsed.data.top_tracks,
         artist_vault_id: parsed.data.artist_vault_id ?? null,
         is_public: true,
       })
       .returning();
 
-    res.json({ kit: toPublicKit(kit!), creditsUsed: PRESS_KIT_GENERATE_CREDITS, creditsRemaining });
+    res.json({ kit: await presentKit(kit!), creditsUsed: PRESS_KIT_GENERATE_CREDITS, creditsRemaining });
   } catch (err) {
     // Provider or DB failed after charging — refund so failures are free.
     await refundCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
@@ -335,7 +355,7 @@ router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, asyn
       .where(eq(pressKitsTable.id, kitId))
       .returning();
 
-    res.json({ kit: toPublicKit(updated!), creditsUsed: PRESS_KIT_BIO_REFRESH_CREDITS, creditsRemaining });
+    res.json({ kit: await presentKit(updated!), creditsUsed: PRESS_KIT_BIO_REFRESH_CREDITS, creditsRemaining });
   } catch (err) {
     await refundCredits(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
       action: "Press Kit Bio Refresh — Refund (generation failed)",
@@ -352,7 +372,7 @@ router.get("/press-kit/mine", requireAuth, async (req, res) => {
     .from(pressKitsTable)
     .where(eq(pressKitsTable.user_id, req.userId!))
     .orderBy(desc(pressKitsTable.updated_at));
-  res.json({ kits: kits.map(toPublicKit) });
+  res.json({ kits: await Promise.all(kits.map(presentKit)) });
 });
 
 /* GET /api/press-kit/public/:handle — free, no auth. Powers /press/:handle. */
@@ -368,7 +388,7 @@ router.get("/press-kit/public/:handle", publicApiLimiter, async (req, res) => {
     res.status(404).json({ error: "Press kit not found." });
     return;
   }
-  res.json({ kit: toPublicKit(kit) });
+  res.json({ kit: await presentKit(kit) });
 });
 
 /* GET /api/press-kit/:id — free. Owner view. */
@@ -383,7 +403,7 @@ router.get("/press-kit/:id", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Press kit not found." });
     return;
   }
-  res.json({ kit: toPublicKit(kit) });
+  res.json({ kit: await presentKit(kit) });
 });
 
 /* PUT /api/press-kit/:id — free. Edit everything (bio edits are free). */
@@ -419,13 +439,16 @@ router.put("/press-kit/:id", requireAuth, async (req, res) => {
   for (const [k, v] of Object.entries(parsed.data)) {
     if (v !== undefined) patch[k] = v === "" ? null : v;
   }
+  if (Array.isArray(patch["photo_urls"])) {
+    patch["photo_urls"] = await mirrorPhotoUrls(patch["photo_urls"] as string[], req.userId!);
+  }
 
   const [updated] = await db
     .update(pressKitsTable)
     .set(patch)
     .where(eq(pressKitsTable.id, kitId))
     .returning();
-  res.json({ kit: toPublicKit(updated!) });
+  res.json({ kit: await presentKit(updated!) });
 });
 
 /* DELETE /api/press-kit/:id — free. */

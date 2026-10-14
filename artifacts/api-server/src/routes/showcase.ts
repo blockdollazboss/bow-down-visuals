@@ -4,6 +4,12 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, showcaseItemsTable, showcaseLikesTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): published media is re-hosted into
+   permanent storage at publish time; reads re-sign the stored refs. */
+const MIRROR_KIND = { image: "image", video: "video", song: "audio" } as const;
 
 const router = Router();
 
@@ -55,12 +61,14 @@ router.post("/showcase/publish", requireAuth, async (req, res) => {
         title: d.title,
         description: d.description ?? "",
         media_type: d.mediaType,
-        media_url: d.mediaUrl,
-        thumbnail_url: d.thumbnailUrl ?? null,
+        media_url: (await mirrorExternalMediaUrl(d.mediaUrl, { kind: MIRROR_KIND[d.mediaType], ownerKey: req.userId! })) ?? d.mediaUrl,
+        thumbnail_url: d.thumbnailUrl
+          ? ((await mirrorExternalMediaUrl(d.thumbnailUrl, { kind: "image", ownerKey: req.userId! })) ?? d.thumbnailUrl)
+          : null,
         creator_name: d.creatorName?.trim() || "Anonymous Creator",
       })
       .returning();
-    res.json({ item });
+    res.json({ item: await refreshSupabaseStorageUrlsDeep(item) });
   } catch (err) {
     req.log.error({ err }, "[showcase] publish failed");
     res.status(500).json({ error: "Could not publish to showcase." });
@@ -81,7 +89,7 @@ router.get("/showcase", async (req, res) => {
       .where(where)
       .orderBy(desc(showcaseItemsTable.created_at))
       .limit(limit);
-    res.json({ items });
+    res.json({ items: await refreshSupabaseStorageUrlsDeep(items) });
   } catch (err) {
     req.log.error({ err }, "[showcase] list failed");
     res.status(500).json({ error: "Could not load showcase." });
@@ -106,7 +114,7 @@ router.get("/showcase/:slug", async (req, res) => {
       .set({ views: sql`${showcaseItemsTable.views} + 1` })
       .where(eq(showcaseItemsTable.id, item.id))
       .catch(() => {});
-    res.json({ item: { ...item, views: item.views + 1 } });
+    res.json({ item: await refreshSupabaseStorageUrlsDeep({ ...item, views: item.views + 1 }) });
   } catch (err) {
     req.log.error({ err }, "[showcase] detail failed");
     res.status(500).json({ error: "Could not load showcase item." });

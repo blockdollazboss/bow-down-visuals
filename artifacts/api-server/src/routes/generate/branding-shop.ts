@@ -6,6 +6,12 @@ import multer from "multer";
 import OpenAI from "openai";
 import RunwayML from "@runwayml/sdk";
 import Stripe from "stripe";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): order-item design images are re-hosted
+   into permanent storage at order time (fulfillment resolves the stored
+   refs back to signed URLs when it fetches/hands off the design). */
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -359,7 +365,13 @@ router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, 
 
   const id = randomUUID();
   const itemsJson = JSON.stringify(
-    items.map((i) => ({ ...i, unitPriceCents: PRODUCTS[i.product].priceCents }))
+    await Promise.all(items.map(async (i) => ({
+      ...i,
+      designUrl: i.designUrl
+        ? ((await mirrorExternalMediaUrl(i.designUrl, { kind: "image", ownerKey: req.userId! })) ?? i.designUrl)
+        : i.designUrl,
+      unitPriceCents: PRODUCTS[i.product].priceCents,
+    })))
   );
   const result = await db.execute(sql`
     INSERT INTO branding_orders (id, user_id, items, total_cents, name, email, address, city, state, zip, status)
@@ -562,7 +574,7 @@ router.get("/branding-shop/orders", requireAuth, async (req, res) => {
     ORDER BY created_at DESC
     LIMIT 100
   `);
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     demo: fulfillmentMode() === "mock",
     orders: (result.rows as unknown as Array<{
       id: string;
@@ -587,7 +599,7 @@ router.get("/branding-shop/orders", requireAuth, async (req, res) => {
       paid: r.paid,
       createdAt: r.created_at,
     })),
-  });
+  }));
 });
 
 /* ── POST /api/branding-shop/orders/:id/refresh — refresh status (FREE) ────

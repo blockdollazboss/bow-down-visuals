@@ -7,6 +7,15 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
 import { db, wave9aSongStructuresTable, wave9aSongVersionsTable } from "@workspace/db";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): a version's audio_url is re-hosted into
+   permanent storage at save time; reads re-sign the stored refs fresh. */
+async function mirrorVersionAudio(url: string, ownerKey: string): Promise<string> {
+  if (!url) return url;
+  return (await mirrorExternalMediaUrl(url, { kind: "audio", ownerKey })) ?? url;
+}
 
 /* ─── Wave 9A — Music / Suno side ───────────────────────────────────────────
    1. Song Structure Builder: drag-drop section blocks → AI arrangement plan.
@@ -403,7 +412,8 @@ router.get("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) =
           : eq(wave9aSongVersionsTable.user_id, req.userId!)
       )
       .orderBy(asc(wave9aSongVersionsTable.created_at));
-    res.json({ versions: rows });
+    /* Stored audio values may be storage refs — re-sign fresh on every read. */
+    res.json({ versions: await refreshSupabaseStorageUrlsDeep(rows) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[wave9a-music] list versions failed");
     res.status(500).json({ error: "Could not load versions." });
@@ -439,10 +449,10 @@ router.post("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) 
         parent_version_id: parsed.data.parent_version_id ?? null,
         label: parsed.data.label,
         notes: parsed.data.notes ?? "",
-        audio_url: parsed.data.audio_url ?? "",
+        audio_url: await mirrorVersionAudio(parsed.data.audio_url ?? "", req.userId!),
       })
       .returning();
-    res.json({ version: row });
+    res.json({ version: row ? await refreshSupabaseStorageUrlsDeep(row) : row });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[wave9a-music] create version failed");
     res.status(500).json({ error: "Could not create this version." });
@@ -468,7 +478,7 @@ router.patch("/wave9a/versions/:id", publicApiLimiter, requireAuth, async (req, 
     const patch: Record<string, unknown> = { updated_at: new Date() };
     if (bodyParsed.data.label !== undefined) patch.label = bodyParsed.data.label;
     if (bodyParsed.data.notes !== undefined) patch.notes = bodyParsed.data.notes;
-    if (bodyParsed.data.audio_url !== undefined) patch.audio_url = bodyParsed.data.audio_url;
+    if (bodyParsed.data.audio_url !== undefined) patch.audio_url = await mirrorVersionAudio(bodyParsed.data.audio_url, req.userId!);
 
     /* Promote to master: clear the flag on sibling versions of the same song
        first, so exactly one master exists per song. */
@@ -489,7 +499,7 @@ router.patch("/wave9a/versions/:id", publicApiLimiter, requireAuth, async (req, 
       .set(patch)
       .where(and(eq(wave9aSongVersionsTable.id, idParsed.data), eq(wave9aSongVersionsTable.user_id, req.userId!)))
       .returning();
-    res.json({ version: updated });
+    res.json({ version: updated ? await refreshSupabaseStorageUrlsDeep(updated) : updated });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[wave9a-music] update version failed");
     res.status(500).json({ error: "Could not update this version." });

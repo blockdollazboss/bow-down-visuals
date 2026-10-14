@@ -31,6 +31,7 @@ import {
   trimAndUploadVideoSegment,
 } from "./sync-labs";
 import { recordLipSyncHistory } from "./payment-record";
+import { mirrorExternalMediaUrl } from "./mirrorMedia";
 
 /**
  * Server-owned background poller for lip-sync (and export) jobs.
@@ -322,7 +323,15 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
       await fail("Sync.so reported completion but returned no video URL.", "provider_no_output");
       return;
     }
-    await completeLipSyncJob(job.id, remote.outputUrl);
+    /* Mirror-on-save (2026-10-13 law): the provider's output URL is a CDN
+       link that can vanish — re-host it into permanent storage ONCE, here,
+       so every store below (lip_sync_jobs.result_url, generation_history,
+       job_notifications.video_url) persists the permanent ref. */
+    const storedVideoUrl =
+      (job.userId
+        ? await mirrorExternalMediaUrl(remote.outputUrl, { kind: "video", ownerKey: job.userId })
+        : null) ?? remote.outputUrl;
+    await completeLipSyncJob(job.id, storedVideoUrl);
     /* Attach the finished video to the originating project — exactly once
        via the history_recorded gate, so a recovered job never double-attaches. */
     const first = await markHistoryRecorded(job.id).catch(() => false);
@@ -331,7 +340,7 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
         userId: job.userId,
         projectId: job.projectId,
         sceneId: job.sceneId,
-        videoUrl: remote.outputUrl,
+        videoUrl: storedVideoUrl,
         creditsUsed: 0,
       }).catch((err) => logger.warn({ err, jobId: job.id }, "[job-poller] recordLipSyncHistory failed (non-fatal)"));
     }
@@ -344,7 +353,7 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
       status: "completed",
       title: "Lip sync ready",
       message: `Your lip-synced scene is ready${durationSec > 0 ? ` (${durationSec.toFixed(1)}s)` : ""}.`,
-      videoUrl: remote.outputUrl,
+      videoUrl: storedVideoUrl,
     });
     logger.info({ jobId: job.id }, "[job-poller] lip-sync completed");
     return;
