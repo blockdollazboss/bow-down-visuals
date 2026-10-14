@@ -90,7 +90,7 @@ export default function Download() {
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
+            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Smartphone className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
@@ -134,7 +134,7 @@ export default function Download() {
 
           {/* iPhone / iPad card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onIOS ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
+            <div className={`rounded-2xl border p-8 ${onIOS ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Share className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
@@ -162,7 +162,7 @@ export default function Download() {
 
           {/* Chrome web app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-white/[0.03]"}`}>
+            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Globe className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
@@ -190,7 +190,7 @@ export default function Download() {
         </div>
 
         {/* Install guides */}
-        <div id="ios-install-steps" className="mt-16 grid gap-8 md:grid-cols-2">
+        <div id="ios-install-steps" className={`mt-16 grid gap-8 md:grid-cols-2 rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
               <ShieldCheck className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.installing_the_apk")}</h3>
@@ -258,7 +258,7 @@ export default function Download() {
           <h3 className="text-lg font-bold mb-6 text-center">{t("download.questions")}</h3>
           <div className="space-y-3 max-w-2xl mx-auto">
             {FAQS.map((f, i) => (
-              <div key={i} className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-white/10 bg-white/[0.02]"}`}>
+              <div key={i} className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-sm font-semibold mb-1">{f.q}</p>
                 <p className="text-xs text-white/45">{f.a}</p>
               </div>

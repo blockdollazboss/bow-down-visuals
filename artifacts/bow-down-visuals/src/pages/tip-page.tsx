@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useRoute, Link } from "wouter";
@@ -31,6 +32,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function TipPage() {
+  const isLight = useIsLightTheme();
   usePageTitle("Tips", "Tip your favorite creator on Bow Down Visuals.");
   const { t } = useTranslation();
   const [, params] = useRoute("/tips/:handle");
@@ -119,7 +121,7 @@ export default function TipPage() {
             <Link href="/" className="inline-flex items-center gap-1 text-xs text-white/40 hover:text-white/70">
               <ChevronLeft className="h-3.5 w-3.5" /> Bow Down Visuals
             </Link>
-            <div className="mt-4 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.02] p-8 text-center backdrop-blur">
+            <div className={`mt-4 rounded-3xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/25 to-primary/25">
                 <HandCoins className="h-8 w-8 text-primary" />
               </div>

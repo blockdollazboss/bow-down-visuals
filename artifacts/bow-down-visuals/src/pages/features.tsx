@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Search, ArrowRight, Crown, Megaphone, Sparkles } from "lucide-react";
@@ -17,11 +18,13 @@ import { useTranslation } from "react-i18next";
 
 type Filter = "all" | FeatureCategory;
 
-const cardClass =
-  "group flex flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent " +
-  "p-6 transition-all duration-300 hover:border-primary/50 hover:from-white/[0.08] hover:shadow-[0_0_40px_-12px_rgba(212,175,55,0.35)]";
+const cardClass = (isLight: boolean) =>
+  isLight
+    ? "group flex flex-col rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-6 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_-12px_rgba(212,175,55,0.35)]"
+    : "group flex flex-col rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_-12px_rgba(212,175,55,0.35)]";
 
 export default function Features() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -113,7 +116,7 @@ export default function Features() {
       {/* Grid */}
       <section className="mx-auto max-w-7xl px-5 md:px-8 pb-20">
         {results.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-16 text-center">
+          <div className={`rounded-2xl border p-16 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-lg font-semibold text-white/80">{t("features.noMatches", { query })}</p>
             <p className="mt-2 text-sm text-white/40">
               Try a different search — or{" "}
@@ -127,7 +130,7 @@ export default function Features() {
               const Icon = f.icon;
               const cat = FEATURE_CATEGORIES.find((c) => c.key === f.category)!;
               return (
-                <div key={f.key} className={cardClass}>
+                <div key={f.key} className={cardClass(isLight)}>
                   <div className="flex items-start justify-between">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-yellow-600/10 border border-primary/30">
                       <Icon className="h-6 w-6 text-primary" />
@@ -168,7 +171,7 @@ export default function Features() {
         )}
 
         {/* Promote CTA */}
-        <div className="mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-r from-amber-500/[0.12] via-transparent to-amber-500/[0.12] p-8 md:p-12 text-center">
+        <div className={`mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-r p-8 md:p-12 text-center ${isLight ? "from-amber-500/[0.12] via-[#F7ECD2] to-amber-500/[0.12]" : "from-amber-500/[0.12] via-[#0d0a04] to-amber-500/[0.12]"}`}>
           <Megaphone className="mx-auto h-10 w-10 text-primary" />
           <h2 className="mt-4 text-2xl md:text-3xl font-extrabold">{t("features.running_a_feature_launch_let_the")}</h2>
           <p className="mx-auto mt-3 max-w-xl text-white/60">{t("features.pick_any_feature_above_and_gener")}</p>

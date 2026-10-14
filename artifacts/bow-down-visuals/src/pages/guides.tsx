@@ -51,7 +51,7 @@ export default function Guides() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {GUIDES.map((g) => (
             <Link key={g.href} href={g.href}>
-              <div className={`group relative rounded-2xl border hover:border-primary/40 hover:bg-gradient-to-b hover:from-primary/[0.08] hover:to-transparent transition-all p-6 flex flex-col h-full cursor-pointer hover:shadow-[0_0_60px_rgba(218,165,32,0.12)] ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/[0.08] bg-white/[0.02]"}`}>
+              <div className={`group relative rounded-2xl border hover:border-primary/40 transition-all p-6 flex flex-col h-full cursor-pointer hover:shadow-[0_0_60px_rgba(218,165,32,0.12)] ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-start justify-between mb-5">
                   <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
                     <g.icon className="h-6 w-6 text-primary" />
@@ -90,7 +90,7 @@ export default function Guides() {
         </div>
 
         {/* ── WHY IT MATTERS ── */}
-        <div className="mt-14 rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/[0.07] to-transparent p-8 md:p-10">
+        <div className={`mt-14 rounded-2xl border border-primary/25 bg-gradient-to-b p-8 md:p-10 ${isLight ? "from-primary/[0.07] to-[#F4E7C3]" : "from-primary/[0.07] to-[#0d0a04]"}`}>
           <div className="flex items-center gap-2.5 mb-4">
             <ShieldCheck className="h-5 w-5 text-primary" />
             <h3 className="text-xl font-bold text-white">{t("guides.whyTitle")}</h3>

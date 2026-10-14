@@ -775,7 +775,7 @@ const PROOF_STATS = [
 function ProofBand() {
   const { t } = useTranslation();
   return (
-    <section aria-label="By the numbers" className="py-14 px-5 border-y border-white/[0.06] bg-black/40">
+    <section aria-label="By the numbers" className="py-14 px-5 border-y border-white/[0.06] bg-black/60">
       <LuxReveal className="max-w-6xl mx-auto">
         <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-8">
           {t("home.proofKicker")}
@@ -879,7 +879,7 @@ function BuiltForCreators({ isLight }: { isLight: boolean }) {
         </div>
 
         {/* Formats strip — not just music: movies, podcasts, streaming */}
-        <div className={`mt-12 rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF3DF]/85" : "border-white/[0.07] bg-white/[0.02]"}`}>
+        <div className={`mt-12 rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF3DF]/85" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-6">
             {t("home.formatsKicker")}
           </p>
@@ -1141,7 +1141,7 @@ function PricingSection() {
             <div
               key={pack.packKey}
               className={`relative flex flex-col p-6 rounded-2xl lux-card-lift ${
-                pack.featured ? (isLight ? "royal-border bg-gradient-to-b from-[#F3DFA7] to-[#EAD08D]" : "royal-border bg-primary/[0.08]") : "lux-panel"
+                pack.featured ? (isLight ? "royal-border bg-gradient-to-b from-[#F3DFA7] to-[#EAD08D]" : "royal-border bg-gradient-to-b from-[#1a1408] to-[#0d0a04]") : "lux-panel"
               }`}
             >
               {pack.featured && (
@@ -1227,7 +1227,7 @@ function FAQSection() {
                     : "border-primary/30 bg-primary/5"
                   : isLight
                     ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50"
-                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
+                    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
               }`}
             >
               <button
@@ -1576,13 +1576,14 @@ function BrandingShopSection() {
 
 function PromoStrip() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const showExtensionPromo = useExtensionPromoVisible();
   return (
     <section aria-label="Promotions" className="py-14 md:py-20 px-5">
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Jackpot */}
-          <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-primary/25 bg-primary/[0.06] hover:border-primary/40 transition-colors">
+          <div className={`promo-strip-card flex flex-col p-6 rounded-2xl border transition-colors ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"}`}>
             <Trophy className="h-7 w-7 text-primary mb-4" />
             <h3 className="font-bold text-white text-lg mb-2">{t("home.jackpotBold")}</h3>
             <p className="text-white/55 text-sm leading-relaxed flex-1">{t("home.jackpotBody")}</p>
@@ -1594,7 +1595,7 @@ function PromoStrip() {
             </Link>
           </div>
           {/* Referral */}
-          <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-[#C9A84C]/25 bg-gradient-to-br from-[#C9A84C]/[0.07] to-transparent hover:border-[#C9A84C]/40 transition-colors">
+          <div className={`promo-strip-card flex flex-col p-6 rounded-2xl border transition-colors ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-[#C9A84C]/25 bg-gradient-to-br from-[#C9A84C]/[0.07] to-[#0d0a04] hover:border-[#C9A84C]/40"}`}>
             <Gift className="h-7 w-7 text-[#e8c86a] mb-4" />
             <h3 className="font-bold text-white text-lg mb-2">
               {t("home.referTitleA")} <span className="text-[#e8c86a]">{t("home.referTitleB")}</span>
@@ -1612,7 +1613,7 @@ function PromoStrip() {
           </div>
           {/* Extension */}
           {showExtensionPromo && (
-            <div className="promo-strip-card flex flex-col p-6 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-primary/30 transition-colors">
+            <div className={`promo-strip-card flex flex-col p-6 rounded-2xl border transition-colors ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/30"}`}>
               <Download className="h-7 w-7 text-primary mb-4" />
               <h3 className="font-bold text-white text-lg mb-2">
                 {t("home.extTitleA")} <span className="text-[#e8c86a]">{t("home.extTitleB")}</span>

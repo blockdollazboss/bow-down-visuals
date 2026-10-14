@@ -139,7 +139,7 @@ export default function CreatorPricing() {
           </div>
         )}
         {upgrade === "cancelled" && (
-          <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-white/60">
+          <div className={`mt-6 rounded-2xl border p-5 text-sm ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80 text-[#6B5B36]" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/60"}`}>
             Checkout cancelled — no charge, nothing changed. Your Free tier keeps earning at the standard fee.
             <Link href={returnTo} className={`ml-2 font-bold ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-amber-300 hover:text-amber-200"}`}>
               Back to creating →
@@ -242,7 +242,7 @@ export default function CreatorPricing() {
                     : "border-amber-400/60 bg-gradient-to-b from-amber-400/15 to-black shadow-[0_0_40px_rgba(251,191,36,0.15)]"
                   : isLight
                     ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]"
-                    : "border-white/10 bg-white/[0.03]"
+                    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
               }`}
             >
               {p.tier === "pro" && (
@@ -308,7 +308,7 @@ export default function CreatorPricing() {
         )}
 
         {/* difficulty ladder → tier mapping, visible */}
-        <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.03]"}`}>
+        <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="text-2xl font-black">Higher tiers unlock higher stars</h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
             The 6-star difficulty ladder stays simple by default. When you want the deep controls,
@@ -344,27 +344,27 @@ export default function CreatorPricing() {
 
         {/* feature detail anchors — link targets for "details →" rows */}
         <section className="mt-12 space-y-8 text-sm text-white/60">
-          <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Your site</h3>
             <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Pro connects your own custom domain with verification — your brand, your URL, same checkout.</p>
           </div>
-          <div id="feature-streaming" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-streaming" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Streaming</h3>
             <p className="mt-1">Livestream to your fans on every tier. Tips and paid access split with the same honest fee as everything else.</p>
           </div>
-          <div id="feature-themes" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-themes" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Themes</h3>
             <p className="mt-1">Basic themes are free forever. Premium gold-luxury themes are a Pro move — they make your site look like money because it is.</p>
           </div>
-          <div id="feature-boosts" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-boosts" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">AI promotion boosts</h3>
             <p className="mt-1">AI-written promo pushes for your releases: 3/month free, 25 on Pro, 100 on Elite. More boosts, more ears, more sales.</p>
           </div>
-          <div id="feature-discovery" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-discovery" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Discovery priority</h3>
             <p className="mt-1">Elite creators get priority placement in discovery — first look for new fans scrolling the platform.</p>
           </div>
-          <div id="feature-support" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-white/10"}`}>
+          <div id="feature-support" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Elite support</h3>
             <p className="mt-1">Dedicated support badge on your profile and priority support when something breaks before a drop.</p>
           </div>
@@ -379,7 +379,7 @@ export default function CreatorPricing() {
             ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty, manage it yourself from the billing portal."],
             ["Is this Visual Bucs?", "No. Tiers are real USD subscriptions via Stripe (test mode). Visual Bucs are the separate AI-credit system — the two never mix."],
           ].map(([q, a]) => (
-            <div key={q} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div key={q} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="font-black text-white">{q}</div>
               <div className="mt-1 text-sm text-white/55">{a}</div>
             </div>

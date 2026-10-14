@@ -65,7 +65,7 @@ function SectionLabel({ icon: Icon, children }: { icon: typeof Scale; children: 
 
 export default function LlcGuide() {
   const isLight = useIsLightTheme();
-  const sectionCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/10 bg-white/[0.02]";
+  const sectionCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]";
   const { t } = useTranslation();
   usePageTitle(t("llcGuide.pageTitle"), t("llcGuide.pageDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();

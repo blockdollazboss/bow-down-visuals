@@ -363,7 +363,7 @@ export default function PressKitBuilder() {
         </section>
 
         {activeTab === "release" ? (
-          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-white/10 bg-white/[0.02]"}`}>
+          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <PressReleasePanel kit={selectedKit} onKitUpdated={handleReleaseKitUpdated} />
           </section>
         ) : (
@@ -387,7 +387,7 @@ export default function PressKitBuilder() {
                   className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
                     selectedKit?.id === k.id
                       ? "border-[#d4af37]/60 bg-[#d4af37]/10"
-                      : isLight ? "border-[#C9A84C]/25 bg-white/50 hover:border-[#C9A84C]/50" : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                      : isLight ? "border-[#C9A84C]/25 bg-white/50 hover:border-[#C9A84C]/50" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <div className="font-medium text-sm truncate">{k.artist_name}</div>
@@ -401,7 +401,7 @@ export default function PressKitBuilder() {
           </aside>
 
           {/* main panel */}
-          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-white/10 bg-white/[0.02]"}`}>
+          <section className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/60" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {selectedKit && !editing ? (
               /* ── preview / manage ── */
               <div>

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Link, useParams } from "wouter";
@@ -30,6 +31,7 @@ interface PressKit {
 }
 
 export default function PublicPressKit() {
+  const isLight = useIsLightTheme();
   usePageTitle("Press Kit", "Official press kit — bio, photos, music, and booking info.");
   const params = useParams<{ handle: string }>();
   const handle = params.handle ?? "";
@@ -103,7 +105,7 @@ export default function PublicPressKit() {
 
         {/* bio */}
         {kit.bio && (
-          <section className="mb-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <section className={`mb-10 rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3">{t("press-public.sections.bio")}</h2>
             <p className="text-white/80 leading-relaxed whitespace-pre-line">{kit.bio}</p>
           </section>
@@ -117,7 +119,7 @@ export default function PublicPressKit() {
             </h2>
             <ul className="grid md:grid-cols-2 gap-2">
               {kit.achievements.map((a, i) => (
-                <li key={i} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white/75">{a}</li>
+                <li key={i} className={`rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80 text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/75"}`}>{a}</li>
               ))}
             </ul>
           </section>
@@ -146,7 +148,7 @@ export default function PublicPressKit() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3 flex items-center gap-2">
               <Music2 className="h-4 w-4" /> {t("press-public.sections.topTracks")}
             </h2>
-            <div className="rounded-2xl border border-white/10 overflow-hidden">
+            <div className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-[#FCF7EA]" : "border-primary/25 bg-[#0d0a04]"}`}>
               {kit.top_tracks.map((t, i) => (
                 <a key={i} href={t.url} target="_blank" rel="noreferrer"
                    className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/5 last:border-0">

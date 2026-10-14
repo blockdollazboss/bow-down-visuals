@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
@@ -46,12 +47,15 @@ interface Dashboard {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
-const cardClass =
-  "rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-6 backdrop-blur";
+const cardClass = (isLight: boolean) =>
+  isLight
+    ? "rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-6"
+    : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
 
 const DEFAULT_SUGGESTED = "5, 10, 25";
 
 export default function Tips() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -184,7 +188,7 @@ export default function Tips() {
 
             <div className="mt-8 grid gap-6 lg:grid-cols-2">
               {/* Setup */}
-              <section className={cardClass}>
+              <section className={cardClass(isLight)}>
                 <h2 className="flex items-center gap-2 text-lg font-bold">
                   <Link2 className="h-5 w-5 text-primary" />{t("tips.setupTitle")}</h2>
                 <div className="mt-4 space-y-4">
@@ -257,7 +261,7 @@ export default function Tips() {
               </section>
 
               {/* Dashboard */}
-              <section className={cardClass}>
+              <section className={cardClass(isLight)}>
                 <h2 className="flex items-center gap-2 text-lg font-bold">
                   <PiggyBank className="h-5 w-5 text-primary" />{t("tips.totalsTitle")}</h2>
                 {!dashboard?.hasPage ? (

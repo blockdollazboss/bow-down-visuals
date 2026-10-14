@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
@@ -28,6 +29,7 @@ function milestoneIcon(invites: number) {
 }
 
 export default function InvitePage() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const params = useParams<{ code?: string }>();
   const code = (params.code ?? "").toUpperCase();
@@ -83,11 +85,11 @@ export default function InvitePage() {
 
         <section className="max-w-2xl mx-auto px-5 md:px-8 pb-20">
           {loading ? (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center">
+            <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-white/40">{t("invite.loading")}</p>
             </div>
           ) : notFound || !data ? (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center">
+            <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-white/60 mb-6">{t("invite.invalidCode")}</p>
               <Link href="/beta-access">
                 <Button className="gold-glow font-bold gap-2">
@@ -98,7 +100,7 @@ export default function InvitePage() {
           ) : (
             <>
               {/* inviter's live position */}
-              <div className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-8 text-center mb-6">
+              <div className={`rounded-2xl border p-8 text-center mb-6 ${isLight ? "border-[#C9A84C]/40 bg-primary/[0.06]" : "border-primary/25 bg-gradient-to-b from-primary/[0.08] to-[#0d0a04]"}`}>
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3 flex items-center justify-center gap-2">
                   <ListOrdered className="h-4 w-4 text-primary" /> {t("invite.positionLabel")}
                 </p>
@@ -125,7 +127,7 @@ export default function InvitePage() {
               </div>
 
               {/* milestone ladder */}
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 mb-6">
+              <div className={`rounded-2xl border p-6 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-4 text-center">
                   {t("invite.milestonesTitle")}
                 </p>
@@ -162,7 +164,7 @@ export default function InvitePage() {
               </div>
 
               {/* how it works */}
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 mb-6">
+              <div className={`rounded-2xl border p-6 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-4 text-center">
                   {t("invite.howItWorks")}
                 </p>

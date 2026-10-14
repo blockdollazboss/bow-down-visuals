@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { Users, Loader2, AlertTriangle, FileText, CalendarDays } from "lucide-react";
@@ -27,6 +28,7 @@ interface AgreementData {
 }
 
 export default function SplitsAgreement() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/splits/:slug");
   const slug = params?.slug ?? "";
 
@@ -90,7 +92,7 @@ export default function SplitsAgreement() {
               )}
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02]">
+            <div className={`overflow-hidden rounded-3xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
                 <Users className="h-4 w-4 text-primary" />
                 <p className="text-sm font-bold">Agreed shares</p>

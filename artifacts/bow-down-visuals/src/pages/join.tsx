@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useRoute } from "wouter";
@@ -18,6 +19,7 @@ interface JoinList {
 }
 
 export default function JoinList() {
+  const isLight = useIsLightTheme();
   usePageTitle("Join", "Join Bow Down Visuals — the content creator's cheat code.");
   const { t } = useTranslation();
   const [, params] = useRoute("/join/:handle");
@@ -72,19 +74,19 @@ export default function JoinList() {
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : notFound || !list ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+          <div className={`rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <AlertTriangle className="mx-auto h-10 w-10 text-amber-400/70" />
             <h1 className="mt-3 font-display text-2xl font-black">{t("auth.listNotFound")}</h1>
             <p className="mt-2 text-sm text-white/50">{t("auth.listNotFoundDetail")}</p>
           </div>
         ) : done ? (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-8 text-center">
+          <div className={`rounded-2xl border p-8 text-center ${isLight ? "border-emerald-600/40 bg-emerald-500/10" : "border-emerald-500/30 bg-gradient-to-b from-emerald-500/15 to-[#0d0a04]"}`}>
             <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" />
             <h1 className="mt-3 font-display text-2xl font-black">{t("auth.joinedTitle")}</h1>
             <p className="mt-2 text-sm text-white/60">{t("auth.welcomeTo")}<span className="font-semibold text-white">{list.name}</span>{t("auth.watchInbox")}</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/[0.08] to-transparent p-8 text-center">
+          <div className={`rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-primary/[0.08] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-primary/[0.08] to-[#0d0a04]"}`}>
             <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
               <Mail className="h-3.5 w-3.5" /> {t("auth.joinTheList")}
             </p>

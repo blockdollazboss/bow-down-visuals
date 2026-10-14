@@ -5,6 +5,7 @@ import {
   Share2, Mail, MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── shared waitlist-invite UI: share kit + success panel ─────────────── */
 
@@ -140,12 +141,13 @@ export function InviteShareKit({ inviteUrl, position }: { inviteUrl: string; pos
 /* ── Post-join success panel: live rank, progress, link, milestones ────── */
 export function WaitlistSuccess({ data }: { data: WaitlistPosition }) {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const inviteUrl = buildInviteUrl(data.inviteCode);
   const aheadPct = data.total > 1 ? Math.round(((data.total - data.position) / data.total) * 100) : 0;
   const nextMilestone = data.milestones.find((m) => !m.unlocked);
 
   return (
-    <div className="rounded-2xl border border-primary/25 bg-primary/5 p-7 md:p-9">
+    <div className={`rounded-2xl border p-7 md:p-9 ${isLight ? "border-[#C9A84C]/40 bg-primary/5" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
       <h3 className="text-2xl font-semibold text-white mb-2 text-center">
         {t("invite.youreIn")}

@@ -63,7 +63,7 @@ export default function QRLoginApprove() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
-      <div className="max-w-sm w-full text-center">
+      <div className="max-w-sm w-full text-center rounded-3xl border bg-card p-8 shadow-xl">
         {!user ? (
           <>
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />

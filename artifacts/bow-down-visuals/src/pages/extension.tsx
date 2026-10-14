@@ -252,7 +252,7 @@ export default function Extension() {
               </LuxReveal>
             ))}
             <LuxReveal delay={0.3}>
-              <div className="h-full rounded-2xl border border-[#d4a017]/40 bg-gradient-to-br from-[#d4a017]/15 to-transparent p-6 space-y-3">
+              <div className={`h-full rounded-2xl border border-[#d4a017]/40 bg-gradient-to-br p-6 space-y-3 ${isLight ? "from-[#d4a017]/15 to-transparent" : "from-[#d4a017]/15 to-[#0d0a04]"}`}>
                 <Zap className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
                 <h3 className="font-semibold text-lg">{t("extension.omnibox_shortcut")}</h3>
                 <p className="text-white/55 text-sm leading-relaxed">{t("extension.type")}{" "}<span className="text-white font-mono">{t("extension.bdv")}</span>{" "}{t("extension.tab_in_the_address_bar_to_ask_th")}</p>
