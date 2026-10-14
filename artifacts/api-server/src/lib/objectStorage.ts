@@ -266,6 +266,20 @@ export async function refreshSignedGcsUrl(url: string): Promise<string> {
 }
 
 /**
+ * Only plain objects (prototype Object.prototype or null) may be walked by
+ * the deep-refresh helpers below. Any other object — Date, Buffer, a class
+ * instance — is a leaf and passes through untouched: Object.entries on a
+ * Date yields nothing, so walking one would silently rebuild it as {} and
+ * destroy the value (this was corrupting created_at-style Date fields in
+ * refreshed payloads). Arrays are handled by the walkers before this check.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
  * Walks an arbitrary JSON-ish value (objects/arrays/primitives) and refreshes
  * any string that looks like a stored GCS signed URL. Used to keep scene
  * data (demoClipUrl, thumbnailUrl, finalVideoUrl, etc.) playable no matter
@@ -278,9 +292,9 @@ export async function refreshSignedGcsUrlsDeep<T>(value: T): Promise<T> {
   if (Array.isArray(value)) {
     return (await Promise.all(value.map((v) => refreshSignedGcsUrlsDeep(v)))) as unknown as T;
   }
-  if (value && typeof value === "object") {
+  if (isPlainObject(value)) {
     const entries = await Promise.all(
-      Object.entries(value as Record<string, unknown>).map(
+      Object.entries(value).map(
         async ([k, v]) => [k, await refreshSignedGcsUrlsDeep(v)] as const,
       ),
     );
@@ -1029,9 +1043,9 @@ export async function refreshSupabaseStorageUrlsDeep<T>(value: T): Promise<T> {
       value.map((v) => refreshSupabaseStorageUrlsDeep(v)),
     )) as unknown as T;
   }
-  if (value && typeof value === "object") {
+  if (isPlainObject(value)) {
     const entries = await Promise.all(
-      Object.entries(value as Record<string, unknown>).map(
+      Object.entries(value).map(
         async ([k, v]) => [k, await refreshSupabaseStorageUrlsDeep(v)] as const,
       ),
     );
