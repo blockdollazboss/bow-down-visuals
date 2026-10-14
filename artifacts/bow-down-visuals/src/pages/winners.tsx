@@ -3,7 +3,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useRoute } from "wouter";
 import {
   Trophy, Loader2, ArrowLeft, Crown, Medal, Share2,
-  ChevronRight, Sparkles,
+  ChevronRight, Sparkles, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -121,11 +121,18 @@ export default function WinnersPage() {
   const [ch, setCh] = useState<ChallengeWinnersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Load failures (500s, network) are NOT "no winners yet" — they get
+     their own error state with a retry. notFound is reserved for the
+     genuine per-challenge 404 (and the hall-of-fame's 200-with-no-data),
+     which are the only paths allowed to render the empty state. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
+    setLoadError(false);
     (async () => {
       try {
         if (perChallenge) {
@@ -141,13 +148,13 @@ export default function WinnersPage() {
           if (!cancelled) setHof(json.winners ?? []);
         }
       } catch {
-        if (!cancelled) setNotFound(true);
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [perChallenge, slug]);
+  }, [perChallenge, slug, retryNonce]);
 
   const title = perChallenge
     ? (ch ? `${ch.challenge.title} — Winners` : "Challenge Winners")
@@ -241,6 +248,21 @@ export default function WinnersPage() {
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : loadError ? (
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load the winners' circle.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — the crowns are safe, this page just couldn't reach them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
           </div>
         ) : !announced || notFound ? (
           <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
