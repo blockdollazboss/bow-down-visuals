@@ -133,7 +133,7 @@ export function MediaActions({
           <Share2 className={icon} /> Share
         </button>
         {shareOpen && (
-          <ShareMenu
+          <PlayerShareMenu
             title={title} artistName={artistName} sharePath={sharePath}
             onClose={() => setShareOpen(false)}
           />
@@ -164,7 +164,7 @@ export function MediaActions({
 }
 
 /* ─── Share menu: referral link + social intents, cheat-code attribution ─── */
-export function ShareMenu({
+export function PlayerShareMenu({
   title, artistName, sharePath, onClose,
 }: {
   title: string;

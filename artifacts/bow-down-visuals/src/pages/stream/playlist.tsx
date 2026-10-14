@@ -9,7 +9,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { JsonLd } from "@/components/seo/json-ld";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStreamingPlayer, trackToQueueItem, type QueueItem } from "@/contexts/StreamingPlayerContext";
-import { ShareMenu } from "@/components/player/MediaActions";
+import { PlayerShareMenu } from "@/components/player/MediaActions";
 import { EmbedButton } from "@/components/player/EmbedButton";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
@@ -344,7 +344,7 @@ export default function StreamPlaylistPage() {
                   <Share2 className="h-4 w-4" /> Share
                 </button>
                 {shareOpen && (
-                  <ShareMenu title={playlist.title} artistName={ownerName} sharePath={`/playlist/${playlist.id}`} onClose={() => setShareOpen(false)} />
+                  <PlayerShareMenu title={playlist.title} artistName={ownerName} sharePath={`/playlist/${playlist.id}`} onClose={() => setShareOpen(false)} />
                 )}
               </div>
               <EmbedButton kind="playlist" id={String(playlist.id)} artistSlug={owner?.slug} title={playlist.title} className="px-5 py-3" />
