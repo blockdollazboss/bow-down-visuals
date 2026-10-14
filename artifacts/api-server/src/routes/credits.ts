@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { getPaymentHistory, getCreditUsage } from "../lib/payment-record";
-import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
+import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -94,13 +94,42 @@ router.post("/credits/claim-trial", requireAuth, async (req, res) => {
         throw new Error(`Failed to create profile: ${insertError.message}`);
       }
     } else {
-      await addCreditsToProfile(userId, TRIAL_CREDITS);
-      const { error: updateError } = await supabase
+      /* Claim the flag FIRST with a compare-and-swap (only rows still
+         unclaimed match), then grant. The old order — grant, then set the
+         flag — let two concurrent first-claims both pass the read check
+         and double-grant, and a crash between grant and flag update
+         double-granted on retry. CAS-first is fail-closed: the only
+         failure mode left is a granted-flag-without-credits, which the
+         rollback below undoes; if the rollback itself fails the user
+         loses a trial (support-fixable) instead of the pool leaking a
+         duplicate grant. */
+      const { data: claimed, error: claimError } = await supabase
         .from("profiles")
         .update({ trial_credits_claimed: true })
-        .eq("id", userId);
-      if (updateError) {
-        throw new Error(`Failed to mark trial claimed: ${updateError.message}`);
+        .eq("id", userId)
+        .eq("trial_credits_claimed", false)
+        .select("id");
+      if (claimError) {
+        throw new Error(`Failed to claim trial flag: ${claimError.message}`);
+      }
+      if (!claimed || claimed.length === 0) {
+        // A concurrent claim won the CAS between our read and this update.
+        res.json({ granted: false, reason: "already_claimed" });
+        return;
+      }
+      try {
+        await addCreditsAtomic(userId, TRIAL_CREDITS);
+      } catch (grantErr) {
+        // Best-effort rollback so the user can retry the claim.
+        await supabase
+          .from("profiles")
+          .update({ trial_credits_claimed: false })
+          .eq("id", userId)
+          .then(
+            () => {},
+            () => {},
+          );
+        throw grantErr;
       }
     }
 
