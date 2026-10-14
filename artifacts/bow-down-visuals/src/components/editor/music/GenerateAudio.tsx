@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles, Loader2, Music, AlertCircle, CheckCircle2, Disc3, Scissors,
   Layers, FileText, ChevronsRight, ChevronDown, Check, Upload, Save,
-  Trash2, Wand2, X, Mic,
+  Trash2, Wand2, X, Mic, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -222,6 +222,17 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [laneVoices, setLaneVoices] = useState<LaneVoice[]>([]);
   const [voiceId, setVoiceId] = useState<string | null>(null);
   const [voiceName, setVoiceName] = useState<string | null>(null);
+
+  /* ── Clone a new voice (POST /api/clone-voice): name + a 10s+ sample the
+     user uploads through the same R2 path as their tracks. The route
+     charges 500 Visual Bucs server-side (registry-confirmed up front). ── */
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloneName, setCloneName] = useState("");
+  const [cloneFile, setCloneFile] = useState<File | null>(null);
+  const [cloneConsent, setCloneConsent] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const cloneInputRef = useRef<HTMLInputElement | null>(null);
 
   /* ── Phase B: upload-your-audio ── */
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -462,6 +473,97 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Re-fetch the voice library (a successful clone adds a voice to it). */
+  async function reloadVoices(): Promise<LaneVoice[]> {
+    try {
+      const token = await getAccessToken();
+      const list = await fetchLaneVoices(token);
+      setLaneVoices(list);
+      return list;
+    } catch {
+      return laneVoices;
+    }
+  }
+
+  /* ── Clone a new voice into the library, then select it ──
+     The sample rides the lane's established upload path (uploadStemFile →
+     R2 public URL), because /api/clone-voice takes a sampleUrl it downloads
+     server-side. Its 500 VB charge is server-side; confirmedFetch confirms
+     it via the CREDIT_COSTS registry entry. The route's response carries no
+     library voice id — on a true clone (`source: "elevenlabs"`) the voice
+     lands in GET /api/voices under the server-set name
+     `bdv-<userId8>-<name>`, which is how the fresh list is matched. On the
+     route's best-effort fallback (`source: "openai-match"`) no library
+     voice exists, so nothing is selected and the toast says so plainly. */
+  async function handleCloneVoice() {
+    if (cloning) return;
+    if (!user) {
+      toast({ title: "Sign in first", description: "You need to be signed in to clone a voice.", variant: "destructive" });
+      return;
+    }
+    const name = cloneName.trim();
+    if (!name) { setCloneError("Give the voice a name first."); return; }
+    if (!cloneFile) { setCloneError("Pick a voice recording to clone from."); return; }
+    if (!cloneConsent) { setCloneError("Confirm the voice is yours (or you have permission) before cloning."); return; }
+    setCloning(true);
+    setCloneError(null);
+    try {
+      /* Client-side duration pre-check so a too-short sample never reaches
+         the paid call — the route re-validates (10s minimum) and refunds. */
+      const durationSec = await readAudioDuration(cloneFile);
+      if (durationSec !== undefined && durationSec < 10) {
+        setCloneError(`That recording is about ${Math.max(1, Math.round(durationSec))}s — a clone needs at least 10 seconds of clear voice.`);
+        return;
+      }
+      const up = await uploadStemFile(user.id, cloneFile);
+      const res = await confirmedFetch("/api/clone-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, sampleUrl: up.url }),
+      });
+      if (!res) return; /* user cancelled the credit confirmation */
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        voice?: { name?: string; source?: string };
+      };
+      if (!res.ok) {
+        if (res.status === 402 || data.error === "out_of_credits") {
+          setOutOfCredits(true);
+          return;
+        }
+        throw new Error(data.error || data.message || "Voice cloning failed. Please try again.");
+      }
+      const list = await reloadVoices();
+      setCloneOpen(false);
+      setCloneName("");
+      setCloneFile(null);
+      setCloneConsent(false);
+      if (data.voice?.source === "elevenlabs") {
+        const expectedName = `bdv-${user.id.slice(0, 8)}-${name}`.slice(0, 100);
+        const match =
+          list.find((v) => v.name === expectedName) ??
+          list.find((v) => v.category === "cloned" && v.name.endsWith(name));
+        if (match) {
+          setVoiceId(match.voice_id);
+          setVoiceName(match.name);
+          toast({ title: "Voice cloned", description: `“${name}” is now your singing voice — bind it to a persona with “Save as Persona”.` });
+        } else {
+          toast({ title: "Voice cloned", description: `“${name}” was added to your voice library — pick it in the Singing voice list.` });
+        }
+      } else {
+        toast({
+          title: "Voice profile saved",
+          description: `“${name}” was saved, but it couldn't be added to the singing-voice library, so it can't be picked here.`,
+        });
+      }
+    } catch (err) {
+      setCloneError(err instanceof Error ? err.message : "Voice cloning failed. Please try again.");
+    } finally {
+      setCloning(false);
+    }
+  }
 
   function applyPersona(p: LanePersona) {
     const s = p.settings ?? {};
@@ -1326,51 +1428,125 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         )}
 
         {/* ── Singing voice picker ── */}
-        {(laneVoices.length > 0 || voiceId) && (
-          <Field
-            label="Singing voice"
-            hint={instrumental
-              ? "Instrumentals have no vocals — turn off Instrumental to use a voice"
-              : "The generated vocals are converted to this voice — melody and timing stay, the voice becomes theirs"}
-          >
-            <div className="flex items-center gap-1.5">
-              <Mic className="h-4 w-4 shrink-0 text-primary/70" />
-              <select
-                value={voiceId ?? ""}
+        <Field
+          label="Singing voice"
+          hint={instrumental
+            ? "Instrumentals have no vocals — turn off Instrumental to use a voice"
+            : "The generated vocals are converted to this voice — melody and timing stay, the voice becomes theirs"}
+        >
+          <div className="flex items-center gap-1.5">
+            <Mic className="h-4 w-4 shrink-0 text-primary/70" />
+            <select
+              value={voiceId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id) {
+                  setVoiceId(null);
+                  setVoiceName(null);
+                  return;
+                }
+                const v = laneVoices.find((x) => x.voice_id === id);
+                setVoiceId(id);
+                setVoiceName(v?.name ?? voiceName ?? null);
+              }}
+              className="min-w-0 flex-1 rounded-xl bg-black/40 border border-white/10 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary/50 transition-colors"
+              style={{ colorScheme: "dark" }}
+              data-testid="select-persona-voice"
+            >
+              <option value="">AI voice (no conversion)</option>
+              {laneVoices.map((v) => (
+                <option key={v.voice_id} value={v.voice_id}>
+                  {v.name}{v.category === "cloned" ? " · Your clone" : ""}
+                </option>
+              ))}
+              {voiceId && !laneVoices.some((v) => v.voice_id === voiceId) && (
+                <option value={voiceId}>{voiceName ?? "Persona voice"}</option>
+              )}
+            </select>
+            <button
+              type="button"
+              onClick={() => { setCloneOpen((v) => !v); setCloneError(null); }}
+              className="flex h-10 shrink-0 items-center gap-1 rounded-xl border border-primary/30 bg-primary/[0.08] px-3 text-xs font-black text-primary transition hover:bg-primary/[0.16]"
+              title="Clone a new voice from a recording — 500 Visual Bucs"
+              data-testid="btn-clone-voice-open"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Clone
+            </button>
+          </div>
+          {voiceId && !instrumental && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-white/45">
+              This song will be sung in {voiceName ?? "the picked voice"} — same price, the conversion is part of the song.
+              Save it inside a persona with “Save as Persona” and every song can wear it.
+            </p>
+          )}
+          {cloneOpen && (
+            <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-black/30 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-white/50">Clone a new voice</p>
+              <TextInput
+                value={cloneName}
+                onChange={setCloneName}
+                placeholder="Voice name — e.g. My Stage Voice"
+                testId="input-clone-voice-name"
+              />
+              <input
+                ref={cloneInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                data-testid="input-clone-voice-file"
                 onChange={(e) => {
-                  const id = e.target.value;
-                  if (!id) {
-                    setVoiceId(null);
-                    setVoiceName(null);
-                    return;
-                  }
-                  const v = laneVoices.find((x) => x.voice_id === id);
-                  setVoiceId(id);
-                  setVoiceName(v?.name ?? voiceName ?? null);
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) { setCloneFile(f); setCloneError(null); }
                 }}
-                className="min-w-0 flex-1 rounded-xl bg-black/40 border border-white/10 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary/50 transition-colors"
-                style={{ colorScheme: "dark" }}
-                data-testid="select-persona-voice"
+              />
+              <button
+                type="button"
+                onClick={() => cloneInputRef.current?.click()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-2.5 text-xs font-bold text-white/70 transition hover:border-primary/40 hover:text-white"
+                data-testid="btn-clone-voice-pick"
               >
-                <option value="">AI voice (no conversion)</option>
-                {laneVoices.map((v) => (
-                  <option key={v.voice_id} value={v.voice_id}>
-                    {v.name}{v.category === "cloned" ? " · Your clone" : ""}
-                  </option>
-                ))}
-                {voiceId && !laneVoices.some((v) => v.voice_id === voiceId) && (
-                  <option value={voiceId}>{voiceName ?? "Persona voice"}</option>
-                )}
-              </select>
-            </div>
-            {voiceId && !instrumental && (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-white/45">
-                This song will be sung in {voiceName ?? "the picked voice"} — same price, the conversion is part of the song.
-                Save it inside a persona with “Save as Persona” and every song can wear it.
+                <Upload className="h-4 w-4 shrink-0 text-primary/80" />
+                <span className="min-w-0 truncate">{cloneFile ? cloneFile.name : "Choose a voice recording"}</span>
+              </button>
+              <p className="text-[11px] leading-relaxed text-white/45">
+                At least 10 seconds of clear voice — singing or speaking, one voice only, no music or
+                background noise behind it. Longer and cleaner clones better. Up to 50 MB.
               </p>
-            )}
-          </Field>
-        )}
+              <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-relaxed text-white/60">
+                <input
+                  type="checkbox"
+                  checked={cloneConsent}
+                  onChange={(e) => setCloneConsent(e.target.checked)}
+                  className="mt-px h-3.5 w-3.5 shrink-0 accent-primary"
+                  data-testid="check-clone-voice-consent"
+                />
+                <span>This is my own voice, or I have the voice owner&rsquo;s permission to clone it.</span>
+              </label>
+              {cloneError && (
+                <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-red-300">
+                  <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+                  <span>{cloneError}</span>
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleCloneVoice()}
+                disabled={cloning || !cloneName.trim() || !cloneFile || !cloneConsent}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                data-testid="btn-clone-voice-submit"
+              >
+                {cloning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />}
+                {cloning ? "Cloning…" : "Clone voice — 500 Visual Bucs"}
+              </button>
+              <p className="text-[11px] leading-relaxed text-white/40">
+                The clone is saved to your voice library. Bind it to a persona with “Save as Persona”
+                and every song can sing in it.
+              </p>
+            </div>
+          )}
+        </Field>
 
         {createMode === "simple" ? (
           <>
