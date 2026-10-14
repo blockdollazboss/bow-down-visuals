@@ -12,7 +12,7 @@ import {
   SlidersHorizontal, Undo2, Redo2, LayoutTemplate, AudioWaveform, Scissors, MessageSquareText, MessageCircle,
   PanelRightClose, PanelRightOpen, Languages, Image as ImageIcon, Palette, MapPin,
   Fingerprint, Laugh, Timer, Crown, Trash2, Copy, Brain,
-  Camera, Clock3, Gauge, Grid3x3,
+  Camera, Clock3, Gauge, Grid3x3, Lock,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -317,10 +317,17 @@ export default function VideoEditor() {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
-  const { isSimple } = useUserMode();
-  /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
-   *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
-  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "templates", "pre-production", "lip-sync", "timeline", "export"];
+  const { isSimple, setMode, maxStars } = useUserMode();
+  /** Simple mode hides the technical/advanced panels behind the mode toggle
+   *  (the sidebar Creator Level picker + the in-editor Simple/Pro switch in
+   *  the top bar below); the underlying settings/tabs are untouched so
+   *  switching to Pro reveals everything. Captions and promo-clips are
+   *  Simple front-and-center tools — auto captions is a headline Simple
+   *  feature (the top-bar Auto Captions button targets the captions tab)
+   *  and the right rail already displayed Promo Clips in Simple — so both
+   *  are reachable here; the captions rail button stays star-gated by the
+   *  data-min-stars CSS (3 stars) where that applies. */
+  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "templates", "pre-production", "lip-sync", "timeline", "captions", "promo-clips", "export"];
   /** Creator Level star thresholds per rail tab — clips / music / timeline /
    *  export are core (level 1) and never gated. */
   const TAB_MIN_STARS: Partial<Record<EditorTab, number>> = {
@@ -1875,6 +1882,53 @@ export default function VideoEditor() {
               <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
                 <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
+              {/* ── Simple / Pro editor mode switch — drives the site-wide
+                  Creator Level (UserModeContext): Simple keeps the guided
+                  dock (prompt bar, templates, auto captions, auto music);
+                  Pro reveals the full dock, unchanged. Persisted per user
+                  by the context (localStorage bdv_user_mode_<id>) and
+                  shared with the sidebar star picker — one source of truth.
+                  Pro is plan-gated: when the plan caps the level below the
+                  advanced band, the segment renders locked and links to
+                  plans, mirroring the sidebar's locked stars. ── */}
+              <div
+                className="flex items-center rounded-lg border vv-border vv-wash-5 p-0.5 shrink-0"
+                role="radiogroup"
+                aria-label={t("videoEditor.editorMode", { defaultValue: "Editor mode" })}
+                data-testid="editor-mode-switch"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isSimple}
+                  onClick={() => setMode("simple")}
+                  className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                  data-testid="editor-mode-simple"
+                >
+                  {t("videoEditor.modeSimple", { defaultValue: "Simple" })}
+                </button>
+                {maxStars >= 4 ? (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!isSimple}
+                    onClick={() => setMode("advanced")}
+                    className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                    data-testid="editor-mode-pro"
+                  >
+                    {t("videoEditor.modePro", { defaultValue: "Pro" })}
+                  </button>
+                ) : (
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
+                    title={t("videoEditor.modeProLocked", { defaultValue: "Pro mode unlocks with a higher Creator Level plan" })}
+                    data-testid="editor-mode-pro-locked"
+                  >
+                    <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Pro" })}
+                  </Link>
+                )}
+              </div>
               <label
                 className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
                 title={t("videoEditor.autosaveTitle")}
@@ -1942,7 +1996,7 @@ export default function VideoEditor() {
                     { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                   ])
                     .filter((item) => !RIGHT_TABS.has(item.id))
-                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline"] as string[]).includes(item.id))
+                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "captions"] as string[]).includes(item.id))
                     .map((item) => (
                       <button
                         key={item.id}

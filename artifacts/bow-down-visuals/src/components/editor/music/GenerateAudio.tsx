@@ -126,6 +126,7 @@ function VersionWaveform({ seedKey, active }: { seedKey: string; active: boolean
 }
 
 type StemsPhase = "idle" | "loading" | "splitting" | "done" | "failed";
+type RemasterPhase = "idle" | "loading" | "mastering" | "done" | "failed";
 type ActionPanel = "extend" | "replace" | null;
 
 export function GenerateAudio({ settings, onChange, artistName, songTitle, artistVaultId, onGoToCaptions, projectId }: GenerateAudioProps) {
@@ -189,6 +190,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [replacing, setReplacing] = useState(false);
   const [stemsPhase, setStemsPhase] = useState<StemsPhase>("idle");
   const [stemsNote, setStemsNote] = useState<string | null>(null);
+  const [remasterPhase, setRemasterPhase] = useState<RemasterPhase>("idle");
+  const [remasterNote, setRemasterNote] = useState<string | null>(null);
+  const remasterCancelRef = useRef(false);
   const [captionsBusy, setCaptionsBusy] = useState(false);
   const [captionsDone, setCaptionsDone] = useState(false);
   const stemsCancelRef = useRef(false);
@@ -514,6 +518,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setOpenPanel(null);
       setStemsPhase("idle");
       setStemsNote(null);
+      setRemasterPhase("idle");
+      setRemasterNote(null);
       setCaptionsDone(false);
       refreshProfile();
       toast({ title: "Audio generated!", description: "Added to your stems — it'll play in Timeline Preview." });
@@ -861,6 +867,84 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     }
   }
 
+  /* ── Remaster: one-tap express mastering of the working song ──
+     The same endpoint, preset default and charge as Audio Studio's Quick
+     Master panel: POST /api/mastering (credit registry: "AI Mastering",
+     400 Visual Bucs — the confirmedFetch dialog shows the cost before any
+     charge). The working song is a URL, so it is fetched and re-uploaded
+     as the audio file, exactly like handleStems does for /api/stems.
+     Preset "streaming" is the Quick Master panel's own default
+     (-14 LUFS · -1.0 dBTP) — the one parameter a one-tap honestly
+     defaults. The mastered file swaps in as the working song. */
+  async function handleRemaster() {
+    if (!lastGenerated || remasterPhase === "loading" || remasterPhase === "mastering") return;
+    remasterCancelRef.current = false;
+    setRemasterPhase("loading");
+    setRemasterNote("Loading your song…");
+    setError(null);
+    try {
+      const songRes = await fetch(lastGenerated.url);
+      if (!songRes.ok) throw new Error("Could not load the song audio for mastering.");
+      const blob = await songRes.blob();
+      const fileName = `${(effectiveTitle || "song").replace(/[^\w-]+/g, "-")}.mp3`;
+      const form = new FormData();
+      form.append("audio", new File([blob], fileName, { type: blob.type || "audio/mpeg" }));
+      form.append("preset", "streaming");
+
+      const res = await confirmedFetch("/api/mastering", { method: "POST", body: form });
+      if (!res) { setRemasterPhase("idle"); setRemasterNote(null); return; } // user cancelled the credit confirmation
+      const start = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string; message?: string };
+      if (res.status === 402 || start.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        setRemasterPhase("idle");
+        setRemasterNote(null);
+        return;
+      }
+      if (!res.ok || !start.jobId) {
+        throw new Error(start.message || start.error || "Could not start mastering.");
+      }
+
+      setRemasterPhase("mastering");
+      setRemasterNote("Mastering — cleanup, glue, loudness and limiting. This can take a few minutes…");
+      const jobId = start.jobId;
+      const deadline = Date.now() + 10 * 60 * 1000;
+      let doneData: { wavUrl?: string | null; mp3Url?: string | null } | null = null;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        if (remasterCancelRef.current) { setRemasterPhase("idle"); setRemasterNote(null); return; }
+        let data: { status?: string; wavUrl?: string | null; mp3Url?: string | null; error?: string } | null = null;
+        try {
+          const pr = await fetch(`/api/mastering/${jobId}`);
+          data = (await pr.json().catch(() => null)) as { status?: string; wavUrl?: string | null; mp3Url?: string | null; error?: string } | null;
+          if (!pr.ok) throw new Error(data?.error || "Mastering failed.");
+        } catch (pollErr) {
+          // Job-level failures stop the loop; transient network errors keep polling.
+          if (pollErr instanceof Error && /failed|not found/i.test(pollErr.message)) throw pollErr;
+          continue;
+        }
+        if (!data) continue;
+        if (data.status === "done") { doneData = data; break; }
+        if (data.status === "failed") throw new Error(data.error || "Mastering failed — your Visual Bucs were refunded.");
+      }
+      if (!doneData) throw new Error("Mastering is taking longer than usual — it keeps running on the server, try again in a bit.");
+
+      const masteredUrl = doneData.mp3Url || doneData.wavUrl;
+      if (!masteredUrl) throw new Error("Mastering finished but returned no audio.");
+      const stem = buildStem(masteredUrl, "", `${lastGenerated.name} (Remastered)`, lastGenerated.durationSec);
+      swapWorkingStem(stem);
+      setLastVariants([]);
+      setRemasterPhase("done");
+      setRemasterNote("Remastered — the polished version is now your working song.");
+      refreshProfile();
+      toast({ title: "Remastered", description: "Streaming-ready master swapped in as your working song." });
+    } catch (err) {
+      setRemasterPhase("failed");
+      setRemasterNote(null);
+      handleApiError(err, "Could not remaster this song.");
+    }
+  }
+
   /* ── Lyrics to Captions: time the lyrics, land them on the caption track ── */
   async function handleLyricsToCaptions() {
     if (!lastGenerated || captionsBusy) return;
@@ -929,6 +1013,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const sections = sectionsFor(lyrics);
   const activeSection = sections[Math.min(sectionIdx, sections.length - 1)];
   const stemsBusy = stemsPhase === "loading" || stemsPhase === "splitting";
+  const remasterBusy = remasterPhase === "loading" || remasterPhase === "mastering";
 
   const actionBtn = (active: boolean) =>
     `inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[11px] font-bold transition-colors disabled:opacity-40 ${
@@ -1256,6 +1341,15 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               </button>
               <button
                 type="button"
+                onClick={() => void handleRemaster()}
+                disabled={remasterBusy}
+                className={actionBtn(remasterPhase === "done")}
+                data-testid="btn-action-remaster"
+              >
+                {remasterBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />} Remaster
+              </button>
+              <button
+                type="button"
                 onClick={() => void handleLyricsToCaptions()}
                 disabled={captionsBusy}
                 className={actionBtn(captionsDone)}
@@ -1298,6 +1392,11 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             {stemsNote && (
               <p className={`text-[11px] leading-relaxed ${stemsPhase === "failed" ? "text-red-300" : stemsPhase === "done" ? "text-emerald-300" : "text-white/45"}`}>
                 {stemsNote}
+              </p>
+            )}
+            {remasterNote && (
+              <p className={`text-[11px] leading-relaxed ${remasterPhase === "failed" ? "text-red-300" : remasterPhase === "done" ? "text-emerald-300" : "text-white/45"}`}>
+                {remasterNote}
               </p>
             )}
             {captionsDone && (
