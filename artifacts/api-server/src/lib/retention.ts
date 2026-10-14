@@ -8,7 +8,7 @@
 
 import { db, creationStreaksTable, questProgressTable, retentionPrefsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { addCreditsToProfile } from "./supabase-admin";
+import { addCreditsAtomic } from "./supabase-admin";
 import { logger } from "./logger";
 
 export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
@@ -304,11 +304,18 @@ export async function claimStreakMilestone(
   }
   if (status.milestonesClaimed.includes(days)) throw new Error("Milestone already claimed");
 
-  // Mark claimed BEFORE payout so a retry can't double-pay.
-  const claimed = [...status.milestonesClaimed, days].sort((a, b) => a - b);
+  // Mark claimed BEFORE payout so a retry can't double-pay. The append
+  // happens IN SQL (milestones_claimed || ARRAY[days]) under the NOT-@>
+  // guard — never write back a JS-computed array: a concurrent claim of a
+  // DIFFERENT milestone would read the same stale array, and the loser's
+  // write would erase the winner's claim marker, making the winner's
+  // milestone claimable (and payable) a second time.
   const updated = await db
     .update(creationStreaksTable)
-    .set({ milestonesClaimed: claimed, updatedAt: new Date() })
+    .set({
+      milestonesClaimed: sql`${creationStreaksTable.milestonesClaimed} || ARRAY[${days}]::int[]`,
+      updatedAt: new Date(),
+    })
     .where(
       and(
         eq(creationStreaksTable.userId, userId),
@@ -319,7 +326,7 @@ export async function claimStreakMilestone(
   if (updated.length === 0) throw new Error("Milestone already claimed");
 
   try {
-    await addCreditsToProfile(userId, milestone.reward);
+    await addCreditsAtomic(userId, milestone.reward);
   } catch (err) {
     logger.error({ err, userId, days }, "[retention] CRITICAL: streak milestone marked claimed but VB payout failed");
     throw new Error("Visual Bucs payout failed — contact support");
@@ -359,7 +366,7 @@ export async function claimQuestReward(
   if (updated.length === 0) throw new Error("Quest reward already claimed");
 
   try {
-    await addCreditsToProfile(userId, def.reward);
+    await addCreditsAtomic(userId, def.reward);
   } catch (err) {
     logger.error({ err, userId, questKey }, "[retention] CRITICAL: quest marked claimed but VB payout failed");
     throw new Error("Visual Bucs payout failed — contact support");

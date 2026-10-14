@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
 
 const router = Router();
@@ -90,36 +90,42 @@ router.post("/bow", requireAuth, async (req: Request, res: Response) => {
     if (!race) throw new Error("bow_race_record returned no row");
 
     // Winner: grant the credits. Only this request won — the function
-    // guarantees exactly-once winner marking.
+    // guarantees exactly-once winner marking. The grant itself is atomic
+    // (increment_credits RPC — no read-modify-write window), and ANY
+    // failure in the grant stage un-marks the win via bow_race_undo_win
+    // so the race reopens instead of sitting won-but-unpaid: previously
+    // only a ledger failure rolled back, while a profile read/write
+    // failure left the prize permanently unpayable with no retry path.
     let rewarded = false;
     if (race.o_won) {
-      const { data: profile, error: fetchErr } = await supabase
-        .from("profiles")
-        .select("credits")
-        .eq("id", userId)
-        .single();
-      if (fetchErr || !profile) throw fetchErr ?? new Error("profile missing");
-
-      const oldBalance = profile.credits ?? 0;
-      const newBalance = oldBalance + rewardCredits;
-      const { error: updateErr } = await supabase
-        .from("profiles")
-        .update({ credits: newBalance })
-        .eq("id", userId);
-      if (updateErr) throw updateErr;
-
-      // Strict ledger: negative usage = grant. Roll back everything on failure.
+      let granted = false;
       try {
+        await addCreditsAtomic(userId, rewardCredits);
+        granted = true;
+
+        // Strict ledger: negative usage = grant.
         await recordCreditUsageStrict({
           userId,
           action: "Global Bow Race",
           creditsUsed: -rewardCredits,
         });
-      } catch (ledgerErr) {
-        req.log.error({ err: ledgerErr, userId }, "bow: ledger failed after grant — rolling back");
-        await supabase.from("profiles").update({ credits: oldBalance }).eq("id", userId);
-        await supabase.rpc("bow_race_undo_win", { p_period: period, p_user_id: userId });
-        throw ledgerErr;
+      } catch (grantErr) {
+        req.log.error({ err: grantErr, userId }, "bow: prize grant failed — compensating and reopening the race");
+        if (granted) {
+          // Reverse the delta (not a set-to-old-balance) so any
+          // concurrent legitimate balance change is preserved.
+          try {
+            await addCreditsAtomic(userId, -rewardCredits);
+          } catch (revertErr) {
+            req.log.error({ err: revertErr, userId }, "bow: CRITICAL — prize compensation failed; manual reconciliation required");
+          }
+        }
+        try {
+          await supabase.rpc("bow_race_undo_win", { p_period: period, p_user_id: userId });
+        } catch (undoErr) {
+          req.log.error({ err: undoErr, userId, period }, "bow: CRITICAL — undo_win failed; race may be stuck won-but-unpaid");
+        }
+        throw grantErr;
       }
 
       // Stamp the winner's identity for the admin alert banner (best effort).

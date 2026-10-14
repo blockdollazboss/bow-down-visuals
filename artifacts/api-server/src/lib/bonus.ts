@@ -207,11 +207,43 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
   const freezesEarned = isMilestone;
   const newFreezes = currentFreezes - (freezeUsed ? 1 : 0) + (freezesEarned ? 1 : 0);
 
-  const { error: updateErr } = await admin
+  // Claim atomically: the UPDATE only lands while last_daily_claim is
+  // still not today. Concurrent claims serialize on the profile row —
+  // exactly one matches the predicate and proceeds to grant; the other
+  // updates zero rows. (The read-check above alone raced: two requests
+  // could both read yesterday's date and both grant.)
+  const { data: claimedRows, error: updateErr } = await admin
     .from("profiles")
     .update({ daily_streak: newStreak, last_daily_claim: today, streak_freezes: newFreezes })
-    .eq("id", userId);
+    .eq("id", userId)
+    .or(`last_daily_claim.is.null,last_daily_claim.neq.${today}`)
+    .select("id");
   if (updateErr) throw new Error(`Failed to update streak: ${updateErr.message}`);
+  if (!claimedRows || claimedRows.length === 0) {
+    // Lost the race — or the profile row doesn't exist yet. A fresh
+    // re-read showing today's date means another claim won.
+    const { data: nowRow } = await admin
+      .from("profiles")
+      .select("last_daily_claim")
+      .eq("id", userId)
+      .maybeSingle();
+    if (nowRow && (nowRow as any).last_daily_claim === today) {
+      return { claimed: false, reason: "already_claimed" };
+    }
+    if (nowRow) throw new Error("Failed to update streak: claim matched no rows");
+    // No profile row at all (brand-new user): create it carrying the
+    // claim. The PK is the guard — a concurrent creator loses with a
+    // 23505 and is reported as already claimed.
+    const { error: insertErr } = await admin
+      .from("profiles")
+      .insert({ id: userId, daily_streak: newStreak, last_daily_claim: today, streak_freezes: newFreezes });
+    if (insertErr) {
+      if ((insertErr as { code?: string }).code === "23505") {
+        return { claimed: false, reason: "already_claimed" };
+      }
+      throw new Error(`Failed to update streak: ${insertErr.message}`);
+    }
+  }
 
   await addBonusCredits(userId, bonus);
   logger.info({ userId, newStreak, bonus, freezeUsed, freezesEarned }, "[bonus] daily claim");
@@ -351,11 +383,42 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
   const segment = pickWheelSegment();
   const now = new Date().toISOString();
 
-  const { error: updateErr } = await admin
+  // Claim the spin atomically: the UPDATE only lands while the stored
+  // last_wheel_spin is still at/past the cooldown cutoff. Concurrent
+  // spins serialize on the profile row — exactly one proceeds to grant.
+  // (The read-check above alone raced: two requests could both read an
+  // old spin time and both pay out on a single cooldown.)
+  const cutoff = new Date(Date.now() - WHEEL_COOLDOWN_MINUTES * 60 * 1000).toISOString();
+  const { data: spinRows, error: updateErr } = await admin
     .from("profiles")
     .update({ last_wheel_spin: now })
-    .eq("id", userId);
+    .eq("id", userId)
+    .or(`last_wheel_spin.is.null,last_wheel_spin.lte.${cutoff}`)
+    .select("id");
   if (updateErr) throw new Error(`Failed to record spin: ${updateErr.message}`);
+  if (!spinRows || spinRows.length === 0) {
+    // Lost the race — or no profile row yet. Re-read to tell them apart.
+    const { data: nowRow } = await admin
+      .from("profiles")
+      .select("last_wheel_spin")
+      .eq("id", userId)
+      .maybeSingle();
+    if (nowRow) {
+      const fresh = (nowRow as any).last_wheel_spin as string | null;
+      return { spun: false, reason: "cooldown", cooldownSeconds: wheelCooldownSeconds(fresh) };
+    }
+    // Brand-new user with no profile row: create it carrying the stamp;
+    // the PK guards a concurrent creator (23505 → treat as cooldown).
+    const { error: insertErr } = await admin
+      .from("profiles")
+      .insert({ id: userId, last_wheel_spin: now });
+    if (insertErr) {
+      if ((insertErr as { code?: string }).code === "23505") {
+        return { spun: false, reason: "cooldown", cooldownSeconds: WHEEL_COOLDOWN_MINUTES * 60 };
+      }
+      throw new Error(`Failed to record spin: ${insertErr.message}`);
+    }
+  }
 
   await addBonusCredits(userId, segment.credits);
 

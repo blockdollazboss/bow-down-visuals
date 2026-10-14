@@ -689,6 +689,7 @@ async function settleOneContest(contestId: string, startsAt: Date, endsAt: Date)
   const standings = rows.rows as unknown as StandingRow[];
   const qualifiers = standings.filter((s) => s.signups >= CONTEST_MIN_SIGNUPS);
 
+  let payoutFailures = 0;
   for (const prize of CONTEST_PRIZES) {
     const winner = qualifiers[prize.rank - 1];
     if (!winner) continue; // nobody qualified at this rank — pool keeps it
@@ -713,11 +714,46 @@ async function settleOneContest(contestId: string, startsAt: Date, endsAt: Date)
       logger.info({ contestId, winner: winner.referrerUserId, error: error.message }, "Contest prize skipped (already awarded)");
       continue;
     }
-    await addCreditsToProfile(winner.referrerUserId, prize.prizeCredits);
+    try {
+      await addCreditsToProfile(winner.referrerUserId, prize.prizeCredits);
+    } catch (payErr) {
+      // The prize row is the claim and the payment is not atomic with it:
+      // if the payment fails, RELEASE the claim (delete the row) so the
+      // next settle pass retries this winner. Previously the row stayed,
+      // every later pass skipped the winner as "already awarded", and the
+      // contest was marked settled below — the prize was never paid.
+      payoutFailures++;
+      logger.error(
+        { err: payErr, contestId, rank: prize.rank, winner: winner.referrerUserId },
+        "Referral contest prize payment failed — releasing the prize claim for retry"
+      );
+      const { error: releaseErr } = await supabase
+        .from("referral_contest_prizes")
+        .delete()
+        .eq("contest_id", contestId)
+        .eq("referrer_user_id", winner.referrerUserId);
+      if (releaseErr) {
+        logger.error(
+          { err: releaseErr, contestId, winner: winner.referrerUserId },
+          "CRITICAL: prize claim release failed — winner may be stuck unpaid; manual reconciliation required"
+        );
+      }
+      continue;
+    }
     logger.info(
       { contestId, rank: prize.rank, winner: winner.referrerUserId, prize: prize.prizeCredits },
       "Referral contest prize awarded"
     );
+  }
+
+  if (payoutFailures > 0) {
+    // Leave the contest OPEN so the lazy settle retries the released
+    // prizes on the next pass instead of sealing them unpaid.
+    logger.error(
+      { contestId, payoutFailures },
+      "Referral contest left unsettled — some prizes failed and were released for retry"
+    );
+    return;
   }
 
   await supabase

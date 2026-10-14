@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, count, desc, eq, gt, gte, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   db,
   sharkDropsTable,
@@ -214,8 +214,13 @@ router.get("/retention/shark-drop", requireAuth, publicApiLimiter, async (req: R
 
 const claimDropSchema = z.object({ dropId: z.string().uuid() });
 
-/* POST /api/retention/shark-drop/claim — credit the VB with a strict ledger
-   write; a failed ledger rolls the grant back and fails loudly. */
+/* POST /api/retention/shark-drop/claim — claim FIRST with a conditional
+   UPDATE (claimed_at IS NULL is the lock), then credit the VB with a
+   strict ledger write. Any payout failure releases the claim so the
+   drop stays claimable; a failed ledger also rolls the grant back.
+   (Previously the grant ran BEFORE the claim was marked, with an
+   unconditional final UPDATE — two concurrent claims both read the
+   drop as unclaimed and both got paid.) */
 router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = claimDropSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -230,9 +235,11 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
       return;
     }
 
-    const rows = await db
-      .select()
-      .from(sharkDropsTable)
+    // Atomic claim: exactly one concurrent request can flip claimed_at.
+    const claimStamp = new Date();
+    const claimed = await db
+      .update(sharkDropsTable)
+      .set({ claimedAt: claimStamp })
       .where(
         and(
           eq(sharkDropsTable.id, parsed.data.dropId),
@@ -240,18 +247,42 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
           isNull(sharkDropsTable.claimedAt)
         )
       )
-      .limit(1);
-    const drop = rows[0];
+      .returning();
+    const drop = claimed[0];
     if (!drop) {
       res.status(404).json({ error: "Drop not found or already claimed" });
       return;
     }
+
+    // Release the claim so a failed payout never burns the drop. Only
+    // this request can have set claimed_at in this flow (the claim above
+    // flipped it from NULL atomically), so IS NOT NULL identifies our
+    // stamp.
+    const releaseClaim = async () => {
+      await db
+        .update(sharkDropsTable)
+        .set({ claimedAt: null })
+        .where(
+          and(
+            eq(sharkDropsTable.id, drop.id),
+            isNotNull(sharkDropsTable.claimedAt)
+          )
+        );
+    };
+
     if (drop.expiresAt.getTime() <= Date.now()) {
+      await releaseClaim();
       res.status(410).json({ error: "This drop has expired" });
       return;
     }
 
-    const { oldCredits } = await addCreditsToProfile(userId, drop.amount);
+    let oldCredits: number;
+    try {
+      ({ oldCredits } = await addCreditsToProfile(userId, drop.amount));
+    } catch (grantErr) {
+      await releaseClaim().catch(() => {});
+      throw grantErr;
+    }
     try {
       await recordCreditUsageStrict({
         userId,
@@ -265,13 +296,9 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
       } catch (rollbackErr) {
         logger.error({ err: rollbackErr, userId }, "[retention-delight] CRITICAL — ledger failed AND rollback failed; manual reconciliation required");
       }
+      await releaseClaim().catch(() => {});
       throw ledgerErr;
     }
-
-    await db
-      .update(sharkDropsTable)
-      .set({ claimedAt: new Date() })
-      .where(eq(sharkDropsTable.id, drop.id));
 
     logger.info({ userId, dropId: drop.id, amount: drop.amount }, "[retention-delight] shark drop claimed");
     res.json({ claimed: true, amount: drop.amount });
