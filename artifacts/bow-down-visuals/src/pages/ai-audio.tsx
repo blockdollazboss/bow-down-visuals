@@ -2196,7 +2196,11 @@ export default function AiAudio() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AiAudioTab>(() => {
     try {
-      const q = new URLSearchParams(window.location.search).get("tab");
+      /* Phase 3: the host (Audio Studio) owns ?tab=; our sub-tab rides
+         ?sub= so the two never collide. Legacy standalone links used
+         ?tab= — still honored as the fallback. */
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("sub") ?? params.get("tab");
       return q === "samples" || q === "sfx" ? q : "beats";
     } catch {
       return "beats";
@@ -2207,10 +2211,11 @@ export default function AiAudio() {
 
   function switchTab(next: AiAudioTab) {
     setTab(next);
-    /* Keep the tab shareable. */
+    /* Keep the sub-tab shareable — written as ?sub= so it never
+       clobbers the host page's own ?tab= (Phase 3 chain fix). */
     try {
       const params = new URLSearchParams(window.location.search);
-      params.set("tab", next);
+      params.set("sub", next);
       window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
     } catch {
       /* non-browser — ignore */

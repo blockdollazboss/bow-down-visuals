@@ -6,7 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteFooter } from "@/components/layout/footer";
 import Home from "@/pages/home";
 import Pricing from "@/pages/pricing";
-import Waitlist from "@/pages/waitlist";
+import BetaAccess from "@/pages/beta-access";
 /* SEO programmatic pages (Worker 9): tool pages, vertical hubs, genre hubs.
    These are pure static markup (no auth, no i18n, no data fetching), so they
    render fully in this minimal tree — crawlers get real HTML + JSON-LD. */
@@ -34,7 +34,7 @@ import { TOOL_PAGES, VERTICAL_HUBS, GENRE_HUBS } from "@/data/seo-pages";
 const MARKETING_PAGES: Record<string, ComponentType> = {
   "/": Home,
   "/pricing": Pricing,
-  "/waitlist": Waitlist,
+  "/beta-access": BetaAccess,
   "/tools": ToolsIndex,
   "/for": ForIndex,
   ...Object.fromEntries(

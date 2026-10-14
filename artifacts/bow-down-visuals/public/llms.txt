@@ -19,7 +19,6 @@
 - [Showcase](/showcase): Work made with Bow Down Visuals.
 - [Download](/download): Get the Android app and the Chrome extension.
 - [Extension](/extension): Thy Cheat Code browser extension — the whole studio in one popup.
-- [Waitlist](/waitlist): Join the waitlist for early access.
 - [Beta Access](/beta-access): Request access to the current beta program.
 - [Contact](/contact): Contact and support information.
 - [Terms](/terms): Terms of service.

@@ -10,7 +10,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { WaitlistSuccess, type WaitlistPosition } from "@/components/WaitlistInvite";
 import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
-  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones, Gift,
+  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones, Gift, Mail,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -399,6 +399,25 @@ export default function BetaAccess() {
                 <p className="text-sm text-white/50 leading-relaxed">{t(p.bodyKey)}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ── CONTACT ── (merged from /waitlist in Phase 3 — that URL now
+            redirects here; the waitlist.contact* strings came with it) */}
+        <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
+          <div className={`rounded-2xl border p-8 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-bold tracking-widest text-primary/70 uppercase mb-0.5">{t("waitlist.contactKicker")}</p>
+                <h2 className="text-xl font-semibold text-white">{t("waitlist.contactTitle")}</h2>
+              </div>
+            </div>
+            <p className="text-white/50 text-base leading-relaxed mb-5">
+              {t("waitlist.contactDesc")}
+            </p>
           </div>
         </section>
 

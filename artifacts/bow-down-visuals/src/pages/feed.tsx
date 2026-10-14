@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Flame, Clock3, Bookmark, TrendingUp } from "lucide-react";
+import { Flame, Clock3, Bookmark, TrendingUp, Radio, Clapperboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiJson, type FeedPost } from "@/lib/social-api";
 import { StoriesRail } from "@/components/social/StoriesRail";
 import { Composer } from "@/components/social/Composer";
 import { PostCard } from "@/components/social/PostCard";
+import { DropsWire } from "@/components/discovery/DropsWire";
 
 /* ─── /home — the creator feed ─────────────────────────────────────────────
    Your timeline, no algorithm overlords 🦈 — chronological by default,
@@ -14,6 +15,15 @@ import { PostCard } from "@/components/social/PostCard";
 export default function FeedPage() {
   const { getAccessToken } = useAuth();
   const [mode, setMode] = useState<"chrono" | "foryou">("chrono");
+  /* Phase 3: the old standalone /feed releases wire is now the Drops view
+     of this one Feed — /feed redirects to /home?view=drops. */
+  const [view, setView] = useState<"timeline" | "drops">(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("view") === "drops" ? "drops" : "timeline";
+    } catch {
+      return "timeline";
+    }
+  });
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -80,29 +90,45 @@ export default function FeedPage() {
         <div className="flex overflow-hidden rounded-full border border-[#2a2a2a] text-sm" role="tablist" aria-label="Feed mode">
           <button
             role="tab"
-            aria-selected={mode === "chrono"}
-            onClick={() => setMode("chrono")}
+            aria-selected={view === "timeline" && mode === "chrono"}
+            onClick={() => { setView("timeline"); setMode("chrono"); }}
             title="Your timeline, no algorithm overlords 🦈"
-            className={`flex items-center gap-1.5 px-4 py-2 font-semibold ${mode === "chrono" ? "bg-[#d4af37] text-black" : "text-neutral-400 hover:text-white"}`}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold ${view === "timeline" && mode === "chrono" ? "bg-[#d4af37] text-black" : "text-neutral-400 hover:text-white"}`}
           >
             <Clock3 className="h-4 w-4" /> Latest
           </button>
           <button
             role="tab"
-            aria-selected={mode === "foryou"}
-            onClick={() => setMode("foryou")}
+            aria-selected={view === "timeline" && mode === "foryou"}
+            onClick={() => { setView("timeline"); setMode("foryou"); }}
             title="Followed creators + what's popping get a boost"
-            className={`flex items-center gap-1.5 px-4 py-2 font-semibold ${mode === "foryou" ? "bg-[#d4af37] text-black" : "text-neutral-400 hover:text-white"}`}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold ${view === "timeline" && mode === "foryou" ? "bg-[#d4af37] text-black" : "text-neutral-400 hover:text-white"}`}
           >
             <Flame className="h-4 w-4" /> For You
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === "drops"}
+            onClick={() => setView("drops")}
+            title="New releases from creators you follow"
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold ${view === "drops" ? "bg-[#d4af37] text-black" : "text-neutral-400 hover:text-white"}`}
+          >
+            <Radio className="h-4 w-4" /> Drops
           </button>
         </div>
       </div>
       <p className="mb-4 text-xs text-neutral-500">
-        {mode === "chrono"
-          ? "Chronological — your timeline, no algorithm overlords. 🦈"
-          : "For You — creators you follow and high-engagement posts get a boost."}
+        {view === "drops"
+          ? "New Drops — every release from creators you follow, last 30 days."
+          : mode === "chrono"
+            ? "Chronological — your timeline, no algorithm overlords. 🦈"
+            : "For You — creators you follow and high-engagement posts get a boost."}
       </p>
+
+      {view === "drops" ? (
+        <DropsWire />
+      ) : (
+        <>
 
       <div className="mb-5">
         <StoriesRail />
@@ -118,6 +144,9 @@ export default function FeedPage() {
         </Link>
         <Link href="/saved" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
           <Bookmark className="h-4 w-4" /> Saved
+        </Link>
+        <Link href="/shorts" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
+          <Clapperboard className="h-4 w-4" /> Shorts
         </Link>
       </div>
 
@@ -161,6 +190,8 @@ export default function FeedPage() {
       <div ref={sentinel} />
       {loadingMore && <p className="mt-6 text-center text-xs text-neutral-500">Loading more…</p>}
       {!hasMore && posts.length > 0 && <p className="mt-6 text-center text-xs text-neutral-600">You're all caught up 🦈</p>}
+        </>
+      )}
     </div>
   );
 }

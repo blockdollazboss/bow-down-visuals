@@ -69,7 +69,12 @@ export default function Explore() {
           <p className="mx-auto mt-3 max-w-xl text-white/60">
             The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place. Share anything; your referral code rides along.
           </p>
-          <Link href="/feed" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">Open your feed →</Link>
+          <Link href="/home?view=drops" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">New drops →</Link>
+          <div className="mt-5 flex items-center justify-center gap-5 text-xs font-semibold">
+            <Link href="/charts" className="text-white/60 transition hover:text-[#e8c86a]">Charts</Link>
+            <Link href="/browse" className="text-white/60 transition hover:text-[#e8c86a]">Browse</Link>
+            <Link href="/search" className="text-white/60 transition hover:text-[#e8c86a]">Search</Link>
+          </div>
         </div>
 
         <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/explore" linkLabel="More soon">

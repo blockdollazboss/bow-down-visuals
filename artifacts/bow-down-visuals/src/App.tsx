@@ -50,7 +50,6 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import Home    from "@/pages/home";
 import Pricing from "@/pages/pricing";
 import CreatorPricing from "@/pages/creator-pricing";
-import Waitlist from "@/pages/waitlist";
 import Extension from "@/pages/extension";
 import Download from "@/pages/download";
 import TemplatesHub from "@/pages/templates/index";
@@ -77,7 +76,6 @@ const Browse = lazyWithRetry(() => import("@/pages/discovery/browse"));
 const VerticalPage = lazyWithRetry(() => import("@/pages/discovery/vertical"));
 const Genres = lazyWithRetry(() => import("@/pages/discovery/genres"));
 const GenrePage = lazyWithRetry(() => import("@/pages/discovery/genre"));
-const Feed = lazyWithRetry(() => import("@/pages/discovery/feed"));
 
 /* Social (Worker 8): home timeline, trending, saved. */
 const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
@@ -99,7 +97,6 @@ const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
 const QRLoginApprove = lazyWithRetry(() => import("@/pages/qr-login"));
 const ResetPassword  = lazyWithRetry(() => import("@/pages/reset-password"));
-const LoadingDemo = lazyWithRetry(() => import("@/pages/loading-demo"));
 const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
 const Admin         = lazyWithRetry(() => import("@/pages/admin"));
@@ -123,7 +120,6 @@ const CreatorDomainsPage = lazyWithRetry(() => import("@/pages/creator-domains")
 const StoreDashboard = lazyWithRetry(() => import("@/pages/store-dashboard"));
 import { SiteModeGate } from "@/components/site-mode/SiteMode";
 import { NotificationsBell } from "@/components/discovery/NotificationsBell";
-const FogLab        = lazyWithRetry(() => import("@/pages/fog-lab"));
 const CursorLab     = lazyWithRetry(() => import("@/pages/cursor-lab"));
 const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
@@ -460,12 +456,11 @@ function AppShell() {
           <Route path="/signup"><Signup /></Route>
           <Route path="/qr-login"><QRLoginApprove /></Route>
           <Route path="/reset-password"><ResetPassword /></Route>
-          <Route path="/loading-demo"><LoadingDemo /></Route>
 
           {/* Marketing (home lives inside the sidebar layout below) */}
           <Route path="/pricing"><Pricing /></Route>
           <Route path="/creator-pricing"><CreatorPricing /></Route>
-          <Route path="/waitlist"><Waitlist /></Route>
+          <Route path="/waitlist"><Redirect to="/beta-access" /></Route>
           <Route path="/extension"><Extension /></Route>
           <Route path="/download"><Download /></Route>
           <Route path="/templates"><TemplatesHub /></Route>
@@ -531,7 +526,6 @@ function AppShell() {
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
-          <Route path="/fog-lab"><FogLab /></Route>
           <Route path="/cursor-lab"><CursorLab /></Route>
           <Route path="/tour"><TourPlanner /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
@@ -663,10 +657,10 @@ function AppShell() {
                 <Route path="/repurpose"><Redirect to="/video-editor?tab=repurpose" /></Route>
                 <Route path="/trends"><Redirect to="/scheduler?tab=trends" /></Route>
                 {/* Discovery feed — new drops from followed creators (auth) */}
-                <Route path="/feed"><ProtectedRoute><Feed /></ProtectedRoute></Route>
+                <Route path="/feed"><Redirect to="/home?view=drops" /></Route>
                 <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest" /></Route>
                 <Route path="/audio-studio"><ProtectedRoute><AudioStudio /></ProtectedRoute></Route>
-                <Route path="/ai-audio"><Redirect to="/audio-studio?tab=aiaudio" /></Route>
+                <Route path="/ai-audio"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
                 <Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>
                 <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
@@ -675,12 +669,12 @@ function AppShell() {
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
                 <Route path="/community"><CommunityManager /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
-                <Route path="/mix-master"><Redirect to="/audio-studio?tab=master" /></Route>
+                <Route path="/mix-master"><QueryPreservingRedirect to="/audio-studio?tab=master" /></Route>
                 <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
-                <Route path="/sfx"><QueryPreservingRedirect to="/ai-audio?tab=sfx" /></Route>
-                <Route path="/samples"><QueryPreservingRedirect to="/ai-audio?tab=samples" /></Route>
+                <Route path="/sfx"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=sfx" /></Route>
+                <Route path="/samples"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=samples" /></Route>
                 <Route path="/podcast"><Redirect to="/audio-studio?tab=podcast" /></Route>
-                <Route path="/beat-maker"><QueryPreservingRedirect to="/ai-audio?tab=beats" /></Route>
+                <Route path="/beat-maker"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>

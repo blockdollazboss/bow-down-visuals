@@ -6,7 +6,7 @@ import {
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
  Play, Camera, Music2, Copy,
  Handshake, Megaphone, Coffee, Disc3, Crown, Store, ShoppingBag,
- Rocket, Newspaper, Mail, Users, Trophy, Gift, UsersRound,
+ Rocket, Newspaper, Mail, Users, Trophy, Gift, UsersRound, FileText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -189,6 +189,8 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
       { href: "/distribute", labelKey: "coach.tabDistribute", defaultLabel: "Distribute", Icon: Rocket },
       { href: "/referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
       { href: "/team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
+      { href: "/contracts", labelKey: "coach.tabContracts", defaultLabel: "Contracts", Icon: FileText },
+      { href: "/sponsors/dashboard", labelKey: "coach.tabSponsorDashboard", defaultLabel: "Sponsor Dashboard", Icon: Handshake },
     ],
   },
   {

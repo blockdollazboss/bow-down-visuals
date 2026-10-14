@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ExpressPayButton } from "@/components/ExpressPayButton";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { SocialProofBand } from "@/components/SocialProofBand";
@@ -450,6 +451,12 @@ export default function Pricing() {
           </p>
           <WantedMeter onSelect={jumpToPlan} plans={PLANS} />
         </section>
+
+        {/* Phase 3: the two pricing products cross-link — Credit Packs here,
+            Creator Plans (subscription tiers) on /creator-pricing. */}
+        <div className="flex justify-center px-5 pb-4">
+          <PricingSwitcher active="credits" />
+        </div>
 
         {/* ── LIVE SOCIAL PROOF ── */}
         <SocialProofBand variant="compact" className={isLight ? "border-y border-primary/20 bg-[#C9A84C]/[0.08]" : "border-y border-primary/10 bg-black/40"} />

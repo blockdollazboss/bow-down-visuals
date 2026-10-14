@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Radio, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { TrackRow, FeedEmpty, RowSkeleton } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
 import { ShareMenu } from "@/components/discovery/ShareMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import type { TrackLite } from "@/components/discovery/cards";
 
-/* ─── /feed — your cheat-code wire ────────────────────────────────────────
-   New releases from creators you follow (last 30 days), newest first.
-   "New since your last visit" is badged from localStorage. Auth required. */
+/* ─── DropsWire — the releases wire, now a view inside /home ──────────────
+   Extracted from the old standalone /feed page in Phase 3 (the two "feed"
+   pages merged into one Feed at /home). New releases from creators you
+   follow (last 30 days), newest first. "New since your last visit" is
+   badged from localStorage. Data source unchanged: /api/discovery/feed. */
 
 const LAST_VISIT_KEY = "bdv_feed_last_visit";
 
@@ -19,7 +21,7 @@ interface FeedItem extends TrackLite {
   created_at: string;
 }
 
-export default function Feed() {
+export function DropsWire() {
   const { user, getAccessToken } = useAuth();
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [lastVisit, setLastVisit] = useState<string | null>(null);
@@ -54,19 +56,7 @@ export default function Feed() {
     : (items ?? []).length;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-6">
-      <div className="mb-6 text-center">
-        <p className="mb-2 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-[#e8c86a]">
-          <Radio className="h-4 w-4" /> Your feed
-        </p>
-        <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-          The <span className="bg-gradient-to-b from-[#ffe9a8] to-[#c9a84c] bg-clip-text text-transparent">wire.</span>
-        </h1>
-        <p className="mt-2 text-sm text-white/50">
-          Every drop from every creator you follow. Early fans win.
-        </p>
-      </div>
-
+    <div>
       {items === null ? (
         <div className="grid gap-3">
           {Array.from({ length: 8 }).map((_, i) => (

@@ -396,6 +396,10 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
           <Link href="/sponsors/post" className="font-semibold text-primary hover:underline">
             {t("brandDeals.related.postDeal", { defaultValue: "Post a deal" })}
           </Link>
+          {" · "}
+          <Link href="/brand-calculator" className="font-semibold text-primary hover:underline">
+            {t("brandDeals.related.brandCalculator", { defaultValue: "Brand calculator" })}
+          </Link>
         </p>
 
         {mainTab === "finder" && (
@@ -1416,6 +1420,11 @@ function MarketplaceTab() {
             <PlusCircle className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postDeal")}
           </Link>
         </div>
+        {/* Phase 3 lane labeling: this tab browses + matches; deal management
+            (apply, escrow, delivery) lives in the Sponsor Manager. */}
+        <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
+          {t("sponsors.managerHandoffNote", { defaultValue: "Deals open in the Sponsor Manager — apply, fund escrow, and deliver there. This tab is for browsing and matching." })}
+        </p>
       </div>
 
       {error && (
@@ -1483,7 +1492,7 @@ function MarketplaceTab() {
                     {daysLeftLabel(d.deadline)}
                   </p>
                   <span className="inline-flex items-center gap-1 font-bold text-primary opacity-0 transition group-hover:opacity-100">
-                    {t("sponsors.viewDeal")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("sponsors.openInManager", { defaultValue: "Open in Sponsor Manager" })} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                 </div>
               </Link>

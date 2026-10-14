@@ -15,7 +15,7 @@ import {
 } from "@/lib/hub-workflows";
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
 import { useTranslation } from "react-i18next";
-import { BeatMakerModule } from "./beat-maker";
+import { BeatMakerModule } from "./ai-audio";
 import { ThumbnailMakerModule } from "./thumbnail-studio";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────

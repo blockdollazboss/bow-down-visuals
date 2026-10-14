@@ -9,7 +9,6 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 const STUDIO_LINKS = [
   { label: "Home",        href: "/" },
   { label: "Beta Access", href: "/beta-access" },
-  { label: "Waitlist",    href: "/waitlist" },
   { label: "Download the App", href: "/download" },
   { label: "Contact / Support", href: "/contact" },
 ];

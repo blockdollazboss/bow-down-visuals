@@ -268,6 +268,7 @@ const SECTIONS: NavSection[] = [
       { href: "/home", labelKey: "nav.feed", icon: Newspaper },
       { href: "/explore", labelKey: "nav.explore", icon: Compass },
       { href: "/groups", labelKey: "nav.groups", icon: Users },
+      { href: "/events", labelKey: "nav.events", icon: CalendarDays },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy },

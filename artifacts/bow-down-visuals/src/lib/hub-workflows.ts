@@ -77,7 +77,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
       { key: "song", label: "Song", icon: Disc3, assetKind: "song", href: "/make-song",
         blurb: "Turn the beat into a full song with AI vocals and arrangement.",
         creditNote: "400 Visual Bucs" },
-      { key: "master", label: "Master", icon: AudioWaveform, assetKind: null, href: "/mix-master?tab=quick",
+      { key: "master", label: "Master", icon: AudioWaveform, assetKind: null, href: "/audio-studio?tab=master&mode=quick",
         blurb: "Radio-ready master — loud, clean, polished.",
         creditNote: "200 Visual Bucs" },
       { key: "video", label: "Video", icon: Clapperboard, assetKind: "video", href: "/make-video",

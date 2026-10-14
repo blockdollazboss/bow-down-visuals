@@ -34,7 +34,6 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/signup",
   "/pricing",
-  "/waitlist",
   "/beta-access",
   "/contact",
   "/terms",

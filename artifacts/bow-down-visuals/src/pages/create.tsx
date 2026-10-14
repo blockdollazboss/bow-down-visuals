@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, type LucideIcon } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
@@ -231,6 +231,18 @@ export default function Create() {
           {panel === "link-to-hit" && <LinkToHitPanel />}
           {panel === "cover-motion" && <CoverInMotionPanel />}
           {panel === "hub" && <HubModule />}
+        </div>
+
+        {/* Phase 3 orphan rescue: the Media Detector's only inbound path
+            was a hub workflow — the Create front door names it too. */}
+        <div className="mx-auto mt-10 w-full max-w-4xl px-1 text-center">
+          <Link
+            href="/detector"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-white/55 transition hover:border-[#d4a017]/50 hover:text-[#fbbf24]"
+          >
+            <ScanSearch className="h-4 w-4" />
+            {t("create.moreTools.detector", { defaultValue: "Media Detector — check a file's story before you post it" })}
+          </Link>
         </div>
       </div>
     </div>

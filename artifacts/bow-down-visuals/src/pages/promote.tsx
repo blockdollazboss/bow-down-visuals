@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
-  Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, ArrowRight, Hash, GalleryHorizontal,
+  Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, ArrowRight, Hash, GalleryHorizontal, Mic,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -241,6 +241,13 @@ export default function Promote() {
           >
             <GalleryHorizontal className="h-4 w-4" />
             {t("promote.tabs.carouselMaker", { defaultValue: "Carousel Maker" })}
+          </Link>
+          <Link
+            href="/interview-prep"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold text-white/55 transition hover:text-white"
+          >
+            <Mic className="h-4 w-4" />
+            {t("promote.tabs.interviewPrep", { defaultValue: "Interview Prep" })}
           </Link>
         </div>
       </div>

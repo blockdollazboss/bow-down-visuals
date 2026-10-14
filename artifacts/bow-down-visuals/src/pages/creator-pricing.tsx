@@ -6,6 +6,7 @@ import {
   BadgeCheck, Info, Star,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import { SocialProofBand } from "@/components/SocialProofBand";
@@ -160,6 +161,11 @@ export default function CreatorPricing() {
             lower fees, your own domain, pro analytics, AI promotion boosts. The fee drop pays for itself.
           </p>
           <div className="mt-4 flex justify-center"><TierBadge /></div>
+        </div>
+
+        {/* Phase 3: cross-link to the other pricing product (credit packs). */}
+        <div className="mt-8 flex justify-center">
+          <PricingSwitcher active="plans" />
         </div>
 
         {/* Live social proof — real platform numbers, musicians flavor */}

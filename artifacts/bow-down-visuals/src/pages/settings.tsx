@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { AlertTriangle, ArrowLeft, Download, Loader2, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowUpRight, Download, Loader2, MousePointer2, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Account settings. The social OAuth callbacks redirect here with
    ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
@@ -162,6 +163,35 @@ function DangerZone() {
   );
 }
 
+
+/* ─── Cursor: the picker lives on its own page (/cursor-lab) ───────────── */
+function CursorCard() {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  return (
+    <section className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="cursor-settings">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+            <MousePointer2 className="h-4 w-4 text-primary" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold">{t("settings.cursorTitle", { defaultValue: "Cursor" })}</h2>
+            <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("settings.cursorDescription", { defaultValue: "Pick the custom cursor that follows you around the site." })}</p>
+          </div>
+        </div>
+        <Link
+          href="/cursor-lab"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20"
+        >
+          {t("settings.cursorButton", { defaultValue: "Choose cursor" })}
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   usePageTitle(t("settings.pageTitle"), t("settings.pageDescription"));
@@ -226,6 +256,8 @@ export default function Settings() {
         <DiscordWebhookSettings />
 
         <TeamSeats />
+
+        <CursorCard />
 
         <DangerZone />
       </div>
