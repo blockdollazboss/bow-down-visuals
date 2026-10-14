@@ -1,5 +1,5 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { z } from "zod";
@@ -68,7 +68,7 @@ const reviewCreateLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => (req as { userId?: string }).userId || req.ip || "unknown",
+  keyGenerator: (req) => (req as { userId?: string }).userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Too many review links. Please try again later." },
 });
 
@@ -78,7 +78,7 @@ const reviewUnlockLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip ?? "unknown"}|${tokenParam(req as { params: Record<string, string | string[]> })}`,
+  keyGenerator: (req) => `${req.ip ? ipKeyGenerator(req.ip) : "unknown"}|${tokenParam(req as { params: Record<string, string | string[]> })}`,
   message: { error: "Too many attempts. Please try again in a minute." },
 });
 

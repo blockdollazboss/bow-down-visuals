@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { createClient } from "@supabase/supabase-js";
 import { db } from "@workspace/db";
 import {
@@ -67,7 +67,7 @@ const writeLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Too many moves, too fast. Catch your breath. 🦈" },
 });
 

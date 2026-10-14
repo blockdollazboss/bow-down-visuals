@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
 import {
   challengesTable,
@@ -57,7 +57,7 @@ const voteLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Easy, champ — votes need a breather. 🦈" },
 });
 
@@ -66,7 +66,7 @@ const adminWriteLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Too many admin moves, too fast." },
 });
 

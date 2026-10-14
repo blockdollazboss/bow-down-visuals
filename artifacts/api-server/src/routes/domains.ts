@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { promises as dns } from "node:dns";
 import { randomBytes } from "node:crypto";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
 import { customDomainsTable, creatorProfilesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -123,7 +123,7 @@ const createLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Easy, shark — 10 new domains per hour is plenty. 🦈" },
 });
 
@@ -132,7 +132,7 @@ const verifyLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip ?? "unknown"}|${req.params["id"] ?? "?"}`,
+  keyGenerator: (req) => `${req.ip ? ipKeyGenerator(req.ip) : "unknown"}|${req.params["id"] ?? "?"}`,
   message: { error: "DNS needs a minute to catch up — try again shortly. 🦈" },
 });
 

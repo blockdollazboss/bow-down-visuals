@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
 import {
   creatorProfilesTable,
@@ -466,7 +466,7 @@ const playLimiter = rateLimit({
   limit: 1,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip ?? "unknown"}|${req.params["kind"] ?? "?"}|${req.params["id"] ?? "?"}`,
+  keyGenerator: (req) => `${req.ip ? ipKeyGenerator(req.ip) : "unknown"}|${req.params["kind"] ?? "?"}|${req.params["id"] ?? "?"}`,
   message: { error: "Already counted that play — the cheat code remembers. 🦈" },
 });
 

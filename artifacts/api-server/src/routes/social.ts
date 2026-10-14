@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { eq, and, desc, sql, gt, lt, or, inArray, ilike, isNull, lte } from "drizzle-orm";
 import {
   db,
@@ -1173,7 +1173,7 @@ const w8WriteLimiter = rateLimit({
   limit: 120,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Easy, shark — slow down a little. 🦈" },
 });
 
