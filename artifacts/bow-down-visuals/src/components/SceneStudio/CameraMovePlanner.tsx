@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -66,6 +67,7 @@ interface CameraMovePlannerProps {
 }
 
 export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -138,7 +140,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
 
   return (
     <div
-      className="rounded-2xl border border-white/10 bg-white/[0.025] overflow-hidden"
+      className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
       data-testid="camera-move-planner"
     >
       {/* Header */}
@@ -207,7 +209,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
                     className={`rounded-xl border px-2.5 py-3 text-left transition-all ${
                       selected
                         ? "border-primary/60 bg-primary/10"
-                        : "border-white/[0.08] bg-white/[0.02] hover:border-white/25"
+                        : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                     }`}
                   >
                     <Icon className={`h-4.5 w-4.5 mb-1.5 ${selected ? "text-primary" : "text-white/50"}`} style={{ width: "1.125rem", height: "1.125rem" }} />

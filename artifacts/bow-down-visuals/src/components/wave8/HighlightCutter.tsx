@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Scissors, Loader2, AlertTriangle, ArrowRight, CalendarClock } from "lucide-react";
 import { Link } from "wouter";
@@ -43,6 +44,7 @@ function fmt(sec: number): string {
 }
 
 export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | null }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
@@ -145,7 +147,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
   const selectedMoment = selectedIdx != null ? result?.moments[selectedIdx] ?? null : null;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6" data-testid="highlight-cutter">
+    <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="highlight-cutter">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
           <Scissors className="h-5 w-5 text-primary" />

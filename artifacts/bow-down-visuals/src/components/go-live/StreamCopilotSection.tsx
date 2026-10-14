@@ -110,7 +110,7 @@ export default function StreamCopilotSection() {
           {t("streamCopilot.desc", { defaultValue: "Your pre-stream prepper and post-stream clip spotter. No fake real-time co-hosting — just sharp prep and sharp clips." })}
         </p>
 
-        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1 mb-6">
+        <div className={`inline-flex rounded-xl border p-1 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {([
             { key: "prep", label: t("streamCopilot.prepTab", { defaultValue: "Pre-Stream Prep" }), icon: ClipboardCheck },
             { key: "clips", label: t("streamCopilot.clipsTab", { defaultValue: "Post-Stream Clips" }), icon: Scissors },
@@ -162,7 +162,7 @@ export default function StreamCopilotSection() {
                   [t("streamCopilot.talking", { defaultValue: "Talking points" }), prep.talkingPoints],
                   [t("streamCopilot.watchfors", { defaultValue: "Clip watch-fors" }), prep.clipWatchFors],
                 ] as [string, string[]][]).map(([label, items], gi) => (
-                  <div key={gi} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div key={gi} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2">{label}</p>
                     <ul className="space-y-1.5 text-sm text-white/75">
                       {items.map((it, i) => <li key={i} className="flex gap-2"><span className="text-primary">•</span>{it}</li>)}
@@ -191,7 +191,7 @@ export default function StreamCopilotSection() {
             {moments.length > 0 && (
               <div className="grid gap-3 md:grid-cols-2 pt-2">
                 {moments.map((m, i) => (
-                  <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div key={i} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <p className="text-[11px] font-bold text-primary uppercase tracking-widest">{m.timestampHint}</p>
                     <p className="text-sm font-black text-white mt-1">{m.title}</p>
                     <p className="text-sm text-white/70 mt-1.5">{m.description}</p>

@@ -810,7 +810,7 @@ export function FinalVideoExport({
 
   return (
     <div
-      className="rounded-2xl border border-primary/20 bg-black/40 overflow-hidden"
+      className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
       data-testid="final-video-export"
     >
       {/* ── Header ── */}

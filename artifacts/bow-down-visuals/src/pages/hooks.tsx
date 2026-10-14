@@ -572,7 +572,7 @@ function TitlesTab() {
  )}
 
  {result.note && (
- <p className="text-center text-xs italic text-white/30">{result.note}</p>
+ <p className="text-center text-xs italic text-white/50">{result.note}</p>
  )}
  </div>
  )}

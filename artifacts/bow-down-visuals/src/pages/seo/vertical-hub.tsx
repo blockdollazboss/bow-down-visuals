@@ -98,7 +98,7 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
             <Link
               key={t.href}
               href={t.href}
-              className={`group rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+              className={`group rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
             >
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h3 className="font-bold group-hover:text-[#e8c86a] transition-colors">
@@ -128,7 +128,7 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
       />
 
       {/* Live creators — honest link to real data, never fabricated */}
-      <section className={`mb-14 rounded-3xl border p-8 sm:p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.02]"}`}>
+      <section className={`mb-14 rounded-3xl border p-8 sm:p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <h2 className="text-2xl font-bold sm:text-3xl mb-3">
           See who's creating now
         </h2>

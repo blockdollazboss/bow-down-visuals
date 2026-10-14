@@ -172,7 +172,7 @@ export default function CommentToVideoSection() {
       {scripts.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
           {scripts.map((s, i) => (
-            <div key={i} className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+            <div key={i} className={`rounded-3xl border p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-start justify-between gap-2">
                 <h4 className="text-base font-black text-white">{s.title}</h4>
                 <button type="button" onClick={() => copyScript(s, i)} className="shrink-0 text-white/50 hover:text-white" aria-label="Copy">

@@ -205,7 +205,7 @@ export default function TrendJackerSection() {
       </div>
 
       {draft && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 space-y-6">
+        <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center justify-between">
             <h4 className="text-base font-black text-white">{t("trendJacker.yourDraft", { defaultValue: "Your draft" })}</h4>
             <button type="button" onClick={copyAll} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white">

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -54,6 +55,7 @@ export default function AlbumsSection({
   songs: SongLite[];
   authHeaders: () => Promise<HeadersInit>;
 }) {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,7 +294,7 @@ export default function AlbumsSection({
   /* ── Album editor ── */
   if (creating) {
     return (
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 sm:p-6">
+      <div className={`rounded-xl border p-4 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <button
           onClick={() => { setCreating(false); setEditing(null); }}
           className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white mb-5 transition"
@@ -473,7 +475,7 @@ export default function AlbumsSection({
           <Loader2 className="h-6 w-6 animate-spin text-white/40" />
         </div>
       ) : albums.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
+        <div className={`rounded-xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <AlbumIcon className="h-10 w-10 text-white/20 mx-auto mb-3" />
           <p className="text-sm text-white/50 mb-1 font-semibold">No albums yet</p>
           <p className="text-xs text-white/35 mb-4">Bundle your songs into a release — like a Suno library, but yours.</p>
@@ -487,7 +489,7 @@ export default function AlbumsSection({
             const published = album.status === "published";
             const shareUrl = albumShareUrl(album.slug);
             return (
-              <div key={album.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+              <div key={album.id} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex gap-3 mb-3">
                   {album.cover_art_url ? (
                     <img src={album.cover_art_url} alt={`${album.title} cover`} className="w-16 h-16 rounded-lg object-cover border border-[#c9a84c]/30 shrink-0" />

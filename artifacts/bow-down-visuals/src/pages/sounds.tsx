@@ -340,7 +340,7 @@ export default function ViralSoundFinder() {
               {browseError}
             </p>
           ) : visibleSounds.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
+            <div className={`mt-8 rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <AudioWaveform className="mx-auto mb-3 h-8 w-8 text-white/25" aria-hidden="true" />
               <p className="text-white/50">
                 {showFavoritesOnly
@@ -421,7 +421,7 @@ export default function ViralSoundFinder() {
           )}
 
           {disclaimer && !browseLoading && (
-            <p className="mt-6 text-center text-xs italic text-white/30">{disclaimer}</p>
+            <p className="mt-6 text-center text-xs italic text-white/50">{disclaimer}</p>
           )}
         </section>
 

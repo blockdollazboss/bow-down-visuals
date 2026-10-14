@@ -138,7 +138,7 @@ export default function DreamCollabPanel() {
       </div>
 
       {concept && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 space-y-5">
+        <div className={`rounded-3xl border p-6 md:p-8 space-y-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-start justify-between gap-2">
             <p className="text-xl font-black text-primary leading-snug">“{concept.logline}”</p>
             <button type="button" onClick={copyAll} className="shrink-0 text-white/50 hover:text-white" aria-label="Copy">

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard} from "lucide-react";
@@ -47,6 +48,7 @@ const SOURCE_LABEL_KEYS: Record<string, string> = {
 };
 
 export default function SongsPage() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("songs.pageTitle"), t("songs.pageDescription"));
   const { getAccessToken } = useAuth();
@@ -323,7 +325,7 @@ export default function SongsPage() {
       ) : (
       <>
       {/* Upload */}
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 mb-6">
+      <div className={`rounded-xl border p-4 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">
           {t("songs.uploadTitle")}
         </p>
@@ -373,10 +375,10 @@ export default function SongsPage() {
             <div
               key={s.id}
               id={`song-card-${s.id}`}
-              className={`rounded-xl bg-white/[0.03] border p-4 transition-shadow ${
+              className={`rounded-xl border p-4 transition-shadow ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"} ${
                 highlightSong === s.id
                   ? "border-primary/60 shadow-[0_0_28px_-8px_hsl(45_95%_50%/0.7)]"
-                  : "border-white/[0.06]"
+                  : ""
               }`}
             >
               <div className="flex items-center justify-between gap-3 mb-2">

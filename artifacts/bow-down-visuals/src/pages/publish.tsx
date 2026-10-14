@@ -1232,7 +1232,7 @@ export default function Publish() {
           )}
         </div>
 
-        <p className="mt-8 text-center text-[11px] text-white/30">
+        <p className="mt-8 text-center text-[11px] text-white/50">
           Uploading and publishing are free — it's your content. Only AI extras like generated artwork cost Visual Bucs.
         </p>
       </div>

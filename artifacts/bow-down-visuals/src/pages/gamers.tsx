@@ -291,7 +291,7 @@ export default function GamersHub() {
               { n: "3", l: "Content types" },
               { n: "1", l: "Visual Buc per idea pack" },
             ].map((s) => (
-              <div key={s.l} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-4">
+              <div key={s.l} className={`rounded-2xl border px-3 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="gamers-rgb-text text-3xl font-black">{s.n}</p>
                 <p className="mt-1 text-[11px] uppercase tracking-widest text-white/40">{s.l}</p>
               </div>
@@ -369,7 +369,7 @@ export default function GamersHub() {
                   className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
                     contentType === t.key
                       ? "border-cyan-400/70 bg-cyan-400/15 text-cyan-200 shadow-[0_0_20px_-6px_rgba(0,240,255,0.6)]"
-                      : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   {t.label}
@@ -415,7 +415,7 @@ export default function GamersHub() {
                 </div>
                 <ul className="space-y-2.5">
                   {titles.map((t, i) => (
-                    <li key={i} className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-sm text-white/85">
+                    <li key={i} className={`flex items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <span>{t}</span>
                       <CopyButton text={t} />
                     </li>
@@ -432,7 +432,7 @@ export default function GamersHub() {
                 </div>
                 <ul className="space-y-2.5">
                   {videoIdeas.map((t, i) => (
-                    <li key={i} className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-sm text-white/85">
+                    <li key={i} className={`flex items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <span>{t}</span>
                       <CopyButton text={t} />
                     </li>
@@ -470,7 +470,7 @@ export default function GamersHub() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {TOOL_CARDS.map((card) => (
-              <Link key={card.href} href={card.href} className={`group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition ${card.glow}`}>
+              <Link key={card.href} href={card.href} className={`group rounded-2xl border p-6 transition ${card.glow} ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <card.icon className={`h-8 w-8 ${card.accent}`} aria-hidden="true" />
                 <h3 className="mt-4 text-base font-black uppercase tracking-wide">{card.label}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">{card.blurb}</p>
@@ -518,7 +518,7 @@ export default function GamersHub() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {PLAYBOOK_TIPS.map((tip, i) => (
-              <div key={tip.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <div key={tip.title} className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="gamers-rgb-text text-3xl font-black">0{i + 1}</p>
                 <h3 className="mt-2 text-base font-black">{tip.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">{tip.body}</p>

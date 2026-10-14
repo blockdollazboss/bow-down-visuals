@@ -187,7 +187,7 @@ function VideoUpscaleTool() {
       </div>
 
       {/* Honest framing — never "AI enhance" */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+      <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
         <p className="text-xs text-white/55 leading-relaxed">
           {t("upscale.videoHonestFraming1")}
@@ -252,7 +252,7 @@ function VideoUpscaleTool() {
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     target === tg.key
                       ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <p className="font-bold text-white">{t(tg.labelKey)}</p>
@@ -277,7 +277,7 @@ function VideoUpscaleTool() {
 
       {/* Progress */}
       {busy && (
-        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+        <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
           <p className="font-bold text-white">
             {status === "uploading" ? t("upscale.statusUploading") : status === "queued" ? t("upscale.statusQueued") : t("upscale.statusUpscalingVideo")}
@@ -379,7 +379,7 @@ function GenerativeUpscaleTool() {
               className={`rounded-xl border px-4 py-3.5 text-left transition ${
                 genTarget === tg.key
                   ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                  : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
               }`}
             >
               <p className="font-bold text-white">{t(tg.labelKey)}</p>
@@ -624,7 +624,7 @@ function ImageUpscaleTool() {
       </div>
 
       {/* Honest framing — never "AI enhance" */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+      <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
         <p className="text-xs text-white/55 leading-relaxed">
           {t("upscale.imageHonestFraming1")}
@@ -690,7 +690,7 @@ function ImageUpscaleTool() {
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     scale === s.key
                       ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <p className="font-bold text-white">{t(s.labelKey)}</p>
@@ -715,7 +715,7 @@ function ImageUpscaleTool() {
 
       {/* Progress */}
       {busy && (
-        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+        <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
           <p className="font-bold text-white">{t("upscale.statusUpscalingImage")}</p>
           <p className="text-sm text-white/40 mt-1">{t("upscale.imageProgressNote")}</p>
@@ -975,7 +975,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
       </div>
 
       {/* Honest framing — delogo limits stated up front */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+      <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Info className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
         <p className="text-xs text-white/55 leading-relaxed">
           {t("watermarkRemoval.honestFraming1")}{" "}
@@ -1043,7 +1043,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     preset === p.key
                       ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <p className="font-bold text-white text-sm">{t(p.labelKey)}</p>
@@ -1055,7 +1055,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
 
           {/* Custom region inputs */}
           {preset === "custom" && (
-            <div data-min-stars="6" className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4">
+            <div data-min-stars="6" className={`rounded-xl border px-4 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">
                 {t("watermarkRemoval.customRegionLabel")}
               </p>
@@ -1097,7 +1097,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
 
       {/* Progress */}
       {busy && (
-        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+        <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
           <p className="font-bold text-white">
             {status === "uploading" ? t("watermarkRemoval.statusUploading") : status === "queued" ? t("watermarkRemoval.statusQueued") : t("watermarkRemoval.statusProcessing")}
@@ -1147,6 +1147,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
 /* ─── Page shell with tabs ────────────────────────────────────────────── */
 
 export default function Upscale({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("upscale.pageTitle"), t("upscale.pageDescription"));
   const [tab, setTab] = useState<TabKey>(() => {
@@ -1176,7 +1177,7 @@ export default function Upscale({ embedded }: { embedded?: boolean } = {}) {
         )}
 
         {/* Tab bar */}
-        <div className="mt-6 grid grid-cols-3 gap-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5" role="tablist" aria-label={t("upscale.tabListLabel")}>
+        <div className={`mt-6 grid grid-cols-3 gap-1.5 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} role="tablist" aria-label={t("upscale.tabListLabel")}>
           {TABS.map((tb) => {
             const active = tab === tb.key;
             const Icon = tb.icon;

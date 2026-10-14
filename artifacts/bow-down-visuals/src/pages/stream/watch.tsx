@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { Link, useRoute } from "wouter";
 import {
@@ -159,6 +160,7 @@ function VideoControls({ videoRef }: { videoRef: React.RefObject<HTMLVideoElemen
 }
 
 export default function StreamWatchPage() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/watch/:id");
   const id = params?.id ?? "";
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -349,7 +351,7 @@ export default function StreamWatchPage() {
               </div>
 
               {video.description && (
-                <p className="mt-5 text-sm text-white/60 whitespace-pre-wrap leading-relaxed rounded-xl bg-white/[.03] border border-white/10 p-4">
+                <p className={`mt-5 text-sm whitespace-pre-wrap leading-relaxed rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/60"}`}>
                   {video.description}
                 </p>
               )}
@@ -370,7 +372,7 @@ export default function StreamWatchPage() {
           <aside className="min-w-0">
             <h2 className="text-sm font-bold uppercase tracking-wider text-[#e8c86a] mb-4">Up next</h2>
             {upNext.length === 0 ? (
-              <p className="text-sm text-white/40 rounded-xl border border-dashed border-white/15 px-4 py-6 text-center">
+              <p className={`text-sm rounded-xl border border-dashed px-4 py-6 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 Nothing queued after this — yet. This creator's catalog is still warming up.
               </p>
             ) : (

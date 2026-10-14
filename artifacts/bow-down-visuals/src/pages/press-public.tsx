@@ -200,7 +200,7 @@ export default function PublicPressKit() {
           </div>
         </section>
 
-        <div className="text-center text-xs text-white/30 print:hidden">
+        <div className="text-center text-xs text-white/50 print:hidden">
           <button onClick={() => window.print()}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 hover:border-[#d4af37]/50 mb-3">
             <Download className="h-3 w-3" /> {t("press-public.downloadPdf")}

@@ -112,8 +112,9 @@ export function CreatorCard({
   /** Batch-loaded follow state (useFollowStates) — renders the inline button. */
   followState?: boolean;
 }) {
+  const isLight = useIsLightTheme();
   return (
-    <article className="group relative flex h-full flex-col items-center rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center transition-colors hover:border-[#e8c86a]/40">
+    <article className={`group relative flex h-full flex-col items-center rounded-2xl border p-5 text-center transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Link href={`/artist/${creator.slug}`}>
         <div className="relative mb-3 cursor-pointer">
           {creator.avatar_url ? (
@@ -260,7 +261,7 @@ export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) 
 export function CardSkeleton() {
   const isLight = useIsLightTheme();
   return (
-    <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-white/10 bg-white/[0.03]"}`}>
+    <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Skeleton className="mx-auto mb-3 h-20 w-20 rounded-full" />
       <Skeleton className="mx-auto mb-2 h-4 w-3/4" />
       <Skeleton className="mx-auto h-3 w-1/2" />
@@ -271,7 +272,7 @@ export function CardSkeleton() {
 export function RowSkeleton() {
   const isLight = useIsLightTheme();
   return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-white/10 bg-white/[0.03]"}`}>
+    <div className={`flex items-center gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Skeleton className="h-8 w-8 rounded-full" />
       <Skeleton className="h-12 w-12 rounded-lg" />
       <div className="flex-1">

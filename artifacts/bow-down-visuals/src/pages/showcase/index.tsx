@@ -139,7 +139,7 @@ export default function Showcase() {
         {loading ? (
           <p className={`text-center py-16 ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>Loading showcase…</p>
         ) : items.length === 0 ? (
-          <div className={`text-center py-16 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.02]"}`}>
+          <div className={`text-center py-16 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className={`${isLight ? "text-[#6B5B36]" : "text-white/50"} mb-2`}>The showcase is just getting started.</p>
             <p className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>Be the first to publish your creation.</p>
           </div>
@@ -148,7 +148,7 @@ export default function Showcase() {
             {items.map((item, i) => (
               <LuxReveal key={item.id} delay={Math.min(i * 0.05, 0.3)}>
                 <Link href={`/showcase/${item.slug}`}>
-                  <article className={`group rounded-2xl border overflow-hidden transition-colors h-full flex flex-col cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-white/[0.03] hover:border-[#e8c86a]/40"}`}>
+                  <article className={`group rounded-2xl border overflow-hidden transition-colors h-full flex flex-col cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-[#e8c86a]/40"}`}>
                     <MediaThumb item={item} />
                     <div className="p-5 flex flex-col flex-1">
                       <h2 className={`font-bold mb-1 transition-colors line-clamp-1 ${isLight ? "group-hover:text-[#7A5A12]" : "group-hover:text-[#e8c86a]"}`}>

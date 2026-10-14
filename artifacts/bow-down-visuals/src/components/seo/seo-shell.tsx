@@ -202,7 +202,7 @@ export function SeoFeatureGrid({
         {items.map((item, i) => (
           <div
             key={item.title}
-            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
           >
             <div className="flex items-center gap-3 mb-3">
               {numbered ? (
@@ -252,7 +252,7 @@ export function SeoTemplateGrid({
         {templates.map((t) => (
           <article
             key={t.key}
-            className={`flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+            className={`flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
           >
             <div className="flex items-start justify-between mb-4">
               <span className="text-4xl" aria-hidden="true">
@@ -299,7 +299,7 @@ export function SeoFaq({ faqs }: { faqs: SeoFaq[] }) {
         {faqs.map((f) => (
           <div
             key={f.q}
-            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+            className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
           >
             <h3 className="font-bold mb-2">{f.q}</h3>
             <p className="text-sm text-white/55 leading-relaxed">{f.a}</p>
@@ -328,7 +328,7 @@ export function SeoSiblingNav({
           <Link
             key={l.href}
             href={l.href}
-            className={`group rounded-2xl border p-5 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+            className={`group rounded-2xl border p-5 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
           >
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-bold group-hover:text-[#e8c86a] transition-colors">

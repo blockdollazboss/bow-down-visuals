@@ -1184,7 +1184,7 @@ function PricingSection() {
           ))}
         </div>
 
-        <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
+        <p className="text-center text-xs text-white/50 font-medium mt-6 flex items-center justify-center gap-1.5">
           <Lock className="h-3 w-3" />
           {t("home.signInToPurchase")}
         </p>

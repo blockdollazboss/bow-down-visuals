@@ -55,7 +55,7 @@ export default function ToolsIndex() {
             <Link
               key={t.slug}
               href={t.path}
-              className={`group flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}
+              className={`group flex flex-col rounded-2xl border p-6 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#e8c86a]/12">
                 <Wrench className="h-5 w-5 text-[#e8c86a]" />

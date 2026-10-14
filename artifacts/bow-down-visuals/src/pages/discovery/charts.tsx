@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X } from "lucide-react";
@@ -106,6 +107,7 @@ function WindowTabs({ value, onChange }: { value: WindowKey; onChange: (w: Windo
 const DAY_PRESETS = [7, 14, 30, 90];
 
 function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: number | null) => void }) {
+  const isLight = useIsLightTheme();
   const [crossTab, setCrossTab] = useState<Array<{ vertical: string; creator: CreatorLite | null }>>([]);
   const [crossLoading, setCrossLoading] = useState(false);
   const [crossOpen, setCrossOpen] = useState(false);
@@ -131,7 +133,7 @@ function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: nu
   };
 
   return (
-    <div className="w-full max-w-3xl rounded-2xl border border-[#c9a84c]/25 bg-black/40 p-4">
+    <div className={`w-full max-w-3xl rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold uppercase tracking-wider text-white/40">Lookback:</span>
         {[null, ...DAY_PRESETS].map((d) => (

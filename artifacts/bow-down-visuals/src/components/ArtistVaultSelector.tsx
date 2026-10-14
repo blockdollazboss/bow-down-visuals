@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -185,6 +186,7 @@ const selectClass =
   "h-10 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 pr-8 text-sm focus:outline-none focus:border-primary/50 appearance-none cursor-pointer";
 
 export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loadedVaultProp, context }: Props) {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [selected, setSelected] = useState("");
@@ -237,7 +239,7 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
 
   if (!loaded && vaults.length === 0) {
     return (
-      <div className="mb-6 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
+      <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Archive className="h-4 w-4 text-white/25 shrink-0" />
         <p className="text-sm text-white/40">
           No subject profiles yet.{" "}
@@ -263,7 +265,7 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
       </div>
 
       {loaded ? (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+        <div className={`flex items-center gap-3 p-3 rounded-xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {/* Subject photo — image, then video, then checkmark */}
           {loaded.reference_image_url ? (
             <img

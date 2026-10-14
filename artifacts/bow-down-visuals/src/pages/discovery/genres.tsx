@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Tags, ArrowRight } from "lucide-react";
@@ -15,6 +16,7 @@ interface GenreRow {
 }
 
 export default function Genres() {
+  const isLight = useIsLightTheme();
   usePageTitle("Genres", "Explore every genre hub — facts, sounds, and the AI pipeline for each.");
   const [genres, setGenres] = useState<GenreRow[] | null>(null);
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
@@ -89,7 +91,7 @@ export default function Genres() {
               key={g.genre}
               href={`/genre/${encodeURIComponent(g.genre)}${vertical === "all" ? "" : `?vertical=${vertical}`}`}
             >
-              <article className="group flex h-full cursor-pointer flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:-translate-y-0.5 hover:border-[#e8c86a]/50">
+              <article className={`group flex h-full cursor-pointer flex-col rounded-2xl border p-5 transition-all hover:-translate-y-0.5 hover:border-[#e8c86a]/50 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h2 className="text-lg font-black group-hover:text-[#e8c86a]">{g.genre}</h2>
                 <p className="mt-1 text-xs text-white/40">{formatCount(g.items)} drops</p>
                 <span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[#e8c86a]">

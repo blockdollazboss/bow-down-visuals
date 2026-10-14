@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -34,6 +35,7 @@ interface VerticalStat {
 }
 
 export default function Browse() {
+  const isLight = useIsLightTheme();
   usePageTitle("Browse", "Browse what creators are making on Bow Down Visuals.");
   const [stats, setStats] = useState<VerticalStat[] | null>(null);
 
@@ -84,7 +86,7 @@ export default function Browse() {
             const c = countFor(v);
             return (
               <Link key={v} href={`/vertical/${v}`}>
-                <article className="group flex h-full cursor-pointer flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-[#e8c86a]/50 hover:shadow-[0_8px_40px_rgba(232,200,106,0.12)]">
+                <article className={`group flex h-full cursor-pointer flex-col rounded-2xl border p-6 transition-all hover:-translate-y-1 hover:border-[#e8c86a]/50 hover:shadow-[0_8px_40px_rgba(232,200,106,0.12)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/30 bg-gradient-to-b from-[#c9a84c]/15 to-transparent text-[#e8c86a]">
                     {VERTICAL_ICONS[v]}
                   </div>

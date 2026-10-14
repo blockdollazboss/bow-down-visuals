@@ -169,7 +169,7 @@ export default function SyncOneSheetPublic() {
           )}
 
           {(sheet.contactName || sheet.contactEmail) && (
-            <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+            <div className={`mt-6 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("syncPitch.contactLabel")}</p>
               <p className="mt-1.5 flex items-center gap-2 text-sm text-white/80">
                 <Mail className="h-4 w-4 text-primary" aria-hidden="true" />

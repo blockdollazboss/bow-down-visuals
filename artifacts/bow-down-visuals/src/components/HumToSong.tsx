@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { Mic, Upload, Loader2, Square, Music2, Share2, Wand2, Image as ImageIcon, Scissors, Check, RefreshCw } from "lucide-react";
@@ -67,6 +68,7 @@ function AnalysisBadges({ analysis }: { analysis: MelodyAnalysis }) {
 }
 
 export function HumToSong() {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
   const { refreshProfile } = useAuth();
@@ -417,7 +419,7 @@ export function HumToSong() {
   return (
     <div className="space-y-6">
       {/* Step 1 — capture */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+      <div className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div className="flex items-center gap-2 mb-1">
           <Mic className="h-4 w-4 text-primary" />
           <h3 className="font-bold text-white">1. Hum your melody</h3>
@@ -512,7 +514,7 @@ export function HumToSong() {
 
       {/* Step 2 — options + generate */}
       {(phase === "ready" || phase === "generating" || phase === "done") && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+        <div className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center gap-2 mb-4">
             <Wand2 className="h-4 w-4 text-primary" />
             <h3 className="font-bold text-white">2. Make it a song</h3>

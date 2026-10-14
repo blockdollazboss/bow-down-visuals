@@ -439,7 +439,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
     const isUploading = uploading === side;
     const others = songs.filter((s) => (side === "A" ? s.id !== songBId : s.id !== songAId));
     return (
-      <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3">
+      <div className={`rounded-2xl border p-4 space-y-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             {side === "A" ? t("mashup.songA") : t("mashup.songB")}
@@ -577,7 +577,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
 
       {/* Custom controls */}
       {mode === "custom" && (
-        <div className="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-5">
+        <div className={`rounded-2xl border p-5 space-y-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-semibold text-white/70">{t("mashup.blendPointLabel")}</label>

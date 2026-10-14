@@ -161,7 +161,7 @@ export default function VideoTemplates() {
                 className={`group rounded-2xl border p-6 transition-colors h-full flex flex-col ${
                   isLight
                     ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70"
-                    : "border-white/10 bg-white/[0.03] hover:border-[#e8c86a]/40"
+                    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-[#e8c86a]/40"
                 } ${highlightKey === tpl.key ? "ring-2 ring-[#e8c86a]/70 shadow-[0_0_32px_rgba(232,200,106,0.15)]" : ""}`}
               >
                 {/* Animated preview */}

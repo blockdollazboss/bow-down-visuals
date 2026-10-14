@@ -548,7 +548,7 @@ function AcademyMain() {
  <button
  key={course.id}
  onClick={() => { setSelectedCourseId(course.id); setActiveLessonKey(null); setError(null); window.scrollTo({ top: 0 }); }}
- className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70 hover:shadow-[0_16px_48px_rgba(122,90,18,0.25)]" : "border-white/10 bg-white/[0.03] hover:border-primary/50 hover:bg-primary/[0.05] hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"}`}
+ className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70 hover:shadow-[0_16px_48px_rgba(122,90,18,0.25)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/50 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"}`}
  >
  {/* ── Visual header: per-category gradient banner + watermark icon ── */}
  <div className={`relative h-24 overflow-hidden bg-gradient-to-br md:h-28 ${visuals.gradient}`}>
@@ -687,7 +687,7 @@ function CourseDetail(props: CourseDetailProps) {
  <div
  key={lesson.id}
  className={`overflow-hidden rounded-2xl border transition ${
- isActive ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/10 bg-white/[0.03]"
+ isActive ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
  }`}
  >
  <div className="flex items-center gap-3.5 p-4">
@@ -736,7 +736,7 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
  ))}
  {activeLesson.takeaways.length > 0 && (
- <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+ <div className={`mt-6 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
  <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.keyTakeaways")}
  </p>

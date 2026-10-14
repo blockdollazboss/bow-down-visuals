@@ -118,7 +118,7 @@ export default function Guides() {
         </div>
 
         {/* ── DISCLAIMER ── */}
-        <p className="text-center text-xs text-white/25 max-w-2xl mx-auto mt-8 flex items-start justify-center gap-1.5">
+        <p className="text-center text-xs text-white/50 max-w-2xl mx-auto mt-8 flex items-start justify-center gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           {t("guides.disclaimer")}
         </p>

@@ -113,7 +113,7 @@ export default function ShowcaseItemPage() {
           </Link>
 
           {/* Media */}
-          <div className={`rounded-2xl overflow-hidden border mb-8 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-white/10 bg-white/[0.02]"}`}>
+          <div className={`rounded-2xl overflow-hidden border mb-8 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {item.media_type === "video" ? (
               <video src={item.media_url} controls poster={item.thumbnail_url ?? undefined} className="w-full max-h-[70vh]" playsInline />
             ) : item.media_type === "song" ? (

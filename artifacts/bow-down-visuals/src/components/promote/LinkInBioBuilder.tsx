@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -52,7 +53,7 @@ const LINK_ICON_KEYS = [
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 const labelClass = "text-xs font-bold uppercase tracking-widest text-white/45";
-const sectionClass = "rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6";
+
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -62,6 +63,10 @@ function slugify(name: string): string {
 }
 
 export function LinkInBioBuilder() {
+  const isLight = useIsLightTheme();
+  const sectionClass = isLight
+    ? "rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-6"
+    : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { project, referralCode } = useHubProject();
@@ -360,7 +365,7 @@ export function LinkInBioBuilder() {
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+      <div className={`rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Link2 className="mx-auto h-8 w-8 text-primary" />
         <p className="mt-3 text-white/70">{t("promote.signIn.message")}</p>
       </div>

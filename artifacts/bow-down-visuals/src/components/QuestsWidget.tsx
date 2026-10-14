@@ -118,7 +118,7 @@ export default function QuestsWidget({
   /* Disabled: slim bar so the user can always switch it back on. */
   if (!data.enabled) {
     return (
-      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 flex items-center gap-3 opacity-70">
+      <section className={`rounded-2xl border px-4 py-3 flex items-center gap-3 opacity-70 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Target className="h-5 w-5 text-white/30 shrink-0" />
         <span className="flex-1 text-xs font-bold text-white/40 uppercase tracking-wide">{t("retention.quests_title")}</span>
         {toggle}
@@ -159,7 +159,7 @@ export default function QuestsWidget({
             const canClaim = q.completed && !q.claimed;
             return (
               <div key={q.key} className={`rounded-2xl border p-3.5 flex items-center gap-3 transition-colors ${
-                canClaim ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-white/[0.08] bg-white/[0.02]"
+                canClaim ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
               }`}>
                 <div className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 ${
                   q.claimed ? "bg-emerald-500/[0.10] border-emerald-500/25 text-emerald-400"

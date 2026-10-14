@@ -431,7 +431,7 @@ export default function SplitCalculator() {
 
   if (!user) {
     return (
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+      <div className={`mt-8 rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Wallet className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
         <p className="mt-4 text-sm text-white/60">{t("wave8.splits.signInPrompt")}</p>
       </div>
@@ -555,7 +555,7 @@ export default function SplitCalculator() {
       )}
 
       {/* ── saved sheets ─────────────────────────────────────────────── */}
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+      <div className={`mt-8 rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <p className={sectionTitle}>{t("wave8.splits.savedSheets")}</p>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-white/50">

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -74,6 +75,7 @@ const SECTIONS = [
 ] as const;
 
 export default function GuestQuestions({ guestName: prefillGuest }: { guestName?: string }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -387,7 +389,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
       )}
 
       {/* ── input ── */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+      <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
           <Sparkles className="h-4 w-4 text-primary" />
           {t("podcast.guestQuestions.form.title")}
@@ -534,7 +536,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
 
       {/* ── the interview chain ── */}
       {result && (
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
             <Wand2 className="h-4 w-4 text-primary" />
             {t("podcast.guestQuestions.chain.title")}

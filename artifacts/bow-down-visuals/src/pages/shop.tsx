@@ -225,7 +225,7 @@ export default function ShopStorefront() {
           {/* product grid */}
           <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
             {products.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
+              <div className={`rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
                 <p className="mt-4 text-white/50 text-sm">{t("shop.noProducts")}</p>
               </div>
@@ -235,7 +235,7 @@ export default function ShopStorefront() {
                   <button
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className="text-left rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden hover:border-white/25 transition group"
+                    className={`text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     {p.image_url ? (
                       <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
@@ -252,7 +252,7 @@ export default function ShopStorefront() {
                 ))}
               </div>
             )}
-            <p className="mt-10 text-center text-xs text-white/30">
+            <p className="mt-10 text-center text-xs text-white/50">
               {t("shop.poweredBy")} <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · {t("shop.sellersKeep")} ·{" "}
               <Link href="/storefronts" className="underline hover:text-white/60">{t("shop.browseAllShops")}</Link>
             </p>

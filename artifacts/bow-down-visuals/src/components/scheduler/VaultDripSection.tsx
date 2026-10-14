@@ -214,7 +214,7 @@ export default function VaultDripSection() {
       </div>
 
       {plan.length > 0 && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h4 className="text-base font-black text-white mb-4">{t("vaultDrip.plan", { defaultValue: "Your drip calendar" })}</h4>
           <div className="space-y-2.5 mb-6">
             {plan.map((item, i) => (

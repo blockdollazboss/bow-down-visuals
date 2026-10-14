@@ -265,7 +265,7 @@ export default function LinkToHitPanel() {
         <div className="space-y-6">
           {/* Source (if oEmbed worked) */}
           {pkg.source && (pkg.source.title || pkg.source.thumbnail) && (
-            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className={`flex items-center gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               {pkg.source.thumbnail && <img src={pkg.source.thumbnail} alt="" className="h-16 w-16 rounded-xl object-cover" />}
               <div>
                 <p className="text-sm font-bold text-white">{pkg.source.title}</p>
@@ -275,7 +275,7 @@ export default function LinkToHitPanel() {
           )}
 
           {/* Comedy concept */}
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5">
               <Film className="h-3.5 w-3.5" /> {t("linkToHit.concept", { defaultValue: "The comedy concept" })}
             </p>
@@ -283,7 +283,7 @@ export default function LinkToHitPanel() {
           </div>
 
           {/* Segments: source vs generated */}
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-3">
               {t("linkToHit.segments", { defaultValue: "The cut: your clips + roast inserts" })}
             </p>

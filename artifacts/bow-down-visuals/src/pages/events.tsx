@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { CalendarPlus, Ticket, Radio, Package, Sparkles } from "lucide-react";
@@ -27,6 +28,7 @@ interface EventItem {
 }
 
 export default function Events() {
+  const isLight = useIsLightTheme();
   usePageTitle("Events", "Streams, drops, and premieres — RSVP free.");
   const api = useCommunityApi();
   const { user } = useAuth();
@@ -166,7 +168,7 @@ export default function Events() {
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="col-span-full rounded-xl border border-white/10 p-10 text-center text-white/50">
+              <div className={`col-span-full rounded-xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/50"}`}>
                 Nothing on the calendar. {user ? "Host the first one." : "Check back soon."}
               </div>
             )}

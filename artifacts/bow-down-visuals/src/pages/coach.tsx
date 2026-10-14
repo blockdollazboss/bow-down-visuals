@@ -687,7 +687,7 @@ function HubTabFallback() {
  </button>
  </div>
 
- <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/30">
+ <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/50">
  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
  {plan.note || t("coach.defaultDisclaimer")}
  </p>

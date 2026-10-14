@@ -849,7 +849,7 @@ export default function LabelPitch() {
             </div>
 
             {labelNotice && (
-              <p className="mt-6 text-center text-xs text-white/30">{labelNotice}</p>
+              <p className="mt-6 text-center text-xs text-white/50">{labelNotice}</p>
             )}
           </div>
         )}

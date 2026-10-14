@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ interface ChallengeWin {
 }
 
 export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShelfProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [achievements, setAchievements] = useState<MilestoneAchievement[] | null>(null);
   const [wins, setWins] = useState<ChallengeWin[] | null>(null);
@@ -102,7 +104,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
               return (
                 <div
                   key={`${a.vertical}-${a.threshold}-${i}`}
-                  className="group relative overflow-hidden rounded-2xl border bg-white/[0.02] p-5 transition hover:bg-white/[0.04]"
+                  className={`group relative overflow-hidden rounded-2xl border p-5 transition hover:bg-white/[0.04] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   style={{ borderColor: `${color}55` }}
                 >
                   <div

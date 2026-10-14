@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -83,6 +84,7 @@ interface CharacterDirectorProps {
 }
 
 export function CharacterDirector({ scenes, onScenesChange, artistVault }: CharacterDirectorProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -299,7 +301,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
 
   return (
     <div
-      className="rounded-2xl border border-white/10 bg-white/[0.025] overflow-hidden"
+      className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
       data-testid="character-director"
     >
       {/* Header */}
@@ -397,7 +399,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
               {shots.map((shot, i) => (
                 <div
                   key={shot.id}
-                  className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-3 space-y-2.5"
+                  className={`rounded-xl border px-3.5 py-3 space-y-2.5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   data-testid={`shot-editor-${i}`}
                 >
                   <div className="flex items-center gap-2">
@@ -516,7 +518,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
 
           {/* ── Saved plans ── */}
           {showSaved && (
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-1.5">
+            <div className={`rounded-xl border p-3 space-y-1.5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">
                 {t(`${ns}.savedPlansHeading`)}
               </p>

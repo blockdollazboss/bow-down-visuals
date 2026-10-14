@@ -230,7 +230,7 @@ export default function PublicAlbumPage() {
                   className={`flex items-center gap-3 sm:gap-4 rounded-xl border p-3 transition ${
                     isPlaying
                       ? "border-[#c9a84c]/50 bg-[#c9a84c]/[0.07]"
-                      : "border-white/[0.06] bg-white/[0.02] hover:border-white/15"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <span className="text-xs text-white/30 font-mono w-6 text-center shrink-0">

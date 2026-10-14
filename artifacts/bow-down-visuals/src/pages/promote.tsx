@@ -216,7 +216,7 @@ export default function Promote() {
           Carousel Maker stays its own tool page, so it rides the tab bar as a
           link-out — it was orphaned with zero inbound links before this. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8">
-        <div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-1.5">
+        <div className={`flex gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {(
             [
               { key: "copy", label: t("promote.tabs.promoCopy") },
@@ -252,7 +252,7 @@ export default function Promote() {
           </div>
         ) : (
           <>
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6 md:p-8">
+        <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-white/[0.05] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-white/[0.05] to-[#0d0a04]"}`}>
           {/* Feature picker */}
           <label className="text-xs font-bold uppercase tracking-widest text-white/45">
             {t("promote.form.feature")}
@@ -326,7 +326,7 @@ export default function Promote() {
               <OutOfCredits />
             </div>
           ) : !user ? (
-            <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center">
+            <div className={`mt-6 rounded-xl border p-6 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className="text-white/70">{t("promote.signIn.message")}</p>
               <Link href="/login">
                 <span className="mt-3 inline-block cursor-pointer rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110">

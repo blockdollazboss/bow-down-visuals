@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
@@ -88,6 +89,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
 }
 
 export default function StreamPlaylistPage() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/playlist/:id");
   const id = params?.id ?? "";
   const player = useStreamingPlayer();
@@ -358,7 +360,7 @@ export default function StreamPlaylistPage() {
         {/* Items */}
         <section className="mt-10">
           {items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 px-6 py-12 text-center">
+            <div className={`rounded-2xl border border-dashed px-6 py-12 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <ListMusic className="h-10 w-10 text-[#e8c86a]/40 mx-auto mb-3" />
               <p className="text-white/70 font-semibold">An empty playlist? Bold strategy.</p>
               <p className="text-sm text-white/40 mt-1">The curator hasn't dropped anything in here yet — check back when the heat lands.</p>

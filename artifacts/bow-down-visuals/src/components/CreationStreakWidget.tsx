@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Flame, ChevronDown, X, Check, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -27,6 +28,7 @@ export default function CreationStreakWidget({
   getToken: () => Promise<string | null>;
   onBalanceChange?: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [data, setData] = useState<StreakData | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -107,7 +109,7 @@ export default function CreationStreakWidget({
   /* Disabled: slim bar so the user can always switch it back on. */
   if (!data.enabled) {
     return (
-      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 flex items-center gap-3 opacity-70">
+      <section className={`rounded-2xl border px-4 py-3 flex items-center gap-3 opacity-70 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Flame className="h-5 w-5 text-white/30 shrink-0" />
         <span className="flex-1 text-xs font-bold text-white/40 uppercase tracking-wide">{t("retention.streak_title")}</span>
         {toggle}
@@ -175,7 +177,7 @@ export default function CreationStreakWidget({
                     ? "border-emerald-500/30 bg-emerald-500/[0.08]"
                     : m.reached
                       ? "border-primary/50 bg-primary/[0.10] hover:bg-primary/[0.18] cursor-pointer"
-                      : "border-white/[0.08] bg-white/[0.02] opacity-60"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] opacity-60"
                 }`}>
                 <div className="text-[11px] font-black text-white">{m.days}d</div>
                 <div className="text-[10px] font-bold text-amber-300/90">{m.reward} VB</div>

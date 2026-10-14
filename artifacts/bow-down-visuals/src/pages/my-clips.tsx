@@ -1128,7 +1128,7 @@ export default function MyClips() {
               <Film className="h-7 w-7 text-white/20" />
             </div>
             <h2 className="text-lg font-bold text-white/60 mb-2">No clips yet</h2>
-            <p className="text-sm text-white/30 mb-6 max-w-sm mx-auto">
+            <p className="text-sm text-white/50 mb-6 max-w-sm mx-auto">
               {t("myClips.noClipsHint")}
             </p>
             <Link href="/make-video">

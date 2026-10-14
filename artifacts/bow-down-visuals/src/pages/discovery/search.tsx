@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Search as SearchIcon, Users, Disc3, Clapperboard, ListMusic, Loader2 } from "lucide-react";
@@ -55,8 +56,9 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
+  const isLight = useIsLightTheme();
   return (
-    <div className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-[#e8c86a]/40">
+    <div className={`group flex items-center gap-4 rounded-2xl border p-4 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Link href={`/playlist/${playlist.id}`} className="shrink-0 cursor-pointer">
         {playlist.cover_url ? (
           <img src={resolveMedia(playlist.cover_url)} alt="" className="h-16 w-16 rounded-xl object-cover" loading="lazy" />

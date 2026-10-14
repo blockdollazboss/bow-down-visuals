@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Users, Crown, Trash2, Send, Megaphone, ShieldAlert } from "lucide-react";
@@ -26,6 +27,7 @@ interface Post {
 }
 
 export default function GroupDetail() {
+  const isLight = useIsLightTheme();
   const [, params] = useRoute("/groups/:slug");
   const slug = params?.slug ?? "";
   const api = useCommunityApi();
@@ -163,7 +165,7 @@ export default function GroupDetail() {
         </div>
 
         {tab === "about" && (
-          <div className="mt-6 space-y-4">
+          <div className={`mt-6 space-y-4 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="whitespace-pre-wrap text-white/80">{group.description || "No description yet — the vibe speaks for itself."}</p>
             <div className="flex flex-wrap gap-3 text-sm">
               <Link href="/events" className="text-[#e8c86a]/80 hover:text-[#e8c86a]">→ Upcoming events</Link>

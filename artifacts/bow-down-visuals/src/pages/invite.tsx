@@ -187,7 +187,7 @@ export default function InvitePage() {
                     {t("invite.claimSpot")} <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <p className="text-white/30 text-xs mt-4">
+                <p className="text-white/50 text-xs mt-4">
                   {t("invite.alreadyJoined")}{" "}
                   <Link href="/beta-access" className="text-primary hover:underline font-semibold">
                     {t("invite.checkPosition")}
