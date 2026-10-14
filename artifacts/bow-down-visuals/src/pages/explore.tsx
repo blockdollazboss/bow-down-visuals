@@ -77,7 +77,7 @@ export default function Explore() {
           </div>
         </div>
 
-        <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/explore" linkLabel="More soon">
+        <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/shorts" linkLabel="All shorts">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.shorts.slice(0, 6).map((s) => (
               <div key={s.id} className={card}>
@@ -94,7 +94,7 @@ export default function Explore() {
           </div>
         </Section>
 
-        <Section icon={TrendingUp} title="Rising creators" blurb="Creators climbing the fastest — follow before they blow." link="/explore" linkLabel="All creators soon">
+        <Section icon={TrendingUp} title="Rising creators" blurb="Creators climbing the fastest — follow before they blow." link="/charts" linkLabel="Creator charts">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {data.creators.slice(0, 8).map((c) => (
               <div key={c.id} className={`${card} text-center`}>
