@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -7,19 +7,28 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowRight, Check, Clapperboard, Link2, Sparkles } from "lucide-react";
+import { ArrowRight, Clapperboard, Search, Sparkles, X } from "lucide-react";
 import {
   VIDEO_TEMPLATE_METAS,
   VIDEO_TEMPLATE_CATEGORIES,
 } from "@/data/video-templates";
+import ShareMenu from "@/components/ShareMenu";
 
-/* ─── Public video-edit template gallery ───
-   No login required. "Use this template" deep-links into the Video Editor
-   with ?tab=templates&template=<key> — login + credits kick in at apply.
-   Every card has a shareable link (/templates/videos?template=<key>) that
-   carries the viewer's referral code when they're signed in. */
+/* ─── Public video-edit template library ───
+   No login required. Search + category + sort over the real template set
+   (data/video-templates.ts — the same keys the editor's server catalog
+   serves). The default sort is "Featured — our picks": the curated order
+   of the data file. There is NO usage tracking behind these templates
+   (applies run through in-memory render jobs), so no popularity counts
+   are shown — never fabricated.
+   REMAKE: the card button deep-links into the Video Editor with
+   ?tab=templates&template=<key>; the editor preselects the template and
+   the creator maps their own clips/photos + overlay text into its slots
+   — login + credits kick in at apply.
+   SHARE: every card carries the tracked ShareMenu (POST /api/shares,
+   referral code appended to the share link) pointing at the card's
+   shareable URL, /templates/videos?template=<key>. */
 
 const ASPECT_CLASS: Record<string, string> = {
   "9:16": "aspect-[9/16]",
@@ -30,70 +39,49 @@ const ASPECT_CLASS: Record<string, string> = {
 export default function VideoTemplates() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { toast } = useToast();
-  const { user, getAccessToken } = useAuth();
+  const { getAccessToken } = useAuth();
   usePageTitle(
     "Video Edit Templates — Pro Auto Edits | Bow Down Visuals",
     "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
   );
   const [category, setCategory] = useState("All");
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"featured" | "az" | "shortest" | "most-clips">("featured");
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
 
-  const filtered =
-    category === "All"
-      ? VIDEO_TEMPLATE_METAS
-      : VIDEO_TEMPLATE_METAS.filter((tpl) => tpl.category === category);
+  const secondsOf = (label: string) => {
+    const n = parseInt(label.replace(/[^0-9]/g, ""), 10);
+    return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+  };
 
-  /* Shareable deep link: ?template=<key> highlights + scrolls to the card */
+  const q = query.trim().toLowerCase();
+  const filtered = (() => {
+    const list = VIDEO_TEMPLATE_METAS.filter((tpl) => {
+      if (category !== "All" && tpl.category !== category) return false;
+      if (!q) return true;
+      const hay = `${tpl.name} ${tpl.tagline} ${tpl.description} ${tpl.category} ${tpl.outcome}`.toLowerCase();
+      return hay.includes(q);
+    });
+    if (sort === "az") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "shortest") return [...list].sort((a, b) => secondsOf(a.durationLabel) - secondsOf(b.durationLabel));
+    if (sort === "most-clips") return [...list].sort((a, b) => b.slotCount - a.slotCount);
+    return list; // featured — the curated order of the data file
+  })();
+
+  /* Shareable deep link: ?template=<key> highlights + scrolls to the card.
+     Filters reset so the shared card is always visible when it lands. */
   useEffect(() => {
     const key = new URLSearchParams(window.location.search).get("template");
     if (key && VIDEO_TEMPLATE_METAS.some((m) => m.key === key)) {
+      setCategory("All");
+      setQuery("");
+      setSort("featured");
       setHighlightKey(key);
       requestAnimationFrame(() => {
         document.getElementById(`vt-${key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     }
   }, []);
-
-  /* Carry the viewer's referral code on share links when signed in */
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const token = await getAccessToken().catch(() => null);
-        if (!token) return;
-        const res = await fetch("/api/referrals/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.code) setReferralCode(String(data.code));
-      } catch {
-        /* referral lookup is best-effort — share links still work without it */
-      }
-    })();
-  }, [user, getAccessToken]);
-
-  const shareLink = useMemo(
-    () => (key: string) => {
-      const base = `${window.location.origin}/templates/videos?template=${key}`;
-      return referralCode ? `${base}&ref=${encodeURIComponent(referralCode)}` : base;
-    },
-    [referralCode],
-  );
-
-  async function copyShareLink(key: string) {
-    try {
-      await navigator.clipboard.writeText(shareLink(key));
-      setCopiedKey(key);
-      toast({ title: t("videoTemplatesPage.linkCopied") });
-      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
-    } catch {
-      toast({ title: t("videoTemplatesPage.copyFailed") });
-    }
-  }
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -135,8 +123,31 @@ export default function VideoTemplates() {
           </div>
         </LuxReveal>
 
-        {/* Category filter */}
-        <div className="flex flex-wrap justify-center gap-2 mb-10">
+        {/* Search */}
+        <div className="mx-auto mb-6 max-w-md">
+          <div className={`flex items-center gap-2 rounded-full border px-4 py-2.5 ${isLight ? "border-[#C9A84C]/50 bg-[#FCF7EA]" : "border-white/15 bg-white/[0.03]"}`}>
+            <Search className={`h-4 w-4 shrink-0 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("videoTemplatesPage.searchPlaceholder", { defaultValue: "Search templates — try “lyric”, “promo”, “travel”…" })}
+              className={`w-full bg-transparent text-sm outline-none ${isLight ? "text-[#2A1E07] placeholder:text-[#8A7A56]" : "text-white placeholder:text-white/35"}`}
+              data-testid="vt-search"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                title={t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
+                className={`shrink-0 ${isLight ? "text-[#8A7A56] hover:text-[#7A5A12]" : "text-white/40 hover:text-white"}`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category filter + sort */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
           {VIDEO_TEMPLATE_CATEGORIES.map((cat) => (
             <button
               key={cat}
@@ -144,13 +155,33 @@ export default function VideoTemplates() {
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                 category === cat
                   ? "bg-[#e8c86a] text-black"
-                  : "border border-white/15 text-white/60 hover:border-white/30 hover:text-white"
+                  : isLight
+                    ? "border border-[#C9A84C]/40 text-[#6B5B36] hover:border-[#C9A84C]/70 hover:text-[#2A1E07]"
+                    : "border border-white/15 text-white/60 hover:border-white/30 hover:text-white"
               }`}
             >
               {cat}
             </button>
           ))}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            data-testid="vt-sort"
+            className={`rounded-full px-4 py-1.5 text-sm font-medium outline-none transition ${
+              isLight
+                ? "border border-[#C9A84C]/40 bg-[#FCF7EA] text-[#6B5B36]"
+                : "border border-white/15 bg-[#14100a] text-white/70"
+            }`}
+          >
+            <option value="featured">{t("videoTemplatesPage.sortFeatured", { defaultValue: "Featured — our picks" })}</option>
+            <option value="az">{t("videoTemplatesPage.sortAz", { defaultValue: "Name A–Z" })}</option>
+            <option value="shortest">{t("videoTemplatesPage.sortShortest", { defaultValue: "Shortest first" })}</option>
+            <option value="most-clips">{t("videoTemplatesPage.sortMostClips", { defaultValue: "Most clips first" })}</option>
+          </select>
         </div>
+        <p className={`text-center text-xs mb-10 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`} data-testid="vt-count">
+          {t("videoTemplatesPage.resultsCount", { count: filtered.length, defaultValue: "{{count}} templates" })}
+        </p>
 
         {/* Template cards */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -201,28 +232,55 @@ export default function VideoTemplates() {
                     {tpl.category}
                   </span>
                 </div>
-                <div className="flex gap-2">
-                  <Link href={`/video-editor?tab=templates&template=${tpl.key}`} className="flex-1">
-                    <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      {t("videoTemplatesPage.useTemplate")}
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyShareLink(tpl.key)}
-                    title={t("videoTemplatesPage.copyShareLink")}
-                    className={`${isLight ? "border-[#C9A84C]/50 text-[#6B5B36] hover:border-[#C9A84C] hover:text-[#7A5A12]" : "border-white/15 text-white/60 hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"} shrink-0`}
-                  >
-                    {copiedKey === tpl.key ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                {/* REMAKE — the front door into the editor flow: the editor
+                    preselects this template; the creator maps their own
+                    clips/photos + overlay text into its slots. */}
+                <Link href={`/video-editor?tab=templates&template=${tpl.key}`} className="block">
+                  <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" data-testid={`vt-remake-${tpl.key}`}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {t("videoTemplatesPage.remake", { defaultValue: "Remake this" })}
+                    <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
+                </Link>
+
+                {/* SHARE — tracked ShareMenu; the referral code rides the
+                    link and the share is recorded per template key. The
+                    strip is a dark grounded panel in both themes so the
+                    menu's buttons stay legible on the ivory light card. */}
+                <div className={`mt-3 rounded-xl border px-3.5 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#241a08]" : "border-white/[0.07] bg-black/40"}`}>
+                  <p className="text-[11px] uppercase tracking-wider text-[#e8c86a]/80 mb-2">
+                    {t("videoTemplatesPage.shareTemplate", { defaultValue: "Share this template" })}
+                  </p>
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={`${window.location.origin}/templates/videos?template=${tpl.key}`}
+                    text={`"${tpl.name}" — a Bow Down Visuals video template. Drop in your clips and it auto-edits the video for you.`}
+                    contentType="other"
+                    contentId={tpl.key}
+                  />
                 </div>
               </article>
             </LuxReveal>
           ))}
         </div>
+
+        {/* Empty state — honest, with a one-tap reset */}
+        {filtered.length === 0 && (
+          <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`} data-testid="vt-empty">
+            <p className={`font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+              {t("videoTemplatesPage.noResultsTitle", { defaultValue: "No templates match that search" })}
+            </p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              {t("videoTemplatesPage.noResultsSub", { defaultValue: "Try a different word, or clear the search to browse the full library." })}
+            </p>
+            <Button
+              onClick={() => { setQuery(""); setCategory("All"); }}
+              className="mt-4 bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110"
+            >
+              {t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
+            </Button>
+          </div>
+        )}
 
         {/* Bottom CTA */}
         <div className="mt-16 text-center rounded-2xl border border-[#c9a84c]/25 bg-gradient-to-b from-[#c9a84c]/[0.07] to-transparent p-10">

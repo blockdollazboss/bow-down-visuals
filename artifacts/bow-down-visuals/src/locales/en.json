@@ -7201,7 +7201,8 @@
     "yourMedia": "Your media",
     "splitScreenTitle": "Split-Screen Grids",
     "splitScreenDesc": "Combine 2–4 clips into one grid: side-by-side, stacked, 3-up, 2×2, or picture-in-picture.",
-    "new": "New"
+    "new": "New",
+    "browseLibrary": "Browse the full library"
   },
   "splitScreen": {
     "title": "Split-Screen Grids",
@@ -7295,7 +7296,18 @@
     "sub": "Pick a template, drop in your clips and photos, and get a slick auto-edited video — cuts, transitions, and text baked in. Free to browse; Visual Bucs apply when you render.",
     "titleA": "Video Edit",
     "titleB": "Templates",
-    "useTemplate": "Use this template"
+    "useTemplate": "Use this template",
+    "searchPlaceholder": "Search templates — try “lyric”, “promo”, “travel”…",
+    "sortFeatured": "Featured — our picks",
+    "sortAz": "Name A–Z",
+    "sortShortest": "Shortest first",
+    "sortMostClips": "Most clips first",
+    "resultsCount": "{{count}} templates",
+    "noResultsTitle": "No templates match that search",
+    "noResultsSub": "Try a different word, or clear the search to browse the full library.",
+    "clearSearch": "Clear search",
+    "remake": "Remake this",
+    "shareTemplate": "Share this template"
   },
   "voiceover": {
     "assetDetail": "{{words}} words · {{format}}",
@@ -11991,8 +12003,8 @@
     "quest_generate_song_desc": "Create one song",
     "quest_export_video_title": "Export a video",
     "quest_export_video_desc": "Finish one video export",
-  "quest_viral_sharer_title": "Viral Sharer",
-  "quest_viral_sharer_desc": "Share 3 creations anywhere this week",
+    "quest_viral_sharer_title": "Viral Sharer",
+    "quest_viral_sharer_desc": "Share 3 creations anywhere this week",
     "claim_success": "+{{reward}} Visual Bucs added",
     "claim_failed": "Claim failed. Try again.",
     "toggle_streaks": "Creation streaks",

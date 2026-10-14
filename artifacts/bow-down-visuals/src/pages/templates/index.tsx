@@ -7,9 +7,15 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight, Clapperboard, Image as ImageIcon, Zap, MessageSquare, Trophy } from "lucide-react";
+import { VIDEO_TEMPLATE_METAS } from "@/data/video-templates";
+import { THUMBNAIL_TEMPLATES } from "@/data/thumbnail-templates";
+import { HOOK_TEMPLATES } from "@/data/hook-templates";
+import { CAPTION_PACKS } from "@/data/caption-templates";
 
 /* ─── Public template library hub ───
-   No login required. Galleries deep-link into tools with templates preloaded. */
+   No login required. Galleries deep-link into tools with templates preloaded.
+   Counts are computed from the data files themselves — they can never
+   drift away from the real template set. */
 
 const GALLERIES = [
   {
@@ -19,7 +25,7 @@ const GALLERIES = [
     title: "Video Edit Templates",
     blurb:
       "Pro auto edits: photo dump montages, lyric sync cuts, product promos, before/after reveals and more. Drop in clips, get a finished video.",
-    count: "8 templates",
+    count: `${VIDEO_TEMPLATE_METAS.length} templates`,
     live: true,
   },
   {
@@ -29,7 +35,7 @@ const GALLERIES = [
     title: "Thumbnail Templates",
     blurb:
       "High-CTR YouTube thumbnail styles for fitness, gaming, podcasts, finance and more.",
-    count: "30 templates",
+    count: `${THUMBNAIL_TEMPLATES.length} templates`,
     live: true,
   },
   {
@@ -39,7 +45,7 @@ const GALLERIES = [
     title: "Hook Templates",
     blurb:
       "Scroll-stopping video hooks for Shorts, TikTok, and Reels — plug into Hook Studio.",
-    count: "30 templates",
+    count: `${HOOK_TEMPLATES.length} templates`,
     live: true,
   },
   {
@@ -49,7 +55,7 @@ const GALLERIES = [
     title: "Caption Packs",
     blurb:
       "Done-for-you caption packs for launches, promos, and everyday posts.",
-    count: "30 packs",
+    count: `${CAPTION_PACKS.length} packs`,
     live: true,
   },
 ];

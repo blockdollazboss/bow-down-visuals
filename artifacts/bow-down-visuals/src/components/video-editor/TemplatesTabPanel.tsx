@@ -420,7 +420,7 @@ export default function TemplatesTabPanel({
       {/* ── BROWSE ── */}
       {phase === "browse" && !catalogError && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-black text-white flex items-center gap-2">
                 <Clapperboard className="h-4 w-4 text-[#e8c86a]" />
@@ -428,6 +428,19 @@ export default function TemplatesTabPanel({
               </h3>
               <p className="text-xs text-white/45 mt-1">{t("videoTemplates.browseSub")}</p>
             </div>
+            {/* The public library is this tab's front door — same template
+                keys, searchable, shareable. Opens in a new tab so the
+                editor session is never lost. */}
+            <a
+              href="/templates/videos"
+              target="_blank"
+              rel="noreferrer"
+              data-testid="templates-browse-library"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-[#e8c86a]/40 px-3 py-1.5 text-[11px] font-bold text-[#e8c86a] hover:bg-[#e8c86a]/10 transition-colors"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {t("videoTemplates.browseLibrary", { defaultValue: "Browse the full library" })}
+            </a>
           </div>
 
           {/* Split-screen grids — docked inside the Templates tab (no new sidebar item) */}
