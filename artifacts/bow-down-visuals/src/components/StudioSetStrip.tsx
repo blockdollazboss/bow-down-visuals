@@ -6,36 +6,47 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    social-proof band (the floor gradient melts the backdrop/fog edges
    the owner flagged 2026-10-12; the set stands on the seam).
 
-   REDESIGN (owner directive 2026-10-14): the owner rejected both the
-   triple-size set of 2026-10-13 (softbox slabs + hard glow ovals
-   plowing through the headline, the CTAs and the small King) and a
-   same-day relocation that moved the set below the hero ("You moved
-   it completely. It was just supposed to be a little bit smaller").
-   This is a WHOLE NEW SET, in the established place and layer order
-   (fog → set → King → copy; the strip still rides at z-[20] with the
-   pull-up over the hero's bottom rows), a little smaller than the
-   original (strip 630/720px → 580/660px), composed AROUND the copy
-   and the King instead of over them:
+   OPTION B — "DIRECTOR'S STAGE", THE OWNER'S VERSION (2026-10-14):
+   the owner rejected two earlier builds the same day — a relocation
+   ("You moved it completely") and a flat-silhouette redesign ("that
+   looks completely stupid") — then picked Option B from a design
+   preview and corrected it three times in his own words. This build
+   is his spec, not an interpretation of it:
 
-   - Two designed SPOTLIGHT LAMPS on stands — the same fixture family
-     as the hero's SpotlightRig lamps (tapered metal can, gold mouth
-     rim, lit lens, yoke bolts, gold finish) — in the side gutters:
-     a tall key lamp at the left, a slimmer fill lamp at the right
-     edge. Their heads stay clear of the King (left) and of the copy
-     column (right) by construction.
-   - A readable cinema camera on a low tripod at center-left, below
-     the King's feet and left of the copy column.
-   - Floor props only in the middle band (road case, clapperboard,
-     coiled cable) — all below the copy's lowest row at every size.
-   - EVERY light is feathered: beams are gradient cones softened by
-     a Gaussian blur, glows and floor pools are radial gradients that
-     dissolve at their edges — no hard-edged beams, no flat glow
-     ovals, no panel glare. A scene-space guard clip additionally
-     guarantees no set light can spill into the copy column's or the
-     King's measured airspace (desktop + laptop geometry union).
-   - The lamps breathe with the theme song's beat, gentler even than
-     the rig: the whole light layer swells ±10% opacity on a kick and
-     eases back; reduced-motion and silence leave it at rest.
+   - The set stays IN the hero, in its original place and layer order
+     (fog → set → King → copy; the strip still rides at z-[20] with
+     the pull-up over the hero's bottom rows), a little smaller than
+     the giant tripled version (strip 630/720px → 580/660px), artwork
+     composed AROUND the copy and the King.
+   - A cinema camera on a LOW DOLLY TRACK across the middle, AIMING
+     FORWARD — front-on round lens and matte box facing the viewer.
+   - Two tall spotlight lamps with barn doors, one at each side,
+     heads FRONT-FACING — round lenses looking out at the viewer.
+     Their beams project FORWARD: feathered cones widening from each
+     lens toward the viewer, ending in a gentle glow at the FRONT
+     edge of the stage. Not at each other, not across the set, not
+     raking down into floor pools (owner corrected the aim three
+     times — forward is the whole point).
+   - A LOW director's chair at the far left edge only.
+   - SPEAKERS on both sides of the floor instead of briefcases/road
+     cases (owner edit) — shaded cabinets, visible cones, gold trim.
+     No road case, no briefcase, no clapperboard.
+   - BOLD floor wires (owner edit — he could not see the previous
+     attempt): thick, high-contrast cables snaking between lamps,
+     speakers and camera, a foreground run across the front, and a
+     clearly readable coil beside the dolly.
+   - STYLE LAW (the reason the silhouette build died): every piece is
+     a dimensionally SHADED illustration — multi-stop brass/walnut/
+     bronze gradients, rim light, cast shadows — in BOTH themes. If a
+     piece reads as a flat black pictogram, it is wrong.
+   - EVERY light is feathered (gradient cones softened by Gaussian
+     blur, radial glows that dissolve at their edges), and a
+     scene-space guard clip guarantees no set light can spill into
+     the copy column's or the King's measured airspace (desktop +
+     laptop geometry union).
+   - The lamps breathe with the theme song's beat: the whole light
+     layer swells ±10% opacity on a kick and eases back; reduced
+     motion and silence leave it at rest.
 
    FIT (owner directive 2026-10-12, unchanged): preserveAspectRatio
    "meet", NEVER "slice"; the whole set fits the frame at every
@@ -49,8 +60,7 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    Pure decoration: pointer-events-none, aria-hidden. */
 
 interface SetPalette {
-  silhouette: string;
-  canBody: string;
+  ink: string;
   canStroke: string;
   yoke: string;
   rim: string;
@@ -62,12 +72,18 @@ interface SetPalette {
   poolMid: string;
   shadow: string;
   floorShadow: string;
-  panelTone: string;
+  /* Gradient stop triples [top, mid, bottom] (brass: [edge, hi, edge]). */
+  can: [string, string, string];
+  walnut: [string, string, string];
+  brass: [string, string, string];
+  body: [string, string, string];
+  fabric: [string, string, string];
+  metal: [string, string, string];
+  cab: [string, string, string];
 }
 
 const DARK: SetPalette = {
-  silhouette: "#060504",
-  canBody: "#1C1307",
+  ink: "#241A0C",
   canStroke: "rgba(201,168,76,0.6)",
   yoke: "#8A6B1F",
   rim: "#C9A84C",
@@ -79,12 +95,17 @@ const DARK: SetPalette = {
   poolMid: "rgba(255,206,98,0.16)",
   shadow: "rgba(0,0,0,0.55)",
   floorShadow: "rgba(0,0,0,0.5)",
-  panelTone: "rgba(245,214,122,0.30)",
+  can: ["#4A3410", "#241708", "#120A02"],
+  walnut: ["#513619", "#2A1A0C", "#170D04"],
+  brass: ["#7A5A12", "#E8C86A", "#6D5216"],
+  body: ["#3D2A10", "#1A1206", "#0A0602"],
+  fabric: ["#5A421C", "#3A2A10", "#241806"],
+  metal: ["#4D3A16", "#241A0C", "#0F0A04"],
+  cab: ["#3A2812", "#1F1408", "#100A03"],
 };
 
 const LIGHT: SetPalette = {
-  silhouette: "#2A1E07",
-  canBody: "#241A0C",
+  ink: "#2A1E07",
   canStroke: "rgba(122,90,18,0.75)",
   yoke: "#8A6B1F",
   rim: "#A8871F",
@@ -96,45 +117,139 @@ const LIGHT: SetPalette = {
   poolMid: "rgba(168,135,31,0.14)",
   shadow: "rgba(90,66,16,0.30)",
   floorShadow: "rgba(90,66,16,0.26)",
-  panelTone: "rgba(122,90,18,0.35)",
+  can: ["#6B4D1C", "#3A2810", "#241806"],
+  walnut: ["#7A5A28", "#4A3312", "#2A1C08"],
+  brass: ["#8A6B1F", "#E8C86A", "#A8871F"],
+  body: ["#54401E", "#2A1E0C", "#170F05"],
+  fabric: ["#8A6A30", "#5F4718", "#3A2A10"],
+  metal: ["#6D5216", "#3A2A10", "#1F1507"],
+  cab: ["#5F451C", "#33240E", "#1F1507"],
 };
 
-/* One spotlight fixture in the SpotlightRig's design language, drawn
-   pointing down in local units (can ≈ 68 wide): tapered metal can,
-   gold mouth rim, lit lens, side sheen, pivot bolts, and a gold
-   cradle yoke whose arms hug the can's sides and meet in a crossbar
-   below it, where the stand's pole attaches. Place with a transform
-   (translate/rotate/scale). */
-function SpotLamp({ p, transform }: { p: SetPalette; transform: string }) {
+const n = (v: number) => Math.round(v * 10) / 10;
+
+/* One FRONT-FACING spotlight: round lit lens looking out at the
+   viewer, barn doors framing the housing, gold cradle yoke, and a
+   tripod stand planted on the floor. The lens sits at (cx, lensY);
+   s scales the head + stand spread; floorY is the scene floor. */
+function FrontLamp({
+  p,
+  cx,
+  lensY,
+  s,
+  floorY,
+}: {
+  p: SetPalette;
+  cx: number;
+  lensY: number;
+  s: number;
+  floorY: number;
+}) {
+  const legTop = floorY - 64;
   return (
-    <g transform={transform}>
-      {/* cradle yoke — gold arms hugging the can, crossbar below */}
-      <path
-        d="M-34 0 L-34 34 Q-34 44 -25 44 L25 44 Q34 44 34 34 L34 0"
-        fill="none"
-        stroke={p.yoke}
-        strokeWidth="3.5"
-        strokeLinecap="round"
+    <g>
+      {/* cast shadow bed under the stand — kept inside the lamp's own
+          footprint: at 92·s the fill lamp's shadow tip crossed the
+          copy column's edge (desktop) and the scene's right edge
+          (mobile); 58·s keeps it clear at every measured size */}
+      <ellipse cx={cx} cy={floorY - 2} rx={n(58 * s)} ry="6" fill={p.shadow} />
+      {/* tripod legs */}
+      <polygon
+        points={`${n(cx - 3 * s)},${legTop} ${n(cx - 57 * s)},${floorY} ${n(cx - 40 * s)},${floorY} ${cx},${legTop + 13}`}
+        fill="url(#sset-metal)"
       />
-      {/* tapered can */}
-      <path
-        d="M-27 -15 L27 -15 L34 27 L-34 27 Z"
-        fill={p.canBody}
-        stroke={p.canStroke}
-        strokeWidth="1.2"
+      <polygon
+        points={`${n(cx - 2.5 * s)},${legTop + 5} ${n(cx - 6.5 * s)},${floorY} ${n(cx + 6.5 * s)},${floorY} ${n(cx + 2.5 * s)},${legTop + 5}`}
+        fill="url(#sset-metal)"
       />
-      {/* metal sheen down one side */}
-      <path d="M-22 -13 L-13 -13 L-15 25 L-23 25 Z" fill="#ffffff" opacity="0.06" />
-      {/* pivot bolts, sitting on the yoke arms over the can's sides */}
-      <circle cx="-34" cy="10" r="3.8" fill={p.yoke} />
-      <circle cx="34" cy="10" r="3.8" fill={p.yoke} />
-      {/* gold mouth rim */}
-      <rect x="-36" y="27" width="72" height="5" rx="2.5" fill={p.rim} />
-      {/* lit lens */}
-      <ellipse cx="0" cy="37" rx="17" ry="4.6" fill="url(#sset-lens)" />
+      <polygon
+        points={`${n(cx + 3 * s)},${legTop} ${n(cx + 57 * s)},${floorY} ${n(cx + 40 * s)},${floorY} ${cx},${legTop + 13}`}
+        fill="url(#sset-metal)"
+      />
+      {/* pole + gold collar */}
+      <rect
+        x={n(cx - 6 * s)}
+        y={n(lensY + 54 * s)}
+        width={n(12 * s)}
+        height={n(floorY - 12 - (lensY + 54 * s))}
+        fill="url(#sset-metal)"
+      />
+      <rect x={n(cx - 11 * s)} y={n(lensY + 47 * s)} width={n(22 * s)} height={n(9 * s)} rx="3" fill="url(#sset-brass)" />
+      {/* head, lens at (cx, lensY) */}
+      <g transform={`translate(${cx} ${lensY}) scale(${s})`}>
+        {/* barn doors — flaps framing the housing on all four sides */}
+        <polygon points="-36,-32 36,-32 50,-52 -50,-52" fill="url(#sset-metal)" stroke={p.canStroke} strokeWidth="1" />
+        <polygon points="-32,-28 -32,28 -52,42 -52,-42" fill="url(#sset-metal)" stroke={p.canStroke} strokeWidth="1" />
+        <polygon points="32,-28 32,28 52,42 52,-42" fill="url(#sset-metal)" stroke={p.canStroke} strokeWidth="1" />
+        <polygon points="-32,32 32,32 44,48 -44,48" fill="url(#sset-metal)" stroke={p.canStroke} strokeWidth="1" />
+        {/* tapered bronze can */}
+        <circle cx="0" cy="0" r="38" fill="url(#sset-can)" stroke={p.rim} strokeWidth="1.2" strokeOpacity="0.6" />
+        <circle cx="0" cy="0" r="34" fill="none" stroke="#000000" strokeOpacity="0.35" strokeWidth="1.5" />
+        {/* bezel + lit lens — hot core to warm gold rim */}
+        <circle cx="0" cy="0" r="30" fill="#0A0603" stroke="url(#sset-brass)" strokeWidth="2.5" />
+        <circle cx="0" cy="0" r="24" fill="url(#sset-lens)" />
+        <circle cx="0" cy="0" r="24" fill="none" stroke={p.rim} strokeWidth="1" strokeOpacity="0.8" />
+        <circle cx="-8" cy="-9" r="5" fill="#ffffff" opacity="0.5" />
+        {/* cradle yoke + pivot bolts + mount knob */}
+        <path
+          d="M-52,-4 L-52,24 Q-52,38 -38,38 L38,38 Q52,38 52,24 L52,-4"
+          fill="none"
+          stroke={p.yoke}
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <circle cx="-52" cy="2" r="5.5" fill={p.yoke} />
+        <circle cx="52" cy="2" r="5.5" fill={p.yoke} />
+        <circle cx="-52" cy="2" r="2" fill="#150E05" />
+        <circle cx="52" cy="2" r="2" fill="#150E05" />
+        <rect x="-5" y="38" width="10" height="9" rx="2" fill={p.yoke} />
+      </g>
     </g>
   );
 }
+
+/* One floor-standing speaker cabinet (94×80 local units, origin at
+   its top-left): shaded walnut cabinet, gold trim, and a visible
+   tweeter / mid / woofer stack with gold dust caps. */
+function SpeakerCab({ p, x, y }: { p: SetPalette; x: number; y: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <ellipse cx="47" cy="82" rx="56" ry="5" fill={p.shadow} />
+      <rect x="0" y="0" width="94" height="80" rx="7" fill="url(#sset-cab)" stroke={p.canStroke} strokeWidth="1" />
+      <rect x="3" y="3" width="88" height="3" rx="1.5" fill="#ffffff" opacity="0.05" />
+      <rect x="1.5" y="1.5" width="91" height="77" rx="6" fill="none" stroke={p.rim} strokeWidth="1" opacity="0.45" />
+      {/* front baffle */}
+      <rect x="9" y="9" width="76" height="62" rx="4" fill="#0D0803" />
+      {/* woofer */}
+      <circle cx="47" cy="50" r="16" fill="url(#sset-cone)" stroke="#3A2A10" strokeWidth="2" />
+      <circle cx="47" cy="50" r="6" fill="url(#sset-cap)" />
+      {/* mid */}
+      <circle cx="47" cy="27" r="8.5" fill="url(#sset-cone)" stroke="#3A2A10" strokeWidth="1.5" />
+      <circle cx="47" cy="27" r="3" fill="url(#sset-cap)" />
+      {/* tweeter */}
+      <circle cx="47" cy="13" r="4" fill="url(#sset-cap)" stroke="#6D5216" strokeWidth="0.75" />
+      {/* corner screws */}
+      <circle cx="6" cy="6" r="1.6" fill={p.rim} opacity="0.8" />
+      <circle cx="88" cy="6" r="1.6" fill={p.rim} opacity="0.8" />
+      <circle cx="6" cy="74" r="1.6" fill={p.rim} opacity="0.8" />
+      <circle cx="88" cy="74" r="1.6" fill={p.rim} opacity="0.8" />
+    </g>
+  );
+}
+
+/* A bold floor cable in three passes — soft shadow, dark body, thin
+   gold top highlight — so it stays readable even at phone size. */
+function WirePath({ d, w }: { d: string; w: number }) {
+  return (
+    <g fill="none" strokeLinecap="round">
+      <path d={d} stroke="#000000" strokeOpacity="0.5" strokeWidth={w + 2.5} transform="translate(0 2)" />
+      <path d={d} stroke="#16100A" strokeWidth={w} />
+      <path d={d} stroke="#D8B25C" strokeOpacity="0.5" strokeWidth="1.8" transform="translate(0 -2.2)" />
+    </g>
+  );
+}
+
+const SLEEPERS = [312, 358, 404, 450, 496, 542, 588, 634];
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   const p = isLight ? LIGHT : DARK;
@@ -192,26 +307,82 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         preserveAspectRatio="xMidYMax meet"
         className="absolute inset-0 h-full w-full"
         style={{
-          color: p.silhouette,
+          color: p.ink,
           filter: isLight
             ? "drop-shadow(0 8px 14px rgba(122,90,18,0.30))"
             : "drop-shadow(0 -3px 10px rgba(212,160,23,0.30))",
         }}
       >
         <defs>
-          {/* Beam gradients — user-space, lens point → pool point, so
-              the light is born at the lens and dissolves at the floor. */}
-          <linearGradient id="sset-beam-key" gradientUnits="userSpaceOnUse" x1="111" y1="535" x2="445" y2="698">
+          {/* Material gradients — the shaded-illustration law: no
+              piece is a flat fill; brass, walnut, bronze and fabric
+              all carry a light-to-dark falloff. */}
+          <linearGradient id="sset-can" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.can[0]} />
+            <stop offset="55%" stopColor={p.can[1]} />
+            <stop offset="100%" stopColor={p.can[2]} />
+          </linearGradient>
+          <linearGradient id="sset-walnut" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.walnut[0]} />
+            <stop offset="55%" stopColor={p.walnut[1]} />
+            <stop offset="100%" stopColor={p.walnut[2]} />
+          </linearGradient>
+          <linearGradient id="sset-brass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={p.brass[0]} />
+            <stop offset="50%" stopColor={p.brass[1]} />
+            <stop offset="100%" stopColor={p.brass[2]} />
+          </linearGradient>
+          <linearGradient id="sset-body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.body[0]} />
+            <stop offset="55%" stopColor={p.body[1]} />
+            <stop offset="100%" stopColor={p.body[2]} />
+          </linearGradient>
+          <linearGradient id="sset-fabric" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.fabric[0]} />
+            <stop offset="55%" stopColor={p.fabric[1]} />
+            <stop offset="100%" stopColor={p.fabric[2]} />
+          </linearGradient>
+          <linearGradient id="sset-metal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.metal[0]} />
+            <stop offset="55%" stopColor={p.metal[1]} />
+            <stop offset="100%" stopColor={p.metal[2]} />
+          </linearGradient>
+          <linearGradient id="sset-cab" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={p.cab[0]} />
+            <stop offset="55%" stopColor={p.cab[1]} />
+            <stop offset="100%" stopColor={p.cab[2]} />
+          </linearGradient>
+          {/* Speaker cone + gold dust cap. */}
+          <radialGradient id="sset-cone">
+            <stop offset="0%" stopColor="#1F1508" />
+            <stop offset="60%" stopColor="#0D0903" />
+            <stop offset="100%" stopColor="#050403" />
+          </radialGradient>
+          <radialGradient id="sset-cap">
+            <stop offset="0%" stopColor="#FFE9A8" />
+            <stop offset="60%" stopColor="#C9A84C" />
+            <stop offset="100%" stopColor="#8A6B1F" />
+          </radialGradient>
+          {/* Camera glass — a cool deep lens with a bright heart. */}
+          <radialGradient id="sset-glass">
+            <stop offset="0%" stopColor="#7D93A8" />
+            <stop offset="35%" stopColor="#22303E" />
+            <stop offset="70%" stopColor="#05070A" />
+            <stop offset="100%" stopColor="#020304" />
+          </radialGradient>
+          {/* Beam gradients — user-space, lens point → front edge, so
+              the light is born at the lens and dissolves forward. */}
+          <linearGradient id="sset-beam-key" gradientUnits="userSpaceOnUse" x1="262" y1="492" x2="262" y2="706">
             <stop offset="0%" stopColor={p.beamHi} />
             <stop offset="48%" stopColor={p.beamMid} />
             <stop offset="100%" stopColor={p.beamMid} stopOpacity="0" />
           </linearGradient>
-          <linearGradient id="sset-beam-fill" gradientUnits="userSpaceOnUse" x1="1388" y1="418" x2="1366" y2="700">
+          <linearGradient id="sset-beam-fill" gradientUnits="userSpaceOnUse" x1="1395" y1="398" x2="1395" y2="706">
             <stop offset="0%" stopColor={p.beamHi} />
             <stop offset="48%" stopColor={p.beamMid} />
             <stop offset="100%" stopColor={p.beamMid} stopOpacity="0" />
           </linearGradient>
-          {/* Radial glow + pool — feathered by construction. */}
+          {/* Radial glow + front-edge pool — feathered by construction. */}
           <radialGradient id="sset-glow">
             <stop offset="0%" stopColor={p.glowCore} />
             <stop offset="45%" stopColor={p.glowMid} />
@@ -252,114 +423,128 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <ellipse cx="720" cy="713" rx="700" ry="8" fill={p.floorShadow} />
         </g>
 
-        {/* ── LIGHT — every beam, glow and pool, all feathered ── */}
+        {/* ── LIGHT — every beam and glow, all feathered, all aimed
+            FORWARD: cones widen from each lens toward the viewer and
+            dissolve into a soft glow at the stage's front edge. ── */}
         <g data-piece="LIGHT-FX" ref={lightsRef} clipPath="url(#sset-light-guard)">
-          {/* key lamp: lens glow, beam + brighter core, floor pool */}
-          <ellipse cx="111" cy="532" rx="92" ry="58" fill="url(#sset-glow)" />
-          <polygon points="84,520 138,512 592,682 292,702" fill="url(#sset-beam-key)" filter="url(#sset-blur9)" />
-          <polygon points="94,522 128,517 520,684 352,698" fill="url(#sset-beam-key)" filter="url(#sset-blur5)" opacity="0.55" />
-          <ellipse cx="445" cy="700" rx="168" ry="16" fill="url(#sset-pool)" />
-          {/* fill lamp: lens glow, beam + core, floor pool */}
-          <ellipse cx="1388" cy="416" rx="82" ry="54" fill="url(#sset-glow)" />
-          <polygon points="1370,406 1406,402 1432,690 1268,694" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
-          <polygon points="1378,408 1398,405 1404,688 1302,692" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
-          <ellipse cx="1366" cy="702" rx="112" ry="14" fill="url(#sset-pool)" />
+          {/* key lamp (left): lens glow, forward cone + core, front glow */}
+          <ellipse cx="262" cy="492" rx="98" ry="62" fill="url(#sset-glow)" />
+          <polygon points="232,502 292,502 386,700 138,700" fill="url(#sset-beam-key)" filter="url(#sset-blur9)" />
+          <polygon points="246,502 278,502 340,700 184,700" fill="url(#sset-beam-key)" filter="url(#sset-blur5)" opacity="0.55" />
+          <ellipse cx="262" cy="707" rx="175" ry="15" fill="url(#sset-pool)" />
+          {/* fill lamp (right): lens glow, forward cone + core, front glow */}
+          <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+          <polygon points="1372,408 1418,408 1446,700 1322,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+          <polygon points="1382,408 1408,408 1428,700 1352,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+          <ellipse cx="1395" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
           {/* a soft wash pooled under the camera's mark */}
-          <ellipse cx="415" cy="706" rx="195" ry="12" fill="url(#sset-pool)" opacity="0.55" />
+          <ellipse cx="470" cy="709" rx="205" ry="12" fill="url(#sset-pool)" opacity="0.5" />
         </g>
 
-        {/* ── KEY LAMP (left) — designed spotlight on a stand ── */}
+        {/* ── DIRECTOR'S CHAIR — far left edge only, kept LOW ── */}
+        <g data-piece="CHAIR">
+          <ellipse cx="88" cy="714" rx="64" ry="6" fill={p.shadow} />
+          {/* back posts */}
+          <rect x="44" y="540" width="8" height="160" fill="url(#sset-walnut)" />
+          <rect x="124" y="540" width="8" height="160" fill="url(#sset-walnut)" />
+          {/* backrest canvas + brass top rail */}
+          <rect x="38" y="540" width="100" height="54" rx="7" fill="url(#sset-fabric)" stroke={p.canStroke} strokeWidth="0.75" />
+          <rect x="38" y="540" width="100" height="9" rx="4" fill="url(#sset-brass)" opacity="0.85" />
+          {/* armrests */}
+          <rect x="30" y="592" width="26" height="8" rx="4" fill="url(#sset-walnut)" />
+          <rect x="120" y="592" width="26" height="8" rx="4" fill="url(#sset-walnut)" />
+          <rect x="40" y="600" width="6" height="10" fill="url(#sset-walnut)" />
+          <rect x="130" y="600" width="6" height="10" fill="url(#sset-walnut)" />
+          {/* seat canvas */}
+          <polygon points="40,606 136,606 132,624 44,624" fill="url(#sset-fabric)" stroke={p.canStroke} strokeWidth="0.5" />
+          {/* X legs + stretcher */}
+          <polygon points="48,624 58,624 128,706 116,706" fill="url(#sset-walnut)" />
+          <polygon points="128,624 118,624 48,706 60,706" fill="url(#sset-walnut)" />
+          <rect x="52" y="664" width="72" height="6" fill="url(#sset-walnut)" opacity="0.8" />
+        </g>
+
+        {/* ── KEY LAMP (left) — front-facing spotlight on a tripod ── */}
         <g data-piece="KEY-LAMP">
-          {/* stand: pole, gold collar, three splayed feet */}
-          <rect x="101" y="536" width="15" height="156" fill="currentColor" />
-          <rect x="97" y="556" width="23" height="10" rx="3" fill={p.rim} />
-          <polygon points="108,648 56,718 76,718 110,668" fill="currentColor" />
-          <polygon points="109,648 102,720 118,720 112,668" fill="currentColor" />
-          <polygon points="110,648 164,718 144,718 111,668" fill="currentColor" />
-          {/* the lamp, tilted down-stage toward its pool */}
-          <SpotLamp p={p} transform="translate(84 474) rotate(-24) scale(1.8)" />
+          <FrontLamp p={p} cx={262} lensY={492} s={1} floorY={717} />
         </g>
 
-        {/* ── CINEMA CAMERA (center-left) on a low tripod ── */}
+        {/* ── CINEMA CAMERA (center-left) on a low dolly track,
+            aiming FORWARD — front-on lens + matte box ── */}
         <g data-piece="CAMERA">
-          <ellipse cx="408" cy="714" rx="150" ry="7" fill={p.shadow} />
-          {/* tripod: three legs + mid-spreader + pan handle */}
-          <polygon points="388,606 316,718 340,718 402,626" fill="currentColor" />
-          <polygon points="428,606 496,718 472,718 414,626" fill="currentColor" />
-          <polygon points="406,610 398,720 416,720 414,626" fill="currentColor" />
-          <polygon points="352,664 452,664 454,671 350,671" fill="currentColor" />
-          <polygon points="382,596 318,646 326,654 388,606" fill="currentColor" />
-          <rect x="296" y="648" width="26" height="9" rx="4" transform="rotate(38 309 652)" fill="currentColor" />
-          {/* fluid head */}
-          <circle cx="408" cy="600" r="13" fill="currentColor" />
-          <rect x="384" y="578" width="48" height="16" rx="4" fill="currentColor" />
-          {/* body */}
-          <rect x="306" y="516" width="180" height="90" rx="10" fill="currentColor" />
-          <polygon points="306,516 486,516 486,530 306,536" fill="currentColor" opacity="0.55" />
-          {/* film magazine — sloped hump on top */}
-          <path d="M330,516 L338,488 Q340,478 352,478 L452,478 Q464,478 466,489 L472,516 Z" fill="currentColor" />
+          <ellipse cx="470" cy="713" rx="185" ry="7" fill={p.shadow} />
+          {/* dolly track: sleepers + two rails */}
+          {SLEEPERS.map((x) => (
+            <rect key={x} x={x} y="690" width="30" height="20" fill="#17100A" opacity="0.8" />
+          ))}
+          <rect x="296" y="691" width="368" height="5" rx="2.5" fill="url(#sset-brass)" />
+          <rect x="296" y="703" width="368" height="5" rx="2.5" fill="url(#sset-brass)" opacity="0.75" />
+          {/* dolly deck + wheels on the rails */}
+          <rect x="392" y="662" width="156" height="28" rx="6" fill="url(#sset-walnut)" stroke={p.canStroke} strokeWidth="0.75" />
+          <circle cx="424" cy="693" r="10" fill="#0D0903" stroke={p.rim} strokeWidth="1.5" />
+          <circle cx="424" cy="693" r="3" fill="url(#sset-cap)" />
+          <circle cx="516" cy="693" r="10" fill="#0D0903" stroke={p.rim} strokeWidth="1.5" />
+          <circle cx="516" cy="693" r="3" fill="url(#sset-cap)" />
+          {/* pedestal column + collar */}
+          <rect x="450" y="598" width="40" height="64" fill="url(#sset-body)" />
+          <rect x="444" y="592" width="52" height="12" rx="3" fill="url(#sset-brass)" />
+          {/* body — shaded charcoal-bronze, lighter toward the top */}
+          <rect x="370" y="490" width="200" height="110" rx="14" fill="url(#sset-body)" stroke={p.canStroke} strokeWidth="1" />
+          <polygon points="370,504 570,504 570,518 370,524" fill="#ffffff" opacity="0.05" />
+          {/* side grips */}
+          <rect x="350" y="516" width="20" height="50" rx="6" fill="url(#sset-body)" stroke={p.canStroke} strokeWidth="0.75" />
+          <rect x="570" y="516" width="20" height="50" rx="6" fill="url(#sset-body)" stroke={p.canStroke} strokeWidth="0.75" />
           {/* top handle */}
-          <rect x="362" y="468" width="42" height="8" rx="4" fill="currentColor" />
-          <rect x="368" y="476" width="7" height="5" fill="currentColor" />
-          <rect x="392" y="476" width="7" height="5" fill="currentColor" />
-          {/* eyepiece extending back */}
-          <rect x="278" y="540" width="30" height="14" rx="4" fill="currentColor" />
-          <circle cx="272" cy="547" r="9" fill="currentColor" />
-          {/* lens cylinder + gold focus rings */}
-          <rect x="486" y="534" width="32" height="54" rx="4" fill="currentColor" />
-          <rect x="494" y="534" width="4" height="54" fill={p.rim} opacity="0.85" />
-          <rect x="504" y="534" width="4" height="54" fill={p.rim} opacity="0.85" />
-          {/* matte box + top flag */}
-          <polygon points="518,526 546,520 546,596 518,590" fill="currentColor" />
-          <polygon points="516,526 548,518 552,526 520,534" fill="currentColor" />
-          {/* tally light */}
-          <circle cx="474" cy="528" r="4.5" fill="#E8B33C" />
+          <rect x="440" y="468" width="8" height="22" fill="url(#sset-body)" />
+          <rect x="492" y="468" width="8" height="22" fill="url(#sset-body)" />
+          <rect x="436" y="460" width="68" height="10" rx="5" fill="url(#sset-body)" stroke={p.canStroke} strokeWidth="0.75" />
+          {/* matte box — the front frame the lens looks through */}
+          <rect x="402" y="482" width="136" height="134" rx="10" fill="#120B04" stroke={p.rim} strokeWidth="1" strokeOpacity="0.5" />
+          <rect x="420" y="500" width="100" height="98" rx="6" fill="#050403" />
+          {/* top flag */}
+          <polygon points="402,482 538,482 550,462 390,462" fill="#17100A" stroke={p.canStroke} strokeWidth="0.5" />
+          {/* the lens — gold focus rings around deep glass */}
+          <circle cx="470" cy="549" r="38" fill="none" stroke="#8A6B1F" strokeWidth="2" />
+          <circle cx="470" cy="549" r="34" fill="url(#sset-glass)" stroke={p.rim} strokeWidth="3" />
+          <circle cx="458" cy="536" r="6" fill="#ffffff" opacity="0.55" />
+          {/* tally light + gold brand plate */}
+          <circle cx="548" cy="502" r="9" fill="#FFB02E" opacity="0.35" />
+          <circle cx="548" cy="502" r="5" fill="#FFB02E" />
+          <rect x="452" y="578" width="36" height="12" rx="2" fill="url(#sset-brass)" opacity="0.9" />
         </g>
 
-        {/* ── FILL LAMP (right edge) — the rig's own fixture, floor-
-            standing at the stage's right edge: slimmer than the key,
-            tilted just off vertical, its beam a soft shaft like the
-            rig's. Head + stand keep inside the scene's right gutter
-            so nothing crosses the copy column at any measured size. ── */}
+        {/* ── SPEAKERS — floor cabinets flanking the set, in place of
+            the old road case + clapperboard ── */}
+        <g data-piece="SPEAKERS">
+          <SpeakerCab p={p} x={648} y={638} />
+          <SpeakerCab p={p} x={1160} y={638} />
+        </g>
+
+        {/* ── FILL LAMP (right edge) — front-facing spotlight, slimmer
+            than the key, standing in the right gutter so its head and
+            stand stay clear of the copy column at every size ── */}
         <g data-piece="FILL-LAMP">
-          {/* stand: pole, gold collar, three splayed feet */}
-          <rect x="1380" y="422" width="12" height="266" fill="currentColor" />
-          <rect x="1376" y="452" width="20" height="10" rx="3" fill={p.rim} />
-          <polygon points="1386,636 1354,718 1372,718 1387,658" fill="currentColor" />
-          <polygon points="1387,636 1380,720 1394,720 1389,658" fill="currentColor" />
-          <polygon points="1388,636 1420,718 1402,718 1389,658" fill="currentColor" />
-          {/* the lamp, tilted slightly down-stage toward its pool */}
-          <SpotLamp p={p} transform="translate(1394 382) rotate(10) scale(1)" />
+          <FrontLamp p={p} cx={1395} lensY={398} s={0.72} floorY={717} />
         </g>
 
-        {/* ── FLOOR PROPS (center-right) — road case, clapperboard,
-            coiled cable: all low, below the copy's lowest row ── */}
-        <g data-piece="PROPS">
-          <ellipse cx="880" cy="715" rx="290" ry="6" fill={p.shadow} />
-          {/* coiled cable on the floor */}
-          <ellipse cx="625" cy="700" rx="62" ry="10" fill="none" stroke="currentColor" strokeWidth="5" opacity="0.9" />
-          <ellipse cx="625" cy="703" rx="40" ry="7" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.9" />
-          {/* road case */}
-          <rect x="756" y="636" width="250" height="84" rx="8" fill="currentColor" />
-          <rect x="756" y="664" width="250" height="4" fill={p.panelTone} />
-          <rect x="756" y="700" width="250" height="6" fill={p.rim} opacity="0.45" />
-          <rect x="852" y="628" width="58" height="10" rx="5" fill="currentColor" />
-          {/* gold latches */}
-          <rect x="796" y="658" width="18" height="30" rx="3" fill={p.rim} />
-          <rect x="948" y="658" width="18" height="30" rx="3" fill={p.rim} />
-          {/* corner protectors */}
-          <path d="M756,652 v-8 a8,8 0 0 1 8,-8 h10 M990,636 h8 a8,8 0 0 1 8,8 v10" fill="none" stroke={p.rim} strokeWidth="3" opacity="0.7" />
-          {/* clapperboard leaning on the case */}
-          <g transform="rotate(-7 1056 686)">
-            <rect x="1004" y="660" width="106" height="60" rx="4" fill="currentColor" />
-            <rect x="1004" y="646" width="106" height="15" rx="3" fill="currentColor" />
-            <polygon points="1012,649 1028,649 1018,658 1006,658" fill={p.panelTone} />
-            <polygon points="1040,649 1056,649 1046,658 1030,658" fill={p.panelTone} />
-            <polygon points="1068,649 1084,649 1074,658 1058,658" fill={p.panelTone} />
-            <polygon points="1096,649 1108,649 1102,658 1086,658" fill={p.panelTone} />
-            <rect x="1012" y="676" width="60" height="5" rx="2" fill={p.panelTone} />
-            <rect x="1012" y="690" width="78" height="5" rx="2" fill={p.panelTone} />
+        {/* ── FLOOR WIRES — bold cables: a snake between lamps,
+            speakers and camera, a coil beside the dolly, the camera's
+            power lead, and a foreground run across the front ── */}
+        <g data-piece="WIRES">
+          <WirePath
+            d="M148,707 C 225,693 305,716 385,704 C 455,694 525,715 612,704 C 695,694 762,715 852,705 C 948,695 1042,716 1132,705 C 1222,695 1312,715 1392,702"
+            w={7}
+          />
+          {/* camera power lead, dropping to the coil */}
+          <WirePath d="M500,636 C 540,668 570,690 596,698" w={6} />
+          {/* coil beside the dolly */}
+          <g fill="none" strokeLinecap="round">
+            <ellipse cx="608" cy="702" rx="47" ry="10.5" stroke="#16100A" strokeWidth="7" />
+            <ellipse cx="608" cy="702" rx="34" ry="8" stroke="#16100A" strokeWidth="6" />
+            <ellipse cx="608" cy="702" rx="22" ry="5.5" stroke="#16100A" strokeWidth="5" />
+            <path d="M561,702 A47,10.5 0 0 1 655,702" stroke="#D8B25C" strokeOpacity="0.5" strokeWidth="1.8" />
           </g>
+          {/* foreground run across the front of the stage */}
+          <WirePath d="M64,715 C 320,706 560,718 800,710 C 1040,702 1240,717 1396,709" w={7.5} />
         </g>
       </svg>
     </div>
