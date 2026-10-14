@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -85,6 +86,7 @@ async function api(path: string, token: string | null, init?: RequestInit) {
 }
 
 export default function Memberships() {
+  usePageTitle("Memberships", "Launch your fan club with paid membership tiers, member perks, and tracking.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();

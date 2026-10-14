@@ -12,6 +12,7 @@
 - [Charts](/charts): The hottest tracks, videos, and creators right now.
 - [Browse](/browse): Browse what creators are making.
 - [Genres](/genres): Genre hubs with real facts (BPM, origins, signature sounds) and the AI pipeline for each sound.
+- [For Creators](/for): AI toolkits by creator type — YouTubers, podcasters, streamers, musicians, TikTokers, and educators.
 - [Academy](/academy): Creator Academy — guides, copyright, LLC, and community playbooks.
 - [Monetization Coach](/coach): The Money Room coach — turn content into income, step by step.
 - [Tools](/tools): Standalone AI tool pages (song maker, thumbnail maker, hook generator, caption generator, clip maker, music video maker).
@@ -41,3 +42,20 @@
 - [Branding Kit](/branding-kit): Logos, intros, overlays, and brand assets.
 - [Groups](/groups): Creator groups and communities.
 - [Events](/events): Platform events and challenges.
+- [Brand Deals](/brand-deals): Find sponsorships and brand partnerships matched to your audience, with AI pitch drafts and outreach tracking.
+- [Distribute](/distribute): Release music to streaming platforms — release planning, catalog, and rollout in one hub.
+- [Tip Jar](/tips): Set up your public tip page and let fans support your work directly.
+- [Beat Marketplace](/beats): Producers list beats; artists preview and license them by tier.
+- [Memberships](/memberships): Paid fan clubs with tiers, perks, and member tracking.
+- [Shoutouts](/shoutouts): Sell personalized video shoutouts to fans — set your price and manage requests.
+- [Refer & Earn](/referrals): Share your referral link — new creators get 1,000 welcome Visual Bucs and you earn a revenue share as they grow.
+- [Team](/team): Your team workspace — seats, members, and shared projects.
+- [Press Kit](/press-kit): An electronic press kit with an AI-written bio, published as a shareable public page.
+- [Email List](/email-list): Own your audience — hosted signup pages, embeddable forms, and AI newsletter drafts.
+- [Collabs](/collabs): Find collaboration partners, matched by AI.
+- [Contests](/contests): Run fan giveaways with entry tracking and a provably fair winner draw.
+- [Storefronts](/storefronts): Browse every creator shop on the platform.
+- [My Shop](/my-shop): Your own storefront — products, AI descriptions and images, and a custom domain.
+- [Community Manager](/community): AI moderation queue, smart reply drafts, sentiment dashboard, and superfan radar.
+- [Copyright Assistant](/copyright): Guided U.S. copyright registration prep for creators, with AI filing drafts.
+- [LLC Guide](/llc-guide): Form an LLC as a creator — guided steps, costs, and state guidance.

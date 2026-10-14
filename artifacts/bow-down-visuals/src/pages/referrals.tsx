@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -449,6 +450,7 @@ function ShareKitSection({ referralLink, reward }: { referralLink: string; rewar
 }
 
 export default function Referrals() {
+  usePageTitle("Refer & Earn", "Share your referral link: new creators get 1,000 welcome Visual Bucs, and you earn a revenue share as they grow.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();

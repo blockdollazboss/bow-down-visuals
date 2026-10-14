@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -122,6 +123,7 @@ function fitBar(score: number): string {
 }
 
 export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" | "pitch" | "marketplace" }) {
+  usePageTitle("Brand Deals", "Find brand partnerships, sponsorships, and deals matched to your audience — plus AI pitch drafts and outreach tracking.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, profile, getAccessToken, refreshProfile } = useAuth();

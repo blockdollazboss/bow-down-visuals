@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
   MAX_COMMENTS,
   parseCommentLines,
@@ -457,6 +458,7 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
 }
 
 export default function CommunityManager() {
+  usePageTitle("Community Manager", "Your AI community manager — moderation queue, smart reply drafts, sentiment dashboard, and superfan radar.");
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const isLight = useIsLightTheme();

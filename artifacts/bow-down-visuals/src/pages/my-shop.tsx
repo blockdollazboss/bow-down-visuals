@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -49,6 +50,7 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:pointer-events-none";
 
 export default function MyShop() {
+  usePageTitle("My Shop", "Your own storefront on Bow Down Visuals — sell products with AI-written descriptions, images, and your own domain.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();

@@ -29,7 +29,7 @@ export default function CaptionPacks() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
-    "Social Media Caption Packs — Free Ideas & AI Generator | Bow Down Visuals",
+    "Social Media Caption Packs — Free Ideas & AI Generator",
     "Browse free caption packs for launches, promos, and everyday posts. Click any pack to generate captions with AI."
   );
   const [category, setCategory] = useState<string>("All");

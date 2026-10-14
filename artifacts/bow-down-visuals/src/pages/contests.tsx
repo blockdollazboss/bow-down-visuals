@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -75,6 +76,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function Contests() {
+  usePageTitle("Contests", "Run fan contests and giveaways with entry tracking and a provably fair winner draw.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();

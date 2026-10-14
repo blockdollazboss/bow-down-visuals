@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -65,6 +66,7 @@ function priceFor(beat: Beat, tier: string): number {
 }
 
 export default function Beats() {
+  usePageTitle("Beat Marketplace", "Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();

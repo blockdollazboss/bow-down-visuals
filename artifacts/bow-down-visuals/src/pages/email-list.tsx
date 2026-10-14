@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useState, useEffect, useCallback } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
@@ -73,6 +74,7 @@ const tabBtn = (active: boolean) =>
  }`;
 
 export default function EmailListBuilder() {
+  usePageTitle("Email List", "Own your audience: hosted signup pages, embeddable forms, AI newsletter drafts, and subscriber tools.");
   const isLight = useIsLightTheme();
  const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();

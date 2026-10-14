@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -62,6 +63,7 @@ const inputCls =
   "w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-[#d4af37]/60 focus:outline-none";
 
 export default function PressKitBuilder() {
+  usePageTitle("Press Kit", "Build an electronic press kit with an AI-written bio, photos, top tracks, and booking contact — published as a shareable page.");
   const isLight = useIsLightTheme();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

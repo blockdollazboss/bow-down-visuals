@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -87,6 +88,7 @@ const ghostBtn =
 type Tab = "products" | "overlay" | "dashboard";
 
 export default function LiveShopping() {
+  usePageTitle("Live Shopping", "Sell products during live streams — pin products, fire purchase alerts, and track revenue per stream.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();

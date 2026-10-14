@@ -41,7 +41,7 @@ export default function VideoTemplates() {
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   usePageTitle(
-    "Video Edit Templates — Pro Auto Edits | Bow Down Visuals",
+    "Video Edit Templates — Pro Auto Edits",
     "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
   );
   const [category, setCategory] = useState("All");

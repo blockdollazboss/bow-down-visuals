@@ -21,7 +21,7 @@ export default function HookTemplates() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
-    "Video Hook Templates — Free Ideas & AI Generator | Bow Down Visuals",
+    "Video Hook Templates — Free Ideas & AI Generator",
     "Browse free video hook templates for Shorts, TikTok, and Reels. Click any template to generate scroll-stopping hooks with AI."
   );
   const [category, setCategory] = useState<string>("All");

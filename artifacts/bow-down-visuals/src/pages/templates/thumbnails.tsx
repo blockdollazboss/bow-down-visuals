@@ -21,7 +21,7 @@ export default function ThumbnailTemplates() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(
-    "YouTube Thumbnail Templates — Free Ideas & AI Generator | Bow Down Visuals",
+    "YouTube Thumbnail Templates — Free Ideas & AI Generator",
     "Browse free YouTube thumbnail templates for fitness, gaming, podcasts, finance and more. Click any template to generate it with AI."
   );
   const [category, setCategory] = useState("All");

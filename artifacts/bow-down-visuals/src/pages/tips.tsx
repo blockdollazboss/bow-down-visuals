@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
@@ -55,6 +56,7 @@ const cardClass = (isLight: boolean) =>
 const DEFAULT_SUGGESTED = "5, 10, 25";
 
 export default function Tips() {
+  usePageTitle("Tip Jar", "Set up your public tip page, share your link, and let fans support your work directly.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();

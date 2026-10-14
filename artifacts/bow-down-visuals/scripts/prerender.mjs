@@ -24,11 +24,11 @@ const ROUTES = [
       "Choose your creator plan. Beta members lock in the founding rate and get bonus credits when Bow Down Visuals' AI song, video, and promo tools go live.",
   },
   {
-    path: "/waitlist",
-    outFile: "waitlist/index.html",
-    title: "Join the Waitlist — Bow Down Visuals",
+    path: "/beta-access",
+    outFile: "beta-access/index.html",
+    title: "Beta Access — Bow Down Visuals",
     description:
-      "Join the Bow Down Visuals waitlist for early access to AI-powered song, music video, and promo clip creation built for independent artists.",
+      "Get early access to Bow Down Visuals — the AI content creation studio for content creators: songs, music videos, promo clips, and more.",
   },
   {
     path: "/tools",

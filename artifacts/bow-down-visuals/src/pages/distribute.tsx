@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Disc3, Sparkles, Loader2, Plus, Trash2, Rocket, CheckCircle2,
@@ -2951,6 +2952,7 @@ function ReleasePlanTab() {
 /* ── page ────────────────────────────────────────────────────────────────── */
 
 export default function Distribute({ initialTab }: { initialTab?: "releases" | "new" | "plan" }) {
+  usePageTitle("Distribute", "Distribute your music to streaming platforms — plan releases, build your catalog, and manage every release in one dashboard.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();

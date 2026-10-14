@@ -64,7 +64,7 @@ export default function TemplatesHub() {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   usePageTitle(
-    "Free Creator Templates — Thumbnails, Hooks & Captions | Bow Down Visuals",
+    "Free Creator Templates — Thumbnails, Hooks & Captions",
     "Free templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Click any template to generate it with AI."
   );
 

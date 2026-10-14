@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
 import {
   Video, Loader2, Sparkles, Settings2, Inbox, BarChart3, CheckCircle2,
@@ -84,6 +85,7 @@ const inputCls = "w-full bg-black border border-white/10 rounded-lg px-3 py-2 te
 const labelCls = "block text-xs font-semibold text-white/50 uppercase tracking-wide mb-1.5";
 
 export default function Shoutouts() {
+  usePageTitle("Shoutouts", "Sell personalized video shoutouts to fans — set your price and manage requests in one place.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
