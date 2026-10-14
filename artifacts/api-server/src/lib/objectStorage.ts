@@ -443,6 +443,11 @@ export async function ensureSupabaseClipsBucket(): Promise<void> {
 
 export const SHOP_PRODUCTS_BUCKET = "shop-products";
 
+/** Public bucket holding artist reference photos (vaults, cover art,
+ *  branding designs). Legacy rows store its stable /object/public/ URLs
+ *  verbatim — see PUBLIC_STORAGE_BUCKETS below. */
+export const ARTIST_REFERENCES_BUCKET = "artist-references";
+
 /**
  * Ensure the shop-products bucket exists before AI product-image uploads.
  * Same proven REST pattern as ensureVideoExportsBucket: create via the
@@ -723,19 +728,43 @@ export async function uploadFileStreamToSupabaseStorage(
 const KNOWN_STORAGE_BUCKETS: readonly string[] = [
   SUPABASE_CLIPS_BUCKET,
   VIDEO_EXPORTS_BUCKET,
+  ARTIST_REFERENCES_BUCKET,
+  SHOP_PRODUCTS_BUCKET,
+];
+
+/**
+ * Buckets that are PUBLIC on Supabase: their objects serve from stable
+ * `/storage/v1/object/public/<bucket>/<path>` URLs that never expire.
+ * Pre-R2-migration rows hold those URLs verbatim (artist profiles,
+ * vaults, storefronts), so every visitor re-serves the bytes from
+ * Supabase's CDN — the cached-egress class that blew the free-plan
+ * quota in Oct 2026. The parser recognizes the public-URL form for
+ * exactly these buckets (exact project host + exact bucket segment)
+ * so wired read routes can resolve R2-first like any other ref.
+ */
+const PUBLIC_STORAGE_BUCKETS: readonly string[] = [
+  ARTIST_REFERENCES_BUCKET,
+  SHOP_PRODUCTS_BUCKET,
 ];
 
 export interface ParsedStorageRef {
   bucket: string;
   objectPath: string;
+  /** True when the stored value arrived as a public-bucket URL
+   *  (`/storage/v1/object/public/…`). On an R2 miss, refresh returns
+   *  that URL byte-identical instead of minting a signed URL — the
+   *  public URL is stable and still serves the object, so the legacy
+   *  behavior is preserved exactly; only R2 hits change the source. */
+  viaPublicUrl?: boolean;
 }
 
 /**
  * Extract the bucket + object path from a stored value when it refers to one
  * of our storage buckets — either an `r2://<bucket>/<path>` ref, a legacy
- * `supabase://<bucket>/<path>` storage ref, or a previously-minted signed URL
- * under this project's bucket. Returns null for legacy GCS URLs and
- * everything else.
+ * `supabase://<bucket>/<path>` storage ref, a previously-minted signed URL
+ * under this project's bucket, or a stable public URL for one of the
+ * public buckets (flagged `viaPublicUrl`). Returns null for legacy GCS
+ * URLs and everything else.
  */
 export function parseSupabaseStorageRefBucketed(
   value: string,
@@ -785,6 +814,22 @@ export function parseSupabaseStorageRefBucketed(
         return objectPath.length > 0 ? { bucket, objectPath } : null;
       }
     }
+    // Public-bucket URLs stored verbatim in legacy rows:
+    // https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+    // The prefix is built from the configured project URL, so the host
+    // must match THIS project exactly, and the bucket segment must be
+    // one of the public buckets exactly — arbitrary external URLs and
+    // public-form URLs for the private buckets never parse.
+    for (const bucket of PUBLIC_STORAGE_BUCKETS) {
+      const publicPrefix = `${supabaseUrl}/storage/v1/object/public/${bucket}/`;
+      if (value.startsWith(publicPrefix)) {
+        const rest = value.slice(publicPrefix.length).split("?")[0] ?? "";
+        const objectPath = decodeURIComponent(rest);
+        return objectPath.length > 0
+          ? { bucket, objectPath, viaPublicUrl: true }
+          : null;
+      }
+    }
   }
   return null;
 }
@@ -792,9 +837,9 @@ export function parseSupabaseStorageRefBucketed(
 /**
  * Extract the object path from a stored value when it refers to any of our
  * storage buckets — either an `r2://<bucket>/<path>` ref, a legacy
- * `supabase://<bucket>/<path>` storage ref, or a previously-minted signed URL
- * under this project's bucket. Returns null for legacy GCS URLs and
- * everything else.
+ * `supabase://<bucket>/<path>` storage ref, a previously-minted signed URL
+ * under this project's bucket, or a public-bucket URL stored verbatim.
+ * Returns null for legacy GCS URLs and everything else.
  */
 export function parseSupabaseStorageRef(value: string): string | null {
   const parsed = parseSupabaseStorageRefBucketed(value);
@@ -862,6 +907,11 @@ export async function refreshSupabaseStorageUrl(value: string): Promise<string> 
       // R2 error — fall through to the legacy Supabase signer below.
     }
   }
+  // Values that arrived as a public-bucket URL keep their exact legacy
+  // form on an R2 miss: the stable public URL still serves the object,
+  // so there is nothing to re-sign — minting a signed URL would only
+  // make the link expire. Only R2 hits (above) change the source.
+  if (parsed.viaPublicUrl) return value;
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.storage

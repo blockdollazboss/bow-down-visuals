@@ -10,6 +10,7 @@ import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
 import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
@@ -133,7 +134,10 @@ router.get("/artist-vaults", requireAuth, async (req, res) => {
     )
     .orderBy(desc(artistVaultsTable.created_at));
 
-  res.json({ vaults });
+  /* Stored media may be storage refs (mirrored at save) or legacy
+     public-bucket URLs — resolve R2-first / re-sign on every read,
+     same as the creator-profile reads. */
+  res.json({ vaults: await refreshSupabaseStorageUrlsDeep(vaults) });
 });
 
 /* ─── Spotlight slot order ──────────────────────────────────────────────
@@ -295,7 +299,9 @@ router.get("/artist-vaults/:id/links", requireAuth, async (req, res) => {
     }),
   );
 
-  res.json({ links: enriched });
+  /* Linked vault rows ride along in full — same R2-first refresh as
+     the vault list above. */
+  res.json({ links: await refreshSupabaseStorageUrlsDeep(enriched) });
 });
 
 /** Link another character to star in this character's content. */

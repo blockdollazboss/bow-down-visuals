@@ -28,8 +28,10 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { db, songsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { parseSupabaseStorageRefBucketed } from "../../lib/objectStorage";
+import {
+  parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
+} from "../../lib/objectStorage";
 import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -115,11 +117,12 @@ async function downloadSourceAudio(
       }
       const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
       if (parsed) {
-        const { data, error } = await getSupabaseAdmin().storage
-          .from(parsed.bucket)
-          .download(parsed.objectPath);
-        if (!error && data) {
-          return { buffer: Buffer.from(await data.arrayBuffer()), title: song.title };
+        // R2-first dual-stack read (the bucket-keyed R2 leg complements
+        // the audio-stems guess above); Supabase is only touched on an
+        // R2 miss, and null falls through to the stored-URL fetch.
+        const buf = await downloadStorageObjectBuffer(parsed);
+        if (buf) {
+          return { buffer: buf, title: song.title };
         }
       }
     }

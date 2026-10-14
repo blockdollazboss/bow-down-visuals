@@ -22,11 +22,11 @@ import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { freeExpensiveAiLimiter } from "../lib/rate-limit";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 import { separateVocalStems, cleanupWorkdir } from "../lib/stem-separation";
 import { canUseInstantVoiceCloning } from "../lib/elevenlabs";
@@ -310,11 +310,13 @@ async function loadSongBuffer(
     if (song.audio_path) {
       const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
       if (parsed) {
-        const { data, error } = await getSupabaseAdmin().storage
-          .from(parsed.bucket)
-          .download(parsed.objectPath);
-        if (!error && data) {
-          return { buffer: Buffer.from(await data.arrayBuffer()), label: song.title };
+        // R2-first dual-stack read — a direct Supabase download bills
+        // egress even when the object already lives in R2 (and 404s
+        // for R2-only objects). Null = in neither store; the stored
+        // URL fetch below stays as the fallback.
+        const buf = await downloadStorageObjectBuffer(parsed);
+        if (buf) {
+          return { buffer: buf, label: song.title };
         }
       }
     }
