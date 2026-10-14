@@ -738,7 +738,7 @@ export default function LabelPitch() {
                 {/* next steps — hand the finished kit into distribute + scheduler */}
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
-                    onClick={() => setLocation(`/coach?tab=distribute&title=${encodeURIComponent(songTitle || kit.analysis.oneLiner || "")}`)}
+                    onClick={() => setLocation(`/distribute?title=${encodeURIComponent(songTitle || kit.analysis.oneLiner || "")}`)}
                     className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
                   >
                     <Rocket className="h-4 w-4" aria-hidden="true" />

@@ -241,10 +241,12 @@ const SECTIONS: NavSection[] = [
   },
   {
     /* Branding gets its own home (was filed under Monetize). Phase 2
-       fattens this section when storefronts/shop de-host from the Coach. */
+       de-hosted Storefronts and My Shop out of the Coach into here. */
     titleKey: "nav.branding",
     links: [
       { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
+      { href: "/storefronts", labelKey: "nav.storefronts", icon: Store },
+      { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag },
     ],
   },
   {
@@ -253,6 +255,8 @@ const SECTIONS: NavSection[] = [
       { href: "/promote", labelKey: "nav.promote", icon: Megaphone },
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
+      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
+      { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
     ],
   },
   {
@@ -265,12 +269,16 @@ const SECTIONS: NavSection[] = [
       { href: "/explore", labelKey: "nav.explore", icon: Compass },
       { href: "/groups", labelKey: "nav.groups", icon: Users },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
+      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
+      { href: "/contests", labelKey: "nav.contests", icon: Trophy },
     ],
   },
   {
     titleKey: "nav.getPaid",
     links: [
       { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      { href: "/brand-deals", labelKey: "nav.brandDeals", icon: Handshake },
+      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
       { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
       { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
     ],

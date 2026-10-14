@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
  GraduationCap, Sparkles, Loader2, ArrowRight, ArrowLeft, Clock,
  CheckCircle2, Circle, Play, MessageCircleQuestion, Send, Lightbulb,
@@ -18,11 +18,8 @@ import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Guides from "@/pages/guides";
-import CopyrightAssistant from "@/pages/copyright";
-import LlcGuide from "@/pages/llc-guide";
-import CommunityManager from "@/pages/community";
 
-type AcademyTab = "academy" | "guides" | "copyright" | "llc" | "community";
+type AcademyTab = "academy" | "guides";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
  The education hub for creators: a free-to-browse course catalog with
@@ -857,12 +854,32 @@ function CourseDetail(props: CourseDetailProps) {
 }
 
 /* ─── Tabbed wrapper ─── */
+/* Phase 2 bookmark shim: Copyright, LLC Guide and Community Manager
+   are real routes now — old /academy?tab= bookmarks land there. */
+const MOVED_ACADEMY_TABS: Record<string, string> = {
+  copyright: "/copyright",
+  llc: "/llc-guide",
+  community: "/community",
+};
+
 export default function CreatorAcademy() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const dest = MOVED_ACADEMY_TABS[params.get("tab") ?? ""];
+      if (dest) {
+        params.delete("tab");
+        const qs = params.toString();
+        setLocation(qs ? `${dest}?${qs}` : dest, { replace: true });
+      }
+    } catch { /* non-browser — ignore */ }
+  }, [setLocation]);
   const [tab, setTab] = useState<AcademyTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "guides" || q === "copyright" || q === "llc" || q === "community") return q;
+      if (q === "guides") return q;
     } catch { /* non-browser — ignore */ }
     return "academy";
   });
@@ -870,9 +887,6 @@ export default function CreatorAcademy() {
   const TABS: Array<{ key: AcademyTab; label: string }> = [
     { key: "academy", label: t("academy.tabAcademy", { defaultValue: "Academy" }) },
     { key: "guides", label: t("academy.tabGuides", { defaultValue: "Guides" }) },
-    { key: "copyright", label: t("academy.tabCopyright", { defaultValue: "Copyright" }) },
-    { key: "llc", label: t("academy.tabLlc", { defaultValue: "LLC Guide" }) },
-    { key: "community", label: t("academy.tabCommunity", { defaultValue: "Community" }) },
   ];
 
   return (
@@ -895,7 +909,7 @@ export default function CreatorAcademy() {
           ))}
         </div>
       </div>
-      {tab === "academy" ? <AcademyMain /> : tab === "guides" ? <Guides /> : tab === "copyright" ? <CopyrightAssistant /> : tab === "llc" ? <LlcGuide /> : <CommunityManager />}
+      {tab === "academy" ? <AcademyMain /> : <Guides />}
     </div>
   );
 }

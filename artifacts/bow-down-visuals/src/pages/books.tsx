@@ -468,7 +468,7 @@ function BookEditor({
             Print Book
           </Button>
           <Button
-            onClick={() => setLocation(`/coach?tab=storefronts&title=${encodeURIComponent(book.title)}`)}
+            onClick={() => setLocation(`/storefronts?title=${encodeURIComponent(book.title)}`)}
             className="bg-[#C9A84C] text-black font-bold hover:brightness-110"
             title={t("books.publishSellTitle", { defaultValue: "Publish & sell your book" })}
           >

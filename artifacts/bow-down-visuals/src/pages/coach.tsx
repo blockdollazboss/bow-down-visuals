@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { Suspense, lazy, useEffect, useState } from "react";
-import { Link, useSearch } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import {
  DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
@@ -17,21 +17,8 @@ import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
 
-/* ── Money-hub tabs: former standalone pages, now lazy-loaded tabs ─────── */
-const BrandDeals = lazy(() => import("@/pages/brand-deals"));
-const Shoutouts = lazy(() => import("@/pages/shoutouts"));
-const Tips = lazy(() => import("@/pages/tips"));
-const Beats = lazy(() => import("@/pages/beats"));
-const Memberships = lazy(() => import("@/pages/memberships"));
-const Storefronts = lazy(() => import("@/pages/storefronts"));
-const MyShop = lazy(() => import("@/pages/my-shop"));
-const Distribute = lazy(() => import("@/pages/distribute"));
-const PressKit = lazy(() => import("@/pages/press-kit"));
-const EmailList = lazy(() => import("@/pages/email-list"));
-const Collabs = lazy(() => import("@/pages/collabs"));
-const Contests = lazy(() => import("@/pages/contests"));
-const Referrals = lazy(() => import("@/pages/referrals"));
-const TeamPage = lazy(() => import("@/pages/team"));
+/* ── Money-hub pages de-hosted in Phase 2: they are real routes now
+   (see MORE_COACH_TOOLS directory below). ─────────────────────────── */
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -142,11 +129,7 @@ export default function MonetizationCoach() {
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
 /* ── Money-hub tab groups ─────────────────────────────────────────────── */
-type CoachTab =
-  | "plan" | "niche" | "money"
-  | "brand-deals" | "shoutouts" | "tips" | "beats" | "memberships"
-  | "distribute" | "storefronts" | "my-shop"
-  | "press-kit" | "email-list" | "collabs" | "contests" | "referrals" | "team";
+type CoachTab = "plan" | "niche" | "money";
 
 interface CoachTabDef { key: CoachTab; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
 interface CoachTabGroup { id: string; labelKey: string; defaultLabel: string; tabs: CoachTabDef[]; }
@@ -165,59 +148,99 @@ const COACH_TAB_GROUPS: CoachTabGroup[] = [
       { key: "money", labelKey: "coach.tabMoneyTracker", defaultLabel: "Money Tracker", Icon: Wallet },
     ],
   },
-  {
-    id: "earn", labelKey: "coach.tabGroupEarn", defaultLabel: "Earn",
-    tabs: [
-      { key: "brand-deals", labelKey: "coach.tabBrandDeals", defaultLabel: "Brand Deals", Icon: Handshake },
-      { key: "shoutouts", labelKey: "coach.tabShoutouts", defaultLabel: "Shoutouts", Icon: Megaphone },
-      { key: "tips", labelKey: "coach.tabTips", defaultLabel: "Tips", Icon: Coffee },
-      { key: "beats", labelKey: "coach.tabBeats", defaultLabel: "Sell Beats", Icon: Disc3 },
-      { key: "memberships", labelKey: "coach.tabMemberships", defaultLabel: "Memberships", Icon: Crown },
-    ],
-  },
-  {
-    id: "sell", labelKey: "coach.tabGroupSell", defaultLabel: "Sell",
-    tabs: [
-      { key: "distribute", labelKey: "coach.tabDistribute", defaultLabel: "Distribute", Icon: Rocket },
-      { key: "storefronts", labelKey: "coach.tabStorefronts", defaultLabel: "Storefronts", Icon: Store },
-      { key: "my-shop", labelKey: "coach.tabMyShop", defaultLabel: "My Shop", Icon: ShoppingBag },
-    ],
-  },
-  {
-    id: "grow", labelKey: "coach.tabGroupGrow", defaultLabel: "Grow",
-    tabs: [
-      { key: "press-kit", labelKey: "coach.tabPressKit", defaultLabel: "Press Kit", Icon: Newspaper },
-      { key: "email-list", labelKey: "coach.tabEmailList", defaultLabel: "Email List", Icon: Mail },
-      { key: "collabs", labelKey: "coach.tabCollabs", defaultLabel: "Collabs", Icon: Users },
-      { key: "contests", labelKey: "coach.tabContests", defaultLabel: "Contests", Icon: Trophy },
-      { key: "referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
-      { key: "team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
-    ],
-  },
 ];
 
 const ALL_COACH_TABS = COACH_TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
 
-function HubTabFallback() {
-  return (
-    <div className="flex items-center justify-center py-24 text-white/40">
-      <Loader2 className="h-6 w-6 animate-spin" />
-    </div>
-  );
-}
+/* Phase 2: the money-hub pages are real routes now. Old /coach?tab=
+   bookmarks for a moved tab redirect to the page itself (shim in the
+   deep-link effect below). */
+const MOVED_COACH_TABS: Record<string, string> = {
+  "brand-deals": "/brand-deals",
+  distribute: "/distribute",
+  tips: "/tips",
+  beats: "/beats",
+  memberships: "/memberships",
+  shoutouts: "/shoutouts",
+  referrals: "/referrals",
+  team: "/team",
+  "press-kit": "/press-kit",
+  "email-list": "/email-list",
+  collabs: "/collabs",
+  contests: "/contests",
+  storefronts: "/storefronts",
+  "my-shop": "/my-shop",
+};
+
+/* ── More money tools: static directory of the de-hosted pages,
+   grouped by their Phase-1 area. ─────────────────────────────────── */
+interface CoachToolLink { href: string; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
+interface CoachToolGroup { labelKey: string; defaultLabel: string; links: CoachToolLink[]; }
+
+const MORE_COACH_TOOLS: CoachToolGroup[] = [
+  {
+    labelKey: "nav.getPaid", defaultLabel: "Business / Get Paid",
+    links: [
+      { href: "/brand-deals", labelKey: "coach.tabBrandDeals", defaultLabel: "Brand Deals", Icon: Handshake },
+      { href: "/shoutouts", labelKey: "coach.tabShoutouts", defaultLabel: "Shoutouts", Icon: Megaphone },
+      { href: "/tips", labelKey: "coach.tabTips", defaultLabel: "Tips", Icon: Coffee },
+      { href: "/beats", labelKey: "coach.tabBeats", defaultLabel: "Sell Beats", Icon: Disc3 },
+      { href: "/memberships", labelKey: "coach.tabMemberships", defaultLabel: "Memberships", Icon: Crown },
+      { href: "/distribute", labelKey: "coach.tabDistribute", defaultLabel: "Distribute", Icon: Rocket },
+      { href: "/referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
+      { href: "/team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
+    ],
+  },
+  {
+    labelKey: "nav.branding", defaultLabel: "Branding",
+    links: [
+      { href: "/storefronts", labelKey: "coach.tabStorefronts", defaultLabel: "Storefronts", Icon: Store },
+      { href: "/my-shop", labelKey: "coach.tabMyShop", defaultLabel: "My Shop", Icon: ShoppingBag },
+    ],
+  },
+  {
+    labelKey: "nav.promote", defaultLabel: "Promote",
+    links: [
+      { href: "/press-kit", labelKey: "coach.tabPressKit", defaultLabel: "Press Kit", Icon: Newspaper },
+      { href: "/email-list", labelKey: "coach.tabEmailList", defaultLabel: "Email List", Icon: Mail },
+    ],
+  },
+  {
+    labelKey: "nav.social", defaultLabel: "Social",
+    links: [
+      { href: "/collabs", labelKey: "coach.tabCollabs", defaultLabel: "Collabs", Icon: Users },
+      { href: "/contests", labelKey: "coach.tabContests", defaultLabel: "Contests", Icon: Trophy },
+    ],
+  },
+];
 
  const [activeTab, setActiveTab] = useState<CoachTab>("plan");
  const search = useSearch();
 
  /* Deep-link: /coach?tab=<coach-tab> (e.g. from a paid brand deal or
-    invoice) lands directly on that tab. Optional &subtab= forwards an
-    inner tab to embedded pages (distribute: releases|new|plan;
-    brand-deals: finder|pitch|marketplace). */
- const distributeSubTab = new URLSearchParams(search).get("subtab");
+    invoice) lands directly on that tab. Phase 2 bookmark shim: a tab
+    that moved out redirects to its real route — &subtab= converts to
+    ?tab= (the param Brand Deals / Distribute read for their inner
+    tabs: finder|pitch|marketplace, releases|new|plan) and any other
+    params ride along. */
+ const [, setLocation] = useLocation();
  useEffect(() => {
- const tab = new URLSearchParams(search).get("tab");
+ const params = new URLSearchParams(search);
+ const tab = params.get("tab");
+ const dest = tab ? MOVED_COACH_TABS[tab] : undefined;
+ if (dest) {
+ params.delete("tab");
+ const subtab = params.get("subtab");
+ if (subtab) {
+ params.set("tab", subtab);
+ params.delete("subtab");
+ }
+ const qs = params.toString();
+ setLocation(qs ? `${dest}?${qs}` : dest, { replace: true });
+ return;
+ }
  if (tab && (ALL_COACH_TABS as string[]).includes(tab)) setActiveTab(tab as CoachTab);
- }, [search]);
+ }, [search, setLocation]);
 
  function togglePlatform(key: PlatformKey) {
  setPlatforms((prev) =>
@@ -355,46 +378,6 @@ function HubTabFallback() {
  <MoneyTrackerPanel />
  ) : activeTab === "niche" ? (
  <NicheAnalyzerPanel />
- ) : activeTab !== "plan" ? (
- /* ── Embedded money-hub pages (lazy) ──────────────────────────── */
- <Suspense fallback={<HubTabFallback />}>
- <div className="relative mt-6">
- {activeTab === "brand-deals" && <BrandDeals key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "pitch" || distributeSubTab === "finder" || distributeSubTab === "marketplace" ? distributeSubTab : undefined} />}
- {activeTab === "shoutouts" && <Shoutouts />}
- {activeTab === "tips" && <Tips />}
- {activeTab === "beats" && <Beats />}
- {activeTab === "memberships" && <Memberships />}
- {activeTab === "distribute" && (
- <>
- <Distribute key={distributeSubTab ?? "d"} initialTab={distributeSubTab === "plan" || distributeSubTab === "new" || distributeSubTab === "releases" ? distributeSubTab : undefined} />
- {/* handoff: released music needs listeners — turn them into earners via referrals */}
- <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
- <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.10]">
- <Gift className="h-5 w-5 text-primary" aria-hidden="true" />
- </div>
- <div className="min-w-[200px] flex-1">
- <p className="text-sm font-black text-white">{t("coach.distributeReferralTitle", { defaultValue: "Music out? Get paid twice." })}</p>
- <p className="mt-0.5 text-xs text-white/50">{t("coach.distributeReferralSub", { defaultValue: "Every listener you bring earns you 25% of their credit purchases for 90 days." })}</p>
- </div>
- <button
- onClick={() => setActiveTab("referrals")}
- className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
- >
- {t("coach.distributeReferralCta", { defaultValue: "Open Referrals" })}<ArrowRight className="h-4 w-4" aria-hidden="true" />
- </button>
- </div>
- </>
- )}
- {activeTab === "storefronts" && <Storefronts />}
- {activeTab === "my-shop" && <MyShop />}
- {activeTab === "press-kit" && <PressKit />}
- {activeTab === "email-list" && <EmailList />}
- {activeTab === "collabs" && <Collabs />}
- {activeTab === "contests" && <Contests />}
- {activeTab === "referrals" && <Referrals />}
- {activeTab === "team" && <TeamPage />}
- </div>
- </Suspense>
  ) : (
  <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}
@@ -664,27 +647,27 @@ function HubTabFallback() {
 
  {/* action buttons — the plan is a starting line, not a display */}
  <div className="mt-6 flex flex-wrap justify-center gap-3">
- <button
- onClick={() => setActiveTab("distribute")}
+ <Link
+ href="/distribute"
  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
  >
  <Rocket className="h-4 w-4" aria-hidden="true" />
  {t("coach.planActDistribute", { defaultValue: "Distribute music" })}
- </button>
- <button
- onClick={() => setActiveTab("brand-deals")}
+ </Link>
+ <Link
+ href="/brand-deals"
  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
  >
  <Handshake className="h-4 w-4" aria-hidden="true" />
  {t("coach.planActDeals", { defaultValue: "Find brand deals" })}
- </button>
- <button
- onClick={() => setActiveTab("referrals")}
+ </Link>
+ <Link
+ href="/referrals"
  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
  >
  <Gift className="h-4 w-4" aria-hidden="true" />
  {t("coach.planActReferrals", { defaultValue: "Grow referrals" })}
- </button>
+ </Link>
  </div>
 
  <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/50">
@@ -712,6 +695,37 @@ function HubTabFallback() {
  )}
  </>
  )}
+
+ {/* ── MORE MONEY TOOLS directory ─────────────────────────────── */}
+ <div className="relative mt-12">
+ <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <DollarSign className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.moreToolsTitle", { defaultValue: "More money tools" })}
+ </p>
+ <div className="grid gap-3 sm:grid-cols-2">
+ {MORE_COACH_TOOLS.map((group) => (
+ <div
+ key={group.labelKey}
+ className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+ >
+ <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+ {t(group.labelKey, { defaultValue: group.defaultLabel })}
+ </p>
+ <div className="flex flex-wrap gap-1.5">
+ {group.links.map((link) => (
+ <Link
+ key={link.href}
+ href={link.href}
+ className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] font-bold text-white/70 transition hover:border-primary/40 hover:text-white"
+ >
+ <link.Icon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(link.labelKey, { defaultValue: link.defaultLabel })}
+ </Link>
+ ))}
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">

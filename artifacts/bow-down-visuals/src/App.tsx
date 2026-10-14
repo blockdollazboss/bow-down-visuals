@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, useSearch, Redirect } from "wouter";
 import { CreateRedirect } from "@/components/create-redirect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
@@ -170,6 +170,26 @@ const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
 const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
 const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
 const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
+/* ── Phase 2 de-hosted pages: formerly Coach tabs, now real routes ── */
+const BrandDeals = lazyWithRetry(() => import("@/pages/brand-deals"));
+const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
+const Tips = lazyWithRetry(() => import("@/pages/tips"));
+const Beats = lazyWithRetry(() => import("@/pages/beats"));
+const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
+const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
+const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
+const TeamPage = lazyWithRetry(() => import("@/pages/team"));
+const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
+const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
+const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
+const Contests = lazyWithRetry(() => import("@/pages/contests"));
+const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
+const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+/* ── Phase 2: Academy / Go Live de-hosted pages ── */
+const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
+const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
+const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
+const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
 const MyMusic = lazyWithRetry(() => import("@/pages/my-music"));
@@ -302,6 +322,27 @@ function QueryPreservingRedirect({ to }: { to: string }) {
     navigate(qs ? `${base}?${qs}` : base, { replace: true });
   }, [to, navigate]);
   return null;
+}
+
+/* Phase 2 route wrappers: inside Coach, ?subtab= was forwarded to these
+   two pages as initialTab. The wrappers keep that contract on the
+   standalone routes (the pages also self-read ?tab= when it is absent). */
+function BrandDealsRoute() {
+  const subtab = new URLSearchParams(useSearch()).get("subtab");
+  return (
+    <BrandDeals
+      initialTab={subtab === "pitch" || subtab === "finder" || subtab === "marketplace" ? subtab : undefined}
+    />
+  );
+}
+
+function DistributeRoute() {
+  const subtab = new URLSearchParams(useSearch()).get("subtab");
+  return (
+    <Distribute
+      initialTab={subtab === "plan" || subtab === "new" || subtab === "releases" ? subtab : undefined}
+    />
+  );
 }
 
 function AuthedLayout({ children }: { children: ReactNode }) {
@@ -494,26 +535,37 @@ function AppShell() {
           <Route path="/cursor-lab"><CursorLab /></Route>
           <Route path="/tour"><TourPlanner /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          {/* Phase 2: de-hosted money-hub pages — real routes, no
+              ProtectedRoute (parity with their Coach-tab rendering;
+              the pages own their signed-out states). */}
+          <Route path="/brand-deals"><BrandDealsRoute /></Route>
+          <Route path="/distribute"><DistributeRoute /></Route>
+          <Route path="/tips"><Tips /></Route>
+          <Route path="/beats"><Beats /></Route>
+          <Route path="/memberships"><Memberships /></Route>
+          <Route path="/shoutouts"><Shoutouts /></Route>
+          <Route path="/referrals"><Referrals /></Route>
+          <Route path="/team"><TeamPage /></Route>
+          <Route path="/press-kit"><PressKit /></Route>
+          <Route path="/email-list"><EmailList /></Route>
+          <Route path="/collabs"><Collabs /></Route>
+          <Route path="/contests"><Contests /></Route>
+          <Route path="/storefronts"><Storefronts /></Route>
+          <Route path="/my-shop"><MyShop /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><Redirect to="/scheduler?tab=calendar" /></Route>
-          <Route path="/sponsors"><Redirect to="/coach?tab=brand-deals&subtab=marketplace" /></Route>
+          <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
-          <Route path="/brand-deals"><Redirect to="/coach?tab=brand-deals" /></Route>
-          <Route path="/distribute"><Redirect to="/coach?tab=distribute" /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
-          <Route path="/tips"><Redirect to="/coach?tab=tips" /></Route>
           <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
           <Route path="/trending"><Trending /></Route>
           <Route path="/remix"><Remix /></Route>
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
-          <Route path="/referrals"><Redirect to="/coach?tab=referrals" /></Route>
-          <Route path="/team"><Redirect to="/coach?tab=team" /></Route>
-          <Route path="/storefronts"><Redirect to="/coach?tab=storefronts" /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
@@ -526,8 +578,8 @@ function AppShell() {
           <Route path="/analytics-hub"><AnalyticsHub /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
           <Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>
-          <Route path="/copyright"><Redirect to="/academy?tab=copyright" /></Route>
-          <Route path="/llc-guide"><Redirect to="/academy?tab=llc" /></Route>
+          <Route path="/copyright"><CopyrightAssistant /></Route>
+          <Route path="/llc-guide"><LlcGuide /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:id"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
@@ -596,9 +648,8 @@ function AppShell() {
                 <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
                 <Route path="/website-builder"><ProtectedRoute><WebsiteBuilder /></ProtectedRoute></Route>
                 <Route path="/detector"><ProtectedRoute><MediaDetector /></ProtectedRoute></Route>
-                <Route path="/sponsorship-outreach"><Redirect to="/coach?tab=brand-deals&subtab=pitch" /></Route>
-                <Route path="/shoutouts"><Redirect to="/coach?tab=shoutouts" /></Route>
-                <Route path="/release-checklist"><Redirect to="/coach?tab=distribute&subtab=plan" /></Route>
+                <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch" /></Route>
+                <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route path="/discord-bot"><Redirect to="/go-live?tab=discord" /></Route>
                 <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
@@ -618,29 +669,22 @@ function AppShell() {
                 <Route path="/ai-audio"><Redirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
                 <Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>
-                <Route path="/press-kit"><Redirect to="/coach?tab=press-kit" /></Route>
-                <Route path="/email-list"><Redirect to="/coach?tab=email-list" /></Route>
-                <Route path="/collabs"><Redirect to="/coach?tab=collabs" /></Route>
                 <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
                 <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
-                <Route path="/contests"><Redirect to="/coach?tab=contests" /></Route>
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
-                <Route path="/community"><Redirect to="/academy?tab=community" /></Route>
+                <Route path="/community"><CommunityManager /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
                 <Route path="/mix-master"><Redirect to="/audio-studio?tab=master" /></Route>
                 <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
                 <Route path="/sfx"><QueryPreservingRedirect to="/ai-audio?tab=sfx" /></Route>
                 <Route path="/samples"><QueryPreservingRedirect to="/ai-audio?tab=samples" /></Route>
                 <Route path="/podcast"><Redirect to="/audio-studio?tab=podcast" /></Route>
-                <Route path="/beats"><Redirect to="/coach?tab=beats" /></Route>
                 <Route path="/beat-maker"><QueryPreservingRedirect to="/ai-audio?tab=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
-                <Route path="/live-shopping"><Redirect to="/go-live?tab=shopping" /></Route>
-                <Route path="/memberships"><Redirect to="/coach?tab=memberships" /></Route>
+                <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
-                <Route path="/my-shop"><Redirect to="/coach?tab=my-shop" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
                 <Route path="/my-music"><ProtectedRoute><MyMusic /></ProtectedRoute></Route>

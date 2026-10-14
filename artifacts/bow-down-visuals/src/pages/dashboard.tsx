@@ -459,7 +459,7 @@ export default function Dashboard() {
                     {money.next ? t("dashboard.next_move_followup", { name: money.next.sponsorName }) : t("dashboard.next_move_find")}
                   </p>
                 </div>
-                <Link href="/coach?tab=brand-deals">
+                <Link href="/brand-deals">
                   <Button size="sm" className="gold-glow font-black shrink-0">{t("dashboard.open_deals")}</Button>
                 </Link>
               </>
@@ -472,7 +472,7 @@ export default function Dashboard() {
                   <p className="text-sm font-black text-white">{t("dashboard.money_empty_title")}</p>
                   <p className="text-[11px] text-white/35 mt-0.5">{t("dashboard.money_empty_sub")}</p>
                 </div>
-                <Link href="/coach?tab=brand-deals">
+                <Link href="/brand-deals">
                   <Button size="sm" variant="outline" className="font-bold shrink-0 border-primary/30 text-primary hover:bg-primary/10">{t("dashboard.find_deals")}</Button>
                 </Link>
               </>
@@ -490,7 +490,7 @@ export default function Dashboard() {
               { tab: "shoutouts", label: t("coach.tabShoutouts", { defaultValue: "Shoutouts" }), Icon: Megaphone },
               { tab: "memberships", label: t("coach.tabMemberships", { defaultValue: "Memberships" }), Icon: Crown },
             ].map(({ tab, label, Icon }) => (
-              <Link key={tab} href={`/coach?tab=${tab}`}>
+              <Link key={tab} href={`/${tab}`}>
                 <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="h-10 w-10 mx-auto rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-2.5 group-hover:scale-110 transition-transform">
                     <Icon className="h-5 w-5" />

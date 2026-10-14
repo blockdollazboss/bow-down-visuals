@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Radio, Square, Loader2, CheckCircle2, AlertTriangle, CalendarPlus,
   Trash2, ArrowLeft, Bell, BellOff, Clock, Gamepad2,
@@ -42,11 +42,10 @@ interface Stream {
 
 import ShowFinder from "@/pages/shows";
 import DiscordBotSetup from "@/pages/discord-bot";
-import LiveShopping from "@/pages/live-shopping";
 import GamersHub from "@/pages/gamers";
 import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 
-type LiveTab = "golive" | "shows" | "discord" | "shopping" | "gamers" | "copilot";
+type LiveTab = "golive" | "shows" | "discord" | "gamers" | "copilot";
 
 function GoLiveMain() {
   const isLight = useIsLightTheme();
@@ -417,10 +416,23 @@ function GoLiveMain() {
 /* ─── Tabbed wrapper ─── */
 export default function GoLive() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+  /* Phase 2 bookmark shim: Live Shopping is a real route now —
+     old /go-live?tab=shopping bookmarks land there. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "shopping") {
+        params.delete("tab");
+        const qs = params.toString();
+        setLocation(qs ? `/live-shopping?${qs}` : "/live-shopping", { replace: true });
+      }
+    } catch { /* non-browser — ignore */ }
+  }, [setLocation]);
   const [tab, setTab] = useState<LiveTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "shows" || q === "discord" || q === "shopping" || q === "gamers" || q === "copilot") return q;
+      if (q === "shows" || q === "discord" || q === "gamers" || q === "copilot") return q;
     } catch { /* non-browser — ignore */ }
     return "golive";
   });
@@ -429,7 +441,6 @@ export default function GoLive() {
     { key: "golive", label: t("goLive.tabGoLive", { defaultValue: "Go Live" }) },
     { key: "shows", label: t("goLive.tabShows", { defaultValue: "Shows" }) },
     { key: "discord", label: t("goLive.tabDiscord", { defaultValue: "Discord" }) },
-    { key: "shopping", label: t("goLive.tabShopping", { defaultValue: "Live Shopping" }) },
     { key: "gamers", label: t("goLive.tabGamers", { defaultValue: "Gamers" }) },
     { key: "copilot", label: t("goLive.tabCopilot", { defaultValue: "Stream Copilot" }) },
   ];
@@ -454,7 +465,7 @@ export default function GoLive() {
           ))}
         </div>
       </div>
-      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "shopping" ? <LiveShopping /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
     </div>
   );
 }

@@ -118,7 +118,7 @@ const STUDIO = [
     icon: BadgeDollarSign,
     tools: [
       { icon: DollarSign, href: "/coach", featured: false },
-      { icon: Handshake, href: "/coach?tab=brand-deals", featured: false },
+      { icon: Handshake, href: "/brand-deals", featured: false },
       { icon: Shirt, href: "/branding-kit?tab=shop", featured: false },
     ],
   },

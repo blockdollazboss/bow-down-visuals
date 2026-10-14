@@ -6,10 +6,11 @@ import {
   ListMusic, ChevronRight, BadgeCheck, ArrowLeft, ArrowRight,
   Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash, ShieldCheck,
   ExternalLink, Megaphone, Mail, Type, BarChart3, Vault, Share2,
-  Circle, Layers, Album, ListChecks,
+  Circle, Layers, Album, ListChecks, Gift,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -3253,6 +3254,25 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
             )}
           </div>
         )}
+
+        {/* ── Referrals handoff — relocated from Coach's Distribute tab
+            in Phase 2: released music needs listeners; turn them into
+            earners via referrals. ──────────────────────────────── */}
+        <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.10]">
+            <Gift className="h-5 w-5 text-primary" aria-hidden="true" />
+          </div>
+          <div className="min-w-[200px] flex-1">
+            <p className="text-sm font-black text-white">{t("coach.distributeReferralTitle", { defaultValue: "Music out? Get paid twice." })}</p>
+            <p className="mt-0.5 text-xs text-white/50">{t("coach.distributeReferralSub", { defaultValue: "Every listener you bring earns you 25% of their credit purchases for 90 days." })}</p>
+          </div>
+          <Link
+            href="/referrals"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+          >
+            {t("coach.distributeReferralCta", { defaultValue: "Open Referrals" })}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
       </main>
 
 
