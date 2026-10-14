@@ -8,16 +8,30 @@
    LAYERING (owner directive 2026-10-13): the set rides at z-[20] — in
    front of the ground fog/smoke (z-2) and in front of the hero's lower
    rows in the seam overlap, like foreground film equipment. The smoke
-   layer sits below the set and below the text. The headline copy (z-10)
-   does not geometrically overlap the set; where the set's pull-up
-   crosses the hero's bottom rows, the set paints over them by the
-   owner's explicit order.
+   layer sits below the set and below the text.
    SIZE (owner directive 2026-10-13, later the same day): "make the
    studio set taller — like triple its size." Strip 210/240px ->
    630/720px, scene re-authored on a 1440x720 canvas; each equipment
    group scales up around the shared floor line (lights x2.8, camera
    x2.2, chair x1.9). Every foot lands exactly on the floor (y=720) and
    the whole set fits the frame at every width.
+   SIZE — SUPERSEDED (owner verdict 2026-10-14, staging screenshot):
+   "The studio set is way too big." At the tripled size the strip's
+   pull-up carried the panels, camera and boom up through the hero's
+   copy column — the boom crossed the headline, the right softbox
+   chopped the body copy mid-line, the left panel covered the small
+   King in the backdrop art. The set is now a BOUNDED STAGE: the scene
+   renders at ~53% (svg wrapper capped at 765px wide on sm+, 500px on
+   phones) and the strip stands mostly BELOW the hero's bottom edge
+   (only 150/216px of pull-up, carrying the floor gradient and the
+   boom's butt end into the hero's bottom fog zone). The geometry —
+   not z-index — keeps every set piece clear of the copy column
+   (whose bottom edge sits 64px above the hero's bottom) and clear
+   of the small King at every width: measured zero overlaps at
+   2048px and 390px in both themes (preview-rig boxes, 2026-10-14).
+   The triple-size + paint-over orders above are retired by this
+   ruling; layer order itself is unchanged (fog -> set -> King ->
+   copy).
    REDESIGN (owner directive 2026-10-13, evening): at the tripled size
    the original strip-drawn camera read as "a blob with a cone" (owner:
    "I don't know what this supposed to be — we gonna have to redesign
@@ -43,18 +57,27 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-[20] -mt-[600px] h-[630px] w-full sm:-mt-[688px] sm:h-[720px]"
+      className="pointer-events-none relative z-[20] -mt-[150px] h-[360px] w-full sm:-mt-[216px] sm:h-[560px]"
     >
       {/* Stage floor — the actual seam cover: a soft gradient floor that
-          fades in over the hero's bottom edge and melts into the band. */}
+          fades in over the hero's bottom edge and melts into the band.
+          The seam (hero's bottom edge) now crosses the strip at ~42%
+          (base) / ~39% (sm+), so the strong zone of the gradient is
+          authored around those fractions. */}
       <div
         className="absolute inset-0"
         style={{
           background: isLight
-            ? "linear-gradient(to bottom, transparent 0%, rgba(120,90,30,0.10) 42%, rgba(120,90,30,0.24) 72%, rgba(120,90,30,0.12) 90%, transparent 100%)"
-            : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.52) 42%, rgba(0,0,0,0.92) 72%, rgba(0,0,0,0.55) 90%, transparent 100%)",
+            ? "linear-gradient(to bottom, transparent 0%, rgba(120,90,30,0.10) 26%, rgba(120,90,30,0.24) 48%, rgba(120,90,30,0.12) 78%, transparent 100%)"
+            : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.52) 26%, rgba(0,0,0,0.92) 48%, rgba(0,0,0,0.55) 78%, transparent 100%)",
         }}
       />
+      {/* Bounded stage — the scene no longer scales with the full hero
+          width. The wrapper caps the rendered scene at 500px (phones) /
+          765px (sm+); "meet" still shows the whole set, floor-anchored,
+          and the strip's remaining height below the hero is the stage
+          the set stands on. */}
+      <div className="absolute inset-0 mx-auto w-full max-w-[500px] sm:max-w-[765px]">
       <svg
         viewBox="0 0 1440 720"
         preserveAspectRatio="xMidYMax meet"
@@ -160,6 +183,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           </g>
         </g>
       </svg>
+      </div>
     </div>
   );
 }
