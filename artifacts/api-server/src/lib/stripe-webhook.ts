@@ -3,8 +3,11 @@ import type { Request, Response } from "express";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
 import {
-  recordStripePayment,
+  claimStripePayment,
+  markPaymentCompleted,
+  markPaymentFailed,
   fulfillCreditPurchase,
+  type PaymentClaimOutcome,
 } from "./payment-record";
 import { awardReferralPayout } from "../routes/referrals";
 
@@ -221,30 +224,75 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   /* ── Branding-shop merch orders ─────────────────────────────────────────
      Branding checkout sessions carry metadata.kind = "branding_order" +
      branding_order_id. Mark the order paid and submit it to fulfillment
-     (Printful live or mock sandbox). Idempotent via isPaymentAlreadyRecorded. */
+     (Printful live or mock sandbox).
+
+     Idempotency: insert-first claiming on stripe_payments, the same
+     pattern as the credit path below (P0-24 hardening). The payment row
+     is claimed BEFORE any fulfillment, keyed on the session id (UNIQUE),
+     with the same values the old trailing recordStripePayment() wrote.
+     Previously this branch fulfilled FIRST and recorded LAST, and its
+     only duplicate guard was fulfillBrandingOrder's check-then-act on
+     provider_order_id: concurrent redeliveries could both pass that
+     check and submit two real provider orders, and sequential
+     redeliveries re-ran confirmBrandingFulfillment (an unconditional
+     provider confirm POST) and then threw on the payment insert's
+     UNIQUE constraint — a 500 loop, not a no-op. Now: only the claim
+     winner fulfills; a completed claim → 200 duplicate; an active claim
+     → 500 so Stripe retries after it settles; a fulfillment failure
+     marks the claim failed → 500 → the retry reclaims and re-fulfills
+     (fulfillBrandingOrder still early-returns once provider_order_id
+     is set, so a retry after a partial success resumes, not repeats). */
   if (session.metadata?.kind === "branding_order" && session.metadata?.branding_order_id) {
     const brandingOrderId = session.metadata.branding_order_id;
+
+    let claim: PaymentClaimOutcome;
+    try {
+      claim = await claimStripePayment({
+        stripeSessionId:       session.id,
+        stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        userId,
+        creditPack:            `branding_order:${brandingOrderId}`,
+        creditsAmount:         0,
+        amountTotal:           session.amount_total,
+        currency:              session.currency,
+      });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, brandingOrderId }, "Stripe webhook: branding payment claim failed");
+      // Fail closed (P0-7): 500 so Stripe retries — never fulfill unclaimed.
+      res.status(500).json({ error: `Branding payment claim failed: ${msg}` });
+      return;
+    }
+
+    if (claim === "duplicate") {
+      logger.info({ brandingOrderId, sessionId: session.id }, "Stripe webhook: duplicate branding payment ignored — already completed");
+      res.status(200).json({ received: true, duplicate: true });
+      return;
+    }
+    if (claim === "inflight") {
+      logger.warn({ brandingOrderId, sessionId: session.id }, "Stripe webhook: branding fulfillment already in flight elsewhere");
+      // Another worker owns the claim — 500 so Stripe retries after it settles.
+      res.status(500).json({ error: "Branding fulfillment in flight, retry later" });
+      return;
+    }
+
+    // We won the claim — fulfill, then mark the payment completed.
     try {
       const { markBrandingOrderPaid, fulfillBrandingOrder, confirmBrandingFulfillment } = await import("./branding-fulfillment");
       await markBrandingOrderPaid(brandingOrderId, session.id);
       const fulfillment = await fulfillBrandingOrder(brandingOrderId);
       await confirmBrandingFulfillment(brandingOrderId);
+      await markPaymentCompleted(session.id);
       logger.info(
         { brandingOrderId, sessionId: session.id, fulfillment },
         "Stripe webhook: branding order paid + submitted to fulfillment"
       );
-      await recordStripePayment({
-        stripeSessionId:      session.id,
-        stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
-        userId,
-        creditPack:           `branding_order:${brandingOrderId}`,
-        creditsAmount:         0,
-        amountTotal:  session.amount_total,
-        currency:     session.currency,
-      });
       res.status(200).json({ received: true, success: true, brandingOrderId });
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "unknown";
+      // We own the claim, so marking it failed is safe: a Stripe retry
+      // reclaims the failed row and re-runs fulfillment.
+      await markPaymentFailed(session.id).catch(() => {});
       logger.error({ err, msg, brandingOrderId }, "Stripe webhook: branding order fulfillment failed");
       // P0-7: 500 so Stripe retries — 200 would silently drop a paid order.
       res.status(500).json({ error: `Branding fulfillment failed: ${msg}` });
