@@ -91,9 +91,10 @@ function AssetCard({ asset }: { asset: HubAsset }) {
 }
 
 function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 text-center max-w-4xl mx-auto">
+    <div className={`rounded-2xl border p-8 md:p-12 text-center max-w-4xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Layers className="w-10 h-10 text-primary mx-auto mb-4" />
       <h2 className="text-white font-black text-2xl mb-2">{t("hub.typePickerTitle")}</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
@@ -135,11 +136,12 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
 /* ─── Template picker: CapCut-style preloaded starters ───────────────────── */
 
 function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick: (t: HubTemplate | null) => void; onBack: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const workflow = getWorkflow(type);
   const templates = getTemplates(type);
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 max-w-4xl mx-auto">
+    <div className={`rounded-2xl border p-8 md:p-12 max-w-4xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <button
         type="button"
         onClick={onBack}
@@ -212,6 +214,7 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
 /* ─── Guided view: the cheat-code view ────────────────────────────────────── */
 
 function GuidedView({ onNewProject }: { onNewProject: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { project, hasKind, stepDones, markStepDone } = useHubProject();
   const workflow = getWorkflow(project.type);
@@ -254,7 +257,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Preloaded concept */}
       {project.concept && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-2">
             {t("hub.yourConcept")}
             {template && <span className="text-primary/70 normal-case">{t("hub.templateNameSuffix", { name: template.name })}</span>}
@@ -294,7 +297,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-3">
             {t("hub.stepN", { n: safeIdx + 1 })}
             {done
@@ -393,7 +396,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 
       {/* Slim tray strip: proof the cheat code is working */}
       {project.assets.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">
             {t("hub.yourStuffSoFar", { count: project.assets.length })}
           </p>
@@ -489,7 +492,7 @@ function AllStepsView() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Stage */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 min-h-[420px]">
+        <div className={`rounded-2xl border p-6 min-h-[420px] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="mb-5">
             <h2 className="text-white font-bold text-lg flex items-center gap-2">
               <step.icon className="w-5 h-5 text-primary" /> {step.label}
@@ -525,7 +528,7 @@ function AllStepsView() {
         </div>
 
         {/* Project tray */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-fit lg:sticky lg:top-6">
+        <div className={`rounded-2xl border p-5 h-fit lg:sticky lg:top-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
             <Music4 className="w-4 h-4 text-primary" /> {t("hub.projectAssets")}
           </h3>

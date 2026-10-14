@@ -3404,7 +3404,7 @@ export default function AudioStudio() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
+        <div className={`mt-6 grid grid-cols-3 gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {STUDIO_TABS.map((tb) => {
             const active = tab === tb.id;
             return (
@@ -3428,7 +3428,7 @@ export default function AudioStudio() {
           {t(activeDesc, { defaultValue: "" })}
         </p>
 
-        <div className="mt-2">
+        <div className={`mt-2 rounded-3xl border p-4 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
         </div>
       </main>

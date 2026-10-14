@@ -207,9 +207,10 @@ function CopyBtn({ text }: { text: string }) {
 
 function ResultCard({ section, defaultOpen }: { section: ParsedSection; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-xl border border-white/[0.07] overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 bg-white/[0.02] border-b border-white/[0.05]">
+    <div className={`rounded-xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className={`flex items-center justify-between px-5 py-3 border-b ${isLight ? "border-[#C9A84C]/25 bg-[#C9A84C]/10" : "bg-white/[0.03] border-white/[0.05]"}`}>
         <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-3 flex-1 text-left min-w-0">
           {open ? <ChevronUp className="h-4 w-4 text-white/25 shrink-0" /> : <ChevronDown className="h-4 w-4 text-white/25 shrink-0" />}
           <h4 className="text-sm font-bold text-white uppercase tracking-wide truncate">{section.title}</h4>
@@ -269,9 +270,10 @@ function Stepper({ step }: { step: number }) {
 function StepShell({ title, subtitle, icon: Icon, children }: {
   title: string; subtitle: string; icon: React.ElementType; children: React.ReactNode;
 }) {
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.05] bg-white/[0.015]">
+    <div className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className={`flex items-center gap-3 px-6 py-4 border-b ${isLight ? "border-[#C9A84C]/25 bg-[#C9A84C]/10" : "border-white/[0.05] bg-white/[0.03]"}`}>
         <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
           <Icon className="h-4 w-4 text-primary" />
         </div>
@@ -335,6 +337,7 @@ const SIMPLE_DEFAULTS = {
 };
 
 function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
   const [, setLocation] = useLocation();
@@ -574,7 +577,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
       <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-2">{t("create-simple.what_s_your_song_about")}</h1>
       <p className="text-white/40 text-sm mb-8">{t("create-simple.upload_a_song_paste_your_lyrics")}</p>
 
-      <div className="space-y-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+      <div className={`space-y-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div className="space-y-2">
           <label className="text-sm font-semibold text-white/65 uppercase tracking-wider">{t("create-simple.upload_your_song")}<span className="text-white/25 font-normal normal-case tracking-normal">{t("create-simple.optional")}</span>
           </label>
@@ -636,6 +639,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export function SongAndVideoModule() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
@@ -1576,7 +1580,7 @@ export function SongAndVideoModule() {
             />
 
             {/* ── NEXT ACTIONS ── */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-4">
+            <div className={`rounded-2xl border p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center gap-3">
                 <div className="h-7 w-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
                   <Sparkles className="h-3.5 w-3.5 text-white/40" />

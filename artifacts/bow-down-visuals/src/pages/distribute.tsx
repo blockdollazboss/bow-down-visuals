@@ -212,8 +212,9 @@ function SandboxBadge({ aggregator }: { aggregator: string | null }) {
 function Section({ title, icon, children, action, minStars }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode; minStars?: number;
 }) {
+  const isLight = useIsLightTheme();
   return (
-    <section data-min-stars={minStars} className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+    <section data-min-stars={minStars} className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-display text-xl font-black">{icon}{title}</h3>
         {action}
@@ -2855,7 +2856,7 @@ function ReleasePlanTab() {
                         className={`rounded-2xl border p-4 transition ${
                           done
                             ? "border-emerald-500/25 bg-emerald-500/[0.05]"
-                            : "border-white/10 bg-white/[0.03]"
+                            : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
                         }`}
                       >
                         <button
@@ -3144,7 +3145,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
             <ReleasePlanTab />
           </div>
         ) : !user ? (
-          <div className="relative mx-auto mt-10 max-w-xl rounded-3xl border border-white/10 bg-white/[0.02] p-10 text-center">
+          <div className={`relative mx-auto mt-10 max-w-xl rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/60">{t("distribute.sign_in_to_distribute_your_music")}</p>
             <a href="/login" className={`${goldBtn} mt-6`}>{t("distribute.sign_in")}</a>
           </div>
@@ -3180,7 +3181,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
               <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
                 {/* ── release list ── */}
                 <div>
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
+                  <div className={`rounded-3xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="mb-4 flex items-center justify-between">
                       <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white/60">
                         <ListMusic className="h-4 w-4 text-primary" />{t("distribute.releases")}</h2>
@@ -3230,7 +3231,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
                 {/* ── release detail ── */}
                 <div>
                   {!selected ? (
-                    <div className="flex h-full min-h-[320px] items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] p-10 text-center text-sm text-white/40">{t("distribute.pick_a_release_on_the_left_or_cr")}</div>
+                    <div className={`flex h-full min-h-[320px] items-center justify-center rounded-3xl border p-10 text-center text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/40"}`}>{t("distribute.pick_a_release_on_the_left_or_cr")}</div>
                   ) : (
                     <ReleaseDetail
                       key={selected.id}
