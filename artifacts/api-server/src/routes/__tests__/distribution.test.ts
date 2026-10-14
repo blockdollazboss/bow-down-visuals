@@ -74,6 +74,13 @@ vi.mock("../../lib/ai-clients", () => ({
   }),
 }));
 
+vi.mock("../../lib/mirrorMedia", () => ({
+  // Mirror-on-save (2026-10-13) is a storage concern: keep the caller's
+  // URL as-is so these tests stay hermetic (no network fetch).
+  mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v),
+  mirrorProjectScenes: vi.fn(async (v: unknown) => v),
+}));
+
 import router, {
   AI_CREDIT_COST,
   DISTRIBUTION_RELEASE_CREDITS,
@@ -888,11 +895,13 @@ describe("splits share links + invites", () => {
     const invited = await req("POST", `/distribution/releases/${id}/splits/invite`, {
       splitId: writer.id,
     });
-    /* No email provider in test env: 501, invite still recorded. */
-    expect(invited.status).toBe(501);
+    /* No email provider in test env: the invite is still recorded and the
+       route answers 200 with emailSent:false + a note (the UI falls back
+       to sharing the agreement link) — fail-open by design. */
+    expect(invited.status).toBe(200);
     expect(invited.json.recorded).toBe(true);
     expect(invited.json.emailSent).toBe(false);
-    expect(invited.json.error).toMatch(/email provider/i);
+    expect(invited.json.note).toMatch(/email provider/i);
     const me = saved.json.splits.find((s: any) => s.name === "Me");
     const noEmail = await req("POST", `/distribution/releases/${id}/splits/invite`, {
       splitId: me.id,

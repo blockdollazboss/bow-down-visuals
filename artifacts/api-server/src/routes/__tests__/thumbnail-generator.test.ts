@@ -93,6 +93,20 @@ vi.mock("../../lib/payment-record", () => ({
   recordThumbnailHistory: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../lib/credits", () => ({
+  /* P0-23: the route charges up front via chargeCredits (strict ledger),
+     not the old Supabase profile update. Simulate the deduction against
+     mockState so the balance assertions below keep their meaning. */
+  chargeCredits: vi.fn(async (_userId: string, amount: number) => {
+    mockState.deductedCredits = amount;
+    mockState.userCredits -= amount;
+    return mockState.userCredits;
+  }),
+  refundCredits: vi.fn(async () => undefined),
+  OutOfCreditsError: class OutOfCreditsError extends Error {},
+  LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
 import router from "../generate/thumbnail-generator";
 
 let server: any;
@@ -172,7 +186,10 @@ describe("POST /api/thumbnail-generator", () => {
   it("rejects a missing prompt with 400", async () => {
     const { status, json } = await postBatch({ prompt: "" });
     expect(status).toBe(400);
-    expect(json.error).toMatch(/prompt/i);
+    // Zod validation contract: generic top-level error, with the
+    // field-level detail (which names the prompt) in `details`.
+    expect(json.error).toBe("Invalid thumbnail request.");
+    expect(JSON.stringify(json.details)).toMatch(/prompt/i);
     expect(mockState.deductedCredits).toBeNull();
   });
 

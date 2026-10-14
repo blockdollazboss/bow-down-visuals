@@ -43,6 +43,19 @@ vi.mock("../../lib/objectStorage", () => ({
   uploadMediaToSupabaseStorage: vi.fn(async (_name: string) => "locations/ref.png"),
   refreshSupabaseStorageUrl: vi.fn(async (ref: string) => `https://cdn.example.com/${ref}`),
   parseSupabaseStorageRefBucketed: vi.fn(),
+  normalizeToStorageRef: vi.fn((u: string) => u),
+  // Same semantics as the real helper (r2:// / supabase:// refs only).
+  isStorageRef: vi.fn(
+    (v: unknown) =>
+      typeof v === "string" && (v.startsWith("r2://") || v.startsWith("supabase://")),
+  ),
+}));
+
+vi.mock("../../lib/mirrorMedia", () => ({
+  // Mirror-on-save (2026-10-13) is a storage concern: these tests pin the
+  // route's semantics with the caller's URL stored as-is — no network
+  // fetch, no storage round-trip.
+  mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v),
 }));
 
 import router from "../locations";

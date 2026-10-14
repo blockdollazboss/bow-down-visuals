@@ -7,6 +7,9 @@
  * refund when the job fails.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { promises as fsp } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(),
@@ -51,6 +54,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   __clearUpscaleJobs();
 });
+
+/**
+ * runUpscaleJob takes a disk path since the 2026-10-12 OOM fix (uploads
+ * are disk-backed, never RAM Buffers) — write the fake upload to a real
+ * temp file, exactly what multer's disk storage hands the route.
+ */
+async function fakeUploadPath(contents = "fake-video"): Promise<string> {
+  const dir = await fsp.mkdtemp(join(tmpdir(), "upscale-test-"));
+  const p = join(dir, "upload.mp4");
+  await fsp.writeFile(p, contents);
+  return p;
+}
 
 function makeJob(overrides: Partial<UpscaleJob> = {}): UpscaleJob {
   return {
@@ -126,7 +141,7 @@ describe("runUpscaleJob — refund on failure", () => {
     }) as never);
 
     const job = makeJob();
-    await runUpscaleJob(job, Buffer.from("fake-video"), "clip.mp4");
+    await runUpscaleJob(job, await fakeUploadPath(), "clip.mp4");
 
     expect(job.status).toBe("failed");
     expect(mockRefund).toHaveBeenCalledTimes(1);
@@ -144,7 +159,7 @@ describe("runUpscaleJob — refund on failure", () => {
     }) as never);
 
     const job = makeJob({ target: "1080p" });
-    await runUpscaleJob(job, Buffer.from("fake-video"), "clip.mp4");
+    await runUpscaleJob(job, await fakeUploadPath(), "clip.mp4");
 
     expect(job.status).toBe("failed");
     expect(job.error).toContain("already 1080p");
@@ -165,7 +180,7 @@ describe("runUpscaleJob — refund on failure", () => {
     // runUpscaleJob reads the ffmpeg output file — stub fs by letting it fail
     // gracefully is complex; instead verify the pre-upload path via mocks.
     // (Full integration is covered by manual QA; the money paths are above.)
-    await runUpscaleJob(job, Buffer.from("fake-video"), "clip.mp4");
+    await runUpscaleJob(job, await fakeUploadPath(), "clip.mp4");
 
     // ffmpeg "succeeded" but the output file doesn't exist on disk in this
     // test env, so the read fails → job fails → refund. That still proves

@@ -109,6 +109,7 @@ CREATE TABLE cheat_code_events (
   id uuid PRIMARY KEY,
   name text NOT NULL,
   code_hash text NOT NULL,
+  code_sequence text,
   code_length integer NOT NULL,
   prize_credits integer NOT NULL DEFAULT 10000,
   starts_at timestamptz NOT NULL DEFAULT now(),
@@ -334,7 +335,9 @@ describe("POST /api/cheat-code/attempt", () => {
     expect(status).toBe(200);
     expect(json.correct).toBe(true);
     expect(json.claimed).toBe(true);
-    expect(json.prizeCredits).toBe(10000);
+    // The seeded event's prize is 100 (see seedEvent) — the response prize
+    // is the amount actually granted, matching the ledger entry below.
+    expect(json.prizeCredits).toBe(100);
     expect(json.newBalance).toBe(150);
     expect(json.winnerDisplayName).toBe("Test Shark");
     expect(testState.grantCalls).toHaveLength(1);
@@ -401,7 +404,8 @@ describe("POST /api/cheat-code/attempt", () => {
 
   it("rate-limits after too many attempts", async () => {
     const eventId = await seedEvent();
-    // 30 failed attempts = the per-user cap inside the 10-minute window.
+    // Current game rules: 3 tries per player per day. 30 prior attempts
+    // today put the player far past the daily cap.
     for (let i = 0; i < 30; i++) {
       await testState.db.execute(sql`
         INSERT INTO cheat_code_attempts (id, event_id, user_id, ip, success)
@@ -412,7 +416,8 @@ describe("POST /api/cheat-code/attempt", () => {
       sequence: WRONG,
     });
     expect(status).toBe(429);
-    expect(json.error).toMatch(/too many/i);
+    expect(json.error).toMatch(/3 tries for today/i);
+    expect(json.triesLeft).toBe(0);
   });
 });
 

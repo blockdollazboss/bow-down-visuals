@@ -29,6 +29,16 @@ vi.mock("@workspace/db", () => ({
     .min(3)
     .max(30)
     .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/),
+  // Mirrors lib/db/src/schema/press-kits.ts (the route builds its update
+  // schema from it at module level).
+  pressKitReleaseSchema: z.object({
+    id: z.string().min(1).max(64),
+    headline: z.string().min(1).max(200),
+    body: z.string().min(1).max(20000),
+    announcementType: z.string().min(1).max(40),
+    social: z.string().min(1).max(320),
+    createdAt: z.string().min(1).max(40),
+  }),
 }));
 
 import {

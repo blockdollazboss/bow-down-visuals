@@ -48,6 +48,25 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
+vi.mock("../../lib/objectStorage", () => ({
+  // Read paths re-sign storage refs per request; in these tests the
+  // stored value passes through unchanged (no network, no Supabase).
+  refreshSupabaseStorageUrl: vi.fn(async (ref: string) => ref),
+  normalizeToStorageRef: vi.fn((u: string) => u),
+  uploadMediaToSupabaseStorage: vi.fn(async (name: string) => name),
+  // Same semantics as the real helper (r2:// / supabase:// refs only).
+  isStorageRef: vi.fn(
+    (v: unknown) =>
+      typeof v === "string" && (v.startsWith("r2://") || v.startsWith("supabase://")),
+  ),
+}));
+
+vi.mock("../../lib/mirrorMedia", () => ({
+  // Mirror-on-save (2026-10-13) is a storage concern: keep the caller's
+  // URL as-is so these tests stay hermetic (no network fetch).
+  mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v),
+}));
+
 vi.mock("@workspace/db", () => {
   const mkTable = (name: string, rowsKey: "vaultRows" | "outfitRows") => {
     const cols: any = { __table: name, __rowsKey: rowsKey };

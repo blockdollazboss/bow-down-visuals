@@ -71,6 +71,21 @@ vi.mock("../../../lib/supabase-admin", () => ({
 vi.mock("../../../lib/objectStorage", () => ({
   ensureShopProductsBucket: vi.fn(async () => {}),
   SHOP_PRODUCTS_BUCKET: "shop-products",
+  // Read paths re-sign storage refs per request; non-ref URLs pass
+  // through unchanged, which is all these tests exercise.
+  refreshSupabaseStorageUrl: vi.fn(async (ref: string) => ref),
+  normalizeToStorageRef: vi.fn((u: string) => u),
+  // Same semantics as the real helper (r2:// / supabase:// refs only).
+  isStorageRef: vi.fn(
+    (v: unknown) =>
+      typeof v === "string" && (v.startsWith("r2://") || v.startsWith("supabase://")),
+  ),
+}));
+
+vi.mock("../../../lib/mirrorMedia", () => ({
+  // Mirror-on-save (2026-10-13) is a storage concern: keep the caller's
+  // URL as-is so these tests stay hermetic (no network fetch).
+  mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v),
 }));
 
 import router, {

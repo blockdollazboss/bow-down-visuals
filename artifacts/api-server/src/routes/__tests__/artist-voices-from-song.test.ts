@@ -24,6 +24,7 @@ const dbState = vi.hoisted(() => ({
 
 const sbState = vi.hoisted(() => ({
   updates: [] as any[],
+  balance: 1000,
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -75,6 +76,25 @@ vi.mock("../../lib/payment-record", () => ({
   recordCreditUsageStrict: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock("../../lib/credits", () => ({
+  /* P0-23: the route charges/refunds via chargeCredits/refundCredits
+     (strict ledger), not the old Supabase profile-update chain. Simulate
+     the balance here, recording each post-charge / post-refund balance
+     in the same update log the assertions below read. */
+  chargeCredits: vi.fn(async (_userId: string, amount: number) => {
+    sbState.balance -= amount;
+    sbState.updates.push({ credits: sbState.balance });
+    return sbState.balance;
+  }),
+  refundCredits: vi.fn(async (_userId: string, amount: number) => {
+    sbState.balance += amount;
+    sbState.updates.push({ credits: sbState.balance });
+    return sbState.balance;
+  }),
+  OutOfCreditsError: class OutOfCreditsError extends Error {},
+  LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
 vi.mock("@workspace/db", () => {
   const chain: any = {};
   chain.from = vi.fn(() => chain);
@@ -119,6 +139,7 @@ beforeEach(() => {
   dbState.vaults = [];
   dbState.throwOnSelect = false;
   sbState.updates = [];
+  sbState.balance = 1000;
   vi.mocked(canUseInstantVoiceCloning).mockResolvedValue(true);
   // Song-URL downloads are faked; everything else goes to the real fetch
   // (i.e. the ephemeral Express server under test).
@@ -183,7 +204,7 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
     expect(json.error).toContain("137");
     expect(sbState.updates).toHaveLength(2);
     expect(sbState.updates[0]).toEqual({ credits: 800 }); // deducted
-    expect(sbState.updates[1]).toEqual({ credits: 10 }); // refunded
+    expect(sbState.updates[1]).toEqual({ credits: 1000 }); // refund restores the full charge
   });
 
   it("returns JSON (not HTML) when the vault lookup fails", async () => {
