@@ -5122,7 +5122,7 @@
     "questions": "質問",
     "before_you_ask": "質問する前に",
     "back_to_the_site": "← サイトに戻る",
-    "metaTitle": "Thy Cheat Code ブラウザ拡張機能 — 近日公開 | Bow Down Visuals",
+    "metaTitle": "Thy Cheat Code ブラウザ拡張機能 — 近日公開",
     "please_enter_your_name_and_a_val": "お名前と有効なメールアドレスを入力してください。",
     "couldn_t_reach_the_site_try_agai": "サイトに接続できませんでした。しばらくしてから再試行してください。"
   },
@@ -5913,7 +5913,7 @@
     "installing_the_apk": "APKのインストール",
     "installing_the_extension": "拡張機能のインストール",
     "questions": "よくある質問",
-    "metaTitle": "ダウンロード — Androidアプリ & Chrome拡張機能 | Bow Down Visuals"
+    "metaTitle": "ダウンロード — Androidアプリ & Chrome拡張機能"
   },
   "signup": {
     "agreeAnd": "と",
@@ -6879,7 +6879,7 @@
     "logToMoney": "Log to Money Tracker",
     "moneyLogFailed": "Couldn't log the income. Try again.",
     "publicBadge": "Sync One-Sheet",
-    "publicTitle": "Sync One-Sheet | Bow Down Visuals",
+    "publicTitle": "Sync One-Sheet",
     "publicDescription": "A sync licensing one-sheet for an independent song.",
     "publicNotFound": "One-sheet not found",
     "publicNotFoundDesc": "This link may be expired or mistyped.",

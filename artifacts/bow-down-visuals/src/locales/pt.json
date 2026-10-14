@@ -2687,7 +2687,7 @@
     "installing_the_apk": "Instalando o APK",
     "installing_the_extension": "Instalando a extensão",
     "questions": "Dúvidas",
-    "metaTitle": "Baixar — App Android e Extensão do Chrome | Bow Down Visuals"
+    "metaTitle": "Baixar — App Android e Extensão do Chrome"
   },
   "email-list": {
     "list_name_e_g_fin_fam": "Nome da lista (ex. Fin Fam)",
@@ -2785,7 +2785,7 @@
     "questions": "Perguntas",
     "before_you_ask": "Antes de Perguntar",
     "back_to_the_site": "← Voltar para o site",
-    "metaTitle": "Extensão de Navegador Thy Cheat Code — Em Breve | Bow Down Visuals",
+    "metaTitle": "Extensão de Navegador Thy Cheat Code — Em Breve",
     "please_enter_your_name_and_a_val": "Digite seu nome e um e-mail válido.",
     "couldn_t_reach_the_site_try_agai": "Não foi possível acessar o site. Tente novamente em alguns instantes."
   },
@@ -6879,7 +6879,7 @@
     "logToMoney": "Log to Money Tracker",
     "moneyLogFailed": "Couldn't log the income. Try again.",
     "publicBadge": "Sync One-Sheet",
-    "publicTitle": "Sync One-Sheet | Bow Down Visuals",
+    "publicTitle": "Sync One-Sheet",
     "publicDescription": "A sync licensing one-sheet for an independent song.",
     "publicNotFound": "One-sheet not found",
     "publicNotFoundDesc": "This link may be expired or mistyped.",

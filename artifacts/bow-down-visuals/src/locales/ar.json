@@ -2687,7 +2687,7 @@
     "installing_the_apk": "تثبيت APK",
     "installing_the_extension": "تثبيت الإضافة",
     "questions": "أسئلة",
-    "metaTitle": "تحميل — تطبيق Android وإضافة Chrome | Bow Down Visuals"
+    "metaTitle": "تحميل — تطبيق Android وإضافة Chrome"
   },
   "email-list": {
     "100_visual_bucs": "100 Visual Bucs",
@@ -2785,7 +2785,7 @@
     "questions": "أسئلة",
     "before_you_ask": "قبل أن تسأل",
     "back_to_the_site": "← عودة إلى الموقع",
-    "metaTitle": "إضافة المتصفح Thy Cheat Code — قريباً | Bow Down Visuals",
+    "metaTitle": "إضافة المتصفح Thy Cheat Code — قريباً",
     "please_enter_your_name_and_a_val": "أدخل اسمك وبريداً إلكترونياً صالحاً.",
     "couldn_t_reach_the_site_try_agai": "تعذّر الوصول إلى الموقع. حاول مجدداً بعد قليل."
   },
@@ -8390,7 +8390,7 @@
     "logToMoney": "Log to Money Tracker",
     "moneyLogFailed": "Couldn't log the income. Try again.",
     "publicBadge": "Sync One-Sheet",
-    "publicTitle": "Sync One-Sheet | Bow Down Visuals",
+    "publicTitle": "Sync One-Sheet",
     "publicDescription": "A sync licensing one-sheet for an independent song.",
     "publicNotFound": "One-sheet not found",
     "publicNotFoundDesc": "This link may be expired or mistyped.",
