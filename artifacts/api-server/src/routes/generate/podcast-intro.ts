@@ -35,7 +35,7 @@ function elevenKey(): string | undefined {
 }
 
 function ttsModel(): string {
-  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2";
+  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4";
 }
 
 const MUSIC_STYLES = [

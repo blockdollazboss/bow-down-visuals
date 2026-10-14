@@ -153,7 +153,7 @@ async function synthesizeSpeech(text: string, voiceId: string | null, apiKey: st
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
-        model_id: process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2",
+        model_id: process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4",
       }),
       signal: AbortSignal.timeout(180_000),
     });
@@ -166,7 +166,7 @@ async function synthesizeSpeech(text: string, voiceId: string | null, apiKey: st
       "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model: "tts-1", input: text, voice: "alloy" }),
+    body: JSON.stringify({ model: "gpt-4o-mini-tts", input: text, voice: "alloy" }),
     signal: AbortSignal.timeout(120_000),
   });
   if (!ttsRes.ok) throw new Error("Dubbed voice synthesis failed.");

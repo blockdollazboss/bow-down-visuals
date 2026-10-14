@@ -95,7 +95,7 @@ async function generateTTS(text: string, voice: string, outputPath: string): Pro
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "tts-1",
+      model: "gpt-4o-mini-tts",
       input: text,
       voice,
     }),
@@ -106,7 +106,7 @@ async function generateTTS(text: string, voice: string, outputPath: string): Pro
 }
 
 async function generateImage(prompt: string, outputPath: string): Promise<void> {
-  const model = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst";
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {

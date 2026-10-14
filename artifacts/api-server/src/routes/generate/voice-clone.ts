@@ -304,7 +304,7 @@ router.post("/speak-as", requireAuth, async (req, res) => {
           headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
           body: JSON.stringify({
             text: parsed.data.text,
-            model_id: process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2",
+            model_id: process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4",
           }),
           signal: AbortSignal.timeout(180_000),
         },
@@ -320,7 +320,7 @@ router.post("/speak-as", requireAuth, async (req, res) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "tts-1",
+          model: "gpt-4o-mini-tts",
           input: parsed.data.text,
           voice: voice.baseVoice || "alloy",
         }),

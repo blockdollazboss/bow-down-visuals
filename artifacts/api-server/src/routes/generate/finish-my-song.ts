@@ -243,7 +243,7 @@ router.post("/finish-my-song/complete", publicApiLimiter, requireAuth, upload.si
        compose otherwise (mirrors hum-to-song). */
     let influence: Influence = "text-reference";
     let songBuffer: Buffer | null = null;
-    const songId = await uploadHumForConditioning(apiKey, mp3);
+    const songId = await uploadHumForConditioning(apiKey, mp3, musicModel);
     if (songId) {
       const conditioned = await composeWithConditioning(
         apiKey, musicModel, songId, Math.round(analysis.durationSec * 1000),

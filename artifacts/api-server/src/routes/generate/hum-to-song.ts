@@ -112,12 +112,12 @@ async function transcodeToMp3(raw: Buffer): Promise<Buffer> {
 
 /** Upload the hum to ElevenLabs for conditioning. Returns song_id or null
  *  (null = enterprise-gated or failed → caller degrades to text reference). */
-export async function uploadHumForConditioning(apiKey: string, mp3: Buffer): Promise<string | null> {
+export async function uploadHumForConditioning(apiKey: string, mp3: Buffer, musicModel: string): Promise<string | null> {
   try {
     const form = new FormData();
     // Uint8Array.from copies into a fresh ArrayBuffer — satisfies BlobPart typing.
     form.append("file", new Blob([Uint8Array.from(mp3)], { type: "audio/mpeg" }), "hum.mp3");
-    form.append("extract_composition_plan", "music_v2_5");
+    form.append("extract_composition_plan", musicModel);
     const res = await fetch(`${ELEVENLABS_API}/v1/music/upload`, {
       method: "POST",
       headers: { "xi-api-key": apiKey },
@@ -420,7 +420,7 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
       // Degrades to a text-prompt compose when the account can't do it.
       let influence: Influence = "text-reference";
       let songBuffer: Buffer | null = null;
-      const songId = await uploadHumForConditioning(apiKey, mp3);
+      const songId = await uploadHumForConditioning(apiKey, mp3, musicModel);
       if (songId) {
         const conditioned = await composeWithConditioning(
           apiKey, musicModel, songId, Math.round(analysis.durationSec * 1000),

@@ -64,7 +64,7 @@ async function openAiTts(text: string, voice: string, outPath: string): Promise<
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "tts-1",
+      model: "gpt-4o-mini-tts",
       input: text,
       voice,
       response_format: "mp3",

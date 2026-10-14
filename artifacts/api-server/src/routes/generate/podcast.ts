@@ -78,7 +78,7 @@ export const TTS_CHUNK_CHARS = 2_000;
 
 /** ElevenLabs TTS model (env-overridable). */
 function ttsModel(): string {
-  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2";
+  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4";
 }
 
 function elevenKey(): string | undefined {

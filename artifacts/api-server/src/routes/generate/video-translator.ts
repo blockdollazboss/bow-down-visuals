@@ -228,7 +228,7 @@ function elevenKey(): string | undefined {
 }
 
 function ttsModel(): string {
-  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2";
+  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4";
 }
 
 async function probeDurationSec(inputPath: string): Promise<number | null> {
