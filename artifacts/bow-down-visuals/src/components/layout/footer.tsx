@@ -6,9 +6,8 @@ import { InstagramIcon, TikTokIcon, YouTubeIcon, SOCIAL_HANDLE } from "@/compone
 import { ThemedLogo } from "@/components/ThemedLogo";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
-const NAVIGATE = [
+const STUDIO_LINKS = [
   { label: "Home",        href: "/" },
-  { label: "Pricing",     href: "/pricing" },
   { label: "Beta Access", href: "/beta-access" },
   { label: "Waitlist",    href: "/waitlist" },
   { label: "Download the App", href: "/download" },
@@ -21,19 +20,35 @@ const LEGAL = [
   { label: "Refund Policy",    href: "/refund-policy" },
 ];
 
-/* SEO hubs (Worker 9) — index pages link onward to every tool/vertical/genre
-   page, so the footer carries the hubs plus the top money pages. */
-const AI_TOOLS_LINKS = [
+/* Link columns speak the six areas — the same taxonomy as the sidebar,
+   the feature registry, and the hub workflows. SEO hubs (Worker 9): the
+   index pages link onward to every tool/vertical/genre page, so the footer
+   carries the hubs, each sorted into the area its destination belongs to. */
+const CREATE_LINKS = [
   { label: "All AI Tools", href: "/tools" },
   { label: "AI Thumbnail Maker", href: "/tools/ai-thumbnail-maker" },
-  { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
   { label: "AI Music Video Maker", href: "/tools/ai-music-video-maker" },
-  { label: "AI Caption Generator", href: "/tools/ai-caption-generator" },
-  { label: "AI Clip Maker", href: "/tools/ai-clip-maker" },
   { label: "AI Song Maker", href: "/tools/ai-song-maker" },
+  /* Public template galleries (SEO lead magnets) — internal links from
+     every page's footer are what make the galleries rank and convert. */
+  { label: "Template Library", href: "/templates" },
+  { label: "Video Templates", href: "/templates/videos" },
+  { label: "Thumbnail Templates", href: "/templates/thumbnails" },
+  { label: "Hook Templates", href: "/templates/hooks" },
+  { label: "Caption Packs", href: "/templates/captions" },
 ];
 
-const CREATOR_HUB_LINKS = [
+const PROMOTE_LINKS = [
+  { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
+  { label: "AI Caption Generator", href: "/tools/ai-caption-generator" },
+  { label: "AI Clip Maker", href: "/tools/ai-clip-maker" },
+];
+
+const BUSINESS_LINKS = [
+  { label: "Pricing", href: "/pricing" },
+];
+
+const SOCIAL_LINKS = [
   { label: "For Creators", href: "/for" },
   { label: "For YouTubers", href: "/for/youtubers" },
   { label: "For Podcasters", href: "/for/podcasters" },
@@ -41,16 +56,6 @@ const CREATOR_HUB_LINKS = [
   { label: "For Musicians", href: "/for/musicians" },
   { label: "For TikTokers", href: "/for/tiktokers" },
   { label: "Browse Genres", href: "/genres" },
-];
-
-/* Public template galleries (SEO lead magnets) — internal links from every
-   page's footer are what make the galleries rank and convert. */
-const TEMPLATE_LINKS = [
-  { label: "Template Library", href: "/templates" },
-  { label: "Video Templates", href: "/templates/videos" },
-  { label: "Thumbnail Templates", href: "/templates/thumbnails" },
-  { label: "Hook Templates", href: "/templates/hooks" },
-  { label: "Caption Packs", href: "/templates/captions" },
 ];
 
 /* Social channels — accounts are being created; links go live with real URLs then.
@@ -91,12 +96,12 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-10 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-8 gap-10 mb-10">
 
-          {/* Navigate */}
-          <nav className="flex flex-col gap-2.5" aria-label="Footer">
-            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Navigate</p>
-            {NAVIGATE.map((l) => (
+          {/* Create */}
+          <nav className="flex flex-col gap-2.5" aria-label="Create">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Create</p>
+            {CREATE_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -107,10 +112,10 @@ export function SiteFooter() {
             ))}
           </nav>
 
-          {/* AI Tools */}
-          <nav className="flex flex-col gap-2.5" aria-label="AI tools">
-            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>AI Tools</p>
-            {AI_TOOLS_LINKS.map((l) => (
+          {/* Promote */}
+          <nav className="flex flex-col gap-2.5" aria-label="Promote">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Promote</p>
+            {PROMOTE_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -121,10 +126,10 @@ export function SiteFooter() {
             ))}
           </nav>
 
-          {/* For Creators */}
-          <nav className="flex flex-col gap-2.5" aria-label="For creators">
-            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>For Creators</p>
-            {CREATOR_HUB_LINKS.map((l) => (
+          {/* Social */}
+          <nav className="flex flex-col gap-2.5" aria-label="Social">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Social</p>
+            {SOCIAL_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -135,10 +140,24 @@ export function SiteFooter() {
             ))}
           </nav>
 
-          {/* Templates */}
-          <nav className="flex flex-col gap-2.5" aria-label="Templates">
-            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Templates</p>
-            {TEMPLATE_LINKS.map((l) => (
+          {/* Business / Get Paid */}
+          <nav className="flex flex-col gap-2.5" aria-label="Business / Get Paid">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Business / Get Paid</p>
+            {BUSINESS_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`text-sm ${T.link} transition-colors w-fit`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* My Studio */}
+          <nav className="flex flex-col gap-2.5" aria-label="My Studio">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>My Studio</p>
+            {STUDIO_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}

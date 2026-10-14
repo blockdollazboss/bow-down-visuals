@@ -39,8 +39,8 @@ export type HubFamily = "create" | "launch" | "grow" | "monetize" | "learn" | "b
 export const FAMILIES: { key: HubFamily; label: string; blurb: string }[] = [
   { key: "create", label: "Create", blurb: "Make the thing" },
   { key: "launch", label: "Launch", blurb: "Ship it right" },
-  { key: "grow", label: "Grow", blurb: "Get seen" },
-  { key: "monetize", label: "Monetize", blurb: "Get paid" },
+  { key: "grow", label: "Promote", blurb: "Get seen" },
+  { key: "monetize", label: "Get Paid", blurb: "Get paid" },
   { key: "learn", label: "Learn", blurb: "Level up" },
   { key: "business", label: "Business", blurb: "Handle the paperwork" },
 ];
@@ -392,7 +392,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
       { key: "schedule", label: "Schedule", icon: CalendarDays, assetKind: null, href: "/scheduler",
         blurb: "Line up every post across your channels.",
         creditNote: "100 Visual Bucs/post" },
-      { key: "monetize", label: "Monetize", icon: Coins, assetKind: null, href: "/coach",
+      { key: "monetize", label: "Get Paid", icon: Coins, assetKind: null, href: "/coach",
         blurb: "Turn the release into revenue — pricing, sponsors, strategy.",
         creditNote: "100 Visual Bucs" },
     ],

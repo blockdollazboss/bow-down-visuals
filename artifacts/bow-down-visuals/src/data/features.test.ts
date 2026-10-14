@@ -14,7 +14,7 @@ import {
   type FeatureCategory,
 } from "./features";
 
-const VALID_CATEGORIES: FeatureCategory[] = ["create", "promote", "grow", "business"];
+const VALID_CATEGORIES: FeatureCategory[] = ["create", "branding", "promote", "social", "business", "studio"];
 
 describe("feature registry", () => {
   it("has at least one feature in every category", () => {

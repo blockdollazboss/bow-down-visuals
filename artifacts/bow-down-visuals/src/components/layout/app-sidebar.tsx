@@ -215,22 +215,17 @@ function NavItemBadge({ text }: { text: string }) {
    as a tab inside its hub; old URLs redirect (see App.tsx). ── */
 const SECTIONS: NavSection[] = [
   {
-    titleKey: "nav.home",
+    /* My Studio — the creator's house (blueprint Phase 1, 2026-10-13):
+       home base first, then the flow Create → Brand → Promote → Social →
+       Get Paid. My Projects / Vault / Library moved out of Create. */
+    titleKey: "nav.myStudio",
     links: [
       { href: "/", labelKey: "nav.home", icon: Home },
       { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    /* The social area — unburied 2026-10-12 (owner directive). Feed is the
-       front door (/home, the creator timeline); Thy Cheat Code is every
-       member's first friend there. */
-    titleKey: "nav.community",
-    links: [
-      { href: "/home", labelKey: "nav.feed", icon: Newspaper },
-      { href: "/explore", labelKey: "nav.explore", icon: Compass },
-      { href: "/groups", labelKey: "nav.groups", icon: Users },
-      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
+      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
+      { href: "/library", labelKey: "nav.library", icon: Library },
+      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
     ],
   },
   {
@@ -242,31 +237,42 @@ const SECTIONS: NavSection[] = [
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
       { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen },
-      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
-      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
-      { href: "/library", labelKey: "nav.library", icon: Library },
     ],
   },
   {
-    titleKey: "nav.grow",
+    /* Branding gets its own home (was filed under Monetize). Phase 2
+       fattens this section when storefronts/shop de-host from the Coach. */
+    titleKey: "nav.branding",
     links: [
-      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
-      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
-      { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
-      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
-    ],
-  },
-  {
-    titleKey: "nav.monetize",
-    links: [
-      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
       { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
     ],
   },
   {
-    titleKey: "nav.tools",
+    titleKey: "nav.promote",
     links: [
-      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
+      { href: "/promote", labelKey: "nav.promote", icon: Megaphone },
+      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
+      { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
+    ],
+  },
+  {
+    /* The social area — unburied 2026-10-12 (owner directive); renamed to
+       Social in the Phase-1 six-area map. Feed is the front door (/home,
+       the creator timeline); Thy Cheat Code is every member's first friend. */
+    titleKey: "nav.social",
+    links: [
+      { href: "/home", labelKey: "nav.feed", icon: Newspaper },
+      { href: "/explore", labelKey: "nav.explore", icon: Compass },
+      { href: "/groups", labelKey: "nav.groups", icon: Users },
+      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
+    ],
+  },
+  {
+    titleKey: "nav.getPaid",
+    links: [
+      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
+      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
     ],
   },
 ];
@@ -621,12 +627,12 @@ function HorizontalSidebarNav() {
   const [location] = useLocation();
   const mainSections = [
     { titleKey: "nav.home", href: "/", icon: Home },
+    { titleKey: "nav.myStudio", href: "/dashboard", icon: LayoutDashboard },
     { titleKey: "nav.create", href: "/create", icon: Layers },
-    { titleKey: "nav.aiStudio", href: "/hooks", icon: Sparkles },
-    { titleKey: "nav.grow", href: "/scheduler", icon: TrendingUp },
-    { titleKey: "nav.monetize", href: "/coach", icon: DollarSign },
-    { titleKey: "nav.learn", href: "/academy", icon: GraduationCap },
-    { titleKey: "nav.tools", href: "/tools", icon: Settings },
+    { titleKey: "nav.branding", href: "/branding-kit", icon: Crown },
+    { titleKey: "nav.promote", href: "/promote", icon: Megaphone },
+    { titleKey: "nav.social", href: "/home", icon: Newspaper },
+    { titleKey: "nav.getPaid", href: "/coach", icon: DollarSign },
   ];
   return (
     <>

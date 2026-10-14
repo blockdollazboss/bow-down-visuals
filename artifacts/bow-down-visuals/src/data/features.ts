@@ -11,7 +11,7 @@ import type { LucideIcon } from "lucide-react";
    picker. To add a feature: append one entry here — both pages pick it up
    automatically. Keep `creditCost` in sync with the backend route's price. */
 
-export type FeatureCategory = "create" | "promote" | "grow" | "business";
+export type FeatureCategory = "create" | "branding" | "promote" | "social" | "business" | "studio";
 
 export interface FeatureCategoryMeta {
   key: FeatureCategory;
@@ -21,9 +21,11 @@ export interface FeatureCategoryMeta {
 
 export const FEATURE_CATEGORIES: FeatureCategoryMeta[] = [
   { key: "create", label: "Create", blurb: "Make music, videos, images & brand assets" },
+  { key: "branding", label: "Branding", blurb: "Logos, pages & a look that sells" },
   { key: "promote", label: "Promote", blurb: "Hooks, clips, calendars & stream hype" },
-  { key: "grow", label: "Grow", blurb: "Coaching, courses & audience growth" },
-  { key: "business", label: "Business", blurb: "Protect and formalize your empire" },
+  { key: "social", label: "Social", blurb: "Feed, groups & your crowd" },
+  { key: "business", label: "Business", blurb: "Get paid, protected & formalized" },
+  { key: "studio", label: "My Studio", blurb: "Your projects, vault & library" },
 ];
 
 export interface SiteFeature {
@@ -81,33 +83,6 @@ export const SITE_FEATURES: SiteFeature[] = [
     icon: Music,
   },
   {
-    key: "artist-vault",
-    name: "Creator Vault",
-    tagline: "Your face, voice & brand assets in one vault",
-    route: "/artist-vault",
-    category: "create",
-    creditCost: "Free vault",
-    icon: Fingerprint,
-  },
-  {
-    key: "voice-lock",
-    name: "Artist Voice Lock",
-    tagline: "Lock your AI voice across every song",
-    route: "/artist-vault",
-    category: "create",
-    creditCost: "From 200 Visual Bucs",
-    icon: AudioWaveform,
-  },
-  {
-    key: "photo-shoot",
-    name: "Artist Photo Shoot",
-    tagline: "Pro artist photos in any style or location",
-    route: "/artist-vault",
-    category: "create",
-    creditCost: "From 100 Visual Bucs",
-    icon: Camera,
-  },
-  {
     key: "video-editor",
     name: "Visual Vibes",
     tagline: "Pro timeline editor with transitions & effects",
@@ -126,15 +101,6 @@ export const SITE_FEATURES: SiteFeature[] = [
     icon: Image,
   },
   {
-    key: "logo-maker",
-    name: "Logo Maker",
-    tagline: "A brand mark worthy of your name",
-    route: "/logo-maker",
-    category: "create",
-    creditCost: "From 100 Visual Bucs",
-    icon: Palette,
-  },
-  {
     key: "intros-outros",
     name: "Intros & Outros",
     tagline: "Signature openers and closers for your videos",
@@ -142,6 +108,27 @@ export const SITE_FEATURES: SiteFeature[] = [
     category: "create",
     creditCost: "150 Visual Bucs/sec",
     icon: Play,
+  },
+
+  {
+    key: "randomizer",
+    name: "Content Randomizer",
+    tagline: "Never run out of content ideas again",
+    route: "/randomizer",
+    category: "create",
+    creditCost: "Free / 100 Visual Bucs AI",
+    icon: Dices,
+  },
+
+  /* ── Branding ── */
+  {
+    key: "logo-maker",
+    name: "Logo Maker",
+    tagline: "A brand mark worthy of your name",
+    route: "/logo-maker",
+    category: "branding",
+    creditCost: "From 100 Visual Bucs",
+    icon: Palette,
   },
 
   /* ── Promote ── */
@@ -174,15 +161,6 @@ export const SITE_FEATURES: SiteFeature[] = [
     icon: Gauge,
   },
   {
-    key: "comment-replies",
-    name: "Comment Replies",
-    tagline: "AI replies that turn comments into fans",
-    route: "/comment-replies",
-    category: "promote",
-    creditCost: "100 Visual Bucs",
-    icon: MessageCircle,
-  },
-  {
     key: "content-calendar",
     name: "Content Calendar",
     tagline: "A month of content planned in minutes",
@@ -211,13 +189,24 @@ export const SITE_FEATURES: SiteFeature[] = [
     badge: "NEW",
   },
 
-  /* ── Grow ── */
+  /* ── Social ── */
+  {
+    key: "comment-replies",
+    name: "Comment Replies",
+    tagline: "AI replies that turn comments into fans",
+    route: "/comment-replies",
+    category: "social",
+    creditCost: "100 Visual Bucs",
+    icon: MessageCircle,
+  },
+
+  /* ── Business ── */
   {
     key: "money-coach",
     name: "Monetization Coach",
     tagline: "Your money plan: eligibility, RPMs, next moves",
     route: "/coach",
-    category: "grow",
+    category: "business",
     creditCost: "100 Visual Bucs",
     icon: TrendingUp,
     badge: "POPULAR",
@@ -227,21 +216,10 @@ export const SITE_FEATURES: SiteFeature[] = [
     name: "Creator Academy",
     tagline: "Courses that turn talent into a career",
     route: "/academy",
-    category: "grow",
+    category: "business",
     creditCost: "Free",
     icon: GraduationCap,
   },
-  {
-    key: "randomizer",
-    name: "Content Randomizer",
-    tagline: "Never run out of content ideas again",
-    route: "/randomizer",
-    category: "grow",
-    creditCost: "Free / 100 Visual Bucs AI",
-    icon: Dices,
-  },
-
-  /* ── Business ── */
   {
     key: "copyright",
     name: "Copyright Assistant",
@@ -259,6 +237,35 @@ export const SITE_FEATURES: SiteFeature[] = [
     category: "business",
     creditCost: "100 Visual Bucs",
     icon: Briefcase,
+  },
+
+  /* ── My Studio ── */
+  {
+    key: "artist-vault",
+    name: "Creator Vault",
+    tagline: "Your face, voice & brand assets in one vault",
+    route: "/artist-vault",
+    category: "studio",
+    creditCost: "Free vault",
+    icon: Fingerprint,
+  },
+  {
+    key: "voice-lock",
+    name: "Artist Voice Lock",
+    tagline: "Lock your AI voice across every song",
+    route: "/artist-vault",
+    category: "studio",
+    creditCost: "From 200 Visual Bucs",
+    icon: AudioWaveform,
+  },
+  {
+    key: "photo-shoot",
+    name: "Artist Photo Shoot",
+    tagline: "Pro artist photos in any style or location",
+    route: "/artist-vault",
+    category: "studio",
+    creditCost: "From 100 Visual Bucs",
+    icon: Camera,
   },
 ];
 
