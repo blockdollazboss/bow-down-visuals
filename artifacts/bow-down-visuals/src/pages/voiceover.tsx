@@ -280,7 +280,7 @@ export default function VoiceoverStudio() {
           {/* ── left: script + options ── */}
           <div className="space-y-6">
             {/* script editor */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                   <FileText className="h-4 w-4 text-primary" />
@@ -313,7 +313,7 @@ export default function VoiceoverStudio() {
             </section>
 
             {/* voice picker */}
-            <section data-min-stars="2" className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section data-min-stars="2" className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Volume2 className="h-4 w-4 text-primary" />
                 {t("voiceover.voiceTitle")}
@@ -369,7 +369,7 @@ export default function VoiceoverStudio() {
             </section>
 
             {/* emotion */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Sparkles className="h-4 w-4 text-primary" />
                 {t("voiceover.directionTitle")}
@@ -451,7 +451,7 @@ export default function VoiceoverStudio() {
 
           {/* ── right: result ── */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/70">
                 {t("voiceover.resultTitle")}
               </h2>

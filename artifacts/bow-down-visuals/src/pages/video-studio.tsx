@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -93,6 +94,7 @@ interface GeneratedVideo {
 }
 
 export default function VideoStudio() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   usePageTitle("AI Video Studio", "Generate cinematic videos with camera controls");
@@ -297,7 +299,7 @@ export default function VideoStudio() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {/* Left: Controls */}
-          <div className="md:col-span-2 space-y-6">
+          <div className={`md:col-span-2 space-y-6 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Prompt box - large and prominent */}
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2">
@@ -437,7 +439,7 @@ export default function VideoStudio() {
 
           {/* Right: Tips */}
           <div className="space-y-4">
-            <div className="p-5 bg-white/5 border border-white/10 rounded-xl">
+            <div className={`p-5 border rounded-xl ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" /> Pro tips
               </h3>
@@ -471,7 +473,7 @@ export default function VideoStudio() {
             )}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {videos.map((v, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div key={i} className={`border rounded-xl overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <video src={v.url} controls className="w-full aspect-video bg-black" />
                   <div className="p-3">
                     <p className="text-sm text-white/70 line-clamp-2">{v.prompt}</p>

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -69,6 +70,7 @@ interface PollResult {
 }
 
 export default function CartoonStudio({ initialTab, embedded }: { initialTab?: StudioTab; embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -352,7 +354,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
 
         {/* tabs */}
         <div
-          className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5"
+          className={`mb-8 flex gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
           role="tablist"
           aria-label={t("cartoonStudio.tabsAria")}
         >
@@ -405,7 +407,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
 
         {/* ── TAB: cartoon video ── */}
         {tab === "video" && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-7">
+          <div className={`rounded-2xl border p-5 md:p-7 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">
               {t("cartoonStudio.promptLabel")}
             </label>
@@ -498,7 +500,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
 
         {/* ── TAB: characters ── */}
         {tab === "characters" && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-7">
+          <div className={`rounded-2xl border p-5 md:p-7 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">
               {t("cartoonStudio.characterLabel")}
             </label>
@@ -545,7 +547,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
 
         {/* ── TAB: cartoonize ── */}
         {tab === "cartoonize" && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-7">
+          <div className={`rounded-2xl border p-5 md:p-7 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <input
               ref={fileRef}
               type="file"
@@ -625,7 +627,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
         )}
 
         {/* ── related (existing, not duplicated) ── */}
-        <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className={`mt-10 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
             {t("cartoonStudio.alsoTry")}
           </p>

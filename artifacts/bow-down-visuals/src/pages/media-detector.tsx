@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -143,6 +144,7 @@ let idCounter = 0;
 const nextId = () => `q${Date.now()}_${idCounter++}`;
 
 export default function MediaDetector() {
+  const isLight = useIsLightTheme();
   usePageTitle("Media Detector", "Detect AI-generated media — check images, audio and video for synthetic fingerprints.");
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -302,7 +304,7 @@ export default function MediaDetector() {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); }}
           onClick={() => fileRef.current?.click()}
           className={`rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors mb-4 ${
-            dragOver ? "border-amber-400/70 bg-amber-400/5" : "border-white/15 bg-white/[0.02] hover:border-amber-400/40"
+            dragOver ? "border-amber-400/70 bg-amber-400/10" : isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/80" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-amber-400/40"
           }`}
         >
           <UploadCloud className="h-10 w-10 mx-auto mb-3 text-amber-400/80" />
@@ -375,7 +377,7 @@ export default function MediaDetector() {
           {queue.map((item) => {
             const KindIcon = kindIcon(item.kind);
             return (
-              <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div key={item.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-start gap-4">
                   {item.previewUrl ? (
                     <img src={item.previewUrl} alt="" className="w-20 h-20 rounded-xl object-cover border border-white/10 shrink-0" />

@@ -704,7 +704,7 @@ export default function Publish() {
         )}
 
         {/* Profile status — one-click creation, no dead ends */}
-        <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div className={`mt-8 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {profileLoading ? (
             <div className="flex items-center gap-2 text-sm text-white/50">
               <Loader2 className="h-4 w-4 animate-spin" /> Checking your creator profile…
@@ -897,7 +897,7 @@ export default function Publish() {
         </div>
 
         {/* Metadata */}
-        <div className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
+        <div className={`mt-6 space-y-4 rounded-2xl border p-4 sm:p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-white/40">Title</label>
             <input
@@ -1192,7 +1192,7 @@ export default function Publish() {
           ) : (
             <div className="mt-3 space-y-2">
               {drafts.map((d) => (
-                <div key={`${d.kind}-${d.id}`} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+                <div key={`${d.kind}-${d.id}`} className={`flex items-center gap-3 rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   {d.artwork_url
                     ? <img src={d.artwork_url} alt="" className="h-12 w-12 rounded-xl object-cover border border-white/10 shrink-0" />
                     : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-white/30">

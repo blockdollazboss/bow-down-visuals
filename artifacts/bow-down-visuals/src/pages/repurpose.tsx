@@ -98,8 +98,10 @@ interface JobResponse {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
-const cardClass =
-  "rounded-2xl border border-white/10 bg-white/[0.02] p-6";
+const cardClass = (isLight: boolean) =>
+  isLight
+    ? "rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-6"
+    : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
 
 function SectionHeader(props: { icon: typeof Film; step?: number; title: string; blurb?: string; right?: React.ReactNode }) {
   const Icon = props.icon;
@@ -401,7 +403,7 @@ function StreamVodClips() {
       )}
 
       {/* Step 1 — source */}
-      <section className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <section className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">1</span>
           {t("clipMaker.step1Title")}
@@ -519,7 +521,7 @@ function StreamVodClips() {
 
       {/* Step 2 — highlights */}
       {highlights.length > 0 && (
-        <section id="clip-results" className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <section id="clip-results" className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">2</span>
@@ -609,7 +611,7 @@ function StreamVodClips() {
 
       {/* Step 3 — cut results */}
       {(job || jobId) && (
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <section className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">3</span>
             {t("clipMaker.step3Title")}
@@ -685,7 +687,7 @@ function StreamVodClips() {
           { icon: Sparkles, title: t("clipMaker.how2Title"), text: t("clipMaker.how2Text", { lengths: CLIP_LENGTHS.join("/"), vibe }) },
           { icon: Scissors, title: t("clipMaker.how3Title"), text: t("clipMaker.how3Text") },
         ].map((s) => (
-          <div key={s.title} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div key={s.title} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <s.icon className="h-6 w-6 text-primary" />
             <div className="mt-2 font-bold">{s.title}</div>
             <div className="mt-1 text-sm text-white/55">{s.text}</div>
@@ -1011,7 +1013,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
         )}
 
         {/* Step 1 — source */}
-        <section className={`${cardClass} mt-10`}>
+        <section className={`${cardClass(isLight)} mt-10`}>
           <SectionHeader icon={Upload} step={1} title={t("repurpose.step1.title")} blurb={t("repurpose.step1.blurb")} />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
@@ -1063,7 +1065,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
         {a && (
           <div id="repurpose-results" className="mt-10 space-y-8">
             {/* Pack header */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black">{a.videoTitle}</h2>
@@ -1090,7 +1092,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* Clips */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={Clapperboard}
                 title={t("repurpose.clips.title")}
@@ -1167,7 +1169,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* Thumbnails */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={ImageIcon}
                 title={t("repurpose.thumbs.title")}
@@ -1233,7 +1235,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* Captions */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={MessageSquareText}
                 title={t("repurpose.captions.title")}
@@ -1278,7 +1280,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* Platform descriptions */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={Share2}
                 title={t("repurpose.platforms.title")}

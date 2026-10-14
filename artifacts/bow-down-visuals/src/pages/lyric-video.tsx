@@ -281,7 +281,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
         )}
 
         {/* ── Step 1: song ── */}
-        <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">1</span>
             {t("lyricVideo.step1Title")}
@@ -339,7 +339,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
         </section>
 
         {/* ── Step 2: lyrics ── */}
-        <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">2</span>
             {t("lyricVideo.step2Title")}
@@ -366,7 +366,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
 
         {/* ── Step 3: timing review ── */}
         {lines.length > 0 && (
-          <section id="lyric-timing" data-min-stars="3" className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <section id="lyric-timing" data-min-stars="3" className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">3</span>
               {t("lyricVideo.step3Title")} <span className="text-xs font-normal text-white/40">{t("lyricVideo.freeBadge")}</span>
@@ -454,7 +454,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
 
         {/* ── Step 4: style + render ── */}
         {lines.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">4</span>
               {t("lyricVideo.step4Title")}

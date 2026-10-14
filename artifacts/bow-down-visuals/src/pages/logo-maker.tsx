@@ -206,7 +206,7 @@ export function LogoMakerTool() {
         )}
 
         {status === "idle" || status === "failed" ? (
-          <div className="mt-6 space-y-5">
+          <div className={`mt-6 space-y-5 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Brand name */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("logoMaker.brandNameLabel")}</label>
@@ -291,7 +291,7 @@ export function LogoMakerTool() {
 
         {/* Progress */}
         {busy && (
-          <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+          <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-bold text-white">{status === "working" ? t("logoMaker.designing") : t("logoMaker.rendering")}</p>
             <p className="text-sm text-white/40 mt-1">{t("logoMaker.craftingHint")}</p>

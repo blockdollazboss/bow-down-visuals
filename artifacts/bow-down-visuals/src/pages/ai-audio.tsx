@@ -146,7 +146,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
+      <div className={`rounded-2xl border p-6 space-y-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div>
           <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.vibeLabel")}</Label>
           <Textarea
@@ -242,7 +242,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+      <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
           <Music4 className="w-4 h-4 text-primary" /> {t("beatMaker.yourBeatTitle")}
         </h3>
@@ -559,7 +559,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const T = {
     card: isLight
       ? "border-[#c9a84c]/30 bg-gradient-to-br from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]"
-      : "border-white/10 bg-white/[0.03]",
+      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]",
     label: isLight ? "text-[#4A3B22]/70" : "text-white/60",
     heading: isLight ? "text-[#2A2118]" : "text-white",
     dim: isLight ? "text-[#4A3B22]/50" : "text-white/40",
@@ -1135,9 +1135,10 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
    One tap flips the site into Advanced mode (clamped to the plan's max). */
 
 function SequencerGate({ onEnable }: { onEnable: () => void }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-primary/30 bg-white/[0.03] p-8 text-center space-y-4">
+    <div className={`rounded-2xl border p-8 text-center space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/30 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="mx-auto w-12 h-12 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center">
         <Lock className="w-5 h-5 text-primary" />
       </div>
@@ -1462,7 +1463,7 @@ function SamplesPanel() {
         )}
 
         {/* ── Builder ── */}
-        <section className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <section className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-5">{t("samples.buildTitle")}</h2>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -2191,6 +2192,7 @@ const AI_AUDIO_TABS: Array<{ id: AiAudioTab; icon: LucideIcon; labelKey: string;
 ];
 
 export default function AiAudio() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [tab, setTab] = useState<AiAudioTab>(() => {
     try {
@@ -2235,7 +2237,7 @@ export default function AiAudio() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
+        <div className={`mt-6 grid grid-cols-3 gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {AI_AUDIO_TABS.map((tb) => {
             const Icon = tb.icon;
             const isActive = tab === tb.id;

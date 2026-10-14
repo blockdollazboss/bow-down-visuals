@@ -214,7 +214,7 @@ export default function ScriptWriter() {
         />
 
         {/* ── Controls ── */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
+        <section className={`rounded-2xl border p-6 mb-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {hookHint && (
             <div className="mb-5 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -390,7 +390,7 @@ export default function ScriptWriter() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5" /> {t("scriptWriter.hookLabel")}
@@ -421,7 +421,7 @@ export default function ScriptWriter() {
                 {result.beats.map((beat, i) => (
                   <div
                     key={i}
-                    className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+                    className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-xs font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/25 rounded-md px-2 py-0.5">
@@ -487,7 +487,7 @@ export default function ScriptWriter() {
             )}
 
             {result.cta && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold mb-1 flex items-center gap-1.5">
                   <Megaphone className="w-3.5 h-3.5" /> {t("scriptWriter.ctaTitle")}
                 </p>
@@ -496,7 +496,7 @@ export default function ScriptWriter() {
             )}
 
             {result.teleprompter && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <h3 className="text-lg font-bold">{t("scriptWriter.teleprompterTitle")}</h3>
                   <div className="flex gap-2">

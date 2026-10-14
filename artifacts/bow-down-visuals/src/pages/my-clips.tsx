@@ -799,6 +799,7 @@ function ClipCard({
   onAttach: (clip: GeneratedClip) => void;
   onSeoScore: (clip: GeneratedClip) => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
@@ -836,7 +837,7 @@ function ClipCard({
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       {/* Video preview */}
       <div className="relative bg-black aspect-[9/16] max-h-72 w-full overflow-hidden">
         <video

@@ -258,11 +258,11 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
         )}
 
         {!user ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center text-white/60">{t("translate.signInPrompt")}</div>
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/60"}`}>{t("translate.signInPrompt")}</div>
         ) : (
           <>
             {/* ── Step 1: upload ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
                 <Upload className="h-5 w-5" />{t("translate.step1")}</h2>
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-6 py-10 transition hover:border-amber-400/40">
@@ -299,7 +299,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* ── Step 2: languages ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
                 <Globe className="h-5 w-5" />{t("translate.step2")}<span className="text-xs font-normal text-white/40">
                   ({selectedLangs.length}/{TRANSLATOR_MAX_LANGUAGES})
@@ -327,7 +327,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
             </section>
 
             {/* ── Step 3: voice ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
                 <Mic2 className="h-5 w-5" />{t("translate.step3")}</h2>
               {voicesLoading ? (
@@ -406,7 +406,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
 
             {/* ── Job progress ── */}
             {(translating || job) && job && (
-              <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
                   {job.status === "processing" || job.status === "queued" ? (
                     <Loader2 className="h-5 w-5 animate-spin" />

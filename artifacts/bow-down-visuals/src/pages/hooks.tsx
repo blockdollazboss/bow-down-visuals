@@ -339,7 +339,7 @@ function TitlesTab() {
  key={entry.id}
  type="button"
  onClick={() => loadFromHistory(entry)}
- className="block w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition hover:border-primary/40"
+ className={`block w-full rounded-xl border px-4 py-3 text-left transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
  >
  <p className="truncate text-sm font-semibold text-white/90">{entry.topic}</p>
  <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/35">

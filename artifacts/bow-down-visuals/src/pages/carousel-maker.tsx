@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -32,6 +33,7 @@ function newSlide(n: number): CarouselSlide {
 }
 
 export default function CarouselMaker() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
@@ -252,7 +254,7 @@ export default function CarouselMaker() {
                   className={`relative rounded-2xl border p-4 text-left transition-all hover:-translate-y-1 ${
                     templateId === tpl.id
                       ? "border-primary bg-primary/[0.13] shadow-[0_0_0_1px_rgba(212,175,55,0.65),0_0_28px_rgba(212,175,55,0.22)]"
-                      : "border-white/[0.07] bg-white/[0.02] hover:border-primary/30"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/30"
                   }`}
                 >
                   {templateId === tpl.id && (<span className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A84C] text-black shadow-md"><Check className="h-3 w-3" strokeWidth={3.5} /></span>)}
@@ -384,7 +386,7 @@ export default function CarouselMaker() {
             </div>
 
             {/* right: editor */}
-            <div className="space-y-5">
+            <div className={`space-y-5 rounded-3xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold">
                   {t("carouselMaker.editSlide", { n: activeIdx + 1, total: slides.length })}
@@ -456,7 +458,7 @@ export default function CarouselMaker() {
               )}
 
               {/* brand */}
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+              <div className={`rounded-2xl border p-4 space-y-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h3 className="text-sm font-bold">{t("carouselMaker.brandTitle")}</h3>
                 <div className="space-y-2">
                   <Label className="text-xs text-white/50">{t("carouselMaker.brandColorsLabel")}</Label>

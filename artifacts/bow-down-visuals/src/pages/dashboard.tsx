@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ function SectionLabel({ icon: Icon, children, action }: { icon: React.ElementTyp
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("dashboard.metaTitle"), t("dashboard.metaDescription"));
   const { profile, user, getAccessToken, refreshProfile } = useAuth();
@@ -441,7 +443,7 @@ export default function Dashboard() {
           <SectionLabel icon={DollarSign} action={
             <Link href="/coach"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.money_title")}</SectionLabel>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 md:p-5 flex flex-wrap items-center gap-4">
+          <div className={`rounded-2xl border p-4 md:p-5 flex flex-wrap items-center gap-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {loading ? (
               <div className="h-10 flex-1 rounded-xl lux-skeleton" />
             ) : money.activeCount > 0 ? (
@@ -489,7 +491,7 @@ export default function Dashboard() {
               { tab: "memberships", label: t("coach.tabMemberships", { defaultValue: "Memberships" }), Icon: Crown },
             ].map(({ tab, label, Icon }) => (
               <Link key={tab} href={`/coach?tab=${tab}`}>
-                <div className="group h-full p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-primary/40 hover:bg-primary/[0.05] hover:-translate-y-0.5 transition-all cursor-pointer text-center">
+                <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="h-10 w-10 mx-auto rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-2.5 group-hover:scale-110 transition-transform">
                     <Icon className="h-5 w-5" />
                   </div>
@@ -509,7 +511,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {nextMoves.map((m, i) => (
               <Link key={i} href={m.href}>
-                <div className="group h-full p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-primary/40 hover:bg-primary/[0.05] hover:-translate-y-0.5 transition-all cursor-pointer">
+                <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="h-9 w-9 rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">{m.icon}</div>
                   <p className="text-sm font-black text-white leading-snug truncate">{m.title}</p>
                   <p className="text-[11px] text-white/35 mt-1 leading-relaxed line-clamp-2">{m.sub}</p>
@@ -558,7 +560,7 @@ export default function Dashboard() {
               </Link>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.05] overflow-hidden">
+            <div className={`rounded-2xl border divide-y divide-white/[0.05] overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               {usage.slice(0, 5).map(u => (
                 <div key={u.id} className="flex items-center gap-3 px-4 py-2.5">
                   <div className="h-7 w-7 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">

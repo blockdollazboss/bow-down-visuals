@@ -581,7 +581,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             <button
               type="button"
               onClick={() => switchMode("from-project")}
-              className="group flex flex-col items-start text-left rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-primary/40 hover:bg-primary/[0.03] p-7 transition-all"
+              className={`group flex flex-col items-start text-left rounded-2xl border hover:border-primary/40 p-7 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
             >
               <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <FolderOpen className="h-6 w-6 text-primary" />
@@ -599,7 +599,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             <button
               type="button"
               onClick={() => switchMode("from-scratch")}
-              className="group flex flex-col items-start text-left rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.03] p-7 transition-all"
+              className={`group flex flex-col items-start text-left rounded-2xl border hover:border-white/20 p-7 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
             >
               <div className="h-12 w-12 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mb-5 group-hover:border-white/20 transition-colors">
                 <Wand2 className="h-6 w-6 text-white/50 group-hover:text-white/80 transition-colors" />
@@ -631,7 +631,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             </button>
 
             {/* ── STEP 1: Select Project ── */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+            <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <StepHeader number={1} label={t("promo-clip.steps.selectProject")} done={!!selectedProject} />
 
               {/* ── COLLAPSED: project already selected ── */}
@@ -743,7 +743,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
             {/* ── STEP 2: Promo Type — preset picks (2) ── */}
             {selectedProject && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
+              <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-min-stars="2">
                 <StepHeader number={2} label={t("promo-clip.steps.choosePromoType")} done={!!promoType} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PROMO_TYPES.map((pt) => (
@@ -761,7 +761,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
             {/* ── STEP 3: Platform — preset picks (2) ── */}
             {selectedProject && promoType && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
+              <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-min-stars="2">
                 <StepHeader number={3} label={t("promo-clip.steps.choosePlatform")} done={!!platform} />
                 <div className="flex flex-wrap gap-2">
                   {PLATFORMS.map((p) => (
@@ -785,7 +785,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
             {/* ── Clip Selector (if project has clips) — tweak option (3) ── */}
             {selectedProject && promoType && platform && projectClips.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="3">
+              <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-min-stars="3">
                 <button
                   type="button"
                   onClick={() => setClipsOpen((v) => !v)}
@@ -941,7 +941,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
               <ArrowLeft className="h-3.5 w-3.5" /> {t("promo-clip.changeMode")}
             </button>
 
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+            <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <form onSubmit={handleSubmit(generateFromScratch)} className="space-y-8">
 
                 {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
@@ -1090,7 +1090,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
             {/* Open Video Editor shortcut — only when project has video clips */}
             {mode === "from-project" && selectedProject && isVideoProject(selectedProject.project_type) && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div>
                   <p className="text-sm font-semibold text-white">{t("promo-clip.videoEditor.title")}</p>
                   <p className="text-xs text-white/35 mt-0.5">{t("promo-clip.videoEditor.desc")}</p>

@@ -170,7 +170,7 @@ export default function CoverArt() {
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {/* ── Controls ── */}
-          <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className={`space-y-5 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Simple / Custom toggle */}
             <div className="flex gap-2">
               <button
@@ -336,7 +336,7 @@ export default function CoverArt() {
           </div>
 
           {/* ── Result ── */}
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {!result && !generating && (
               <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
                 <Disc3 className="h-10 w-10 text-white/15 mb-3" />
