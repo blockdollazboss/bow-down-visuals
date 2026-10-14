@@ -142,7 +142,7 @@ export default function FanDecoderSection() {
 
       {result && (
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:col-span-2">
+          <div className={`rounded-3xl border p-6 md:col-span-2 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-3">
               {t("fanDecoder.wants", { defaultValue: "What they want next" })}
             </p>
@@ -161,7 +161,7 @@ export default function FanDecoderSection() {
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+          <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-3">
               {t("fanDecoder.directions", { defaultValue: "Content directions" })}
             </p>
@@ -171,7 +171,7 @@ export default function FanDecoderSection() {
               ))}
             </ul>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+          <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-3">
               {t("fanDecoder.tone", { defaultValue: "Tone notes" })}
             </p>

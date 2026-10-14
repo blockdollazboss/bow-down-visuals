@@ -202,7 +202,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
 
         {/* ── the brief ── */}
         <div className="mt-6 grid gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className={sectionTitle}>{t("contentIntelligence.briefIdea")}</p>
             <p className="text-[15px] font-bold leading-relaxed text-white">“{ctx.idea || "—"}”</p>
             {results.validate && (
@@ -230,7 +230,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className={sectionTitle}>{t("contentIntelligence.briefNiche")}</p>
               {results.niche ? (
                 <>
@@ -246,7 +246,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
                 {t("contentIntelligence.viewStep", { step: 3 })} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <p className={sectionTitle}>{t("contentIntelligence.briefGaps")}</p>
               {gaps.length > 0 ? (
                 <ul className="grid gap-2">
@@ -265,7 +265,7 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className={sectionTitle}>
               <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
               {t("contentIntelligence.briefWeek")}

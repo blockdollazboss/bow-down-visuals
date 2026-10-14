@@ -558,7 +558,7 @@ export default function BrandingShop() {
         </div>
 
         {/* tabs */}
-        <div className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+        <div className={`mb-8 flex gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {(
             [
               { key: "shop", label: t("brandingShop.tabs.shop") },
@@ -694,7 +694,7 @@ export default function BrandingShop() {
               return (
                 <div
                   key={p.key}
-                  className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-primary/30"
+                  className={`overflow-hidden rounded-2xl border transition hover:border-primary/30 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                 >
                   <div className={`flex h-44 items-center justify-center ${isLight ? "bg-gradient-to-br from-[#F1E5C8] via-[#E9DCBC] to-[#DFCFA3]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
                     <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10">
@@ -828,7 +828,7 @@ export default function BrandingShop() {
         {/* ── STUDIO TAB ───────────────────────────────────────── */}
         {tab === "studio" && (
           <div className="grid gap-6 lg:grid-cols-5">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 lg:col-span-2">
+            <div className={`rounded-2xl border p-6 lg:col-span-2 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Sparkles className="h-5 w-5 text-primary" /> {t("brandingShop.studioTitle")}
               </h2>
@@ -1020,7 +1020,7 @@ export default function BrandingShop() {
                 {orders.map((o) => {
                   const meta = STATUS_META[o.status] ?? STATUS_META.received!;
                   return (
-                  <div key={o.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div key={o.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="font-mono text-white/40">#{o.id.slice(0, 8)}</span>
@@ -1106,7 +1106,7 @@ export default function BrandingShop() {
         )}
 
         {/* fulfillment honesty banner */}
-        <div className="mt-12 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <div className={`mt-12 flex items-start gap-3 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <p className="text-xs leading-relaxed text-white/45">
             <span className="font-bold text-white/70">{t("brandingShop.fulfillmentTitle")}</span>{" "}
@@ -1159,7 +1159,7 @@ export default function BrandingShop() {
                   {cart.map((item, idx) => {
                     const p = productByKey(item.product);
                     return (
-                      <div key={idx} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <div key={idx} className={`flex items-center gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
                           {item.logoUrl ? (
                             <img src={item.logoUrl} alt="Logo" className="h-full w-full object-contain" />
@@ -1193,7 +1193,7 @@ export default function BrandingShop() {
                   })}
 
                   {/* checkout form */}
-                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                  <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="mb-3 text-sm font-bold">{t("brandingShop.shippingTitle")}</h3>
                     <div className="space-y-2.5">
                       <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandingShop.fullNamePlaceholder")} className={inputClass} />
@@ -1474,7 +1474,7 @@ function MerchTab() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
+      <div className={`mt-6 flex gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         {(
           [
             { key: "design", icon: Sparkles },
@@ -1519,7 +1519,7 @@ function MerchTab() {
                   className={`rounded-xl border p-3 text-left transition ${
                     product === p.key
                       ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <span className="block h-10 rounded-lg mb-2" style={{ background: p.swatch }} />
@@ -1543,7 +1543,7 @@ function MerchTab() {
                   className={`rounded-xl border p-3 text-left transition ${
                     style === s.key
                       ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   <span className="block h-10 rounded-lg mb-2" style={{ background: s.swatch }} />
@@ -1592,7 +1592,7 @@ function MerchTab() {
 
           {/* Progress */}
           {busy && (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+            <div className={`rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
               <p className="font-bold text-white">{t("merch.designing")}</p>
               <p className="text-sm text-white/40 mt-1">{t("merch.designingDetail")}</p>
@@ -1610,7 +1610,7 @@ function MerchTab() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {mockups.map((m) => (
-                  <div key={m.url} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3">
+                  <div key={m.url} className={`rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <img src={m.url} alt={t("merch.mockupAlt")} className="w-full rounded-xl aspect-square object-cover" />
                     <div className="mt-3 flex gap-2">
                       <a
@@ -1689,7 +1689,7 @@ function MerchTab() {
             const commission = validPrice ? Math.round((priceCents * 15) / 100) : 0;
             const profit = validPrice ? priceCents - d.base_cost_cents - commission : null;
             return (
-              <div key={d.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:flex gap-4">
+              <div key={d.id} className={`rounded-2xl border p-4 sm:flex gap-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <img src={d.image_url} alt={d.title} className="w-full sm:w-36 aspect-square rounded-xl object-cover shrink-0" />
                 <div className="mt-3 sm:mt-0 flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3">

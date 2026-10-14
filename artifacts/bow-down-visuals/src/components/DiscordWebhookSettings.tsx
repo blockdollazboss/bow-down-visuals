@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { MessageCircle, Loader2, CheckCircle2, Trash2, Eye, EyeOff, Bell, BellOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,7 @@ interface DiscordStatus {
 }
 
 export function DiscordWebhookSettings() {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [status, setStatus] = useState<DiscordStatus | null>(null);
@@ -83,7 +85,7 @@ export function DiscordWebhookSettings() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6 space-y-4" data-testid="discord-settings">
+    <section className={`rounded-2xl border p-5 md:p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="discord-settings">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <span className="h-9 w-9 rounded-xl bg-[#5865F2]/15 border border-[#5865F2]/30 flex items-center justify-center">

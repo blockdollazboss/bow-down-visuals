@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -69,6 +70,7 @@ function gradeRing(grade: string): string {
 }
 
 export default function RetentionDoctor() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -399,7 +401,7 @@ export default function RetentionDoctor() {
               {result.diagnoses.map((d, i) => {
                 const FixIcon = FIX_ICON[d.fixAction] ?? Clapperboard;
                 return (
-                  <article key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <article key={i} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-red-500/15 px-3 py-1 font-mono text-xs font-black text-red-300">
                         −{d.dropPct}% @ {d.at}

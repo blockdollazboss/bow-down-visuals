@@ -2112,7 +2112,7 @@ export default function ArtistVault() {
         </div>
 
         {/* Form card */}
-        <div id="new-artist-form" className={`rounded-2xl border overflow-hidden scroll-mt-24 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/50" : "border-white/[0.07] bg-white/[0.02]"}`}>
+        <div id="new-artist-form" className={`rounded-2xl border overflow-hidden scroll-mt-24 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/50" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05] bg-white/[0.01]">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center">

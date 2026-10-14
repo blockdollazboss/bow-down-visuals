@@ -329,7 +329,7 @@ export default function ChannelAuditPanel() {
                 {result.dimensions?.map((d) => (
                   <div
                     key={d.key}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-primary/40"
+                    className={`rounded-2xl border p-5 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-bold uppercase tracking-wider text-white/70">{d.label}</p>
@@ -361,7 +361,7 @@ export default function ChannelAuditPanel() {
                 {result.topPriorities?.map((p, i) => (
                   <div
                     key={`priority-${i}`}
-                    className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                    className={`flex items-start gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-base font-black text-primary">
                       {i + 1}
@@ -373,7 +373,7 @@ export default function ChannelAuditPanel() {
             </div>
 
             {/* Quick actions */}
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+            <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Trophy className="h-5 w-5 text-primary" aria-hidden="true" />
                 {t("audit.fixItNowTitle")}
@@ -384,7 +384,7 @@ export default function ChannelAuditPanel() {
                   <Link
                     key={a.href}
                     href={a.href}
-                    className="group flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-primary/50 hover:bg-primary/5"
+                    className={`group flex items-center justify-between gap-3 rounded-2xl border p-4 transition hover:border-primary/50 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div>
                       <p className="font-bold text-white group-hover:text-primary">{a.label}</p>

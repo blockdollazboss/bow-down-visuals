@@ -579,7 +579,7 @@ function HubTabFallback() {
  return (
  <div
  key={`elig-${i}`}
- className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+ className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
  >
  <div className="flex items-center justify-between gap-3">
  <p className="text-base font-black text-white">{item.platform}</p>
@@ -619,19 +619,19 @@ function HubTabFallback() {
  </p>
  <div className="grid gap-3">
  {plan.earnings.bestFormat && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.earnsMost")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestFormat}</p>
  </div>
  )}
  {plan.earnings.rpmNotes && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.rpmRanges")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.rpmNotes}</p>
  </div>
  )}
  {plan.earnings.bestCadence && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.cadenceLabel")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestCadence}</p>
  </div>

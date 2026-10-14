@@ -54,6 +54,7 @@ const ASSIST_ACTIONS: Array<{ id: AssistAction; label: string; icon: typeof PenL
 /* ── Main page ── */
 
 export default function Books() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
@@ -140,7 +141,7 @@ export default function Books() {
             <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
           </div>
         ) : books.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+          <div className={`text-center py-20 border border-dashed rounded-2xl ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <BookOpen className="h-12 w-12 mx-auto text-[#C9A84C]/50 mb-4" />
             <p className="text-white/60 text-lg font-semibold">No books yet</p>
             <p className="text-white/40 text-sm mt-1 mb-6">Start your first book — AI helps you write every chapter.</p>
@@ -153,7 +154,7 @@ export default function Books() {
             {books.map((book) => (
               <div
                 key={book.id}
-                className="border border-white/10 rounded-2xl p-5 bg-white/[0.02] hover:border-[#C9A84C]/40 transition-colors cursor-pointer group"
+                className={`rounded-2xl p-5 hover:border-[#C9A84C]/40 transition-colors cursor-pointer group border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                 onClick={() => loadBook(book)}
               >
                 <div className="flex items-start justify-between">

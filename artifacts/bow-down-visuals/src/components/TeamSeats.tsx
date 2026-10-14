@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Users, UserPlus, Copy, Check, Trash2, MailWarning, ShieldCheck, X,
@@ -57,6 +58,7 @@ function roleBadgeClass(role: string) {
 }
 
 export function TeamSeats() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -220,7 +222,7 @@ export function TeamSeats() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
+    <section className={`rounded-2xl border p-6 space-y-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
           <Users className="h-5 w-5 text-primary" />

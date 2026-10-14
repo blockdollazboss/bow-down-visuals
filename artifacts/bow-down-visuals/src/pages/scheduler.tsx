@@ -705,6 +705,7 @@ function QueueTab(props: {
   onEdit: (p: ScheduledPostShape) => void;
   onCancel: (p: ScheduledPostShape) => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const sorted = useMemo(
     () => [...props.posts].sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? "")),
@@ -716,7 +717,7 @@ function QueueTab(props: {
   return (
     <div className="space-y-3">
       {sorted.map((p) => (
-        <div key={p.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div key={p.id} className={`flex items-center gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <MediaThumb post={p} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -782,6 +783,7 @@ function DraftsTab(props: {
   onSchedule: (p: ScheduledPostShape) => void;
   onDelete: (p: ScheduledPostShape) => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   if (props.posts.length === 0) {
     return <EmptyState icon={Inbox} title={t("scheduler.drafts.emptyTitle")} hint={t("scheduler.drafts.emptyHint")} />;
@@ -789,7 +791,7 @@ function DraftsTab(props: {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {props.posts.map((p) => (
-        <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div key={p.id} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <MediaThumb post={p} large />
           <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -820,6 +822,7 @@ function DraftsTab(props: {
 /* ─── Posted tab ───────────────────────────────────────────────────────── */
 
 function PostedTab(props: { posts: ScheduledPostShape[] }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const sorted = useMemo(
     () => [...props.posts].sort((a, b) => (b.postedAt ?? b.updatedAt).localeCompare(a.postedAt ?? a.updatedAt)),
@@ -831,7 +834,7 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
   return (
     <div className="space-y-3">
       {sorted.map((p) => (
-        <div key={p.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div key={p.id} className={`flex items-center gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <MediaThumb post={p} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -897,8 +900,9 @@ function MediaThumb({ post, large }: { post: ScheduledPostShape; large?: boolean
 }
 
 function EmptyState({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint: string }) {
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-16 text-center">
+    <div className={`rounded-3xl border border-dashed px-6 py-16 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Icon className="mx-auto h-10 w-10 text-primary/50" />
       <h3 className="mt-4 font-display text-xl font-black">{title}</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-white/45">{hint}</p>

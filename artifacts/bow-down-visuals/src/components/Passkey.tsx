@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Fingerprint, Loader2, Trash2 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
@@ -240,6 +241,7 @@ export interface PasskeyInfo {
 
 /* Full passkey manager for the Settings page: list, register, delete. */
 export function PasskeyManager() {
+  const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
   const [keys, setKeys] = useState<PasskeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -298,7 +300,7 @@ export function PasskeyManager() {
   if (!supported) return null;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+    <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-3 mb-1">
         <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
           <Fingerprint className="h-5 w-5 text-primary" />

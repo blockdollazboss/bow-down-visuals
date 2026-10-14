@@ -107,7 +107,7 @@ export default function SponsorPost() {
         )}
 
         {!user ? (
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+          <div className={`mt-8 rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/60">{t("sponsorsPost.signInPrompt")}</p>
             <Link href="/login"
               className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3 font-bold text-primary transition hover:bg-primary hover:text-black">

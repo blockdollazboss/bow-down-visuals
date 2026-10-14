@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
   DollarSign, TrendingUp, Music2, Upload, Sparkles, Loader2,
@@ -75,6 +76,7 @@ function Bar({ pct, gold }: { pct: number; gold?: boolean }) {
 }
 
 export default function RoyaltyTrackerPanel() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
@@ -244,7 +246,7 @@ export default function RoyaltyTrackerPanel() {
         </div>
 
         {!user ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+          <div className={`rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/70">{t("royalties.signIn")}</p>
           </div>
         ) : summaryLoading ? (
@@ -262,14 +264,14 @@ export default function RoyaltyTrackerPanel() {
                 <div className="mt-2 text-3xl font-black text-amber-300">{fmtMoney(summary?.total ?? "0.00")}</div>
                 <div className="mt-1 text-xs text-white/45">{t("royalties.totals.entries", { num: summary?.entryCount ?? 0 })}</div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
                   <TrendingUp className="h-4 w-4" /> {t("royalties.totals.streams")}
                 </div>
                 <div className="mt-2 text-3xl font-black">{(summary?.totalStreams ?? 0).toLocaleString()}</div>
                 <div className="mt-1 text-xs text-white/45">{t("royalties.totals.acrossPlatforms")}</div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
                   <Music2 className="h-4 w-4" /> {t("royalties.totals.songs")}
                 </div>
@@ -312,7 +314,7 @@ export default function RoyaltyTrackerPanel() {
             {hasData ? (
               <>
                 {/* Monthly trend */}
-                <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h2 className="mb-4 text-lg font-bold">{t("royalties.monthlyTrend")}</h2>
                   <div className="flex items-end gap-2 overflow-x-auto pb-2">
                     {summary!.monthly.map((m) => (
@@ -331,7 +333,7 @@ export default function RoyaltyTrackerPanel() {
 
                 <div className="mb-8 grid gap-6 md:grid-cols-2">
                   {/* Per song */}
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h2 className="mb-4 text-lg font-bold">{t("royalties.perSong")}</h2>
                     <div className="space-y-3">
                       {summary!.perSong.slice(0, 8).map((s) => (
@@ -347,7 +349,7 @@ export default function RoyaltyTrackerPanel() {
                     </div>
                   </div>
                   {/* Per platform */}
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h2 className="mb-4 text-lg font-bold">{t("royalties.perPlatform")}</h2>
                     <div className="space-y-3">
                       {summary!.perPlatform.map((p) => (
@@ -365,7 +367,7 @@ export default function RoyaltyTrackerPanel() {
                 </div>
               </>
             ) : (
-              <div className="mb-8 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+              <div className={`mb-8 rounded-2xl border border-dashed p-8 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <Upload className="mx-auto mb-3 h-8 w-8 text-white/30" />
                 <p className="font-bold">{t("royalties.empty.title")}</p>
                 <p className="mx-auto mt-1 max-w-md text-sm text-white/50">
@@ -375,7 +377,7 @@ export default function RoyaltyTrackerPanel() {
             )}
 
             {/* CSV import */}
-            <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="flex items-center gap-2 text-lg font-bold"><Upload className="h-5 w-5 text-amber-300" /> {t("royalties.import.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.import.desc")}
@@ -402,7 +404,7 @@ export default function RoyaltyTrackerPanel() {
             </div>
 
             {/* Platforms */}
-            <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="flex items-center gap-2 text-lg font-bold"><Link2 className="h-5 w-5 text-amber-300" /> {t("royalties.platforms.title")}</h2>
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.platforms.desc1")} <span className="font-bold text-white/70">{t("royalties.platforms.comingSoon")}</span>{t("royalties.platforms.desc2")}
@@ -431,7 +433,7 @@ export default function RoyaltyTrackerPanel() {
             </div>
 
             {/* Payouts */}
-            <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-bold"><Wallet className="h-5 w-5 text-amber-300" /> {t("royalties.payouts.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
                 <button

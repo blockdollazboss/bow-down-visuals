@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -48,6 +49,7 @@ function useQueryParams() {
 }
 
 export default function Library() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("library.pageTitle", { defaultValue: "Thy Library" }), t("library.pageDescription", { defaultValue: "Templates, presets, and fonts for creators." }));
   const params = useQueryParams();
@@ -282,8 +284,9 @@ function CategoryPills({ categories, active, onChange }: { categories: string[];
 function TemplateCard({ tpl, compact, isFav, onFav, onUse, t }: {
   tpl: LibraryTemplate; compact?: boolean; isFav: boolean; onFav: () => void; onUse: () => void; t: (k: string, o?: any) => string;
 }) {
+  const isLight = useIsLightTheme();
   return (
-    <article className="group rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all">
+    <article className={`group rounded-2xl border overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="relative h-28 flex items-center justify-center overflow-hidden" style={{ background: tpl.gradient }}>
         <span className="text-5xl drop-shadow-lg" aria-hidden="true">{tpl.emoji}</span>
         <span className="absolute bottom-2 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur">
@@ -317,10 +320,11 @@ function TemplateCard({ tpl, compact, isFav, onFav, onUse, t }: {
 function PresetCard({ preset, isFav, onFav, onUse, t }: {
   preset: LibraryPreset; isFav: boolean; onFav: () => void; onUse: () => void; t: (k: string, o?: any) => string;
 }) {
+  const isLight = useIsLightTheme();
   const isText = preset.category === "Text Styles";
   const textPreset = TEXT_STYLE_PRESETS.find((p) => p.slug === preset.slug);
   return (
-    <article className="group rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all">
+    <article className={`group rounded-2xl border overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="relative h-28 overflow-hidden" style={{ background: preset.gradient }}>
         {isText && textPreset ? (
           <div className="absolute inset-0 flex items-center justify-center p-3">
@@ -365,8 +369,9 @@ function PresetCard({ preset, isFav, onFav, onUse, t }: {
 function FontCard({ font, isFav, onFav, copied, onCopy, t }: {
   font: LibraryFont; isFav: boolean; onFav: () => void; copied: boolean; onCopy: () => void; t: (k: string, o?: any) => string;
 }) {
+  const isLight = useIsLightTheme();
   return (
-    <article className="group rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all">
+    <article className={`group rounded-2xl border overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="relative h-32 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-white/[0.04] to-transparent overflow-hidden">
         <span className="text-3xl text-white text-center leading-tight" style={{ fontFamily: `'${font.family}', sans-serif` }}>
           Thy Cheat Code

@@ -190,7 +190,7 @@ export default function ChooseArtist() {
             <Loader2 className="h-8 w-8 animate-spin text-zinc-300/50" />
           </div>
         ) : vaults.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center space-y-5 mb-6">
+          <div className={`rounded-2xl border p-10 text-center space-y-5 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="h-12 w-12 rounded-xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center mx-auto">
               <User className="h-6 w-6 text-white/20" />
             </div>

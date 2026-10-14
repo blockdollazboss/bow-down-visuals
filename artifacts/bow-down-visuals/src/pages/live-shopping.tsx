@@ -389,7 +389,7 @@ export default function LiveShopping() {
         </section>
 
         {!user ? (
-          <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
+          <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Zap className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
             <h2 className="mt-3 text-xl font-bold">{t("liveShopping.signInTitle")}</h2>
             <p className="mt-2 text-sm text-white/55">{t("liveShopping.signInSubtitle")}</p>
@@ -449,7 +449,7 @@ export default function LiveShopping() {
                     </div>
 
                     {formOpen && (
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                      <div className={`mt-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <h3 className="font-bold">{editing ? t("liveShopping.editProduct") : t("liveShopping.newProduct")}</h3>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("liveShopping.productNamePlaceholder")} className={inputClass} />
@@ -479,7 +479,7 @@ export default function LiveShopping() {
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {products.map((p) => (
-                        <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                           {p.image_url ? (
                             <img src={p.image_url} alt={p.name} className="h-32 w-full rounded-xl object-cover" loading="lazy" />
                           ) : (
@@ -513,7 +513,7 @@ export default function LiveShopping() {
                 {tab === "overlay" && (
                   <section className="mt-8">
                     {!activeStream ? (
-                      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
+                      <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <Radio className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                         <h2 className="mt-3 text-xl font-bold">{t("liveShopping.startStreamTitle")}</h2>
                         <p className="mt-2 text-sm text-white/55">{t("liveShopping.startStreamSubtitle")}</p>
@@ -589,7 +589,7 @@ export default function LiveShopping() {
                                 className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition ${
                                   activeStream.pinned_product_id === p.id
                                     ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                                    : "border-white/10 bg-white/[0.02] hover:border-primary/40"
+                                    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                                 }`}
                               >
                                 <span className="flex items-center gap-2">
@@ -629,24 +629,24 @@ export default function LiveShopping() {
                       <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">{t("liveShopping.testDataBadge")}</span>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex items-center gap-2 text-white/45"><DollarSign className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.revenueLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black text-primary">{dashboard.totals.revenue}</p>
                         <p className="mt-1 text-xs text-white/40">{t("liveShopping.testSalesCount", { count: dashboard.totals.sales })}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex items-center gap-2 text-white/45"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.platformFeesLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black">{dashboard.totals.platform_fees}</p>
                         <p className="mt-1 text-xs text-white/40">{t("liveShopping.yourPayout", { amount: dashboard.totals.creator_payout })}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex items-center gap-2 text-white/45"><Users className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.streamsLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black">{dashboard.per_stream.length}</p>
                         <p className="mt-1 text-xs text-white/40">{t("liveShopping.sellingSessions")}</p>
                       </div>
                     </div>
                     <h3 className="mt-8 text-sm font-bold text-white/70">{t("liveShopping.revenuePerStream")}</h3>
-                    <div className="mt-3 overflow-hidden rounded-2xl border border-white/10">
+                    <div className={`mt-3 overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       {dashboard.per_stream.length === 0 ? (
                         <p className="p-6 text-center text-sm text-white/40">{t("liveShopping.noStreams")}</p>
                       ) : (

@@ -311,7 +311,7 @@ export default function Beats() {
         {tab === "browse" && (
           <>
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 mb-6 p-4 rounded-2xl border border-white/10 bg-white/[0.02]">
+            <div className={`flex flex-wrap items-center gap-2 mb-6 p-4 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <SlidersHorizontal className="w-4 h-4 text-white/40" />
               <select value={genre} onChange={(e) => setGenre(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80">
@@ -344,7 +344,7 @@ export default function Beats() {
                 <p className="text-white/40 text-sm mb-4">{t("beats.beatCount", { count: filteredCount })}</p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {beats.map((beat) => (
-                    <div key={beat.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 hover:border-[#C9A84C]/40 transition-colors">
+                    <div key={beat.id} className={`rounded-2xl border p-4 hover:border-[#C9A84C]/40 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex items-start gap-3">
                         <button
                           onClick={() => togglePlay(beat)}
@@ -385,7 +385,7 @@ export default function Beats() {
         )}
 
         {tab === "sell" && (
-          <div className="max-w-2xl mx-auto rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <div className={`max-w-2xl mx-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="text-xl font-bold mb-1 flex items-center gap-2"><Store className="w-5 h-5 text-[#C9A84C]" /> {t("beats.sellTitle")}</h2>
             <p className="text-white/40 text-sm mb-6">{t("beats.sellSubtitle")}</p>
 
@@ -477,7 +477,7 @@ export default function Beats() {
                       { labelKey: "beats.statGross", value: centsToDollars(stats.grossCents) },
                       { labelKey: "beats.statYourCut", value: centsToDollars(stats.netCents) },
                     ].map((s) => (
-                      <div key={s.labelKey} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
+                      <div key={s.labelKey} className={`rounded-2xl border p-4 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <p className="text-2xl font-black text-[#E3C566]">{s.value}</p>
                         <p className="text-xs text-white/40 mt-1">{t(s.labelKey)}</p>
                       </div>
@@ -502,7 +502,7 @@ export default function Beats() {
                 ) : (
                   <div className="space-y-2">
                     {sales.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm">
+                      <div key={s.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <span className="text-white/70 capitalize">{t("beats.licenseRow", { tier: s.tier })}</span>
                         <span className="text-white/40">{centsToDollars(s.price_cents)}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
@@ -585,6 +585,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
   aiTagging: boolean;
   onRefresh: () => void;
 }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [applying, setApplying] = useState(false);
   const [suggestion, setSuggestion] = useState<{ genre: string; moodTags: string[] } | null>(null);
@@ -612,7 +613,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className={`rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold truncate">{beat.title}</p>

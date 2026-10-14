@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -86,6 +87,7 @@ const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function MilestoneTracker() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, profile, getAccessToken } = useAuth();
 
@@ -256,7 +258,7 @@ export default function MilestoneTracker() {
 
   if (!user) {
     return (
-      <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-white/10 bg-white/[0.02] p-10 text-center">
+      <div className={`mx-auto mt-10 max-w-xl rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <p className="text-white/60">{t("milestones.signIn")}</p>
         <Link href="/login" className={`${goldBtn} mt-6`}>{t("milestones.signInCta")}</Link>
       </div>
@@ -300,7 +302,7 @@ export default function MilestoneTracker() {
               </h3>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {tracks.map((trk) => (
-                  <div key={`${trk.trackTitle}|${trk.platform}`} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div key={`${trk.trackTitle}|${trk.platform}`} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-bold">{trk.trackTitle}</p>
@@ -344,7 +346,7 @@ export default function MilestoneTracker() {
           )}
 
           {/* ── log form ── */}
-          <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+          <section className={`mt-8 rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white/60">
               <Plus className="h-4 w-4 text-primary" aria-hidden="true" />
               {t("milestones.logTitle")}
@@ -438,7 +440,7 @@ export default function MilestoneTracker() {
             ) : (
               <ul className="mt-4 space-y-3">
                 {milestones.map((m) => (
-                  <li key={m.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <li key={m.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold">
                         {m.trackTitle}

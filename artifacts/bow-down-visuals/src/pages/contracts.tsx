@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import {
   FileText, Loader2, Sparkles, AlertTriangle, ShieldCheck, ShieldAlert,
@@ -88,6 +89,7 @@ function termIcon(a: string) {
 }
 
 export default function Contracts() {
+  const isLight = useIsLightTheme();
   usePageTitle("Contracts", "Creator contracts on Bow Down Visuals — generate and manage agreements for brand deals, features and collaborations.");
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -148,7 +150,7 @@ export default function Contracts() {
         </div>
 
         {!a ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Contract type */}
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.what_kind_of_contract_is_it")}</label>
             <div className="flex flex-wrap gap-2 mb-6">
@@ -308,7 +310,7 @@ export default function Contracts() {
 
             {/* Key terms */}
             {a.keyTerms?.length > 0 && (
-              <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h2 className="text-lg font-black mb-4 flex items-center gap-2">
                   <Scale className="h-5 w-5 text-amber-400" />{t("contracts.key_terms")}</h2>
                 <div className="grid md:grid-cols-2 gap-3">
@@ -344,7 +346,7 @@ export default function Contracts() {
             {/* Missing protections + favorable */}
             <div className="grid md:grid-cols-2 gap-6">
               {a.missingProtections?.length > 0 && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h2 className="text-base font-black mb-3 flex items-center gap-2 text-white/80">
                     <ShieldCheck className="h-4 w-4 text-white/40" />{t("contracts.missing_protections")}</h2>
                   <ul className="space-y-2">
@@ -372,7 +374,7 @@ export default function Contracts() {
             </div>
 
             {/* Disclaimer */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex gap-3">
+            <div className={`rounded-2xl border p-5 flex gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <Gavel className="h-5 w-5 text-white/30 shrink-0 mt-0.5" />
               <p className="text-xs text-white/40 leading-relaxed">{disclaimer}</p>
             </div>

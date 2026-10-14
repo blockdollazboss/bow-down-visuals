@@ -977,7 +977,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
       {/* form */}
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         {/* creator card */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
             <Sparkles className="h-4 w-4" /> {t("outreach.creatorProfile")}
           </h3>
@@ -1027,7 +1027,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
         </div>
 
         {/* brand card */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
             <Handshake className="h-4 w-4" /> {t("outreach.brandTitle")}
           </h3>
@@ -1078,7 +1078,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
       {kit && (
         <div id="outreach-results" className="mt-12 space-y-6">
           {/* pitch email */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                 <Mail className="h-4 w-4" /> {t("outreach.pitchEmail")}
@@ -1090,7 +1090,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
           </section>
 
           {/* DM version */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                 <MessageCircle className="h-4 w-4" /> {t("outreach.dmVersion")}
@@ -1101,7 +1101,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
           </section>
 
           {/* media kit summary */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                 <FileText className="h-4 w-4" /> {t("outreach.mediaKitSummary")}
@@ -1112,7 +1112,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
           </section>
 
           {/* follow-ups */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
               <CalendarClock className="h-4 w-4" /> {t("outreach.followUpSequence")}
             </h3>
@@ -1167,6 +1167,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
    ported from /sponsorship-outreach. */
 
 function PipelineTab() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
 
   const [tracked, setTracked] = useState<TrackedOutreach[]>([]);
@@ -1224,7 +1225,7 @@ function PipelineTab() {
               return (
                 <div
                   key={item.id}
-                  className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4"
+                  className={`flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-white">{item.brandName}</p>
@@ -1430,7 +1431,7 @@ function MarketplaceTab() {
       {/* deals grid */}
       <div className="mt-6">
         {!user ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+          <div className={`rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/60">{t("sponsors.signInPrompt")}</p>
             <Link href="/login"
               className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3 font-bold text-primary transition hover:bg-primary hover:text-black">
@@ -1444,7 +1445,7 @@ function MarketplaceTab() {
         ) : dealsError ? (
           <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{dealsError}</p>
         ) : filtered.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+          <div className={`rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Handshake className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
             <p className="mt-3 font-bold text-white">{deals.length === 0 ? t("sponsors.emptyNoDeals") : t("sponsors.emptyNoMatch")}</p>
             <p className="mt-1 text-sm text-white/50">
@@ -1461,7 +1462,7 @@ function MarketplaceTab() {
           <div className="grid gap-4 md:grid-cols-2">
             {filtered.map((d) => (
               <Link key={d.id} href={`/sponsors/${d.id}`}
-                className="group rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-primary/40 hover:bg-white/[0.05]">
+                className={`group rounded-3xl border p-6 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="flex items-center gap-2 text-lg font-black text-white">

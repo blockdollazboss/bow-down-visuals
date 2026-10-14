@@ -325,7 +325,7 @@ export default function Contests() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">{t("contests.run_giveaways_with_entry_trackin")}<span className="text-white/80 font-semibold">{t("contests.verifiable_random_draw")}</span>{t("contests.the_seed_entry_list_and_algorith")}</p>
         </div>
@@ -342,7 +342,7 @@ export default function Contests() {
         )}
 
         {!user ? (
-          <div className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+          <div className={`mt-8 rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/60">{t("contests.sign_in_to_run_contests_for_your")}</p>
             <Link href="/login" className="mt-4 inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110">{t("contests.sign_in")}</Link>
           </div>
@@ -358,7 +358,7 @@ export default function Contests() {
             </div>
 
             {showBuilder && (
-              <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-4">
+              <div className={`mt-4 rounded-2xl border p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="ct-title" className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("contests.contest_title")}</label>
@@ -415,7 +415,7 @@ export default function Contests() {
                         className={`rounded-xl border px-3 py-2.5 text-left transition ${
                           methods.has(m.key)
                             ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                            : "border-white/[0.12] bg-white/[0.02] hover:border-white/25"
+                            : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                         }`}
                       >
                         <p className="text-sm font-bold">{m.label}</p>
@@ -460,7 +460,7 @@ export default function Contests() {
             {loading ? (
               <div className="mt-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : contests.length === 0 ? (
-              <div className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-10 text-center">
+              <div className={`mt-8 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <Trophy className="h-8 w-8 text-primary/50 mx-auto mb-3" />
                 <p className="text-white/60">{t("contests.no_contests_yet_launch_your_firs")}</p>
               </div>
@@ -470,7 +470,7 @@ export default function Contests() {
                   <button
                     key={c.id}
                     onClick={() => openDetail(c.id)}
-                    className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 text-left hover:border-primary/40 transition"
+                    className={`rounded-2xl border p-5 text-left hover:border-primary/40 transition ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-bold">{c.title}</h3>
@@ -497,7 +497,7 @@ export default function Contests() {
               <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : (
               <div className="space-y-6">
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="text-xl font-black">{detail.title}</h2>
@@ -543,7 +543,7 @@ export default function Contests() {
 
                 {/* ── Entries ── */}
                 {detail.status !== "ended" && (
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                  <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="font-bold mb-1">{t("contests.track_entries")}</h3>
                     <p className="text-xs text-white/45 mb-4">{t("contests.log_entries_as_they_come_in_veri")}</p>
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -653,7 +653,7 @@ export default function Contests() {
 
                 {/* ── Announcement graphic ── */}
                 {detail.winnerEntryId && (
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                  <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="font-bold flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" />{t("contests.winner_announcement")}</h3>
                     <p className="text-xs text-white/45 mt-1 mb-4">{t("contests.ai_generated_gold_black_announce")}</p>
                     {announceUrl ? (

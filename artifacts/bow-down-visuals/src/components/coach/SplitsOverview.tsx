@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -68,6 +69,7 @@ function fmtMoney(cents: number): string {
 }
 
 export default function SplitsOverview() {
+  const isLight = useIsLightTheme();
   const { confirmedFetch } = useConfirmedApi();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,7 @@ export default function SplitsOverview() {
 
   if (loading) {
     return (
-      <div className="mt-6 flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.03] p-12 text-sm text-white/50">
+      <div className={`mt-6 flex items-center justify-center gap-2 rounded-3xl border p-12 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/50"}`}>
         <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
         Computing everyone's shares…
       </div>
@@ -120,7 +122,7 @@ export default function SplitsOverview() {
 
   if (!data || data.releases.length === 0) {
     return (
-      <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+      <div className={`mt-6 rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Users className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
         <p className="mt-4 text-sm font-bold text-white">No split agreements yet</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-white/50">
@@ -163,7 +165,7 @@ export default function SplitsOverview() {
 
       {/* ── per-release breakdown ── */}
       {data.releases.map((r) => (
-        <div key={r.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+        <div key={r.id} className={`rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="flex items-center gap-2 font-display text-lg font-black text-white">

@@ -282,7 +282,7 @@ export default function InterviewPrep() {
         </p>
 
         {/* artist profile */}
-        <div className="relative mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className={`relative mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
             <Sparkles className="h-4 w-4" /> {t("interviewPrep.artistProfile")}
           </h2>
@@ -333,7 +333,7 @@ export default function InterviewPrep() {
         {session && (
           <div id="interview-results" className="relative mt-12 space-y-8">
             {/* talking points */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                   <Target className="h-4 w-4" /> {t("interviewPrep.talkingPoints")}
@@ -363,7 +363,7 @@ export default function InterviewPrep() {
                 {session.questions.map((q, i) => {
                   const meta = CATEGORY_META[q.category];
                   return (
-                    <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <div key={i} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${meta.className}`}>
                           {t(meta.labelKey)}

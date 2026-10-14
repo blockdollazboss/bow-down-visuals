@@ -646,7 +646,7 @@ export default function LabelPitch() {
             {kit && (
               <div id="demo-kit-results" className="mt-8 space-y-6">
                 {/* analysis */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
                     {t("labelPitch.songAnalysis")}
@@ -687,7 +687,7 @@ export default function LabelPitch() {
                 </div>
 
                 {/* submission email */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -704,7 +704,7 @@ export default function LabelPitch() {
                 </div>
 
                 {/* one-sheet */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -718,7 +718,7 @@ export default function LabelPitch() {
                 </div>
 
                 {/* follow-up */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Send className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -816,7 +816,7 @@ export default function LabelPitch() {
               {labels.map((label) => {
                 const tm = TYPE_META[label.type] ?? TYPE_META["indie"]!;
                 return (
-                  <div key={label.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+                  <div key={label.id} className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-bold text-white">{label.name}</h3>
@@ -879,7 +879,7 @@ export default function LabelPitch() {
             </div>
 
             {showAddForm && (
-              <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+              <div className={`mb-6 rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <input
                     value={newSubmission.songTitle}
@@ -939,7 +939,7 @@ export default function LabelPitch() {
                 <Loader2 className="h-6 w-6 animate-spin text-white/30" aria-hidden="true" />
               </div>
             ) : submissions.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ClipboardList className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
                 <p className="font-semibold text-white/60">{t("labelPitch.noSubmissions")}</p>
                 <p className="mt-1 text-sm text-white/35">
@@ -952,7 +952,7 @@ export default function LabelPitch() {
                   const meta = STATUS_META[s.status] ?? STATUS_META["sent"]!;
                   const Icon = meta.icon;
                   return (
-                    <div key={s.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+                    <div key={s.id} className={`rounded-2xl border p-4 md:p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-bold text-white">{s.songTitle}</p>
@@ -1568,7 +1568,7 @@ function PlaylistsPitchTab() {
           {kit && (
             <div id="pitch-kit-results" className="mt-8 space-y-6">
               {/* analysis */}
-              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+              <div className={`overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h2 className="flex items-center gap-2 text-lg font-black">
                   <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
                   {t("playlistPitch.songAnalysis")}
@@ -1637,7 +1637,7 @@ function PlaylistsPitchTab() {
 
               {/* DM + follow-up */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+                <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="flex items-center gap-2 font-black">
                       <MessageCircle className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -1647,7 +1647,7 @@ function PlaylistsPitchTab() {
                   </div>
                   <p className="mt-3 text-sm leading-relaxed text-white/75">{kit.dmPitch}</p>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+                <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="flex items-center gap-2 font-black">
                       <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -1693,7 +1693,7 @@ function PlaylistsPitchTab() {
 
           <div className="mt-5 space-y-4">
             {curators.map((c) => (
-              <div key={c.id} className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+              <div key={c.id} className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="font-black text-white">{c.name}</h3>
@@ -1821,7 +1821,7 @@ function PlaylistsPitchTab() {
               const meta = PLAYLIST_STATUS_META[p.status] ?? PLAYLIST_STATUS_META["sent"]!;
               const Icon = meta.icon;
               return (
-                <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-black text-white">

@@ -384,8 +384,10 @@ function ConnSparkline({ points }: { points: number[] }) {
   );
 }
 
-const connCardClass =
-  "rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm";
+const connCardClass = (isLight: boolean) =>
+  isLight
+    ? "rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-5"
+    : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5";
 
 function ConnectedAccountsTab() {
   const isLight = useIsLightTheme();
@@ -578,7 +580,7 @@ function ConnectedAccountsTab() {
 
           if (!p || p.status === "not_connected") {
             return (
-              <div key={key} className={connCardClass}>
+              <div key={key} className={connCardClass(isLight)}>
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
                     <Icon className="h-4 w-4" />
@@ -598,7 +600,7 @@ function ConnectedAccountsTab() {
 
           if (p.status === "expired") {
             return (
-              <div key={key} className={connCardClass}>
+              <div key={key} className={connCardClass(isLight)}>
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
                     <Icon className="h-4 w-4" />
@@ -620,7 +622,7 @@ function ConnectedAccountsTab() {
 
           if (p.status === "error") {
             return (
-              <div key={key} className={connCardClass}>
+              <div key={key} className={connCardClass(isLight)}>
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
                     <Icon className="h-4 w-4" />
@@ -640,7 +642,7 @@ function ConnectedAccountsTab() {
           const s = p.stats;
           const label = p.pageName ?? (p.username ? `@${p.username}` : meta.label);
           return (
-            <div key={key} className={connCardClass}>
+            <div key={key} className={connCardClass(isLight)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -774,7 +776,7 @@ function ConnectedAccountsTab() {
               {insights.movers.length > 0 && (
                 <div className="grid gap-3 md:grid-cols-2">
                   {insights.movers.map((m, i) => (
-                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <p className="text-xs font-bold uppercase tracking-widest text-primary">{m.platform ?? t("analytics.platformFallback")}</p>
                       <p className="mt-1.5 text-sm text-white/85">{m.observation}</p>
                       {m.why && <p className="mt-1 text-[13px] text-white/50">{m.why}</p>}
@@ -783,7 +785,7 @@ function ConnectedAccountsTab() {
                 </div>
               )}
               {insights.bestWindow && (
-                <div className={`flex items-start gap-3 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                <div className={`flex items-start gap-3 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.bestWindow")}</p>
@@ -792,7 +794,7 @@ function ConnectedAccountsTab() {
                 </div>
               )}
               {insights.recommendations.length > 0 && (
-                <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.next3Moves")}</p>
                   <ol className="space-y-2">
                     {insights.recommendations.map((r, i) => (
@@ -812,7 +814,7 @@ function ConnectedAccountsTab() {
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">{t("analytics.makeTheseNext")}</p>
               <div className="grid gap-3 md:grid-cols-2">
                 {suggestions.map((s, i) => (
-                  <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                  <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <p className="font-display text-base font-bold">{s.title}</p>
                     <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">{s.format}</p>
                     <p className="mt-2 text-[13px] text-white/60">{s.why}</p>

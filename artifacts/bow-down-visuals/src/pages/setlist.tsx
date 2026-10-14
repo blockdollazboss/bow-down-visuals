@@ -265,7 +265,7 @@ export default function SetlistBuilder() {
         </div>
 
         {/* runtime bar */}
-        <div className="no-print mb-8 flex flex-wrap items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4">
+        <div className={`no-print mb-8 flex flex-wrap items-center gap-4 rounded-2xl border px-5 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
             <span className="text-sm text-white/60">{t("setlist.runtimeLabel")}</span>
@@ -319,7 +319,7 @@ export default function SetlistBuilder() {
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8 items-start">
           {/* ── left column: add songs + AI flow ── */}
           <div className="no-print space-y-6">
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="text-sm font-bold uppercase tracking-widest text-white/70 mb-4">{t("setlist.addSongTitle")}</h2>
               <div className="space-y-3">
                 <input
@@ -415,7 +415,7 @@ export default function SetlistBuilder() {
             </div>
 
             {songs.length === 0 ? (
-              <div className="no-print rounded-2xl border border-dashed border-white/15 bg-white/[0.01] p-12 text-center">
+              <div className={`no-print rounded-2xl border border-dashed p-12 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ListMusic className="h-10 w-10 text-white/15 mx-auto mb-4" />
                 <p className="text-white/50 font-semibold mb-1">{t("setlist.emptyTitle")}</p>
                 <p className="text-white/30 text-sm">{t("setlist.emptyDesc")}</p>
@@ -443,10 +443,10 @@ export default function SetlistBuilder() {
                       setDragIndex(null);
                       setDragOverIndex(null);
                     }}
-                    className={`rounded-2xl border bg-white/[0.02] p-4 transition-colors ${
+                    className={`rounded-2xl border p-4 transition-colors ${
                       dragOverIndex === i && dragIndex !== i
                         ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
-                        : "border-white/[0.07]"
+                        : (isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]")
                     } ${dragIndex === i ? "opacity-40" : ""}`}
                   >
                     <div className="flex items-center gap-3">
@@ -611,7 +611,7 @@ export default function SetlistBuilder() {
             ) : (
               <ul className="space-y-2">
                 {librarySongs.map((ls) => (
-                  <li key={ls.id} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-2.5">
+                  <li key={ls.id} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-white truncate">{ls.title}</p>
                       <p className="text-xs text-white/35">{ls.duration_sec ? formatDuration(parseDurationInput(ls.duration_sec)) : "Unknown length"}</p>

@@ -148,7 +148,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   };
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-2 mb-1">
         <Trophy className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -342,6 +342,7 @@ const SPOTLIGHT_STATUS_CLS: Record<string, string> = {
 };
 
 function SpotlightInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [inquiries, setInquiries] = useState<SpotlightInquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -383,7 +384,7 @@ function SpotlightInbox({ authHeaders }: { authHeaders: () => Promise<HeadersIni
   }
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-2 mb-1">
         <Star className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -459,6 +460,7 @@ interface ContactMessage {
 }
 
 function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -500,7 +502,7 @@ function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   }
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-2 mb-1">
         <Users className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -562,6 +564,7 @@ interface AdminUserLookup {
 }
 
 function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promise<HeadersInit>; adminEmail: string | null }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [looking, setLooking] = useState(false);
@@ -614,7 +617,7 @@ function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promis
   const isSelf = found != null && adminEmail != null && found.email.toLowerCase() === adminEmail.toLowerCase();
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -682,6 +685,7 @@ function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promis
 }
 
 export default function AdminPage() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("admin.pageTitle"), t("admin.pageDescription"));
   const { getAccessToken, profile, refreshProfile } = useAuth();
@@ -912,7 +916,7 @@ export default function AdminPage() {
         <p className="text-sm text-white/40 py-8 text-center">{t("admin.notAuthorized")}</p>
       ) : (
         <>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
+          <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <VisualBucsIcon className="h-4 w-4" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -943,7 +947,7 @@ export default function AdminPage() {
               {t("admin.grantLogNote")}
             </p>
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+          <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Users className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -979,7 +983,7 @@ export default function AdminPage() {
             {friendMessage && <p className="mt-3 text-sm text-green-400">{friendMessage}</p>}
             {friendError && <p className="mt-3 text-sm text-red-400">{friendError}</p>}
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+          <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Star className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
@@ -1019,7 +1023,7 @@ export default function AdminPage() {
             {planMessage && <p className="mt-3 text-sm text-green-400">{planMessage}</p>}
             {planError && <p className="mt-3 text-sm text-red-400">{planError}</p>}
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
+          <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Crown className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">

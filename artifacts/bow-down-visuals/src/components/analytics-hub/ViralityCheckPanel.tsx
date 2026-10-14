@@ -137,9 +137,10 @@ function ScoreCard({
  label: string;
  block: ScoreBlock | undefined;
 }) {
+ const isLight = useIsLightTheme();
  if (!block) return null;
  return (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <div className="flex items-center justify-between gap-3">
  <p className="flex items-center gap-2 text-sm font-bold text-white/90">
  <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -401,7 +402,7 @@ export default function ViralityCheckPanel() {
  <ScoreCard icon={Quote} label={t("viralityCheck.hookStrengthLabel")} block={result.hookStrength} />
  <ScoreCard icon={Type} label={t("viralityCheck.captionScoreLabel")} block={result.captionScore} />
  <ScoreCard icon={Hash} label={t("viralityCheck.hashtagsScoreLabel")} block={result.hashtagAnalysis} />
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="flex items-center gap-2 text-sm font-bold text-white/90">
  <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
  {t("viralityCheck.bestPostingTime")}
@@ -418,7 +419,7 @@ export default function ViralityCheckPanel() {
  {/* suggested hashtags */}
  {result.hashtagAnalysis?.suggestedHashtags &&
  result.hashtagAnalysis.suggestedHashtags.length > 0 && (
- <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+ <div className={`mt-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <div className="mb-3 flex items-center justify-between">
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("viralityCheck.suggestedHashtags")}

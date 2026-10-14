@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Gem, Loader2, Download, RefreshCw } from "lucide-react";
 
@@ -25,6 +26,7 @@ interface AdminJewelryOrder {
 }
 
 export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
   const [orders, setOrders] = useState<AdminJewelryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,7 +61,7 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
   };
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mb-4">
+    <div className={`rounded-xl border p-5 mb-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
           <Gem className="h-5 w-5 text-amber-400" /> Jewelry Reservations

@@ -224,7 +224,7 @@ export function StreamPackTool() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
             {t("streamPack.infoBoxA")} <span className="text-white/80 font-semibold">{t("streamPack.infoBoxStatic")}</span> {t("streamPack.infoBoxB")}
@@ -299,7 +299,7 @@ export function StreamPackTool() {
                 const Icon = GROUP_ICONS[group];
                 const allOn = groupAssets.every((a) => selected.has(a.key));
                 return (
-                  <div key={group} className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                  <div key={group} className={`rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <button
                       type="button"
                       onClick={() => toggleGroup(group)}
@@ -395,7 +395,7 @@ export function StreamPackTool() {
               {generatedList.map((a) => {
                 const r = results[a.key]!;
                 return (
-                  <div key={a.key} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+                  <div key={a.key} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <img src={r.url} alt={r.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />
                     <div className="flex items-center gap-2 px-4 py-3">
                       <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
@@ -422,7 +422,7 @@ export function StreamPackTool() {
                 );
               })}
             </div>
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+            <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <MonitorPlay className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
               <p className="text-xs text-white/55 leading-relaxed">
                 {t("streamPack.obsNote")}

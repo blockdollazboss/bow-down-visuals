@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, type JSX } from "react";
 import { Loader2, Link2Off, AlertTriangle, BadgeCheck } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -113,6 +114,7 @@ const PLATFORMS: PlatformConfig[] = [
 ];
 
 export function ConnectedAccounts() {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const { accounts, loading, reload } = useSocialAccounts();
@@ -161,7 +163,7 @@ export function ConnectedAccounts() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
+    <section className={`rounded-2xl border p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div>
         <h2 className="text-lg font-bold text-white">Connected Accounts</h2>
         <p className="text-sm text-white/40 mt-1">

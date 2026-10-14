@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +43,7 @@ const PREF_I18N: Record<PrefKey, string> = {
 };
 
 export function RetentionPrefsSettings() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -114,7 +116,7 @@ export function RetentionPrefsSettings() {
   }
 
   return (
-    <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 md:p-6">
+    <section className={`rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-3 mb-1">
         <div className="h-10 w-10 rounded-xl bg-primary/[0.12] border border-primary/25 flex items-center justify-center shrink-0">
           <BellRing className="h-5 w-5 text-primary" />

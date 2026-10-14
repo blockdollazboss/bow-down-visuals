@@ -140,14 +140,14 @@ export default function SponsorDashboard() {
             <p className="mt-2 font-display text-3xl font-black text-primary">{moneyCents(totalEarnedCents)}</p>
             <p className="mt-1 text-xs text-white/40">{t("sponsorDashboard.earnedHint")}</p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Briefcase className="h-3.5 w-3.5 text-primary/70" aria-hidden="true" /> {t("sponsorDashboard.dealsPosted")}
             </p>
             <p className="mt-2 font-display text-3xl font-black text-white">{postedDeals.length}</p>
             <p className="mt-1 text-xs text-white/40">{t("sponsorDashboard.openNow", { count: postedDeals.filter((d) => d.status === "active").length })}</p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <PenLine className="h-3.5 w-3.5 text-primary/70" aria-hidden="true" /> {t("sponsorDashboard.applicationsSent")}
             </p>
@@ -186,7 +186,7 @@ export default function SponsorDashboard() {
               <div className="grid gap-4 md:grid-cols-2">
                 {postedDeals.map((d) => (
                   <Link key={d.id} href={`/sponsors/${d.id}`}
-                    className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-primary/40">
+                    className={`rounded-3xl border p-6 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-lg font-black text-white">{d.brandName}</p>
@@ -222,7 +222,7 @@ export default function SponsorDashboard() {
               <div className="space-y-3">
                 {applications.map((a) => (
                   <Link key={a.id} href={`/sponsors/${a.deal_id}`}
-                    className="block rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-primary/40">
+                    className={`block rounded-2xl border p-5 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-black text-white">{a.brand_name}
                         <span className="ml-2 text-xs font-normal uppercase tracking-wider text-white/40">{a.niche}</span>
@@ -251,7 +251,7 @@ export default function SponsorDashboard() {
             <div className="space-y-3">
               {payouts.map((p) => (
                 <Link key={p.id} href={`/sponsors/${p.deal_id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-primary/40">
+                  className={`flex items-center justify-between gap-3 rounded-2xl border p-5 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div>
                     <p className="font-black text-white">{p.brand_name}</p>
                     <p className="text-xs text-white/40">
@@ -286,8 +286,9 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function EmptyState({ title, body, cta }: { title: string; body: string; cta: { href: string; label: string } }) {
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+    <div className={`rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <p className="font-bold text-white">{title}</p>
       <p className="mt-1 text-sm text-white/50">{body}</p>
       <Link href={cta.href}

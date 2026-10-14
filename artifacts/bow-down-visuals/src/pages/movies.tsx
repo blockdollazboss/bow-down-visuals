@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -91,6 +92,7 @@ function viralityColor(s: number): string {
 }
 
 export default function Movies() {
+  const isLight = useIsLightTheme();
   usePageTitle("Movies & Web Series", "Create, publish and promote AI-assisted movies and web series with the Bow Down Visuals creator studio.");
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -236,7 +238,7 @@ export default function Movies() {
 
         {tab === "concept" ? (
           !concept ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8 max-w-3xl mx-auto">
+            <div className={`rounded-2xl border p-6 md:p-8 max-w-3xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.whatMaking")}
               </label>
@@ -310,7 +312,7 @@ export default function Movies() {
               </div>
 
               {/* Logline */}
-              <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h3 className="text-lg font-black mb-3 flex items-center gap-2">
                   <Quote className="h-5 w-5 text-amber-400" /> Logline
                 </h3>
@@ -326,7 +328,7 @@ export default function Movies() {
 
               {/* Episodes */}
               {concept.episodes?.length > 0 && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-lg font-black mb-4 flex items-center gap-2">
                     <ListVideo className="h-5 w-5 text-amber-400" />
                     {format === "movie" ? t("movies.threeAct") : t("movies.episodeBreakdown", { count: concept.episodes.length })}
@@ -346,7 +348,7 @@ export default function Movies() {
 
               {/* Characters */}
               {concept.characters?.length > 0 && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-lg font-black mb-4 flex items-center gap-2">
                     <Users className="h-5 w-5 text-amber-400" /> Character Bible
                   </h3>
@@ -376,7 +378,7 @@ export default function Movies() {
                   <p className="text-sm text-white/70">{concept.pilotHook}</p>
                 </section>
                 {concept.comparables?.length > 0 && (
-                  <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                  <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="text-base font-black mb-2 text-white/80">{t("movies.comparables")}</h3>
                     <ul className="space-y-1">
                       {concept.comparables.map((c, i) => (
@@ -413,7 +415,7 @@ export default function Movies() {
         ) : (
           /* ── Clip detector tab ── */
           !detection ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8 max-w-3xl mx-auto">
+            <div className={`rounded-2xl border p-6 md:p-8 max-w-3xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.streamUrlLabel")} <span className="text-white/25 normal-case">{t("movies.optional")}</span>
               </label>
@@ -471,7 +473,7 @@ export default function Movies() {
                 </h3>
                 <div className="space-y-3">
                   {(detection.clips ?? []).map((clip, i) => (
-                    <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
                         <div className="font-bold text-white/90">{clip.title}</div>
                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${categoryBadge(clip.category)}`}>
@@ -495,7 +497,7 @@ export default function Movies() {
 
               {/* Posting strategy */}
               {detection.postingStrategy && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-base font-black mb-2 flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-amber-400" /> Posting Strategy
                   </h3>

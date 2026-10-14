@@ -367,7 +367,7 @@ export default function Shoutouts() {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {creators.map((c) => (
                   <button key={c.id} onClick={() => { setSelected(c); setSubmitted(false); setError(""); }}
-                    className="text-left rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:border-yellow-500/40 transition-colors">
+                    className={`text-left rounded-2xl border p-5 hover:border-yellow-500/40 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="font-bold text-lg">{c.displayName}</h3>
                     <p className="text-[#E3C566] font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">{t("shoutouts.perShoutout")}</span></p>
                     <p className="text-xs text-white/40 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("shoutouts.turnaroundDays", { days: c.turnaroundDays })}</p>
@@ -389,7 +389,7 @@ export default function Shoutouts() {
                 </button>
               </div>
             ) : (
-              <div className="max-w-xl mx-auto rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <div className={`max-w-xl mx-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <button onClick={() => setSelected(null)} className="text-xs text-white/40 hover:text-white mb-4">{t("shoutouts.allCreators")}</button>
                 <h2 className="text-xl font-bold mb-1">{t("shoutouts.shoutoutFrom", { name: selected.displayName })}</h2>
                 <p className="text-sm text-white/40 mb-6">{t("shoutouts.priceTurnaround", { price: money(selected.priceDollars), days: selected.turnaroundDays })}</p>
@@ -456,7 +456,7 @@ export default function Shoutouts() {
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-6">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 h-fit">
+                <div className={`rounded-2xl border p-5 h-fit ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.yourShoutoutPage")}</h2>
                   <div className="space-y-4">
                     <div>
@@ -492,7 +492,7 @@ export default function Shoutouts() {
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.revenueTitle")}</h2>
                     {revenue ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -515,7 +515,7 @@ export default function Shoutouts() {
                     <p className="text-[11px] text-white/35 mt-3">{t("shoutouts.revenueDisclaimer")}</p>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.incomingRequests")}</h2>
                       <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); }}

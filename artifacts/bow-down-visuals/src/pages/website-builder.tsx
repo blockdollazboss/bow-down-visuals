@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useRef } from "react";
 import {
   Globe, Loader2, Sparkles, Download, Eye, FileCode2, Wand2,
@@ -96,6 +97,7 @@ function loadJsZip(): Promise<any> {
 }
 
 export default function WebsiteBuilder() {
+  const isLight = useIsLightTheme();
   usePageTitle("Website Builder", "Describe the site you want and the AI builds it — preview it privately, then export your website package.");
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -275,7 +277,7 @@ export default function WebsiteBuilder() {
 
         {/* Brief */}
         <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepDescribe")}</h2>
-        <div className="mb-10 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className={`mb-10 grid gap-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
               {t("websiteBuilder.siteNameLabel")}
@@ -408,7 +410,7 @@ export default function WebsiteBuilder() {
             )}
 
             {/* Conversational edits */}
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+            <div className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h3 className="mb-2 flex items-center gap-2 font-bold">
                 <Wand2 className="h-5 w-5 text-primary" /> {t("websiteBuilder.editsTitle")}
               </h3>

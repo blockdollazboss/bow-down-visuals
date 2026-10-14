@@ -714,7 +714,7 @@ export default function SyncTab({
                 </p>
               )}
               {!sheetsLoading && sheets.map((s) => (
-                <div key={s.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div key={s.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-black text-white">
@@ -880,7 +880,7 @@ export default function SyncTab({
               const ptm = PROJECT_TYPE_META[b.projectType] ?? PROJECT_TYPE_META["tv"]!;
               const open = matchBriefId === b.id;
               return (
-                <div key={b.id} className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+                <div key={b.id} className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1048,7 +1048,7 @@ export default function SyncTab({
               const meta = SYNC_STATUS_META[p.status] ?? SYNC_STATUS_META["sent"]!;
               const Icon = meta.icon;
               return (
-                <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-black text-white">{p.songTitle}</p>
@@ -1279,7 +1279,7 @@ function OneSheetView({
 
       {/* licensing notes + handoffs */}
       {c.licensingNotes && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+        <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h3 className="flex items-center gap-2 font-black">
             <Music2 className="h-4 w-4 text-primary" aria-hidden="true" />
             {t("syncPitch.licensingNotesLabel")}
@@ -1291,7 +1291,7 @@ function OneSheetView({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <a
           href="/stems"
-          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-primary/40"
+          className={`flex items-center gap-3 rounded-2xl border p-4 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
         >
           <Disc3 className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
           <div>
@@ -1301,7 +1301,7 @@ function OneSheetView({
         </a>
         <a
           href="/sponsorship-outreach"
-          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-primary/40"
+          className={`flex items-center gap-3 rounded-2xl border p-4 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
         >
           <Send className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
           <div>

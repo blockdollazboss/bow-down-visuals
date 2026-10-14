@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Zap, ArrowRight, RefreshCw, Copy, Check } from "lucide-react";
@@ -23,9 +24,10 @@ interface StepProps {
 }
 
 function AxisBar({ label, value }: { label: string; value: number }) {
+  const isLight = useIsLightTheme();
   const pct = Math.max(0, Math.min(100, value * 10));
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+    <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-bold text-white">{label}</p>
         <p className={`font-display text-xl font-black ${scoreColor(pct)}`}>{value}<span className="text-sm text-white/40">/10</span></p>
@@ -38,6 +40,7 @@ function AxisBar({ label, value }: { label: string; value: number }) {
 }
 
 export default function StepHookLab({ ctx, onPatchCtx, result, onResult, onAdvance, onBack }: StepProps) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { call, loading, error, outOfCredits } = usePaidCall();
@@ -189,7 +192,7 @@ export default function StepHookLab({ ctx, onPatchCtx, result, onResult, onAdvan
             <AxisBar label={t("contentIntelligence.axisPattern")} value={result.patternInterrupt} />
             <AxisBar label={t("contentIntelligence.axisClarity")} value={result.clarity} />
           </div>
-          <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[15px] leading-relaxed text-white/90">
+          <p className={`mt-4 rounded-2xl border p-4 text-[15px] leading-relaxed ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/90"}`}>
             <span className="font-bold text-primary">{t("contentIntelligence.verdictLabel")}: </span>
             {result.verdict}
           </p>

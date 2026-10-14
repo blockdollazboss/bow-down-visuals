@@ -346,7 +346,7 @@ export default function MoneyTrackerPanel() {
 
   if (!user) {
     return (
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
+      <div className={`mt-8 rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Wallet className="mx-auto h-10 w-10 text-primary/60" aria-hidden="true" />
         <p className="mt-4 text-sm text-white/60">{t("moneyTracker.signInPrompt")}</p>
       </div>
@@ -386,7 +386,7 @@ export default function MoneyTrackerPanel() {
       )}
 
       {/* ── Ledger vs Splits vs Split Sheets vs Royalties toggle ──────── */}
-      <div className="mt-4 inline-flex flex-wrap gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+      <div className={`mt-4 inline-flex flex-wrap gap-1 rounded-2xl border p-1 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         {(["ledger", "splits", "splitSheets", "royalties"] as const).map((v) => (
           <button
             key={v}
@@ -409,7 +409,7 @@ export default function MoneyTrackerPanel() {
       ) : view === "splits" ? (
         <SplitsOverview />
       ) : loading ? (
-        <div className="mt-6 flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.03] p-12 text-sm text-white/50">
+        <div className={`mt-6 flex items-center justify-center gap-2 rounded-3xl border p-12 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/50"}`}>
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
           {t("moneyTracker.loading")}
         </div>
@@ -451,7 +451,7 @@ export default function MoneyTrackerPanel() {
           </div>
 
           {/* ── running totals ──────────────────────────────────────── */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-xs text-white/50">
+          <div className={`mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border px-5 py-3 text-xs ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/50"}`}>
             <span className="font-bold uppercase tracking-widest text-white/35">{t("moneyTracker.allTime")}</span>
             <span>{t("moneyTracker.income")}: <b className="text-emerald-300">{fmtMoney(stats.allTimeIncomeCents)}</b></span>
             <span>{t("moneyTracker.expenses")}: <b className="text-red-300">{fmtMoney(stats.allTimeExpenseCents)}</b></span>
@@ -468,7 +468,7 @@ export default function MoneyTrackerPanel() {
                   {t("moneyTracker.prefilledInvoice")}
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+              <div className={`grid grid-cols-2 gap-2 rounded-2xl border p-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 {(["income", "expense"] as const).map((type) => (
                   <button
                     key={type}
@@ -591,7 +591,7 @@ export default function MoneyTrackerPanel() {
                 const total = rows.reduce((s, [, c]) => s + c, 0);
                 if (rows.length === 0) return null;
                 return (
-                  <div key={type} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <div key={type} className={`rounded-3xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <p className={sectionTitle}>{t(`moneyTracker.breakdown${type === "income" ? "Income" : "Expense"}`)}</p>
                     <div className="space-y-3">
                       {rows.map(([cat, cents]) => (
@@ -616,7 +616,7 @@ export default function MoneyTrackerPanel() {
           )}
 
           {/* ── entries list ────────────────────────────────────────── */}
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+          <div className={`mt-6 rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className={sectionTitle}>{t("moneyTracker.entriesThisMonth", { month: monthLabel })}</p>
             {monthEntries.length === 0 ? (
               <div className="py-10 text-center">
