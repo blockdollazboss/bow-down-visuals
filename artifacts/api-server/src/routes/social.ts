@@ -1334,9 +1334,28 @@ async function enrichPosts(
   return (await Promise.all(
     rows.map(async (p) => {
       const author = pickProfile(pmap.get(p.profileId));
+      /* DTO built field-by-field (the toPublicProfile pattern): the
+         frontend contract (FeedPost in lib/social-api.ts) is snake_case
+         end to end, so the camelCase table keys must never leak through
+         a raw spread — media, timestamps and counts silently broke when
+         they did (post.media_urls / created_at / *_count all read
+         snake_case on the client). */
       return {
-        ...p,
-        mediaUrls: await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
+        id: p.id,
+        profile_id: p.profileId,
+        body: p.body,
+        media_urls: await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
+        kind: p.kind,
+        reply_to: p.replyTo,
+        quote_of: p.quoteOf,
+        repost_of: p.repostOf,
+        group_id: p.groupId,
+        scheduled_for: p.scheduledFor,
+        audience: p.audience,
+        like_count: p.likeCount,
+        repost_count: p.repostCount,
+        reply_count: p.replyCount,
+        created_at: p.createdAt,
         author: author
           ? {
               ...author,
