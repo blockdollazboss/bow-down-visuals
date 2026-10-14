@@ -215,7 +215,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               <video src={clip.video_url} className="w-full h-full object-cover" muted />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{clip.title || "Runway Clip"}</p>
+              <p className="text-sm font-bold text-white truncate">{clip.title || "Scene Clip"}</p>
               <p className="text-[10px] text-white/35">{formatDate(clip.created_at)}</p>
             </div>
           </div>
@@ -558,7 +558,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
                   <video src={clip.video_url} className="w-full h-full object-cover" muted />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{clip.title || "Runway Clip"}</p>
+                  <p className="text-sm font-bold text-white truncate">{clip.title || "Scene Clip"}</p>
                   <p className="text-[10px] text-white/35">Score this clip's publish packaging</p>
                 </div>
               </div>
@@ -853,7 +853,7 @@ function ClipCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white truncate">
-              {clip.title || "Runway Clip"}
+              {clip.title || "Scene Clip"}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Calendar className="h-3 w-3 text-white/30 shrink-0" />
@@ -935,7 +935,7 @@ function ClipCard({
           mediaType="video"
           mediaUrl={clip.video_url}
           thumbnailUrl={clip.thumbnail_url}
-          defaultTitle={clip.title || "My Runway Clip"}
+          defaultTitle={clip.title || "My Scene Clip"}
         />
 
         {/* Publish to my profile: clip → /publish prefilled → live */}
@@ -943,7 +943,7 @@ function ClipCard({
           type="video"
           category="video"
           videoUrl={clip.video_url}
-          title={clip.title || "My Runway Clip"}
+          title={clip.title || "My Scene Clip"}
           artworkUrl={clip.thumbnail_url ?? undefined}
           from="/my-clips"
           fromLabel="My Clips"
@@ -952,7 +952,7 @@ function ClipCard({
         {/* Client review link (CapCut parity) — free shareable feedback page */}
         <ShareForReviewButton
           videoUrl={clip.video_url}
-          title={clip.title || "My Runway Clip"}
+          title={clip.title || "My Scene Clip"}
           sourceType="clip"
           sourceId={clip.id}
         />

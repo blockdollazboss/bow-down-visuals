@@ -240,7 +240,7 @@
             } else if (data.status === "failed" || data.status === "cancelled") {
               stopPolling();
               setIsPolling(false);
-              setError(data.error ?? "Runway returned a failure with no message");
+              setError(data.error ?? "Scene clip generation returned a failure with no message");
               onUpdateRef.current({ generationStatus: "failed" });
               onGeneratingEndRef.current();
 
@@ -252,7 +252,7 @@
             stopPolling();
             setIsPolling(false);
             setError(
-              e instanceof Error ? e.message : "Network error while polling Runway",
+              e instanceof Error ? e.message : "Network error while polling the scene clip",
             );
             onUpdateRef.current({ generationStatus: "failed" });
             onGeneratingEndRef.current();
@@ -314,7 +314,7 @@
           };
 
           if (!res.ok || !data.taskId) {
-            throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+            throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
           }
 
           if (IS_DEV) console.log("[Runway] task:", data.taskId);
@@ -323,7 +323,7 @@
           startPolling(data.taskId);
         } catch (e) {
           const msg =
-            e instanceof Error ? e.message : "Failed to start Runway generation";
+            e instanceof Error ? e.message : "Failed to start scene clip generation";
 
           setIsPolling(false);
 
@@ -369,7 +369,7 @@
         <div className="mt-4 space-y-3 border-t border-white/[0.04] pt-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">
-              Runway
+              Scene Clip
             </span>
 
             <span
@@ -421,7 +421,7 @@
               <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-primary/80">
-                  Generating Runway clip…
+                  Generating scene clip…
                 </p>
                 <p className="text-[11px] text-white/30 mt-0.5">
                   This takes 30–90 seconds
@@ -671,7 +671,7 @@
           if (!improvedPrompt) return; // user cancelled
           onUpdate({ aiVideoPrompt: improvedPrompt });
           setEditedPrompt(improvedPrompt);
-          toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
+          toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced." });
         } catch {
           toast({ title: "Could not improve prompt", variant: "destructive" });
         } finally {
@@ -1094,7 +1094,7 @@
             title: fail === 0 ? "All prompts improved!" : `Improved ${ok} of ${targets.length} scenes`,
             description:
               fail === 0
-                ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} for Runway.`
+                ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} .`
                 : `${fail} scene${fail !== 1 ? "s" : ""} could not be improved — retry those individually.`,
             variant: fail === 0 ? undefined : "destructive",
           });
@@ -1141,7 +1141,7 @@
               if ("demoClipUrl" in patch && patch.demoClipUrl) {
                 toast({
                   title: "Clip saved!",
-                  description: "Your Runway clip has been saved to this project.",
+                  description: "Your scene clip has been saved to this project.",
                 });
               }
             } catch {
@@ -1265,7 +1265,7 @@
               </div>
 
               <p className="text-xs text-white/35 mt-1">
-                Arrange scenes, generate Runway clips, approve shots, then save your timeline.
+                Arrange scenes, generate scene clips, approve shots, then save your timeline.
               </p>
             </div>
 

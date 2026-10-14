@@ -121,7 +121,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       if (autoApplied) setTransitionError(null);
       toast({
         title: "AI Edit Plan ready ✓",
-        description: `Generated with ${data.source === "ai" ? "GPT-4o-mini AI" : "smart defaults"}.${autoApplied ? " AI transitions auto-applied to the timeline." : " Review the plan then click Apply."}`,
+        description: `Generated with ${data.source === "ai" ? "Thy Cheat Code AI" : "smart defaults"}.${autoApplied ? " AI transitions auto-applied to the timeline." : " Review the plan then click Apply."}`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

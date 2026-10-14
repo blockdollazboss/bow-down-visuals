@@ -18,7 +18,7 @@ const GALLERIES = [
     emoji: "🎬",
     title: "Video Edit Templates",
     blurb:
-      "CapCut-style auto edits: photo dump montages, lyric sync cuts, product promos, before/after reveals and more. Drop in clips, get a finished video.",
+      "Pro auto edits: photo dump montages, lyric sync cuts, product promos, before/after reveals and more. Drop in clips, get a finished video.",
     count: "8 templates",
     live: true,
   },

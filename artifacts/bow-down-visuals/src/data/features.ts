@@ -56,7 +56,7 @@ export const SITE_FEATURES: SiteFeature[] = [
   {
     key: "video-generator",
     name: "AI Video Generator",
-    tagline: "Cinematic AI video scenes with Seedance 2.5",
+    tagline: "Cinematic AI video scenes",
     route: "/make-video",
     category: "create",
     creditCost: "150 Visual Bucs/sec",

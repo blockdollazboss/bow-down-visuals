@@ -384,8 +384,8 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    { id: "nano-banana-2.1", nameKey: "modelNano", blurbKey: "modelNanoBlurb", fb: "Nano Banana 2.1", fbB: "Fast — keeps your product pixel-accurate." },
-                    { id: "ideogram-4.0", nameKey: "modelIdeogram", blurbKey: "modelIdeogramBlurb", fb: "Ideogram 4.0", fbB: "Best for products with text or logos." },
+                    { id: "nano-banana-2.1", nameKey: "modelNano", blurbKey: "modelNanoBlurb", fb: "Turbo Render", fbB: "Fast — keeps your product pixel-accurate." },
+                    { id: "ideogram-4.0", nameKey: "modelIdeogram", blurbKey: "modelIdeogramBlurb", fb: "Portrait Render", fbB: "Best for products with text or logos." },
                   ] as Array<{ id: PhotoModel; nameKey: string; blurbKey: string; fb: string; fbB: string }>
                 ).map((m) => {
                   const active = model === m.id;

@@ -227,7 +227,7 @@ export function SpeedRampSection({
     return (
       <EditorCard
         title="Speed Ramp"
-        subtitle="Slow-mo, speed presets & animated ramps — CapCut-style"
+        subtitle="Slow-mo, speed presets & animated ramps — pro-style"
         icon={<Gauge className="h-4 w-4" />}
       >
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center">
@@ -242,7 +242,7 @@ export function SpeedRampSection({
   return (
     <EditorCard
       title="Speed Ramp"
-      subtitle="Slow-mo, speed presets & animated ramps — CapCut-style"
+      subtitle="Slow-mo, speed presets & animated ramps — pro-style"
       icon={<Gauge className="h-4 w-4" />}
       right={
         <span className="text-[10px] font-black uppercase tracking-wider text-[#C9A84C] border border-[#C9A84C]/40 bg-[#C9A84C]/10 rounded-full px-2 py-0.5">

@@ -40,8 +40,8 @@ const PRESETS: { id: PresetId; icon: typeof Building2; blurbKey: string; default
 ];
 
 const MODELS: { id: "nano-banana-2.1" | "ideogram-4.0"; labelKey: string; defaultLabel: string; hintKey: string; defaultHint: string }[] = [
-  { id: "nano-banana-2.1", labelKey: "headshotStudio.models.nano", defaultLabel: "Nano Banana", hintKey: "headshotStudio.models.nanoHint", defaultHint: "Fast · locks your face" },
-  { id: "ideogram-4.0", labelKey: "headshotStudio.models.ideogram", defaultLabel: "Ideogram", hintKey: "headshotStudio.models.ideogramHint", defaultHint: "Alt render style" },
+  { id: "nano-banana-2.1", labelKey: "headshotStudio.models.nano", defaultLabel: "Turbo Render", hintKey: "headshotStudio.models.nanoHint", defaultHint: "Fast · locks your face" },
+  { id: "ideogram-4.0", labelKey: "headshotStudio.models.ideogram", defaultLabel: "Portrait Render", hintKey: "headshotStudio.models.ideogramHint", defaultHint: "Alt render style" },
 ];
 
 const FLOWS: { id: FlowMode; icon: typeof Wand2; labelKey: string; defaultLabel: string }[] = [

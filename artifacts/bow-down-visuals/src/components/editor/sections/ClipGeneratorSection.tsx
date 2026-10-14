@@ -1391,7 +1391,7 @@ function SceneClipCard({
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/[0.06] border border-primary/20">
               <ShieldCheck className="h-3 w-3 text-primary shrink-0" />
               <p className="text-[9px] text-primary/70 leading-snug">
-                {artistVault!.artist_name} consistency auto-injected into Runway prompt.
+                {artistVault!.artist_name} consistency auto-injected into the scene prompt.
               </p>
             </div>
           )}

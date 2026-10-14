@@ -75,7 +75,7 @@ const WORDSYNC_STYLES = [
 
 const TRANSCRIPT_STYLES = [
   { key: "karaoke", label: "Karaoke", blurb: "Big bold gold text — sing-along energy" },
-  { key: "word-by-word", label: "Word by Word", blurb: "TikTok-style bold text on a dark box" },
+  { key: "word-by-word", label: "Word by Word", blurb: "Bold caption — big text, dark box" },
   { key: "minimal", label: "Minimal", blurb: "Small clean white text, stays out of the way" },
   { key: "bold-outline", label: "Bold Outline", blurb: "Chunky white text, readable anywhere" },
   { key: "neon", label: "Neon", blurb: "Glowing cyan text, night-club energy" },
@@ -158,7 +158,7 @@ const PREVIEW_POS_CLASS: Record<string, string> = {
 
 const GEN_TIPS = [
   "Extracting the audio track from your video…",
-  "Transcribing with Whisper — this is the slow part, usually 1–3 minutes…",
+  "Transcribing with Thy Cheat Code AI — this is the slow part, usually 1–3 minutes…",
   "Aligning word-level timings for the karaoke effect…",
   "Burning the preview captions into the video…",
 ];

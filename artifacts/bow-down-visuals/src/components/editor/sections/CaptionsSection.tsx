@@ -1399,7 +1399,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 AI Caption Sync uses Visual Bucs
               </p>
               <p className="text-xs text-white/55 leading-relaxed">
-                This calls Whisper AI to transcribe your song and timestamp every word. It may use Visual Bucs from your account. Continue?
+                This calls Thy Cheat Code AI to transcribe your song and timestamp every word. It may use Visual Bucs from your account. Continue?
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => void runAiSync()} className="gold-glow font-bold gap-1.5">

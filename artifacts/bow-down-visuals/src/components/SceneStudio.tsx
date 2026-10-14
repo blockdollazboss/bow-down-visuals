@@ -448,11 +448,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             generatedAt: new Date().toISOString(),
             referenceSource: usedReferenceSource,
           });
-          toast({ title: "Runway clip ready!", description: "Your clip has been generated and saved." });
+          toast({ title: "Scene clip ready!", description: "Your clip has been generated and saved." });
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setIsGenerating(false);
-          setError(data.error ?? "Runway generation failed");
+          setError(data.error ?? "Scene clip generation failed");
           onUpdateRef.current({ generationStatus: "failed" });
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
@@ -460,7 +460,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       } catch {
         stopPolling();
         setIsGenerating(false);
-        setError("Network error while polling Runway");
+        setError("Network error while polling the scene clip");
         onUpdateRef.current({ generationStatus: "failed" });
       }
     }, 5000);
@@ -525,7 +525,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       });
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
       const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean };
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
       /* Keep the draft's seed so "Enhance to 1080p" can re-render it. */
@@ -533,7 +533,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       setTaskId(data.taskId);
       startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
+      const msg = e instanceof Error ? e.message : "Failed to start scene clip generation";
       setIsGenerating(false);
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
@@ -601,7 +601,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/5">
         <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-primary/90">Generating Runway clip…</p>
+          <p className="text-xs font-bold text-primary/90">Generating scene clip…</p>
           {label && (
             <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1" data-testid="text-reference-source">
               <ShieldCheck className="h-3 w-3" /> {label}
@@ -654,7 +654,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-400 uppercase tracking-widest">
-            <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider ?? "Runway"}
+            <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider === "Runway" ? "Scene Clip" : scene.provider ?? "Scene Clip"}
           </span>
           {referenceLabel(scene.referenceSource ?? referenceSource) && (
             <span
@@ -826,7 +826,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           className="flex items-center gap-1.5 text-[10px] font-bold text-white/30 hover:text-white/60 transition-colors mb-1.5"
         >
           <Eye className="h-3 w-3" />
-          {showFinalPrompt ? "Hide" : "Preview"} Final Prompt Sent To Runway
+          {showFinalPrompt ? "Hide" : "Preview"} Final Prompt
           {showFinalPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
         {showFinalPrompt && (
@@ -843,7 +843,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           {([
             { id: "gen4.5", label: "Standard" },
             { id: "seedance2_5", label: "Premium" },
-            { id: "veo3_1", label: "Veo 3.1" },
+            { id: "veo3_1", label: "Cinematic" },
           ] as const).map((m) => (
             <button
               key={m.id}
@@ -941,7 +941,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           data-testid={`btn-generate-runway`}
         >
           <Video className="h-3.5 w-3.5" />
-          {isDraftRequest ? "Generate Draft" : "Generate Runway Clip"}
+          {isDraftRequest ? "Generate Draft" : "Generate Scene Clip"}
         </Button>
         {/* Enhance: re-render the draft keeper at 1080p with the same seed */}
         {hasClip && draftSeed !== null && draftMode && (
@@ -1156,7 +1156,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
       if (!improvedPrompt) return; // user cancelled the credit confirmation
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
-      toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
+      toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced." });
     } catch (err) {
       const message = err instanceof ImprovePromptError ? err.message : "Something went wrong. Please try again.";
       toast({ title: "Could not improve prompt", description: message, variant: "destructive" });
@@ -1412,7 +1412,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
           {/* Silent preview note */}
           <p className="text-[11px] text-white/30 flex items-start gap-1.5">
             <Film className="h-3 w-3 text-primary/40 shrink-0 mt-0.5" />
-            Runway clips are silent previews. Your uploaded song will be added during final export.
+            Scene clips are silent previews. Your uploaded song will be added during final export.
           </p>
 
         </div>
@@ -1555,7 +1555,7 @@ export function SceneStudio({
           title: fail === 0 ? "All prompts improved!" : `Improved ${ok} of ${targets.length} scenes`,
           description:
             fail === 0
-              ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} for Runway.`
+              ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} .`
               : `${fail} scene${fail !== 1 ? "s" : ""} could not be improved — hover a scene's badge for details, or use "Retry Failed".`,
           variant: fail === 0 ? undefined : "destructive",
         });

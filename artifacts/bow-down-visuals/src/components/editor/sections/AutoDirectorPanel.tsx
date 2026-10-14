@@ -419,7 +419,7 @@ export function AutoDirectorPanel({
                         <label className="block">
                           <span className="text-[9px] uppercase text-primary/70 font-bold">Video prompt — the money shot</span>
                           <textarea value={s.videoPrompt} onChange={(e) => updateDraft(i, { videoPrompt: e.target.value })}
-                            rows={4} placeholder="The elite Runway prompt for this scene…"
+                            rows={4} placeholder="The elite prompt for this scene…"
                             className="mt-0.5 w-full rounded-md bg-white/[0.04] border border-primary/25 px-2 py-1.5 text-[11px] text-white placeholder:text-white/25 focus:outline-none focus:border-primary/60 resize-y leading-relaxed" />
                         </label>
                         <label className="block">

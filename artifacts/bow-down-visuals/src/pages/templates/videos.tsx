@@ -33,7 +33,7 @@ export default function VideoTemplates() {
   const { toast } = useToast();
   const { user, getAccessToken } = useAuth();
   usePageTitle(
-    "Video Edit Templates — CapCut-Style Auto Edits | Bow Down Visuals",
+    "Video Edit Templates — Pro Auto Edits | Bow Down Visuals",
     "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
   );
   const [category, setCategory] = useState("All");
@@ -100,7 +100,7 @@ export default function VideoTemplates() {
     "@type": "ItemList",
     name: "Video Edit Templates",
     description:
-      "CapCut-style video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps, talking head polish, hype trailers, and podcast highlights.",
+      "Pro video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps, talking head polish, hype trailers, and podcast highlights.",
     url: "https://bowdownvisuals.com/templates/videos",
     numberOfItems: VIDEO_TEMPLATE_METAS.length,
     itemListElement: VIDEO_TEMPLATE_METAS.map((tpl, i) => ({

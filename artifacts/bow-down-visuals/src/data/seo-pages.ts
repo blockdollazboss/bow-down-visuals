@@ -299,13 +299,13 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Maker",
     intro: [
       "A song without a visual is half a release. Bow Down Visuals' AI music video pipeline turns your track into a real video: generate cinematic clips from text or reference images, cut them to your structure, burn lyric lines across the frame, and export in the aspect ratio each platform wants.",
-      "Start from a video template — lyric sync cuts, photo montages, promo teasers — or generate raw clips with Seedance and assemble them in the editor. Browsing templates is free; generation spends credits.",
+      "Start from a video template — lyric sync cuts, photo montages, promo teasers — or generate raw clips and assemble them in the editor. Browsing templates is free; generation spends credits.",
     ],
     features: [
       {
         title: "Text & image to video",
         blurb:
-          "Describe the shot or upload a reference frame — Seedance-powered generation renders cinematic clips in 5, 10, 15, or 30 second lengths.",
+          "Describe the shot or upload a reference frame — AI-powered generation renders cinematic clips in 5, 10, 15, or 30 second lengths.",
       },
       {
         title: "Lyric sync cuts",

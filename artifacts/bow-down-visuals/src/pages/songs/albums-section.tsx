@@ -478,7 +478,7 @@ export default function AlbumsSection({
         <div className={`rounded-xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <AlbumIcon className="h-10 w-10 text-white/20 mx-auto mb-3" />
           <p className="text-sm text-white/50 mb-1 font-semibold">No albums yet</p>
-          <p className="text-xs text-white/35 mb-4">Bundle your songs into a release — like a Suno library, but yours.</p>
+          <p className="text-xs text-white/35 mb-4">Bundle your songs into a release — your own release library.</p>
           <Button onClick={openNew} className="rounded-xl bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110">
             <Plus className="h-4 w-4 mr-1" /> Create your first album
           </Button>

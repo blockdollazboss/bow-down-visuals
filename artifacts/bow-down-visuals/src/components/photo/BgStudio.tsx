@@ -514,14 +514,14 @@ export function BgStudio() {
                       disabled={!backdropStatus?.nanoConfigured}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "nano-banana-2.1" ? "border-amber-300 bg-amber-400/15 text-amber-300" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
                     >
-                      Nano Banana 2.1
+                      Turbo Render
                     </button>
                     <button
                       onClick={() => setProvider("ideogram-4.0")}
                       disabled={!backdropStatus?.ideogramConfigured}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${provider === "ideogram-4.0" ? "border-amber-300 bg-amber-400/15 text-amber-300" : "border-white/15 text-white/50 hover:text-white"} disabled:opacity-30`}
                     >
-                      Ideogram 4.0
+                      Portrait Render
                     </button>
                   </div>
                 </div>

@@ -20,10 +20,10 @@ export interface ArtistProfileFormLike {
 }
 
 export const ARTIST_IMAGE_MODELS: { id: ArtistImageModel; label: string; credits: number; hint: string }[] = [
-  { id: "nano-banana-2.1", label: "Nano Banana", credits: 100, hint: "Fast · character lock" },
-  { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5", credits: 100, hint: "Best quality · hyper-realistic" },
-  { id: "ideogram-4.0", label: "Ideogram", credits: 100, hint: "Text & posters" },
-  { id: "gen4_image", label: "Gen4 Image", credits: 200, hint: "Alternative" },
+  { id: "nano-banana-2.1", label: "Turbo Render", credits: 100, hint: "Fast · character lock" },
+  { id: "gpt-image-2.5-sunburst", label: "Pro Render", credits: 100, hint: "Best quality · hyper-realistic" },
+  { id: "ideogram-4.0", label: "Portrait Render", credits: 100, hint: "Text & posters" },
+  { id: "gen4_image", label: "Scene Render", credits: 200, hint: "Alternative" },
   { id: "gen4_image_turbo", label: "Turbo", credits: 100, hint: "Fast · needs photo" },
 ];
 

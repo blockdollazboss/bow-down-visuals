@@ -50,7 +50,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 5, title: "Lock character consistency",     desc: "Click Lock Character Consistency to generate a prompt that keeps your artist looking the same in every video." },
     ],
     tips: [
-      "Use Video Safe mode in the Consistency Lock for Runway clips — less distorted tattoos and jewelry.",
+      "Use Video Safe mode in the Consistency Lock for scene clips — less distorted tattoos and jewelry.",
       "The more details you fill in, the better AI tools match your artist's look.",
     ],
   },

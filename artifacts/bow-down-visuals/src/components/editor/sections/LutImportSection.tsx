@@ -287,7 +287,7 @@ export function LutImportSection({
 
   if (clips.length === 0) {
     return (
-      <EditorCard title="LUT Import" subtitle=".cube / .3dl — CapCut-style color, zero upload needed" icon={<Palette className="h-4 w-4" />}>
+      <EditorCard title="LUT Import" subtitle=".cube / .3dl — pro-style color, zero upload needed" icon={<Palette className="h-4 w-4" />}>
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center">
           <Film className="h-6 w-6 mx-auto text-white/25 mb-2" />
           <p className="text-sm font-semibold text-white/80">No clips on the timeline yet</p>
@@ -300,7 +300,7 @@ export function LutImportSection({
   return (
     <EditorCard
       title="LUT Import"
-      subtitle=".cube / .3dl — CapCut-style color, zero upload needed"
+      subtitle=".cube / .3dl — pro-style color, zero upload needed"
       icon={<Palette className="h-4 w-4" />}
       right={
         <span className="text-[10px] font-black uppercase tracking-wider text-[#C9A84C] border border-[#C9A84C]/40 bg-[#C9A84C]/10 rounded-full px-2 py-0.5">

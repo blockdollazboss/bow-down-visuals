@@ -551,7 +551,7 @@ export function StudioEditorSection({
             Bow Down Studio Editor
           </h2>
           <p className="text-[10px] text-white/30 mt-0.5">
-            CapCut-style timeline · {scenes.length} clips · {audioDuration ? fmt(audioDuration) : "--:--"} total
+            Studio timeline · {scenes.length} clips · {audioDuration ? fmt(audioDuration) : "--:--"} total
             {lockedTimeline && <span className="ml-2 text-primary/60">· Locked: {lockedTimeline.id}</span>}
           </p>
         </div>
