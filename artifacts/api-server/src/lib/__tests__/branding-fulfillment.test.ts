@@ -34,6 +34,11 @@
  *    submits nothing;
  *  - PrintKK resume with all items recorded: zero provider calls, the
  *    final state persists from the recorded ids;
+ *  - provider-side adoption: submissions carry our order id as
+ *    Printful's external_id, and a stale-reclaim retry that finds the
+ *    orphaned draft adopts it (zero new submits, confirm proceeds);
+ *    a lookup miss submits as before; a lookup failure submits nothing
+ *    blind and releases the claim for the next retry;
  *  - confirm guard: already-confirmed / terminal / mock / unsubmitted
  *    orders never reach the provider confirm; a pending draft does;
  *  - refresh guard: a claim token is never sent to the provider.
@@ -207,6 +212,7 @@ const h = vi.hoisted(() => {
     state,
     db,
     submitOrder: vi.fn(),
+    findExistingOrder: vi.fn(),
     refreshOrder: vi.fn(),
     confirmPrintfulOrder: vi.fn(),
     printkkConfigured: vi.fn(),
@@ -228,6 +234,7 @@ vi.mock("../printful", async (importOriginal) => {
   return {
     ...real,
     submitOrder: h.submitOrder,
+    findExistingOrder: h.findExistingOrder,
     refreshOrder: h.refreshOrder,
     confirmPrintfulOrder: h.confirmPrintfulOrder,
   };
@@ -314,6 +321,7 @@ beforeEach(() => {
   // provider value 'printful' while submitOrder itself stays mocked.
   process.env["PRINTFUL_API_KEY"] = "test-key";
   h.printkkConfigured.mockReturnValue(false);
+  h.findExistingOrder.mockResolvedValue(null);
   h.submitOrder.mockResolvedValue({ providerOrderId: "pf_100", status: "pending", mock: false });
   h.refreshOrder.mockResolvedValue({ providerOrderId: "pf_100", status: "pending", mock: false });
   h.confirmPrintfulOrder.mockResolvedValue(undefined);
@@ -489,6 +497,9 @@ describe("fulfillBrandingOrder — PrintKK per-item resume", () => {
     expect(row.provider_order_id).toBe("kk_3");
     expect(row.status).toBe("pending_fulfillment");
     expect(row.items.map((i) => i.providerOrderId)).toEqual(["kk_1", "kk_2", "kk_3"]);
+    // The Printful external-id lookup is never consulted on the
+    // PrintKK path (PrintKK has no reference lookup to adopt through).
+    expect(h.findExistingOrder).not.toHaveBeenCalled();
   });
 
   it("progress-recording failure after the provider accepted an item: claim HELD, immediate retry submits nothing", async () => {
@@ -532,6 +543,81 @@ describe("fulfillBrandingOrder — PrintKK per-item resume", () => {
     expect(calls).toEqual([]);
     expect(storedRow().provider_order_id).toBe("kk_3");
     expect(storedRow().status).toBe("pending_fulfillment");
+  });
+});
+
+describe("fulfillBrandingOrder — provider-side adoption (Printful external_id)", () => {
+  it("stale-reclaim retry adopts the existing Printful draft: zero new submits, id persisted under the claim, confirm proceeds", async () => {
+    // A previous worker died after Printful accepted the draft but
+    // before its id was persisted; its claim went stale. The draft is
+    // bound to our order id as external_id, so the reclaim finds it.
+    seedOrder({
+      provider_order_id: `claim:crashed-worker:${Date.now() - 10 * 60 * 1000}`,
+    });
+    h.findExistingOrder.mockResolvedValue({
+      providerOrderId: "pf_orphan",
+      status: "pending",
+      mock: false,
+    });
+
+    const result = await fulfillBrandingOrder(ORDER_ID);
+    expect(result).toEqual({
+      provider: "printful",
+      providerOrderId: "pf_orphan",
+      status: "pending_fulfillment",
+    });
+    expect(h.findExistingOrder).toHaveBeenCalledTimes(1);
+    expect(h.findExistingOrder).toHaveBeenCalledWith(ORDER_ID);
+    // Adopted — no second draft was submitted to the provider.
+    expect(h.submitOrder).not.toHaveBeenCalled();
+
+    // The adopted id landed through the same claim-CAS persist as a
+    // fresh submission would.
+    const row = storedRow();
+    expect(row.provider).toBe("printful");
+    expect(row.provider_order_id).toBe("pf_orphan");
+    expect(row.status).toBe("pending_fulfillment");
+
+    // …and the normal confirm flow proceeds against the adopted draft
+    // (confirm is the money gate: the draft was never charged).
+    await confirmBrandingFulfillment(ORDER_ID);
+    expect(h.confirmPrintfulOrder).toHaveBeenCalledTimes(1);
+    expect(h.confirmPrintfulOrder).toHaveBeenCalledWith("pf_orphan");
+  });
+
+  it("lookup finds nothing: submits as today, carrying the order id as the external reference", async () => {
+    seedOrder();
+
+    const result = await fulfillBrandingOrder(ORDER_ID);
+    expect(result.providerOrderId).toBe("pf_100");
+    // Consulted on every attempt (a fresh claim here), before submitting.
+    expect(h.findExistingOrder).toHaveBeenCalledTimes(1);
+    expect(h.findExistingOrder).toHaveBeenCalledWith(ORDER_ID);
+    expect(h.submitOrder).toHaveBeenCalledTimes(1);
+    const submitArgs = h.submitOrder.mock.calls[0] as unknown[];
+    expect(submitArgs[2]).toBe(ORDER_ID);
+    expect(storedRow().provider_order_id).toBe("pf_100");
+  });
+
+  it("lookup failure (non-404): no blind submit; the claim is released and a later retry completes", async () => {
+    seedOrder();
+    h.findExistingOrder.mockRejectedValueOnce(
+      new Error("Printful API error 500: Internal error")
+    );
+
+    await expect(fulfillBrandingOrder(ORDER_ID)).rejects.toThrow(
+      "Printful API error 500"
+    );
+    // Never submitted blind — an existing draft could not be ruled out.
+    expect(h.submitOrder).not.toHaveBeenCalled();
+    // Nothing was accepted by the provider, so the claim is released
+    // (not held) and the retry may start at once.
+    expect(storedRow().provider_order_id).toBeNull();
+
+    const retry = await fulfillBrandingOrder(ORDER_ID);
+    expect(retry.providerOrderId).toBe("pf_100");
+    expect(h.submitOrder).toHaveBeenCalledTimes(1);
+    expect(storedRow().provider_order_id).toBe("pf_100");
   });
 });
 

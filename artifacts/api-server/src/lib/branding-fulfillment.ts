@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { logger } from "./logger";
 import {
   submitOrder,
+  findExistingOrder,
   refreshOrder,
   fulfillmentMode,
   toOrderStatus,
@@ -76,7 +77,22 @@ interface OrderRow {
      in the items jsonb).
    Persist writes are claim-CAS UPDATEs with a short internal retry and
    a verify-by-reread, so a write whose response was lost after landing
-   still counts as success — the provider is never re-asked. */
+   still counts as success — the provider is never re-asked.
+
+   Provider-side idempotency (the final inch): the claim alone could
+   not cover a process death between the provider accepting a Printful
+   draft and the first persist attempt — the draft existed at Printful,
+   bound to nothing we recorded, and a stale-claim reclaim would have
+   submitted a second one (harmless to money — drafts are never charged
+   until confirmed — but a real duplicate). Printful submissions now
+   carry our branding_orders.id as the provider's external_id, and
+   every submission is preceded by an external-id lookup: a found
+   draft is ADOPTED — its id flows through the same claim-CAS persist
+   below — instead of resubmitted. PrintKK has no equivalent: its
+   create-order call takes no merchant reference and its only order
+   read is by PrintKK's own id (exactly the value lost in the window),
+   so the PrintKK remainder stays the per-item window the resume logic
+   already narrows it to. */
 
 const CLAIM_TOKEN_PREFIX = "claim:";
 const FULFILLMENT_CLAIM_STALE_MS = 5 * 60 * 1000; // mirrors CLAIM_STALE_MS in payment-record.ts
@@ -289,7 +305,25 @@ async function submitToProvider(
     designUrl: i.designUrl,
   }));
 
-  const fulfillment = await submitOrder(recipient, items);
+  /* Adopt before submitting: ask Printful for an order already bound
+     to our order id (sent as external_id on every submission). The
+     lookup runs on every attempt, not just stale-claim reclaims — it
+     is one idempotent GET, and it also covers the claim-release path
+     (the create POST's response was lost after Printful accepted the
+     draft), where no signal in this module can tell the retry apart
+     from a first attempt. A non-404 lookup failure throws out of the
+     provider phase: the claim is released and a later retry looks
+     again — we never submit blind when an existing draft cannot be
+     ruled out. Mock mode: findExistingOrder returns null without a
+     provider call, so demo semantics are unchanged. */
+  const existing = await findExistingOrder(order.id);
+  if (existing) {
+    logger.info(
+      { orderId: order.id, providerOrderId: existing.providerOrderId },
+      "[branding] adopted the Printful order already bound to this order id — no duplicate submission"
+    );
+  }
+  const fulfillment = existing ?? (await submitOrder(recipient, items, order.id));
 
   return {
     provider: fulfillmentMode(),

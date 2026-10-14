@@ -76,6 +76,19 @@ function authHeader(): string {
   return `Basic ${Buffer.from(`${key}:`).toString("base64")}`;
 }
 
+/** Printful API failure. The message format is unchanged from the plain
+ *  Error this layer used to throw; the numeric code rides along so
+ *  callers can distinguish "not found" (404) from real failures — the
+ *  external-id lookup below depends on exactly that distinction. */
+export class PrintfulApiError extends Error {
+  readonly code: number;
+  constructor(code: number, message: string) {
+    super(`Printful API error ${code}: ${message}`);
+    this.name = "PrintfulApiError";
+    this.code = code;
+  }
+}
+
 async function printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`https://api.printful.com${path}`, {
     ...init,
@@ -92,8 +105,9 @@ async function printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
     error?: { message?: string };
   };
   if (!res.ok || (body.code !== undefined && body.code >= 400)) {
-    throw new Error(
-      `Printful API error ${body.code ?? res.status}: ${body.error?.message ?? res.statusText}`
+    throw new PrintfulApiError(
+      body.code ?? res.status,
+      body.error?.message ?? res.statusText
     );
   }
   return body.result as T;
@@ -103,18 +117,35 @@ async function printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 interface PrintfulApiOrder {
   id: number;
+  /** Our order id, echoed back when the order was created with one. */
+  external_id?: string;
   status: string;
   shipments?: Array<{ tracking_number?: string; tracking_url?: string }>;
+}
+
+function toFulfillmentOrder(result: PrintfulApiOrder): FulfillmentOrder {
+  const shipment = result.shipments?.[0];
+  return {
+    providerOrderId: String(result.id),
+    status: mapPrintfulStatus(result.status),
+    trackingNumber: shipment?.tracking_number,
+    trackingUrl: shipment?.tracking_url,
+    mock: false,
+  };
 }
 
 /* Removed 2026-10-10: listSyncProducts was dead (zero imports). */
 
 /** Live: submit an order to Printful as a DRAFT (confirm: false) so ops can
  *  review in the Printful dashboard before money moves. Returns the provider
- *  order id. */
+ *  order id. When externalId is given it is sent as the order's external_id —
+ *  our own order id — which is what makes the order findable again via
+ *  findPrintfulOrderByExternalId if this process dies before recording the
+ *  provider id it gets back. */
 export async function createPrintfulOrder(
   recipient: PrintfulRecipient,
-  items: PrintfulOrderItem[]
+  items: PrintfulOrderItem[],
+  externalId?: string
 ): Promise<FulfillmentOrder> {
   const missing = items.filter((i) => variantIdFor(i.product) == null);
   if (missing.length > 0) {
@@ -126,6 +157,7 @@ export async function createPrintfulOrder(
   const result = await printfulFetch<PrintfulApiOrder>("/orders", {
     method: "POST",
     body: JSON.stringify({
+      ...(externalId ? { external_id: externalId } : {}),
       recipient: {
         name: recipient.name,
         email: recipient.email,
@@ -150,6 +182,25 @@ export async function createPrintfulOrder(
   };
 }
 
+/** Live: find the order Printful holds under OUR external id, if any.
+ *  Printful serves it at GET /orders/@<external_id>. Returns null ONLY on
+ *  a 404 (no such order — safe to submit); every other failure throws, so
+ *  a caller can never mistake "couldn't check" for "doesn't exist" and
+ *  submit a duplicate blind. */
+export async function findPrintfulOrderByExternalId(
+  externalId: string
+): Promise<FulfillmentOrder | null> {
+  try {
+    const result = await printfulFetch<PrintfulApiOrder>(
+      `/orders/@${encodeURIComponent(externalId)}`
+    );
+    return toFulfillmentOrder(result);
+  } catch (err) {
+    if (err instanceof PrintfulApiError && err.code === 404) return null;
+    throw err;
+  }
+}
+
 /** Live: confirm a draft order (charges the Printful account, starts production). */
 export async function confirmPrintfulOrder(providerOrderId: string): Promise<void> {
   await printfulFetch(`/orders/${encodeURIComponent(providerOrderId)}/confirm`, {
@@ -162,14 +213,7 @@ export async function getPrintfulOrder(providerOrderId: string): Promise<Fulfill
   const result = await printfulFetch<PrintfulApiOrder>(
     `/orders/${encodeURIComponent(providerOrderId)}`
   );
-  const shipment = result.shipments?.[0];
-  return {
-    providerOrderId: String(result.id),
-    status: mapPrintfulStatus(result.status),
-    trackingNumber: shipment?.tracking_number,
-    trackingUrl: shipment?.tracking_url,
-    mock: false,
-  };
+  return toFulfillmentOrder(result);
 }
 
 function mapPrintfulStatus(s: string): FulfillmentStatus {
@@ -232,10 +276,22 @@ export function mockGetOrder(providerOrderId: string): FulfillmentOrder {
 
 export async function submitOrder(
   recipient: PrintfulRecipient,
-  items: PrintfulOrderItem[]
+  items: PrintfulOrderItem[],
+  externalId?: string
 ): Promise<FulfillmentOrder> {
-  if (isPrintfulConfigured()) return createPrintfulOrder(recipient, items);
+  if (isPrintfulConfigured()) return createPrintfulOrder(recipient, items, externalId);
   return mockCreateOrder(recipient, items);
+}
+
+/** Look up the provider order already bound to our external id, if one
+ *  exists. Mock mode makes NO provider call and reports none — the mock
+ *  store only ever holds orders this process submitted and recorded, so
+ *  there is never an unrecorded mock order to adopt. */
+export async function findExistingOrder(
+  externalId: string
+): Promise<FulfillmentOrder | null> {
+  if (!isPrintfulConfigured()) return null;
+  return findPrintfulOrderByExternalId(externalId);
 }
 
 export async function refreshOrder(providerOrderId: string): Promise<FulfillmentOrder> {
