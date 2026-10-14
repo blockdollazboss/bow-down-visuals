@@ -4488,6 +4488,7 @@
     "songTipRest": "Effetti pesanti, voci sepolte o raddoppiate e brani molto strumentali potrebbero fallire o clonarsi male.",
     "stageSuffix": "Può richiedere alcuni minuti — l'isolamento della voce è un lavoro pesante.",
     "songPickerHint": "Scegli una canzone — la voce verrà estratta e clonata nella voce bloccata ({{credits}} Visual Bucs). Ideale con voci soliste chiare; effetti pesanti o voci sepolte potrebbero fallire.",
+    "cloneHint": "Carica registrazioni — la voce che contengono verrà clonata nella voce bloccata ({{credits}} Visual Bucs). Ideale con canto o parlato puliti; rumori di fondo o musica dietro la voce si clonano male.",
     "noSongsYet": "Ancora nessuna canzone — caricala prima nella pagina Canzoni.",
     "noVoicesFound": "Nessuna voce trovata.",
     "voiceTip": "Suggerimento: carica 30+ secondi di canto o parlato pulito per la migliore clonazione.",

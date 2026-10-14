@@ -1159,6 +1159,7 @@
     "sharedLabel": "Geteilt",
     "smoothingLoop": "Der Loop-Übergang wird geglättet…",
     "songPickerHint": "Wähle einen Song – seine Vocals werden isoliert und in die gelockte Stimme geklont ({{credits}} Visual Bucs). Am besten mit klaren Lead-Vocals; starke Effekte oder versteckte Vocals können fehlschlagen.",
+    "cloneHint": "Lade Aufnahmen hoch – die enthaltene Stimme wird in die gelockte Stimme geklont ({{credits}} Visual Bucs). Am besten mit sauberem Gesang oder Sprechen; Hintergrundgeräusche oder Musik hinter der Stimme klonen schlecht.",
     "songTipBold": "Aus einem Song braucht klare, prominente Lead-Vocals.",
     "songTipRest": "Starke Effekte, versteckte oder gedoppelte Vocals und instrumentenlastige Tracks können fehlschlagen oder schlecht klonen.",
     "specialStyleHint": "Zusätzliche Stil-Direktiven, die bei der Generierung für diesen Artist über allem anderen stehen",

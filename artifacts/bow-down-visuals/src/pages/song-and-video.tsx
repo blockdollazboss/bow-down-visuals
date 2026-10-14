@@ -730,11 +730,12 @@ export function SongAndVideoModule() {
     setAnalyzing(true); setAnalyzeError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/analyze-sections", {
+      const res = await confirmedFetch("/api/analyze-sections", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ lyrics }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) throw new Error();
       const data = (await res.json()) as SongStructure;
       setSongStructure(data);

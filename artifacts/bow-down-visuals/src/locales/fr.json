@@ -1028,6 +1028,7 @@
     "songTipRest": "Les effets lourds, les voix enfouies ou doublées, et les morceaux très instrumentaux peuvent échouer ou donner un mauvais clone.",
     "stageSuffix": "Cela peut prendre quelques minutes — l'isolation vocale est un gros travail.",
     "songPickerHint": "Choisis une chanson — sa voix est isolée et clonée en voix verrouillée ({{credits}} Visual Bucs). Préfère une voix lead claire ; les effets lourds ou les voix enfouies peuvent échouer.",
+    "cloneHint": "Importe des enregistrements — la voix qu'ils contiennent est clonée en voix verrouillée ({{credits}} Visual Bucs). Préfère un chant ou une voix parlée clairs ; le bruit de fond ou la musique derrière la voix se clonent mal.",
     "noSongsYet": "Aucune chanson pour l'instant — envoie-en une sur la page Chansons d'abord.",
     "noVoicesFound": "Aucune voix trouvée.",
     "voiceTip": "Astuce : envoie 30 secondes ou plus de chant ou de parole propres pour un meilleur clone.",

@@ -1028,6 +1028,7 @@
     "songTipRest": "Efeitos pesados, vocais abafados ou duplicados e faixas muito instrumentais podem falhar ou clonar mal.",
     "stageSuffix": "Isso pode levar alguns minutos — a isolação vocal é um trabalho pesado.",
     "songPickerHint": "Escolha uma música — os vocais dela são isolados e clonados na voz travada ({{credits}} Visual Bucs). Ideal com vocais principais claros; efeitos pesados ou vocais abafados podem falhar.",
+    "cloneHint": "Envie gravações — a voz nelas é clonada na voz travada ({{credits}} Visual Bucs). Ideal com canto ou fala limpos; ruído de fundo ou música atrás da voz clonam mal.",
     "noSongsYet": "Nenhuma música ainda — envie uma na página Músicas primeiro.",
     "noVoicesFound": "Nenhuma voz encontrada.",
     "voiceTip": "Dica: envie 30+ segundos de canto ou fala limpos para o melhor clone.",

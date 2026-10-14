@@ -658,6 +658,9 @@ function LockedVoiceSection({ vault, onChanged }: {
             {t("artistVault.fromMySongs")}
           </Button>
         </div>
+        <p className="mt-3 text-xs text-white/40">
+          {t("artistVault.cloneHint", { credits: 200 })}
+        </p>
         <p className="mt-3 flex items-start gap-2 text-xs text-primary/80">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>

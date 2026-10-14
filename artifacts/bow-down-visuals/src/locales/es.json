@@ -1028,6 +1028,7 @@
     "songTipRest": "Efectos fuertes, vocales enterradas o dobladas, y pistas muy instrumentales pueden fallar o clonarse mal.",
     "stageSuffix": "Esto puede tardar unos minutos — el aislamiento vocal es trabajo pesado.",
     "songPickerHint": "Elige una canción — sus vocales se extraen y clonan en la voz bloqueada ({{credits}} Visual Bucs). Mejor con vocales principales claras; efectos fuertes o vocales enterradas pueden fallar.",
+    "cloneHint": "Sube grabaciones — la voz que contienen se clona en la voz bloqueada ({{credits}} Visual Bucs). Mejor con canto o habla limpios; el ruido de fondo o la música detrás de la voz se clonan mal.",
     "noSongsYet": "Aún no hay canciones — sube una en la página de Canciones primero.",
     "noVoicesFound": "No se encontraron voces.",
     "voiceTip": "Consejo: sube más de 30 segundos de canto o habla limpios para el mejor clon.",

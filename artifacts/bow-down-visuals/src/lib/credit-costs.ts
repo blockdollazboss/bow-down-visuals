@@ -27,6 +27,10 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/music/preview-render": { cost: 100, feature: "Preview Render" },
   "/api/voiceover/generate": { cost: 200, feature: "AI Voiceover" },
   "/api/clone-voice": { cost: 500, feature: "Voice Clone" },
+  // Parameterized route — the :id segment is the vault id. getCreditCost
+  // matches literally, so this entry records the server charge in the
+  // registry; the vault page also states the price in its own copy.
+  "/api/artist-vaults/:id/voice/clone": { cost: 200, feature: "Voice Clone (from recording)" },
   "/api/album-publish": { cost: 300, feature: "Publish Album" },
   "/api/podcast/generate": { cost: 300, feature: "Generate Podcast" },
   "/api/guest-questions": { cost: 75, feature: "Podcast Guest Questions" },

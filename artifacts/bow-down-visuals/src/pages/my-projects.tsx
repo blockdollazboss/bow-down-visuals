@@ -18,6 +18,7 @@ import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareFor
 import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { formatBucs } from "@/lib/visual-bucs";
 import { useTranslation } from "react-i18next";
@@ -130,6 +131,7 @@ function ResultModal({
 }) {
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const content = project.output_data?.result ?? "";
   const [copied, setCopied] = useState(false);
   const [localSongStructure, setLocalSongStructure] = useState<SongStructure | null>(
@@ -168,11 +170,12 @@ function ResultModal({
     setAnalyzeError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/analyze-sections", {
+      const res = await confirmedFetch("/api/analyze-sections", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ lyrics }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) throw new Error(t("myProjects.analysisFailed"));
       const data = (await res.json()) as SongStructure;
       setLocalSongStructure(data);

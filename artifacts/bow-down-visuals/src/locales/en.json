@@ -1163,6 +1163,7 @@
     "songTipRest": "Heavy effects, buried or doubled vocals, and instrumental-heavy tracks may fail or clone poorly.",
     "stageSuffix": "This can take a few minutes — vocal isolation is heavy work.",
     "songPickerHint": "Pick a song — its vocals get stripped and cloned into the locked voice ({{credits}} Visual Bucs). Best with clear lead vocals; heavy effects or buried vocals may fail.",
+    "cloneHint": "Upload recordings — the voice in them is cloned into the locked voice ({{credits}} Visual Bucs). Best with clean singing or talking; background noise or music behind the voice clones poorly.",
     "noSongsYet": "No songs yet — upload one on the Songs page first.",
     "noVoicesFound": "No voices found.",
     "voiceTip": "Tip: upload 30+ seconds of clean singing or talking for the best clone.",
