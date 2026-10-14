@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
@@ -32,7 +34,7 @@ interface GenerateResponse extends CoverArtResult {
 export default function CoverArt() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { addAsset, project } = useHubProject();
   const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
@@ -387,6 +389,24 @@ export default function CoverArt() {
                     )}
                     {t("cover-art.variation", { defaultValue: "Variation" })}
                   </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="flex-1 min-w-[140px]" data-testid="btn-cover-share">
+                    <ShareMenu
+                      getToken={getAccessToken}
+                      shareUrl={result.url}
+                      text={songTitle ? `Cover art for "${songTitle}" — made with Bow Down Visuals` : "My new cover art — made with Bow Down Visuals"}
+                      contentType="image"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px] flex" data-testid="btn-cover-showcase">
+                    <PublishToShowcase
+                      mediaType="image"
+                      mediaUrl={result.url}
+                      thumbnailUrl={result.url}
+                      defaultTitle={songTitle}
+                    />
+                  </div>
                 </div>
                 {result.typography && (
                   <div className={`mt-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.08] bg-black/40"}`}>

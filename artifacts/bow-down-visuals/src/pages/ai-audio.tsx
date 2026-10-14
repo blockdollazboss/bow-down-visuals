@@ -21,6 +21,7 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
 import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { ProducerTagMaker } from "@/components/producer-tag/ProducerTagMaker";
@@ -77,7 +78,7 @@ interface GeneratedBeat {
 function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [vibe, setVibe] = useState("");
   const [genre, setGenre] = useState<string>("trap");
@@ -281,6 +282,14 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
               >
                 <Disc3 className="w-4 h-4" /> {t("beatMaker.turnIntoSong")}
               </Link>
+              <div data-testid="btn-beat-share">
+                <ShareMenu
+                  getToken={getAccessToken}
+                  shareUrl={beat.url}
+                  text={beat.title}
+                  contentType="song"
+                />
+              </div>
             </div>
           </div>
         ) : (

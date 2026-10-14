@@ -9,6 +9,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
+import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { formatBucs, formatBucsShort, ordinal } from "@/lib/visual-bucs";
 
 /* ─── Winners' circle ──────────────────────────────────────────────────────
@@ -223,12 +224,19 @@ export default function WinnersPage() {
             </div>
           </div>
           {perChallenge && ch && (
-            <Link href={`/challenge/${slug}`}
+            <Link href="/shorts"
               className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline">
-              Enter the next round <ChevronRight className="h-4 w-4" />
+              Find the next challenge <ChevronRight className="h-4 w-4" />
             </Link>
           )}
         </div>
+
+        {/* global view only: the next entry is the live challenge itself */}
+        {!perChallenge && (
+          <div className="mb-8">
+            <ContestHubWidget />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-24">

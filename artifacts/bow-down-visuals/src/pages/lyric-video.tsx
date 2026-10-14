@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useTranslation } from "react-i18next";
 import {
   formatLyricTime,
@@ -528,6 +530,23 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                     >
                       <Download className="h-4 w-4" /> {t("lyricVideo.downloadMp4")}
                     </a>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="flex-1 min-w-[140px]" data-testid="btn-lyric-share">
+                        <ShareMenu
+                          getToken={getAccessToken}
+                          shareUrl={job.outputUrl}
+                          text="My new lyric video — made with Bow Down Visuals"
+                          contentType="video"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[140px] flex" data-testid="btn-lyric-showcase">
+                        <PublishToShowcase
+                          mediaType="video"
+                          mediaUrl={job.outputUrl}
+                          defaultTitle="My lyric video"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ) : job.status === "failed" ? (
                   <div className="flex items-center gap-2 text-sm text-red-300">

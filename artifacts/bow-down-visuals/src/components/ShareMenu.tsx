@@ -16,7 +16,7 @@ import { Share2, Copy, Check, Coins } from "lucide-react";
  *   share buttons with no earn messaging. */
 
 export type ShareContentType =
-  | "video" | "song" | "thumbnail" | "showcase"
+  | "video" | "song" | "thumbnail" | "showcase" | "image"
   | "review_link" | "winner_card" | "other";
 
 type ShareChannel = "native" | "x" | "whatsapp" | "copy";

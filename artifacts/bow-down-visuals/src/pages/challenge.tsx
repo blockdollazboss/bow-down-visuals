@@ -236,6 +236,10 @@ export default function ChallengePage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Link href="/winners"
+            className={`flex items-center gap-2 rounded-full border px-6 py-3 font-bold ${isLight ? "border-[#C9A84C]/50 text-[#7A5A12] hover:bg-[#C9A84C]/10" : "border-white/15 text-white/70 hover:border-primary/40 hover:text-white"}`}>
+            <Trophy className="h-5 w-5" /> Winners' Circle
+          </Link>
           {challenge.winners_announced && (
             <Link href={`/challenge/${challenge.slug}/winners`}
               className="flex items-center gap-2 rounded-full border border-primary/50 px-6 py-3 font-bold text-primary hover:bg-primary/10">
@@ -347,6 +351,18 @@ export default function ChallengePage() {
           </div>
         </section>
       )}
+
+      {/* creator contests — the neighbouring system: run your own */}
+      <section className="mt-8">
+        <Link href="/contests"
+          className={`flex items-center justify-between gap-3 rounded-xl border border-dashed p-4 transition hover:border-primary/50 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-white/15 bg-zinc-950"}`}>
+          <div>
+            <p className={`font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Run a giveaway for your own fans</p>
+            <p className={`mt-0.5 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Creator contests — your fans, your prizes, your rules.</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+        </Link>
+      </section>
     </div>
   );
 }

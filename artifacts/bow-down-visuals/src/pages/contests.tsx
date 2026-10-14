@@ -4,11 +4,13 @@ import { Link } from "wouter";
 import {
   Trophy, Loader2, AlertTriangle, ArrowLeft, Sparkles, Plus,
   Users, CheckCircle2, Dices, Image as ImageIcon, Download,
-  ShieldCheck, Copy, Share2,
+  ShieldCheck, Copy, Crown,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ContestHubWidget from "@/components/challenges/ContestHubWidget";
+import ShareMenu from "@/components/ShareMenu";
 import { useHubProject } from "@/lib/hub-project";
 import {
   ENTRY_METHOD_CATALOG,
@@ -75,7 +77,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function Contests() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { addAsset } = useHubProject();
   const [view, setView] = useState<View>({ name: "list" });
   const [contests, setContests] = useState<ContestSummary[]>([]);
@@ -323,6 +325,9 @@ export default function Contests() {
             <h1 className="text-2xl font-black">{t("contests.fan_contests")}</h1>
             <p className="text-sm text-white/45">{t("contests.giveaways_with_provably_fair_win")}</p>
           </div>
+          <Link href="/winners" className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-primary/40 hover:text-primary">
+            <Crown className="h-4 w-4" />{t("contests.winnersCircle", { defaultValue: "Winners' Circle" })}
+          </Link>
         </div>
 
         <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -341,6 +346,12 @@ export default function Contests() {
           </div>
         )}
 
+        {!user && (
+          <div className="mt-8">
+            <ContestHubWidget />
+          </div>
+        )}
+
         {!user ? (
           <div className={`mt-8 rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="text-white/60">{t("contests.sign_in_to_run_contests_for_your")}</p>
@@ -348,6 +359,11 @@ export default function Contests() {
           </div>
         ) : view.name === "list" ? (
           <>
+            {/* the platform's Weekly Challenge — a neighbour, not the same
+                system: it lives above your own fan contests. */}
+            <div className="mt-8">
+              <ContestHubWidget />
+            </div>
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>
               <button
@@ -668,19 +684,15 @@ export default function Contests() {
                             className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 hover:border-white/30"
                           >
                             <Download className="h-4 w-4" />{t("contests.download")}</a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const shareText = `Winner announced${winner?.handle ? `: @${winner.handle}` : ""} — via Bow Down Visuals`;
-                              if (navigator.share) {
-                                navigator.share({ title: "Contest winner", text: shareText, url: announceUrl }).catch(() => {});
-                              } else {
-                                navigator.clipboard.writeText(`${shareText} ${announceUrl}`).catch(() => {});
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary/15 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/25"
-                          >
-                            <Share2 className="h-4 w-4" />{t("contests.share", { defaultValue: "Share" })}</button>
+                          <div data-testid="btn-contest-announce-share">
+                            <ShareMenu
+                              getToken={getAccessToken}
+                              shareUrl={announceUrl}
+                              text={`Winner announced${winner?.handle ? `: @${winner.handle}` : ""} — via Bow Down Visuals`}
+                              contentType="image"
+                              contentId={detail.id}
+                            />
+                          </div>
                         </div>
                       </div>
                     ) : (

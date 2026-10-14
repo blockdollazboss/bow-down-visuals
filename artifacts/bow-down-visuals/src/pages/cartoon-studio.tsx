@@ -19,6 +19,8 @@ import { r2UploadFile } from "@/lib/r2-storage";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 type StudioTab = "video" | "characters" | "cartoonize";
@@ -493,6 +495,23 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
                 >
                   <Download className="h-4 w-4" /> {t("cartoonStudio.download")}
                 </a>
+                <div className="mt-3 flex flex-wrap gap-2 max-w-2xl">
+                  <div className="flex-1 min-w-[140px]" data-testid="btn-cartoon-video-share">
+                    <ShareMenu
+                      getToken={getAccessToken}
+                      shareUrl={videoUrl}
+                      text="My new cartoon video — made with Bow Down Visuals"
+                      contentType="video"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px] flex" data-testid="btn-cartoon-video-showcase">
+                    <PublishToShowcase
+                      mediaType="video"
+                      mediaUrl={videoUrl}
+                      defaultTitle="My cartoon video"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -540,6 +559,24 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
                 >
                   <Download className="h-4 w-4" /> {t("cartoonStudio.download")}
                 </a>
+                <div className="mt-3 flex flex-wrap gap-2 max-w-2xl">
+                  <div className="flex-1 min-w-[140px]" data-testid="btn-cartoon-character-share">
+                    <ShareMenu
+                      getToken={getAccessToken}
+                      shareUrl={imageUrl}
+                      text="My new cartoon character — made with Bow Down Visuals"
+                      contentType="image"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px] flex" data-testid="btn-cartoon-character-showcase">
+                    <PublishToShowcase
+                      mediaType="image"
+                      mediaUrl={imageUrl}
+                      thumbnailUrl={imageUrl}
+                      defaultTitle="My cartoon character"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -621,6 +658,24 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
                 >
                   <Download className="h-4 w-4" /> {t("cartoonStudio.download")}
                 </a>
+                <div className="mt-3 flex flex-wrap gap-2 max-w-2xl">
+                  <div className="flex-1 min-w-[140px]" data-testid="btn-cartoonized-share">
+                    <ShareMenu
+                      getToken={getAccessToken}
+                      shareUrl={imageUrl}
+                      text="Cartoonized — made with Bow Down Visuals"
+                      contentType="image"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px] flex" data-testid="btn-cartoonized-showcase">
+                    <PublishToShowcase
+                      mediaType="image"
+                      mediaUrl={imageUrl}
+                      thumbnailUrl={imageUrl}
+                      defaultTitle="Cartoonized"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>

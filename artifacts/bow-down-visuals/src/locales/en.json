@@ -661,6 +661,7 @@
     "pressKit": "Press Kit",
     "emailList": "Email List",
     "events": "Events",
+    "winnersCircle": "Winners' Circle",
     "explore": "Explore",
     "collabs": "Collabs",
     "team": "Team",
@@ -2583,6 +2584,7 @@
     "pick_a_valid_start_date": "Pick a valid start date."
   },
   "contests": {
+    "winnersCircle": "Winners' Circle",
     "e_g_gold_chain_giveaway": "e.g. Gold Chain Giveaway",
     "e_g_24k_gold_chain_shoutout": "e.g. 24k gold chain + shoutout",
     "what_is_this_giveaway_about": "What is this giveaway about?",

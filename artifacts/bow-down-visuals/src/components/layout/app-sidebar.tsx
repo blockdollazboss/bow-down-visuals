@@ -253,6 +253,7 @@ const SECTIONS: NavSection[] = [
     titleKey: "nav.promote",
     links: [
       { href: "/promote", labelKey: "nav.promote", icon: Megaphone },
+      { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
@@ -272,6 +273,7 @@ const SECTIONS: NavSection[] = [
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
     ],
   },
   {

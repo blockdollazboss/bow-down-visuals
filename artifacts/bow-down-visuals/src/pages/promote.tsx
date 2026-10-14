@@ -12,6 +12,7 @@ import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
+import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -250,6 +251,11 @@ export default function Promote() {
             {t("promote.tabs.interviewPrep", { defaultValue: "Interview Prep" })}
           </Link>
         </div>
+      </div>
+
+      {/* Refer & Earn cross-surface — visible in both tabs, above the panels */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
+        <ReferEarnCard />
       </div>
 
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">

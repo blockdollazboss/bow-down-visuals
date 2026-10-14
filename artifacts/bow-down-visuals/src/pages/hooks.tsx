@@ -17,6 +17,7 @@ import ScriptWriter from "@/pages/script-writer";
 import CaptionStyler from "@/pages/caption-styler";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
@@ -502,6 +503,14 @@ function TitlesTab() {
  <CalendarDays className="h-4 w-4" aria-hidden="true" />
  {t("titles.sendToScheduler", { defaultValue: "Send to scheduler" })}
  </Link>
+ <div data-testid="btn-hooks-share">
+ <ShareMenu
+ getToken={getAccessToken}
+ shareUrl={`${window.location.origin}/hooks`}
+ text={result.titles[0].title}
+ contentType="other"
+ />
+ </div>
  </div>
  <ol className="space-y-3">
  {result.titles.map((item, i) => (

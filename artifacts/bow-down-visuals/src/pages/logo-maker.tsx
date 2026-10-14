@@ -8,6 +8,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
@@ -57,7 +59,7 @@ interface RecentLogo {
 export function LogoMakerTool() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { addAsset } = useHubProject();
   const { activeArtist } = useActiveArtist();
@@ -320,6 +322,24 @@ export function LogoMakerTool() {
               >
                 <RefreshCw className="h-4 w-4" /> {t("logoMaker.newLogo")}
               </button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex-1 min-w-[140px]" data-testid="btn-logo-share">
+                <ShareMenu
+                  getToken={getAccessToken}
+                  shareUrl={outputUrl}
+                  text={brandName ? `New logo for ${brandName} — made with Bow Down Visuals` : "My new logo — made with Bow Down Visuals"}
+                  contentType="image"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px] flex" data-testid="btn-logo-showcase">
+                <PublishToShowcase
+                  mediaType="image"
+                  mediaUrl={outputUrl}
+                  thumbnailUrl={outputUrl}
+                  defaultTitle={brandName}
+                />
+              </div>
             </div>
           </div>
         )}

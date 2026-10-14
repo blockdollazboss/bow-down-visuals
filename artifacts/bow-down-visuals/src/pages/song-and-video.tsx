@@ -15,6 +15,8 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -1648,6 +1650,27 @@ export function SongAndVideoModule() {
                   className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.06] transition-all font-semibold text-sm">
                   <FileDown className="h-4 w-4 shrink-0" /> {t("songAndVideo.downloadPdfButton")}
                 </button>
+
+                {/* Share the song — the asset this blueprint is built around */}
+                {audioUrl && (
+                  <>
+                    <div data-testid="btn-hub-song-share">
+                      <ShareMenu
+                        getToken={getAccessToken}
+                        shareUrl={audioUrl}
+                        text={watch("songTitle") || "My song"}
+                        contentType="song"
+                      />
+                    </div>
+                    <div className="flex" data-testid="btn-hub-song-showcase">
+                      <PublishToShowcase
+                        mediaType="song"
+                        mediaUrl={audioUrl}
+                        defaultTitle={watch("songTitle") || "My song"}
+                      />
+                    </div>
+                  </>
+                )}
 
               </div>
 

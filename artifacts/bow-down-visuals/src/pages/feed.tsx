@@ -8,6 +8,7 @@ import { StoriesRail } from "@/components/social/StoriesRail";
 import { Composer } from "@/components/social/Composer";
 import { PostCard } from "@/components/social/PostCard";
 import { DropsWire } from "@/components/discovery/DropsWire";
+import { SocialRetentionRail } from "@/components/social/SocialRetentionRail";
 
 /* ─── /home — the creator feed ─────────────────────────────────────────────
    Your timeline, no algorithm overlords 🦈 — chronological by default,
@@ -80,8 +81,17 @@ export default function FeedPage() {
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, mode, load]);
 
+  const renderPost = (p: FeedPost) => (
+    <PostCard
+      key={p.id}
+      post={p}
+      onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
+      onReposted={() => load(true, mode)}
+    />
+  );
+
   return (
-    <div className="mx-auto w-full max-w-[680px] px-4 pb-24 pt-6">
+    <div className={`mx-auto w-full max-w-[680px] px-4 pb-24 pt-6 ${view === "timeline" ? "xl:max-w-[1100px]" : ""}`}>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-black text-white">
           Your <span className="text-[#d4af37]">Timeline</span>
@@ -128,69 +138,78 @@ export default function FeedPage() {
       {view === "drops" ? (
         <DropsWire />
       ) : (
-        <>
+        <div className="xl:grid xl:grid-cols-[minmax(0,680px)_minmax(280px,320px)] xl:items-start xl:gap-6">
+          {/* Main column — intro block + first posts (the rail interleaves
+              after these on smaller screens, sits right at xl). */}
+          <div className="min-w-0">
+            <div className="mb-5">
+              <StoriesRail />
+            </div>
 
-      <div className="mb-5">
-        <StoriesRail />
-      </div>
+            <div className="mb-5">
+              <Composer onPosted={(p) => setPosts((prev) => [p, ...prev])} />
+            </div>
 
-      <div className="mb-5">
-        <Composer onPosted={(p) => setPosts((prev) => [p, ...prev])} />
-      </div>
+            <div className="mb-4 flex items-center gap-3 text-sm">
+              <Link href="/trending" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
+                <TrendingUp className="h-4 w-4" /> Trending
+              </Link>
+              <Link href="/saved" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
+                <Bookmark className="h-4 w-4" /> Saved
+              </Link>
+              <Link href="/shorts" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
+                <Clapperboard className="h-4 w-4" /> Shorts
+              </Link>
+            </div>
 
-      <div className="mb-4 flex items-center gap-3 text-sm">
-        <Link href="/trending" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
-          <TrendingUp className="h-4 w-4" /> Trending
-        </Link>
-        <Link href="/saved" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
-          <Bookmark className="h-4 w-4" /> Saved
-        </Link>
-        <Link href="/shorts" className="flex items-center gap-1.5 rounded-full border border-[#2a2a2a] px-4 py-2 text-neutral-300 hover:border-[#d4af37] hover:text-[#d4af37]">
-          <Clapperboard className="h-4 w-4" /> Shorts
-        </Link>
-      </div>
+            {loading && (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#111]" />
+                ))}
+              </div>
+            )}
 
-      {loading && (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#111]" />
-          ))}
+            {error && !loading && (
+              <div className="rounded-2xl border border-red-900 bg-red-950/30 p-6 text-center">
+                <p className="text-sm text-red-300">{error}</p>
+                <button onClick={() => load(true, mode)} className="mt-3 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black">
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && posts.length === 0 && (
+              <div className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-10 text-center">
+                <p className="text-lg font-bold text-white">Quiet waters… for now 🦈</p>
+                <p className="mt-2 text-sm text-neutral-400">
+                  Follow some creators and their posts will land here. Or be the first to make noise — post above.
+                </p>
+              </div>
+            )}
+
+            {posts.length > 0 && (
+              <div className="space-y-4">{posts.slice(0, 4).map(renderPost)}</div>
+            )}
+          </div>
+
+          {/* Retention rail — a single DOM instance: right column at xl,
+              interleaved after the first posts below xl. Unmounts with the
+              timeline view, which stops the activity feed's polling. */}
+          <div className="mt-6 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0">
+            <SocialRetentionRail getToken={getAccessToken} />
+          </div>
+
+          {/* The rest of the timeline */}
+          <div className="min-w-0 xl:col-start-1">
+            {posts.length > 4 && (
+              <div className="mt-4 space-y-4">{posts.slice(4).map(renderPost)}</div>
+            )}
+            <div ref={sentinel} />
+            {loadingMore && <p className="mt-6 text-center text-xs text-neutral-500">Loading more…</p>}
+            {!hasMore && posts.length > 0 && <p className="mt-6 text-center text-xs text-neutral-600">You're all caught up 🦈</p>}
+          </div>
         </div>
-      )}
-
-      {error && !loading && (
-        <div className="rounded-2xl border border-red-900 bg-red-950/30 p-6 text-center">
-          <p className="text-sm text-red-300">{error}</p>
-          <button onClick={() => load(true, mode)} className="mt-3 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black">
-            Try again
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && posts.length === 0 && (
-        <div className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-10 text-center">
-          <p className="text-lg font-bold text-white">Quiet waters… for now 🦈</p>
-          <p className="mt-2 text-sm text-neutral-400">
-            Follow some creators and their posts will land here. Or be the first to make noise — post above.
-          </p>
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {posts.map((p) => (
-          <PostCard
-            key={p.id}
-            post={p}
-            onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
-            onReposted={() => load(true, mode)}
-          />
-        ))}
-      </div>
-
-      <div ref={sentinel} />
-      {loadingMore && <p className="mt-6 text-center text-xs text-neutral-500">Loading more…</p>}
-      {!hasMore && posts.length > 0 && <p className="mt-6 text-center text-xs text-neutral-600">You're all caught up 🦈</p>}
-        </>
       )}
     </div>
   );

@@ -14,6 +14,8 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
 
 interface Section {
@@ -380,6 +382,23 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
                 <p className="text-xs font-black text-emerald-300">Audio ready</p>
               </div>
               <audio controls src={generatedAudioUrl} className="w-full" data-testid="audio-generated-preview" />
+              <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex-1 min-w-[120px]" data-testid="btn-result-share-audio">
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={generatedAudioUrl}
+                    text={projectTitle}
+                    contentType="song"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px] flex" data-testid="btn-result-showcase-audio">
+                  <PublishToShowcase
+                    mediaType="song"
+                    mediaUrl={generatedAudioUrl}
+                    defaultTitle={projectTitle}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
