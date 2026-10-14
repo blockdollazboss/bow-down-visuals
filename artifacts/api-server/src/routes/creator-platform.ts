@@ -582,6 +582,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         social_links: profile.socialLinks,
         top_creators: profile.topCreators,
         tip_jar_enabled: profile.tipJarEnabled,
+        // The public page gates rendering on is_public (same field
+        // toPublicProfile carries) — omitting it here made every
+        // public profile render as "doesn't exist" on the client.
+        is_public: profile.isPublic,
         is_official: profile.isOfficial,
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
