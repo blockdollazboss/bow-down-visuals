@@ -6,47 +6,9 @@ import { refundCredits } from "../lib/credits";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
-import { recoverExpiredClipsViaReplit, scenesNeedClipRecovery } from "../lib/clipRecovery";
 import { mirrorExternalMediaUrl, mirrorProjectScenes } from "../lib/mirrorMedia";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
-/* TEMPORARY (2026-09-22): clip recovery via Replit backend — REMOVE AFTER USE */
 const router = Router();
-
-/* One-time heal for legacy projects (built 2026-10-13, owner report: the
-   June 23 project's character clips show as missing): scenes whose clips were
-   Replit-GCS URLs lost them when those signed URLs expired on 2026-07-14, and
-   the recovery helper built for exactly this was never wired in. On read, if
-   any scene needs recovery, fetch fresh URLs via the Replit backend, re-host
-   the clips in Supabase Storage, persist the healed scenes, and return them
-   re-signed. Best-effort: any failure returns the project unchanged. */
-async function healProjectClips(
-  req: { accessToken?: string; userId?: string; userSupabase?: any },
-  project: { id: string; output_data: any },
-): Promise<any> {
-  try {
-    const output = project.output_data;
-    const scenes = output?.scenes;
-    if (!req.accessToken || !Array.isArray(scenes) || scenes.length === 0) return output;
-    if (!scenesNeedClipRecovery(scenes)) return output;
-    const healed = await recoverExpiredClipsViaReplit(req.accessToken, project.id, scenes);
-    if (healed === scenes) return output;
-    const healedOutput = { ...output, scenes: healed };
-    const { error } = await req.userSupabase
-      .from("projects")
-      .update({ output_data: healedOutput })
-      .eq("id", project.id)
-      .eq("user_id", req.userId);
-    if (error) {
-      console.error(`[clipRecovery] persist failed for project ${project.id}: ${error.message}`);
-      return output;
-    }
-    console.log(`[clipRecovery] healed legacy clips for project ${project.id}`);
-    return await refreshSupabaseStorageUrlsDeep(healedOutput);
-  } catch (err) {
-    console.error(`[clipRecovery] heal attempt failed for project ${project.id}:`, err);
-    return project.output_data;
-  }
-}
 
 const SaveProjectSchema = z.object({
   projectType:  z.string().min(1),
@@ -131,8 +93,7 @@ router.get("/projects", requireAuth, async (req, res) => {
   const refreshedProjects = await Promise.all(
     (projects ?? []).map(async (project) => {
       const refreshed = await refreshSupabaseStorageUrlsDeep(project.output_data);
-      const healed = await healProjectClips(req as any, { id: project.id, output_data: project.output_data });
-      return { ...project, output_data: healed !== project.output_data ? healed : refreshed };
+      return { ...project, output_data: refreshed };
     }),
   );
 
@@ -156,7 +117,6 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
 
   /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
   project.output_data = await refreshSupabaseStorageUrlsDeep(project.output_data);
-  project.output_data = await healProjectClips(req as any, project);
 
   res.json({ project });
 });
@@ -419,27 +379,12 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   const outputData = (existing.output_data as Record<string, unknown>) ?? {};
-  let scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
+  const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
 
   if (scenes.length === 0) {
     res.status(422).json({ error: "No scenes found in this project. Open the Video Editor and load scenes first." });
     return;
   }
-
-  /* ── TEMPORARY RECOVERY (2026-09-22, REMOVE AFTER USE) ──
-     Recover clips whose Replit-GCS signed URLs expired (2026-07-14): pull
-     fresh URLs from the still-running Replit backend, download the videos,
-     and re-host them in Supabase Storage so playback works permanently.
-     Runs FIRST, on the raw stored scenes, before the generated_clips check. */
-  const preRecoveryScenes = scenes;
-  scenes = await recoverExpiredClipsViaReplit(
-    req.accessToken!,
-    projectId,
-    scenes,
-  );
-  const recoveredCount = scenes.filter(
-    (s, i) => s["demoClipUrl"] !== preRecoveryScenes[i]?.["demoClipUrl"],
-  ).length;
 
   /* ── Fetch completed clips for this project from generated_clips ── */
   const clips = await db
@@ -456,46 +401,11 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   const completedClips = clips.filter((c) => c.video_url && c.status !== "failed");
 
   if (completedClips.length === 0) {
-    /* TEMPORARY (2026-09-22): persist recovered scenes even when sync finds
-       nothing — REMOVE AFTER USE */
-    if (recoveredCount > 0) {
-      const recoveredOutputData: Record<string, unknown> = { ...outputData, scenes };
-      const { error: recDelErr } = await req.userSupabase!
-        .from("projects")
-        .delete()
-        .eq("id", projectId)
-        .eq("user_id", req.userId);
-      if (!recDelErr) {
-        const { error: recInsErr } = await req.userSupabase!.from("projects").insert({
-          id:           existing.id,
-          user_id:      existing.user_id,
-          project_type: existing.project_type,
-          title:        existing.title,
-          artist_name:  existing.artist_name,
-          song_title:   existing.song_title,
-          genre:        existing.genre,
-          mood:         existing.mood,
-          style:        (existing as Record<string, unknown>)["style"] ?? null,
-          platform:     (existing as Record<string, unknown>)["platform"] ?? null,
-          input_data:   existing.input_data,
-          output_data:  recoveredOutputData,
-          credits_used: existing.credits_used,
-          created_at:   existing.created_at,
-        });
-        if (recInsErr) {
-          res.status(500).json({ error: `Recovery persist failed: ${recInsErr.message}` });
-          return;
-        }
-      }
-    }
     res.json({
       synced: 0,
       skipped: scenes.length,
-      recovered: recoveredCount,
       scenes,
-      message: recoveredCount > 0
-        ? `Recovered ${recoveredCount} clip${recoveredCount !== 1 ? "s" : ""}.`
-        : "No completed clips found for this project.",
+      message: "No completed clips found for this project.",
     });
     return;
   }
@@ -591,15 +501,13 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   req.log.info(
-    { projectId, userId: req.userId, synced, total: scenes.length, recoveredCount },
+    { projectId, userId: req.userId, synced, total: scenes.length },
     "[projects] sync-clips completed",
   );
 
   res.json({
     synced,
     skipped: scenes.length - synced,
-    /* TEMPORARY (2026-09-22): recovery count — REMOVE AFTER USE */
-    recovered: recoveredCount,
     scenes: updatedScenes,
   });
 });
