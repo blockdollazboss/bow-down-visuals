@@ -30,6 +30,13 @@ import {
 } from "../lib/sync-labs";
 import type { UrlType } from "../lib/sync-labs";
 import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
@@ -385,6 +392,15 @@ function invalidBody(res: import("express").Response, issues: { field: string; m
   res.status(400).json({ error: "Invalid request body.", details: issues });
 }
 
+/* Charged server-side at the price the UI has always displayed for lip
+   sync (frontend registry: "/api/lip-sync" → 300 Visual Bucs, which the
+   confirm dialog resolves for /lip-sync/preview by prefix match). Until
+   the owner's 2026-10-14 ruling this route enqueued paid Sync.so jobs
+   for free. The charge lands after every free pre-flight check and
+   immediately before the durable job is enqueued; if the enqueue
+   itself fails, the charge is refunded with a ledger trace. */
+const LIP_SYNC_PREVIEW_CREDIT_COST = 300;
+
 router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req, res) => {
   /* Validate inputs synchronously, then fire-and-forget background processing.
      The HTTP response completes in < 1 s so the Replit proxy never times out. */
@@ -498,23 +514,77 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       return;
     }
 
+    /* ── Charge the displayed price BEFORE enqueueing ──────────────────
+       Balance fast-fail mirrors POST /lip-sync/run-all in this file
+       (skipped in dev); chargeCredits re-reads fresh and is
+       authoritative. The idempotency key is stable per (user, endpoint,
+       request-intent), so a double-tap or retry of the same scene
+       preview can't double-charge — a suppressed replay still enqueues
+       below, so a client that lost the first response is never left
+       charged with no job to poll. */
+    const isDev = process.env["NODE_ENV"] === "development";
+    if (!isDev && (req.userCredits ?? 0) < LIP_SYNC_PREVIEW_CREDIT_COST) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+        required: LIP_SYNC_PREVIEW_CREDIT_COST,
+      });
+      return;
+    }
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "lip-sync-preview",
+      userId,
+      (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey,
+      { projectId: projectId ?? null, sceneId: sceneId ?? null, clipUrl, audioUrl, sceneStartSec, sceneEndSec },
+    );
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        action: "Lip Sync",
+      }, { idempotencyKey });
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+          required: LIP_SYNC_PREVIEW_CREDIT_COST,
+        });
+        return;
+      }
+      if (err instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+        return;
+      }
+      throw err;
+    }
+
     /* ── Enqueue a durable server-owned job and return immediately ─────────
        The job row survives restarts and the background poller drives it
        through Sync.so's 25–40 minute runs — the tab can close right after
        this response. The client keeps polling GET /api/lip-sync/job/:id
        as before until status becomes "done" or "failed".                */
-    const job = await createLipSyncJob({
-      userId,
-      projectId: projectId ?? null,
-      sceneId: sceneId ?? null,
-      params: {
-        clipUrl,
-        audioUrl,
-        sceneStartSec,
-        sceneEndSec,
-        provider: getLipSyncProviderName(),
-      },
-    });
+    let job;
+    try {
+      job = await createLipSyncJob({
+        userId,
+        projectId: projectId ?? null,
+        sceneId: sceneId ?? null,
+        params: {
+          clipUrl,
+          audioUrl,
+          sceneStartSec,
+          sceneEndSec,
+          provider: getLipSyncProviderName(),
+        },
+      });
+    } catch (enqueueErr) {
+      /* The job never entered the queue — refund the charge with a
+         ledger trace, then let the outer catch produce its usual 502. */
+      await refundCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        action: "Lip Sync — Refund (enqueue failed)",
+      }).catch(() => {});
+      throw enqueueErr;
+    }
     const jobId = job.id;
 
     // Wake the poller so the submit starts within seconds, not on the next tick.
@@ -531,7 +601,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       "[lip-sync] job queued — returning immediately",
     );
 
-    res.json({ jobId, status: "queued" });
+    res.json({ jobId, status: "queued", creditsRemaining: creditsAfter });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lip sync failed";
     req.log.error({ err }, "[lip-sync] preview route error");

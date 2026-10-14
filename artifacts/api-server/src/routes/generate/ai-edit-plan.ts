@@ -4,8 +4,24 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { freeAiLimiter } from "../../lib/rate-limit";
 import { z } from "zod";
 import { getTextModel } from "../../lib/ai-clients";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../../lib/credits";
 
 const router = Router();
+
+/* Charged server-side at the price the UI has always displayed for this
+   tool (frontend registry: "/api/generate/ai-edit-plan" → 100 Visual
+   Bucs). Until the owner's 2026-10-14 ruling this route called the paid
+   text model for free. The deterministic local fallback plan costs no
+   provider spend, so it stays free: the charge rides only the real AI
+   call, and any response that ends up being the fallback refunds it —
+   the user pays the displayed price only for the AI plan itself. */
+const AI_EDIT_PLAN_CREDIT_COST = 100;
 
 let openaiClient: OpenAI | null = null;
 function getOpenAI(): OpenAI | null {
@@ -16,6 +32,7 @@ function getOpenAI(): OpenAI | null {
 }
 
 const Schema = z.object({
+  idempotencyKey: z.string().max(128).optional(),
   style: z.string().min(1),
   styleName: z.string().optional().default(""),
   sceneCount: z.number().int().min(0),
@@ -122,10 +139,60 @@ router.post("/generate/ai-edit-plan", requireAuth, freeAiLimiter, async (req, re
 
   const openai = getOpenAI();
   if (!openai) {
+    /* No provider configured → the free local fallback, no charge. */
     req.log.warn("[ai-edit-plan] No OpenAI key — using fallback");
     res.json({ plan: buildFallbackPlan(input), source: "fallback" });
     return;
   }
+
+  /* Balance fast-fail on the middleware balance (skipped in dev, the
+     thumbnail-generator pattern); chargeCredits re-reads fresh and is
+     authoritative. */
+  const isDev = process.env["NODE_ENV"] === "development";
+  if (!isDev && (req.userCredits ?? 0) < AI_EDIT_PLAN_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+      required: AI_EDIT_PLAN_CREDIT_COST,
+    });
+    return;
+  }
+
+  /* Charge BEFORE the paid provider call, under a stable idempotency
+     key for (user, endpoint, request-intent): a double-tap or retry of
+     the same plan request can't double-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ai-edit-plan",
+    req.userId!,
+    parsed.data.idempotencyKey,
+    input,
+  );
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, AI_EDIT_PLAN_CREDIT_COST, {
+      action: "AI Edit Plan",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+        required: AI_EDIT_PLAN_CREDIT_COST,
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    throw err;
+  }
+  /* Any outcome that serves the free fallback instead of the AI plan
+     refunds the charge with a ledger trace. */
+  const refundCharge = () =>
+    refundCredits(req.userId!, AI_EDIT_PLAN_CREDIT_COST, {
+      action: "AI Edit Plan — Refund (fallback served)",
+    }).catch(() => {});
 
   const sceneList = input.sceneDescriptions.slice(0, 20).map((d, i) => `  ${i}: ${d}`).join("\n") || "  (no scene descriptions)";
   const userPrompt = [
@@ -153,16 +220,26 @@ router.post("/generate/ai-edit-plan", requireAuth, freeAiLimiter, async (req, re
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let plan: unknown;
+    let servedAiPlan = true;
     try {
       plan = JSON.parse(raw);
       (plan as Record<string, unknown>)["generatedAt"] = new Date().toISOString();
     } catch {
       req.log.warn("[ai-edit-plan] JSON parse failed, using fallback");
       plan = buildFallbackPlan(input);
+      servedAiPlan = false;
     }
-    res.json({ plan, source: "ai" });
+    if (!servedAiPlan) {
+      /* The paid call returned nothing usable — the user gets the free
+         fallback, so the charge comes back. */
+      await refundCharge();
+      res.json({ plan, source: "fallback" });
+      return;
+    }
+    res.json({ plan, source: "ai", creditsRemaining: creditsAfter });
   } catch (err) {
     req.log.warn({ err }, "[ai-edit-plan] OpenAI call failed, using fallback");
+    await refundCharge();
     res.json({ plan: buildFallbackPlan(input), source: "fallback" });
   }
 });

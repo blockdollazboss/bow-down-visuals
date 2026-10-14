@@ -2,12 +2,26 @@ import { Router } from "express";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { requireAuth } from "../middlewares/require-auth";
 import { freeAiLimiter } from "../lib/rate-limit";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../lib/credits";
 import { z } from "zod";
 
 const router = Router();
 
+/* Charged server-side at the price the UI has always displayed for this
+   tool (frontend registry: "/api/analyze-sections" → 100 Visual Bucs).
+   Until the owner's 2026-10-14 ruling this route called the paid text
+   model for free; now it charges exactly the displayed price. */
+const ANALYZE_SECTIONS_CREDIT_COST = 100;
+
 const Schema = z.object({
   lyrics: z.string().min(10),
+  idempotencyKey: z.string().max(128).optional(),
 });
 
 router.post("/analyze-sections", requireAuth, freeAiLimiter, async (req, res) => {
@@ -18,6 +32,48 @@ router.post("/analyze-sections", requireAuth, freeAiLimiter, async (req, res) =>
   }
 
   const { lyrics } = parsed.data;
+
+  /* Balance fast-fail on the middleware balance (skipped in dev, the
+     thumbnail-generator pattern); chargeCredits re-reads the balance
+     fresh and is the authoritative check. */
+  const isDev = process.env["NODE_ENV"] === "development";
+  if (!isDev && (req.userCredits ?? 0) < ANALYZE_SECTIONS_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+      required: ANALYZE_SECTIONS_CREDIT_COST,
+    });
+    return;
+  }
+
+  /* Charge BEFORE the paid provider call, under a stable idempotency
+     key for (user, endpoint, request-intent): a double-tap or retry of
+     the same analysis can't double-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "analyze-sections",
+    req.userId!,
+    parsed.data.idempotencyKey,
+    { lyrics },
+  );
+  try {
+    await chargeCredits(req.userId!, ANALYZE_SECTIONS_CREDIT_COST, {
+      action: "Analyze Song Sections",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+        required: ANALYZE_SECTIONS_CREDIT_COST,
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    throw err;
+  }
 
   const userPrompt = `Analyze the following song lyrics and return a JSON object with this EXACT structure. Only include sections that actually exist in the lyrics. If you detect extra sections (Pre-Hook, Verse 3, etc.) add them.
 
@@ -67,6 +123,11 @@ Return ONLY valid JSON. No markdown, no code blocks, no explanation.`;
     res.json(analysis);
   } catch (err) {
     req.log.error({ err }, "Section analysis failed");
+    /* The provider call failed after the charge — refund with a ledger
+       trace (the standard charge-first/refund-on-failure pattern). */
+    await refundCredits(req.userId!, ANALYZE_SECTIONS_CREDIT_COST, {
+      action: "Analyze Song Sections — Refund (analysis failed)",
+    }).catch(() => {});
     res.status(500).json({ error: "Analysis failed" });
   }
 });

@@ -27,9 +27,45 @@ const captured = vi.hoisted(() => ({
 vi.mock("../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.userId = "user-transcribe-test";
+    req.userCredits = 100_000;
     next();
   },
 }));
+
+/* /transcribe charges the displayed 100 VB server-side (owner's
+   2026-10-14 ruling). This suite's subject is the model split, so the
+   credits lib is a permissive fake: charges always succeed. */
+vi.mock("../../lib/credits", () => {
+  class OutOfCreditsError extends Error {
+    readonly status = 402;
+    constructor() {
+      super("out_of_credits");
+      this.name = "OutOfCreditsError";
+    }
+  }
+  class LedgerWriteError extends Error {
+    readonly status = 500;
+    constructor() {
+      super("ledger_write_failed");
+      this.name = "LedgerWriteError";
+    }
+  }
+  class CreditsDisabledError extends Error {
+    readonly status = 403;
+    constructor() {
+      super("credits_disabled");
+      this.name = "CreditsDisabledError";
+    }
+  }
+  return {
+    OutOfCreditsError,
+    LedgerWriteError,
+    CreditsDisabledError,
+    buildChargeIdempotencyKey: (scope: string, userId: string) => `${scope}:${userId}:test-key`,
+    chargeCredits: async () => 99_900,
+    refundCredits: async () => {},
+  };
+});
 
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => ({

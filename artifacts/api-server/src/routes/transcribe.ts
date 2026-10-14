@@ -1,11 +1,82 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { createHash } from "crypto";
 import { getOpenAI, getPlainTranscribeModel } from "../lib/ai-clients";
 import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
 import { freeAiLimiter } from "../lib/rate-limit";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../lib/credits";
 
 const router = Router();
+
+/* Charged server-side at the price the UI has always displayed for
+   these tools (frontend registry: "/api/transcribe" and
+   "/api/transcribe-url" → 100 Visual Bucs each). Until the owner's
+   2026-10-14 ruling both routes called the paid transcription models
+   for free. */
+const TRANSCRIBE_CREDIT_COST = 100;
+
+/**
+ * Charge the displayed transcription price before the paid provider
+ * call. Returns the balance after the charge, or null after sending
+ * the standard error response (402 out_of_credits / 500 ledger) — the
+ * caller must return immediately on null. The idempotency key is
+ * stable per (user, endpoint, request-intent): a double-tap or retry
+ * of the same transcription can't double-charge.
+ */
+async function chargeForTranscription(
+  req: Request,
+  res: Response,
+  scope: "transcribe" | "transcribe-url",
+  clientKey: unknown,
+  intent: unknown,
+): Promise<number | null> {
+  /* Balance fast-fail on the middleware balance (skipped in dev, the
+     thumbnail-generator pattern); chargeCredits re-reads fresh and is
+     authoritative. */
+  const isDev = process.env["NODE_ENV"] === "development";
+  if (!isDev && (req.userCredits ?? 0) < TRANSCRIBE_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+      required: TRANSCRIBE_CREDIT_COST,
+    });
+    return null;
+  }
+  const idempotencyKey = buildChargeIdempotencyKey(scope, req.userId!, clientKey, intent);
+  try {
+    return await chargeCredits(req.userId!, TRANSCRIBE_CREDIT_COST, {
+      action: scope === "transcribe" ? "Transcribe Audio" : "Transcribe",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+        required: TRANSCRIBE_CREDIT_COST,
+      });
+      return null;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+      return null;
+    }
+    throw err;
+  }
+}
+
+/** Refund a transcription charge after a provider-side failure. */
+async function refundTranscription(req: Request): Promise<void> {
+  await refundCredits(req.userId!, TRANSCRIBE_CREDIT_COST, {
+    action: "Transcribe — Refund (transcription failed)",
+  }).catch(() => {});
+}
 
 /** Whisper's hard file-size limit */
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -51,6 +122,18 @@ router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), a
     res.status(400).json({ error: "No audio file provided" });
     return;
   }
+  /* Charge the displayed price before the paid provider call. The
+     request-intent is the uploaded file itself (bytes hash), so a
+     retry of the same upload can't double-charge. */
+  const fileHash = createHash("sha256").update(req.file.buffer).digest("hex");
+  const creditsAfter = await chargeForTranscription(
+    req,
+    res,
+    "transcribe",
+    (req.body as { idempotencyKey?: unknown } | undefined)?.idempotencyKey,
+    { fileHash, name: req.file.originalname ?? "" },
+  );
+  if (creditsAfter === null) return; // error response already sent
   try {
     const audioFile = await toFile(
       req.file.buffer,
@@ -69,9 +152,11 @@ router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), a
       },
       { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
     );
-    res.json({ transcript: transcription.text });
+    res.json({ transcript: transcription.text, creditsRemaining: creditsAfter });
   } catch (err) {
     req.log.error({ err }, "Transcription failed");
+    /* Provider failure after the charge — refund with a ledger trace. */
+    await refundTranscription(req);
     if (isTimeoutError(err)) {
       timeoutResponse(res);
       return;
@@ -82,7 +167,10 @@ router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), a
 
 /** Transcribe an already-uploaded audio file by URL (Supabase storage). */
 router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
-  const { audioUrl } = req.body as { audioUrl?: string };
+  const { audioUrl, idempotencyKey: clientIdempotencyKey } = req.body as {
+    audioUrl?: string;
+    idempotencyKey?: unknown;
+  };
 
   if (!audioUrl) {
     res.status(400).json({ error: "audioUrl is required" });
@@ -111,6 +199,10 @@ router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
     }
   }
 
+  /* Tracks whether the charge landed, so the catch block refunds only
+     failures that happen after it (fetch/size failures before the
+     charge were never charged). */
+  let charged = false;
   try {
     /* ── HEAD request: check Content-Length before downloading ── */
     const headRes = await fetch(audioUrl, {
@@ -147,6 +239,20 @@ router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
       return;
     }
 
+    /* ── Charge the displayed price — every free validation (SSRF,
+       reachability, size) has passed; the paid provider call is next.
+       The request-intent is the audio URL, so a retry of the same
+       transcription can't double-charge. ── */
+    const creditsAfter = await chargeForTranscription(
+      req,
+      res,
+      "transcribe-url",
+      clientIdempotencyKey,
+      { audioUrl },
+    );
+    if (creditsAfter === null) return; // error response already sent
+    charged = true;
+
     const fileName = parsedUrl.pathname.split("/").pop() ?? "audio.mp3";
     const audioFile = await toFile(buffer, decodeURIComponent(fileName), { type: contentType });
 
@@ -180,9 +286,21 @@ router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
       words: transcription.words ?? null,
       duration: transcription.duration ?? null,
       language: transcription.language ?? null,
+      creditsRemaining: creditsAfter,
     });
   } catch (err) {
     req.log.error({ err }, "URL transcription failed");
+    /* Provider failure after the charge — refund with a ledger trace. */
+    if (charged) await refundTranscription(req);
+    /* Admin-only lockdown (thrown by the charge): use the same shape
+       the global error handler gives it, not a transcription 500. */
+    if (err instanceof Error && err.name === "CreditsDisabledError") {
+      res.status(403).json({
+        error: "credits_disabled",
+        message: "Credit spending is temporarily disabled. Please try again later.",
+      });
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Transcription failed";
     if (isTimeoutError(err)) {
       timeoutResponse(res);

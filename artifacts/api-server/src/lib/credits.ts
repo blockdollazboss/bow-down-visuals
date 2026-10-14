@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
@@ -193,6 +194,38 @@ export interface ChargeCreditsOpts {
    * funding a team pool from personal credits).
    */
   personalOnly?: boolean;
+}
+
+/**
+ * Build the stable idempotency key for a charge: one key per
+ * (user, endpoint scope, request-intent), so a double-tap or a client
+ * retry of the SAME request can never double-charge.
+ *
+ * A client-supplied key (the thumbnail-generator pattern: the client
+ * generates one key per user intent) wins when present; it is scoped
+ * by endpoint + user so a key reused across endpoints or users can't
+ * cross-suppress a legitimate charge. Without a client key, the key
+ * is derived from a hash of the request intent itself (the validated
+ * payload / file bytes hash the caller passes in `intent`) — an
+ * identical retry hashes to the identical key.
+ *
+ * Trade-off of the derived form: a deliberate re-run with byte-identical
+ * inputs is treated as the same purchase and is not charged again.
+ * That errs on the customer's side (never an overcharge), which is the
+ * direction the money rules require.
+ */
+export function buildChargeIdempotencyKey(
+  scope: string,
+  userId: string,
+  clientKey: unknown,
+  intent: unknown,
+): string {
+  if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+    return `${scope}:${userId}:client:${clientKey.trim()}`;
+  }
+  const intentJson = typeof intent === "string" ? intent : (JSON.stringify(intent) ?? "");
+  const hash = createHash("sha256").update(intentJson).digest("hex").slice(0, 32);
+  return `${scope}:${userId}:${hash}`;
 }
 
 /**
