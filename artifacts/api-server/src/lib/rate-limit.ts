@@ -25,9 +25,9 @@ export const generationLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Prefer authenticated user ID; fall back to IP
+    // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
     const userId = (req as { userId?: string }).userId;
-    return userId || req.ip || "unknown";
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
   },
   message: { error: "Too many generations. Please wait a minute and try again." },
 });
