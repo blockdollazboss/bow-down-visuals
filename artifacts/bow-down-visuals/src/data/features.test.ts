@@ -35,7 +35,7 @@ describe("feature registry", () => {
     for (const f of SITE_FEATURES) {
       expect(f.name.trim().length, `${f.key}: name`).toBeGreaterThan(0);
       expect(f.tagline.trim().length, `${f.key}: tagline`).toBeGreaterThan(0);
-      expect(f.route, `${f.key}: route`).toMatch(/^\/[a-z0-9/-]*$/);
+      expect(f.route, `${f.key}: route`).toMatch(/^\/[a-z0-9/?=&-]*$/);
       expect(f.creditCost.trim().length, `${f.key}: creditCost`).toBeGreaterThan(0);
       expect(f.icon, `${f.key}: icon`).toBeDefined();
       expect(VALID_CATEGORIES, `${f.key}: category`).toContain(f.category);

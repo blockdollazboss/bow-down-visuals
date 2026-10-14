@@ -20,14 +20,19 @@ const LEGAL = [
 ];
 
 /* Link columns speak the six areas — the same taxonomy as the sidebar,
-   the feature registry, and the hub workflows. SEO hubs (Worker 9): the
-   index pages link onward to every tool/vertical/genre page, so the footer
-   carries the hubs, each sorted into the area its destination belongs to. */
+   the feature registry, and the hub workflows: Create, Branding, Promote,
+   Social, Business / Get Paid, My Studio (+ Legal). The /for/* audience
+   hubs sit in their own honestly-labeled "For Creators" column — they are
+   SEO landing pages, not the app's Social surfaces. Every href lands on a
+   real route — no redirect aliases. */
 const CREATE_LINKS = [
   { label: "All AI Tools", href: "/tools" },
   { label: "AI Thumbnail Maker", href: "/tools/ai-thumbnail-maker" },
   { label: "AI Music Video Maker", href: "/tools/ai-music-video-maker" },
   { label: "AI Song Maker", href: "/tools/ai-song-maker" },
+  /* Hook Studio lives under Create (sidebar + registry agree) — its SEO
+     page sits with the other Create tool pages, not under Promote. */
+  { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
   /* Public template galleries (SEO lead magnets) — internal links from
      every page's footer are what make the galleries rank and convert. */
   { label: "Template Library", href: "/templates" },
@@ -37,17 +42,43 @@ const CREATE_LINKS = [
   { label: "Caption Packs", href: "/templates/captions" },
 ];
 
+const BRANDING_LINKS = [
+  { label: "Branding Kit", href: "/branding-kit" },
+  { label: "Logo Maker", href: "/branding-kit?tab=logo" },
+  { label: "Intros & Outros", href: "/branding-kit?tab=intros" },
+  { label: "Stream Packs", href: "/branding-kit?tab=stream" },
+  { label: "Branding Shop", href: "/branding-kit?tab=shop" },
+];
+
 const PROMOTE_LINKS = [
-  { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
+  { label: "Promo Generator", href: "/promote" },
   { label: "AI Caption Generator", href: "/tools/ai-caption-generator" },
   { label: "AI Clip Maker", href: "/tools/ai-clip-maker" },
 ];
 
 const BUSINESS_LINKS = [
   { label: "Pricing", href: "/pricing" },
+  { label: "Money Coach", href: "/coach" },
+  { label: "Brand Deals", href: "/brand-deals" },
+  { label: "Distribute", href: "/distribute" },
+  { label: "Tips", href: "/tips" },
+  { label: "Memberships", href: "/memberships" },
+  { label: "Storefronts", href: "/storefronts" },
+  { label: "My Shop", href: "/my-shop" },
 ];
 
+/* The app's real Social surfaces — the same doors the sidebar's Social
+   section carries. */
 const SOCIAL_LINKS = [
+  { label: "Home Feed", href: "/home" },
+  { label: "Explore", href: "/explore" },
+  { label: "Groups", href: "/groups" },
+  { label: "Contests", href: "/contests" },
+  { label: "Winners' Circle", href: "/winners" },
+];
+
+/* SEO audience hubs — landing pages per creator type, NOT app surfaces. */
+const CREATOR_LINKS = [
   { label: "For Creators", href: "/for" },
   { label: "For YouTubers", href: "/for/youtubers" },
   { label: "For Podcasters", href: "/for/podcasters" },
@@ -95,12 +126,26 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-8 gap-10 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-10 gap-8 mb-10">
 
           {/* Create */}
           <nav className="flex flex-col gap-2.5" aria-label="Create">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Create</p>
             {CREATE_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`text-sm ${T.link} transition-colors w-fit`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Branding */}
+          <nav className="flex flex-col gap-2.5" aria-label="Branding">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Branding</p>
+            {BRANDING_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -129,6 +174,20 @@ export function SiteFooter() {
           <nav className="flex flex-col gap-2.5" aria-label="Social">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Social</p>
             {SOCIAL_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`text-sm ${T.link} transition-colors w-fit`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* For Creators — SEO audience hubs */}
+          <nav className="flex flex-col gap-2.5" aria-label="For Creators">
+            <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>For Creators</p>
+            {CREATOR_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle } from "lucide-react";
+import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle, AudioWaveform } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -398,6 +398,18 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
                     defaultTitle={projectTitle}
                   />
                 </div>
+                {/* Handoff: a finished song flows into Audio Studio to be
+                    mastered/polished — the studio's established deep-link
+                    protocol (?tab=master&audioUrl=) pre-loads the track,
+                    the same mechanism the Vocal Polish handoff uses. */}
+                <a
+                  href={`/audio-studio?tab=master&audioUrl=${encodeURIComponent(generatedAudioUrl)}`}
+                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 bg-primary/[0.06] px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-all"
+                  data-testid="btn-result-open-audio-studio"
+                >
+                  <AudioWaveform className="h-3.5 w-3.5 shrink-0" />
+                  Open in Audio Studio
+                </a>
               </div>
             </div>
           )}
