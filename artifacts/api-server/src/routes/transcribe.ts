@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { getOpenAI } from "../lib/ai-clients";
+import { getOpenAI, getPlainTranscribeModel } from "../lib/ai-clients";
 import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
@@ -60,7 +60,12 @@ router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), a
     const transcription = await getOpenAI().audio.transcriptions.create(
       {
         file: audioFile,
-        model: "whisper-1",
+        // Plain text only — this route returns just the transcript, so it
+        // runs on the plain-transcription model (gpt-transcribe). The
+        // /transcribe-url route below stays on whisper-1: its clients
+        // align captions to the word timestamps it returns.
+        model: getPlainTranscribeModel(),
+        response_format: "json",
       },
       { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
     );
