@@ -15,6 +15,7 @@ import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { StreamingPlayerProvider } from "@/contexts/StreamingPlayerContext";
 import { StreamingPlayerBar } from "@/components/player/StreamingPlayerBar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
 import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
@@ -640,7 +641,9 @@ function AppShell() {
                 <Route path="/channel-audit"><Redirect to="/analytics-hub?tab=channel-audit" /></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
                 <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
-                <Route path="/website-builder"><ProtectedRoute><WebsiteBuilder /></ProtectedRoute></Route>
+                {/* Parked until after launch (owner order): admins only —
+                    AdminRoute bounces signed-in non-admins to /dashboard. */}
+                <Route path="/website-builder"><ProtectedRoute><AdminRoute><WebsiteBuilder /></AdminRoute></ProtectedRoute></Route>
                 <Route path="/detector"><ProtectedRoute><MediaDetector /></ProtectedRoute></Route>
                 <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch" /></Route>
                 <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
