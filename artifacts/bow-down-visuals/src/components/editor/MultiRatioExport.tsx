@@ -776,7 +776,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
                 {t("videoEditor.extractAudio.toSongMaker")}
               </Link>
               <Link
-                href={`/podcast?mode=video&videoUrl=${encodeURIComponent(result.url)}`}
+                href={`/audio-studio?tab=podcast&mode=video&videoUrl=${encodeURIComponent(result.url)}`}
                 className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/[0.12] transition-colors"
               >
                 <FileAudio className="h-3.5 w-3.5" />

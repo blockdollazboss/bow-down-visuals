@@ -8,8 +8,11 @@ import { resolveStoreSlug, type MediaKind } from "@/lib/streaming";
    profile, store (only rendered when the storefront resolves — never a
    dead link), use-this-sound (audio pages + videos with linked sound),
    duet/stitch (video pages). No dead ends.
-   Deep-link params (?sound= / ?duet=) are consumed by the clip-maker /
-   editor teams — the pages load fine regardless. */
+   Deep-link params are consumed by the video editor (the /clip-maker
+   alias target, Repurpose tab): ?sound=track:<id> attaches the track as
+   a project soundtrack stem; ?duet=video:<id> loads the video into
+   Repurpose as the base clip. Links spell the real route directly so
+   the params survive navigation. */
 
 export function MediaLinkBar({
   kind,
@@ -54,9 +57,9 @@ export function MediaLinkBar({
     });
   }
   if (kind === "track") {
-    // Use this sound → clip-maker pre-loads the audio (deep link; page loads regardless).
+    // Use this sound → the editor attaches it as the project soundtrack stem.
     items.push({
-      href: `/clip-maker?sound=track:${id}`,
+      href: `/video-editor?tab=repurpose&sound=track:${id}`,
       label: "Use this sound",
       title: "Make a clip with this audio",
       icon: <Music2 className="h-4 w-4" />,
@@ -71,7 +74,7 @@ export function MediaLinkBar({
       });
     }
     items.push({
-      href: `/clip-maker?duet=video:${id}`,
+      href: `/video-editor?tab=repurpose&duet=video:${id}`,
       label: "Duet / Stitch",
       title: "Duet or stitch this video",
       icon: <Scissors className="h-4 w-4" />,

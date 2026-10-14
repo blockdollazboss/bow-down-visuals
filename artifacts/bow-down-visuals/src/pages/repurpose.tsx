@@ -13,6 +13,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { HighlightCutter } from "@/components/wave8/HighlightCutter";
 import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
+import { fetchVideo, resolveMedia } from "@/lib/streaming";
 import {
   PACK_CREDITS,
   REROLL_CREDITS,
@@ -649,7 +650,7 @@ function StreamVodClips() {
                           <Download className="h-3.5 w-3.5" /> {t("clipMaker.downloadClip")}
                         </a>
                         <Link
-                          href={`/caption-styler?video=${encodeURIComponent(c.outputUrl)}`}
+                          href={`/hooks?tab=styler&video=${encodeURIComponent(c.outputUrl)}`}
                           className="mt-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
                         >
                           <Captions className="h-3.5 w-3.5" /> {t("clipMaker.addCaptions", { defaultValue: "Add captions" })}
@@ -736,6 +737,50 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
     } catch {
       /* non-browser or malformed URL — ignore */
     }
+  }, []);
+
+  /* Title of the video pre-loaded via the duet deep-link (shown by Step 1). */
+  const [duetTitle, setDuetTitle] = useState<string | null>(null);
+
+  /* Deep-link: ?duet=video:<id> (MediaLinkBar "Duet / Stitch") loads that
+     video as the base clip. The id resolves through the streaming API into
+     the same videoUrl state the paste-a-URL input drives, so Analyze/Cut
+     run on it exactly like a pasted link. One-shot: the param is stripped
+     whether the load succeeds or not, so a refresh never re-seeds over
+     the user's edits. Unknown/unpublished ids surface the shared error. */
+  useEffect(() => {
+    let alive = true;
+    try {
+      const duet = new URLSearchParams(window.location.search).get("duet");
+      if (!duet) return;
+      const m = /^video:(.+)$/.exec(duet.trim());
+      if (!m) return;
+      void (async () => {
+        const found = await fetchVideo(m[1]);
+        if (!alive) return;
+        try {
+          const params = new URLSearchParams(window.location.search);
+          params.delete("duet");
+          window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
+        } catch {
+          /* non-browser — ignore */
+        }
+        const url = resolveMedia(found?.video?.video_url);
+        if (!url) {
+          setError(t("repurpose.error.duetLoadFailed", { defaultValue: "Couldn't load that video for duet/stitch — it may be private or removed." }));
+          return;
+        }
+        setFile(null);
+        setVideoUrl(url);
+        setDuetTitle(found?.video?.title ?? "");
+      })();
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1044,6 +1089,13 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
                 }}
               />
               <span className="text-xs text-white/40">{t("repurpose.step1.urlNote")}</span>
+              {duetTitle !== null && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Scissors className="h-3.5 w-3.5 shrink-0" />
+                  {t("repurpose.duetLoaded", { defaultValue: "Base clip loaded for duet / stitch" })}
+                  {duetTitle ? <span className="truncate font-normal text-white/50">· {duetTitle}</span> : null}
+                </span>
+              )}
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center gap-3">
@@ -1145,7 +1197,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
                             <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
                           </a>
                           <Link
-                            href={`/caption-styler?video=${encodeURIComponent(clip.outputUrl)}`}
+                            href={`/hooks?tab=styler&video=${encodeURIComponent(clip.outputUrl)}`}
                             className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
                           >
                             <Captions className="h-3.5 w-3.5" /> {t("repurpose.addCaptions", { defaultValue: "Add captions" })}

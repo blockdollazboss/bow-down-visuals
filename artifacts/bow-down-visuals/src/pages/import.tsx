@@ -336,7 +336,7 @@ export default function MediaImport() {
                 <Scissors className="h-4 w-4" /> {t("importPage.useInStems", { defaultValue: mediaType === "audio" ? "Split stems" : "Open in editor" })}
               </Link>
               <Link
-                href={mediaType === "audio" ? `/make-song?audioUrl=${encodeURIComponent(outputUrl)}` : `/caption-styler?video=${encodeURIComponent(outputUrl)}`}
+                href={mediaType === "audio" ? `/make-song?audioUrl=${encodeURIComponent(outputUrl)}` : `/hooks?tab=styler&video=${encodeURIComponent(outputUrl)}`}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/25 hover:text-white"
               >
                 <Sparkles className="h-4 w-4" /> {t("importPage.useInSong", { defaultValue: mediaType === "audio" ? "Use in a song" : "Add captions" })}

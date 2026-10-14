@@ -57,6 +57,7 @@ import {
   type FitMode,
 } from "@/lib/editor-settings";
 import { computeMasterPlayerFit } from "@/lib/master-player-size";
+import { fetchTrack, resolveMedia } from "@/lib/streaming";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { captionFontFamily } from "@/lib/fonts";
 import { getLibraryPreset } from "@/data/library-presets";
@@ -627,6 +628,90 @@ export default function VideoEditor() {
     } catch {
       /* non-browser or malformed URL — ignore */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* ── MediaLinkBar "Use this sound": ?sound=track:<id> ──
+     The streaming track resolves through the media API and is attached
+     as a project soundtrack stem — the same settings.musicStudio.stems
+     state the beat handoff feeds and the preview/render audio resolves
+     from, so the sound is mixed into the video the user cuts here. The
+     link's tab (repurpose) is left alone; a toast names where the sound
+     landed. One-shot like the beat handoff: the param is stripped once
+     consumed, whether the track resolves or not. */
+  useEffect(() => {
+    let alive = true;
+    try {
+      const sound = new URLSearchParams(window.location.search).get("sound");
+      if (!sound) return;
+      const m = /^track:(.+)$/.exec(sound.trim());
+      if (!m) return;
+      void (async () => {
+        const found = await fetchTrack(m[1]);
+        if (!alive) return;
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("sound");
+          window.history.replaceState(null, "", url.toString());
+        } catch {
+          /* non-browser — ignore */
+        }
+        const audioUrl = resolveMedia(found?.track?.audio_url);
+        if (!found || !audioUrl) {
+          toast({
+            title: t("videoEditor.soundLoadFailedTitle", { defaultValue: "Couldn't load that sound" }),
+            description: t("videoEditor.soundLoadFailedDesc", { defaultValue: "That track may be private or removed — pick a sound from the Music tab instead." }),
+          });
+          return;
+        }
+        const ext = audioUrl.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
+        const fileType =
+          ext === "wav" ? "audio/wav" : ext === "m4a" ? "audio/mp4" : ext === "ogg" ? "audio/ogg" : ext === "flac" ? "audio/flac" : "audio/mpeg";
+        setSettings((prev) => {
+          if (prev.musicStudio.stems.some((s) => s.url === audioUrl)) return prev;
+          return {
+            ...prev,
+            musicStudio: {
+              ...prev.musicStudio,
+              stems: [
+                ...prev.musicStudio.stems,
+                {
+                  id: `sound-${Date.now()}`,
+                  name: found.track.title,
+                  type: "Full Song Mix",
+                  url: audioUrl,
+                  storagePath: "",
+                  fileType,
+                  fileSize: 0,
+                  uploadedAt: new Date().toISOString(),
+                  durationSec: found.track.duration_sec ?? undefined,
+                  muted: false,
+                  solo: false,
+                  locked: false,
+                  volume: 100,
+                  pan: 0,
+                  trimStart: 0,
+                  trimEnd: 0,
+                  startTime: 0,
+                  effects: defaultStemEffects(),
+                },
+              ],
+            },
+          };
+        });
+        toast({
+          title: t("videoEditor.soundAttachedTitle", { defaultValue: "Sound attached to this project" }),
+          description: t("videoEditor.soundAttachedDesc", {
+            defaultValue: "\"{{title}}\" is now your soundtrack stem — find it in the Music tab; it mixes into preview and export.",
+            title: found.track.title,
+          }),
+        });
+      })();
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   /* ── Thy Library deep-links (?fx= / ?textstyle= / ?transition=) ──────────
