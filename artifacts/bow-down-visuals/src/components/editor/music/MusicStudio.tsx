@@ -424,7 +424,7 @@ export function MusicStudio({
       {/* ── Generate — Suno-style create card ── */}
       {(studioTab === "create" || ms.stems.length === 0) && (
         <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-1">
-          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} artistVaultId={activeArtist?.id} onGoToCaptions={onGoToCaptions} />
+          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} artistVaultId={activeArtist?.id} onGoToCaptions={onGoToCaptions} projectId={projectId} />
         </div>
       )}
 
