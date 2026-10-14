@@ -7,7 +7,8 @@ import {
   type CreatorLite, type TrackLite, type VideoLite,
 } from "@/components/discovery/cards";
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
-import { ShareMenu } from "@/components/discovery/ShareMenu";
+import ShareMenu from "@/components/ShareMenu";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /genre/:genre — one sound's whole world ─────────────────────────────
@@ -31,6 +32,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 export default function GenrePage() {
+  const { getAccessToken } = useAuth();
   const [, params] = useRoute("/genre/:genre");
   const [location] = useLocation();
   const genre = decodeURIComponent(params?.genre ?? "");
@@ -81,7 +83,13 @@ export default function GenrePage() {
             The creators, the tracks, the videos — the whole {genre} universe in one place.
           </p>
         </div>
-        <ShareMenu path={`/genre/${encodeURIComponent(genre)}`} title={`${genre} creators on Bow Down Visuals`} />
+        <ShareMenu
+          getToken={getAccessToken}
+          shareUrl={`${window.location.origin}/genre/${encodeURIComponent(genre)}`}
+          title={`${genre} creators on Bow Down Visuals`}
+          contentType="other"
+          contentId={genre}
+        />
       </div>
 
       {loading || !data ? (

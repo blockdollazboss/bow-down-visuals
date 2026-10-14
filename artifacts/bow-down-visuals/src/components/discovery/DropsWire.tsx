@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Sparkles } from "lucide-react";
 import { TrackRow, FeedEmpty, RowSkeleton } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
-import { ShareMenu } from "@/components/discovery/ShareMenu";
+import ShareMenu from "@/components/ShareMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import type { TrackLite } from "@/components/discovery/cards";
 
@@ -99,7 +99,15 @@ export function DropsWire() {
                     {item.display_name}
                   </Link>
                   {" · "}
-                  <ShareMenu path={item.kind === "video" ? `/video/${item.id}` : `/track/${item.id}`} title={item.title} compact />
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={`${window.location.origin}${item.kind === "video" ? `/video/${item.id}` : `/track/${item.id}`}`}
+                    title={item.title}
+                    text={`${item.title} — Made with Bow Down Visuals`}
+                    contentType={item.kind === "video" ? "video" : "song"}
+                    contentId={item.id}
+                    compact
+                  />
                 </p>
               </div>
             ))}

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Share2, Copy, Check, Coins } from "lucide-react";
+import { Share2, Copy, Check, Coins, Link2, MessageCircle } from "lucide-react";
 
 /* ─── ShareMenu: the share-to-earn viral loop ─────────────────────────────
+ * THE share component — the discovery duplicate (components/discovery/
+ * ShareMenu.tsx) was consolidated into this one on 2026-10-13; its card
+ * rows use the `compact` popover presentation below.
  * One share row used everywhere a user shares their work: native share,
  * X, WhatsApp, copy link.
  * - Every action posts to POST /api/shares (feeds the weekly "Viral
@@ -19,7 +22,9 @@ export type ShareContentType =
   | "video" | "song" | "thumbnail" | "showcase" | "image"
   | "review_link" | "winner_card" | "other";
 
-type ShareChannel = "native" | "x" | "whatsapp" | "copy";
+/* "other" covers SMS — /api/shares has no sms channel, so menu shares via
+   SMS are recorded under "other" (the old discovery menu tracked nothing). */
+type ShareChannel = "native" | "x" | "whatsapp" | "copy" | "other";
 
 interface ShareMenuProps {
   getToken?: () => Promise<string | null>;
@@ -31,6 +36,11 @@ interface ShareMenuProps {
   contentId?: string;
   /** Pass when the parent already has the caller's referral code. */
   referralCode?: string | null;
+  /** Icon-only trigger + popover menu for tight card rows (discovery
+   * cards, feed rows). Same actions, tracking, and referral logic as the
+   * default row — only the presentation is denser. The popover also
+   * carries the SMS destination the old discovery menu offered. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -63,6 +73,7 @@ export default function ShareMenu({
   contentType,
   contentId,
   referralCode: referralCodeProp,
+  compact = false,
   className = "",
 }: ShareMenuProps) {
   const { t } = useTranslation();
@@ -70,6 +81,7 @@ export default function ShareMenu({
   const [shareToEarn, setShareToEarn] = useState(true);
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   /* Keep the prop in sync if the parent resolves its code late. */
   useEffect(() => {
@@ -201,8 +213,84 @@ export default function ShareMenu({
     void track("copy");
   }, [sharePayload, track]);
 
+  /* SMS — a destination only the old discovery popover offered; kept in
+     the compact popover and recorded as channel "other". */
+  const openSms = useCallback(() => {
+    window.location.href = `sms:?&body=${encodeURIComponent(`${sharePayload.text} ${sharePayload.url}`)}`;
+    void track("other");
+  }, [sharePayload, track]);
+
   const btn =
     "inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition-colors";
+
+  /* Compact presentation for tight card rows: one icon button. Tap fires
+     the native share sheet when the device has one (the old discovery
+     button's behavior); otherwise — and on right-click — it opens a
+     popover with every destination. All items run the same handlers, so
+     tracking and referral behavior are identical to the row variant. */
+  if (compact) {
+    const menuItem =
+      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white hover:bg-white/5";
+    return (
+      <div className={`relative shrink-0 ${className}`}>
+        <button
+          type="button"
+          onClick={() => {
+            if ("share" in navigator) void doNative();
+            else setMenuOpen((o) => !o);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenuOpen((o) => !o);
+          }}
+          title={t("share.native", { defaultValue: "Share" })}
+          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 p-1.5 text-white/60 transition-colors hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
+        >
+          {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Share2 className="h-4 w-4" />}
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-[#c9a84c]/30 bg-[#14100a] p-2 shadow-2xl">
+              {"share" in navigator && (
+                <button type="button" className={menuItem}
+                  onClick={() => { setMenuOpen(false); void doNative(); }}>
+                  <Share2 className="h-4 w-4 text-[#e8c86a]" />
+                  {t("share.native", { defaultValue: "Share" })}
+                </button>
+              )}
+              <button type="button" className={menuItem} onClick={() => void doCopy()}>
+                <Link2 className="h-4 w-4 text-[#e8c86a]" />
+                {copied
+                  ? t("share.copied", { defaultValue: "Copied!" })
+                  : t("share.copy", { defaultValue: "Copy link" })}
+              </button>
+              <button type="button" className={menuItem}
+                onClick={() => { setMenuOpen(false); openChannel("x"); }}>
+                <MessageCircle className="h-4 w-4 text-[#e8c86a]" />
+                {t("share.to_x", { defaultValue: "Share to X" })}
+              </button>
+              <button type="button" className={menuItem}
+                onClick={() => { setMenuOpen(false); openChannel("whatsapp"); }}>
+                <MessageCircle className="h-4 w-4 text-[#e8c86a]" />
+                {t("share.to_whatsapp", { defaultValue: "Share to WhatsApp" })}
+              </button>
+              <button type="button" className={menuItem}
+                onClick={() => { setMenuOpen(false); openSms(); }}>
+                <MessageCircle className="h-4 w-4 text-[#e8c86a]" />
+                {t("share.to_sms", { defaultValue: "Share to SMS" })}
+              </button>
+              {code && (
+                <p className="px-3 pb-1 pt-2 text-[11px] text-white/35">
+                  Links carry your referral code. Made with Bow Down Visuals.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={className}>

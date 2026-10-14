@@ -7,7 +7,8 @@ import {
   type CreatorLite, type TrackLite, type VideoLite,
 } from "@/components/discovery/cards";
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
-import { ShareMenu } from "@/components/discovery/ShareMenu";
+import ShareMenu from "@/components/ShareMenu";
+import { useAuth } from "@/contexts/AuthContext";
 import { VERTICAL_META, isVerticalKey } from "@/lib/verticals";
 import { formatCount } from "@/lib/streaming";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -38,6 +39,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 export default function VerticalPage() {
+  const { getAccessToken } = useAuth();
   const [, params] = useRoute("/vertical/:vertical");
   const vertical = (params?.vertical ?? "").toLowerCase();
   usePageTitle(vertical ? `For ${vertical}` : "For Creators");
@@ -99,7 +101,13 @@ export default function VerticalPage() {
           </h1>
           <p className="mt-2 max-w-xl text-sm text-white/50 md:text-base">{meta.pitch}</p>
         </div>
-        <ShareMenu path={sharePath} title={`${meta.label} creators on Bow Down Visuals`} />
+        <ShareMenu
+          getToken={getAccessToken}
+          shareUrl={`${window.location.origin}${sharePath}`}
+          title={`${meta.label} creators on Bow Down Visuals`}
+          contentType="other"
+          contentId={vertical}
+        />
       </div>
 
       {loading || !data ? (

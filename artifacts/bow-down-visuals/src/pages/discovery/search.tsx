@@ -8,7 +8,8 @@ import {
   type CreatorLite, type TrackLite, type VideoLite,
 } from "@/components/discovery/cards";
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
-import { ShareMenu } from "@/components/discovery/ShareMenu";
+import ShareMenu from "@/components/ShareMenu";
+import { useAuth } from "@/contexts/AuthContext";
 import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib/verticals";
 import { resolveMedia, formatCount } from "@/lib/streaming";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -57,6 +58,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 
 function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
   const isLight = useIsLightTheme();
+  const { getAccessToken } = useAuth();
   return (
     <div className={`group flex items-center gap-4 rounded-2xl border p-4 transition-colors hover:border-[#e8c86a]/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Link href={`/playlist/${playlist.id}`} className="shrink-0 cursor-pointer">
@@ -79,7 +81,15 @@ function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
           {` · ${formatCount(playlist.follower_count)} followers`}
         </p>
       </div>
-      <ShareMenu path={`/playlist/${playlist.id}`} title={playlist.title} compact />
+      <ShareMenu
+        getToken={getAccessToken}
+        shareUrl={`${window.location.origin}/playlist/${playlist.id}`}
+        title={playlist.title}
+        text={`${playlist.title} — Made with Bow Down Visuals`}
+        contentType="other"
+        contentId={playlist.id}
+        compact
+      />
     </div>
   );
 }

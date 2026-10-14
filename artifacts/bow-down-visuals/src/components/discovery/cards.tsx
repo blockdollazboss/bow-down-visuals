@@ -4,7 +4,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { formatCount, resolveMedia } from "@/lib/streaming";
 import { verticalLabel } from "@/lib/verticals";
-import { ShareMenu } from "./ShareMenu";
+import ShareMenu from "@/components/ShareMenu";
+import { useAuth } from "@/contexts/AuthContext";
 import { FollowButton } from "./FollowButton";
 
 /* ─── Discovery shared UI — gold/black luxury, cheat-code voice ─────────── */
@@ -175,6 +176,7 @@ export function CreatorCard({
 }
 
 export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: number; linkPath?: string }) {
+  const { getAccessToken } = useAuth();
   const href = linkPath ?? `/track/${track.id}`;
   return (
     <div className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-[#e8c86a]/40">
@@ -214,7 +216,15 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
         <Play className="h-3.5 w-3.5" />
         {formatCount(track.window_plays ?? track.play_count)}
       </span>
-      <ShareMenu path={href} title={track.title} compact />
+      <ShareMenu
+        getToken={getAccessToken}
+        shareUrl={`${window.location.origin}${href}`}
+        title={track.title}
+        text={`${track.title} — Made with Bow Down Visuals`}
+        contentType={href.startsWith("/video/") ? "video" : "song"}
+        contentId={track.id}
+        compact
+      />
     </div>
   );
 }
