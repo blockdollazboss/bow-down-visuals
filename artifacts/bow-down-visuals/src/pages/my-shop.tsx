@@ -576,7 +576,7 @@ export default function MyShop() {
                         <label className="text-xs font-semibold text-white/50">{t("myShop.productImageLabel")}</label>
                         {pImageUrl ? (
                           <div className="mt-1 flex items-center gap-3">
-                            <img src={pImageUrl} alt="Product" className="h-16 w-16 rounded-lg object-cover border border-white/15" />
+                            <img src={pImageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="Product" className="h-16 w-16 rounded-lg object-cover border border-white/15" />
                             <button className="text-xs text-white/40 underline" onClick={() => setPImageUrl("")}>{t("myShop.removeImage")}</button>
                           </div>
                         ) : (
@@ -620,7 +620,7 @@ export default function MyShop() {
                       {products.map((p) => (
                         <div key={p.id} className={`flex gap-3 rounded-xl border p-3 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                           {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-white/10 shrink-0" />
+                            <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-white/10 shrink-0" />
                           ) : (
                             <div className="h-16 w-16 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0">
                               <ShoppingBag className="w-6 h-6 text-white/25" />

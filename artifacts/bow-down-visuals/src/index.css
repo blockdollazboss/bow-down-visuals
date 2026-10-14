@@ -514,6 +514,12 @@ html, body {
 .light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.10\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+/* Remaining uncovered brackets (audit 2026-10-13, D-8): [0.04] joins the
+   faintest rung with [0.05]; [0.15] matches [0.12] / the /15 named rung;
+   [0.18] takes the solid champagne of the base border-white rule. */
+.light .border-white\/\[0\.04\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(237 227 203 / 0.6); }
+.light .border-white\/\[0\.15\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+.light .border-white\/\[0\.18\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
 .light .divide-white\/\[0\.04\]:not([data-dark-lock]):not([data-dark-lock] *) > * + *,
 .light .divide-white\/\[0\.05\]:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: rgb(237 227 203 / 0.6); }
 .light .divide-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *) > * + * { border-color: #EDE3CB; }
@@ -1283,6 +1289,14 @@ html, body {
    2026-10-12) — inside a lock the authored bright gold stands. */
 .light .text-\[\#E8C96A\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-\[\#E8C86A\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  color: #7A5F1D !important;
+}
+/* Metallic gold text (#d4af37 — social cluster: @mention/#hashtag links,
+   composer chips, section labels): same pale-gold family as above, so it
+   takes the same deep bronze on ivory (≈2.1:1 → readable). Light-scoped
+   like every rule in this family — dark rendering is untouched, and
+   dark-locked areas keep the authored bright gold. */
+.light .text-\[\#d4af37\]:not([data-dark-lock]):not([data-dark-lock] *) {
   color: #7A5F1D !important;
 }
 

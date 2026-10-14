@@ -368,7 +368,7 @@ export default function AlbumsSection({
                 </div>
               </div>
               {coverArtUrl && (
-                <img src={coverArtUrl} alt="Album cover preview" className="mt-3 w-32 h-32 rounded-xl object-cover border border-[#c9a84c]/30" />
+                <img src={coverArtUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="Album cover preview" className="mt-3 w-32 h-32 rounded-xl object-cover border border-[#c9a84c]/30" />
               )}
             </div>
           </div>
@@ -492,7 +492,7 @@ export default function AlbumsSection({
               <div key={album.id} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex gap-3 mb-3">
                   {album.cover_art_url ? (
-                    <img src={album.cover_art_url} alt={`${album.title} cover`} className="w-16 h-16 rounded-lg object-cover border border-[#c9a84c]/30 shrink-0" />
+                    <img src={album.cover_art_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={`${album.title} cover`} className="w-16 h-16 rounded-lg object-cover border border-[#c9a84c]/30 shrink-0" />
                   ) : (
                     <div className="w-16 h-16 rounded-lg border border-white/10 bg-white/[0.02] flex items-center justify-center shrink-0">
                       <Disc3 className="h-7 w-7 text-white/20" />

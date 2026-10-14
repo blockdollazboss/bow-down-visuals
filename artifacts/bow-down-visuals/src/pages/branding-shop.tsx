@@ -625,7 +625,7 @@ export default function BrandingShop() {
               <div className={`overflow-hidden rounded-2xl border border-primary/25 ${isLight ? "bg-gradient-to-br from-[#F7ECD2] via-[#FCF7EA] to-[#F7ECD2]" : "bg-gradient-to-br from-neutral-900 via-black to-neutral-900"}`}>
                 <div className="grid gap-0 md:grid-cols-2">
                   <div className="flex items-center justify-center p-10">
-                    <div className="flex h-44 w-72 items-center justify-center rounded-2xl border border-primary/40 bg-gradient-to-br from-zinc-900 to-black shadow-[0_0_40px_rgba(234,179,8,0.15)]">
+                    <div className={`flex h-44 w-72 items-center justify-center rounded-2xl border border-primary/40 shadow-[0_0_40px_rgba(234,179,8,0.15)] ${isLight ? "bg-gradient-to-br from-[#FCF7EA] to-[#F4E7C3]" : "bg-gradient-to-br from-zinc-900 to-black"}`}>
                       <Nfc className="h-16 w-16 text-primary" />
                     </div>
                   </div>

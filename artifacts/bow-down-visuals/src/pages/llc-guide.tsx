@@ -666,8 +666,8 @@ export default function LlcGuide() {
           </div>
           <div className="mt-3 max-h-96 overflow-y-auto rounded-2xl border border-white/10">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-[#0d0b08]">
-                <tr className="text-[10px] uppercase tracking-widest text-white/35">
+              <thead className={`sticky top-0 ${isLight ? "bg-[#F4E7C3]" : "bg-[#0d0b08]"}`}>
+                <tr className={`text-[10px] uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/35"}`}>
                   <th className="px-4 py-3 font-bold">{t("llcGuide.thState")}</th>
                   <th className="px-4 py-3 text-right font-bold">{t("llcGuide.thFilingFee")}</th>
                   <th className="hidden px-4 py-3 font-bold sm:table-cell">{t("llcGuide.thOngoing")}</th>

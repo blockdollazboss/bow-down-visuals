@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   Image as ImageIcon, MessageSquareText, Clapperboard, Zap, ArrowRight, Gift, X,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const KIND_LABEL_KEY: Record<DropKind, string> = {
 };
 
 export function DailyDropCard() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [drop, setDrop] = useState<Drop | null>(null);
@@ -74,7 +76,7 @@ export function DailyDropCard() {
   if (dismissed || !drop) return null;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-primary/[0.05] to-transparent p-5 md:p-6 shadow-[0_0_40px_rgba(218,165,32,0.10)]">
+    <section className={`relative overflow-hidden rounded-3xl border p-5 md:p-6 shadow-[0_0_40px_rgba(218,165,32,0.10)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-primary/[0.12] blur-[80px] pointer-events-none" />
       <button
         onClick={handleDismiss}

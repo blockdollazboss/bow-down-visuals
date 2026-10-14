@@ -120,7 +120,7 @@ export function CreatorCard({
         <div className="relative mb-3 cursor-pointer">
           {creator.avatar_url ? (
             <img
-              src={resolveMedia(creator.avatar_url)}
+              src={resolveMedia(creator.avatar_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
               alt={creator.display_name}
               className="h-20 w-20 rounded-full border-2 border-[#c9a84c]/40 object-cover"
               loading="lazy"

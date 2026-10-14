@@ -4,6 +4,7 @@ import {
   Share2, Mic, ChevronDown, X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 interface FeedItem {
   kind: string;
@@ -36,6 +37,7 @@ const KIND_ICONS: Record<string, typeof Film> = {
 };
 
 export default function FomoFeed({ getToken }: { getToken: () => Promise<string | null> }) {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [prefEnabled, setPrefEnabled] = useState<boolean | null>(null);
   const [feed, setFeed] = useState<FeedResponse | null>(null);
@@ -132,7 +134,7 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
 
   return (
     <section aria-live="polite"
-      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-emerald-500/[0.08] via-primary/[0.05] to-transparent p-5 md:p-6">
+      className={`relative overflow-hidden rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-3">
         <div className="h-11 w-11 rounded-2xl bg-emerald-500/[0.14] border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
           <Activity className="h-6 w-6" />

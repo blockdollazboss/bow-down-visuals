@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
   Sidebar,
@@ -364,6 +365,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
 }
 
 export function AppSidebar() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [location] = useLocation();
@@ -466,7 +468,7 @@ export function AppSidebar() {
               placeholder="Search pages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg bg-[#171208]/40 border border-white/10 pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50"
+              className={`w-full rounded-lg border pl-9 pr-3 py-2 text-sm outline-none focus:border-primary/50 ${isLight ? "bg-white border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#6B5B36]/50" : "bg-[#171208]/40 border-white/10 text-white placeholder:text-white/30"}`}
             />
             {searchQuery && (
               <button

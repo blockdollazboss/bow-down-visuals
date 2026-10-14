@@ -432,7 +432,7 @@ export default function PressKitBuilder() {
                 </div>
 
                 {selectedKit.photo_urls[0] && (
-                  <img src={selectedKit.photo_urls[0]} alt={selectedKit.artist_name}
+                  <img src={selectedKit.photo_urls[0]} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={selectedKit.artist_name}
                        className="w-full max-h-80 object-cover rounded-xl mb-6 border border-white/10" />
                 )}
 
@@ -508,7 +508,7 @@ export default function PressKitBuilder() {
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">{t("press-kit.sections.photos")}</h3>
                     <div className="grid grid-cols-3 gap-2">
                       {selectedKit.photo_urls.slice(1).map((u, i) => (
-                        <img key={i} src={u} alt="" className="aspect-square object-cover rounded-lg border border-white/10" />
+                        <img key={i} src={u} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="aspect-square object-cover rounded-lg border border-white/10" />
                       ))}
                     </div>
                   </div>

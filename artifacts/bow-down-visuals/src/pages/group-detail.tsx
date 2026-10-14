@@ -116,7 +116,7 @@ export default function GroupDetail() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {group.cover_url && <img src={group.cover_url} alt="" className="h-56 w-full object-cover" />}
+      {group.cover_url && <img src={group.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-56 w-full object-cover" />}
       <div className="mx-auto max-w-4xl px-6 py-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -191,7 +191,7 @@ export default function GroupDetail() {
               <div key={p.id} className="rounded-xl border border-white/10 bg-[#0d0a02] p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {p.author?.avatarUrl && <img src={p.author.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />}
+                    {p.author?.avatarUrl && <img src={p.author.avatarUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-8 w-8 rounded-full object-cover" />}
                     <div>
                       {p.author
                         ? <Link href={profileLink(p.author.slug)} className="text-sm font-semibold text-[#e8c86a] hover:underline">{p.author.displayName}</Link>
@@ -219,7 +219,7 @@ export default function GroupDetail() {
               {members.map((m) => (
                 <div key={m.user_id} className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0d0a02] p-3">
                   <div className="flex items-center gap-3">
-                    {m.profile?.avatarUrl && <img src={m.profile.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />}
+                    {m.profile?.avatarUrl && <img src={m.profile.avatarUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-9 w-9 rounded-full object-cover" />}
                     <div>
                       {m.profile
                         ? <Link href={profileLink(m.profile.slug)} className="font-semibold hover:text-[#e8c86a]">{m.profile.displayName}</Link>

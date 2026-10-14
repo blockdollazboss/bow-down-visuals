@@ -91,7 +91,7 @@ function QueueDrawer() {
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-label="Queue">
       <div className="absolute inset-0 bg-black/60" onClick={() => p.setQueueOpen(false)} />
-      <aside className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-[#0d0b08] border-l border-[#e8c86a]/25 flex flex-col shadow-[0_0_60px_rgba(0,0,0,.8)]">
+      <aside className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-[#0d0b08]/95 border-l border-[#e8c86a]/25 flex flex-col shadow-[0_0_60px_rgba(0,0,0,.8)]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div>
             <h2 className="text-sm font-bold text-[#e8c86a] tracking-wide uppercase">Up next</h2>
@@ -267,7 +267,7 @@ export function StreamingPlayerBar() {
           </div>
         )}
         {expanded && (
-          <div className="bg-[#0d0b08] border-t border-[#e8c86a]/25 px-5 pt-2 pb-4">
+          <div className="bg-[#0d0b08]/95 border-t border-[#e8c86a]/25 px-5 pt-2 pb-4">
             <button onClick={() => setExpanded(false)} className="mx-auto flex text-white/40" aria-label="Collapse player">
               <ChevronUp className="h-5 w-5 rotate-180" />
             </button>

@@ -128,7 +128,7 @@ export default function Messages() {
         className={`w-full rounded-xl border p-3 text-left transition ${activeId === c.id ? "border-[#e8c86a]/50 bg-[#e8c86a]/10" : "border-white/10 bg-[#0d0a02] hover:border-white/25"}`}>
         <div className="flex items-center gap-3">
           {c.other.profile?.avatarUrl
-            ? <img src={c.other.profile.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+            ? <img src={c.other.profile.avatarUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-10 w-10 rounded-full object-cover" />
             : <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8c86a]/20 text-[#e8c86a] font-bold">{name[0]}</div>}
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 font-semibold">
@@ -202,7 +202,7 @@ export default function Messages() {
                 {/* Thread header: profile link + money path (store / tip) */}
                 <div className="flex items-center justify-between border-b border-white/10 p-4">
                   <div className="flex items-center gap-3">
-                    {other?.profile?.avatarUrl && <img src={other.profile.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />}
+                    {other?.profile?.avatarUrl && <img src={other.profile.avatarUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-10 w-10 rounded-full object-cover" />}
                     <div>
                       {other?.profile
                         ? <Link href={profileLink(other.profile.slug)} className="font-bold text-[#e8c86a] hover:underline">{other.profile.displayName}</Link>

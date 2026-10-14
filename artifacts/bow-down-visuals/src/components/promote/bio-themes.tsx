@@ -152,7 +152,12 @@ export function BioPageView({
   };
 
   return (
-    <div className={`min-h-screen ${theme.page} text-white flex flex-col items-center px-5 py-10 relative overflow-hidden`}>
+    /* data-dark-lock: the presets are authored dark designs (creator-chosen
+       content, not site chrome). Without the lock, a light-mode visitor gets
+       the preset grounds (uncovered hexes/zinc gradients survive) with the
+       text remapped to espresso on top — dark-on-dark. The lock keeps the
+       page exactly as authored in both themes (same pattern as the hero). */
+    <div data-dark-lock className={`min-h-screen ${theme.page} text-white flex flex-col items-center px-5 py-10 relative overflow-hidden`}>
       <div className="pointer-events-none absolute inset-0" style={{ background: theme.glow }} />
 
       <div className="w-full max-w-md relative">

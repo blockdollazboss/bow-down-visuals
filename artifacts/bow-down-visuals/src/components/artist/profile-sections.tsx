@@ -53,7 +53,7 @@ export function StoriesSection({ profileId }: { profileId: string }) {
           {stories.map((s, i) => (
             <button key={s.id} onClick={() => setViewerIdx(i)} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5">
               <span className="rounded-full bg-gradient-to-tr from-[#d4af37] via-[#f5e08c] to-[#b8860b] p-[3px]">
-                <img src={s.media_url} alt="" className="h-[62px] w-[62px] rounded-full object-cover" />
+                <img src={s.media_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-[62px] w-[62px] rounded-full object-cover" />
               </span>
               <span className="w-full truncate text-center text-[11px] text-neutral-300">Story</span>
             </button>
@@ -65,7 +65,7 @@ export function StoriesSection({ profileId }: { profileId: string }) {
           {highlights.map((h) => (
             <div key={h.id} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5 opacity-90">
               <span className="flex h-[62px] w-[62px] items-center justify-center overflow-hidden rounded-full border border-[#d4af37]/50 bg-[#141414]">
-                {h.cover_url ? <img src={h.cover_url} alt="" className="h-full w-full object-cover" /> : <span className="text-[#d4af37] text-lg">✦</span>}
+                {h.cover_url ? <img src={h.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-full w-full object-cover" /> : <span className="text-[#d4af37] text-lg">✦</span>}
               </span>
               <span className="w-full truncate text-center text-[11px] text-neutral-300">{h.title}</span>
             </div>
@@ -164,7 +164,7 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
       <div className="relative mx-auto max-w-4xl px-4 pb-10 pt-24 text-center sm:pt-32">
         {profile.avatar_url && (
           <img
-            src={profile.avatar_url}
+            src={profile.avatar_url} onError={(e) => { e.currentTarget.style.display = "none"; }}
             alt={profile.display_name}
             className="mx-auto mb-4 h-24 w-24 rounded-full border-2 object-cover sm:h-28 sm:w-28"
             style={{ borderColor: "var(--ap-primary)" }}
@@ -206,7 +206,7 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
               ) : (
                 <>
                   {fm.thumbnailUrl && (
-                    <img src={fm.thumbnailUrl} alt="" className="h-20 w-20 shrink-0 rounded object-cover" />
+                    <img src={fm.thumbnailUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-20 w-20 shrink-0 rounded object-cover" />
                   )}
                   <audio
                     ref={mediaRef as React.RefObject<HTMLAudioElement>}
@@ -269,7 +269,7 @@ export function MediaRowSection({ title, items, kind }: { title: string; items: 
           >
             <div className="flex items-center gap-3">
               {it.thumbnailUrl ? (
-                <img src={it.thumbnailUrl} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
+                <img src={it.thumbnailUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
               ) : (
                 <span
                   className="flex h-14 w-14 shrink-0 items-center justify-center rounded"
@@ -328,7 +328,7 @@ export function SeriesSection({ title, series }: { title: string; series: Series
               onClick={() => setOpen(open === s.id ? null : s.id)}
               className="flex w-full items-center gap-3 p-3 text-left"
             >
-              {s.thumbnailUrl && <img src={s.thumbnailUrl} alt="" className="h-12 w-20 rounded object-cover" />}
+              {s.thumbnailUrl && <img src={s.thumbnailUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-12 w-20 rounded object-cover" />}
               <span className="flex-1 font-semibold" style={{ color: "var(--ap-text)" }}>{s.title}</span>
               <ChevronDown
                 className="h-4 w-4 transition-transform"
@@ -344,7 +344,7 @@ export function SeriesSection({ title, series }: { title: string; series: Series
                     </div>
                     {season.episodes.map((ep) => (
                       <div key={ep.id} className="flex items-center gap-3 py-1.5">
-                        {ep.thumbnailUrl && <img src={ep.thumbnailUrl} alt="" className="h-9 w-14 rounded object-cover" />}
+                        {ep.thumbnailUrl && <img src={ep.thumbnailUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-9 w-14 rounded object-cover" />}
                         <span className="flex-1 truncate text-sm" style={{ color: "var(--ap-text)" }}>{ep.title}</span>
                         {ep.duration && <span className="text-xs" style={{ color: "var(--ap-muted)" }}>{ep.duration}</span>}
                       </div>
@@ -504,7 +504,7 @@ export function MerchSection({ title, profile }: { title: string; profile: Creat
               className="group overflow-hidden rounded-lg border transition hover:-translate-y-0.5"
               style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
             >
-              {m.imageUrl && <img src={m.imageUrl} alt={m.title} className="aspect-square w-full object-cover" />}
+              {m.imageUrl && <img src={m.imageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={m.title} className="aspect-square w-full object-cover" />}
               <div className="p-2.5">
                 <div className="truncate text-sm font-semibold" style={{ color: "var(--ap-text)" }}>{m.title}</div>
                 {m.price && <div className="text-sm font-bold" style={{ color: "var(--ap-primary)" }}>{m.price}</div>}
@@ -594,7 +594,7 @@ export function PostsSection({ title, posts }: { title: string; posts: SocialPos
         {posts.slice(0, 6).map((p) => {
           const inner = (
             <>
-              {p.imageUrl && <img src={p.imageUrl} alt="" className="aspect-video w-full rounded-t-lg object-cover" />}
+              {p.imageUrl && <img src={p.imageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="aspect-video w-full rounded-t-lg object-cover" />}
               <div className="p-3">
                 <p className="line-clamp-3 text-sm" style={{ color: "var(--ap-text)" }}>{p.text}</p>
                 {p.created_at && (
@@ -713,7 +713,7 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
               style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
             >
               <div className="mb-1 flex items-center gap-2">
-                {c.author_avatar_url && <img src={c.author_avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                {c.author_avatar_url && <img src={c.author_avatar_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-6 w-6 rounded-full object-cover" />}
                 {c.author_slug ? (
                   <Link href={`/artist/${encodeURIComponent(c.author_slug)}`} className="text-xs font-bold underline decoration-dotted underline-offset-2" style={{ color: "var(--ap-primary)" }}>
                     {c.author_name}
@@ -761,7 +761,7 @@ export function TopCreatorsSection({ title, slugs }: { title: string; slugs: str
             <Link key={s} href={`/artist/${encodeURIComponent(s)}`} className="group w-20 shrink-0 text-center">
               {peek?.avatar_url ? (
                 <img
-                  src={peek.avatar_url}
+                  src={peek.avatar_url} onError={(e) => { e.currentTarget.style.display = "none"; }}
                   alt={peek.display_name}
                   className="mx-auto h-16 w-16 rounded-full border-2 object-cover transition group-hover:scale-105"
                   style={{ borderColor: "var(--ap-border)" }}

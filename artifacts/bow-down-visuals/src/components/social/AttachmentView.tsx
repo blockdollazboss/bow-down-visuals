@@ -23,7 +23,7 @@ export function AttachmentView({ attachments }: { attachments: LooseAttachment[]
           return (
             <img
               key={i}
-              src={a.url}
+              src={a.url} onError={(e) => { e.currentTarget.style.display = "none"; }}
               alt=""
               loading="lazy"
               className="max-h-[420px] w-full rounded-xl border border-[#2a2a2a] object-cover"
@@ -52,7 +52,7 @@ export function AttachmentView({ attachments }: { attachments: LooseAttachment[]
               className="flex items-center gap-3 rounded-xl border border-[#d4af37]/40 bg-gradient-to-r from-[#1a1408] to-[#0d0d0d] p-3 transition hover:border-[#d4af37]"
             >
               {a.image ? (
-                <img src={a.image} alt="" className="h-14 w-14 rounded-lg object-cover" loading="lazy" />
+                <img src={a.image} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-14 w-14 rounded-lg object-cover" loading="lazy" />
               ) : (
                 <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#d4af37]/15">
                   <ShoppingBag className="h-6 w-6 text-[#d4af37]" />
@@ -76,7 +76,7 @@ export function AttachmentView({ attachments }: { attachments: LooseAttachment[]
               className="flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#111] p-3 transition hover:border-[#d4af37]/60"
             >
               {thumb ? (
-                <img src={thumb} alt="" className="h-12 w-12 rounded-lg object-cover" loading="lazy" />
+                <img src={thumb} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-12 w-12 rounded-lg object-cover" loading="lazy" />
               ) : (
                 <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#d4af37]/15">
                   {isAudio ? <Music2 className="h-6 w-6 text-[#d4af37]" /> : <Play className="h-6 w-6 text-[#d4af37]" />}
