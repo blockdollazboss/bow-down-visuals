@@ -197,19 +197,42 @@ export interface ChargeCreditsOpts {
 
 /**
  * Check whether an idempotency key was already charged. Returns the existing
- * ledger row id if found, null otherwise.
+ * ledger row's id and teamId if found (teamId null = the original charge hit
+ * the personal balance), null otherwise. The teamId lets the replay path
+ * report the balance of the pool the original charge actually drew from.
  */
-async function findExistingCharge(idempotencyKey: string): Promise<string | null> {
+async function findExistingCharge(
+  idempotencyKey: string,
+): Promise<{ id: string; teamId: string | null } | null> {
   try {
     const [row] = await db
-      .select({ id: creditUsageTable.id })
+      .select({ id: creditUsageTable.id, teamId: creditUsageTable.teamId })
       .from(creditUsageTable)
       .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
       .limit(1);
-    return row?.id ?? null;
+    return row ? { id: row.id, teamId: row.teamId ?? null } : null;
   } catch {
     // Table/column missing on a lagging DB — fail open (no dedup) rather
     // than blocking the charge. Logged by the caller.
+    return null;
+  }
+}
+
+/**
+ * Read a team's current pool balance by id — the same teams-table read the
+ * team charge path uses (teams.ts getUserActiveTeam selects the row by id
+ * and reads .credits off it). Returns null when the team row is gone or the
+ * read fails, so callers can fall back rather than throw.
+ */
+async function readTeamPoolBalance(teamId: string): Promise<number | null> {
+  try {
+    const [team] = await db
+      .select()
+      .from(teamsTable)
+      .where(eq(teamsTable.id, teamId))
+      .limit(1);
+    return team?.credits ?? null;
+  } catch {
     return null;
   }
 }
@@ -264,6 +287,14 @@ export async function chargeCredits(
     const existing = await findExistingCharge(idempotencyKey);
     if (existing) {
       logger.info({ userId, cost, action: record.action, idempotencyKey }, "[credits] duplicate charge suppressed by idempotency key");
+      // A replayed TEAM charge must report the pool balance — that's the
+      // balance the original charge returned and the one the client is
+      // displaying. If the team is gone or its balance is unreadable, fall
+      // back to the personal balance (fail-open, same as the lookup itself).
+      if (existing.teamId) {
+        const poolBalance = await readTeamPoolBalance(existing.teamId);
+        if (poolBalance !== null) return poolBalance;
+      }
       return readPersonalBalance(userId);
     }
   }

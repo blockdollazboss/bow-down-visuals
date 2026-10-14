@@ -23,24 +23,31 @@
  *    contract the personal suite asserts.
  *  - P0-23 idempotency (credits.ts:262-269): the already-charged check runs
  *    BEFORE team routing, so one shared mechanism guards both paths — a
- *    replayed key returns the current balance with no deduction, no team
- *    lookup, and no second ledger row.
+ *    replayed key returns a current balance with no deduction, no routing
+ *    lookup, and no second ledger row. The returned balance is the one the
+ *    ORIGINAL charge hit: the prior ledger row carries its teamId, so a
+ *    replayed team charge reads the pool balance by id off the teams table,
+ *    while a personal charge returns the personal balance. If the team is
+ *    gone or the pool read fails, the replay falls back to the personal
+ *    balance (fail-open, same as the lookup itself).
  *
  * Mocking boundaries match the personal suite (../supabase-admin,
  * ../payment-record, ../teams) plus @workspace/db, which chargeCredits()
- * touches directly for exactly two things: the idempotency lookup
- * (findExistingCharge → db.select on credit_usage) and the team rollback
- * (db.update on teams). The fake db below implements only those two chains.
+ * touches directly for exactly three things: the idempotency lookup
+ * (findExistingCharge → db.select on credit_usage), the pool-balance read
+ * on a team-charge replay (db.select on teams), and the team rollback
+ * (db.update on teams). The fake db below implements only those chains.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SQL } from "drizzle-orm";
 
 /* ── Hoisted fake @workspace/db ──────────────────────────────────────────
    Table objects are sentinels: credits.ts only reads .id/.credits off
-   teamsTable and .id/.idempotencyKey off creditUsageTable while building
-   drizzle expressions, and the fake chains never evaluate them. Keeping
-   the references lets the tests assert the rollback targeted the real
-   teams.credits column for the real team id. */
+   teamsTable and .id/.idempotencyKey/.teamId off creditUsageTable while
+   building drizzle expressions, and the fake chains never evaluate them.
+   Keeping the references lets the tests assert the rollback targeted the
+   real teams.credits column for the real team id, and lets the fake select
+   tell the credit_usage lookup apart from the teams-table pool read. */
 const h = vi.hoisted(() => {
   const teamsTable = {
     id: { pgColumn: "teams.id" },
@@ -50,10 +57,15 @@ const h = vi.hoisted(() => {
   const creditUsageTable = {
     id: { pgColumn: "credit_usage.id" },
     idempotencyKey: { pgColumn: "credit_usage.idempotency_key" },
+    teamId: { pgColumn: "credit_usage.team_id" },
   };
   const state = {
-    /** Rows the fake idempotency lookup (db.select … .limit) resolves. */
-    existingChargeRows: [] as Array<{ id: string }>,
+    /** Rows the fake idempotency lookup (db.select on credit_usage) resolves. */
+    existingChargeRows: [] as Array<{ id: string; teamId?: string | null }>,
+    /** Rows the fake pool-balance read (db.select on teams) resolves. */
+    teamRows: [] as Array<{ id: string; credits: number }>,
+    /** When true, the fake teams-table select throws (pool read failure). */
+    teamSelectThrows: false,
     selectCalls: 0,
     /** Completed db.update(teamsTable).set(…).where(…) chains. */
     updateCalls: [] as Array<{
@@ -64,10 +76,14 @@ const h = vi.hoisted(() => {
   };
   const db = {
     select: (_fields?: unknown) => ({
-      from: (_table: unknown) => ({
+      from: (table: unknown) => ({
         where: (_cond: unknown) => ({
           limit: async (_n: number) => {
             state.selectCalls += 1;
+            if (table === teamsTable) {
+              if (state.teamSelectThrows) throw new Error("teams read failed");
+              return state.teamRows;
+            }
             return state.existingChargeRows;
           },
         }),
@@ -183,6 +199,8 @@ function stringChunkText(node: unknown): string {
 beforeEach(() => {
   vi.clearAllMocks();
   h.state.existingChargeRows = [];
+  h.state.teamRows = [];
+  h.state.teamSelectThrows = false;
   h.state.selectCalls = 0;
   h.state.updateCalls = [];
   vi.mocked(recordCreditUsageStrict).mockResolvedValue(undefined);
@@ -353,7 +371,8 @@ describe("chargeCredits — idempotency short-circuit (P0-23)", () => {
     const fake = makeSupabase(100);
     vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
     vi.mocked(getUserActiveTeam).mockResolvedValue(null);
-    h.state.existingChargeRows = [{ id: "usage-42" }];
+    // teamId null on the prior row: the original charge was personal.
+    h.state.existingChargeRows = [{ id: "usage-42", teamId: null }];
 
     const after = await chargeCredits(
       "user-1",
@@ -371,14 +390,18 @@ describe("chargeCredits — idempotency short-circuit (P0-23)", () => {
     expect(fake.calls.filter((c) => c.op === "update")).toHaveLength(0);
   });
 
-  it("team path: the shared short-circuit fires BEFORE team routing — pool untouched, personal balance returned", async () => {
+  it("team path: a replayed team charge returns the POOL balance, not the personal one", async () => {
     const fake = makeSupabase(100);
     vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
     // The user HAS an active team with a funded pool — if the mechanism were
-    // per-path, a replayed team charge could reach the pool. It cannot: the
-    // check sits above routing (credits.ts:262-269 precedes :276).
+    // per-path, a replayed team charge could reach the pool again. It
+    // cannot: the check sits above routing (credits.ts:262-269 precedes
+    // :276), and no second deduction happens.
     vi.mocked(getUserActiveTeam).mockResolvedValue(makeActiveTeam({ credits: 500, allowPersonalFallback: true }) as any);
-    h.state.existingChargeRows = [{ id: "usage-42" }];
+    // The original charge drew from team-1's pool, so its ledger row
+    // carries the teamId; the pool now stands at 495 (500 − 5).
+    h.state.existingChargeRows = [{ id: "usage-42", teamId: "team-1" }];
+    h.state.teamRows = [{ id: "team-1", credits: 495 }];
 
     const after = await chargeCredits(
       "user-1",
@@ -390,10 +413,52 @@ describe("chargeCredits — idempotency short-circuit (P0-23)", () => {
     expect(getUserActiveTeam).not.toHaveBeenCalled(); // routing never reached
     expect(deductTeamCredits).not.toHaveBeenCalled();
     expect(recordCreditUsageStrict).not.toHaveBeenCalled();
-    // Pinned as-written semantic: the replay returns the PERSONAL balance
-    // (readPersonalBalance, credits.ts:269), not the pool balance — even
-    // when the original charge drew from the pool.
+    // The replay reports the balance the original charge hit — the pool's
+    // 495 — so a client retrying a team charge sees the number it expects,
+    // not the unrelated personal balance.
+    expect(after).toBe(495);
+    expect(fake.getCredits()).toBe(100); // personal untouched either way
+  });
+
+  it("team path: the team is gone by replay time — falls back to the personal balance", async () => {
+    const fake = makeSupabase(100);
+    vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
+    vi.mocked(getUserActiveTeam).mockResolvedValue(null);
+    h.state.existingChargeRows = [{ id: "usage-42", teamId: "team-1" }];
+    h.state.teamRows = []; // team deleted since the original charge
+
+    const after = await chargeCredits(
+      "user-1",
+      5,
+      { action: "Test Charge" },
+      { idempotencyKey: "charge-key-1" },
+    );
+
+    // Fail-open: a missing pool must not turn an idempotent success into an
+    // error — the personal balance is the fallback answer.
     expect(after).toBe(100);
+    expect(deductTeamCredits).not.toHaveBeenCalled();
+    expect(recordCreditUsageStrict).not.toHaveBeenCalled();
+    expect(fake.getCredits()).toBe(100);
+  });
+
+  it("team path: the pool-balance read fails — falls back to the personal balance instead of throwing", async () => {
+    const fake = makeSupabase(100);
+    vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
+    vi.mocked(getUserActiveTeam).mockResolvedValue(null);
+    h.state.existingChargeRows = [{ id: "usage-42", teamId: "team-1" }];
+    h.state.teamSelectThrows = true; // teams-table read errors out
+
+    const after = await chargeCredits(
+      "user-1",
+      5,
+      { action: "Test Charge" },
+      { idempotencyKey: "charge-key-1" },
+    );
+
+    expect(after).toBe(100);
+    expect(deductTeamCredits).not.toHaveBeenCalled();
+    expect(recordCreditUsageStrict).not.toHaveBeenCalled();
     expect(fake.getCredits()).toBe(100);
   });
 
