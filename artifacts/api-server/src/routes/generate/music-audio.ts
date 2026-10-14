@@ -69,6 +69,11 @@ const extendMusicAudioSchema = z.object({
   originalPrompt: z.string().optional(),
   extendPrompt: z.string().optional(),
   extendSeconds: z.number().optional(),
+  /** Extend-from-point: when present, the original is trimmed to this many
+   * seconds and the continuation is crossfaded on there (everything after
+   * the point is replaced). Absent = the original behavior — the
+   * continuation is appended to the full original. */
+  startSeconds: z.number().optional(),
   lyrics: z.string().optional(),
   instrumental: z.boolean().optional(),
   vocalGender: z.string().optional(),
@@ -280,6 +285,8 @@ export default router;
 
 /* ─── Extend a song (Suno parity Phase 2) ───
    Generates a continuation segment and crossfades it onto the original.
+   With the optional `startSeconds`, the original is trimmed to that point
+   first, so the continuation is joined mid-track instead of at the end.
    POST /generate-music-audio/extend */
 
 const EXTEND_MIN_MS = 10_000;
@@ -290,6 +297,31 @@ async function downloadAudio(url: string): Promise<Buffer> {
   const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
   if (!res.ok) throw new Error(`Could not download original audio (${res.status})`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/** Earliest usable extend-from point: the acrossfade needs the kept prefix
+ * to outlast the fade itself, so the trim point is clamped just past it. */
+const MIN_START_SECONDS = CROSSFADE_MS / 1000 + 1;
+
+/** Keep only the first `seconds` of an audio buffer (extend-from-point:
+ * the continuation replaces everything after the trim point). */
+async function trimAudioPrefix(audio: Buffer, seconds: number): Promise<Buffer> {
+  const id = randomUUID();
+  const inPath = join(tmpdir(), `${id}-trim-in.mp3`);
+  const outPath = join(tmpdir(), `${id}-trim-out.mp3`);
+  try {
+    await writeFile(inPath, audio);
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", inPath,
+      "-t", String(seconds),
+      "-c:a", "libmp3lame", "-b:a", "192k",
+      outPath,
+    ], { timeout: 120_000 });
+    return await readFile(outPath);
+  } finally {
+    await unlink(inPath).catch(() => {});
+    await unlink(outPath).catch(() => {});
+  }
 }
 
 async function crossfadeJoin(first: Buffer, second: Buffer): Promise<Buffer> {
@@ -324,7 +356,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     });
     return;
   }
-  const { originalAudioUrl, originalPrompt, extendPrompt, extendSeconds,
+  const { originalAudioUrl, originalPrompt, extendPrompt, extendSeconds, startSeconds,
     lyrics, instrumental, vocalGender, songTitle, artistName } = parsed.data;
 
   if (!originalAudioUrl?.trim() || !extendPrompt?.trim()) {
@@ -341,6 +373,14 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
   const extendMs = Math.min(EXTEND_MAX_MS, Math.max(EXTEND_MIN_MS,
     Math.round(Number(extendSeconds || 30) * 1000)));
   const creditCost = creditCostForLength(extendMs);
+
+  /* Extend-from-point (optional): null = append to the full original,
+   * exactly the pre-existing behavior. The charge above never depends on
+   * it — it is keyed to the continuation length only. */
+  const startSec =
+    typeof startSeconds === "number" && Number.isFinite(startSeconds) && startSeconds > 0
+      ? Math.max(MIN_START_SECONDS, startSeconds)
+      : null;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < creditCost) {
@@ -381,9 +421,13 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     const segment = Buffer.from(await elevenRes.arrayBuffer());
     if (segment.length === 0) throw new Error("Extension segment came back empty.");
 
-    // 2. Download the original and crossfade-join.
+    // 2. Download the original and crossfade-join. With an extend-from
+    // point, the original is first trimmed to that point so the
+    // continuation replaces everything after it; without one, the exact
+    // pre-existing append path runs (same input, same join call).
     const original = await downloadAudio(originalAudioUrl.trim());
-    const joined = await crossfadeJoin(original, segment);
+    const base = startSec != null ? await trimAudioPrefix(original, startSec) : original;
+    const joined = await crossfadeJoin(base, segment);
 
     // 3. Upload.
     const path = `${req.userId}/generated/${Date.now()}-music-extended.mp3`;
@@ -427,6 +471,8 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       storagePath: path,
       creditsRemaining: creditsAfter,
       genHistoryId,
+      /* The point the continuation was joined at; null = appended at the end. */
+      extendedFromSeconds: startSec,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Extension failed";

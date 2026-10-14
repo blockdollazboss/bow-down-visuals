@@ -125,6 +125,64 @@ function VersionWaveform({ seedKey, active }: { seedKey: string; active: boolean
   );
 }
 
+/* Extend-from start-point control (extend from a timestamp, not just the
+   end). `value === null` means "the end" — the pre-existing append behavior,
+   and the extend request then omits startSeconds entirely. Only rendered
+   when the track's duration is known, so the slider spans the real track. */
+function ExtendStartField({
+  durationSec,
+  value,
+  onChange,
+  testId,
+}: {
+  durationSec: number;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  testId: string;
+}) {
+  const end = Math.max(6, Math.floor(durationSec));
+  const current = value == null ? end : Math.min(value, end);
+  const atEnd = current >= end;
+  return (
+    <Field
+      label="Extend from"
+      hint={
+        atEnd
+          ? "End of track — the new section is appended, like always"
+          : `At ${formatTime(current)} — everything after this point is replaced by the new section`
+      }
+    >
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={5}
+          max={end}
+          step={1}
+          value={current}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            onChange(n >= end ? null : n);
+          }}
+          className="flex-1 accent-primary"
+          data-testid={testId}
+        />
+        <span className="w-16 shrink-0 text-right text-xs font-bold tabular-nums text-white/70">
+          {atEnd ? `End · ${formatTime(end)}` : formatTime(current)}
+        </span>
+      </div>
+      {!atEnd && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="mt-1 text-[11px] font-bold text-primary hover:underline"
+        >
+          Reset to the end
+        </button>
+      )}
+    </Field>
+  );
+}
+
 type StemsPhase = "idle" | "loading" | "splitting" | "done" | "failed";
 type RemasterPhase = "idle" | "loading" | "mastering" | "done" | "failed";
 type ActionPanel = "extend" | "replace" | null;
@@ -143,6 +201,11 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   /* ── Phase B: Simple ⇄ Custom session shape ── */
   const [createMode, setCreateMode] = useState<"simple" | "custom">("simple");
   const [style, setStyle] = useState("");
+  const [styleEnhancing, setStyleEnhancing] = useState(false);
+  /* One-level undo for Style Enhance: the pre-enhance text plus the exact
+     enhanced text it produced. The Undo chip shows only while the field
+     still holds that enhanced text — any manual edit retires it. */
+  const [enhanceUndo, setEnhanceUndo] = useState<{ prev: string; enhanced: string } | null>(null);
   const [laneTitle, setLaneTitle] = useState(songTitle ?? "");
   const lyricsRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -163,6 +226,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [uploadExtendOpen, setUploadExtendOpen] = useState(false);
   const [uploadExtendPrompt, setUploadExtendPrompt] = useState("");
   const [uploadExtendSeconds, setUploadExtendSeconds] = useState("30");
+  const [uploadExtendStart, setUploadExtendStart] = useState<number | null>(null);
   const [uploadExtending, setUploadExtending] = useState(false);
 
   /* Cover modal target — working song or uploaded track. */
@@ -181,6 +245,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
   const [openPanel, setOpenPanel] = useState<ActionPanel>(null);
   const [extendPrompt, setExtendPrompt] = useState("");
   const [extendSeconds, setExtendSeconds] = useState("30");
+  /* Extend-from point in seconds; null = the end (append, the original
+     behavior). Reset whenever the working song changes. */
+  const [extendStart, setExtendStart] = useState<number | null>(null);
   const [extending, setExtending] = useState(false);
   const [sectionIdx, setSectionIdx] = useState(0);
   const [replaceDirection, setReplaceDirection] = useState("");
@@ -519,6 +586,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
       setLastGenerated(stem);
       setOpenPanel(null);
+      setExtendStart(null);
       setStemsPhase("idle");
       setStemsNote(null);
       setRemasterPhase("idle");
@@ -540,18 +608,77 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     const stem = buildStem(v.url, v.storagePath, `${base} — Version ${v.label}`, lastGenerated.durationSec);
     swapWorkingStem(stem);
     setPickedLabel(v.label);
+    setExtendStart(null);
     setCaptionsDone(false);
     toast({ title: `Version ${v.label} picked`, description: "It's now your working song — extend it, cover it, split it." });
   }
 
+  /* ── Style Enhance (Custom mode) ──
+     Polishes the rough style text via /api/improve-style — the music-side
+     sibling of /api/improve-prompt (which is hard-wired to video scenes).
+     Free, exactly like improve-prompt: no credit cost is registered for
+     either endpoint, so confirmedFetch passes straight through. */
+  async function handleEnhanceStyle() {
+    const rough = style.trim();
+    if (!rough) {
+      toast({ title: "Write a rough style first", description: "A few words — genre, mood, a sound you love — and Enhance will polish it.", variant: "destructive" });
+      return;
+    }
+    if (styleEnhancing) return;
+    setStyleEnhancing(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to enhance a style.");
+      const res = await confirmedFetch("/api/improve-style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ style: rough }),
+      });
+      if (!res) return; // user cancelled (no confirm exists for a free call — defensive)
+      const data = (await res.json().catch(() => ({}))) as { improvedStyle?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Style Enhance failed.");
+      const improved = (data.improvedStyle ?? "").trim();
+      if (!improved || improved === rough) {
+        toast({ title: "Already polished", description: "Your style reads well as-is — nothing to sharpen." });
+        return;
+      }
+      setEnhanceUndo({ prev: style, enhanced: improved });
+      setStyle(improved);
+      toast({ title: "Style enhanced", description: "Your rough style was replaced with the polished version — Undo sits beside the Enhance button." });
+    } catch (err) {
+      toast({
+        title: "Could not enhance style",
+        description: err instanceof Error ? err.message : "Style Enhance failed. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setStyleEnhancing(false);
+    }
+  }
+
   /* ── Extend (shared by the working song and an uploaded track) ──
      Returns the extended stem, or null when the user cancels the credit
-     confirmation. Throws on API failure — callers surface the error. */
-  async function extendStem(target: AudioStem, extendText: string, seconds: string): Promise<AudioStem | null> {
+     confirmation. Throws on API failure — callers surface the error.
+     `startSeconds` (optional) joins the continuation at that point in the
+     track instead of the end; omitting it sends the exact pre-existing
+     request and the result keeps the whole original. */
+  async function extendStem(
+    target: AudioStem,
+    extendText: string,
+    seconds: string,
+    startSeconds?: number,
+  ): Promise<AudioStem | null> {
     const token = await getAccessToken();
     if (!token) throw new Error("You need to be signed in to extend audio.");
     const lenMs = Number(seconds) * 1000;
     const cost = lenMs <= 60_000 ? 400 : lenMs <= 180_000 ? 800 : 1200;
+    /* Only a real mid-track point is sent: 0/end/out-of-range all collapse
+       to "no field", i.e. today's append behavior. */
+    const fromSec =
+      startSeconds != null && Number.isFinite(startSeconds) && startSeconds > 0 &&
+      (target.durationSec == null || startSeconds < target.durationSec)
+        ? startSeconds
+        : undefined;
     const res = await confirmedFetch("/api/generate-music-audio/extend", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -560,6 +687,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         originalPrompt: formPrompt || target.name,
         extendPrompt: extendText,
         extendSeconds: Number(seconds),
+        ...(fromSec != null ? { startSeconds: fromSec } : {}),
         lyrics: formLyrics,
         instrumental,
         vocalGender: vocalGender === "auto" ? undefined : vocalGender,
@@ -578,7 +706,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       name: `${target.name} (Extended)`,
       url: data.url,
       storagePath: data.storagePath,
-      durationSec: (target.durationSec ?? 0) + Number(seconds),
+      /* Joined track = kept original (up to the join point) + the new
+         section — the same shape the old append math used. */
+      durationSec: (fromSec ?? target.durationSec ?? 0) + Number(seconds),
     };
   }
 
@@ -590,7 +720,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     setExtending(true);
     setError(null);
     try {
-      const extendedStem = await extendStem(lastGenerated, extendPrompt.trim(), extendSeconds);
+      const fromSec = extendStart ?? undefined;
+      const extendedStem = await extendStem(lastGenerated, extendPrompt.trim(), extendSeconds, fromSec);
       if (!extendedStem) return; // user cancelled
       // Replace the stem with the extended version.
       onChange({ ...settings, musicStudio: { ...ms, stems: [extendedStem, ...ms.stems.filter((s) => s.id !== lastGenerated.id)] } });
@@ -598,8 +729,14 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setLastVariants([]);
       setOpenPanel(null);
       setExtendPrompt("");
+      setExtendStart(null);
       refreshProfile();
-      toast({ title: "Song extended!", description: "The new section was crossfaded onto your track." });
+      toast({
+        title: "Song extended!",
+        description: fromSec != null
+          ? `The new section was crossfaded in at ${formatTime(fromSec)}, replacing what followed.`
+          : "The new section was crossfaded onto your track.",
+      });
     } catch (err) {
       handleApiError(err, "Could not extend audio.");
     } finally {
@@ -623,6 +760,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
       setUploadTrack({ stem, file });
       setUploadExtendOpen(false);
+      setUploadExtendStart(null);
       toast({ title: "Track uploaded", description: "Finish it, extend it, or cover it — your call." });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
@@ -671,6 +809,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setLastGenerated(stem);
       setLastVariants([]);
       setPickedLabel("A");
+      setExtendStart(null);
       if (data.lyrics) {
         setLyrics(data.lyrics);
         setCreateMode("custom");
@@ -701,7 +840,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     setUploadExtending(true);
     setUploadError(null);
     try {
-      const extendedStem = await extendStem(uploadTrack.stem, uploadExtendPrompt.trim(), uploadExtendSeconds);
+      const fromSec = uploadExtendStart ?? undefined;
+      const extendedStem = await extendStem(uploadTrack.stem, uploadExtendPrompt.trim(), uploadExtendSeconds, fromSec);
       if (!extendedStem) return; // user cancelled
       onChange({
         ...settings,
@@ -709,9 +849,15 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       });
       setUploadTrack({ stem: extendedStem, file: uploadTrack.file });
       setUploadExtendPrompt("");
+      setUploadExtendStart(null);
       setUploadExtendOpen(false);
       refreshProfile();
-      toast({ title: "Track extended!", description: "The new section was crossfaded onto your track." });
+      toast({
+        title: "Track extended!",
+        description: fromSec != null
+          ? `The new section was crossfaded in at ${formatTime(fromSec)}, replacing what followed.`
+          : "The new section was crossfaded onto your track.",
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not extend audio.";
       if (msg === "out_of_credits") {
@@ -1155,12 +1301,42 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               />
             </Field>
             <Field label="Style" hint="Genre, mood, instrumentation, tempo — drives the whole sound">
-              <TextInput
-                value={style}
-                onChange={setStyle}
-                placeholder="e.g. dark trap, 140 BPM, heavy 808s, moody piano melody"
-                testId="input-lane-style"
-              />
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <TextInput
+                    value={style}
+                    onChange={setStyle}
+                    placeholder="e.g. dark trap, 140 BPM, heavy 808s, moody piano melody"
+                    testId="input-lane-style"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleEnhanceStyle()}
+                  disabled={styleEnhancing || !style.trim()}
+                  className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] px-3 text-xs font-black text-primary transition hover:bg-primary/[0.16] disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Polish this style with AI — free"
+                  data-testid="btn-enhance-style"
+                >
+                  {styleEnhancing
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Wand2 className="h-3.5 w-3.5" />}
+                  {styleEnhancing ? "Polishing…" : "Style Enhance"}
+                </button>
+              </div>
+              {enhanceUndo && style === enhanceUndo.enhanced && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStyle(enhanceUndo.prev);
+                    setEnhanceUndo(null);
+                  }}
+                  className="mt-1.5 text-[11px] font-bold text-primary hover:underline"
+                  data-testid="btn-enhance-style-undo"
+                >
+                  Undo — restore my original style
+                </button>
+              )}
             </Field>
             {presetRow}
           </>
@@ -1452,6 +1628,14 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                     onChange={setExtendSeconds}
                   />
                 </Field>
+                {lastGenerated.durationSec != null && lastGenerated.durationSec > 10 && (
+                  <ExtendStartField
+                    durationSec={lastGenerated.durationSec}
+                    value={extendStart}
+                    onChange={setExtendStart}
+                    testId="input-extend-start"
+                  />
+                )}
                 <Button
                   onClick={handleExtend}
                   disabled={extending}
@@ -1460,7 +1644,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                   {extending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extending…</> : "Extend song"}
                 </Button>
                 <p className="text-[11px] text-white/35">
-                  Generates a continuation and crossfades it onto the end of your track. Charged for the new section only.
+                  {extendStart != null && lastGenerated.durationSec != null && extendStart < lastGenerated.durationSec
+                    ? `Generates a continuation and crossfades it in at ${formatTime(extendStart)} — the rest of the track is replaced. Charged for the new section only.`
+                    : "Generates a continuation and crossfades it onto the end of your track. Charged for the new section only."}
                 </p>
               </div>
             )}
@@ -1724,6 +1910,14 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                     onChange={setUploadExtendSeconds}
                   />
                 </Field>
+                {uploadTrack.stem.durationSec != null && uploadTrack.stem.durationSec > 10 && (
+                  <ExtendStartField
+                    durationSec={uploadTrack.stem.durationSec}
+                    value={uploadExtendStart}
+                    onChange={setUploadExtendStart}
+                    testId="input-upload-extend-start"
+                  />
+                )}
                 <Button
                   onClick={() => void handleUploadExtend()}
                   disabled={uploadExtending}
@@ -1733,7 +1927,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                   {uploadExtending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extending…</> : "Extend track"}
                 </Button>
                 <p className="text-[11px] text-white/35">
-                  Generates a continuation and crossfades it onto the end of your track. Charged for the new section only.
+                  {uploadExtendStart != null && uploadTrack.stem.durationSec != null && uploadExtendStart < uploadTrack.stem.durationSec
+                    ? `Generates a continuation and crossfades it in at ${formatTime(uploadExtendStart)} — the rest of the track is replaced. Charged for the new section only.`
+                    : "Generates a continuation and crossfades it onto the end of your track. Charged for the new section only."}
                 </p>
               </div>
             )}
