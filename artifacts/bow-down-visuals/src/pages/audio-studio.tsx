@@ -527,19 +527,23 @@ function CleanupPanel() {
 }
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
-   Real 4-stem Demucs separation: upload any song, get back isolated
-   vocals, drums, bass, and melody/other as WAVs. Per-stem solo/mute
-   playback, individual downloads, and a remix mode that rebalances the
-   four stems into a custom mix. 4 credits per split (Demucs on CPU is
-   our heaviest job); the remix itself is free — those stems are already
-   paid for. Failed jobs refund automatically. Server-owned background
-   job: safe to close the tab while it runs. */
+   Real Demucs separation: upload any song, get back isolated vocals,
+   drums, bass, and melody/other as WAVs — or, with Pro Stems on, the
+   6-stem split that adds guitar and piano, at the same price. Per-stem
+   solo/mute playback, individual downloads, and a remix mode that
+   rebalances the stems into a custom mix. 4 credits per split (Demucs
+   on CPU is our heaviest job); the remix itself is free — those stems
+   are already paid for. Failed jobs refund automatically. Server-owned
+   background job: safe to close the tab while it runs. */
 
 const STEMS_CREDIT_COST = 4;
 const STEMS_INSTRUMENTAL_CREDIT_COST = 3;
 const STEMS_MAX_BYTES = 25 * 1024 * 1024;
 
-type StemKey = "vocals" | "drums" | "bass" | "other";
+/* The classic four, plus guitar/piano which only Pro jobs return.
+   Def order matters: vocals stays first — playback progress and seek
+   anchor to the first channel, and vocals exists in every job. */
+type StemKey = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano";
 
 /* Stem display strings are resolved via t() inside the component (below);
    keys stay stable because stem keys drive playback/download logic. */
@@ -548,6 +552,8 @@ const STEM_DEFS: Array<{ key: StemKey; labelKey: string; blurbKey: string; accen
   { key: "drums", labelKey: "stemDrums", blurbKey: "stemDrumsBlurb", accent: "text-red-300" },
   { key: "bass", labelKey: "stemBass", blurbKey: "stemBassBlurb", accent: "text-green-300" },
   { key: "other", labelKey: "stemOther", blurbKey: "stemOtherBlurb", accent: "text-blue-300" },
+  { key: "guitar", labelKey: "stemGuitar", blurbKey: "stemGuitarBlurb", accent: "text-violet-300" },
+  { key: "piano", labelKey: "stemPiano", blurbKey: "stemPianoBlurb", accent: "text-cyan-300" },
 ];
 
 type StemsJobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
@@ -555,7 +561,10 @@ type StemsJobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | 
 interface StemJobResponse {
   jobId?: string;
   status?: string;
-  stems?: Record<StemKey, string> | null;
+  /* Pro jobs add guitar/piano keys; classic jobs carry exactly the
+     classic four — hence Partial, never a fixed-shape record. */
+  stems?: Partial<Record<StemKey, string>> | null;
+  stemsTier?: "standard" | "pro";
   error?: string;
   message?: string;
   creditsRemaining?: number;
@@ -1243,8 +1252,16 @@ function StemsPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<StemsJobStatus>("idle");
-  const [stems, setStems] = useState<Record<StemKey, string> | null>(null);
-  /* Mode: full 4-stem split vs the vocals-only preset vs the instrumental preset. */
+  const [stems, setStems] = useState<Partial<Record<StemKey, string>> | null>(null);
+  /* Split tier for the full split: classic 4-stem (default) vs Pro 6-stem.
+     Same endpoint, same 400 VB charge — Pro just asks the server for the
+     bigger model via stems=pro. */
+  const [proStems, setProStems] = useState(false);
+  /* The tier the finished job actually ran at (from the poll response);
+     drives the completion copy. Rendering follows the stems object
+     itself, so Pro extras can never be dropped by a stale tier value. */
+  const [stemsTier, setStemsTier] = useState<"standard" | "pro">("standard");
+  /* Mode: full split vs the vocals-only preset vs the instrumental preset. */
   const [stemMode, setStemMode] = useState<"full" | "vocals" | "instrumental">("full");
 
   /* Deep-link: /stems?mode=vocals opens the vocals-only preset,
@@ -1267,11 +1284,11 @@ function StemsPanel() {
 
   // Per-stem playback: one <audio> per stem, driven together.
   const audioRefs = useRef<Record<StemKey, HTMLAudioElement | null>>({
-    vocals: null, drums: null, bass: null, other: null,
+    vocals: null, drums: null, bass: null, other: null, guitar: null, piano: null,
   });
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState<Record<StemKey, boolean>>({
-    vocals: false, drums: false, bass: false, other: false,
+    vocals: false, drums: false, bass: false, other: false, guitar: false, piano: false,
   });
   const [solo, setSolo] = useState<StemKey | null>(null);
   const [progress, setProgress] = useState(0);
@@ -1279,7 +1296,7 @@ function StemsPanel() {
   // Remix mode.
   const [remixOpen, setRemixOpen] = useState(false);
   const [levels, setLevels] = useState<Record<StemKey, number>>({
-    vocals: 1, drums: 1, bass: 1, other: 1,
+    vocals: 1, drums: 1, bass: 1, other: 1, guitar: 1, piano: 1,
   });
   const [remixing, setRemixing] = useState(false);
   const [remixUrl, setRemixUrl] = useState<string | null>(null);
@@ -1288,6 +1305,18 @@ function StemsPanel() {
 
   const pollRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* The channels the current job actually returned — the classic four,
+     plus guitar/piano on Pro jobs. Everything that iterates channels
+     (cards, remix sliders, playback, seek, remix payload) goes through
+     this, so classic results render exactly as before and a Pro job's
+     extra stems are never silently dropped. With no result loaded it
+     falls back to the full def list (the playback helpers are no-ops
+     then: no <audio> elements are mounted). */
+  function activeDefs() {
+    if (!stems) return stemsList;
+    return stemsList.filter((s) => !!stems[s.key]);
+  }
 
   /* Poll the server-owned job until it completes. */
   useEffect(() => {
@@ -1304,6 +1333,7 @@ function StemsPanel() {
         if (data.status === "done") {
           setStatus("done");
           setStems(data.stems ?? null);
+          setStemsTier(data.stemsTier === "pro" ? "pro" : "standard");
           const stemUrls = data.stems;
           if (stemUrls) {
             addAsset({
@@ -1328,7 +1358,10 @@ function StemsPanel() {
     };
   }, [jobId, status]);
 
-  /* Keep the four stem players in sync while playing. */
+  /* Keep the stem players in sync while playing. Progress (and seek,
+     below) anchor to the vocals element: vocals is in every job's key
+     set and every stem is a same-source WAV of identical duration, so
+     the anchor holds unchanged with six channels. */
   useEffect(() => {
     const tick = window.setInterval(() => {
       const a = audioRefs.current.vocals;
@@ -1343,7 +1376,7 @@ function StemsPanel() {
   }
 
   function syncPlayback(next: boolean) {
-    const els = stemsList.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
+    const els = activeDefs().map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
     if (next) {
       // Align all stems to the furthest-played position before starting.
       const latest = Math.max(...els.map((e) => e.currentTime));
@@ -1359,7 +1392,7 @@ function StemsPanel() {
   }
 
   function seekAll(ratio: number) {
-    const els = stemsList.map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
+    const els = activeDefs().map((s) => audioRefs.current[s.key]).filter(Boolean) as HTMLAudioElement[];
     const dur = els[0]?.duration;
     if (!dur || !Number.isFinite(dur)) return;
     els.forEach((e) => { e.currentTime = ratio * dur; });
@@ -1379,6 +1412,7 @@ function StemsPanel() {
     setFile(f);
     setError(null);
     setStems(null);
+    setStemsTier("standard");
     setJobId(null);
     setStatus("idle");
     setRemixUrl(null);
@@ -1416,6 +1450,8 @@ function StemsPanel() {
     try {
       const form = new FormData();
       form.append("audio", file);
+      /* Pro tier: same endpoint, same 400 VB confirm — just the field. */
+      if (proStems) form.append("stems", "pro");
       const res = await confirmedFetch("/api/stems", { method: "POST", body: form });
       if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: StemJobResponse = await res.json();
@@ -1445,10 +1481,15 @@ function StemsPanel() {
     setRemixError(null);
     setRemixUrl(null);
     try {
+      /* The server validates levels against the job's own key set:
+         exactly the classic four for a classic job (byte-identical to
+         the pre-Pro payload), all six for a Pro job. */
+      const activeLevels: Partial<Record<StemKey, number>> = {};
+      for (const s of activeDefs()) activeLevels[s.key] = levels[s.key];
       const res = await fetch(`/api/stems/${jobId}/remix`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ levels }),
+        body: JSON.stringify({ levels: activeLevels }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -1475,8 +1516,9 @@ function StemsPanel() {
     setRemixOpen(false);
     setProgress(0);
     setSolo(null);
-    setMuted({ vocals: false, drums: false, bass: false, other: false });
-    setLevels({ vocals: 1, drums: 1, bass: 1, other: 1 });
+    setStemsTier("standard");
+    setMuted({ vocals: false, drums: false, bass: false, other: false, guitar: false, piano: false });
+    setLevels({ vocals: 1, drums: 1, bass: 1, other: 1, guitar: 1, piano: 1 });
   }
 
   const busy = status === "uploading" || status === "queued" || status === "processing";
@@ -1606,12 +1648,39 @@ function StemsPanel() {
               />
             </div>
 
+            {/* Pro Stems tier toggle — same split, same price, 6 tracks. */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setProStems((v) => !v)}
+                aria-pressed={proStems}
+                className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-3 text-sm font-bold transition ${
+                  proStems
+                    ? "border-primary/60 bg-primary/15 text-primary"
+                    : "border-white/10 text-white/55 hover:border-white/25 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-4 w-4" />
+                {t("stems.proStemsLabel", { defaultValue: "Pro Stems — 6 tracks (adds Guitar & Piano)" })}
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black tracking-wider">
+                  {proStems ? t("stems.proStemsOn", { defaultValue: "ON" }) : t("stems.proStemsOff", { defaultValue: "OFF" })}
+                </span>
+              </button>
+              {proStems && (
+                <p className="mt-2 text-center text-xs text-white/40">
+                  {t("stems.proStemsHint", { cost: STEMS_CREDIT_COST * 100, defaultValue: "Pro Stems is on — the split returns 6 tracks, adding Guitar and Piano. Same {{cost}} Visual Bucs." })}
+                </p>
+              )}
+            </div>
+
             <button
               onClick={startSplit}
               disabled={!file || !user}
               className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
             >
-              {t("stems.splitButton", { cost: STEMS_CREDIT_COST * 100 })}
+              {proStems
+                ? t("stems.splitButtonPro", { cost: STEMS_CREDIT_COST * 100, defaultValue: "Split into 6 stems · {{cost}} Visual Bucs" })
+                : t("stems.splitButton", { cost: STEMS_CREDIT_COST * 100 })}
             </button>
             {creditsRemaining != null && (
               <p className="text-center text-xs text-white/35">{t("stems.creditsRemaining", { count: creditsRemaining })}</p>
@@ -1638,7 +1707,11 @@ function StemsPanel() {
           <div className="mt-6 space-y-4">
             <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-              <p className="text-sm font-semibold text-white/80">{t("stems.splitComplete")}</p>
+              <p className="text-sm font-semibold text-white/80">
+                {stemsTier === "pro"
+                  ? t("stems.splitCompletePro", { defaultValue: "Split complete — 6 stems ready" })
+                  : t("stems.splitComplete")}
+              </p>
             </div>
 
             {/* Post-chain step: polish the isolated vocal stem. */}
@@ -1695,9 +1768,9 @@ function StemsPanel() {
               </div>
             </div>
 
-            {/* Stem cards */}
+            {/* Stem cards — exactly the channels this job returned */}
             <div className="grid gap-3 sm:grid-cols-2">
-              {stemsList.map((s) => (
+              {activeDefs().map((s) => (
                 <div key={s.key} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <div>
@@ -1744,7 +1817,7 @@ function StemsPanel() {
                       onClick={() => {
                         const nextSolo = solo === s.key ? null : s.key;
                         setSolo(nextSolo);
-                        stemsList.forEach((st) => {
+                        activeDefs().forEach((st) => {
                           const el = audioRefs.current[st.key];
                           if (el) el.muted = nextSolo ? st.key !== nextSolo : muted[st.key];
                         });
@@ -1782,7 +1855,7 @@ function StemsPanel() {
                   <p className="text-xs text-white/40">
                     {t("stems.remixHint")}
                   </p>
-                  {stemsList.map((s) => (
+                  {activeDefs().map((s) => (
                     <div key={s.key} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-xs font-semibold text-white/60">{s.label}</span>
                       <input
