@@ -18,11 +18,11 @@ import { db, songsTable, artistVaultsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 import { swapSongVocalsToVoice } from "../lib/voice-swap";
 
@@ -109,14 +109,13 @@ router.get("/songs", requireAuth, async (req, res) => {
 });
 
 async function downloadSongAudio(song: typeof songsTable.$inferSelect): Promise<Buffer> {
-  // Prefer the stable storage ref; fall back to the stored URL.
+  // Prefer the stable storage ref (R2-first dual-stack read); fall back
+  // to the stored URL.
   if (song.audio_path) {
     const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
     if (parsed) {
-      const { data, error } = await getSupabaseAdmin().storage
-        .from(parsed.bucket)
-        .download(parsed.objectPath);
-      if (!error && data) return Buffer.from(await data.arrayBuffer());
+      const buf = await downloadStorageObjectBuffer(parsed);
+      if (buf) return buf;
     }
   }
   const r = await fetch(song.audio_url);

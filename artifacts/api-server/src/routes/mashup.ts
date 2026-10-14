@@ -37,11 +37,11 @@ import {
   OutOfCreditsError,
   LedgerWriteError,
 } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 
 const router = Router();
@@ -180,8 +180,8 @@ async function downloadSongAudio(song: typeof songsTable.$inferSelect): Promise<
   if (song.audio_path) {
     const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
     if (parsed) {
-      const { data, error } = await getSupabaseAdmin().storage.from(parsed.bucket).download(parsed.objectPath);
-      if (!error && data) return Buffer.from(await data.arrayBuffer());
+      const buf = await downloadStorageObjectBuffer(parsed);
+      if (buf) return buf;
     }
   }
   const r = await fetch(song.audio_url, { signal: AbortSignal.timeout(120_000) });

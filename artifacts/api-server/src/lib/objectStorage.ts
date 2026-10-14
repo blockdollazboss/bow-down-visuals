@@ -10,7 +10,7 @@ import {
   setObjectAclPolicy,
 } from "./objectAcl";
 import { getSupabaseAdmin } from "./supabase-admin";
-import { r2Upload, r2GetSignedUrl, r2KeyExists, isR2Configured } from "./r2-client";
+import { r2Upload, r2GetSignedUrl, r2KeyExists, r2Download, isR2Configured } from "./r2-client";
 
 /* R2 key prefix per legacy bucket — R2 has a single bucket, so the old
    Supabase bucket name becomes the top-level folder prefix, keeping the
@@ -876,6 +876,47 @@ export async function refreshSupabaseStorageUrl(value: string): Promise<string> 
     console.error(`[storage] Supabase sign threw for ref, returning unplayable raw ref: ${value}`, err);
     return value;
   }
+}
+
+/**
+ * Download a parsed storage ref's bytes, R2-first — the buffer-returning
+ * sibling of refreshSupabaseStorageUrl (same source order, same reasoning):
+ * `r2://` refs and migrated legacy `supabase://` refs are served from R2
+ * (zero egress); Supabase Storage is only touched when the object does not
+ * exist in R2. Server-side processing callers (remix / harmony / mashup /
+ * lyric-video audio sourcing) must use this instead of calling
+ * `supabase.storage.download()` directly — the direct call bills Supabase
+ * egress for every job even when the object already lives in R2, and 404s
+ * outright for objects that only ever existed in R2.
+ *
+ * Returns null when the object is in neither store, so callers keep their
+ * existing stored-URL fetch fallbacks.
+ */
+export async function downloadStorageObjectBuffer(
+  parsed: ParsedStorageRef,
+): Promise<Buffer | null> {
+  const r2Key = r2KeyForBucket(parsed.bucket, parsed.objectPath);
+  if (isR2Configured()) {
+    try {
+      if (await r2KeyExists(r2Key)) {
+        return await r2Download(r2Key);
+      }
+      // Not migrated / not in R2 — fall through to the legacy Supabase read.
+    } catch {
+      // R2 error — fall through to the legacy Supabase read below.
+    }
+  }
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .storage.from(parsed.bucket)
+      .download(parsed.objectPath);
+    if (!error && data) {
+      return Buffer.from(await data.arrayBuffer());
+    }
+  } catch {
+    // Both stores missed — caller falls back to its stored URL.
+  }
+  return null;
 }
 
 /** True when the string is a legacy Replit-owned GCS URL. */

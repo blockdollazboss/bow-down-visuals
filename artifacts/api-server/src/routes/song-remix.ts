@@ -38,11 +38,11 @@ import { db, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 
 const router = Router();
@@ -121,10 +121,8 @@ async function downloadAudio(song: typeof songsTable.$inferSelect | null, audioU
   if (song?.audio_path) {
     const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
     if (parsed) {
-      const { data, error } = await getSupabaseAdmin().storage
-        .from(parsed.bucket)
-        .download(parsed.objectPath);
-      if (!error && data) return Buffer.from(await data.arrayBuffer());
+      const buf = await downloadStorageObjectBuffer(parsed);
+      if (buf) return buf;
     }
   }
   const url = song?.audio_url || audioUrl;

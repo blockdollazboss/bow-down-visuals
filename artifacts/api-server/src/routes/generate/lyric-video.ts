@@ -43,8 +43,8 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../../lib/objectStorage";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { db, songsTable } from "@workspace/db";
 import {
   attributionOptIn,
@@ -924,14 +924,13 @@ const upload = multer({
   },
 });
 
-/** Download audio from a Supabase storage URL (first-party buckets only). */
+/** Download audio from a first-party storage ref/URL (R2-first dual-stack
+ *  read for refs in our buckets; plain fetch for signed URLs). */
 async function downloadAudioFromUrl(audioUrl: string): Promise<Buffer> {
   const parsed = parseSupabaseStorageRefBucketed(audioUrl);
   if (parsed) {
-    const { data, error } = await getSupabaseAdmin()
-      .storage.from(parsed.bucket)
-      .download(parsed.objectPath);
-    if (!error && data) return Buffer.from(await data.arrayBuffer());
+    const buf = await downloadStorageObjectBuffer(parsed);
+    if (buf) return buf;
   }
   // Fall back to a plain fetch for signed URLs.
   const r = await fetch(audioUrl);
