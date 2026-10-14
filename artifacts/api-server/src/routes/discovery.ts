@@ -762,12 +762,26 @@ router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
 router.get("/notifications", requireAuth, asyncHandler(async (req, res) => {
   const userId = req.userId!;
   const limit = clampLimit(req.query.limit, 30, 50);
-  const items = await db
+  const rows = await db
     .select()
     .from(notificationsTable)
     .where(sql`${notificationsTable.userId} = ${userId}::uuid`)
     .orderBy(sql`${notificationsTable.createdAt} DESC`)
     .limit(limit);
+  /* Items are mapped field-by-field to the bell's contract
+     (NotificationsBell NotificationItem): snake_case is_read /
+     created_at. Shipping the raw rows leaked camelCase table keys —
+     every notification rendered permanently unread and its timestamp
+     parsed to NaN ("NaNd"). */
+  const items = rows.map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    link: n.link,
+    is_read: n.isRead,
+    created_at: n.createdAt,
+  }));
   const unread = await db.execute(sql`
     SELECT COUNT(*)::int AS n FROM notifications
     WHERE user_id = ${userId}::uuid AND is_read = false`);
