@@ -1157,7 +1157,8 @@ html, body {
    The palace image already has real sunbeams. The SpotlightRig's
    yellow trapezoids read as stage lighting on dark, but as flat
    construction-paper shapes on ivory. Kill them; keep the glow. */
-.light .no-throne-bg .spotlight-beam {
+.light .no-throne-bg .spotlight-beam,
+.light .no-throne-bg .spotlight-fixture {
   display: none !important;
 }
 

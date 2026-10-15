@@ -25,8 +25,11 @@ import { getThemeBeat } from "@/lib/theme-analyser";
       would otherwise override it), and returns when the song stops.
       Real light-rig feel, locked to the tempo.
 
-   Pure decoration: pointer-events-none, translucent, reduced-motion safe
-   (beat flash is disabled when the user prefers reduced motion). */
+   Pure decoration: pointer-events-none, reduced-motion safe
+   (beat flash is disabled when the user prefers reduced motion).
+   The beams are translucent light; the fixtures are SOLID — they
+   stand outside the opacity-animated beam wrapper (owner,
+   2026-10-15; see the lamp note in the render). */
 
 const BEAM_DELAYS = [0, 0.45, 0.9, 1.35, 1.8, 2.25];
 
@@ -186,6 +189,70 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                  10px. */
               style={{ left: i * 240 - 60 + (i === 0 ? 10 : 0) }}
             >
+              {/* The lamp itself — the owner-approved theatrical
+                  spotlight (2026-10-14): a truss bar segment overhead,
+                  hanging mount, yoke, tapered bronze can with cooling
+                  fins and gold trim, barn doors, and a glowing lens
+                  the beam pours out of. Sized ~2.5× the old 64px lamp
+                  (176px on the 1440px stage ≈ 48px on a phone — the
+                  old one shrank to a 17px speck the owner couldn't
+                  see). SOLID, on the owner's word (2026-10-15: "a
+                  spotlight fixture should not be transparent"): it
+                  used to live inside the beam wrapper, whose shimmer
+                  and beat-driven opacity (0.42–0.56) painted the whole
+                  fixture see-through. It now stands as the beam
+                  column's own child — same size, same spot, still
+                  gliding with the rig and still hiding with its
+                  column on narrow screens — outside the animated
+                  wrapper, so the fixture body paints at full opacity
+                  while the beam, glow and pool keep their shimmer
+                  and swell behind it. Its spotlight-fixture class
+                  keeps it under the light theme's no-throne-bg rule
+                  in index.css — hidden on ivory exactly as it was
+                  when it hid inside the beam wrapper. */}
+              <div className="spotlight-fixture absolute left-1/2 top-0 w-44 -translate-x-1/2">
+                <svg viewBox="0 0 176 88" className="w-full" aria-hidden>
+                  <defs>
+                    <linearGradient id="rig-can" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4A3410" />
+                      <stop offset="55%" stopColor="#241708" />
+                      <stop offset="100%" stopColor="#120A02" />
+                    </linearGradient>
+                    <radialGradient id="rig-lens">
+                      <stop offset="0%" stopColor="#FFF9E0" />
+                      <stop offset="55%" stopColor="#FFE9A8" />
+                      <stop offset="100%" stopColor="#E8B33C" />
+                    </radialGradient>
+                  </defs>
+                  {/* truss bar segment — twin chords + zigzag bracing */}
+                  <rect x="2" y="2" width="172" height="5" rx="2.5" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.45" strokeWidth="0.75" />
+                  <rect x="2" y="14" width="172" height="5" rx="2.5" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.45" strokeWidth="0.75" />
+                  <path d="M6,7 L21,14 L36,7 L51,14 L66,7 L81,14 L96,7 L111,14 L126,7 L141,14 L156,7 L169,14" fill="none" stroke="#8A6B1F" strokeWidth="2" opacity="0.8" />
+                  {/* hanging mount: rod + clamp block */}
+                  <rect x="85.5" y="19" width="5" height="9" fill="#150E05" />
+                  <rect x="77" y="26" width="22" height="8" rx="2" fill="#241A0C" stroke="#C9A84C" strokeOpacity="0.5" strokeWidth="0.75" />
+                  {/* yoke arms + pivot bolts */}
+                  <path d="M54,58 L54,42 Q54,32 64,32 L112,32 Q122,32 122,42 L122,58" fill="none" stroke="#8A6B1F" strokeWidth="5" strokeLinecap="round" />
+                  <circle cx="54" cy="46" r="4.5" fill="#8A6B1F" />
+                  <circle cx="122" cy="46" r="4.5" fill="#8A6B1F" />
+                  <circle cx="54" cy="46" r="1.8" fill="#1C1508" />
+                  <circle cx="122" cy="46" r="1.8" fill="#1C1508" />
+                  {/* tapered bronze can + cooling fins + sheen */}
+                  <path d="M64,34 L112,34 L120,68 L56,68 Z" fill="url(#rig-can)" stroke="#C9A84C" strokeOpacity="0.55" strokeWidth="1" />
+                  <path d="M67,42 H109 M69,49 H107 M71,56 H105" stroke="#000000" strokeWidth="2" opacity="0.4" />
+                  <path d="M70,36 L80,36 L76,66 L66,66 Z" fill="#ffffff" opacity="0.06" />
+                  {/* gold mouth rim */}
+                  <rect x="54" y="66" width="68" height="5" rx="2.5" fill="#C9A84C" />
+                  {/* barn doors hugging the mouth */}
+                  <polygon points="56,62 45,57 43,78 57,74" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
+                  <polygon points="120,62 131,57 133,78 119,74" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
+                  {/* the lit lens the beam pours out of */}
+                  <ellipse cx="88" cy="74" rx="19" ry="5" fill="url(#rig-lens)" />
+                  <ellipse cx="88" cy="74" rx="10" ry="2.6" fill="#FFF9E0" />
+                  {/* bottom barn door, angled below the lens */}
+                  <polygon points="64,78 112,78 106,86 70,86" fill="#150E05" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
+                </svg>
+              </div>
               <div
                 ref={(el) => { beamsRef.current[i] = el; }}
                 className="spotlight-beam absolute inset-0"
@@ -211,58 +278,6 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                       "radial-gradient(ellipse at center, rgba(255,252,230,0.92) 0%, rgba(255,228,140,0.78) 52%, transparent 72%)",
                   }}
                 />
-                {/* The lamp itself — the owner-approved theatrical
-                    spotlight (2026-10-14): a truss bar segment overhead,
-                    hanging mount, yoke, tapered bronze can with cooling
-                    fins and gold trim, barn doors, and a glowing lens
-                    the beam pours out of. Sized ~2.5× the old 64px lamp
-                    (176px on the 1440px stage ≈ 48px on a phone — the
-                    old one shrank to a 17px speck the owner couldn't
-                    see). It lives inside the beam wrapper, so it glides
-                    and beat-swells with its beam. */}
-                <div className="absolute left-1/2 top-0 w-44 -translate-x-1/2">
-                  <svg viewBox="0 0 176 88" className="w-full" aria-hidden>
-                    <defs>
-                      <linearGradient id="rig-can" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4A3410" />
-                        <stop offset="55%" stopColor="#241708" />
-                        <stop offset="100%" stopColor="#120A02" />
-                      </linearGradient>
-                      <radialGradient id="rig-lens">
-                        <stop offset="0%" stopColor="#FFF9E0" />
-                        <stop offset="55%" stopColor="#FFE9A8" />
-                        <stop offset="100%" stopColor="#E8B33C" />
-                      </radialGradient>
-                    </defs>
-                    {/* truss bar segment — twin chords + zigzag bracing */}
-                    <rect x="2" y="2" width="172" height="5" rx="2.5" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.45" strokeWidth="0.75" />
-                    <rect x="2" y="14" width="172" height="5" rx="2.5" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.45" strokeWidth="0.75" />
-                    <path d="M6,7 L21,14 L36,7 L51,14 L66,7 L81,14 L96,7 L111,14 L126,7 L141,14 L156,7 L169,14" fill="none" stroke="#8A6B1F" strokeWidth="2" opacity="0.8" />
-                    {/* hanging mount: rod + clamp block */}
-                    <rect x="85.5" y="19" width="5" height="9" fill="#150E05" />
-                    <rect x="77" y="26" width="22" height="8" rx="2" fill="#241A0C" stroke="#C9A84C" strokeOpacity="0.5" strokeWidth="0.75" />
-                    {/* yoke arms + pivot bolts */}
-                    <path d="M54,58 L54,42 Q54,32 64,32 L112,32 Q122,32 122,42 L122,58" fill="none" stroke="#8A6B1F" strokeWidth="5" strokeLinecap="round" />
-                    <circle cx="54" cy="46" r="4.5" fill="#8A6B1F" />
-                    <circle cx="122" cy="46" r="4.5" fill="#8A6B1F" />
-                    <circle cx="54" cy="46" r="1.8" fill="#1C1508" />
-                    <circle cx="122" cy="46" r="1.8" fill="#1C1508" />
-                    {/* tapered bronze can + cooling fins + sheen */}
-                    <path d="M64,34 L112,34 L120,68 L56,68 Z" fill="url(#rig-can)" stroke="#C9A84C" strokeOpacity="0.55" strokeWidth="1" />
-                    <path d="M67,42 H109 M69,49 H107 M71,56 H105" stroke="#000000" strokeWidth="2" opacity="0.4" />
-                    <path d="M70,36 L80,36 L76,66 L66,66 Z" fill="#ffffff" opacity="0.06" />
-                    {/* gold mouth rim */}
-                    <rect x="54" y="66" width="68" height="5" rx="2.5" fill="#C9A84C" />
-                    {/* barn doors hugging the mouth */}
-                    <polygon points="56,62 45,57 43,78 57,74" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
-                    <polygon points="120,62 131,57 133,78 119,74" fill="#1C1307" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
-                    {/* the lit lens the beam pours out of */}
-                    <ellipse cx="88" cy="74" rx="19" ry="5" fill="url(#rig-lens)" />
-                    <ellipse cx="88" cy="74" rx="10" ry="2.6" fill="#FFF9E0" />
-                    {/* bottom barn door, angled below the lens */}
-                    <polygon points="64,78 112,78 106,86 70,86" fill="#150E05" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="0.75" />
-                  </svg>
-                </div>
                 {/* Beam cone — shorter, landing near the King's feet.
                     Feathering: the blur lives on this WRAPPER, not on
                     the cone itself. CSS applies an element's own filter
