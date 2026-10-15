@@ -82,6 +82,7 @@ export function SecretChallengePopup({
           {needsAmountOverlay && (
             <div
               aria-hidden="true"
+              data-dark-lock
               className="absolute flex items-center justify-center bg-black"
               style={{ left: "33%", top: "53.5%", width: "34%", height: "10%" }}
             >
