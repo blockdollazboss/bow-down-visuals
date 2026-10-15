@@ -289,9 +289,9 @@ export default function JewelryStudio() {
   return (
     <div className={`${isLight ? "min-h-screen text-[#2A1E07]" : "min-h-screen bg-black text-zinc-100"}`}>
       {/* Header */}
-      <div className="border-b border-[#C9A84C]/20 bg-gradient-to-b from-[#171208]/40 to-black px-4 py-8 text-center">
+      <div className={`${isLight ? "border-b border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-b border-[#C9A84C]/20 bg-gradient-to-b from-[#171208]/40 to-black"} px-4 py-8 text-center`}>
         <div className="mx-auto max-w-4xl">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-[#E8CE7A]">
+          <div className={`mb-2 inline-flex items-center gap-2 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#E8CE7A]"}`}>
             <Gem className="h-3.5 w-3.5" /> {t("jewelry.headerBadge")}
           </div>
           <h1 className="text-3xl font-black text-transparent sm:text-4xl bg-gradient-to-r from-[#E3C566] via-[#C9A84C] to-[#E3C566] bg-clip-text">
