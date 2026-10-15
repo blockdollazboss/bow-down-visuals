@@ -147,6 +147,62 @@ describe("parseSupabaseStorageRefBucketed — pre-existing forms still parse", (
   });
 });
 
+describe("parseSupabaseStorageRefBucketed — malformed % escapes do not throw", () => {
+  it("signed-URL branch: returns the ref with the raw segment preserved for %zz", () => {
+    let parsed: ReturnType<typeof parseSupabaseStorageRefBucketed>;
+    expect(() => {
+      parsed = parseSupabaseStorageRefBucketed(
+        `${PROJECT}/storage/v1/object/sign/${SUPABASE_CLIPS_BUCKET}/clips/100%zz.mp4?token=zzz`,
+      );
+    }).not.toThrow();
+    expect(parsed!).toEqual({
+      bucket: SUPABASE_CLIPS_BUCKET,
+      objectPath: "clips/100%zz.mp4",
+    });
+  });
+
+  it("signed-URL branch: returns the ref with the raw segment preserved for a trailing %", () => {
+    let parsed: ReturnType<typeof parseSupabaseStorageRefBucketed>;
+    expect(() => {
+      parsed = parseSupabaseStorageRefBucketed(
+        `${PROJECT}/storage/v1/object/sign/${SUPABASE_CLIPS_BUCKET}/clips/trailing%.mp4?token=zzz`,
+      );
+    }).not.toThrow();
+    expect(parsed!).toEqual({
+      bucket: SUPABASE_CLIPS_BUCKET,
+      objectPath: "clips/trailing%.mp4",
+    });
+  });
+
+  it("public-bucket branch: returns the ref with the raw segment preserved for %zz", () => {
+    let parsed: ReturnType<typeof parseSupabaseStorageRefBucketed>;
+    expect(() => {
+      parsed = parseSupabaseStorageRefBucketed(
+        `${PROJECT}/storage/v1/object/public/${ARTIST_REFERENCES_BUCKET}/vaults/50%off/pic%zz.jpg`,
+      );
+    }).not.toThrow();
+    expect(parsed!).toEqual({
+      bucket: ARTIST_REFERENCES_BUCKET,
+      objectPath: "vaults/50%off/pic%zz.jpg",
+      viaPublicUrl: true,
+    });
+  });
+
+  it("public-bucket branch: returns the ref with the raw segment preserved for a trailing %", () => {
+    let parsed: ReturnType<typeof parseSupabaseStorageRefBucketed>;
+    expect(() => {
+      parsed = parseSupabaseStorageRefBucketed(
+        `${PROJECT}/storage/v1/object/public/${SHOP_PRODUCTS_BUCKET}/u1/products/100%.png`,
+      );
+    }).not.toThrow();
+    expect(parsed!).toEqual({
+      bucket: SHOP_PRODUCTS_BUCKET,
+      objectPath: "u1/products/100%.png",
+      viaPublicUrl: true,
+    });
+  });
+});
+
 describe("refreshSupabaseStorageUrl — public URL on an R2 miss", () => {
   it("returns the stored public URL byte-identical and never calls fetch", async () => {
     const fetchSpy = vi.fn(async () => {

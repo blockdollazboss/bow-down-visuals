@@ -784,6 +784,17 @@ export function parseSupabaseStorageRefBucketed(
   value: string,
 ): ParsedStorageRef | null {
   if (typeof value !== "string" || value.length === 0) return null;
+  // A stored path can contain a malformed % escape (e.g. a literal % in a
+  // filename); decodeURIComponent throws URIError on those, which would
+  // 500 an entire refreshed payload. Fall back to the raw segment instead,
+  // matching the fail-soft behavior of the refresh helpers in this file.
+  const safeDecodeURIComponent = (s: string): string => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  };
   for (const bucket of KNOWN_STORAGE_BUCKETS) {
     // R2 refs (new writes): r2://generated-clips/clips/<uuid>.mp4
     const r2Prefix = `${R2_STORAGE_REF_PREFIX}${bucket}/`;
@@ -809,7 +820,7 @@ export function parseSupabaseStorageRefBucketed(
       const parts = u.pathname.replace(/^\/+/, "").split("/");
       const bucket = parts[0] ?? "";
       if ((KNOWN_STORAGE_BUCKETS as readonly string[]).includes(bucket)) {
-        const objectPath = decodeURIComponent(parts.slice(1).join("/"));
+        const objectPath = safeDecodeURIComponent(parts.slice(1).join("/"));
         if (objectPath.length > 0) return { bucket, objectPath };
       }
     }
@@ -824,7 +835,7 @@ export function parseSupabaseStorageRefBucketed(
       const signPrefix = `${supabaseUrl}/storage/v1/object/sign/${bucket}/`;
       if (value.startsWith(signPrefix)) {
         const rest = value.slice(signPrefix.length).split("?")[0] ?? "";
-        const objectPath = decodeURIComponent(rest);
+        const objectPath = safeDecodeURIComponent(rest);
         return objectPath.length > 0 ? { bucket, objectPath } : null;
       }
     }
@@ -838,7 +849,7 @@ export function parseSupabaseStorageRefBucketed(
       const publicPrefix = `${supabaseUrl}/storage/v1/object/public/${bucket}/`;
       if (value.startsWith(publicPrefix)) {
         const rest = value.slice(publicPrefix.length).split("?")[0] ?? "";
-        const objectPath = decodeURIComponent(rest);
+        const objectPath = safeDecodeURIComponent(rest);
         return objectPath.length > 0
           ? { bucket, objectPath, viaPublicUrl: true }
           : null;

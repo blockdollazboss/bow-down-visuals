@@ -130,6 +130,44 @@ describe("refreshSupabaseStorageUrlsDeep — non-plain values are leaves", () =>
   });
 });
 
+describe("refreshSupabaseStorageUrlsDeep — malformed % escapes survive the walk", () => {
+  it("passes a payload containing one malformed-% URL among normal values through without rejecting", async () => {
+    const fetchSpy = vi.fn(async () => {
+      throw new Error("this payload must not need the network");
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const malformedPublic = `${PROJECT}/storage/v1/object/public/${ARTIST_REFERENCES_BUCKET}/vaults/50%off/pic%zz.jpg`;
+    const payload = {
+      id: 9,
+      title: "normal values",
+      cover: malformedPublic,
+      nested: { tags: ["keep me", malformedPublic], count: 3, flag: false, nothing: null },
+      list: [malformedPublic, "plain text"],
+    };
+
+    let out: typeof payload | undefined;
+    await expect(
+      (async () => {
+        out = await refreshSupabaseStorageUrlsDeep(payload);
+      })(),
+    ).resolves.not.toThrow();
+
+    // Malformed-% public URL: parsed with its raw segment preserved, and
+    // returned byte-identical on the documented viaPublicUrl R2-miss path.
+    expect(out!.cover).toBe(malformedPublic);
+    expect(out!.nested.tags).toEqual(["keep me", malformedPublic]);
+    expect(out!.list).toEqual([malformedPublic, "plain text"]);
+    // Normal values untouched.
+    expect(out!.id).toBe(9);
+    expect(out!.title).toBe("normal values");
+    expect(out!.nested.count).toBe(3);
+    expect(out!.nested.flag).toBe(false);
+    expect(out!.nested.nothing).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("refreshSignedGcsUrlsDeep — non-plain values are leaves", () => {
   it("keeps Dates intact in a nested payload (signing offline → strings unchanged)", async () => {
     vi.stubGlobal(
