@@ -2186,7 +2186,11 @@ router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
       ? await db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, byKind.get("video")!))
       : [];
     const savedAt = new Map(rows.map((r) => [`${r.kind}:${r.targetId}`, r.createdAt]));
-    return res.json({
+    /* Refresh at the response boundary: saved tracks/videos/profiles
+       store media as storage refs (r2:// / supabase://), which are not
+       playable URLs — the post branch already refreshes via enrichPosts,
+       so wrap the whole assembled payload like sibling read endpoints. */
+    return res.json(await refreshSupabaseStorageUrlsDeep({
       saves: rows.map((r) => {
         const key = `${r.kind}:${r.targetId}`;
         const base = { kind: r.kind, target_id: r.targetId, saved_at: savedAt.get(key) };
@@ -2205,7 +2209,7 @@ router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
         const v = videos.find((x) => x.id === r.targetId);
         return { ...base, video: v ? { id: v.id, title: v.title, thumbnail_url: v.thumbnailUrl, profile_id: v.profileId } : null };
       }),
-    });
+    }));
   } catch {
     return res.status(500).json({ error: "saves_failed" });
   }
