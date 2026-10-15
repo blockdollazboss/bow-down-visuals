@@ -234,7 +234,7 @@ export function MysteryCrate() {
         {/* Prize reveal */}
         {phase === "revealed" && result && (
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 animate-[popIn_0.5s_ease-out]">
-            <div className={`px-6 py-3 rounded-xl border-2 font-bold text-2xl whitespace-nowrap shadow-[0_0_30px_rgba(255,215,0,0.6)] ${
+            <div data-dark-lock className={`px-6 py-3 rounded-xl border-2 font-bold text-2xl whitespace-nowrap shadow-[0_0_30px_rgba(255,215,0,0.6)] ${
               result.isJackpot
                 ? "bg-[#ffd700] text-black border-[#fff] animate-pulse"
                 : "bg-black text-[#ffd700] border-[#c9a84c]"
@@ -242,7 +242,7 @@ export function MysteryCrate() {
               {result.isJackpot ? "🏆 JACKPOT!" : `+${result.prize.toLocaleString()}`}
             </div>
             {result.isJackpot && (
-              <p className="text-[#ffd700] font-bold mt-1">+{result.prize.toLocaleString()} Bucs!</p>
+              <p className={`${isLight ? "text-[#7A5A12]" : "text-[#ffd700]"} font-bold mt-1`}>+{result.prize.toLocaleString()} Bucs!</p>
             )}
           </div>
         )}
@@ -312,7 +312,7 @@ export function MysteryCrate() {
             </p>
 
             {status?.canClaimDaily && (
-              <p className="text-xs text-[#e8c766] mb-3 flex items-center justify-center gap-1">
+              <p className={`text-xs mb-3 flex items-center justify-center gap-1 ${isLight ? "text-[#7A5A12]" : "text-[#e8c766]"}`}>
                 <Gift className="h-3.5 w-3.5" /> Your daily bonus is also ready — claim it from the popup after login.
               </p>
             )}

@@ -1369,6 +1369,15 @@ html, body {
 .light [data-dark-lock] .text-white\/70 {
   color: #fff;
 }
+/* Mystery Crate prize chip: a lock ROOT carrying its own text color —
+   the base-ink rule above would otherwise whiten its authored gold
+   (and the jackpot variant's black-on-gold). Restore both as authored. */
+.light [data-dark-lock].text-\[\#ffd700\] {
+  color: #ffd700;
+}
+.light [data-dark-lock].text-black {
+  color: #000;
+}
 .light [data-dark-lock] .from-black {
   --tw-gradient-from: #000 var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
