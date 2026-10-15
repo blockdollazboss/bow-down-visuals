@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { db, creatorProfilesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -165,10 +167,38 @@ router.post("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
   res.json({ settings, paymentsLive: false });
 });
 
-/* GET /api/tips/page/:handle → public tip page data. No auth. */
-router.get("/tips/page/:handle", publicApiLimiter, (req, res) => {
+/**
+ * Resolve a tip page owner from a value that may live in EITHER
+ * namespace: the tip handle itself (canonical — /tips/:handle), or a
+ * creator-profile slug (the Shorts feed caller, pages/shorts.tsx,
+ * which only knows item.creator.slug). Tip handles are freely typed
+ * at setup and are NOT the owner's profile slug; without the profile
+ * fallback the lookup 404'd whenever they differed and the Tip
+ * button in the Shorts feed never rendered. Handle wins on a
+ * collision so the canonical namespace is never shadowed.
+ * Returns undefined when neither namespace resolves to a tip page.
+ */
+async function resolveTipPageOwnerId(value: string): Promise<string | undefined> {
+  const byHandle = tipPagesByHandle.get(value);
+  if (byHandle) return byHandle;
+  const profiles = await db
+    .select({ userId: creatorProfilesTable.userId })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.slug, value))
+    .limit(1);
+  const userId = profiles[0]?.userId;
+  if (userId && tipPages.has(userId)) return userId;
+  return undefined;
+}
+
+/* GET /api/tips/page/:handle → public tip page data. No auth.
+   :handle accepts a tip handle OR a creator-profile slug (see
+   resolveTipPageOwnerId); the response always carries the page's
+   real handle, which slug callers build their /tips/<handle> link
+   from. */
+router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
   const handle = String(req.params.handle ?? "").toLowerCase();
-  const ownerId = tipPagesByHandle.get(handle);
+  const ownerId = await resolveTipPageOwnerId(handle);
   if (!ownerId) {
     res.status(404).json({ error: "Tip page not found." });
     return;
@@ -191,14 +221,19 @@ router.get("/tips/page/:handle", publicApiLimiter, (req, res) => {
   });
 });
 
-/* POST /api/tips/:handle/tip → record a tip INTENT. No auth. NEVER charges. */
-router.post("/tips/:handle/tip", publicApiLimiter, (req, res) => {
+/* POST /api/tips/:handle/tip → record a tip INTENT. No auth. NEVER charges.
+   :handle resolves through the same two namespaces as the GET above:
+   a fan who landed on /tips/<profile-slug> (the artist profile page
+   links there directly) can actually send, not just view. The intent
+   is always recorded under the page's REAL handle. */
+router.post("/tips/:handle/tip", publicApiLimiter, async (req, res) => {
   const handle = String(req.params.handle ?? "").toLowerCase();
-  const ownerId = tipPagesByHandle.get(handle);
+  const ownerId = await resolveTipPageOwnerId(handle);
   if (!ownerId) {
     res.status(404).json({ error: "Tip page not found." });
     return;
   }
+  const pageHandle = tipPages.get(ownerId)!.handle;
   const parsed = tipIntentSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -211,7 +246,7 @@ router.post("/tips/:handle/tip", publicApiLimiter, (req, res) => {
   const intent: TipIntent = {
     id: randomUUID(),
     pageUserId: ownerId,
-    handle,
+    handle: pageHandle,
     amount: Math.round(amount * 100) / 100,
     currency: TIP_CURRENCY,
     fanName: fanName.trim(),
@@ -220,7 +255,7 @@ router.post("/tips/:handle/tip", publicApiLimiter, (req, res) => {
     createdAt: new Date().toISOString(),
   };
   tipIntents.set(intent.id, intent);
-  logger.info({ handle, amount: intent.amount }, "[tip-jar] tip intent recorded (no charge)");
+  logger.info({ handle: pageHandle, amount: intent.amount }, "[tip-jar] tip intent recorded (no charge)");
   res.status(201).json({
     intent,
     paymentsLive: false,
