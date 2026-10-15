@@ -8326,6 +8326,7 @@
     "signInPrompt": "Sign in to build your fan club.",
     "signIn": "Sign In",
     "dismiss": "Dismiss",
+    "retry": "Retry",
     "errorLoad": "Couldn't load your fan club — try again.",
     "errorSaveTier": "Couldn't save the tier — try again.",
     "errorDeleteTier": "Couldn't delete the tier — try again.",

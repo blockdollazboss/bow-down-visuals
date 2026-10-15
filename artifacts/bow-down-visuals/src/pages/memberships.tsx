@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
-  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent,
+  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -95,6 +95,10 @@ export default function Memberships() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* A failed load is NOT a brand-new account — it gets its own error
+     state with a retry, and every empty/default branch fed by load()
+     is gated on !loadError. */
+  const [loadError, setLoadError] = useState(false);
 
   /* Tier form state */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -120,18 +124,31 @@ export default function Memberships() {
   async function load() {
     setLoading(true);
     setError(null);
+    setLoadError(false);
     try {
       const token = await getAccessToken();
-      const [{ data: t }, { data: d }, { data: m }] = await Promise.all([
+      const [{ res: tRes, data: t }, { res: dRes, data: d }, { res: mRes, data: m }] = await Promise.all([
         api("/memberships/tiers", token),
         api("/memberships/dashboard", token),
         api("/memberships/members", token),
       ]);
-      if (Array.isArray(t.tiers)) setTiers(t.tiers as Tier[]);
-      if (d.activeMembers !== undefined) setDashboard(d as unknown as Dashboard);
-      if (Array.isArray(m.members)) setMembers(m.members as Member[]);
+      /* api() never throws on HTTP status, so check res.ok and the
+         expected shapes explicitly — any failure is a load error, not
+         an empty fan club. Nothing is applied on failure. */
+      if (
+        !tRes.ok || !dRes.ok || !mRes.ok ||
+        !Array.isArray(t.tiers) ||
+        d.activeMembers === undefined ||
+        !Array.isArray(m.members)
+      ) {
+        setLoadError(true);
+        return;
+      }
+      setTiers(t.tiers as Tier[]);
+      setDashboard(d as unknown as Dashboard);
+      setMembers(m.members as Member[]);
     } catch {
-      setError(t("memberships.errorLoad"));
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -315,6 +332,19 @@ export default function Memberships() {
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center justify-between">
                 {error}
                 <button onClick={() => setError(null)} aria-label={t("memberships.dismiss")}><X className="h-4 w-4" /></button>
+              </div>
+            )}
+
+            {loadError && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center gap-3">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {t("memberships.errorLoad")}
+                <button
+                  onClick={() => void load()}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-bold text-red-200 hover:bg-red-500/10"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> {t("memberships.retry")}
+                </button>
               </div>
             )}
 
@@ -582,9 +612,9 @@ export default function Memberships() {
                       </div>
                     ))}
                   </div>
-                ) : (
+                ) : !loadError ? (
                   <p className="text-sm text-white/40">{t("memberships.noMembers")}</p>
-                )}
+                ) : null}
               </div>
             </section>
           </div>
