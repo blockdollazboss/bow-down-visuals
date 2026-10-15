@@ -200,6 +200,28 @@ function toGroupDto(g: typeof groupsTable.$inferSelect) {
   };
 }
 
+/* Event DTO, field-by-field: the frontend event contract (pages/events.tsx,
+   pages/event-detail.tsx) is snake_case — starts_at / rsvp_count /
+   cover_url / destination_url / ticket_url. A raw row spread shipped
+   camelCase table keys: rsvp_count.toLocaleString() crashed both pages
+   on undefined, starts_at parsed as "Invalid Date", and the ticket +
+   destination links (the page's money path) never rendered. */
+function toEventDto(e: typeof eventsTable.$inferSelect) {
+  return {
+    id: e.id,
+    profile_id: e.profileId,
+    title: e.title,
+    description: e.description,
+    starts_at: e.startsAt,
+    kind: e.kind,
+    cover_url: e.coverUrl,
+    destination_url: e.destinationUrl,
+    ticket_url: e.ticketUrl,
+    rsvp_count: e.rsvpCount,
+    created_at: e.createdAt,
+  };
+}
+
 /* ── GROUPS ──────────────────────────────────────────────────────────────── */
 
 /** Create a group. The creator becomes owner (member row role='owner'). */
@@ -503,7 +525,7 @@ router.get("/events", async (req, res) => {
       .orderBy(asc(eventsTable.startsAt)).limit(60);
     res.json(await refreshSupabaseStorageUrlsDeep({
       events: rows.map((r) => ({
-        ...r.event,
+        ...toEventDto(r.event),
         host: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
       })),
     }));
@@ -536,7 +558,7 @@ router.get("/events/:id", async (req, res) => {
       rsvped = r.length > 0;
     }
     res.json(await refreshSupabaseStorageUrlsDeep({
-      event: row.event,
+      event: toEventDto(row.event),
       host: { slug: row.hostSlug, display_name: row.hostName, avatar_url: row.hostAvatar },
       host_is_viewer: row.hostUserId === req.userId,
       rsvped,
