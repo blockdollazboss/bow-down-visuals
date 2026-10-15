@@ -295,9 +295,10 @@ async function notify(profileOwnerUserId: string | null | undefined, n: {
 
 /* ── Link-graph helpers ───────────────────────────────────────────────────────
    Rule: every payload carries what its neighbors need for two-way linking.
-   - media payloads: profile_slug + buyable/download_price_cents + sound (videos)
+   - media payloads: snake_case DTOs (enrichTrack/enrichVideo) carrying
+     profile_slug + buyable/download_price_cents + sound (videos)
    - comments: author_profile_slug
-   - playlists: owner_profile_slug + resolved_items (kind/id/title/artwork/profile_slug)
+   - playlists: owner_profile_slug + resolved_items WRAPPED {kind, item: DTO}
    - profiles: presence flags (has_downloads = store, has_social_links, tip_jar_enabled, has_stream_schedule)
 */
 
@@ -324,12 +325,42 @@ function withAuthorSlugs<T extends { authorUserId: string }>(
 type TrackRow = typeof profileTracksTable.$inferSelect;
 type VideoRow = typeof profileVideosTable.$inferSelect;
 
-function enrichTrack(row: TrackRow, profileSlug: string) {
+/* ── Streaming DTOs ───────────────────────────────────────────────────────────
+   The client contract (frontend lib/streaming.ts StreamTrack/StreamVideo)
+   is snake_case end to end and its fetchers do NO normalization (unwrap +
+   cast). These mappers previously spread the raw camelCase Drizzle row, so
+   audio_url / video_url and every other snake_case field arrived undefined:
+   the player pages rendered but could not play anything (play_count showed
+   0, duration "--:--", "More from artist" never loaded off the missing
+   profile_id, and the Get-Paid finale never saw is_owner/owner_user_id).
+   Emit the client's full field set explicitly, mapped from the row. URL
+   freshness is preserved by the routes' refreshSupabaseStorageUrlsDeep
+   wrap, which rewrites storage refs in these snake_case fields on read. */
+
+function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | null) {
   return {
-    ...row,
+    id: row.id,
+    profile_id: row.profileId,
+    title: row.title,
+    audio_url: row.audioUrl,
+    artwork_url: row.artworkUrl,
+    genre: row.genre,
+    tags: row.tags ?? [],
+    duration_sec: row.durationSec,
+    download_price_cents: row.downloadPriceCents ?? 0,
+    play_count: row.playCount,
+    like_count: row.likeCount,
+    repost_count: row.repostCount,
+    comment_count: row.commentCount,
+    is_published: row.isPublished,
+    created_at: row.createdAt,
     profile_slug: profileSlug,
     buyable: (row.downloadPriceCents ?? 0) > 0,
-    download_price_cents: row.downloadPriceCents ?? 0,
+    /* Ownership for the Get-Paid finale. These routes are public
+       (unauthenticated), so is_owner stays false and the client resolves
+       the signed-in owner via owner_user_id === user.id. */
+    is_owner: false,
+    owner_user_id: ownerUserId ?? null,
   };
 }
 
@@ -337,15 +368,43 @@ function enrichVideo(
   row: VideoRow,
   profileSlug: string,
   sounds: Map<string, { id: string; title: string; audio_url: string; artwork_url: string | null; profile_slug: string }>,
+  ownerUserId?: string | null,
 ) {
   return {
-    ...row,
+    id: row.id,
+    profile_id: row.profileId,
+    title: row.title,
+    video_url: row.videoUrl,
+    thumbnail_url: row.thumbnailUrl,
+    description: row.description,
+    genre: row.genre,
+    tags: row.tags ?? [],
+    duration_sec: row.durationSec,
+    download_price_cents: row.downloadPriceCents ?? 0,
+    view_count: row.viewCount,
+    like_count: row.likeCount,
+    repost_count: row.repostCount,
+    comment_count: row.commentCount,
+    is_published: row.isPublished,
+    is_short: row.isShort,
+    /* Row columns are season/episode; the client reads *_number. */
+    season_number: row.season,
+    episode_number: row.episode,
+    /* No series title is stored on the video row (series live as
+       playlists); the client treats null as absent. */
+    series_title: null as string | null,
+    sound_track_id: row.soundTrackId,
+    created_at: row.createdAt,
     profile_slug: profileSlug,
     buyable: (row.downloadPriceCents ?? 0) > 0,
-    download_price_cents: row.downloadPriceCents ?? 0,
+    is_owner: false,
+    owner_user_id: ownerUserId ?? null,
     sound: row.soundTrackId ? (sounds.get(row.soundTrackId) ?? null) : null,
   };
 }
+
+type TrackDto = ReturnType<typeof enrichTrack>;
+type VideoDto = ReturnType<typeof enrichVideo>;
 
 /**
  * Presence flags + monetization checklist ("guide them to the money").
@@ -415,19 +474,42 @@ async function soundMapFor(
 
 type PlaylistRow = typeof playlistsTable.$inferSelect;
 
+/* The client types resolved items WRAPPED — { kind, item: StreamTrack |
+   StreamVideo } — and playlist.tsx dereferences r.item.title; the previous
+   FLAT {kind,id,title,...} emission threw a TypeError on any playlist with
+   items. The playlist payload itself is the snake_case StreamPlaylist DTO:
+   the raw row spread left cover_url / follower_count / owner_profile_id /
+   is_public undefined (playlists rendered coverless, 0 followers, and a
+   false "Private" badge). */
 interface ResolvedPlaylistItem {
   kind: "track" | "video";
-  id: string;
-  title: string;
-  artwork_url: string | null;
-  profile_slug: string;
-  buyable: boolean;
+  item: TrackDto | VideoDto;
 }
 
-/** Resolve playlist items (stored as {kind,id}) into linkable detail objects. */
+/** Snake_case playlist DTO (client StreamPlaylist) + wrapped resolved items. */
+function toPlaylistDto(
+  p: PlaylistRow, ownerProfileSlug: string, resolvedItems: ResolvedPlaylistItem[],
+) {
+  return {
+    id: p.id,
+    owner_profile_id: p.ownerProfileId,
+    title: p.title,
+    description: p.description,
+    cover_url: p.coverUrl,
+    is_public: p.isPublic,
+    kind: p.kind,
+    items: p.items ?? [],
+    follower_count: p.followerCount,
+    created_at: p.createdAt,
+    owner_profile_slug: ownerProfileSlug,
+    resolved_items: resolvedItems,
+  };
+}
+
+/** Resolve playlist items (stored as {kind,id}) into wrapped DTO objects. */
 async function resolvePlaylistItems(
   playlists: PlaylistRow[], profileSlug: string,
-): Promise<Array<PlaylistRow & { owner_profile_slug: string; resolved_items: ResolvedPlaylistItem[] }>> {
+): Promise<Array<ReturnType<typeof toPlaylistDto>>> {
   const trackIds = new Set<string>();
   const videoIds = new Set<string>();
   for (const p of playlists) {
@@ -444,31 +526,45 @@ async function resolvePlaylistItems(
       ? db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, [...videoIds]))
       : Promise.resolve([] as VideoRow[]),
   ]);
-  const byId = new Map<string, ResolvedPlaylistItem>();
-  for (const t of tracks) {
-    byId.set(t.id, {
-      kind: "track", id: t.id, title: t.title,
-      artwork_url: t.artworkUrl, profile_slug: profileSlug,
-      buyable: (t.downloadPriceCents ?? 0) > 0,
-    });
-  }
-  for (const v of videos) {
-    byId.set(v.id, {
-      kind: "video", id: v.id, title: v.title,
-      artwork_url: v.thumbnailUrl, profile_slug: profileSlug,
-      buyable: (v.downloadPriceCents ?? 0) > 0,
-    });
-  }
+  /* Item artists: batch-resolve each item profile's slug + owner user id so
+     wrapped items carry their OWN artist linkage (a playlist can mix
+     artists), falling back to the playlist owner's slug when unknown. */
+  const profileIds = [...new Set([...tracks, ...videos].map((r) => r.profileId))];
+  const profiles = profileIds.length
+    ? await db.select().from(creatorProfilesTable)
+      .where(inArray(creatorProfilesTable.id, profileIds))
+    : [] as Array<typeof creatorProfilesTable.$inferSelect>;
+  const metaByProfile = new Map(profiles.map((pr) => [pr.id, { slug: pr.slug, userId: pr.userId }]));
+  const sounds = await soundMapFor(videos, profileSlug);
+  const trackById = new Map(tracks.map((t) => [t.id, t]));
+  const videoById = new Map(videos.map((v) => [v.id, v]));
   /* Stored media values may be storage refs (mirrored at save) — mint
      fresh URLs for covers + resolved artwork on every read. */
   return await refreshSupabaseStorageUrlsDeep(
-    playlists.map((p) => ({
-      ...p,
-      owner_profile_slug: profileSlug,
-      resolved_items: (p.items ?? [])
-        .map((item) => (item?.id ? byId.get(item.id) ?? null : null))
-        .filter((x): x is ResolvedPlaylistItem => x !== null),
-    })),
+    playlists.map((p) => {
+      const resolved_items: ResolvedPlaylistItem[] = [];
+      for (const item of p.items ?? []) {
+        if (!item?.id) continue;
+        if (item.kind === "track") {
+          const t = trackById.get(item.id);
+          if (!t) continue;
+          const meta = metaByProfile.get(t.profileId);
+          resolved_items.push({
+            kind: "track",
+            item: enrichTrack(t, meta?.slug ?? profileSlug, meta?.userId ?? null),
+          });
+        } else if (item.kind === "video") {
+          const v = videoById.get(item.id);
+          if (!v) continue;
+          const meta = metaByProfile.get(v.profileId);
+          resolved_items.push({
+            kind: "video",
+            item: enrichVideo(v, meta?.slug ?? profileSlug, sounds, meta?.userId ?? null),
+          });
+        }
+      }
+      return toPlaylistDto(p, profileSlug, resolved_items);
+    }),
   );
 }
 
@@ -654,8 +750,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         ...extras,
       },
       counts,
-      top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug)),
-      top_videos: topVideos.map((v) => enrichVideo(v, profile.slug, sounds)),
+      top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug, profile.userId)),
+      top_videos: topVideos.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId)),
       playlists: await resolvePlaylistItems(profilePlaylists, profile.slug),
     }));
   } catch (err) {
@@ -1265,7 +1361,7 @@ router.get("/media/track/:id", async (req, res) => {
       res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
       return;
     }
-    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug), artist: artistRef(profile) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/track detail error");
     res.status(500).json({ error: "Couldn't load that audio. Try again." });
@@ -1286,7 +1382,7 @@ router.get("/media/video/:id", async (req, res) => {
       return;
     }
     const sounds = await soundMapFor([video], profile.slug);
-    res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds), artist: artistRef(profile) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds, profile.userId), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/video detail error");
     res.status(500).json({ error: "Couldn't load that video. Try again." });
@@ -1310,13 +1406,13 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
         eq(profileVideosTable.isPublished, true),
       )).orderBy(desc(profileVideosTable.createdAt)).limit(limit);
       const sounds = await soundMapFor(rows, profile.slug);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds)) }));
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId)) }));
     } else {
       const rows = await db.select().from(profileTracksTable).where(and(
         eq(profileTracksTable.profileId, profile.id),
         eq(profileTracksTable.isPublished, true),
       )).orderBy(desc(profileTracksTable.createdAt)).limit(limit);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((t) => enrichTrack(t, profile.slug)) }));
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((t) => enrichTrack(t, profile.slug, profile.userId)) }));
     }
   } catch (err) {
     req.log.error({ err }, "profile media listing error");
