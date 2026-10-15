@@ -99,6 +99,32 @@ export function tierFromLegacyPlan(plan: string | null | undefined): CreatorTier
   return "free";
 }
 
+/**
+ * Map the 1–6 plan ladder (Supabase profiles.plan_tier) onto canonical
+ * creator tiers, using the same star caps as TIER_MAX_STARS: ladder
+ * tiers 1–3 top out where free does (3★), 4–5 where pro does (5★),
+ * and 6 (Kingpin) is elite.
+ */
+export function tierFromPlanTier(planTier: number | null | undefined): CreatorTier {
+  const t = typeof planTier === "number" && Number.isFinite(planTier) ? Math.floor(planTier) : 1;
+  if (t >= 6) return "elite";
+  if (t >= 4) return "pro";
+  return "free";
+}
+
+/**
+ * Express a canonical tier in the legacy plan-name vocabulary that
+ * req.userPlan's consumers already parse (storefront meetsProTier,
+ * export watermark FREE_PLANS, tierFromLegacyPlan above): "free",
+ * "Pro Artist" (pro), "VIP" (elite). Keep in lockstep with
+ * tierFromLegacyPlan — every name here must map back to its tier.
+ */
+export function legacyPlanNameForTier(tier: CreatorTier): string {
+  if (tier === "elite") return "VIP";
+  if (tier === "pro") return "Pro Artist";
+  return "free";
+}
+
 /** Difficulty-ladder ceiling: highest creator-level star a tier may use. ★ APPROVED 2026-10-07 */
 export const TIER_MAX_STARS: Record<CreatorTier, number> = {
   free: 3, // 1–3★ Street Punk → Gangster
