@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
-  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift,
+  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
   ExternalLink, MapPin,
 } from "lucide-react";
 import type {
@@ -655,13 +655,18 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
   const [comments, setComments] = useState<ProfileComment[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (preview) return;
     let cancelled = false;
-    fetchComments(slug).then((c) => { if (!cancelled) setComments(c); }).catch(() => undefined);
+    setLoadError(false);
+    fetchComments(slug)
+      .then((c) => { if (!cancelled) setComments(c); })
+      .catch(() => { if (!cancelled) setLoadError(true); });
     return () => { cancelled = true; };
-  }, [slug, preview]);
+  }, [slug, preview, retryNonce]);
 
   const send = async () => {
     const body = draft.trim();
@@ -698,7 +703,16 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
           </button>
         </div>
       )}
-      {comments.length === 0 ? (
+      {loadError && comments.length === 0 ? (
+        <div className="rounded-lg border p-4 text-center" style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}>
+          <AlertTriangle className="mx-auto h-6 w-6" style={{ color: "var(--ap-primary)" }} />
+          <p className="mt-2 text-sm font-semibold" style={{ color: "var(--ap-text)" }}>Couldn't load the Shout Wall.</p>
+          <p className="mt-1 text-xs" style={{ color: "var(--ap-muted)" }}>Something went wrong on our end — that's not the same as no shouts yet.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold" style={{ backgroundColor: "var(--ap-primary)", color: "#000" }}>
+            <RotateCcw className="h-3.5 w-3.5" /> Try again
+          </button>
+        </div>
+      ) : comments.length === 0 ? (
         preview ? <EmptyHint text="The Shout Wall lives here — social proof sells. Every shout is a review." /> : (
           <p className="text-sm" style={{ color: "var(--ap-muted)" }}>
             Be the first to leave some love. <Sparkles className="inline h-4 w-4" style={{ color: "var(--ap-primary)" }} />
