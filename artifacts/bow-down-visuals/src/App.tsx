@@ -581,7 +581,7 @@ function AppShell() {
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
-          <Route path="/press/:id"><PressPublic /></Route>
+          <Route path="/press/:handle"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
