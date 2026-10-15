@@ -25,11 +25,16 @@ import { getThemeBeat } from "@/lib/theme-analyser";
      forward-aim law from the Option B round stands untouched).
    - Two TALL FLOOR MONITORS (the speakers, grown up): shaded walnut
      towers with twin woofers, gold-ringed drivers and dust caps,
-     standing just inside the corner lamps. The left monitor stands
-     in the front row; the right monitor stands a step BACK on the
-     floor (its base rides higher on the plane) — the copy column's
-     measured airspace leaves no tall slot in the front row on the
-     right, and depth was the smallest change that kept it tall.
+     standing just inside the corner lamps, BOTH in the front row at
+     full height — the arrangement exactly as drawn in C. (The first
+     C build stepped the right monitor a pace back with the fill
+     lamp's pole behind it, so the lamp's head read as sitting ON
+     the speaker; the owner rejected that — "put exactly like option
+     C I chose" — and this build is the correction: on the right, the
+     pair rides in the frame's open right zone, past the copy
+     column's measured right edge, lamp at the corner, monitor just
+     inside it, front row, clear air between them. On phones the
+     pair mirrors the left pair inside the frame.)
    - The dolly CAMERA sits center-left on an EXTENDED track (rails +
      sleepers spanning its full travel) and SLIDES LEFT AND RIGHT,
      MOUSE-TRACKED (owner directive, 2026-10-14): it rides its rails
@@ -518,10 +523,13 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
             veining, perspective seams, and the thin gold trim line
             SET INTO the floor near its front edge. ── */}
         <g data-piece="FLOOR">
-          <polygon points="0,642 1440,642 1440,720 0,720" fill="url(#sset-marble)" />
+          {/* the deck runs past the scene's old right edge (1440)
+              to carry the right pair in the frame's open right zone;
+              the full-width SVG paints those coordinates natively */}
+          <polygon points="0,642 1700,642 1700,720 0,720" fill="url(#sset-marble)" />
           {/* marble veining — quiet wavy streaks across the plane */}
           <g fill="none" stroke={p.vein} strokeWidth="2">
-            <path d="M60,664 C 340,652 560,672 820,660 C 1040,650 1240,668 1390,658" />
+            <path d="M60,664 C 340,652 560,672 820,660 C 1040,650 1240,668 1420,656 C 1500,651 1580,660 1660,654" />
             <path d="M180,690 C 420,682 700,694 980,684 C 1140,678 1280,690 1400,686" />
             <path d="M420,706 C 640,700 900,710 1180,702" />
           </g>
@@ -538,11 +546,13 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           </g>
           {/* the gold trim line, set INTO the floor: a dark groove,
               the brass inlay itself, and a hair of light beneath it */}
-          <line x1="0" y1="700" x2="1440" y2="700" stroke="#000000" strokeOpacity="0.30" strokeWidth="3" />
-          <line x1="0" y1="702" x2="1440" y2="702" stroke="url(#sset-brass)" strokeWidth="2" opacity="0.9" />
-          <line x1="0" y1="704.5" x2="1440" y2="704.5" stroke="#FFE9A8" strokeOpacity="0.22" strokeWidth="1" />
-          {/* one soft bed of shadow the whole set stands on */}
+          <line x1="0" y1="700" x2="1700" y2="700" stroke="#000000" strokeOpacity="0.30" strokeWidth="3" />
+          <line x1="0" y1="702" x2="1700" y2="702" stroke="url(#sset-brass)" strokeWidth="2" opacity="0.9" />
+          <line x1="0" y1="704.5" x2="1700" y2="704.5" stroke="#FFE9A8" strokeOpacity="0.22" strokeWidth="1" />
+          {/* one soft bed of shadow the whole set stands on, plus a
+              second pool under the right pair's extended deck */}
           <ellipse cx="720" cy="713" rx="700" ry="8" fill={p.floorShadow} />
+          <ellipse cx="1452" cy="713" rx="205" ry="8" fill={p.floorShadow} />
         </g>
 
         {/* ── LIGHT — every beam and glow, all feathered, all aimed
@@ -554,11 +564,25 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <polygon points="210,502 270,502 364,700 116,700" fill="url(#sset-beam-key)" filter="url(#sset-blur9)" />
           <polygon points="224,502 256,502 318,700 162,700" fill="url(#sset-beam-key)" filter="url(#sset-blur5)" opacity="0.55" />
           <ellipse cx="240" cy="707" rx="175" ry="15" fill="url(#sset-pool)" />
-          {/* fill lamp (right corner): lens glow, forward cone + core, front glow */}
-          <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
-          <polygon points="1372,408 1418,408 1446,700 1322,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
-          <polygon points="1382,408 1408,408 1428,700 1352,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
-          <ellipse cx="1395" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+          {/* fill lamp (right corner): lens glow, forward cone + core,
+              front glow — drawn at the lamp's two placements (the
+              beam gradient is a vertical falloff, x-invariant, so
+              both cones share it): phones keep the proven gutter spot
+              (lens x1395); sm+ rides outboard of the right monitor
+              (lens x1510), its cone falling right of the light
+              guard's copy cut at every height */}
+          <g className="sm:hidden">
+            <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+            <polygon points="1372,408 1418,408 1446,700 1322,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+            <polygon points="1382,408 1408,408 1428,700 1352,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+            <ellipse cx="1395" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+          </g>
+          <g className="hidden sm:block">
+            <ellipse cx="1510" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+            <polygon points="1487,408 1533,408 1561,700 1437,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+            <polygon points="1497,408 1523,408 1543,700 1467,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+            <ellipse cx="1510" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+          </g>
           {/* a soft wash pooled under the camera's mark */}
           <ellipse cx="500" cy="709" rx="205" ry="12" fill="url(#sset-pool)" opacity="0.5" />
         </g>
@@ -667,36 +691,48 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           </g>
         </g>
 
-        {/* ── FILL LAMP (right front corner) — front-facing spotlight,
-            standing in the right gutter so its head, pole and stand
-            stay clear of the copy column at every size (the B round's
-            proven placement) ── */}
-        <g data-piece="FILL-LAMP">
+        {/* ── FILL LAMP (right front corner) — front-facing spotlight.
+            Responsive twins of the same lamp, exactly the C order:
+            on phones it keeps the proven right-gutter spot (cx 1395);
+            at sm+ it stands OUTBOARD of the right monitor at the
+            stage's right corner (cx 1510), clear air between the two
+            pieces and its pole in front of nothing. ── */}
+        <g data-piece="FILL-LAMP" className="sm:hidden">
           <FrontLamp p={p} cx={1395} lensY={398} s={0.72} floorY={717} />
         </g>
+        <g data-piece="FILL-LAMP" className="hidden sm:block">
+          <FrontLamp p={p} cx={1510} lensY={398} s={0.72} floorY={717} />
+        </g>
 
-        {/* ── RIGHT TALL MONITOR — just inside the fill lamp, standing
-            a step BACK on the floor (base 664): the copy column's
-            airspace caps any front-row piece in its x-range at the
-            share row's underside, so depth is what keeps it tall.
-            Painted after the fill lamp, so the lamp's pole passes
-            behind the cabinet — the lamp stands behind it, its head
-            riding above the monitor's top. ── */}
-        <g data-piece="MONITOR-R">
-          <MonitorCab p={p} x={1356} baseY={664} w={82} />
+        {/* ── RIGHT TALL MONITOR — just inside the fill lamp, FRONT
+            ROW (base 717: the same deck line and the same 217 height
+            as the left monitor), exactly the C drawing's order.
+            Responsive twins: at sm+ the cabinet stands at x1356 —
+            the column whose box clears the copy column's lower rows
+            (they end at page x~1584 at 2048, ~1413 at 1676, and this
+            column keeps the same measured clearances the stepped-
+            back build had); on phones, where no copy hangs over the
+            set band, it mirrors the left pair inside the frame at
+            x1252, lamp at its corner, monitor just inside it. ── */}
+        <g data-piece="MONITOR-R" className="sm:hidden">
+          <MonitorCab p={p} x={1252} baseY={717} />
+        </g>
+        <g data-piece="MONITOR-R" className="hidden sm:block">
+          <MonitorCab p={p} x={1356} baseY={717} />
         </g>
 
         {/* ── FLOOR WIRES — darker, thicker (Option C): a snake
-            between lamps, monitors, camera and chair, a coil on the
-            open floor right of the chair, a lead climbing to the
-            right monitor's raised base, and a foreground run ── */}
+            between lamps, monitors, camera and chair, running the
+            full cast to the right pair's feet, a coil on the open
+            floor right of the chair, and a foreground run. (The
+            right monitor stands in the front row now, so the snake
+            passes its base like every other piece's — the old lead
+            climbing to its stepped-back base is gone.) ── */}
         <g data-piece="WIRES">
           <WirePath
-            d="M120,706 C 200,694 300,715 400,705 C 480,696 560,714 660,705 C 760,696 860,715 960,706 C 1060,697 1160,714 1260,705 C 1310,700 1340,712 1370,706"
+            d="M120,706 C 200,694 300,715 400,705 C 480,696 560,714 660,705 C 760,696 860,715 960,706 C 1060,697 1160,714 1260,705 C 1330,697 1390,714 1440,706 C 1470,700 1490,710 1510,705"
             w={7}
           />
-          {/* lead up to the right monitor's raised base */}
-          <WirePath d="M1332,706 C 1352,692 1366,678 1380,668" w={6} />
           {/* coil on the open floor right of the chair */}
           <g fill="none" strokeLinecap="round">
             <ellipse cx="790" cy="703" rx="47" ry="10.5" stroke="#0A0603" strokeWidth="7.5" />
