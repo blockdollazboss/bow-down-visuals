@@ -37,10 +37,12 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [threadLoading, setThreadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [threadError, setThreadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [newSlug, setNewSlug] = useState("");
   const [showNew, setShowNew] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const threadReqRef = useRef(0);
 
   async function loadConvs() {
     try {
@@ -52,14 +54,20 @@ export default function Messages() {
   }
 
   async function loadThread(id: string) {
+    const reqId = ++threadReqRef.current;
+    setMsgs([]); setStatus("inbox"); setThreadError(null);
     setThreadLoading(true);
     try {
       const d = (await api.get(`/api/dm/${id}/messages`)) as { messages: Msg[]; status: string };
-      setMsgs(d.messages); setStatus(d.status);
+      if (reqId !== threadReqRef.current) return;
+      setMsgs(d.messages); setStatus(d.status); setThreadError(null);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (e) {
-      setNotice(friendlyLoadError(e, "these messages"));
-    } finally { setThreadLoading(false); }
+      if (reqId !== threadReqRef.current) return;
+      setThreadError(friendlyLoadError(e, "these messages"));
+    } finally {
+      if (reqId === threadReqRef.current) setThreadLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -240,7 +248,9 @@ export default function Messages() {
                 )}
 
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
-                  {threadLoading ? <Loading label="Loading thread" /> : msgs.map((m) => {
+                  {threadLoading ? <Loading label="Loading thread" /> : threadError ? (
+                    <ErrorBox message={threadError} onRetry={() => activeId && loadThread(activeId)} />
+                  ) : msgs.map((m) => {
                     const mine = m.senderUserId === user?.id;
                     return (
                       <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
