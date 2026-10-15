@@ -311,3 +311,47 @@ describe("Defect A — media rows keep their own id, profile id rides as profile
     expect(c.follower_count).toBe(CREATOR_FOLLOWERS);
   });
 });
+
+/* ─── Defect B — unwrapped QueryResult objects ───────────────────────── */
+
+describe("Defect B — list endpoints ship row ARRAYS, not QueryResult objects", () => {
+  it("GET /genre/:genre — tracks, videos and creators are all arrays (genre page maps them)", async () => {
+    const { status, json } = await get("/genre/rock");
+    expect(status).toBe(200);
+    // Used to be { rows, fields, … } objects — genre.tsx crashed on .map.
+    expect(Array.isArray(json.tracks)).toBe(true);
+    expect(Array.isArray(json.videos)).toBe(true);
+    expect(Array.isArray(json.creators)).toBe(true);
+    expect(json.tracks[0].id).toBe(TRACK_ID);
+    expect(json.videos[0].id).toBe(VIDEO_ID);
+    expect(json.creators[0].id).toBe(PROFILE_ID);
+  });
+
+  it("GET /rising — the Charts Breaking tab gets an array", async () => {
+    const { status, json } = await get("/rising");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.rising)).toBe(true);
+    expect(json.rising[0].id).toBe(PROFILE_ID);
+  });
+
+  it("GET /rising-earners — the Charts Earners tab gets an array", async () => {
+    const { status, json } = await get("/rising-earners");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.earners)).toBe(true);
+    expect(json.earners[0].id).toBe(PROFILE_ID);
+  });
+
+  it("GET /brands — the Charts Brands tab gets an array", async () => {
+    const { status, json } = await get("/brands");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.creators)).toBe(true);
+    expect(json.creators[0].id).toBe(PROFILE_ID);
+  });
+
+  it("GET /related/creators/:slug — the latent sibling ships an array too", async () => {
+    const { status, json } = await get("/related/creators/sentinel-creator");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.related)).toBe(true);
+    expect(json.related[0].id).toBe(PROFILE_ID);
+  });
+});

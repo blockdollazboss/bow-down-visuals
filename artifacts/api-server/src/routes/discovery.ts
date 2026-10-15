@@ -317,7 +317,7 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
     WHERE p.is_public ${vf ?? sql``} AND nf.nfollows >= 2
     ORDER BY nf.nfollows DESC, wp.wplays DESC NULLS LAST
     LIMIT ${limit}`);
-  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, rising: rows }));
+  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, rising: rows.rows }));
 }));
 
 /* ─── Rising earners ────────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
     WHERE p.is_public ${vf ?? sql``}
     ORDER BY e.earned_cents DESC
     LIMIT ${limit}`);
-  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, earners: rows }));
+  res.json(await refreshSupabaseStorageUrlsDeep({ vertical: q.vertical ?? null, earners: rows.rows }));
 }));
 
 /* ─── For brands ("Work with creators") ───────────────────────────────────
@@ -374,7 +374,7 @@ router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
   res.json(await refreshSupabaseStorageUrlsDeep({
     vertical: q.vertical ?? null,
     note: "Read-only discovery. Start outreach from /brand-deals.",
-    creators: rows,
+    creators: rows.rows,
   }));
 }));
 
@@ -553,7 +553,7 @@ router.get("/genre/:genre", publicApiLimiter, asyncHandler(async (req, res) => {
   const vf = verticalFilter(vertical);
   const gf = sql`ILIKE ${genre}`;
   const limit = clampLimit(req.query.limit, 12, 24);
-  const [tracks, videos, creators] = await Promise.all([
+  const [tracks, videos, creators] = (await Promise.all([
     db.execute(sql`SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.play_count, t.like_count, ${PROFILE_COLS}
       FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
       WHERE t.is_published AND p.is_public AND t.genre ${gf} ${vf ?? sql``}
@@ -567,7 +567,7 @@ router.get("/genre/:genre", publicApiLimiter, asyncHandler(async (req, res) => {
         EXISTS (SELECT 1 FROM profile_tracks t WHERE t.profile_id = p.id AND t.is_published AND t.genre ${gf})
         OR EXISTS (SELECT 1 FROM profile_videos v WHERE v.profile_id = p.id AND v.is_published AND v.genre ${gf})
       ) ORDER BY p.follower_count DESC LIMIT ${limit}`),
-  ]);
+  ])).map((r) => r.rows);
   res.json(await refreshSupabaseStorageUrlsDeep({ genre, vertical: vertical ?? null, tracks, videos, creators }));
 }));
 
@@ -617,7 +617,7 @@ router.get("/related/creators/:slug", publicApiLimiter, asyncHandler(async (req,
     WHERE p.is_public AND p.id != ${me.id} AND p.vertical = ${me.vertical}
     ORDER BY p.total_plays DESC
     LIMIT ${limit}`);
-  res.json(await refreshSupabaseStorageUrlsDeep({ slug, vertical: me.vertical, related: rows }));
+  res.json(await refreshSupabaseStorageUrlsDeep({ slug, vertical: me.vertical, related: rows.rows }));
 }));
 
 router.get("/related/track/:id", publicApiLimiter, asyncHandler(async (req, res) => {
