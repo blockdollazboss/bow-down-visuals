@@ -12078,6 +12078,8 @@
       },
       "saved": "Preferences saved",
       "saveFailed": "Couldn't save — try again.",
+      "loadError": "Couldn't load your preferences — check your connection and try again.",
+      "retry": "Retry",
       "loginStreaksEnabled": {
         "title": "Login streaks",
         "desc": "Daily login streaks, streak freezes, and milestone celebrations."

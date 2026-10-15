@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/switch";
-import { BellRing } from "lucide-react";
+import { BellRing, AlertTriangle, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Retention & nudges settings ────────────────────────────────────────
@@ -49,17 +49,25 @@ export function RetentionPrefsSettings() {
   const { toast } = useToast();
   const [prefs, setPrefs] = useState<Record<PrefKey, boolean> | null>(null);
   const [saving, setSaving] = useState<PrefKey | null>(null);
+  /* A failed load is NOT "everything on" — while prefs is null the
+     switches would otherwise render fabricated checked=ON values,
+     disabled forever. Failures get an error state with a retry, and
+     the switch list renders only after a successful load attempt
+     clears it. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
+      setLoadError(false);
       try {
         const token = await getAccessToken();
         const res = await fetch("/api/retention/prefs", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("load failed");
         const d = await res.json() as Record<PrefKey, boolean>;
         if (cancelled) return;
         setPrefs({
@@ -73,11 +81,11 @@ export function RetentionPrefsSettings() {
           fomo_feed_enabled: d.fomo_feed_enabled ?? true,
         });
       } catch {
-        /* silent — settings shows other sections regardless */
+        if (!cancelled) setLoadError(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [user, getAccessToken]);
+  }, [user, getAccessToken, retryNonce]);
 
   async function toggle(key: PrefKey, next: boolean) {
     if (!prefs || saving) return;
@@ -126,6 +134,19 @@ export function RetentionPrefsSettings() {
           <p className="text-xs text-white/40 mt-0.5">{t("retention.prefs.subtitle")}</p>
         </div>
       </div>
+      {loadError ? (
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4 text-sm text-red-200/80 flex items-center gap-3">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {t("retention.prefs.loadError")}
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> {t("retention.prefs.retry")}
+          </button>
+        </div>
+      ) : (
       <div className="mt-4 divide-y divide-white/[0.05]">
         {PREF_KEYS.map((key) => (
           <div key={key} className="flex items-center gap-4 py-3.5">
@@ -142,6 +163,7 @@ export function RetentionPrefsSettings() {
           </div>
         ))}
       </div>
+      )}
     </section>
   );
 }
