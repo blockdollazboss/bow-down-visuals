@@ -8,7 +8,10 @@ import { Avatar } from "./Avatar";
 const STORY_MS = 5000;
 
 /* Full-screen story viewer: progress bars, tap zones (prev/next), 24h
-   countdown, reply → DM. Header links to the creator's profile. */
+   countdown, reply → DM. Header links to the creator's profile.
+   data-dark-lock on the root: a cinematic dark surface in BOTH themes
+   (same pattern as the video players) — the light-theme remaps must
+   not repaint its frame, scrims, or chrome. */
 export function StoryViewer({
   stories,
   startIndex,
@@ -104,7 +107,7 @@ export function StoryViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95" role="dialog" aria-label="Story viewer">
+    <div data-dark-lock className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95" role="dialog" aria-label="Story viewer">
       <div className="relative h-full w-full max-w-[480px] overflow-hidden bg-black sm:h-[92vh] sm:rounded-2xl">
         {/* media */}
         {story.media_kind === "video" ? (
