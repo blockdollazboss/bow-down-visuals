@@ -761,6 +761,30 @@ router.get("/creator-profiles/check-slug", requireAuth, async (req, res) => {
   }
 });
 
+/** GET /api/creator-profiles/me — the signed-in owner's own profile
+   (auth). Same toPublicProfile mapping as GET /creator-profiles; 404 when
+   the caller has no profile yet (the client's fetchMyProfile maps 404 to
+   null → setup flow). Registered BEFORE /creator-profiles/:slug: below
+   it, "me" was captured as a slug and every owner loaded as profile-less
+   in artist-setup even though their profile exists. */
+router.get("/creator-profiles/me", requireAuth, async (req, res) => {
+  try {
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!))
+      .limit(1);
+    if (!profile) {
+      res.status(404).json({ error: "No profile yet — claim your corner of the cheat code first." });
+      return;
+    }
+    res.json(await refreshSupabaseStorageUrlsDeep(toPublicProfile(profile)));
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/me GET error");
+    res.status(500).json({ error: "Couldn't load your creator profile." });
+  }
+});
+
 /** Public profile page payload. 404 when the profile is private. */
 router.get("/creator-profiles/:slug", async (req, res) => {
   try {
