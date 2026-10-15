@@ -991,7 +991,12 @@ router.get("/challenges/weekly", async (req, res) => {
       };
     }
 
-    res.json({
+    /* Refresh at the response boundary: the weekly challenge's cover
+       and both winner lists' thumbnail / avatar values are stored as
+       storage refs (r2:// / supabase://), which are not playable /
+       renderable URLs — wrap the assembled payload like sibling read
+       endpoints. */
+    res.json(await refreshSupabaseStorageUrlsDeep({
       week_key: weekKey,
       week_starts_at: monday.toISOString(),
       next_launch_at: nextMonday.toISOString(),
@@ -1000,7 +1005,7 @@ router.get("/challenges/weekly", async (req, res) => {
       week_available: !wk, // no weekly contest yet → admin nudge surface
       suggested_theme: themeForWeek(week),
       weekly_cap_vb: WEEKLY_PRIZE_CAP_VB,
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "weekly challenge error");
     res.status(500).json({ error: "Couldn't load this week's contest." });
