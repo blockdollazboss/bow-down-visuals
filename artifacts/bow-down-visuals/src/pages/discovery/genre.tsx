@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
-import { Users, Disc3, Clapperboard, ChevronLeft, Tags } from "lucide-react";
+import { Users, Disc3, Clapperboard, ChevronLeft, Tags, AlertTriangle, RotateCcw } from "lucide-react";
 import {
   CreatorCard, TrackRow, VideoCard, SectionHeader,
   ChartSkeleton, CardSkeleton, EmptyState,
@@ -44,23 +44,28 @@ export default function GenrePage() {
 
   const [data, setData] = useState<GenrePayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       const d = await getJson<GenrePayload>(
         `/api/discovery/genre/${encodeURIComponent(genre)}?limit=12${vertical ? `&vertical=${vertical}` : ""}`
       );
       if (!cancelled) {
-        setData(d);
+        // getJson null = failed load; leaving data null spun skeletons
+        // forever (render gates on loading || !data).
+        if (!d) setLoadError(true); else setData(d);
         setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [genre, vertical]);
+  }, [genre, vertical, retryNonce]);
 
   const creatorIds = useMemo(() => (data?.creators ?? []).map((c) => c.id), [data]);
   const followStates = useFollowStates(creatorIds);
@@ -92,7 +97,16 @@ export default function GenrePage() {
         />
       </div>
 
-      {loading || !data ? (
+      {loadError ? (
+        <div className="rounded-2xl border border-primary/25 bg-zinc-950 p-10 text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className="mt-3 font-bold text-white">Couldn't load this genre.</p>
+          <p className="mt-1 text-sm text-white/50">Something went wrong on our end — the genre exists, it just couldn't load.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : loading || !data ? (
         <div className="grid gap-8 lg:grid-cols-2">
           <ChartSkeleton rows={6} />
           <div className="grid grid-cols-2 gap-4">
