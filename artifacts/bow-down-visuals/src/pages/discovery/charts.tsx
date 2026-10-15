@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X } from "lucide-react";
+import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw } from "lucide-react";
 import { useMinStars } from "@/lib/creator-level";
 import { formatMoney } from "@/components/discovery/cards";
 import { formatCount } from "@/lib/streaming";
@@ -195,6 +195,20 @@ function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: nu
   );
 }
 
+function LoadErrorBox({ onRetry }: { onRetry: () => void }) {
+  const isLight = useIsLightTheme();
+  return (
+    <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+      <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+      <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load the charts.</p>
+      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Something went wrong on our end — this isn't an empty chart, it's a failed load.</p>
+      <button type="button" onClick={onRetry} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+        <RotateCcw className="h-4 w-4" /> Try again
+      </button>
+    </div>
+  );
+}
+
 export default function Charts() {
   usePageTitle("Charts", "The hottest tracks, videos, and creators on Bow Down Visuals right now.");
   const [tab, setTab] = useState<Tab>("charts");
@@ -205,6 +219,8 @@ export default function Charts() {
   const [earners, setEarners] = useState<CreatorLite[]>([]);
   const [brands, setBrands] = useState<CreatorLite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   /* Advanced (4-6 stars only): custom lookback + vertical cross-tab.
      Search, charts and follow stay ungated for everyone. */
   const advanced = useMinStars(4);
@@ -214,35 +230,41 @@ export default function Charts() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       const v = vertical === "all" ? "" : `&vertical=${vertical}`;
       const dParam = tab === "charts" && days ? `&days=${days}` : "";
+      // getJson returns null ONLY on failure (HTTP error / network) — a
+      // successful empty response is a non-null payload with empty arrays.
+      // Null must land in loadError, never be coerced to an empty state.
       if (tab === "charts") {
         const d = await getJson<ChartsPayload>(`/api/discovery/charts?window=${window}${v}${dParam}&limit=10`);
         if (!cancelled) {
-          setData({
-            tracks: Array.isArray(d?.tracks) ? d.tracks : [],
-            videos: Array.isArray(d?.videos) ? d.videos : [],
-            creators: Array.isArray(d?.creators) ? d.creators : [],
-          });
+          if (!d) { setLoadError(true); } else {
+            setData({
+              tracks: Array.isArray(d.tracks) ? d.tracks : [],
+              videos: Array.isArray(d.videos) ? d.videos : [],
+              creators: Array.isArray(d.creators) ? d.creators : [],
+            });
+          }
           setLoading(false);
         }
       } else if (tab === "breaking") {
         const d = await getJson<{ rising: CreatorLite[] }>(`/api/discovery/rising?limit=12${v}`);
         if (!cancelled) {
-          setRising(d?.rising ?? []);
+          if (!d) setLoadError(true); else setRising(d.rising ?? []);
           setLoading(false);
         }
       } else if (tab === "earners") {
         const d = await getJson<{ earners: CreatorLite[] }>(`/api/discovery/rising-earners?limit=12${v}`);
         if (!cancelled) {
-          setEarners(d?.earners ?? []);
+          if (!d) setLoadError(true); else setEarners(d.earners ?? []);
           setLoading(false);
         }
       } else {
         const d = await getJson<{ creators: CreatorLite[] }>(`/api/discovery/brands?limit=12${v}`);
         if (!cancelled) {
-          setBrands(d?.creators ?? []);
+          if (!d) setLoadError(true); else setBrands(d.creators ?? []);
           setLoading(false);
         }
       }
@@ -250,7 +272,7 @@ export default function Charts() {
     return () => {
       cancelled = true;
     };
-  }, [tab, vertical, window, days]);
+  }, [tab, vertical, window, days, retryNonce]);
 
   const creatorIds = useMemo(
     () =>
@@ -345,7 +367,9 @@ export default function Charts() {
       {/* ── Charts tab ── */}
       {tab === "charts" && (
         <>
-          {loading || !data ? (
+          {loadError ? (
+            <LoadErrorBox onRetry={() => setRetryNonce((n) => n + 1)} />
+          ) : loading || !data ? (
             <div className="grid gap-8 lg:grid-cols-2">
               <div>
                 <div className="mb-4 h-6 w-40 animate-pulse rounded bg-white/10" />
@@ -433,6 +457,8 @@ export default function Charts() {
                 <CardSkeleton key={i} />
               ))}
             </div>
+          ) : loadError ? (
+            <LoadErrorBox onRetry={() => setRetryNonce((n) => n + 1)} />
           ) : rising.length === 0 ? (
             <EmptyState
               title="Nothing breaking right this second"
@@ -464,6 +490,8 @@ export default function Charts() {
                 <CardSkeleton key={i} />
               ))}
             </div>
+          ) : loadError ? (
+            <LoadErrorBox onRetry={() => setRetryNonce((n) => n + 1)} />
           ) : earners.length === 0 ? (
             <EmptyState
               title="No earners on the board yet"
@@ -500,6 +528,8 @@ export default function Charts() {
                 <CardSkeleton key={i} />
               ))}
             </div>
+          ) : loadError ? (
+            <LoadErrorBox onRetry={() => setRetryNonce((n) => n + 1)} />
           ) : brands.length === 0 ? (
             <EmptyState
               title="No creators to scout here yet"
