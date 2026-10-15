@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Tags, ArrowRight } from "lucide-react";
+import { Tags, ArrowRight, AlertTriangle, RotateCcw } from "lucide-react";
 import { CardSkeleton, EmptyState } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
 import { VERTICALS, VERTICAL_META, type VerticalKey } from "@/lib/verticals";
@@ -20,24 +20,30 @@ export default function Genres() {
   usePageTitle("Genres", "Explore every genre hub — facts, sounds, and the AI pipeline for each.");
   const [genres, setGenres] = useState<GenreRow[] | null>(null);
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setGenres(null);
+    setLoadError(false);
     (async () => {
       try {
         const r = await fetch(`/api/discovery/genres${vertical === "all" ? "" : `?vertical=${vertical}`}`);
-        if (!r.ok || cancelled) return;
+        // HTTP error used to return early leaving genres null (skeleton
+        // forever); a thrown error used to set [] (fake "No genres
+        // tagged yet"). Both are load errors, not empty states.
+        if (!r.ok) { if (!cancelled) setLoadError(true); return; }
         const d = await r.json();
         if (!cancelled) setGenres(Array.isArray(d.genres) ? d.genres : []);
       } catch {
-        if (!cancelled) setGenres([]);
+        if (!cancelled) setLoadError(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [vertical]);
+  }, [vertical, retryNonce]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
@@ -71,7 +77,16 @@ export default function Genres() {
         ))}
       </div>
 
-      {!genres ? (
+      {loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load the genres.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Something went wrong on our end — that's not the same as no genres tagged yet.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : !genres ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 12 }).map((_, i) => (
             <CardSkeleton key={i} />
