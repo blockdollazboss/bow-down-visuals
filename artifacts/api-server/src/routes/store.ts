@@ -1144,10 +1144,14 @@ router.get("/store/products", requireAuth, async (req, res) => {
       FROM profile_videos WHERE profile_id = ${profile.id}
       ORDER BY created_at DESC LIMIT 200
     `);
-    const map = (rows: Record<string, unknown>[], kind: string) =>
-      rows.map((r) => {
+    /* Refresh at the response boundary: artwork_url / thumbnail_url
+       are stored as storage refs (r2:// / supabase://), which clients
+       cannot render — mint a fresh signed URL per product. */
+    const map = async (rows: Record<string, unknown>[], kind: string) =>
+      Promise.all(rows.map(async (r) => {
         const price = Number(r["download_price_cents"]);
         const { creatorCents } = splitFee(price);
+        const rawArtwork = (r["artwork_url"] as string | null) ?? null;
         return {
           kind,
           id: String(r["id"]),
@@ -1157,10 +1161,10 @@ router.get("/store/products", requireAuth, async (req, res) => {
           youKeep: money(creatorCents),
           isPublished: !!r["is_published"],
           forSale: !!r["is_published"] && price > 0,
-          artworkUrl: (r["artwork_url"] as string | null) ?? null,
+          artworkUrl: rawArtwork ? await refreshSupabaseStorageUrl(rawArtwork) : null,
           buyUrl: `/store/buy/${kind}/${String(r["id"])}`,
         };
-      });
+      }));
     const prof = await db.execute(sql`
       SELECT vertical FROM creator_profiles WHERE id = ${profile.id} LIMIT 1
     `);
@@ -1170,8 +1174,8 @@ router.get("/store/products", requireAuth, async (req, res) => {
       verticalLabel: VERTICAL_LABELS[vertical] ?? "Creator",
       profileUrl: `/c/${profile.slug}`,
       products: [
-        ...map(tracks.rows as Record<string, unknown>[], "track"),
-        ...map(videos.rows as Record<string, unknown>[], "video"),
+        ...(await map(tracks.rows as Record<string, unknown>[], "track")),
+        ...(await map(videos.rows as Record<string, unknown>[], "video")),
       ],
     });
   } catch (err) {
