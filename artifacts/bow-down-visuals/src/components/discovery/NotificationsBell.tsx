@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Bell, CheckCheck, Flame, Music2, UserPlus, Megaphone, Sparkles } from "lucide-react";
+import { Bell, CheckCheck, Flame, Music2, UserPlus, Megaphone, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── NotificationsBell — header dropdown (Worker 6, discovery) ───────────
@@ -48,6 +48,7 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
+  const [loadError, setLoadError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -58,12 +59,15 @@ export function NotificationsBell() {
       const r = await fetch("/api/discovery/notifications?limit=20", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) return;
+      // A failed load is NOT "all quiet" — flag it so the dropdown can
+      // say so honestly instead of rendering the genuine empty state.
+      if (!r.ok) { setLoadError(true); return; }
       const d = await r.json();
+      setLoadError(false);
       setItems(Array.isArray(d.items) ? d.items : []);
       setUnread(typeof d.unread === "number" ? d.unread : 0);
     } catch {
-      /* bell degrades silently */
+      setLoadError(true);
     }
   }, [user, getAccessToken]);
 
@@ -128,7 +132,16 @@ export function NotificationsBell() {
             )}
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {items.length === 0 ? (
+            {loadError && items.length === 0 ? (
+              <div className="px-4 py-10 text-center">
+                <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#e8c86a]" />
+                <p className="text-sm font-semibold text-white/60">Couldn't load notifications.</p>
+                <p className="mt-1 text-xs text-white/35">Something went wrong on our end — that's not the same as all quiet.</p>
+                <button type="button" onClick={() => void load()} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#e8c86a] px-5 py-2 text-xs font-bold text-black hover:brightness-110">
+                  <RotateCcw className="h-3.5 w-3.5" /> Try again
+                </button>
+              </div>
+            ) : items.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <Bell className="mx-auto mb-3 h-8 w-8 text-white/20" />
                 <p className="text-sm font-semibold text-white/60">All quiet on the cheat-code front.</p>
