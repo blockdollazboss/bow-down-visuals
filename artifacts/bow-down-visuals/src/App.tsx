@@ -658,7 +658,7 @@ function AppShell() {
                 <Route path="/gamers"><Redirect to="/go-live?tab=gamers" /></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
                 <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
-                <Route path="/cover-art"><Redirect to="/create?panel=coverart" /></Route>
+                <Route path="/cover-art"><QueryPreservingRedirect to="/create?panel=coverart" /></Route>
                 <Route path="/lyric-video"><Redirect to="/video-editor?tab=lyric-video" /></Route>
                 <Route path="/translate"><Redirect to="/video-editor?tab=translate" /></Route>
                 <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>
