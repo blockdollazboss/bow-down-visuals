@@ -219,7 +219,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   };
 });
 
-import { addBonusCredits, claimDailyBonus, spinWheel, utcYesterday, utcToday } from "../bonus";
+import { addBonusCredits, claimDailyBonus, spinWheel, crateCooldownSeconds, utcYesterday, utcToday } from "../bonus";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 
@@ -333,6 +333,17 @@ describe("spinWheel — CAS cooldown claim", () => {
     expect(res.spun).toBe(true);
     expect(row.bonus_credits).toBe(res.segment!.credits);
     expect(typeof row.last_wheel_spin).toBe("string");
+  });
+});
+
+describe("crateCooldownSeconds — status cooldown follows the hourly crate claims", () => {
+  it("crate unclaimed this hour: ready (0)", () => {
+    expect(crateCooldownSeconds({ available: true, nextHourIn: 1800 })).toBe(0);
+  });
+
+  it("crate claimed this hour: wait until the next hour, regardless of any wheel stamp", () => {
+    expect(crateCooldownSeconds({ available: false, nextHourIn: 1234 })).toBe(1234);
+    expect(crateCooldownSeconds({ available: false, nextHourIn: 1 })).toBe(1);
   });
 });
 

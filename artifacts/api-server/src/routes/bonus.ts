@@ -3,9 +3,8 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   getBonusProfile,
   claimDailyBonus,
-  spinWheel,
   canClaimDaily,
-  wheelCooldownSeconds,
+  crateCooldownSeconds,
   activeBonusBalance,
   WHEEL_SEGMENTS,
   DAILY_BONUS_BASE,
@@ -28,6 +27,10 @@ router.get("/bonus/status", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
     const p = await getBonusProfile(userId);
+    // The crate's real state lives in hourly_crate_claims (written by
+    // claimHourlyCrate, the routed spin) — the same source
+    // /bonus/hourly-crate-status reads. See crateCooldownSeconds.
+    const crate = await hourlyCrateStatus();
     // Effective streak: 0 if the last claim is older than yesterday (missed a day).
     // The stored value only updates on claim, so it can be stale.
     // Manual claim only — no auto-claim. Miss a day, lose the streak,
@@ -53,7 +56,7 @@ router.get("/bonus/status", requireAuth, async (req, res) => {
       dailyBonusMilestone: DAILY_BONUS_STREAK_7,
       bonusCredits: activeBonusBalance(p.bonusCredits, p.bonusExpiresAt),
       bonusExpiresAt: p.bonusExpiresAt,
-      wheelCooldownSeconds: wheelCooldownSeconds(p.lastWheelSpin),
+      wheelCooldownSeconds: crateCooldownSeconds(crate),
       wheelCooldownMinutes: WHEEL_COOLDOWN_MINUTES,
       wheelSegments: WHEEL_SEGMENTS.map((s) => ({ credits: s.credits, label: s.label, isJackpot: !!s.isJackpot })),
     });

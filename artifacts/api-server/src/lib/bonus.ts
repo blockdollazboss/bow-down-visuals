@@ -387,6 +387,21 @@ export async function hourlyCrateStatus(): Promise<{ available: boolean; nextHou
   return { available: true, nextHourIn: secondsUntilNextHour() };
 }
 
+/**
+ * The cooldown the client should show for the crate, derived from the
+ * REAL claim state: the global hourly crate in hourly_crate_claims.
+ * Available → 0 (ready). Claimed → seconds until the next hour's crate.
+ *
+ * This replaces the old /bonus/status derivation from
+ * profiles.last_wheel_spin: the routed spin endpoint
+ * (POST /bonus/spin-wheel → claimHourlyCrate) never writes that column
+ * — its only writer, spinWheel(), is not routed — so the status said
+ * "ready" for the whole hour after a claim and the crate 429'd on tap.
+ */
+export function crateCooldownSeconds(crate: { available: boolean; nextHourIn: number }): number {
+  return crate.available ? 0 : crate.nextHourIn;
+}
+
 /** Weighted random segment selection. */
 export function pickWheelSegment(random: number = Math.random()): WheelSegment {
   const total = WHEEL_SEGMENTS.reduce((s, seg) => s + seg.weight, 0);
