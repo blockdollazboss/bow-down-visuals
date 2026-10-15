@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Bookmark, Music2, Clapperboard } from "lucide-react";
+import { Bookmark, Music2, Clapperboard, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiJson, type FeedPost, type SocialAuthor } from "@/lib/social-api";
@@ -22,17 +22,21 @@ export default function SavedPage() {
   const { getAccessToken } = useAuth();
   const [saves, setSaves] = useState<SaveItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [tab, setTab] = useState<"all" | "post" | "profile" | "track" | "video">("all");
 
   usePageTitle("Saved", "Your bookmarks — posts, creators, sounds, and videos.");
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     apiJson<{ saves: SaveItem[] }>(getAccessToken, "/api/saves/mine")
       .then((d) => setSaves(d.saves))
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryNonce]);
 
   const filtered = saves.filter((s) => tab === "all" || s.kind === tab);
   const countFor = (k: string) => saves.filter((s) => s.kind === k).length;
@@ -66,7 +70,18 @@ export default function SavedPage() {
         </div>
       )}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && loadError && (
+        <div className="rounded-2xl border border-[#d4af37]/40 bg-[#111] p-10 text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-[#d4af37]" />
+          <p className="mt-3 font-bold text-white">Couldn't load your saved items.</p>
+          <p className="mt-1 text-sm text-neutral-400">Something went wrong on our end — your bookmarks are safe, this page just couldn't reach them.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && filtered.length === 0 && (
         <div className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-10 text-center">
           <p className="text-lg font-bold text-white">Nothing saved here yet 🦈</p>
           <p className="mt-2 text-sm text-neutral-400">Tap the bookmark on any post, sound, video, or creator to stash it here.</p>
