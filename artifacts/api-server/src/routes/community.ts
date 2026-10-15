@@ -182,6 +182,24 @@ async function getMyProfile(userId: string) {
   return rows[0] ?? null;
 }
 
+/* Group DTO, field-by-field: the frontend group contract (pages/groups.tsx,
+   pages/group-detail.tsx) is snake_case — member_count / cover_url /
+   is_public. A raw row spread shipped camelCase table keys and
+   member_count.toLocaleString() crashed both pages on undefined. */
+function toGroupDto(g: typeof groupsTable.$inferSelect) {
+  return {
+    id: g.id,
+    slug: g.slug,
+    name: g.name,
+    description: g.description,
+    cover_url: g.coverUrl,
+    owner_profile_id: g.ownerProfileId,
+    member_count: g.memberCount,
+    is_public: g.isPublic,
+    created_at: g.createdAt,
+  };
+}
+
 /* ── GROUPS ──────────────────────────────────────────────────────────────── */
 
 /** Create a group. The creator becomes owner (member row role='owner'). */
@@ -237,7 +255,7 @@ router.get("/groups", async (req, res) => {
       const pids = new Set(profiles.map((p) => p.id));
       rows = rows.filter((g) => g.ownerProfileId != null && pids.has(g.ownerProfileId));
     }
-    res.json({ groups: await refreshSupabaseStorageUrlsDeep(rows) });
+    res.json({ groups: await refreshSupabaseStorageUrlsDeep(rows.map(toGroupDto)) });
   } catch (err) {
     console.error("[community] GET /groups failed", err);
     res.status(500).json({ error: "Couldn't load groups — try again." });
@@ -268,7 +286,7 @@ router.get("/groups/:slug", async (req, res) => {
       .orderBy(asc(groupMembersTable.joinedAt)).limit(24);
     const cards = await profileCards(memberRows.map((m) => m.userId));
     res.json(await refreshSupabaseStorageUrlsDeep({
-      group,
+      group: toGroupDto(group),
       owner_profile: ownerProfile,
       members: memberRows.map((m) => ({
         user_id: m.userId, role: m.role, joined_at: m.joinedAt,
