@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 interface ClipSequencePlayerProps {
   /** Scenes to source clips from. Any scene with a video URL is played, in order. */
@@ -59,6 +60,7 @@ export function ClipSequencePlayer({
   emptyTitle = "No clips generated yet.",
   emptyHint = "Generate AI clips on the scene cards — they'll appear here in sequence.",
 }: ClipSequencePlayerProps) {
+  const isLight = useIsLightTheme();
   const numberSource = allScenes ?? scenes;
 
   /**
@@ -185,7 +187,7 @@ export function ClipSequencePlayer({
   if (clips.length === 0) {
     return (
       <div
-        className="rounded-xl border border-white/[0.07] bg-[#080808] overflow-hidden"
+        className={`rounded-xl border bg-[#080808] overflow-hidden ${isLight ? "border-[#C9A84C]/40" : "border-white/[0.07]"}`}
         data-testid="final-video-preview"
       >
         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.05] bg-white/[0.02]">
@@ -195,15 +197,17 @@ export function ClipSequencePlayer({
           </span>
         </div>
 
-        <div className="relative aspect-video flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-[#0f0a00] via-[#080808] to-[#000]">
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
+        <div className={`relative aspect-video flex flex-col items-center justify-center gap-4 ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          {!isLight && (
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+                backgroundSize: "40px 40px",
+              }}
+            />
+          )}
 
           <div className="relative z-10 flex flex-col items-center gap-4">
             <div className="h-20 w-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
