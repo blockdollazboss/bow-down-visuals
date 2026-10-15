@@ -3,7 +3,7 @@ import { Link, useSearch } from "wouter";
 import {
   Heart, MessageCircle, Share2, Plus, Check, Music2, Volume2, VolumeX,
   Play, Scissors, Columns2, BarChart3, Trophy, HandCoins,
-  ShoppingBag, X, Loader2, Send, ChevronDown, Sparkles,
+  ShoppingBag, X, Loader2, Send, ChevronDown, Sparkles, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +79,10 @@ export default function ShortsFeed() {
   const [items, setItems] = useState<ShortItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // The toast on failure was a half-fix: items stayed empty, so the
+  // genuine "No shorts yet" state still rendered once loading ended.
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [active, setActive] = useState(0);
@@ -126,6 +130,8 @@ export default function ShortsFeed() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     (async () => {
       try {
         const first = await loadFeed(null, startId);
@@ -134,14 +140,17 @@ export default function ShortsFeed() {
         setCursor(first.next_cursor);
         setHasMore(!!first.next_cursor);
       } catch {
-        if (!cancelled) toast({ title: "The feed glitched", description: "Pull to try again, chief." });
+        if (!cancelled) {
+          setLoadError(true);
+          toast({ title: "The feed glitched", description: "Pull to try again, chief." });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryNonce]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -209,6 +218,22 @@ export default function ShortsFeed() {
     return (
       <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError && !items.length) {
+    return (
+      <div className="flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-5 bg-black px-6 text-center">
+        <AlertTriangle className="h-12 w-12 text-primary" />
+        <h1 className="text-2xl font-bold text-white">Couldn't load the shorts feed.</h1>
+        <p className="max-w-md text-white/60">
+          Something went wrong on our end — that's a failed load, not an empty stage.
+        </p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 font-bold text-black hover:brightness-110">
+          <RotateCcw className="h-4 w-4" /> Try again
+        </button>
       </div>
     );
   }
