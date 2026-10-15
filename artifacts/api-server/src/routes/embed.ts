@@ -8,6 +8,7 @@ import {
   playlistsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 /* ─── Embeddable players/widgets (virality wave) ─────────────────────────────
    Every embed is a billboard: a creator pastes our player on their blog or
@@ -37,12 +38,28 @@ export const embedApiLimiter = rateLimit({
 export const embedApiRouter = Router();
 export const embedPageRouter = Router();
 
-/** Normalize a stored media path to a playable URL (same-origin iframe). */
-function mediaUrl(raw: string | null | undefined): string {
+/** Refresh a nullable media field (artwork / thumbnail / avatar /
+ *  cover) through storage: refs become fresh playable URLs, every
+ *  other value passes through unchanged, null stays null. */
+async function refreshedUrl(raw: string | null | undefined): Promise<string | null> {
+  if (!raw) return raw ?? null;
+  return refreshSupabaseStorageUrl(raw);
+}
+
+/** Normalize a stored media path to a playable URL (same-origin iframe).
+ *  Stored values may be storage refs (r2://… / supabase://…) or expired
+ *  signed URLs — resolve those through storage first; prepending "/"
+ *  to a ref (the old behavior) produced the unplayable "/r2://…". */
+async function mediaUrl(raw: string | null | undefined): Promise<string> {
   if (!raw) return "";
   const s = raw.trim();
-  if (/^(https?:|blob:|data:)/i.test(s)) return s;
-  return s.startsWith("/") ? s : `/${s}`;
+  if (/^(blob:|data:)/i.test(s)) return s;
+  const refreshed = await refreshSupabaseStorageUrl(s);
+  if (/^(https?:|blob:|data:)/i.test(refreshed)) return refreshed;
+  // The helper returns the value unchanged when it can't resolve it —
+  // never mangle a storage ref into a "/"-prefixed path.
+  if (/^(r2|supabase):\/\//i.test(refreshed)) return refreshed;
+  return refreshed.startsWith("/") ? refreshed : `/${refreshed}`;
 }
 
 /** The creator's public referral code (codes are meant to be shared). */
@@ -99,8 +116,8 @@ async function getEmbedTrack(id: string): Promise<EmbedTrackData | null> {
     title: t.title,
     artist_name: profile.displayName,
     artist_slug: profile.slug,
-    artwork_url: t.artworkUrl,
-    audio_url: mediaUrl(t.audioUrl),
+    artwork_url: await refreshedUrl(t.artworkUrl),
+    audio_url: await mediaUrl(t.audioUrl),
     ref_code: await refCodeForUser(profile.userId),
   };
 }
@@ -127,8 +144,8 @@ async function getEmbedVideo(id: string): Promise<EmbedVideoData | null> {
     title: v.title,
     artist_name: profile.displayName,
     artist_slug: profile.slug,
-    thumbnail_url: v.thumbnailUrl,
-    video_url: mediaUrl(v.videoUrl),
+    thumbnail_url: await refreshedUrl(v.thumbnailUrl),
+    video_url: await mediaUrl(v.videoUrl),
     ref_code: await refCodeForUser(profile.userId),
   };
 }
@@ -155,10 +172,10 @@ async function getEmbedPlaylist(id: string): Promise<EmbedPlaylistData | null> {
     try {
       if (r.kind === "track") {
         const [t] = await db.select().from(profileTracksTable).where(eq(profileTracksTable.id, r.id)).limit(1);
-        if (t && t.isPublished) items.push({ kind: "track", id: t.id, title: t.title, thumb: t.artworkUrl });
+        if (t && t.isPublished) items.push({ kind: "track", id: t.id, title: t.title, thumb: await refreshedUrl(t.artworkUrl) });
       } else {
         const [v] = await db.select().from(profileVideosTable).where(eq(profileVideosTable.id, r.id)).limit(1);
-        if (v && v.isPublished) items.push({ kind: "video", id: v.id, title: v.title, thumb: v.thumbnailUrl });
+        if (v && v.isPublished) items.push({ kind: "video", id: v.id, title: v.title, thumb: await refreshedUrl(v.thumbnailUrl) });
       }
     } catch { /* skip */ }
   }
@@ -167,7 +184,7 @@ async function getEmbedPlaylist(id: string): Promise<EmbedPlaylistData | null> {
     id: pl.id,
     title: pl.title,
     owner_name: owner.displayName,
-    cover_url: pl.coverUrl ?? items[0]?.thumb ?? null,
+    cover_url: (await refreshedUrl(pl.coverUrl)) ?? items[0]?.thumb ?? null,
     item_count: (pl.items ?? []).length,
     ref_code: await refCodeForUser(owner.userId),
     items,
@@ -195,7 +212,7 @@ async function getEmbedProfile(slug: string): Promise<EmbedProfileData | null> {
     .limit(1);
   let featured: EmbedProfileData["featured"] = null;
   if (topTrack) {
-    featured = { kind: "track", id: topTrack.id, title: topTrack.title, media_url: mediaUrl(topTrack.audioUrl), thumb: topTrack.artworkUrl };
+    featured = { kind: "track", id: topTrack.id, title: topTrack.title, media_url: await mediaUrl(topTrack.audioUrl), thumb: await refreshedUrl(topTrack.artworkUrl) };
   } else {
     const [topVideo] = await db
       .select()
@@ -204,14 +221,14 @@ async function getEmbedProfile(slug: string): Promise<EmbedProfileData | null> {
       .orderBy(desc(profileVideosTable.viewCount))
       .limit(1);
     if (topVideo) {
-      featured = { kind: "video", id: topVideo.id, title: topVideo.title, media_url: mediaUrl(topVideo.videoUrl), thumb: topVideo.thumbnailUrl };
+      featured = { kind: "video", id: topVideo.id, title: topVideo.title, media_url: await mediaUrl(topVideo.videoUrl), thumb: await refreshedUrl(topVideo.thumbnailUrl) };
     }
   }
   return {
     kind: "profile",
     slug: profile.slug,
     display_name: profile.displayName,
-    avatar_url: profile.avatarUrl,
+    avatar_url: await refreshedUrl(profile.avatarUrl),
     bio: profile.bio ? profile.bio.split("\n")[0]!.slice(0, 160) : null,
     ref_code: await refCodeForUser(profile.userId),
     featured,
