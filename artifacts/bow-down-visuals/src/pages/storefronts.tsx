@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Store, Search, Loader2, ArrowRight, Sparkles, BadgeCheck } from "lucide-react";
+import { Store, Search, Loader2, ArrowRight, Sparkles, BadgeCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
@@ -27,15 +27,21 @@ export default function Storefronts() {
   const [shops, setShops] = useState<HubShop[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   async function load(query: string) {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch(`/api/storefronts?q=${encodeURIComponent(query)}&limit=60`);
       const data = await res.json();
-      if (res.ok) setShops(data.shops ?? []);
+      // A non-OK response is a failed load, NOT "no shops yet" — it must
+      // never fall through to the genuine empty state.
+      if (!res.ok) { setLoadError(true); return; }
+      setShops(data.shops ?? []);
     } catch {
-      /* hub stays empty rather than crashing */
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -45,7 +51,7 @@ export default function Storefronts() {
     const timer = setTimeout(() => load(q), q ? 350 : 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, retryNonce]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -83,6 +89,15 @@ export default function Storefronts() {
 
         {loading ? (
           <div className="mt-12 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-400" /></div>
+        ) : loadError ? (
+          <div className="lux-card mx-auto mt-12 max-w-lg p-10 text-center">
+            <AlertTriangle className="mx-auto h-10 w-10 text-amber-400" />
+            <h2 className="mt-4 text-xl font-bold">Couldn't load the shops.</h2>
+            <p className="mt-2 text-sm text-white/50">Something went wrong on our end — that's not the same as no shops yet.</p>
+            <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110">
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
         ) : shops.length === 0 ? (
           <div className="lux-card mx-auto mt-12 max-w-lg p-10 text-center">
             <Store className="mx-auto h-10 w-10 text-amber-400/60" />
