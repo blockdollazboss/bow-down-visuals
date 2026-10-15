@@ -69,7 +69,10 @@ async function refCodeForUser(userId: string | null | undefined): Promise<string
     const rows = await db.execute(
       sql`SELECT code FROM referral_codes WHERE user_id = ${userId} LIMIT 1`,
     );
-    const code = (rows as unknown as { code?: string }[])[0]?.code;
+    // db.execute returns a QueryResult object — the rows live on .rows.
+    // Indexing the result itself ([0]) was always undefined, so the
+    // referral code never survived into the embed payload.
+    const code = (rows.rows as unknown as { code?: string }[])[0]?.code;
     return typeof code === "string" && code.length > 0 ? code.toUpperCase() : null;
   } catch {
     return null;
