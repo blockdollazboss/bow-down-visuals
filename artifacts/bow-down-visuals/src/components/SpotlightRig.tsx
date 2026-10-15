@@ -138,25 +138,37 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       <div
         ref={stageRef}
         className="absolute left-1/2 w-[1440px]"
-        /* Frame fix (owner, 2026-10-14 — he could not see the
-           spotlights at the top of the page). Rig-measured diagnosis:
-           the fixtures anchored at the hero's top edge, y0–88 —
-           EXACTLY the fixed banner's band (banner y0–88 at
-           desktop/laptop, y0–72 mobile) — so the banner painted over
-           the entire fixture and only the beams poured out from
-           behind it. The stage now starts 148px lower and is
-           shortened by the same amount: every fixture hangs fully
-           below the banner AND below the coach chip (chip bottom
-           sits at rig-coordinate 140 in every measured config —
-           page 140 desktop/laptop; page 124 on mobile, where the rig
-           itself starts at page −16), while the beams' internal
-           layout is unchanged (cones/pools resolve against the
-           shortened stage and land within ~35px of before). The
-           glide is horizontal-only and the shimmer animates opacity
-           only, so this clearance holds across the whole motion
-           range, not just at rest. fit() only rewrites the stage's
-           transform (scaleX), so the offset survives resizes. */
-        style={{ marginLeft: -720, transformOrigin: "center top", top: 148, height: "calc(100% - 148px)" }}
+        /* Banner tuck (owner, 2026-10-14 — the spotlights "should've
+           been connected to the banner... a smidgen tucked under the
+           back of the banner"). This supersedes the same day's frame
+           fix, which had dropped the stage 148px so the fixtures
+           floated in open air below the banner; the owner wants them
+           mounted TO it. The stage now starts 74px down: the banner
+           measures page y0–88 (desktop/laptop) and y0–72 (mobile,
+           where the rig itself starts at page −16), so each
+           fixture's top 14px — the truss's top chord and bracing —
+           slides behind the banner's bottom edge (the banner is
+           sticky z-40 and paints over the rig), the bottom chord
+           emerges flush at the banner's edge, and the mount, yoke,
+           can, barn doors and lens hang fully visible below it.
+           The beams' internal layout rides with the stage: cone
+           apexes re-anchor to the raised lenses, and the pools are
+           %-compensated (see the pool note) so they keep their
+           previous landing spots. The glide is horizontal-only and
+           the shimmer animates opacity only, so the tuck is constant
+           across the whole motion range. fit() only rewrites the
+           stage's transform (scaleX), so the offset survives resizes.
+           Measured interaction (2026-10-14): the coach chip (z-30,
+           354px wide; page y96–140 desktop/laptop, y80–124 mobile)
+           lives in the layer above the rig, in the band the raised
+           lamps now cross. On desktop every can parks clear of it at
+           rest (beam 0 nudged +10px — see its note); on laptop the
+           leftmost can, and on phones all three cans, park behind
+           the chip pill at rest with their lenses emerging 8px
+           below its bottom edge — at those widths the pill spans
+           the fixtures' columns, so no horizontal nudge can park
+           them clear, and the chip paints over the rig by design. */
+        style={{ marginLeft: -720, transformOrigin: "center top", top: 74, height: "calc(100% - 74px)" }}
       >
         <div ref={rigRef} className="absolute inset-0 will-change-transform">
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -164,8 +176,15 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
               key={i}
               className="absolute top-0 h-full w-[360px]"
               /* Six beams, 240px apart, centered on the 1440px stage:
-                 beam centers at 120 / 360 / 600 / 840 / 1080 / 1320. */
-              style={{ left: i * 240 - 60 }}
+                 beam centers at 120 / 360 / 600 / 840 / 1080 / 1320.
+                 Beam 0 rides +10px right: with the banner tuck raised
+                 into the coach chip's band, its can cleared the chip
+                 by only 6px and its left barn-door tip overlapped the
+                 chip's box at rest on desktop (rig-measured); +10
+                 parks the whole fixture clear. Its cone and pool
+                 shift with it — a 420px blurred pool does not notice
+                 10px. */
+              style={{ left: i * 240 - 60 + (i === 0 ? 10 : 0) }}
             >
               <div
                 ref={(el) => { beamsRef.current[i] = el; }}
@@ -261,9 +280,15 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                     }}
                   />
                 </div>
-                {/* Light pool where the beam lands — at the King's feet */}
+                {/* Light pool where the beam lands — at the King's feet.
+                    The fraction rose 75% → 76.7% with the banner tuck:
+                    the stage grew 74px taller, and the larger fraction
+                    compensates so the pools stay on the landing spots
+                    the frame fix left them (rig-measured within ~5px at
+                    desktop, laptop and phone) instead of riding up the
+                    stage with the fixtures. */}
                 <div
-                  className="absolute left-1/2 top-[75%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%] blur-[9px]"
+                  className="absolute left-1/2 top-[76.7%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%] blur-[9px]"
                   style={{
                     background:
                       "radial-gradient(ellipse at center, rgba(255,224,128,0.48) 0%, rgba(255,206,98,0.2) 55%, transparent 72%)",
