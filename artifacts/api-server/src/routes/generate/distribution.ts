@@ -1672,11 +1672,18 @@ router.get("/distribution/presave/:slug", async (req, res) => {
     } catch {
       /* counts are best-effort — the page still renders */
     }
+    /* Refresh the hero artwork at this response boundary — a stored
+       r2:// / supabase:// ref is not a renderable URL on the public page
+       (buildAggregatorPayload refreshes singularly; the other release
+       payloads are Deep-wrapped; this handler bypassed both). */
+    const artworkUrl = row.artwork_url
+      ? await refreshSupabaseStorageUrl(row.artwork_url)
+      : row.artwork_url;
     res.json({
       presave: {
         title: row.title,
         artistName: row.artist_name,
-        artworkUrl: row.artwork_url,
+        artworkUrl,
         releaseDate: row.release_date,
         releaseType: row.release_type ?? "single",
         genre: row.genre,

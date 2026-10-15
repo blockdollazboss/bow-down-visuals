@@ -81,6 +81,40 @@ vi.mock("../../lib/mirrorMedia", () => ({
   mirrorProjectScenes: vi.fn(async (v: unknown) => v),
 }));
 
+/* Simulated storage refresh: refs (r2:// / supabase://) become signed
+   https URLs; everything else (https URLs, null, Dates) passes through
+   untouched — mirroring refreshSupabaseStorageUrl(sDeep). An identity
+   mock could never catch a missing refresh call. */
+function signedFor(ref: string): string {
+  return `https://signed.example.com/${ref.replace(/^(r2|supabase):\/\//, "")}?sig=test`;
+}
+async function deepRefresh(v: unknown): Promise<unknown> {
+  if (typeof v === "string") {
+    return v.startsWith("r2://") || v.startsWith("supabase://") ? signedFor(v) : v;
+  }
+  if (Array.isArray(v)) return Promise.all(v.map((x) => deepRefresh(x)));
+  if (v !== null && typeof v === "object" && !(v instanceof Date)) {
+    const proto = Object.getPrototypeOf(v);
+    if (proto === Object.prototype || proto === null) {
+      const entries = await Promise.all(
+        Object.entries(v as Record<string, unknown>).map(
+          async ([k, val]) => [k, await deepRefresh(val)] as const,
+        ),
+      );
+      return Object.fromEntries(entries);
+    }
+  }
+  return v;
+}
+
+vi.mock("../../lib/objectStorage", () => ({
+  refreshSupabaseStorageUrl: async (v: unknown) =>
+    typeof v === "string" && (v.startsWith("r2://") || v.startsWith("supabase://"))
+      ? signedFor(v)
+      : v,
+  refreshSupabaseStorageUrlsDeep: async (v: unknown) => deepRefresh(v),
+}));
+
 import router, {
   AI_CREDIT_COST,
   DISTRIBUTION_RELEASE_CREDITS,
@@ -934,6 +968,40 @@ describe("pre-save links", () => {
   it("404s for an unknown slug", async () => {
     const { status } = await req("GET", "/distribution/presave/nope-not-real");
     expect(status).toBe(404);
+  });
+
+  it("refreshes a stored artwork ref for the public hero (https passes through, null stays null)", async () => {
+    const { id } = await seedRelease(USER_A);
+    const minted = await req("POST", `/distribution/releases/${id}/presave`);
+    expect(minted.status).toBe(200);
+
+    /* Artwork stored as a raw storage ref must not ship to the public
+       pre-save page verbatim — it is not a renderable URL. */
+    await testState.db.execute(sql`
+      UPDATE distribution_releases SET artwork_url = ${"r2://album-art/covers/hero.jpg"} WHERE id = ${id}
+    `);
+    const pub = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.artworkUrl).toBe(
+      "https://signed.example.com/album-art/covers/hero.jpg?sig=test",
+    );
+    expect(pub.json.presave.artworkUrl).not.toContain("r2://");
+
+    /* Already-https artwork stays byte-identical. */
+    await testState.db.execute(sql`
+      UPDATE distribution_releases SET artwork_url = ${"https://example.com/art.jpg"} WHERE id = ${id}
+    `);
+    const pubHttps = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pubHttps.status).toBe(200);
+    expect(pubHttps.json.presave.artworkUrl).toBe("https://example.com/art.jpg");
+
+    /* No artwork stays null. */
+    await testState.db.execute(sql`
+      UPDATE distribution_releases SET artwork_url = NULL WHERE id = ${id}
+    `);
+    const pubNull = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pubNull.status).toBe(200);
+    expect(pubNull.json.presave.artworkUrl).toBeNull();
   });
 });
 
