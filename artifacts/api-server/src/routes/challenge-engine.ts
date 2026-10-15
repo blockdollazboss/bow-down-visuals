@@ -373,7 +373,11 @@ router.get("/challenges/hall-of-fame", async (req, res) => {
       ORDER BY w.announced_at DESC
       LIMIT ${limit}
     `);
-    res.json({
+    /* Refresh at the response boundary: thumbnail / avatar values are
+       stored as storage refs (r2:// / supabase://), which are not
+       renderable URLs — wrap the assembled payload like sibling read
+       endpoints. */
+    res.json(await refreshSupabaseStorageUrlsDeep({
       winners: (rows.rows as Record<string, unknown>[]).map((r) => ({
         place: Number(r["place"]),
         prize_credits: Number(r["prize_credits"] ?? 0),
@@ -386,7 +390,7 @@ router.get("/challenges/hall-of-fame", async (req, res) => {
           slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"],
         },
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "hall of fame error");
     res.status(500).json({ error: "Couldn't load the hall of fame." });
