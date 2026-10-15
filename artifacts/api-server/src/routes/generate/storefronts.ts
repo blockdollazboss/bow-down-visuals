@@ -181,7 +181,17 @@ router.get("/storefronts", async (req, res) => {
 });
 
 /* ── GET /api/storefronts/slug/:slug — public storefront + view ────────────
-   No auth: anyone can view. Records a (deduped) view. Never leaks user_id. */
+   No auth: anyone can view. Records a (deduped) view. Never leaks user_id.
+   Resolution is TWO namespaces, in order:
+   1. shops.handle — the canonical caller (/shop/:handle, hub links).
+   2. creator_profiles.slug → profile's user_id → that user's shop —
+      the media-page caller (MediaLinkBar via lib/streaming.ts
+      resolveStoreSlug, fed creator-profile slugs from track / watch /
+      playlist pages). Shop handles are freely chosen at creation and
+      are NOT the owner's profile slug; without this fallback the
+      lookup 404'd whenever they differed and the Store button on
+      media pages never rendered. Handle wins on a collision so the
+      canonical namespace is never shadowed by a profile slug. */
 router.get("/storefronts/slug/:slug", async (req, res) => {
   const slug = (Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug ?? "").toLowerCase();
   const shopResult = await db.execute(sql`
@@ -192,7 +202,20 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     WHERE handle = ${slug}
     LIMIT 1
   `);
-  const shops = shopResult.rows as unknown as Array<Record<string, unknown> & { id: string; user_id: string }>;
+  let shops = shopResult.rows as unknown as Array<Record<string, unknown> & { id: string; user_id: string }>;
+  if (shops.length === 0) {
+    const byProfileResult = await db.execute(sql`
+      SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
+             s.banner_color, s.accent_color, s.banner_image_url,
+             s.custom_domain, s.domain_verified, s.created_at
+      FROM shops s
+      JOIN creator_profiles cp ON cp.user_id = s.user_id
+      WHERE cp.slug = ${slug}
+      ORDER BY s.created_at ASC
+      LIMIT 1
+    `);
+    shops = byProfileResult.rows as unknown as Array<Record<string, unknown> & { id: string; user_id: string }>;
+  }
   const shop = shops[0];
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });

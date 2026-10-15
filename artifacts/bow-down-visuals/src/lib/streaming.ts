@@ -399,13 +399,19 @@ export async function addItemToPlaylist(
   return d !== null;
 }
 
-/** Resolve a creator's storefront slug (best-effort; null when none). */
+/** Resolve a creator's shop handle from their creator-PROFILE slug
+    (best-effort; null when they own no shop). The endpoint resolves
+    the profile slug server-side (profile → user → owned shop) and
+    returns the shop payload; the value MediaLinkBar links to
+    (/shop/<handle>) is shop.handle — the response carries no `slug`
+    field, so reading one always yielded null and the Store button
+    never rendered even when the lookup succeeded. */
 export async function resolveStoreSlug(artistSlug: string): Promise<string | null> {
   try {
     const r = await fetch(`/api/storefronts/slug/${encodeURIComponent(artistSlug)}`);
     if (!r.ok) return null;
     const d = await r.json().catch(() => ({}));
-    const slug = d?.storefront?.slug ?? d?.slug ?? null;
+    const slug = d?.shop?.handle ?? d?.storefront?.slug ?? d?.slug ?? null;
     return typeof slug === "string" && slug ? slug : null;
   } catch {
     return null;
