@@ -738,6 +738,29 @@ router.get("/creator-profiles", requireAuth, async (req, res) => {
   }
 });
 
+/** Slug availability check for the profile editor. Registered BEFORE
+   /creator-profiles/:slug on purpose: Express matches in registration
+   order, and below :slug the literal "check-slug" was captured as a slug —
+   the handler never ran and every handle read "taken" in Lightning Setup. */
+router.get("/creator-profiles/check-slug", requireAuth, async (req, res) => {
+  try {
+    const raw = String(req.query["slug"] ?? "");
+    const parsed = slugSchema.safeParse(raw);
+    if (!parsed.success) {
+      res.json({ available: false, valid: false, error: parsed.error.issues[0]?.message ?? "Invalid slug." });
+      return;
+    }
+    const slug = parsed.data;
+    const [taken] = await db.select({ id: creatorProfilesTable.id, userId: creatorProfilesTable.userId })
+      .from(creatorProfilesTable).where(eq(creatorProfilesTable.slug, slug)).limit(1);
+    const available = !taken || taken.userId === req.userId;
+    res.json({ available, valid: true, slug });
+  } catch (err) {
+    req.log.error({ err }, "creator-profiles/check-slug error");
+    res.status(500).json({ error: "Couldn't check that handle. Try again." });
+  }
+});
+
 /** Public profile page payload. 404 when the profile is private. */
 router.get("/creator-profiles/:slug", async (req, res) => {
   try {
@@ -964,26 +987,6 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
-  }
-});
-
-/** Slug availability check for the profile editor. */
-router.get("/creator-profiles/check-slug", requireAuth, async (req, res) => {
-  try {
-    const raw = String(req.query["slug"] ?? "");
-    const parsed = slugSchema.safeParse(raw);
-    if (!parsed.success) {
-      res.json({ available: false, valid: false, error: parsed.error.issues[0]?.message ?? "Invalid slug." });
-      return;
-    }
-    const slug = parsed.data;
-    const [taken] = await db.select({ id: creatorProfilesTable.id, userId: creatorProfilesTable.userId })
-      .from(creatorProfilesTable).where(eq(creatorProfilesTable.slug, slug)).limit(1);
-    const available = !taken || taken.userId === req.userId;
-    res.json({ available, valid: true, slug });
-  } catch (err) {
-    req.log.error({ err }, "creator-profiles/check-slug error");
-    res.status(500).json({ error: "Couldn't check that handle. Try again." });
   }
 });
 
