@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { SpotlightRig } from "@/components/SpotlightRig";
+import { HangingMic } from "@/components/HangingMic";
 import { FogCanvas } from "@/components/fog-lab/FogCanvas";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
@@ -424,6 +425,15 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           z-[2]: above the backdrop grain, BELOW the hero copy (text stays
           on top) and below the studio set and the King. */}
       <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
+
+      {/* Hanging mic — the set's ceiling-suspended condenser, its own
+          hero layer (z-[6]: above the King z-[4], below the copy
+          z-10) because a cable born in the bottom-band set strip
+          (z-20) would slice across the King and the headline. It
+          hangs in the corridor between the King and the copy column,
+          plugged into the banner's bottom edge like the rig fixtures,
+          and swings on the mouse (owner, 2026-10-14). */}
+      <HangingMic className="absolute inset-x-0 top-0 z-[6] h-full" />
 
       {/* Hero grid — no z-index here on purpose: the shark and the copy
           stack independently (backdrop → beams z-[2] → studio set z-[3]
