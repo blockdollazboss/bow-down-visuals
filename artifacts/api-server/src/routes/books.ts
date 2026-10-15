@@ -141,7 +141,20 @@ router.post("/books", requireAuth, async (req, res) => {
         metadata: parsed.data.metadata,
       })
       .returning();
-    res.json({ book: row });
+    res.json({
+      book: {
+        id: row.id,
+        title: row.title,
+        subtitle: row.subtitle,
+        authorName: row.author_name,
+        genre: row.genre,
+        description: row.description,
+        metadata: row.metadata ?? {},
+        coverUrl: row.cover_url,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Failed to create book" });
   }
