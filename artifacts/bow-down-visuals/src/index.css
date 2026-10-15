@@ -946,6 +946,14 @@ html, body {
   background-color: rgb(255 255 255 / 0.85);
   border-color: rgb(231 217 188 / 0.9);
 }
+/* Plain bg-white/15 had no light rule at all: white at 15% on the
+   remapped white/ivory panels is white-on-white (OnboardingTour
+   upcoming-step dots). A deep-bronze tint reads on ivory; the usual
+   :not([data-dark-lock]) guards keep locked subtrees authored, and
+   dark mode already has its own gold-tint rule for this class. */
+.light .bg-white\/15:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: rgb(122 90 18 / 0.28);
+}
 /* Bracket-opacity champagne hairlines: join the §17 border group */
 .light .border-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *) {
