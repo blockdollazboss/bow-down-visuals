@@ -40,7 +40,7 @@ interface Plan {
 
 const STAR_RANKS = ["Street Punk", "Hustler", "Gangster", "Shot Caller", "Crime Boss", "Kingpin"];
 const STAR_BLURBS = [
-  "AI auto-pilot. Just create.",
+  "Turbo. Just create.",
   "AI runs it, you approve.",
   "AI + your tweaks.",
   "Your call, AI assists.",

@@ -264,7 +264,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">Auto AI Edit Whole Video</h3>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Turbo AI Edit Whole Video</h3>
             <p className="text-xs text-white/40 mt-0.5">
               AI analyzes your clips, audio, captions &amp; style — then creates a complete edit plan
             </p>

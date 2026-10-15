@@ -41,7 +41,7 @@ export const STAR_RANKS = [
 ] as const;
 
 export const STAR_TAGLINES = [
-  "AI auto-pilot. Just create.",
+  "Turbo. Just create.",
   "AI runs it, you approve.",
   "AI + your tweaks.",
   "Your call, AI assists.",

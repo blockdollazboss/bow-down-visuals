@@ -45,7 +45,7 @@ const MODELS: { id: "nano-banana-2.1" | "ideogram-4.0"; labelKey: string; defaul
 ];
 
 const FLOWS: { id: FlowMode; icon: typeof Wand2; labelKey: string; defaultLabel: string }[] = [
-  { id: "autopilot", icon: Wand2, labelKey: "headshotStudio.flows.autopilot", defaultLabel: "AI Autopilot" },
+  { id: "autopilot", icon: Wand2, labelKey: "headshotStudio.flows.autopilot", defaultLabel: "Turbo Mode" },
   { id: "preset", icon: SlidersHorizontal, labelKey: "headshotStudio.flows.preset", defaultLabel: "Style presets" },
   { id: "manual", icon: PenLine, labelKey: "headshotStudio.flows.manual", defaultLabel: "Manual prompt" },
 ];

@@ -316,7 +316,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
               <div className="mb-3 flex flex-wrap gap-2">
                 {(
                   [
-                    { id: "autopilot", icon: Wand2, labelKey: "modeAutopilot", fallback: "AI Autopilot" },
+                    { id: "autopilot", icon: Wand2, labelKey: "modeAutopilot", fallback: "Turbo Mode" },
                     { id: "presets", icon: LayoutGrid, labelKey: "modePresets", fallback: "Scene presets" },
                     { id: "custom", icon: PenLine, labelKey: "modeCustom", fallback: "Custom prompt" },
                   ] as Array<{ id: StyleMode; icon: typeof Wand2; labelKey: string; fallback: string }>

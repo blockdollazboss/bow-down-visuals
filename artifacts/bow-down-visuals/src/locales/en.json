@@ -4065,7 +4065,7 @@
     "socialStatsPlaceholder": "Social/streaming stats (e.g. 50K monthly listeners, 120K TikTok followers)",
     "songAnalysis": "Song Analysis",
     "songTitlePlaceholder": "Song title *",
-    "sourceAuto": "✨ Auto (AI picks)",
+    "sourceAuto": "✨ Turbo (AI picks)",
     "sourceLibrary": "From my library",
     "sourceLibraryCount": "From my library ({{count}})",
     "sourceManual": "Enter manually",
@@ -12255,7 +12255,7 @@
     "levelUp_dismiss": "Keep creating",
     "levelUp_shareText": "I just hit {{rank}} ({{stars}}★) on Bow Down Visuals — the content creation cheat code. 🦈",
     "levelUp_unlocks_1": [
-      "One-tap AI autopilot flows",
+      "One-tap Turbo flows",
       "The essential generate button, nothing else"
     ],
     "levelUp_unlocks_2": [
@@ -12343,7 +12343,7 @@
     "title": "AI Headshots",
     "subtitle": "A profile pic that looks expensive. Pick a flow — the AI handles the rest.",
     "flows": {
-      "autopilot": "AI Autopilot",
+      "autopilot": "Turbo Mode",
       "preset": "Style presets",
       "manual": "Manual prompt"
     },
@@ -12409,7 +12409,7 @@
     "lifestyle": "Lifestyle",
     "lifestyleBlurb": "Your product styled in a real scene — ads, socials, banners.",
     "stepStyle": "3. Scene style",
-    "modeAutopilot": "AI Autopilot",
+    "modeAutopilot": "Turbo Mode",
     "modePresets": "Scene presets",
     "modeCustom": "Custom prompt",
     "kindLabel": "What are you selling? AI picks the fitting scene.",

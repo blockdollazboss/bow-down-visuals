@@ -228,9 +228,9 @@ export function AutoDirectorPanel({
           <Clapperboard className="h-4.5 w-4.5 text-primary" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-bold text-white">Auto Director</span>
+          <span className="block text-sm font-bold text-white">Turbo Director</span>
           <span className="block text-xs text-white/45 truncate">
-            Song → shoot-ready video plan with elite prompts. Automatic or build it by hand.
+            Song → shoot-ready video plan with elite prompts. Turbo, or build it by hand.
           </span>
         </span>
         <ChevronDown className={`h-4 w-4 text-white/40 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} />
