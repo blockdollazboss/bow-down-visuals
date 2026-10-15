@@ -34,12 +34,17 @@ import { getThemeBeat } from "@/lib/theme-analyser";
      pair rides in the frame's open right zone, past the copy
      column's measured right edge, lamp at the corner, monitor just
      inside it, front row, clear air between them. On phones the
-     pair mirrors the left pair inside the frame.)
+     pair mirrors the left pair inside the frame. The pair slid IN
+     a little closer on 2026-10-15 (owner's word): 4 units at sm+
+     (the laptop copy edge binds), 24 units on phones — order, the
+     13px air gap, front-row bases and full heights all kept.)
    - The dolly CAMERA sits center-left on an EXTENDED track (rails +
      sleepers spanning its full travel) and SLIDES LEFT AND RIGHT,
      MOUSE-TRACKED (owner directive, 2026-10-14): it rides its rails
-     following the cursor, lerped and bounded to ±40 scene units,
-     resting centered for reduced-motion visitors.
+     following the cursor, lerped and bounded to ±74 scene units
+     (widened from ±40 on 2026-10-15 — "slide across the screen way
+     more"; the copy column's left edge at the right extreme is the
+     measured wall), resting centered for reduced-motion visitors.
    - The DIRECTOR'S CHAIR sits RIGHT of the camera (the director's /
      host's spot), rebuilt dimensional — walnut frame, shaded fabric
      back with brass studs, padded seat, X legs — no more flat bench.
@@ -74,6 +79,17 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    by measured bounding boxes (desktop 2048, laptop 1676, mobile 390,
    both themes): zero equipment overlap with any copy element or the
    King canvas — at REST and at the camera slide's two extremes.
+
+   RAISE (owner, 2026-10-15: the set "need to be slid up some more —
+   I shouldn't have to scroll down the page to see it"): the whole
+   strip translates up, composition untouched — −24px at sm+ (was
+   −16px) and −10px on phones (was 0). The honest maxima are set by
+   measured boxes: at sm+ the marble deck's back edge lands exactly
+   on the share row's box edge (touching, not crossing — rig-
+   measured at 2048); on phones the key lamp's top stops an
+   estimated 8px short of the last copy row's box. The set stands
+   on the seam — its floor stays ~11px proud of the hero's bottom
+   edge at sm+, ~21px on phones.
 
    Pure decoration: pointer-events-none, aria-hidden. */
 
@@ -298,13 +314,22 @@ function WirePath({ d, w }: { d: string; w: number }) {
   );
 }
 
-/* Dolly track sleepers across the camera's full travel. */
-const SLEEPERS = [402, 447, 492, 537, 582];
+/* Dolly track sleepers across the camera's full travel — extended
+   with the slide range (2026-10-15): the run now spans the wider
+   ride, first sleeper still tucking behind the left monitor's
+   base, the last passing under the chair's legs. */
+const SLEEPERS = [357, 402, 447, 492, 537, 582, 627];
 
-/* Camera slide range (scene units) — bounded by the measured
-   clearances: at +40 the right grip stays ~35px clear of the copy
-   column (desktop), at -40 the lens stays clear of the left monitor. */
-const CAM_SLIDE = 40;
+/* Camera slide range (scene units) — widened 2026-10-15 on the
+   owner's word ("slide across the screen way more"): ±74 units
+   ≈ 136px of travel at desktop/laptop, 1.9× the original ±40.
+   The honest maximum is set by the camera envelope's right tip
+   (its ground shadow) against the copy column's left edge at the
+   right extreme — 3px of air measured at 2048 by the preview rig
+   (hero-set-preview-v10: zero overlaps at rest and both extremes;
+   laptop/mobile extremes follow the same measured geometry law
+   the ±40 build was verified under). */
+const CAM_SLIDE = 74;
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   const p = isLight ? LIGHT : DARK;
@@ -381,7 +406,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-[20] -mt-[550px] h-[580px] w-full sm:-mt-[628px] sm:h-[660px] sm:-translate-y-[16px]"
+      className="pointer-events-none relative z-[20] -mt-[550px] h-[580px] w-full -translate-y-[10px] sm:-mt-[628px] sm:h-[660px] sm:-translate-y-[24px]"
     >
       {/* Stage floor — the seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
@@ -552,7 +577,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           {/* one soft bed of shadow the whole set stands on, plus a
               second pool under the right pair's extended deck */}
           <ellipse cx="720" cy="713" rx="700" ry="8" fill={p.floorShadow} />
-          <ellipse cx="1452" cy="713" rx="205" ry="8" fill={p.floorShadow} />
+          <ellipse cx="1448" cy="713" rx="205" ry="8" fill={p.floorShadow} />
         </g>
 
         {/* ── LIGHT — every beam and glow, all feathered, all aimed
@@ -568,20 +593,22 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
               front glow — drawn at the lamp's two placements (the
               beam gradient is a vertical falloff, x-invariant, so
               both cones share it): phones keep the proven gutter spot
-              (lens x1395); sm+ rides outboard of the right monitor
-              (lens x1510), its cone falling right of the light
-              guard's copy cut at every height */}
+              (lens x1371); sm+ rides outboard of the right monitor
+              (lens x1506), its cone falling right of the light
+              guard's copy cut at every height. Both placements slid
+              IN toward the cast 2026-10-15 on the owner's word (the
+              pair stands a little closer in — see the pair notes). */}
           <g className="sm:hidden">
-            <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
-            <polygon points="1372,408 1418,408 1446,700 1322,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
-            <polygon points="1382,408 1408,408 1428,700 1352,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
-            <ellipse cx="1395" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+            <ellipse cx="1371" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+            <polygon points="1348,408 1394,408 1422,700 1298,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+            <polygon points="1358,408 1384,408 1404,700 1328,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+            <ellipse cx="1371" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
           </g>
           <g className="hidden sm:block">
-            <ellipse cx="1510" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
-            <polygon points="1487,408 1533,408 1561,700 1437,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
-            <polygon points="1497,408 1523,408 1543,700 1467,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
-            <ellipse cx="1510" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+            <ellipse cx="1506" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+            <polygon points="1483,408 1529,408 1557,700 1433,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+            <polygon points="1493,408 1519,408 1539,700 1463,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+            <ellipse cx="1506" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
           </g>
           {/* a soft wash pooled under the camera's mark */}
           <ellipse cx="500" cy="709" rx="205" ry="12" fill="url(#sset-pool)" opacity="0.5" />
@@ -601,8 +628,8 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           {SLEEPERS.map((x) => (
             <rect key={x} x={x} y="690" width="30" height="20" fill="#17100A" opacity="0.8" />
           ))}
-          <rect x="400" y="691" width="220" height="5" rx="2.5" fill="url(#sset-brass)" />
-          <rect x="400" y="703" width="220" height="5" rx="2.5" fill="url(#sset-brass)" opacity="0.75" />
+          <rect x="344" y="691" width="312" height="5" rx="2.5" fill="url(#sset-brass)" />
+          <rect x="344" y="703" width="312" height="5" rx="2.5" fill="url(#sset-brass)" opacity="0.75" />
         </g>
 
         {/* ── LEFT TALL MONITOR — just inside the key lamp ── */}
@@ -693,32 +720,36 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
 
         {/* ── FILL LAMP (right front corner) — front-facing spotlight.
             Responsive twins of the same lamp, exactly the C order:
-            on phones it keeps the proven right-gutter spot (cx 1395);
+            on phones it keeps the proven right-gutter spot (cx 1371);
             at sm+ it stands OUTBOARD of the right monitor at the
-            stage's right corner (cx 1510), clear air between the two
-            pieces and its pole in front of nothing. ── */}
+            stage's right corner (cx 1506), clear air between the two
+            pieces and its pole in front of nothing. The pair slid IN
+            a little closer 2026-10-15 (owner: the right light and
+            speaker "need to slide in a little bit closer") — sm+ by
+            4 units (the laptop copy column's edge is the binding
+            wall, ~2px of air left), phones by 24 units. ── */}
         <g data-piece="FILL-LAMP" className="sm:hidden">
-          <FrontLamp p={p} cx={1395} lensY={398} s={0.72} floorY={717} />
+          <FrontLamp p={p} cx={1371} lensY={398} s={0.72} floorY={717} />
         </g>
         <g data-piece="FILL-LAMP" className="hidden sm:block">
-          <FrontLamp p={p} cx={1510} lensY={398} s={0.72} floorY={717} />
+          <FrontLamp p={p} cx={1506} lensY={398} s={0.72} floorY={717} />
         </g>
 
         {/* ── RIGHT TALL MONITOR — just inside the fill lamp, FRONT
             ROW (base 717: the same deck line and the same 217 height
             as the left monitor), exactly the C drawing's order.
-            Responsive twins: at sm+ the cabinet stands at x1356 —
+            Responsive twins: at sm+ the cabinet stands at x1352 —
             the column whose box clears the copy column's lower rows
-            (they end at page x~1584 at 2048, ~1413 at 1676, and this
-            column keeps the same measured clearances the stepped-
-            back build had); on phones, where no copy hangs over the
-            set band, it mirrors the left pair inside the frame at
-            x1252, lamp at its corner, monitor just inside it. ── */}
+            (they end at page x~1584 at 2048, ~1413 at 1676; the
+            2026-10-15 slide-in stopped ~2px short of the laptop
+            edge); on phones, where no copy hangs over the set band,
+            it mirrors the left pair inside the frame at x1228, lamp
+            at its corner, monitor just inside it. ── */}
         <g data-piece="MONITOR-R" className="sm:hidden">
-          <MonitorCab p={p} x={1252} baseY={717} />
+          <MonitorCab p={p} x={1228} baseY={717} />
         </g>
         <g data-piece="MONITOR-R" className="hidden sm:block">
-          <MonitorCab p={p} x={1356} baseY={717} />
+          <MonitorCab p={p} x={1352} baseY={717} />
         </g>
 
         {/* ── FLOOR WIRES — darker, thicker (Option C): a snake
@@ -730,7 +761,7 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
             climbing to its stepped-back base is gone.) ── */}
         <g data-piece="WIRES">
           <WirePath
-            d="M120,706 C 200,694 300,715 400,705 C 480,696 560,714 660,705 C 760,696 860,715 960,706 C 1060,697 1160,714 1260,705 C 1330,697 1390,714 1440,706 C 1470,700 1490,710 1510,705"
+            d="M120,706 C 200,694 300,715 400,705 C 480,696 560,714 660,705 C 760,696 860,715 960,706 C 1060,697 1160,714 1260,705 C 1330,697 1390,714 1440,706 C 1468,700 1488,710 1506,705"
             w={7}
           />
           {/* coil on the open floor right of the chair */}
