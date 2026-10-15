@@ -297,29 +297,74 @@ async function notify(profileOwnerUserId: string | null | undefined, n: {
    Rule: every payload carries what its neighbors need for two-way linking.
    - media payloads: snake_case DTOs (enrichTrack/enrichVideo) carrying
      profile_slug + buyable/download_price_cents + sound (videos)
-   - comments: author_profile_slug
+   - comments: snake_case DTOs (toCommentDto) carrying the author's
+     name + avatar + slug under BOTH client contracts (wall + player)
    - playlists: owner_profile_slug + resolved_items WRAPPED {kind, item: DTO}
    - profiles: presence flags (has_downloads = store, has_social_links, tip_jar_enabled, has_stream_schedule)
 */
 
-async function authorSlugMap(userIds: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+type AuthorProfileRef = { slug: string; displayName: string; avatarUrl: string | null };
+
+/** One batched profile lookup for a set of comment authors (no N+1). */
+async function authorProfileMap(userIds: string[]): Promise<Map<string, AuthorProfileRef>> {
+  const map = new Map<string, AuthorProfileRef>();
   const unique = [...new Set(userIds.filter(Boolean))];
   if (unique.length === 0) return map;
-  const rows = await db.select({ userId: creatorProfilesTable.userId, slug: creatorProfilesTable.slug })
+  const rows = await db.select({
+    userId: creatorProfilesTable.userId,
+    slug: creatorProfilesTable.slug,
+    displayName: creatorProfilesTable.displayName,
+    avatarUrl: creatorProfilesTable.avatarUrl,
+  })
     .from(creatorProfilesTable)
     .where(inArray(creatorProfilesTable.userId, unique));
-  for (const r of rows) map.set(r.userId, r.slug);
+  for (const r of rows) {
+    map.set(r.userId, { slug: r.slug, displayName: r.displayName, avatarUrl: r.avatarUrl });
+  }
   return map;
 }
 
-function withAuthorSlugs<T extends { authorUserId: string }>(
-  comments: T[], slugs: Map<string, string>,
-): Array<T & { author_profile_slug: string | null }> {
-  return comments.map((c) => ({
-    ...c,
-    author_profile_slug: slugs.get(c.authorUserId) ?? null,
-  }));
+type CommentRow = { id: string; authorUserId: string; body: string; createdAt: Date | string };
+
+/* ── Comment DTO ──────────────────────────────────────────────────────────────
+   Both comment clients render strictly from snake_case contracts and do NO
+   normalization — wall (lib/artist-profiles.ts ProfileComment):
+   author_name / author_avatar_url / author_slug / created_at; player
+   (lib/streaming.ts MediaComment): user_id / display_name / avatar_url /
+   created_at. These endpoints previously spread the raw camelCase row and
+   attached only author_profile_slug, so no name or avatar was ever sent and
+   the date rode as createdAt: every wall comment rendered a blank name with
+   no avatar, no working profile link and no date, and every player comment
+   fell back to "Creator" + "?" with no date. One mapper emits BOTH field
+   sets. An author with no creator profile degrades to "Creator" with null
+   avatar/slug (auth users live in Supabase; there is no name record here).
+   Responses are wrapped in refreshSupabaseStorageUrlsDeep by the routes so
+   avatar URLs get the same storage-URL refresh as every other payload. */
+function toCommentDto(comment: CommentRow, authors: Map<string, AuthorProfileRef>) {
+  const author = authors.get(comment.authorUserId);
+  const name = author?.displayName ?? "Creator";
+  const avatar = author?.avatarUrl ?? null;
+  const slug = author?.slug ?? null;
+  return {
+    id: comment.id,
+    body: comment.body,
+    user_id: comment.authorUserId,
+    display_name: name,
+    avatar_url: avatar,
+    author_name: name,
+    author_avatar_url: avatar,
+    author_slug: slug,
+    author_profile_slug: slug,
+    created_at: comment.createdAt instanceof Date
+      ? comment.createdAt.toISOString()
+      : String(comment.createdAt),
+  };
+}
+
+function withCommentAuthors<T extends CommentRow>(
+  comments: T[], authors: Map<string, AuthorProfileRef>,
+) {
+  return comments.map((c) => toCommentDto(c, authors));
 }
 
 type TrackRow = typeof profileTracksTable.$inferSelect;
@@ -993,8 +1038,8 @@ router.get("/creator-profiles/:id/comments", async (req, res) => {
     const comments = await db.select().from(profileCommentsTable)
       .where(eq(profileCommentsTable.profileId, profile.id))
       .orderBy(desc(profileCommentsTable.createdAt)).limit(limit).offset(offset);
-    const slugs = await authorSlugMap(comments.map((c) => c.authorUserId));
-    res.json({ comments: withAuthorSlugs(comments, slugs) });
+    const authors = await authorProfileMap(comments.map((c) => c.authorUserId));
+    res.json(await refreshSupabaseStorageUrlsDeep({ comments: withCommentAuthors(comments, authors) }));
   } catch (err) {
     req.log.error({ err }, "wall comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -1018,14 +1063,14 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
       authorUserId: req.userId!,
       body: parsed.data.body,
     }).returning();
-    const slugs = await authorSlugMap([comment.authorUserId]);
+    const authors = await authorProfileMap([comment.authorUserId]);
     await notify(profile.userId, {
       kind: "comment",
       title: "Fresh ink on your wall 🦈",
       body: parsed.data.body.slice(0, 120),
       link: `/artist/${profile.slug}`,
     });
-    res.status(201).json({ comment: withAuthorSlugs([comment], slugs)[0] });
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ comment: withCommentAuthors([comment], authors)[0] }));
   } catch (err) {
     req.log.error({ err }, "wall comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });
@@ -1051,8 +1096,8 @@ router.get("/media/:kind/:id/comments", async (req, res) => {
     const comments = await db.select().from(mediaCommentsTable)
       .where(and(eq(mediaCommentsTable.kind, kind), eq(mediaCommentsTable.mediaId, media.id)))
       .orderBy(desc(mediaCommentsTable.createdAt)).limit(limit).offset(offset);
-    const slugs = await authorSlugMap(comments.map((c) => c.authorUserId));
-    res.json({ comments: withAuthorSlugs(comments, slugs) });
+    const authors = await authorProfileMap(comments.map((c) => c.authorUserId));
+    res.json(await refreshSupabaseStorageUrlsDeep({ comments: withCommentAuthors(comments, authors) }));
   } catch (err) {
     req.log.error({ err }, "media comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -1084,7 +1129,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
     }).returning();
     await bumpCounter(kind, media.id, "comment");
     const profile = await getProfileById(media.profileId);
-    const commentSlugs = await authorSlugMap([comment.authorUserId]);
+    const commentAuthors = await authorProfileMap([comment.authorUserId]);
     if (profile && profile.userId !== req.userId) {
       await notify(profile.userId, {
         kind: "comment",
@@ -1093,7 +1138,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
         link: `/artist/${profile.slug}`,
       });
     }
-    res.status(201).json({ comment: withAuthorSlugs([comment], commentSlugs)[0] });
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ comment: withCommentAuthors([comment], commentAuthors)[0] }));
   } catch (err) {
     req.log.error({ err }, "media comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });
