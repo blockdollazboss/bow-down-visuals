@@ -222,6 +222,24 @@ function toEventDto(e: typeof eventsTable.$inferSelect) {
   };
 }
 
+/* Message DTO, field-by-field: the frontend thread contract
+   (pages/messages.tsx) reads created_at for timeAgo() and senderUserId
+   for mine-detection. A raw row shipped camelCase createdAt, so
+   created_at was undefined and every DM timestamp rendered blank.
+   snake_case twins ride along (sender_user_id / conversation_id /
+   is_read) to match the other DTOs in this file. */
+function toMessageDto(m: typeof messagesTable.$inferSelect) {
+  return {
+    id: m.id,
+    conversation_id: m.conversationId,
+    sender_user_id: m.senderUserId,
+    senderUserId: m.senderUserId,
+    body: m.body,
+    is_read: m.isRead,
+    created_at: m.createdAt,
+  };
+}
+
 /* ── GROUPS ──────────────────────────────────────────────────────────────── */
 
 /** Create a group. The creator becomes owner (member row role='owner'). */
@@ -796,7 +814,7 @@ router.get("/dm/:id/messages", requireAuth, async (req, res) => {
         ne(messagesTable.senderUserId, userId),
         eq(messagesTable.isRead, false),
       ));
-    res.json({ messages: rows.reverse(), status: conv.status });
+    res.json({ messages: rows.reverse().map(toMessageDto), status: conv.status });
   } catch (err) {
     console.error("[community] GET /dm/:id/messages failed", err);
     res.status(500).json({ error: "Couldn't load messages — try again." });
