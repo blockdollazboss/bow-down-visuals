@@ -250,10 +250,15 @@ class RouteErrorBoundary extends Component<
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full bg-primary/[0.06] blur-[120px] pointer-events-none"
           />
           <div className="relative max-w-sm text-center space-y-4">
-            <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-              <span className="text-2xl" aria-hidden>
-                🦈
-              </span>
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center overflow-hidden">
+              {/* The King himself, never a stock emoji glyph — the
+                  character icon asset (same mark as the app icon). */}
+              <img
+                src={`${import.meta.env.BASE_URL}icon-192.png`}
+                alt="Thy Cheat Code, the King Shark"
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
             </div>
             <p className="text-white font-bold text-lg">
               The vault guards tripped.

@@ -222,6 +222,46 @@ describe("GET /api/creator-profiles/:slug — public profile contract", () => {
     expect(json.profile.is_official).toBe(false);
   });
 
+ it("serves a COMPLETE theme_config when the stored row carries the column default ({})", async () => {
+    // Migrations 0125/0126 seed the official profile without theme_config,
+    // so the row holds the 0085 column default {}. The public page
+    // dereferences theme_config nested (themeVars reads colors.*, the
+    // hero reads banner.overlayOpacity) — serving {} verbatim threw on
+    // render and landed the page on its error boundary.
+    const row = { ...officialProfileRow(), themeConfig: {} };
+    h.state.profilesBySlug.set("thy-cheat-code", row);
+
+    const { status, json } = await get("/creator-profiles/thy-cheat-code");
+
+    expect(status).toBe(200);
+    const tc = json.profile.theme_config;
+    expect(tc.colors.background).toBe("#0a0a0b");
+    expect(tc.colors.primary).toBe("#d4af37");
+    expect(tc.fonts.heading).toBe("Cinzel");
+    expect(tc.banner.overlayOpacity).toBe(0.55);
+    expect(tc.spacing).toBe("comfortable");
+    expect(tc.cornerRadius).toBe("sharp");
+  });
+
+  it("keeps a creator's own theme values and only fills the gaps", async () => {
+    const row = {
+      ...officialProfileRow(),
+      slug: "custom-creator",
+      themeConfig: { colors: { primary: "#ff0000" }, banner: { overlayOpacity: 0.2 } },
+    };
+    h.state.profilesBySlug.set("custom-creator", row);
+
+    const { status, json } = await get("/creator-profiles/custom-creator");
+
+    expect(status).toBe(200);
+    const tc = json.profile.theme_config;
+    expect(tc.colors.primary).toBe("#ff0000");
+    expect(tc.colors.background).toBe("#0a0a0b");
+    expect(tc.banner.overlayOpacity).toBe(0.2);
+    expect(tc.banner.layout).toBe("full-bleed");
+    expect(tc.fonts.body).toBe("Inter");
+  });
+
   it("still 404s a private profile (server-side gate unchanged)", async () => {
     const row = { ...officialProfileRow(), slug: "quiet-creator", isPublic: false };
     h.state.profilesBySlug.set("quiet-creator", row);

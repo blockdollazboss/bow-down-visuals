@@ -449,10 +449,27 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/* A profile whose layout was never saved (seeded or API-created rows
+   store the column default: no sections) would render an empty shell —
+   ProfileSections maps the sections array, so no hero, no name, no
+   banner ever mounts. Fall back to the vertical's starter layout,
+   exactly what profile creation would have stored; a layout the
+   creator actually saved is never touched. Also coerce the array
+   fields the renderers dereference (sections.filter, top_creators
+   .join/.map) so a null can never reach them. */
+function withRenderableLayout(p: CreatorProfile): CreatorProfile {
+  const sections = Array.isArray(p.sections) && p.sections.length > 0
+    ? p.sections
+    : starterTemplate(p.vertical ?? "other").sections;
+  const top_creators = Array.isArray(p.top_creators) ? p.top_creators : [];
+  return { ...p, sections, top_creators };
+}
+
 export async function fetchPublicProfile(slug: string): Promise<CreatorProfile> {
   const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}`);
   const data = await json<{ profile?: CreatorProfile } | CreatorProfile>(res);
-  return (data as { profile?: CreatorProfile }).profile ?? (data as CreatorProfile);
+  const profile = (data as { profile?: CreatorProfile }).profile ?? (data as CreatorProfile);
+  return withRenderableLayout(profile);
 }
 
 export async function fetchMyProfile(): Promise<CreatorProfile | null> {

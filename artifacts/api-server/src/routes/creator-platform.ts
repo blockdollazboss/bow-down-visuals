@@ -484,6 +484,51 @@ const playLimiter = rateLimit({
 
 /* ── Profiles ──────────────────────────────────────────────────────────────── */
 
+/* The client contract (frontend lib/artist-profiles ThemeConfig) requires a
+   COMPLETE theme_config — colors, fonts, banner, spacing, cornerRadius —
+   and the public page dereferences it nested (themeVars reads
+   theme.colors.*, HeroSection reads theme_config.banner.overlayOpacity).
+   Rows created outside the client creation flows carry the column default
+   instead: the official house profile seeded by migrations 0125/0126 has
+   theme_config = {} (and API writes default it to {} too — see
+   upsertProfileSchema), so every nested read threw and the public page
+   landed on its error boundary. Complete any partial config over the
+   house default (the client's DEFAULT_THEME, "midnight-gold") at the
+   payload boundary; stored values always win where present. */
+const DEFAULT_THEME_CONFIG: Record<string, unknown> = {
+  themeId: "midnight-gold",
+  colors: {
+    background: "#0a0a0b",
+    surface: "#121214",
+    primary: "#d4af37",
+    accent: "#f5d67b",
+    text: "#f5f1e6",
+    mutedText: "#a8a29e",
+    cardBg: "#161618",
+    border: "#2a2416",
+  },
+  fonts: { heading: "Cinzel", body: "Inter" },
+  banner: { layout: "full-bleed", overlayOpacity: 0.55 },
+  spacing: "comfortable",
+  cornerRadius: "sharp",
+};
+
+function isPlainRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+export function completeThemeConfig(raw: unknown): Record<string, unknown> {
+  const t = isPlainRecord(raw) ? raw : {};
+  const d = DEFAULT_THEME_CONFIG;
+  return {
+    ...d,
+    ...t,
+    colors: { ...(d["colors"] as Record<string, unknown>), ...(isPlainRecord(t["colors"]) ? t["colors"] : {}) },
+    fonts: { ...(d["fonts"] as Record<string, unknown>), ...(isPlainRecord(t["fonts"]) ? t["fonts"] : {}) },
+    banner: { ...(d["banner"] as Record<string, unknown>), ...(isPlainRecord(t["banner"]) ? t["banner"] : {}) },
+  };
+}
+
 /** Public snake_case shape for a creator profile (what frontends expect). */
 function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
   return {
@@ -497,7 +542,7 @@ function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
     avatar_url: p.avatarUrl,
     banner_url: p.bannerUrl,
     theme_id: p.themeId,
-    theme_config: p.themeConfig,
+    theme_config: completeThemeConfig(p.themeConfig),
     sections: p.sections,
     featured_media: p.featuredMedia,
     social_links: p.socialLinks,
@@ -588,7 +633,7 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         avatar_url: profile.avatarUrl,
         banner_url: profile.bannerUrl,
         theme_id: profile.themeId,
-        theme_config: profile.themeConfig,
+        theme_config: completeThemeConfig(profile.themeConfig),
         sections: profile.sections,
         featured_media: profile.featuredMedia,
         social_links: profile.socialLinks,
