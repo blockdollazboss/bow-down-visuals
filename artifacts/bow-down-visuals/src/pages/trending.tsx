@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { TrendingUp, Hash, MessageCircle, Clapperboard } from "lucide-react";
+import { TrendingUp, Hash, MessageCircle, Clapperboard, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiJson, type TrendingTopic } from "@/lib/social-api";
@@ -12,16 +12,20 @@ export default function TrendingPage() {
   const { getAccessToken } = useAuth();
   const [topics, setTopics] = useState<TrendingTopic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   usePageTitle("Trending", "The hashtags moving right now across posts and videos.");
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     apiJson<{ topics: TrendingTopic[] }>(getAccessToken, "/api/trending/topics")
       .then((d) => setTopics(d.topics))
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryNonce]);
 
   return (
     <div className="mx-auto w-full max-w-[680px] px-4 pb-24 pt-6">
@@ -38,7 +42,18 @@ export default function TrendingPage() {
         </div>
       )}
 
-      {!loading && topics.length === 0 && (
+      {!loading && loadError && (
+        <div className="rounded-2xl border border-[#d4af37]/40 bg-[#111] p-10 text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-[#d4af37]" />
+          <p className="mt-3 font-bold text-white">Couldn't load what's trending.</p>
+          <p className="mt-1 text-sm text-neutral-400">Something went wrong on our end — that's not the same as nothing trending.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && topics.length === 0 && (
         <div className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-10 text-center">
           <p className="text-lg font-bold text-white">Nothing trending yet 🦈</p>
           <p className="mt-2 text-sm text-neutral-400">Start a hashtag in your next post and watch it climb.</p>
