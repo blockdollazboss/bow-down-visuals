@@ -320,7 +320,7 @@ export default function GamersHub() {
       <main className="relative mx-auto max-w-5xl px-5 pb-24">
         {/* ── AI IDEA GENERATOR ── */}
         <section id="idea-generator" className="scroll-mt-24 pt-14">
-          <div className="overflow-hidden rounded-3xl border border-fuchsia-500/25 bg-gradient-to-b from-[#0d0716] to-[#050510] p-6 md:p-10">
+          <div className={`overflow-hidden rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
@@ -483,7 +483,7 @@ export default function GamersHub() {
 
         {/* ── SETUP OF THE DAY ── */}
         <section className="pt-14">
-          <div className="overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-b from-[#071018] to-[#050510] p-6 md:p-10">
+          <div className={`overflow-hidden rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="mb-6 text-center">
               <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-lime-300/40 bg-lime-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-lime-300">
                 <Zap className="h-3 w-3" aria-hidden="true" />{t("gamers.free_setup_of_the_day")}</p>
