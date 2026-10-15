@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, type JSX } from "react";
-import { Loader2, Link2Off, AlertTriangle, BadgeCheck } from "lucide-react";
+import { Loader2, Link2Off, AlertTriangle, BadgeCheck, RotateCcw } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
@@ -26,6 +26,9 @@ export function useSocialAccounts() {
   const { getAccessToken } = useAuth();
   const [accounts, setAccounts] = useState<SocialAccountInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  /* A failed load is NOT "no accounts connected" — it gets its own error
+     state so a connected user is never presented as never-connected. */
+  const [loadError, setLoadError] = useState(false);
 
   async function reload(): Promise<SocialAccountInfo[]> {
     setLoading(true);
@@ -38,9 +41,11 @@ export function useSocialAccounts() {
       const data = await res.json();
       const list: SocialAccountInfo[] = data.accounts ?? [];
       setAccounts(list);
+      setLoadError(false);
       return list;
     } catch {
       setAccounts([]);
+      setLoadError(true);
       return [];
     } finally {
       setLoading(false);
@@ -58,9 +63,15 @@ export function useSocialAccounts() {
         });
         if (!res.ok) throw new Error("load failed");
         const data = await res.json();
-        if (!cancelled) setAccounts(data.accounts ?? []);
+        if (!cancelled) {
+          setAccounts(data.accounts ?? []);
+          setLoadError(false);
+        }
       } catch {
-        if (!cancelled) setAccounts([]);
+        if (!cancelled) {
+          setAccounts([]);
+          setLoadError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -70,7 +81,7 @@ export function useSocialAccounts() {
     };
   }, [getAccessToken]);
 
-  return { accounts, loading, reload };
+  return { accounts, loading, reload, loadError };
 }
 
 interface PlatformConfig {
@@ -117,7 +128,7 @@ export function ConnectedAccounts() {
   const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
-  const { accounts, loading, reload } = useSocialAccounts();
+  const { accounts, loading, reload, loadError } = useSocialAccounts();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
@@ -174,6 +185,19 @@ export function ConnectedAccounts() {
       {loading ? (
         <div className="flex items-center gap-2 text-white/40 text-sm py-4">
           <Loader2 className="h-4 w-4 animate-spin" /> Checking connections…
+        </div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4 text-sm text-red-200/80 flex items-center gap-3">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          Couldn't load your connected accounts — check your connection and try again.
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void reload()}
+            className="border-white/15 ml-auto shrink-0"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retry
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
