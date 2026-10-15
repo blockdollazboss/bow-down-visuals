@@ -13,6 +13,7 @@ import {
   type LipSyncStrength,
   type ClipEdit,
 } from "@/lib/editor-settings";
+import { requestAudioExport } from "@/lib/audio-export";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
@@ -643,17 +644,32 @@ export function LipSyncSection({
     setAcapellaError(null);
     try {
       const token = await getAccessToken();
-      const res = await confirmedFetch("/api/music/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ exportType: "acapella-mp3", stems: ms.stems, masterVolume: 100 }),
-      });
-      if (!res) { setAcapellaExporting(false); return; } // user cancelled the credit confirmation
-      const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        throw new Error(data.error ?? `Export failed: HTTP ${res.status}`);
-      }
-      updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
+      if (!token) throw new Error("You need to be signed in to export audio.");
+      /* /api/music/export is async: it answers 202 { jobId, status: "queued" }
+         and the file URL only exists in the polled job result, so the old
+         direct read of data.url always failed. requestAudioExport owns that
+         POST + poll contract; passing confirmedFetch keeps the credit-confirm
+         gate in front of the spend, exactly like the other export consumers. */
+      const resp = await requestAudioExport(token, {
+        exportType: "acapella-mp3",
+        masterVolume: 100,
+        stems: ms.stems.map((s) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          url: s.url,
+          volume: s.volume,
+          muted: s.muted,
+          solo: s.solo,
+          pan: s.pan,
+          trimStart: s.trimStart,
+          trimEnd: s.trimEnd,
+          effects: s.effects,
+          ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
+        })),
+      }, confirmedFetch);
+      if (!resp) return; // user cancelled the credit confirmation
+      updateLipSync({ uploadedVocalStemUrl: resp.url, audioSource: "vocals" });
     } catch (err) {
       setAcapellaError(err instanceof Error ? err.message : "Export failed");
     } finally {
