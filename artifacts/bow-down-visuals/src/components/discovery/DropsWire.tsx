@@ -85,7 +85,7 @@ export function DropsWire() {
                   <div className="min-w-0 flex-1">
                     <TrackRow
                       track={{ ...item, artwork_url: item.thumb }}
-                      linkPath={item.kind === "video" ? `/video/${item.id}` : `/track/${item.id}`}
+                      linkPath={item.kind === "video" ? `/watch/${item.id}` : `/track/${item.id}`}
                     />
                   </div>
                 </div>
@@ -101,7 +101,7 @@ export function DropsWire() {
                   {" · "}
                   <ShareMenu
                     getToken={getAccessToken}
-                    shareUrl={`${window.location.origin}${item.kind === "video" ? `/video/${item.id}` : `/track/${item.id}`}`}
+                    shareUrl={`${window.location.origin}${item.kind === "video" ? `/watch/${item.id}` : `/track/${item.id}`}`}
                     title={item.title}
                     text={`${item.title} — Made with Bow Down Visuals`}
                     contentType={item.kind === "video" ? "video" : "song"}
