@@ -136,7 +136,7 @@ export function formatSeriesLabel(season?: number | null, episode?: number | nul
  * the agreed handoff surface. Update here if the checkout route changes.
  */
 export function downloadCheckoutPath(kind: MediaKind, id: string): string {
-  return `/checkout/${kind}/${encodeURIComponent(id)}`;
+  return `/store/buy/${kind}/${encodeURIComponent(id)}`;
 }
 
 /* ─── Share helpers (virality) ─── */
