@@ -1484,8 +1484,7 @@ router.get("/media/video/:id", async (req, res) => {
 /** GET /api/creator-profiles/:slug/media?kind=track|video&limit= — public media listing. */
 router.get("/creator-profiles/:slug/media", async (req, res) => {
   try {
-    const [profile] = await db.select().from(creatorProfilesTable)
-      .where(eq(creatorProfilesTable.slug, String(req.params["slug"]))).limit(1);
+    const profile = await getProfileBySlugOrId(String(req.params["slug"]));
     if (!profile || !profile.isPublic) {
       res.status(404).json({ error: "No creator at that address." });
       return;
