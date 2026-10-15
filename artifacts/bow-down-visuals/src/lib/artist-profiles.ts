@@ -536,7 +536,7 @@ export async function followProfile(slug: string): Promise<{ follower_count: num
 }
 
 export async function unfollowProfile(slug: string): Promise<{ follower_count: number }> {
-  const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/follow`, { method: "DELETE" });
+  const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/unfollow`, { method: "DELETE" });
   return json(res);
 }
 

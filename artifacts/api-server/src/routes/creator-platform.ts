@@ -245,11 +245,12 @@ async function getProfileById(id: string) {
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Wall-comment routes only: their :id param arrives as a profile SLUG from
- * the only production caller (the Shout Wall passes profile.slug), while
- * other callers pass real ids. The id column is a uuid, so a slug must
- * never reach an id lookup (Postgres rejects the cast) — only UUID-shaped
- * values try the id column, then everything falls back to a slug lookup.
+ * Wall-comment and follow/unfollow routes only: their :id param arrives as
+ * a profile SLUG from the profile-page callers (the Shout Wall and the
+ * profile Follow/Unfollow buttons pass profile.slug), while other callers
+ * pass real ids. The id column is a uuid, so a slug must never reach an id
+ * lookup (Postgres rejects the cast) — only UUID-shaped values try the id
+ * column, then everything falls back to a slug lookup.
  */
 async function getProfileBySlugOrId(idOrSlug: string) {
   if (UUID_SHAPE.test(idOrSlug)) {
@@ -1019,7 +1020,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    const profile = await getProfileById(String(req.params["id"]));
+    const profile = await getProfileBySlugOrId(String(req.params["id"]));
     if (!profile || !profile.isPublic) {
       res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
       return;
@@ -1050,7 +1051,7 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
 router.delete("/creator-profiles/:id/unfollow", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    const profile = await getProfileById(String(req.params["id"]));
+    const profile = await getProfileBySlugOrId(String(req.params["id"]));
     if (!profile) {
       res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
       return;
