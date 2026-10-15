@@ -608,7 +608,11 @@ router.get("/sounds/:id", feedLimiter, async (req, res) => {
       },
       videos: vids,
       earning_items: vids.filter((v) => v.for_sale).map((v) => ({
-        id: v.id, title: v.title, price_cents: v.download_price_cents, creator: v.creator,
+        id: v.id, title: v.title, price_cents: v.download_price_cents,
+        /* sound.tsx gates the card <img> on thumbnail_url — it rides
+           along from the same vid object and gets the same deep
+           storage-URL refresh as videos[].thumbnail_url above. */
+        thumbnail_url: v.thumbnail_url, creator: v.creator,
       })),
     }));
   } catch (err) {
