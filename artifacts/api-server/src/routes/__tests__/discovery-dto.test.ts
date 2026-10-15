@@ -355,3 +355,29 @@ describe("Defect B — list endpoints ship row ARRAYS, not QueryResult objects",
     expect(json.related[0].id).toBe(PROFILE_ID);
   });
 });
+
+/* ─── Defect C — plays alias mismatch ────────────────────────────────── */
+
+describe("Defect C — play counts ship under the names the client reads", () => {
+  it("GET /feed — items carry window_plays with the real count (DropsWire/TrackRow contract)", async () => {
+    const { status, json } = await get("/feed");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.items)).toBe(true);
+    const item = json.items[0];
+    expect(item.kind).toBe("track");
+    expect(item.id).toBe(TRACK_ID);
+    // Used to arrive as `plays`, which nothing reads — "0 plays" everywhere.
+    expect(item.window_plays).toBe(TRACK_PLAYS);
+    expect(item).not.toHaveProperty("plays");
+  });
+
+  it("GET /vertical/:vertical — fresh drops carry play_count (they selected no count at all)", async () => {
+    const { status, json } = await get("/vertical/music");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.new_this_week)).toBe(true);
+    const item = json.new_this_week[0];
+    expect(item.kind).toBe("track");
+    expect(item.id).toBe(TRACK_ID);
+    expect(item.play_count).toBe(TRACK_PLAYS);
+  });
+});

@@ -498,11 +498,11 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
       FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
       WHERE v.is_published AND p.is_public ${vf} ORDER BY v.view_count DESC LIMIT ${limit}`),
       db.execute(sql`
-      (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.artwork_url AS thumb, t.created_at, ${PROFILE_COLS}
+      (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.artwork_url AS thumb, t.created_at, t.play_count, ${PROFILE_COLS}
        FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
        WHERE t.is_published AND p.is_public ${vf} AND t.created_at >= NOW() - INTERVAL '14 days')
       UNION ALL
-      (SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.thumbnail_url AS thumb, v.created_at, ${PROFILE_COLS}
+      (SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.thumbnail_url AS thumb, v.created_at, v.view_count AS play_count, ${PROFILE_COLS}
        FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
        WHERE v.is_published AND p.is_public ${vf} AND v.created_at >= NOW() - INTERVAL '14 days')
       ORDER BY created_at DESC LIMIT ${limit}`),
@@ -736,14 +736,14 @@ router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
   }
   const items = (await db.execute(sql`
     (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
-            t.play_count AS plays, t.like_count, t.created_at, ${PROFILE_COLS}
+            t.play_count AS window_plays, t.like_count, t.created_at, ${PROFILE_COLS}
      FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
      WHERE t.is_published AND p.is_public
        AND t.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
        AND t.created_at >= NOW() - INTERVAL '30 days')
     UNION ALL
     (SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.genre, v.thumbnail_url AS thumb,
-            v.view_count AS plays, v.like_count, v.created_at, ${PROFILE_COLS}
+            v.view_count AS window_plays, v.like_count, v.created_at, ${PROFILE_COLS}
      FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
      WHERE v.is_published AND p.is_public
        AND v.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
