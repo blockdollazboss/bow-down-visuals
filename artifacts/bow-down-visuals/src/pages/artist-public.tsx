@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, Link2Off, Crown, BadgeCheck } from "lucide-react";
+import { Loader2, Link2Off, Crown, BadgeCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import type { CreatorProfile } from "@/lib/artist-profiles";
@@ -62,22 +62,34 @@ export default function ArtistPublic() {
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     (async () => {
       try {
         const p = await fetchPublicProfile(slug);
         if (!cancelled) setProfile(p.is_public ? p : null);
         if (!cancelled && !p.is_public) setNotFound(true);
-      } catch {
-        if (!cancelled) setNotFound(true);
+      } catch (err) {
+        // Only a genuine 404 is "doesn't exist". The API 404s solely for
+        // a missing/private profile; 500s and network failures are load
+        // errors and must not render the not-found state.
+        const status = (err as { status?: number })?.status;
+        if (!cancelled) {
+          if (status === 404) setNotFound(true);
+          else setLoadError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   usePageTitle(
     profile ? `${profile.display_name}` : "Creator Profile",
@@ -88,6 +100,21 @@ export default function ArtistPublic() {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 bg-black px-4 text-center">
+        <AlertTriangle className="h-10 w-10 text-amber-400" />
+        <h1 className="text-xl font-bold text-white">Couldn't load this profile.</h1>
+        <p className="max-w-sm text-sm text-white/50">
+          Something went wrong on our end — this creator's page may well exist, it just couldn't load right now.
+        </p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105">
+          <RotateCcw className="h-4 w-4" /> Try again
+        </button>
       </div>
     );
   }

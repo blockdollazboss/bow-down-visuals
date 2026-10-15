@@ -444,7 +444,12 @@ export function emptyProfile(overrides: Partial<CreatorProfile> = {}): CreatorPr
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error || `Request failed (${res.status})`);
+    const err = new Error((body as { error?: string }).error || `Request failed (${res.status})`) as Error & { status?: number };
+    // Preserve the HTTP status so callers can tell a genuine 404 (page
+    // really doesn't exist) from a 500/network failure (page may exist,
+    // the load just failed) — those need different UI states.
+    err.status = res.status;
+    throw err;
   }
   return res.json() as Promise<T>;
 }
