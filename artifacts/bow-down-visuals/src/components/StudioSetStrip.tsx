@@ -57,6 +57,29 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    both themes): zero equipment overlap with any copy element or
    the King canvas.
 
+   FRAME FIX (owner, 2026-10-14 — "the set should be fit in this
+   frame. It need to be slid up"): the v3 build's floor ran to page
+   y1244 at desktop — past the 1211px hero's bottom and 92px below
+   the 1152px first-screen capture — so the set read as cut off.
+   Measured diagnosis + fix, all of it sm+ only (mobile already fit
+   and keeps the exact v3 geometry):
+   - The strip rides 106px higher via a purely visual translate
+     (layout, the hero's height and mobile are untouched).
+   - The key lamp's stand shortens at sm+ (lens 492→560): raised at
+     full height, its barn doors crossed the King canvas's bottom
+     edge — laptop was the binding size (8px clearance now).
+   - The camera scales to 0.81 about its floor mark at sm+, same
+     reason (its top flag grazed the King's bottom edge).
+   - Both speakers move in from under the copy column to flank the
+     camera at sm+: the copy column's airspace has no room for a
+     floor piece once the floor rises past its lowest rows.
+   - The floor shadow splits into two beds that stop at the copy
+     column's edges, and the floor wires pass BEHIND the copy
+     column (split runs) instead of crossing it — same reason.
+   Re-verified with the preview rig (hero-set-preview-v4): every
+   equipment bottom inside the hero and, at 2048/1676, at or above
+   the copy column's own bottom line; zero overlaps, 6/6 configs.
+
    Pure decoration: pointer-events-none, aria-hidden. */
 
 interface SetPalette {
@@ -239,9 +262,9 @@ function SpeakerCab({ p, x, y }: { p: SetPalette; x: number; y: number }) {
 
 /* A bold floor cable in three passes — soft shadow, dark body, thin
    gold top highlight — so it stays readable even at phone size. */
-function WirePath({ d, w }: { d: string; w: number }) {
+function WirePath({ d, w, className }: { d: string; w: number; className?: string }) {
   return (
-    <g fill="none" strokeLinecap="round">
+    <g fill="none" strokeLinecap="round" className={className}>
       <path d={d} stroke="#000000" strokeOpacity="0.5" strokeWidth={w + 2.5} transform="translate(0 2)" />
       <path d={d} stroke="#16100A" strokeWidth={w} />
       <path d={d} stroke="#D8B25C" strokeOpacity="0.5" strokeWidth="1.8" transform="translate(0 -2.2)" />
@@ -253,15 +276,17 @@ const SLEEPERS = [312, 358, 404, 450, 496, 542, 588, 634];
 
 export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   const p = isLight ? LIGHT : DARK;
-  const lightsRef = useRef<SVGGElement | null>(null);
+  /* Two light layers (mobile + sm+ twins, frame fix) — the beat
+     breath drives both; only one is displayed at any width. */
+  const lightsRef = useRef<(SVGGElement | null)[]>([]);
 
   /* Beat breath — the set's light layer swells gently with the theme
      song's kicks, mirroring the SpotlightRig's driving detection but
      capped far lower (±10% opacity): a soft light dance, never a
      strobe. Silent or reduced-motion: the layer rests untouched. */
   useEffect(() => {
-    const el = lightsRef.current;
-    if (!el || typeof window === "undefined") return;
+    const els = lightsRef.current.filter((e): e is SVGGElement => !!e);
+    if (!els.length || typeof window === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0;
     let cancelled = false;
@@ -274,9 +299,9 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
       const driving = !!beat && nowMs - lastPulseAt < 1500;
       if (driving && beat) {
         const boost = Math.min(1, beat.pulse * 1.15);
-        el.style.opacity = (0.9 + boost * 0.1).toFixed(3);
-      } else if (el.style.opacity) {
-        el.style.opacity = "";
+        els.forEach((el) => { el.style.opacity = (0.9 + boost * 0.1).toFixed(3); });
+      } else {
+        els.forEach((el) => { if (el.style.opacity) el.style.opacity = ""; });
       }
       raf = requestAnimationFrame(loop);
     };
@@ -290,8 +315,11 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-[20] -mt-[550px] h-[580px] w-full sm:-mt-[628px] sm:h-[660px]"
+      className="pointer-events-none relative z-[20] -mt-[550px] h-[580px] w-full sm:-mt-[628px] sm:h-[660px] sm:-translate-y-[106px]"
     >
+      {/* Frame fix: the sm:-translate-y-[106px] above is the "slide
+          up" — visual only, so the hero's layout height, the seam
+          the strip melts into, and mobile are all unchanged. */}
       {/* Stage floor — the seam cover: a soft gradient floor that
           fades in over the hero's bottom edge and melts into the band. */}
       <div
@@ -377,6 +405,13 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
             <stop offset="48%" stopColor={p.beamMid} />
             <stop offset="100%" stopColor={p.beamMid} stopOpacity="0" />
           </linearGradient>
+          {/* The sm+ key lamp sits lower (lens 560) — its beam gets a
+              gradient born at that lens point. */}
+          <linearGradient id="sset-beam-key-sm" gradientUnits="userSpaceOnUse" x1="262" y1="560" x2="262" y2="706">
+            <stop offset="0%" stopColor={p.beamHi} />
+            <stop offset="48%" stopColor={p.beamMid} />
+            <stop offset="100%" stopColor={p.beamMid} stopOpacity="0" />
+          </linearGradient>
           <linearGradient id="sset-beam-fill" gradientUnits="userSpaceOnUse" x1="1395" y1="398" x2="1395" y2="706">
             <stop offset="0%" stopColor={p.beamHi} />
             <stop offset="48%" stopColor={p.beamMid} />
@@ -406,31 +441,67 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <filter id="sset-blur5" x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="5" />
           </filter>
-          {/* Light guard — the set's light may paint anywhere EXCEPT
-              the copy column's airspace (scene x 680–1365, y 0–630)
-              and the King's (x 190–537, y 0–405): the union of the
-              desktop + laptop measured zones, with margin. */}
+          {/* Light guards — the set's light may paint anywhere EXCEPT
+              the copy column's and the King's measured airspace.
+              Two versions (frame fix): the base guard is the v3
+              union for the unchanged mobile geometry (copy
+              x 680–1365 y 0–630, King x 190–537 y 0–405); the sm
+              guard matches the raised strip — its copy cut runs to
+              y 735 (the copy's lowest row in post-shift scene
+              coordinates) and its King cut spans the King's full
+              measured width (x 70–615) to y 470. */}
           <clipPath id="sset-light-guard">
             <path
               fillRule="evenodd"
               d="M0 0 H1440 V720 H0 Z M680 0 H1365 V630 H680 Z M190 0 H537 V405 H190 Z"
             />
           </clipPath>
+          <clipPath id="sset-light-guard-sm">
+            <path
+              fillRule="evenodd"
+              d="M0 0 H1440 V720 H0 Z M690 0 H1355 V735 H690 Z M70 0 H615 V470 H70 Z"
+            />
+          </clipPath>
         </defs>
 
-        {/* floor shadow — one soft bed the whole set stands on */}
+        {/* floor shadow — one soft bed the whole set stands on.
+            Mobile keeps the single full-width bed. At sm+ the bed
+            becomes two beds that stop at the copy column's edges:
+            raised 106px, a full-width bed's shadow would cross the
+            copy's lowest rows (frame fix). */}
         <g data-piece="FLOOR">
-          <ellipse cx="720" cy="713" rx="700" ry="8" fill={p.floorShadow} />
+          <ellipse cx="720" cy="713" rx="700" ry="8" fill={p.floorShadow} className="sm:hidden" />
+          <ellipse cx="330" cy="713" rx="340" ry="8" fill={p.floorShadow} className="hidden sm:block" />
+        </g>
+        <g data-piece="FLOOR-R" className="hidden sm:block">
+          <ellipse cx="1406" cy="713" rx="46" ry="8" fill={p.floorShadow} />
         </g>
 
         {/* ── LIGHT — every beam and glow, all feathered, all aimed
             FORWARD: cones widen from each lens toward the viewer and
-            dissolve into a soft glow at the stage's front edge. ── */}
-        <g data-piece="LIGHT-FX" ref={lightsRef} clipPath="url(#sset-light-guard)">
+            dissolve into a soft glow at the stage's front edge.
+            Two twins (frame fix): mobile keeps the v3 geometry (key
+            lens 492, v3 guard); sm+ matches the shortened key lamp
+            (lens 560) and the sm guard. ── */}
+        <g data-piece="LIGHT-FX" className="sm:hidden" ref={(el) => { lightsRef.current[0] = el; }} clipPath="url(#sset-light-guard)">
           {/* key lamp (left): lens glow, forward cone + core, front glow */}
           <ellipse cx="262" cy="492" rx="98" ry="62" fill="url(#sset-glow)" />
           <polygon points="232,502 292,502 386,700 138,700" fill="url(#sset-beam-key)" filter="url(#sset-blur9)" />
           <polygon points="246,502 278,502 340,700 184,700" fill="url(#sset-beam-key)" filter="url(#sset-blur5)" opacity="0.55" />
+          <ellipse cx="262" cy="707" rx="175" ry="15" fill="url(#sset-pool)" />
+          {/* fill lamp (right): lens glow, forward cone + core, front glow */}
+          <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
+          <polygon points="1372,408 1418,408 1446,700 1322,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur9)" />
+          <polygon points="1382,408 1408,408 1428,700 1352,700" fill="url(#sset-beam-fill)" filter="url(#sset-blur5)" opacity="0.55" />
+          <ellipse cx="1395" cy="707" rx="125" ry="13" fill="url(#sset-pool)" />
+          {/* a soft wash pooled under the camera's mark */}
+          <ellipse cx="470" cy="709" rx="205" ry="12" fill="url(#sset-pool)" opacity="0.5" />
+        </g>
+        <g data-piece="LIGHT-FX" className="hidden sm:block" ref={(el) => { lightsRef.current[1] = el; }} clipPath="url(#sset-light-guard-sm)">
+          {/* key lamp (left, lens 560 at sm+): glow, cone + core, front glow */}
+          <ellipse cx="262" cy="560" rx="98" ry="62" fill="url(#sset-glow)" />
+          <polygon points="232,570 292,570 386,700 138,700" fill="url(#sset-beam-key-sm)" filter="url(#sset-blur9)" />
+          <polygon points="246,570 278,570 340,700 184,700" fill="url(#sset-beam-key-sm)" filter="url(#sset-blur5)" opacity="0.55" />
           <ellipse cx="262" cy="707" rx="175" ry="15" fill="url(#sset-pool)" />
           {/* fill lamp (right): lens glow, forward cone + core, front glow */}
           <ellipse cx="1395" cy="398" rx="74" ry="50" fill="url(#sset-glow)" />
@@ -463,14 +534,26 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
           <rect x="52" y="664" width="72" height="6" fill="url(#sset-walnut)" opacity="0.8" />
         </g>
 
-        {/* ── KEY LAMP (left) — front-facing spotlight on a tripod ── */}
+        {/* ── KEY LAMP (left) — front-facing spotlight on a tripod.
+            Mobile keeps the tall stand (lens 492 — it fit). At sm+
+            the stand is shorter (lens 560): raised at full height,
+            the head's barn doors crossed the King canvas's bottom
+            edge, laptop binding (frame fix). ── */}
         <g data-piece="KEY-LAMP">
-          <FrontLamp p={p} cx={262} lensY={492} s={1} floorY={717} />
+          <g className="sm:hidden">
+            <FrontLamp p={p} cx={262} lensY={492} s={1} floorY={717} />
+          </g>
+          <g className="hidden sm:block">
+            <FrontLamp p={p} cx={262} lensY={560} s={1} floorY={717} />
+          </g>
         </g>
 
         {/* ── CINEMA CAMERA (center-left) on a low dolly track,
-            aiming FORWARD — front-on lens + matte box ── */}
-        <g data-piece="CAMERA">
+            aiming FORWARD — front-on lens + matte box. Frame fix:
+            at sm+ it scales to 0.81 about its floor mark — raised
+            full-size, its top flag crossed the King canvas's bottom
+            edge (laptop binding). Mobile keeps full size. ── */}
+        <g data-piece="CAMERA" className="sm:[transform-box:fill-box] sm:[transform-origin:50%_100%] sm:scale-[0.81]">
           <ellipse cx="470" cy="713" rx="185" ry="7" fill={p.shadow} />
           {/* dolly track: sleepers + two rails */}
           {SLEEPERS.map((x) => (
@@ -513,10 +596,20 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
         </g>
 
         {/* ── SPEAKERS — floor cabinets flanking the set, in place of
-            the old road case + clapperboard ── */}
+            the old road case + clapperboard. Mobile keeps the v3
+            spots. At sm+ both cabinets flank the camera instead:
+            their old spots sit under the copy column, whose airspace
+            has no room for a floor piece once the strip is raised
+            (frame fix). ── */}
         <g data-piece="SPEAKERS">
-          <SpeakerCab p={p} x={648} y={638} />
-          <SpeakerCab p={p} x={1160} y={638} />
+          <g className="sm:hidden">
+            <SpeakerCab p={p} x={648} y={638} />
+            <SpeakerCab p={p} x={1160} y={638} />
+          </g>
+          <g className="hidden sm:block">
+            <SpeakerCab p={p} x={186} y={638} />
+            <SpeakerCab p={p} x={586} y={638} />
+          </g>
         </g>
 
         {/* ── FILL LAMP (right edge) — front-facing spotlight, slimmer
@@ -528,10 +621,20 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
 
         {/* ── FLOOR WIRES — bold cables: a snake between lamps,
             speakers and camera, a coil beside the dolly, the camera's
-            power lead, and a foreground run across the front ── */}
+            power lead, and a foreground run across the front.
+            Mobile keeps the full-width runs (v3). At sm+ the snake
+            and the foreground run pass BEHIND the copy column in two
+            segments instead of crossing its lowest rows (frame fix);
+            the right-hand stubs live in WIRES-R. ── */}
         <g data-piece="WIRES">
           <WirePath
+            className="sm:hidden"
             d="M148,707 C 225,693 305,716 385,704 C 455,694 525,715 612,704 C 695,694 762,715 852,705 C 948,695 1042,716 1132,705 C 1222,695 1312,715 1392,702"
+            w={7}
+          />
+          <WirePath
+            className="hidden sm:block"
+            d="M148,707 C 225,693 305,716 385,704 C 455,694 525,715 612,704 C 645,699 668,702 690,700"
             w={7}
           />
           {/* camera power lead, dropping to the coil */}
@@ -544,7 +647,23 @@ export function StudioSetStrip({ isLight }: { isLight: boolean }) {
             <path d="M561,702 A47,10.5 0 0 1 655,702" stroke="#D8B25C" strokeOpacity="0.5" strokeWidth="1.8" />
           </g>
           {/* foreground run across the front of the stage */}
-          <WirePath d="M64,715 C 320,706 560,718 800,710 C 1040,702 1240,717 1396,709" w={7.5} />
+          <WirePath
+            className="sm:hidden"
+            d="M64,715 C 320,706 560,718 800,710 C 1040,702 1240,717 1396,709"
+            w={7.5}
+          />
+          <WirePath
+            className="hidden sm:block"
+            d="M64,715 C 320,706 560,718 690,711"
+            w={7.5}
+          />
+        </g>
+        {/* the wires' right-hand stubs at sm+ — they emerge from
+            behind the copy column's right edge to reach the fill
+            lamp's feet */}
+        <g data-piece="WIRES-R" className="hidden sm:block">
+          <WirePath d="M1355,704 C 1368,698 1380,702 1392,702" w={7} />
+          <WirePath d="M1355,710 C 1368,706 1382,708 1396,709" w={7.5} />
         </g>
       </svg>
     </div>

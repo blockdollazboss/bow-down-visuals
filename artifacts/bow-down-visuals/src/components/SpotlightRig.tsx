@@ -137,8 +137,26 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
     <div aria-hidden className={`pointer-events-none overflow-hidden ${className}`}>
       <div
         ref={stageRef}
-        className="absolute left-1/2 top-0 h-full w-[1440px]"
-        style={{ marginLeft: -720, transformOrigin: "center top" }}
+        className="absolute left-1/2 w-[1440px]"
+        /* Frame fix (owner, 2026-10-14 — he could not see the
+           spotlights at the top of the page). Rig-measured diagnosis:
+           the fixtures anchored at the hero's top edge, y0–88 —
+           EXACTLY the fixed banner's band (banner y0–88 at
+           desktop/laptop, y0–72 mobile) — so the banner painted over
+           the entire fixture and only the beams poured out from
+           behind it. The stage now starts 148px lower and is
+           shortened by the same amount: every fixture hangs fully
+           below the banner AND below the coach chip (chip bottom
+           sits at rig-coordinate 140 in every measured config —
+           page 140 desktop/laptop; page 124 on mobile, where the rig
+           itself starts at page −16), while the beams' internal
+           layout is unchanged (cones/pools resolve against the
+           shortened stage and land within ~35px of before). The
+           glide is horizontal-only and the shimmer animates opacity
+           only, so this clearance holds across the whole motion
+           range, not just at rest. fit() only rewrites the stage's
+           transform (scaleX), so the offset survives resizes. */
+        style={{ marginLeft: -720, transformOrigin: "center top", top: 148, height: "calc(100% - 148px)" }}
       >
         <div ref={rigRef} className="absolute inset-0 will-change-transform">
           {[0, 1, 2, 3, 4, 5].map((i) => (
