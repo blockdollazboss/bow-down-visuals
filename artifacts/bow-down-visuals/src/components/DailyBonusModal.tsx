@@ -171,7 +171,7 @@ export function DailyBonusModal() {
  const progressPct = Math.min(streak, 30) / 30 * 100;
  return (
  <div className="mt-6 mb-1">
- <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#c9a84c]/70 mb-3">
+ <p className={`text-[10px] font-black uppercase tracking-[0.25em] mb-3 ${isLight ? "text-[#7A5A12]" : "text-[#c9a84c]/70"}`}>
  {t("retention.dailyBonus.ladderTitle", { defaultValue: "The 30-day climb" })}
  </p>
  <div className="relative">
@@ -191,7 +191,7 @@ export function DailyBonusModal() {
  (st === "claimed"
  ? "border-[#e8c766] bg-gradient-to-br from-[#c9a84c] to-[#e8c766] text-black shadow-[0_0_14px_rgba(201,168,76,0.6)]"
  : st === "claimable"
- ? "border-[#e8c766] bg-[#c9a84c]/15 text-[#e8c766] animate-pulse shadow-[0_0_14px_rgba(201,168,76,0.45)]"
+ ? (isLight ? "border-[#e8c766] bg-[#c9a84c]/15 text-[#7A5A12] animate-pulse shadow-[0_0_14px_rgba(201,168,76,0.45)]" : "border-[#e8c766] bg-[#c9a84c]/15 text-[#e8c766] animate-pulse shadow-[0_0_14px_rgba(201,168,76,0.45)]")
  : "border-white/15 bg-white/[0.04] text-white/40")
  }
  aria-label={t("retention.dailyBonus.rungDay", { day: d, defaultValue: `Day ${d}` }) + (st === "claimed" ? " — claimed" : st === "claimable" ? " — claimable today" : " — locked")}
@@ -201,7 +201,7 @@ export function DailyBonusModal() {
  <p className="mt-1.5 text-[10px] font-bold text-white/60">
  {t("retention.dailyBonus.rungDay", { day: d, defaultValue: `Day ${d}` })}
  </p>
- <p className="mt-0.5 text-center text-[9px] leading-tight text-[#c9a84c]/80">
+ <p className={`mt-0.5 text-center text-[9px] leading-tight ${isLight ? "text-[#7A5A12]" : "text-[#c9a84c]/80"}`}>
  {d === 30
  ? t("retention.dailyBonus.rungLegend", { defaultValue: "👑 30-day legend" })
  : t("retention.dailyBonus.rungReward", { bonus: milestoneBonus.toLocaleString("en-US"), defaultValue: `🎁 ${milestoneBonus.toLocaleString("en-US")} VB · 🧊 +1 freeze` })}
@@ -212,7 +212,7 @@ export function DailyBonusModal() {
  </div>
  </div>
  {streakFreezes > 0 && (
- <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-bold text-[#9fd8ff]">
+ <p className={`mt-3 flex items-center justify-center gap-1.5 text-[11px] font-bold ${isLight ? "text-[#6B5B36]" : "text-[#9fd8ff]"}`}>
  <Snowflake className="h-3.5 w-3.5" />
  {t("retention.dailyBonus.freezesBanked", { count: streakFreezes, defaultValue: `🧊 ${streakFreezes} streak ${streakFreezes === 1 ? "freeze" : "freezes"} banked — miss a day and your chain survives` })}
  </p>
@@ -238,7 +238,7 @@ export function DailyBonusModal() {
  {claimed.milestone ? (
  <>
  <div className="text-6xl mb-3">🏆</div>
- <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#e8c766] via-[#fff3c4] to-[#e8c766] mb-2">
+ <h2 className={`text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r mb-2 ${isLight ? "from-[#7A5A12] via-[#C9A84C] to-[#7A5A12]" : "from-[#e8c766] via-[#fff3c4] to-[#e8c766]"}`}>
  {t("retention.dailyBonus.milestoneHeadline", { days: claimed.streak, defaultValue: `🏆 ${claimed.streak}-day streak!` })}
  </h2>
  </>
@@ -252,13 +252,13 @@ export function DailyBonusModal() {
  {claimed.milestone ? t("retention.dailyBonus.milestoneSub", { defaultValue: "Milestone bonus secured 🔥" }) : `${claimed.streak}-day streak 🔥`}
  </p>
  {claimed.freezesEarned && (
- <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-bold text-[#9fd8ff]">
+ <p className={`mt-2 flex items-center justify-center gap-1.5 text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-[#9fd8ff]"}`}>
  <Snowflake className="h-3.5 w-3.5" />
  {t("retention.dailyBonus.freezeEarned", { defaultValue: "🧊 +1 streak freeze earned — miss a day and your chain survives!" })}
  </p>
  )}
  {claimed.freezeUsed && (
- <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-bold text-[#9fd8ff]">
+ <p className={`mt-2 flex items-center justify-center gap-1.5 text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-[#9fd8ff]"}`}>
  <Snowflake className="h-3.5 w-3.5" />
  {t("retention.dailyBonus.freezeUsed", { streak: claimed.streak, defaultValue: `🧊 Streak freeze used — your ${claimed.streak}-day chain is saved!` })}
  </p>
