@@ -100,7 +100,7 @@ export default function EventDetailPage() {
 
   if (loading) return <div className="min-h-screen bg-black text-white"><Loading label="Loading event" /></div>;
   if (error || !event) return (
-    <div className="min-h-screen bg-black px-6 py-16 text-white"><ErrorBox message={error ?? "Event not found."} /></div>
+    <div className="min-h-screen bg-black px-6 py-16 text-white"><ErrorBox message={error ?? "Event not found."} onRetry={load} /></div>
   );
 
   return (
