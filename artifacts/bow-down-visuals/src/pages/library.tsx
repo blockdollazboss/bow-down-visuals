@@ -288,7 +288,11 @@ function TemplateCard({ tpl, compact, isFav, onFav, onUse, t }: {
   return (
     <article className={`group rounded-2xl border overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="relative h-28 flex items-center justify-center overflow-hidden" style={{ background: tpl.gradient }}>
-        <span className="text-5xl drop-shadow-lg" aria-hidden="true">{tpl.emoji}</span>
+        {tpl.emoji === "🦈" ? (
+          <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" aria-hidden="true" draggable={false} className="h-12 w-12 rounded-xl object-cover drop-shadow-lg" />
+        ) : (
+          <span className="text-5xl drop-shadow-lg" aria-hidden="true">{tpl.emoji}</span>
+        )}
         <span className="absolute bottom-2 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur">
           {tpl.niche}
         </span>
