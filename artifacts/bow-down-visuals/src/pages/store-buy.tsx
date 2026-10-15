@@ -156,7 +156,7 @@ export default function StoreBuy() {
               <h1 className="mt-2 text-3xl font-bold text-amber-200">{data.item.title}</h1>
               <p className="mt-1 text-amber-100/70">
                 by{" "}
-                <Link href={`/c/${data.item.artistSlug}`} className="text-amber-300 underline-offset-2 hover:underline">
+                <Link href={`/artist/${data.item.artistSlug}`} className="text-amber-300 underline-offset-2 hover:underline">
                   {data.item.artistName}
                 </Link>
               </p>
