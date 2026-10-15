@@ -554,7 +554,7 @@ function AppShell() {
           <Route path="/my-shop"><MyShop /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
-          <Route path="/content-calendar"><Redirect to="/scheduler?tab=calendar" /></Route>
+          <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
