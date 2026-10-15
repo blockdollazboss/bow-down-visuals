@@ -175,7 +175,7 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
             <p className="mt-3 text-sm italic text-white/55">{info.tagline}</p>
 
             <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left">
-              <p className="text-[10px] font-black tracking-[0.2em] text-[#C9A84C]/80 uppercase mb-2.5">
+              <p className={`text-[10px] font-black tracking-[0.2em] uppercase mb-2.5 ${isLight ? "text-[#7A5A12]" : "text-[#C9A84C]/80"}`}>
                 {t("retentionDelight.levelUp_unlocks")}
               </p>
               <ul className="space-y-2">
@@ -209,12 +209,12 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
           <>
             {/* Share card preview */}
             <div className={`${isLight ? "rounded-2xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-2xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
-              <p className="text-[10px] font-bold tracking-[0.25em] text-[#C9A84C]/80 uppercase">Bow Down Visuals</p>
+              <p className={`text-[10px] font-bold tracking-[0.25em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#C9A84C]/80"}`}>Bow Down Visuals</p>
               <p className="font-display mt-2 text-3xl font-black text-[#e8c86a]">{t("retentionDelight.levelUp_title")}</p>
               <div className="mt-3"><Stars n={clamped} size="h-5 w-5" /></div>
               <p className="mt-3 text-xl font-black text-white">{info.rank}</p>
               <p className="mt-1 text-xs italic text-white/50">{info.tagline}</p>
-              <p className="mt-4 text-[11px] font-bold text-[#C9A84C]/70">bowdownvisuals.com</p>
+              <p className={`mt-4 text-[11px] font-bold ${isLight ? "text-[#7A5A12]" : "text-[#C9A84C]/70"}`}>bowdownvisuals.com</p>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
