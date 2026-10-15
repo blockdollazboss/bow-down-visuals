@@ -1487,6 +1487,26 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
   }
 });
 
+/** GET /api/playlists/mine — my playlists (auth). Registered BEFORE
+   /playlists/:id on purpose: below it, the literal "mine" was captured as
+   a playlist id (500 on the uuid cast in Postgres) and AddToPlaylist's
+   data source never answered. */
+router.get("/playlists/mine", requireAuth, async (req, res) => {
+  try {
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile) { res.json({ playlists: [] }); return; }
+    const rows = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.ownerProfileId, profile.id))
+      .orderBy(desc(playlistsTable.createdAt));
+    const resolved = await resolvePlaylistItems(rows, profile.slug);
+    res.json({ playlists: resolved });
+  } catch (err) {
+    req.log.error({ err }, "playlists/mine error");
+    res.status(500).json({ error: "Couldn't load your playlists. Try again." });
+  }
+});
+
 /** GET /api/playlists/:id — public playlist + resolved items + owner. */
 router.get("/playlists/:id", async (req, res) => {
   try {
@@ -1515,23 +1535,6 @@ const playlistBody = z.object({
   cover_url: z.string().max(500).nullable().optional(),
   is_public: z.boolean().default(true),
   kind: z.enum(["playlist", "series"]).default("playlist"),
-});
-
-/** GET /api/playlists/mine — my playlists (auth). */
-router.get("/playlists/mine", requireAuth, async (req, res) => {
-  try {
-    const [profile] = await db.select().from(creatorProfilesTable)
-      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
-    if (!profile) { res.json({ playlists: [] }); return; }
-    const rows = await db.select().from(playlistsTable)
-      .where(eq(playlistsTable.ownerProfileId, profile.id))
-      .orderBy(desc(playlistsTable.createdAt));
-    const resolved = await resolvePlaylistItems(rows, profile.slug);
-    res.json({ playlists: resolved });
-  } catch (err) {
-    req.log.error({ err }, "playlists/mine error");
-    res.status(500).json({ error: "Couldn't load your playlists. Try again." });
-  }
 });
 
 /** POST /api/playlists — create (auth, needs own profile). */
