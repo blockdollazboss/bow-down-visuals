@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { Users, Disc3, Clapperboard, Flame, Sparkles, Radio, ChevronLeft } from "lucide-react";
+import { Users, Disc3, Clapperboard, Flame, Sparkles, Radio, ChevronLeft, AlertTriangle, RotateCcw } from "lucide-react";
 import {
   CreatorCard, TrackRow, VideoCard, SectionHeader,
   ChartSkeleton, CardSkeleton, EmptyState,
@@ -46,6 +46,8 @@ export default function VerticalPage() {
   const valid = isVerticalKey(vertical);
   const [data, setData] = useState<VerticalPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (!valid) {
@@ -54,17 +56,20 @@ export default function VerticalPage() {
     }
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       const d = await getJson<VerticalPayload>(`/api/discovery/vertical/${vertical}?limit=8`);
       if (!cancelled) {
-        setData(d);
+        // getJson null = failed load. Leaving data null spun the
+        // skeletons forever (render gates on loading || !data).
+        if (!d) setLoadError(true); else setData(d);
         setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [vertical, valid]);
+  }, [vertical, valid, retryNonce]);
 
   const creatorIds = useMemo(
     () => [...(data?.creators ?? []), ...(data?.rising ?? [])].map((c) => c.id),
@@ -110,7 +115,16 @@ export default function VerticalPage() {
         />
       </div>
 
-      {loading || !data ? (
+      {loadError ? (
+        <div className="rounded-2xl border border-primary/25 bg-zinc-950 p-10 text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className="mt-3 font-bold text-white">Couldn't load this lane.</p>
+          <p className="mt-1 text-sm text-white/50">Something went wrong on our end — the lane exists, it just couldn't load.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : loading || !data ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <CardSkeleton key={i} />
