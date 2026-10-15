@@ -84,6 +84,24 @@ vi.mock("@workspace/db", async (importOriginal) => {
   }
 
   const fakeDb: any = {
+    update: (_table: unknown) => ({
+      set: (patch: Record<string, unknown>) => ({
+        where: (cond: unknown) => ({
+          returning: async () => {
+            const { params } = render(cond);
+            const id = String(params[0] ?? "");
+            for (const [userId, row] of state.profilesByUserId.entries()) {
+              if ((row as Record<string, unknown>)["id"] === id) {
+                const updated = { ...row, ...patch };
+                state.profilesByUserId.set(userId, updated);
+                return [updated];
+              }
+            }
+            return [];
+          },
+        }),
+      }),
+    }),
     select: (_fields?: unknown) => ({
       from: (table: unknown) => ({
         where: (cond: unknown) => {
@@ -132,6 +150,16 @@ beforeEach(() => {
 
 async function get(path: string) {
   const r = await realFetch(`${baseUrl}${path}`);
+  const json = await r.json().catch(() => null);
+  return { status: r.status, json: json as any };
+}
+
+async function put(path: string, body: unknown) {
+  const r = await realFetch(`${baseUrl}${path}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
   const json = await r.json().catch(() => null);
   return { status: r.status, json: json as any };
 }
@@ -189,6 +217,28 @@ describe("GET /api/creator-profiles/me — the owner's own profile", () => {
     const { status } = await get("/creator-profiles/me");
 
     expect(status).toBe(404);
+  });
+
+  it("PUT returns the public DTO (snake_case, completed theme, no camelCase keys)", async () => {
+    h.state.profilesByUserId.set(AUTH_USER_ID, ownerRow());
+
+    const { status, json } = await put("/creator-profiles/me", {
+      display_name: "My Corner Renamed",
+      is_public: true,
+      theme_config: {},
+    });
+
+    expect(status).toBe(200);
+    const profile = json.profile;
+    // saveMyProfile types data.profile as the snake_case CreatorProfile and
+    // artist-setup reads saved.is_public — the raw Drizzle row (displayName /
+    // isPublic / themeConfig) made that undefined and blanked the editor.
+    expect(profile.display_name).toBe("My Corner Renamed");
+    expect(profile.is_public).toBe(true);
+    expect(profile.theme_config.colors.background).toBe("#0a0a0b");
+    expect(profile).not.toHaveProperty("displayName");
+    expect(profile).not.toHaveProperty("isPublic");
+    expect(profile).not.toHaveProperty("themeConfig");
   });
 
   it("does not leak into the public :slug route — a stranger's slug still resolves publicly", async () => {

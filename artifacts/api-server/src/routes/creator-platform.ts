@@ -1008,7 +1008,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();
-    res.json({ profile: await refreshSupabaseStorageUrlsDeep({ ...updated, ...(await profileExtras(updated)) }) });
+    res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)) } });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
