@@ -242,6 +242,25 @@ async function getProfileById(id: string) {
   return row ?? null;
 }
 
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Wall-comment routes only: their :id param arrives as a profile SLUG from
+ * the only production caller (the Shout Wall passes profile.slug), while
+ * other callers pass real ids. The id column is a uuid, so a slug must
+ * never reach an id lookup (Postgres rejects the cast) — only UUID-shaped
+ * values try the id column, then everything falls back to a slug lookup.
+ */
+async function getProfileBySlugOrId(idOrSlug: string) {
+  if (UUID_SHAPE.test(idOrSlug)) {
+    const byId = await getProfileById(idOrSlug);
+    if (byId) return byId;
+  }
+  const [row] = await db.select().from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.slug, idOrSlug.toLowerCase())).limit(1);
+  return row ?? null;
+}
+
 async function getMedia(kind: MediaKind, id: string) {
   if (kind === "track") {
     const [row] = await db.select().from(profileTracksTable).where(eq(profileTracksTable.id, id)).limit(1);
@@ -1028,7 +1047,7 @@ router.delete("/creator-profiles/:id/unfollow", requireAuth, async (req, res) =>
 
 router.get("/creator-profiles/:id/comments", async (req, res) => {
   try {
-    const profile = await getProfileById(String(req.params["id"]));
+    const profile = await getProfileBySlugOrId(String(req.params["id"]));
     if (!profile || !profile.isPublic) {
       res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
       return;
@@ -1048,7 +1067,7 @@ router.get("/creator-profiles/:id/comments", async (req, res) => {
 
 router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
   try {
-    const profile = await getProfileById(String(req.params["id"]));
+    const profile = await getProfileBySlugOrId(String(req.params["id"]));
     if (!profile || !profile.isPublic) {
       res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private. 🦈" });
       return;

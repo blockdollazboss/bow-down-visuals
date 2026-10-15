@@ -113,6 +113,13 @@ vi.mock("@workspace/db", async (importOriginal) => {
             avatarUrl: p["avatarUrl"],
           }));
       }
+      // Slug lookup: select() with eq(slug) — answer from the same rows.
+      if (render(cond).sql.includes('"slug"')) {
+        const row = [...state.profilesById.values()].find(
+          (p) => String(p["slug"]) === String(params[0] ?? ""),
+        );
+        return row ? [row] : [];
+      }
       // getProfileById: select() with eq(id).
       const row = state.profilesById.get(String(params[0] ?? ""));
       return row ? [row] : [];
@@ -351,6 +358,62 @@ describe("wall comments DTO — GET /api/creator-profiles/:id/comments", () => {
       userId: GHOST_ID,
       iso: "2026-10-02T12:00:00.000Z",
     });
+  });
+});
+
+/**
+ * THE SHOUT WALL REGRESSION: the only production caller
+ * (profile-sections.tsx ShoutWallSection → lib/artist-profiles.ts) passes
+ * the profile SLUG to both wall endpoints, but the handlers resolved the
+ * :id param through an id-only lookup — a slug could never match a UUID,
+ * so the wall's GET 404'd (swallowed by the client → permanently empty
+ * wall) and its POST 404'd (the shout never landed). These tests drive
+ * both endpoints BY SLUG, the production caller's shape.
+ */
+describe("wall comments resolve BY SLUG — GET/POST /api/creator-profiles/:slug/comments", () => {
+  it("GET by slug loads the wall's comments with the full DTO", async () => {
+    const { status, json } = await get(`/creator-profiles/wall-owner/comments`);
+    expect(status).toBe(200);
+    expect(json.comments).toHaveLength(2);
+    const c = json.comments.find((x: any) => x.id === WALL_COMMENT_1);
+    expect(c.body).toBe("This wall eats. 🦈");
+    expectCommentDto(c, {
+      name: "Mira Waves",
+      avatar: "/images/avatars/mira.png",
+      slug: "mira-waves",
+      userId: AUTHOR_ID,
+      iso: "2026-10-01T12:00:00.000Z",
+    });
+  });
+
+  it("POST by slug lands the shout on the resolved profile", async () => {
+    const { status, json } = await post(`/creator-profiles/wall-owner/comments`, { body: "slug shout" });
+    expect(status).toBe(201);
+    expect(json.comment.body).toBe("slug shout");
+    expectCommentDto(json.comment, {
+      name: "Poster Shark",
+      avatar: "/images/avatars/poster.png",
+      slug: "poster-shark",
+      userId: AUTH_USER,
+      iso: "2026-10-14T09:30:00.000Z",
+    });
+    // The insert targeted the profile the slug resolved to, not a slug string.
+    expect(h.state.insertedComments).toHaveLength(1);
+    expect(h.state.insertedComments[0]!["profileId"]).toBe(WALL_ID);
+  });
+
+  it("GET by an unknown slug still 404s", async () => {
+    const { status } = await get(`/creator-profiles/no-such-creator/comments`);
+    expect(status).toBe(404);
+  });
+
+  it("a non-public profile still 404s by slug, same as by id", async () => {
+    const row = h.state.profilesById.get(WALL_ID)!;
+    row["isPublic"] = false;
+    const bySlug = await get(`/creator-profiles/wall-owner/comments`);
+    expect(bySlug.status).toBe(404);
+    const byId = await get(`/creator-profiles/${WALL_ID}/comments`);
+    expect(byId.status).toBe(404);
   });
 });
 
