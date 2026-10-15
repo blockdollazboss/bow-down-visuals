@@ -266,6 +266,7 @@ const KONAMI = [
 
 function KonamiEgg() {
   const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [fired, setFired] = useState(false);
   const pos = useRef(0);
 
@@ -304,7 +305,7 @@ function KonamiEgg() {
         @media (prefers-reduced-motion: reduce) { .konami-anim { animation: none !important; } }
       `}</style>
       <div
-        className="konami-anim relative max-w-md rounded-[2rem] border border-primary/40 bg-gradient-to-b from-yellow-950/40 to-black p-10 text-center"
+        className={`konami-anim relative max-w-md rounded-[2rem] border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
         style={{ animation: "konami-flash 0.5s ease-out, konami-glow 2.4s ease-in-out infinite" }}
         onClick={(e) => e.stopPropagation()}
       >
