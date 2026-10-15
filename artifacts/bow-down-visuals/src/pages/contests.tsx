@@ -85,6 +85,9 @@ export default function Contests() {
   const [contests, setContests] = useState<ContestSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The shared error banner alone was a half-fix: a failed list load
+  // still rendered the genuine "no contests yet" empty state below it.
+  const [listLoadError, setListLoadError] = useState(false);
 
   /* ── Builder form state ── */
   const [showBuilder, setShowBuilder] = useState(false);
@@ -119,12 +122,14 @@ export default function Contests() {
   async function loadContests() {
     setLoading(true);
     setError(null);
+    setListLoadError(false);
     try {
       const res = await fetch("/api/contests");
       if (!res.ok) throw new Error("Could not load contests");
       const data = (await res.json()) as { contests?: ContestSummary[] };
       setContests(data.contests ?? []);
     } catch (e) {
+      setListLoadError(true);
       setError(e instanceof Error ? e.message : "Could not load contests");
     } finally {
       setLoading(false);
@@ -477,6 +482,12 @@ export default function Contests() {
 
             {loading ? (
               <div className="mt-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : listLoadError ? (
+              <div className={`mt-8 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <AlertTriangle className="h-8 w-8 text-primary/70 mx-auto mb-3" />
+                <p className="text-white/60">Couldn't load your contests — that's a failed load, not an empty list.</p>
+                <button type="button" onClick={() => void loadContests()} className="mt-4 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110">Try again</button>
+              </div>
             ) : contests.length === 0 ? (
               <div className={`mt-8 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <Trophy className="h-8 w-8 text-primary/50 mx-auto mb-3" />
