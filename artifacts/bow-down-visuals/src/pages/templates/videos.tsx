@@ -196,7 +196,7 @@ export default function VideoTemplates() {
                 } ${highlightKey === tpl.key ? "ring-2 ring-[#e8c86a]/70 shadow-[0_0_32px_rgba(232,200,106,0.15)]" : ""}`}
               >
                 {/* Animated preview */}
-                <div className={`relative ${ASPECT_CLASS[tpl.aspect]} w-full max-h-56 mx-auto overflow-hidden rounded-xl bg-gradient-to-br from-[#141414] via-[#0a0a0a] to-[#1c1408] border border-white/5 mb-5`}>
+                <div className={`relative ${ASPECT_CLASS[tpl.aspect]} w-full max-h-56 mx-auto overflow-hidden rounded-xl border mb-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="vt-shimmer absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-[#e8c86a]/25 to-transparent" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
                     <div className="vt-rise flex gap-1">
