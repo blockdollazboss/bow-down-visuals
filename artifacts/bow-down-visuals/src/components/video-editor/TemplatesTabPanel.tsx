@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { r2UploadFile } from "@/lib/r2-storage";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -101,6 +102,7 @@ export default function TemplatesTabPanel({
   const { toast } = useToast();
   const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
   const [, navigate] = useLocation();
 
   const [catalog, setCatalog] = useState<CatalogTemplate[] | null>(null);
@@ -486,7 +488,7 @@ export default function TemplatesTabPanel({
                   className="group text-left rounded-xl border border-white/10 bg-white/[0.03] p-3 hover:border-[#e8c86a]/50 hover:bg-white/[0.05] transition-all"
                 >
                   {/* Animated preview */}
-                  <div className={`relative ${ASPECT_CLASS[tpl.aspect]} w-full overflow-hidden rounded-lg bg-gradient-to-br from-[#141414] via-[#0a0a0a] to-[#1c1408] border border-white/5`}>
+                  <div className={`relative ${ASPECT_CLASS[tpl.aspect]} w-full overflow-hidden rounded-lg border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="vt-shimmer absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-[#e8c86a]/25 to-transparent" />
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3">
                       <div className="vt-rise flex gap-1">
