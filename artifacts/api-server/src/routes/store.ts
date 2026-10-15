@@ -489,7 +489,7 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
         artistName,
         artistSlug,
         buyUrl: `/store/buy/${kind}/${itemId}`,
-        artistUrl: artistSlug ? `/c/${artistSlug}` : null,
+        artistUrl: artistSlug ? `/artist/${artistSlug}` : null,
       },
       download: {
         token: link.token,
@@ -668,7 +668,7 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           receiptId: String(row["stripe_session_id"] ?? row["id"]),
           /* Link graph: library → drop page, creator profile. */
           buyUrl: `/store/buy/${kind}/${itemId}`,
-          artistUrl: slug ? `/c/${slug}` : null,
+          artistUrl: slug ? `/artist/${slug}` : null,
         };
       })),
     });
@@ -834,7 +834,7 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       sales: rows,
       platformFeePct: PLATFORM_FEE_PCT,
       /* Link graph: dashboard → creator's public profile. */
-      profileUrl: `/c/${profile.slug}`,
+      profileUrl: `/artist/${profile.slug}`,
       payoutNote:
         "Your cut is tracked as a pending payout balance. Real payouts need Stripe Connect — that's the next build before anyone gets paid out.",
     });
@@ -1172,7 +1172,7 @@ router.get("/store/products", requireAuth, async (req, res) => {
     res.json({
       vertical,
       verticalLabel: VERTICAL_LABELS[vertical] ?? "Creator",
-      profileUrl: `/c/${profile.slug}`,
+      profileUrl: `/artist/${profile.slug}`,
       products: [
         ...(await map(tracks.rows as Record<string, unknown>[], "track")),
         ...(await map(videos.rows as Record<string, unknown>[], "video")),
@@ -1297,7 +1297,7 @@ router.get("/store/checklist", requireAuth, async (req, res) => {
             ? `${liveCount} live ${liveCount === 1 ? "drop" : "drops"} on your profile`
             : "Tracks, videos, courses, packs — your content, your store",
         done: liveCount > 0,
-        cta: { label: "View your profile", href: `/c/${profile.slug}` },
+        cta: { label: "View your profile", href: `/artist/${profile.slug}` },
       },
       {
         id: "price",
@@ -1349,7 +1349,7 @@ router.get("/store/checklist", requireAuth, async (req, res) => {
         cta: { label: "Open Money Tracker", href: "/coach?tab=money" },
       },
     ];
-    res.json({ steps, complete: steps.every((s) => s.done), profileUrl: `/c/${profile.slug}` });
+    res.json({ steps, complete: steps.every((s) => s.done), profileUrl: `/artist/${profile.slug}` });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[store] checklist failed");
     res.status(500).json({ error: "Could not load your checklist." });
