@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Sparkles } from "lucide-react";
+import { Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
 import { TrackRow, FeedEmpty, RowSkeleton } from "@/components/discovery/cards";
 import { CreateCta } from "@/components/discovery/FollowButton";
 import ShareMenu from "@/components/ShareMenu";
@@ -25,6 +25,8 @@ export function DropsWire() {
   const { user, getAccessToken } = useAuth();
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [lastVisit, setLastVisit] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     setLastVisit(localStorage.getItem(LAST_VISIT_KEY));
@@ -37,11 +39,13 @@ export function DropsWire() {
         const r = await fetch("/api/discovery/feed?limit=40", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!r.ok || cancelled) return;
+        // A failed load is neither an endless skeleton (old !ok path)
+        // nor an empty feed (old catch path) — it's a load error.
+        if (!r.ok) { if (!cancelled) setLoadError(true); return; }
         const d = await r.json();
-        if (!cancelled) setItems(Array.isArray(d.items) ? d.items : []);
+        if (!cancelled) { setLoadError(false); setItems(Array.isArray(d.items) ? d.items : []); }
       } catch {
-        if (!cancelled) setItems([]);
+        if (!cancelled) setLoadError(true);
       }
     })();
     // Mark the visit AFTER the load kicks off so this batch counts as "seen" next time.
@@ -49,7 +53,7 @@ export function DropsWire() {
     return () => {
       cancelled = true;
     };
-  }, [user, getAccessToken]);
+  }, [user, getAccessToken, retryNonce]);
 
   const freshCount = lastVisit
     ? (items ?? []).filter((i) => new Date(i.created_at) > new Date(lastVisit)).length
@@ -57,7 +61,16 @@ export function DropsWire() {
 
   return (
     <div>
-      {items === null ? (
+      {loadError ? (
+        <div className="rounded-2xl border border-primary/25 bg-zinc-950 p-10 text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className="mt-3 font-bold text-white">Couldn't load the drops wire.</p>
+          <p className="mt-1 text-sm text-white/50">Something went wrong on our end — that's not the same as a quiet feed.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : items === null ? (
         <div className="grid gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <RowSkeleton key={i} />
