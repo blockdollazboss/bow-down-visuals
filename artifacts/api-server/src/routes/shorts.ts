@@ -696,6 +696,53 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
   }
 });
 
+/** Wire DTO for challenge cards (trending + hashtag hub). The clients
+    (ShortsMenu, challenge "More challenges", hashtag cards) read snake_case
+    end to end — entry_count, prize_text, prize_pool_credits, cover_url —
+    so build the payload field-by-field; never spread the camelCase row.
+    `status` stays the stored lifecycle value and `effective_status` the
+    derived one, exactly as the payload has always carried them. */
+interface ChallengeCardRow {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  hashtag: string;
+  coverUrl: string | null;
+  prizeText: string;
+  entryCount: number;
+  totalViews: number;
+  createdAt: Date;
+  creatorProfileId: string | null;
+  status: string;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  judgingEndsAt: Date | null;
+  prizePoolCredits: number;
+}
+
+function toChallengeDto(r: ChallengeCardRow) {
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    hashtag: r.hashtag,
+    cover_url: r.coverUrl,
+    prize_text: r.prizeText,
+    entry_count: r.entryCount,
+    total_views: r.totalViews,
+    created_at: r.createdAt,
+    creator_profile_id: r.creatorProfileId,
+    status: r.status,
+    starts_at: r.startsAt,
+    ends_at: r.endsAt,
+    judging_ends_at: r.judgingEndsAt,
+    prize_pool_credits: r.prizePoolCredits,
+    effective_status: effectiveStatus(r),
+  };
+}
+
 /** GET /challenges/trending — what the streets are running right now.
     Engine 2.0: carries the effective lifecycle state + prize pool so every
     surface can show the money upfront. */
@@ -709,15 +756,13 @@ router.get("/challenges/trending", feedLimiter, async (req, res) => {
       entryCount: challengesTable.entryCount, totalViews: challengesTable.totalViews,
       createdAt: challengesTable.createdAt, creatorProfileId: challengesTable.creatorProfileId,
       status: challengesTable.status, startsAt: challengesTable.startsAt,
-      endsAt: challengesTable.endsAt, prizePoolCredits: challengesTable.prizePoolCredits,
+      endsAt: challengesTable.endsAt, judgingEndsAt: challengesTable.judgingEndsAt,
+      prizePoolCredits: challengesTable.prizePoolCredits,
     }).from(challengesTable)
       .orderBy(desc(challengesTable.entryCount), desc(challengesTable.totalViews))
       .limit(limit);
     res.json(await refreshSupabaseStorageUrlsDeep({
-      challenges: rows.map((r) => ({
-        ...r,
-        effective_status: effectiveStatus(r),
-      })),
+      challenges: rows.map(toChallengeDto),
     }));
   } catch (err) {
     req.log.error({ err }, "challenges trending error");
@@ -874,9 +919,15 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
       ORDER BY pt.play_count DESC
       LIMIT ${limit}
     `);
-    const challenges = await db.select({
-      slug: challengesTable.slug, title: challengesTable.title, hashtag: challengesTable.hashtag,
-      coverUrl: challengesTable.coverUrl, prizeText: challengesTable.prizeText, entryCount: challengesTable.entryCount,
+    const challengeRows = await db.select({
+      id: challengesTable.id, slug: challengesTable.slug, title: challengesTable.title,
+      description: challengesTable.description, hashtag: challengesTable.hashtag,
+      coverUrl: challengesTable.coverUrl, prizeText: challengesTable.prizeText,
+      entryCount: challengesTable.entryCount, totalViews: challengesTable.totalViews,
+      createdAt: challengesTable.createdAt, creatorProfileId: challengesTable.creatorProfileId,
+      status: challengesTable.status, startsAt: challengesTable.startsAt,
+      endsAt: challengesTable.endsAt, judgingEndsAt: challengesTable.judgingEndsAt,
+      prizePoolCredits: challengesTable.prizePoolCredits,
     }).from(challengesTable).where(eq(challengesTable.hashtag, tag)).limit(12);
 
     const vids = (videos.rows as Record<string, unknown>[]);
@@ -902,7 +953,7 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
         creator: { slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
         created_at: r["created_at"],
       })),
-      challenges,
+      challenges: challengeRows.map(toChallengeDto),
     }));
   } catch (err) {
     req.log.error({ err }, "hashtag error");
