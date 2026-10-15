@@ -107,7 +107,7 @@ export default function GroupDetail() {
 
   if (loading) return <div className="min-h-screen bg-black text-white"><Loading label="Loading the crew" /></div>;
   if (error || !group) return (
-    <div className="min-h-screen bg-black px-6 py-16 text-white"><ErrorBox message={error ?? "Group not found."} /></div>
+    <div className="min-h-screen bg-black px-6 py-16 text-white"><ErrorBox message={error ?? "Group not found."} onRetry={load} /></div>
   );
 
   const isOwner = viewerRole === "owner";
