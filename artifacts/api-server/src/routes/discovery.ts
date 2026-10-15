@@ -102,8 +102,14 @@ interface ProfileLite {
   total_plays: number;
 }
 
+/* The profile id rides as profile_id, NEVER bare `id`: spliced after a
+   media select (t.id / v.id / pl.id), a bare p.id lands last in the row
+   and node-postgres keys rows by column name — the profile id silently
+   overwrote every media id, so track/video/playlist clicks navigated
+   to /track/<creator-profile-id>. Creator-primary queries below select
+   p.id explicitly so creator payloads keep their `id`. */
 const PROFILE_COLS = sql`
-  p.id, p.slug, p.display_name, p.avatar_url, p.vertical,
+  p.id AS profile_id, p.slug, p.display_name, p.avatar_url, p.vertical,
   p.follower_count, p.total_plays`;
 
 /* Guide-to-money: every creator payload says whether they're selling and
@@ -209,7 +215,7 @@ async function topCreators(window: Window, vertical: string | undefined, limit: 
   const vf = verticalFilter(vertical);
   if (window === "all" && !days) {
     const rows = await db.execute(sql`
-      SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
+      SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
       FROM creator_profiles p
       WHERE p.is_public ${vf ?? sql``}
       ORDER BY (p.total_plays + p.follower_count * 50) DESC
@@ -236,7 +242,7 @@ async function topCreators(window: Window, vertical: string | undefined, limit: 
       WHERE f.created_at >= NOW() - ${sql.raw(`INTERVAL '${interval}'`)}
       GROUP BY f.profile_id
     )
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
            (COALESCE(tp.wplays, 0) + COALESCE(vp.wplays, 0))::int AS window_plays,
            COALESCE(nf.nfollows, 0)::int AS new_followers
     FROM creator_profiles p
@@ -302,7 +308,7 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
       WHERE e.played_at >= NOW() - INTERVAL '7 days'
       GROUP BY t.profile_id
     )
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
            nf.nfollows::int AS new_followers,
            COALESCE(wp.wplays, 0)::int AS week_plays
     FROM creator_profiles p
@@ -332,7 +338,7 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
       WHERE ds.created_at >= NOW() - INTERVAL '30 days'
       GROUP BY ds.profile_id
     )
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
            e.earned_cents::int AS earned_cents_30d,
            e.sales::int AS sales_30d
     FROM creator_profiles p
@@ -353,7 +359,7 @@ router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
   const limit = clampLimit(q.limit, 12);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
            (SELECT t.genre FROM profile_tracks t
              WHERE t.profile_id = p.id AND t.is_published AND t.genre IS NOT NULL
              GROUP BY t.genre ORDER BY COUNT(*) DESC LIMIT 1) AS top_genre,
@@ -399,7 +405,7 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
 
   if (q.type === "all" || q.type === "creator") {
     out.creators = (await db.execute(sql`
-      SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
+      SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
       FROM creator_profiles p
       WHERE p.is_public ${vf ?? sql``}
         AND (p.display_name ILIKE ${like} OR p.slug ILIKE ${like})
@@ -432,8 +438,8 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
   }
   if (q.type === "all" || q.type === "playlist") {
     out.playlists = (await db.execute(sql`
-      SELECT pl.id, pl.title, pl.description, pl.cover_url, pl.follower_count,
-             ${PROFILE_COLS}
+      SELECT pl.id, pl.title, pl.description, pl.cover_url,
+             ${PROFILE_COLS}, pl.follower_count
       FROM playlists pl
       JOIN creator_profiles p ON p.id = pl.owner_profile_id
       WHERE pl.is_public AND p.is_public ${vf ?? sql``}
@@ -483,7 +489,7 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
   const vf = sql`AND p.vertical = ${vertical}`;
   const [creators, tracks, videos, fresh] = (
     await Promise.all([
-      db.execute(sql`SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio FROM creator_profiles p
+      db.execute(sql`SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio FROM creator_profiles p
       WHERE p.is_public ${vf} ORDER BY (p.total_plays + p.follower_count * 50) DESC LIMIT ${limit}`),
       db.execute(sql`SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.play_count, t.like_count, t.duration_sec, ${PROFILE_COLS}
       FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
@@ -506,7 +512,7 @@ router.get("/vertical/:vertical", publicApiLimiter, asyncHandler(async (req, res
     await db.execute(sql`
     WITH nf AS (SELECT f.profile_id AS pid, COUNT(*)::int AS n
                 FROM follows f WHERE f.created_at >= NOW() - INTERVAL '7 days' GROUP BY f.profile_id)
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, nf.n::int AS new_followers
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, nf.n::int AS new_followers
     FROM creator_profiles p JOIN nf ON nf.pid = p.id
     WHERE p.is_public ${vf} AND nf.n >= 2
     ORDER BY nf.n DESC LIMIT ${limit}`)
@@ -556,7 +562,7 @@ router.get("/genre/:genre", publicApiLimiter, asyncHandler(async (req, res) => {
       FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
       WHERE v.is_published AND p.is_public AND v.genre ${gf} ${vf ?? sql``}
       ORDER BY v.view_count DESC LIMIT ${limit}`),
-    db.execute(sql`SELECT DISTINCT ${PROFILE_COLS}${EARNINGS_COLS} FROM creator_profiles p
+    db.execute(sql`SELECT DISTINCT p.id, ${PROFILE_COLS}${EARNINGS_COLS} FROM creator_profiles p
       WHERE p.is_public ${vf ?? sql``} AND (
         EXISTS (SELECT 1 FROM profile_tracks t WHERE t.profile_id = p.id AND t.is_published AND t.genre ${gf})
         OR EXISTS (SELECT 1 FROM profile_videos v WHERE v.profile_id = p.id AND v.is_published AND v.genre ${gf})
@@ -606,7 +612,7 @@ router.get("/related/creators/:slug", publicApiLimiter, asyncHandler(async (req,
   }
   const me = self[0]!;
   const rows = await db.execute(sql`
-    SELECT ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
     FROM creator_profiles p
     WHERE p.is_public AND p.id != ${me.id} AND p.vertical = ${me.vertical}
     ORDER BY p.total_plays DESC
