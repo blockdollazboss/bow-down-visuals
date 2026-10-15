@@ -632,7 +632,7 @@ function AppShell() {
                 <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
                 <Route path="/my-clips"><Redirect to="/my-projects?tab=myclips" /></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
-                <Route path="/songs"><Redirect to="/my-projects?tab=songs" /></Route>
+                <Route path="/songs"><QueryPreservingRedirect to="/my-projects?tab=songs" /></Route>
                 <Route path="/locations"><Redirect to="/video-editor?tab=locations" /></Route>
                 <Route path="/thumbnail-maker"><QueryPreservingRedirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnail-studio"><ProtectedRoute><ThumbnailStudio /></ProtectedRoute></Route>
