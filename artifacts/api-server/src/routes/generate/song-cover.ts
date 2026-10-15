@@ -31,6 +31,7 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   parseSupabaseStorageRefBucketed,
   downloadStorageObjectBuffer,
+  refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { execFile } from "child_process";
@@ -374,7 +375,19 @@ router.get("/song-cover/covers/:songId", requireAuth, async (req, res) => {
       .from(songsTable)
       .where(and(eq(songsTable.user_id, req.userId!), eq(songsTable.parent_song_id, songId)))
       .orderBy(desc(songsTable.created_at));
-    res.json({ covers });
+    // Refresh signed URLs so the covers always play (audio_path is a
+    // storage ref — sibling pattern: GET /songs, GET /mashup/using/:id).
+    const withUrls = await Promise.all(
+      covers.map(async (c) => {
+        if (!c.audio_path) return c;
+        try {
+          return { ...c, audio_url: await refreshSupabaseStorageUrl(c.audio_path) };
+        } catch {
+          return c;
+        }
+      }),
+    );
+    res.json({ covers: withUrls });
   } catch (err) {
     req.log.error({ err }, "song-cover: covers lookup failed");
     res.status(500).json({ error: "Could not load covers." });
