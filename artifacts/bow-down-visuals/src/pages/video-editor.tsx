@@ -1990,7 +1990,7 @@ export default function VideoEditor() {
                   className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                   data-testid="editor-mode-simple"
                 >
-                  {t("videoEditor.modeSimple", { defaultValue: "Simple" })}
+                  {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
                 </button>
                 {maxStars >= 4 ? (
                   <button
@@ -2001,16 +2001,16 @@ export default function VideoEditor() {
                     className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                     data-testid="editor-mode-pro"
                   >
-                    {t("videoEditor.modePro", { defaultValue: "Pro" })}
+                    {t("videoEditor.modePro", { defaultValue: "Advanced" })}
                   </button>
                 ) : (
                   <Link
                     href="/pricing"
                     className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
-                    title={t("videoEditor.modeProLocked", { defaultValue: "Pro mode unlocks with a higher Creator Level plan" })}
+                    title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks with a higher Creator Level plan" })}
                     data-testid="editor-mode-pro-locked"
                   >
-                    <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Pro" })}
+                    <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Advanced" })}
                   </Link>
                 )}
               </div>

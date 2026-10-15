@@ -551,11 +551,11 @@ export function HumToSong() {
                 type="button"
                 onClick={() => setMode(m)}
                 disabled={busy}
-                className={`px-5 py-2.5 rounded-xl font-medium transition-all capitalize ${
+                className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
                   mode === m ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                {m}
+                {m === "simple" ? "Turbo" : "Advanced"}
               </button>
             ))}
           </div>
@@ -689,7 +689,7 @@ export function HumToSong() {
                 className="h-auto py-3.5 border-white/15 text-white/80 hover:text-white hover:border-primary/40 flex-col gap-1.5"
                 onClick={() => {
                   if (!songTitle.trim() && mode === "custom") {
-                    toast({ title: "Name it first", description: "Add a song title in Custom mode so the cover art brief is complete." });
+                    toast({ title: "Name it first", description: "Add a song title in Advanced mode so the cover art brief is complete." });
                   }
                   setProjectName(songTitle.trim() || "Hum Song");
                   setLocation("/cover-art");

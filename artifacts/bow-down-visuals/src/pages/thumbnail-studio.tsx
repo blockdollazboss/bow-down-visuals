@@ -660,8 +660,8 @@ export function ThumbnailMakerModule() {
           <div className="flex gap-2 flex-wrap">
             {(
               [
-                { id: "simple" as const, label: "Simple" },
-                { id: "custom" as const, label: "Custom" },
+                { id: "simple" as const, label: "Turbo" },
+                { id: "custom" as const, label: "Advanced" },
                 { id: "artwork" as const, label: t("thumbnailMaker.artworkModeLabel", { defaultValue: "Artwork Pack" }) },
               ]
             ).map((m) => (

@@ -524,7 +524,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
           projectType: "Make Song + Video",
-          title: [artistName, "Simple Mode Video"].filter(Boolean).join(" — "),
+          title: [artistName, "Turbo Mode Video"].filter(Boolean).join(" — "),
           artistName: artistName || null,
           songTitle: null,
           genre: SIMPLE_DEFAULTS.genre,
@@ -550,7 +550,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
       /* The song flows into the hub project — downstream tools pick it up. */
       if (audioUrl) {
         try {
-          addAsset({ kind: "song", url: audioUrl, label: idea.trim().slice(0, 60) || "Song", detail: "Simple mode creation" });
+          addAsset({ kind: "song", url: audioUrl, label: idea.trim().slice(0, 60) || "Song", detail: "Turbo mode creation" });
         } catch { /* hub unavailable — non-fatal */ }
       }
       setLocation(`/video-editor?project=${saveBody.id}`);
@@ -1222,7 +1222,7 @@ export function SongAndVideoModule() {
         <div className="flex gap-2 mb-8">
           {(
             [
-              { id: "simple" as const, label: t("songAndVideo.simpleTabLabel", { defaultValue: "Simple" }) },
+              { id: "simple" as const, label: t("songAndVideo.simpleTabLabel", { defaultValue: "Turbo" }) },
               { id: "guided" as const, label: t("songAndVideo.guidedTabLabel", { defaultValue: "Guided" }) },
             ]
           ).map((m) => (

@@ -336,11 +336,11 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                     key={m}
                     type="button"
                     onClick={() => setMode(m)}
-                    className={`px-5 py-2.5 rounded-xl font-medium transition-all capitalize ${
+                    className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
                       mode === m ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                     }`}
                   >
-                    {m}
+                    {m === "simple" ? "Turbo" : "Advanced"}
                   </button>
                 ))}
               </div>

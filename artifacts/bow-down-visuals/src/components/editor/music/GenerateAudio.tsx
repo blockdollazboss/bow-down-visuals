@@ -1392,8 +1392,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           <Segmented
             value={createMode}
             options={[
-              { value: "simple", label: "Simple" },
-              { value: "custom", label: "Custom" },
+              { value: "simple", label: "Turbo" },
+              { value: "custom", label: "Advanced" },
             ]}
             onChange={(v) => setCreateMode(v === "custom" ? "custom" : "simple")}
           />

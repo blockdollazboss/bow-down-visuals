@@ -495,7 +495,7 @@ export function MakeSongModule() {
                   : "bg-white/5 text-white/60 hover:bg-white/10"
               }`}
             >
-              Simple
+              Turbo
             </button>
             <button
               type="button"
@@ -506,7 +506,7 @@ export function MakeSongModule() {
                   : "bg-white/5 text-white/60 hover:bg-white/10"
               }`}
             >
-              Custom
+              Advanced
             </button>
             <button
               type="button"

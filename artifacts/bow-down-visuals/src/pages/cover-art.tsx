@@ -182,7 +182,7 @@ export default function CoverArt() {
                   mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                {t("cover-art.simple", { defaultValue: "Simple" })}
+                {t("cover-art.simple", { defaultValue: "Turbo" })}
               </button>
               <button
                 type="button"
@@ -191,7 +191,7 @@ export default function CoverArt() {
                   mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                {t("cover-art.custom", { defaultValue: "Custom" })}
+                {t("cover-art.custom", { defaultValue: "Advanced" })}
               </button>
             </div>
 
