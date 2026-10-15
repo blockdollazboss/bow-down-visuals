@@ -643,13 +643,17 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
       ORDER BY ds.created_at DESC
       LIMIT 200
     `);
+    /* Refresh at the response boundary: the joined artwork_url /
+       thumbnail_url is stored as a storage ref (r2:// / supabase://),
+       which clients cannot render — mint a fresh signed URL per row. */
     res.json({
-      purchases: result.rows.map((r) => {
+      purchases: await Promise.all(result.rows.map(async (r) => {
         const row = r as Record<string, unknown>;
         const cents = Number(row["amount_cents"]);
         const kind = String(row["item_kind"]);
         const itemId = String(row["item_id"]);
         const slug = String(row["artist_slug"] ?? "");
+        const rawArtwork = (row["artwork_url"] as string | null) ?? null;
         return {
           id: String(row["id"]),
           itemKind: kind,
@@ -657,7 +661,7 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           title: String(row["item_title"] ?? "Content"),
           artistName: String(row["artist_name"] ?? "Creator"),
           artistSlug: slug,
-          artworkUrl: (row["artwork_url"] as string | null) ?? null,
+          artworkUrl: rawArtwork ? await refreshSupabaseStorageUrl(rawArtwork) : null,
           amountCents: cents,
           amount: money(cents),
           purchasedAt: String(row["created_at"]),
@@ -666,7 +670,7 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           buyUrl: `/store/buy/${kind}/${itemId}`,
           artistUrl: slug ? `/c/${slug}` : null,
         };
-      }),
+      })),
     });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[store] purchases failed");
