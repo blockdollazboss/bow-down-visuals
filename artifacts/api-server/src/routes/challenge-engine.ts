@@ -17,6 +17,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 /* ─── Challenge engine 2.0 — prizes, judging, winners' circle ─────────────
    The competitive layer on top of challenges (0091):
@@ -327,7 +328,11 @@ router.get("/challenges/:slug/winners", async (req, res) => {
       WHERE w.challenge_id = ${ch.id}
       ORDER BY w.place ASC
     `);
-    res.json({
+    /* Refresh at the response boundary: cover / video / thumbnail /
+       avatar values are stored as storage refs (r2:// / supabase://),
+       which are not playable URLs — wrap the assembled payload like
+       sibling read endpoints. */
+    res.json(await refreshSupabaseStorageUrlsDeep({
       challenge: {
         slug: ch.slug, title: ch.title, hashtag: ch.hashtag, cover_url: ch.coverUrl,
         status: effectiveStatus(ch),
@@ -345,7 +350,7 @@ router.get("/challenges/:slug/winners", async (req, res) => {
           slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"],
         },
       })),
-    });
+    }));
   } catch (err) {
     req.log.error({ err }, "challenge winners error");
     res.status(500).json({ error: "Couldn't load the winners." });
