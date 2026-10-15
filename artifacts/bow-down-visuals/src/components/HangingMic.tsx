@@ -19,16 +19,19 @@ import { useEffect, useRef } from "react";
      the copy column's pr-[4%] resolving against viewport width —
      in practice the −60px rule is the one the cascade delivers at
      both widths, so the anchor sits ~5px right of corridor center
-     at 2048). The head is 46px wide; the swing is capped at ±1.5°
-     on laptop widths and ±1.15° at ≥1800px, which keeps the head's
+     at 2048). The head is 46px wide; the swing is capped at ±1.85°
+     on laptop widths and ±1.45° at ≥1800px, which keeps the head's
      swept envelope (its rotated AABB, bottom corner binding) clear
      of both the King canvas and every copy element at both
-     extremes — worst case ~4px on the copy side at 2048, ~7px at
-     1676.
+     extremes — worst case ~2.5px on the copy side at 2048, ~6px at
+     1676. (Caps re-derived 2026-10-15 against the shortened hang —
+     see the length note below; the pre-shortening caps were
+     ±1.5°/±1.15° with ~4px/~7px floors.)
    - Below lg there is no center corridor (King + copy span the
      width), so the mic moves to the right-edge corridor beside the
      King figure (canvas right edge x314 at 390): a 34px head,
-     ±1.0° swing, its cable passing behind the tips chip — the chip
+     ±1.3° swing (±1.0° before the 2026-10-15 re-derivation), its
+     cable passing behind the tips chip — the chip
      lives in the copy layer above this one and paints over the
      cable, the same accepted layering as the rig fixtures on
      phones. The head itself never touches an element box.
@@ -38,14 +41,25 @@ import { useEffect, useRef } from "react";
    y88 at every size (the hero's -mt-[88px] sees to that), so the
    gold collar straddles y88 and the pendulum pivots there.
 
+   Length (owner, 2026-10-15: "shorten the microphone, it's a
+   little bit too long"): the pendulum is 47.5% of the hero's
+   height (was 52%), cutting the cable ~10% at every size —
+   534→481px at 2048, 500→449px at 1676, 731→661px at 390 — and
+   raising the head's bottom to ~55% of the hero's height (was
+   ~59–60%). The shorter pivot→head distance is also what buys
+   the slightly wider swing below: the same envelope floor is
+   reached at a larger angle.
+
    Motion: the pendulum angle chases the window pointer
    (normalized −1…1, the rig's pattern) through a two-stage
    exponential lerp — an S-curve approach with natural lag on
    attack and release, and a hard guarantee the spring prototype
-   lacked: the angle can never pass its cap (±1.5° laptop,
-   ±1.15° at ≥1800px, ±1.0° below lg), so the swept envelope the
-   clearances were computed against is the worst case, not a
-   settled sample. (The first build's damped
+   lacked: the angle can never pass its cap (±1.85° laptop,
+   ±1.45° at ≥1800px, ±1.3° below lg — each a modest step up from
+   the pre-shortening caps, re-derived against the new length so
+   the worst-case full-settle envelope keeps ≥2px of air), so the
+   swept envelope the clearances were computed against is the
+   worst case, not a settled sample. (The first build's damped
    spring overshot to 2.59° on laptop and put the head inside the
    King canvas at the extreme — probe-caught, hence the lerp.)
    prefers-reduced-motion or a coarse pointer (touch): perfectly
@@ -82,11 +96,13 @@ export function HangingMic({ className = "" }: { className?: string }) {
 
     const maxAngle = () => {
       const w = window.innerWidth;
-      // ≥1800px steps down to 1.15°: there the anchor lands ~5px
-      // right of corridor center (see the header note), and 1.15°
-      // is what keeps the head's swept AABB ≥4px off the copy
-      // column at full settle.
-      const deg = w >= 1800 ? 1.15 : w >= 1024 ? 1.5 : 1.0;
+      // ≥1800px steps down to 1.45°: there the anchor lands ~5px
+      // right of corridor center (see the header note), and 1.45°
+      // is what keeps the head's swept AABB ≥2px off the copy
+      // column at full settle against the shortened pendulum
+      // (pivot→head-center ~527px there, ~497px at laptop widths,
+      // ~697px below lg where the hero runs tall).
+      const deg = w >= 1800 ? 1.45 : w >= 1024 ? 1.85 : 1.3;
       return deg * (Math.PI / 180);
     };
     let target = 0; // radians, scaled at event time
@@ -156,14 +172,17 @@ export function HangingMic({ className = "" }: { className?: string }) {
 
         {/* Pendulum: rotates about the anchor point at the banner's
             bottom edge (transform-origin 0 0 of a zero-width box
-            whose top-left IS the pivot). Height 52% of the hero puts
-            the head's bottom at ~59–60% of the hero's height — deep
-            in the set's world. */}
+            whose top-left IS the pivot). Height 47.5% of the hero
+            puts the head's bottom at ~55% of the hero's height —
+            shortened 2026-10-15 on the owner's word (was 52% /
+            ~59–60%): the cable reads ~10% shorter at every size
+            and the head rides higher in the corridor, clear of the
+            badges and headline above it. */}
         <div
           ref={swingRef}
           data-mic="pendulum"
           className="absolute w-0 will-change-transform"
-          style={{ top: PIVOT_Y, left: 0, height: "52%", transformOrigin: "0 0" }}
+          style={{ top: PIVOT_Y, left: 0, height: "47.5%", transformOrigin: "0 0" }}
         >
           <div className="flex h-full w-[34px] -ml-[17px] flex-col items-center lg:w-[46px] lg:-ml-[23px]">
             {/* The cable — 3px, dark edges with a fine gold thread
