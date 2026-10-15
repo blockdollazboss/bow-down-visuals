@@ -1325,6 +1325,16 @@ html, body {
 .light .border-white\/\[0\.1\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #E7D9BC; }
 .light .text-primary\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
 .light .hover\:text-primary:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+/* text-primary alpha rungs with no rule until now (/50, /60, /80, /90):
+   the authored gold at those opacities sat ~2.2–2.9:1 at 10–11px on cream
+   panels (AwayDigestModal, Cover/Harmony/Lrc song modals, HelpPanel).
+   Same treatment as /70 above — solid deep bronze, alpha dropped — and
+   the same :not([data-dark-lock]) guards, so dark-locked subtrees keep
+   their authored gold exactly as in dark mode. */
+.light .text-primary\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+.light .text-primary\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+.light .text-primary\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
+.light .text-primary\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5F1D; }
 
 /* ── 16. Dark-locked areas: restore the cinematic dark look ──
    (WittyLoader, video players, teleprompter — excluded above via :not) */
