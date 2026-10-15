@@ -201,12 +201,18 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
       return;
     }
     const { feeCents, creatorCents } = splitFee(item.priceCents);
+    /* Refresh at the response boundary: artwork_url is stored as a
+       storage ref (r2:// / supabase://), which clients cannot render —
+       mint a fresh signed URL like sibling read endpoints. */
+    const artworkUrl = item.artworkUrl
+      ? await refreshSupabaseStorageUrl(item.artworkUrl)
+      : null;
     res.json({
       item: {
         kind: item.itemKind,
         id,
         title: item.title,
-        artworkUrl: item.artworkUrl,
+        artworkUrl,
         artistName: item.artistName,
         artistSlug: item.artistSlug,
         priceCents: item.priceCents,
@@ -266,6 +272,12 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     }
     const { feeCents, creatorCents } = splitFee(item.priceCents);
     const baseUrl = getBaseUrl(req);
+    /* Same stored artwork value flows to Stripe as the checkout image:
+       an r2:// / supabase:// ref is unfetchable by Stripe, so refresh
+       it to a signed URL here too. */
+    const artworkUrl = item.artworkUrl
+      ? await refreshSupabaseStorageUrl(item.artworkUrl)
+      : null;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -276,7 +288,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
             product_data: {
               name: `${item.title} — ${item.artistName}`,
               description: `Digital download · ${kind}`,
-              images: item.artworkUrl ? [item.artworkUrl] : undefined,
+              images: artworkUrl ? [artworkUrl] : undefined,
             },
           },
           quantity: 1,
