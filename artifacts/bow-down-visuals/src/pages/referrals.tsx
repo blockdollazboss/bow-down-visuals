@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
-import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone } from "lucide-react";
+import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { QRCodeModal } from "@/components/QRCode";
 import { useTranslation } from "react-i18next";
@@ -296,19 +296,27 @@ function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
   const { t } = useTranslation();
   const [window, setWindow] = useState<"weekly" | "monthly" | "alltime">("monthly");
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setEntries(null);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/referrals/leaderboard?window=${window}`);
         const data = await res.json();
-        if (!cancelled && res.ok) setEntries(data.entries ?? []);
-      } catch { /* non-fatal */ }
+        // On failure entries stayed null = spinner forever. That's a
+        // load error end-state, not a loading state.
+        if (!cancelled) {
+          if (res.ok) setEntries(data.entries ?? []);
+          else setLoadError(true);
+        }
+      } catch { if (!cancelled) setLoadError(true); }
     })();
     return () => { cancelled = true; };
-  }, [window]);
+  }, [window, retryNonce]);
 
   const myRank = myRanks[window];
   const tabs: Array<{ key: "weekly" | "monthly" | "alltime"; label: string }> = [
@@ -342,7 +350,16 @@ function LeaderboardSection({ myRanks }: { myRanks: WindowRanks }) {
           {t("referrals.leaderboard.yourRank", { rank: myRank })}
         </p>
       )}
-      {entries === null ? (
+      {loadError ? (
+        <div className="py-6 text-center">
+          <AlertTriangle className="mx-auto h-8 w-8 text-primary" />
+          <p className="mt-2 text-sm font-semibold text-white/70">Couldn't load the leaderboard.</p>
+          <p className="mt-1 text-xs text-white/40">Something went wrong on our end — the rankings are safe, they just couldn't load.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-xs font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-3.5 w-3.5" /> Try again
+          </button>
+        </div>
+      ) : entries === null ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
