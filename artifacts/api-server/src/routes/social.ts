@@ -1221,6 +1221,22 @@ function toStoryDto(
   };
 }
 
+/* Highlight DTO, field-by-field: the frontend StoryHighlight contract
+   (lib/social-api.ts) is snake_case — profile-sections gates the cover
+   image on h.cover_url. GET /stories/highlights shipped the raw rows,
+   so cover_url/story_ids/profile_id never arrived and every highlight
+   ring fell back to the ✦ placeholder. */
+function toHighlightDto(h: typeof storyHighlightsTable.$inferSelect) {
+  return {
+    id: h.id,
+    profile_id: h.profileId,
+    title: h.title,
+    cover_url: h.coverUrl,
+    story_ids: h.storyIds,
+    created_at: h.createdAt,
+  };
+}
+
 function extractHashtags(body: string): string[] {
   const out = new Set<string>();
   const re = /(^|[\s(])#([A-Za-z0-9_]{2,40})/g;
@@ -1544,7 +1560,9 @@ router.get("/stories/highlights", requireAuth, async (req: Request, res: Respons
     const rows = await db.select().from(storyHighlightsTable)
       .where(eq(storyHighlightsTable.profileId, profileId))
       .orderBy(desc(storyHighlightsTable.createdAt));
-    return res.json({ highlights: await refreshSupabaseStorageUrlsDeep(rows) });
+    /* Refresh first (re-signs the cover URL), then map to the DTO. */
+    const refreshed = await refreshSupabaseStorageUrlsDeep(rows);
+    return res.json({ highlights: refreshed.map((h) => toHighlightDto(h)) });
   } catch {
     return res.status(500).json({ error: "highlights_failed" });
   }

@@ -30,6 +30,7 @@ const h = vi.hoisted(() => ({
     profile: null as Record<string, unknown> | null,
     posts: [] as Array<Record<string, unknown>>,
     stories: [] as Array<Record<string, unknown>>,
+    highlights: [] as Array<Record<string, unknown>>,
   },
 }));
 
@@ -134,12 +135,14 @@ vi.mock("@workspace/db", async (importOriginal) => {
     creatorProfilesTable,
     postsTable,
     storiesTable,
+    storyHighlightsTable,
   } = actual;
 
   function rowsFor(table: unknown): unknown[] {
     if (table === creatorProfilesTable) return state.profile ? [state.profile] : [];
     if (table === postsTable) return state.posts;
     if (table === storiesTable) return state.stories;
+    if (table === storyHighlightsTable) return state.highlights;
     return [];
   }
 
@@ -232,10 +235,25 @@ function storyRow(): Record<string, unknown> {
   };
 }
 
+const HIGHLIGHT_ID = "44444444-4444-4444-8444-444444444444";
+const HIGHLIGHT_STORY_ID = "55555555-5555-4555-8555-555555555555";
+
+function highlightRow(): Record<string, unknown> {
+  return {
+    id: HIGHLIGHT_ID,
+    profileId: PROFILE_ID,
+    title: "Best drops",
+    coverUrl: "https://cdn.example.com/highlight-cover.jpg",
+    storyIds: [HIGHLIGHT_STORY_ID],
+    createdAt: CREATED,
+  };
+}
+
 beforeEach(() => {
   h.state.profile = profileRow();
   h.state.posts = [postRow()];
   h.state.stories = [storyRow()];
+  h.state.highlights = [highlightRow()];
 });
 
 async function get(path: string) {
@@ -340,5 +358,35 @@ describe("GET /api/stories/by-profile/:profileId — story DTO contract", () => 
     expect(status).toBe(200);
     expect(json.stories).toHaveLength(1);
     expectStoryDto(json.stories[0], false);
+  });
+});
+
+/* Round 2: GET /stories/highlights returned the raw rows untouched, so
+   the wire payload carried camelCase (coverUrl, storyIds, profileId)
+   while the frontend StoryHighlight contract is snake_case — the
+   profile page's render gate reads h.cover_url, so highlight rings
+   always fell back to the ✦ placeholder and never showed the cover. */
+function expectHighlightDto(h: any) {
+  expect(h.id).toBe(HIGHLIGHT_ID);
+  expect(h.profile_id).toBe(PROFILE_ID);
+  expect(h.title).toBe("Best drops");
+  // The regression pin: the render gate reads cover_url.
+  expect(h.cover_url).toBe("https://cdn.example.com/highlight-cover.jpg");
+  expect(h.story_ids).toEqual([HIGHLIGHT_STORY_ID]);
+  expect(h.created_at).toBe("2026-10-14T15:04:05.000Z");
+  // The camelCase table keys must NOT leak through the DTO.
+  expect(h).not.toHaveProperty("profileId");
+  expect(h).not.toHaveProperty("coverUrl");
+  expect(h).not.toHaveProperty("storyIds");
+  expect(h).not.toHaveProperty("createdAt");
+}
+
+describe("GET /api/stories/highlights — highlight DTO contract", () => {
+  it("ships snake_case highlight fields (cover_url, story_ids)", async () => {
+    const { status, json } = await get(`/stories/highlights?profile_id=${PROFILE_ID}`);
+
+    expect(status).toBe(200);
+    expect(json.highlights).toHaveLength(1);
+    expectHighlightDto(json.highlights[0]);
   });
 });
