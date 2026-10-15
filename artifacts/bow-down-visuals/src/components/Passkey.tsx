@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
-import { Fingerprint, Loader2, Trash2 } from "lucide-react";
+import { Fingerprint, Loader2, Trash2, AlertTriangle, RotateCcw } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -245,6 +245,9 @@ export function PasskeyManager() {
   const { user, getAccessToken } = useAuth();
   const [keys, setKeys] = useState<PasskeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  /* A failed load is NOT "no passkeys yet" — it gets its own error state
+     with a retry; the empty text renders only after a successful load. */
+  const [loadError, setLoadError] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -256,16 +259,21 @@ export function PasskeyManager() {
         return;
       }
       setLoading(true);
+      setLoadError(false);
       try {
         const token = await getAccessToken();
-        if (!token) return;
+        if (!token) throw new Error("missing token");
         const res = await fetch("/api/auth/webauthn/credentials", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (!cancelled && res.ok) setKeys(data.credentials ?? []);
+        if (!res.ok) throw new Error("load failed");
+        if (!cancelled) setKeys(data.credentials ?? []);
       } catch {
-        if (!cancelled) setKeys([]);
+        if (!cancelled) {
+          setKeys([]);
+          setLoadError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -318,6 +326,18 @@ export function PasskeyManager() {
           <p className="text-white/40 text-sm flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading passkeys...
           </p>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4 text-sm text-red-200/80 flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            Couldn't load your passkeys — check your connection and try again.
+            <button
+              type="button"
+              onClick={() => setRefreshNonce((n) => n + 1)}
+              className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/5"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Retry
+            </button>
+          </div>
         ) : keys.length === 0 ? (
           <p className="text-white/40 text-sm">No passkeys yet. Add one below.</p>
         ) : (
