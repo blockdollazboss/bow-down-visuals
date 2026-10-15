@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Search as SearchIcon, Users, Disc3, Clapperboard, ListMusic, Loader2 } from "lucide-react";
+import { Search as SearchIcon, Users, Disc3, Clapperboard, ListMusic, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import {
   CreatorCard, TrackRow, VideoCard, SectionHeader,
   CardSkeleton, ChartSkeleton, NoSearchResults,
@@ -95,6 +95,7 @@ function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
 }
 
 export default function Search() {
+  const isLight = useIsLightTheme();
   usePageTitle("Search");
   const [location] = useLocation();
   const initialQ = useMemo(() => {
@@ -110,6 +111,8 @@ export default function Search() {
   const [genres, setGenres] = useState<Array<{ genre: string; items: number }>>([]);
   const [data, setData] = useState<SearchPayload | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   // Genre chips follow the vertical filter.
   useEffect(() => {
@@ -141,7 +144,10 @@ export default function Search() {
       });
       const d = await getJson<SearchPayload>(`/api/discovery/search?${params}`);
       if (!cancelled) {
-        setData(d);
+        // getJson returns null ONLY on failure — that is a load error,
+        // not "no hits". NoSearchResults renders only for a real
+        // successful payload with zero results.
+        if (!d) setLoadError(true); else { setLoadError(false); setData(d); }
         setLoading(false);
       }
     }, 250);
@@ -149,7 +155,7 @@ export default function Search() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [committedQ, type, vertical, genre]);
+  }, [committedQ, type, vertical, genre, retryNonce]);
 
   const creatorIds = useMemo(() => (data?.creators ?? []).map((c) => c.id), [data]);
   const followStates = useFollowStates(creatorIds);
@@ -259,6 +265,15 @@ export default function Search() {
               <CardSkeleton key={i} />
             ))}
           </div>
+        </div>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't run that search.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Something went wrong on our end — that's not the same as no hits.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110">
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
         </div>
       ) : !hasResults ? (
         <NoSearchResults q={committedQ.trim()} />
