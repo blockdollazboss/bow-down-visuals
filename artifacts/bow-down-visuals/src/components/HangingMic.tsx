@@ -51,6 +51,21 @@ import { useEffect, useRef } from "react";
    prefers-reduced-motion or a coarse pointer (touch): perfectly
    still — no listener, no loop.
 
+   Readability pass (2026-10-15, owner: "you left out the
+   microphone and everything"): the v8 mic was IN the hero but read
+   as a hairline — a 2px cable and a dark-mesh head on a dark
+   backdrop. The fix is light and finish, NOT size: at 2048 the
+   head's full-settle swept envelope already sits ~4px off the copy
+   column, so any width growth eats the clearance floor (a 50px
+   head computes to ~2px). Instead: a warm halo glows behind the
+   head (the rig's lamp-glow language — radial gold, transparent by
+   72% of its ray, blur 6px; it is LIGHT, not equipment, and its
+   painted reach hugs the head: ~32px from center at desktop vs
+   the head's own 23px half-width), the grille is lit (brighter
+   mesh, a light wash over the bronze), the gold trim carries
+   brighter highlights, and the cable is 3px with a gold thread
+   down its center so the hang reads as a cable.
+
    Pure decoration: pointer-events-none, aria-hidden. */
 
 const PIVOT_Y = 88; // section-local px — the banner's bottom edge
@@ -151,18 +166,31 @@ export function HangingMic({ className = "" }: { className?: string }) {
           style={{ top: PIVOT_Y, left: 0, height: "52%", transformOrigin: "0 0" }}
         >
           <div className="flex h-full w-[34px] -ml-[17px] flex-col items-center lg:w-[46px] lg:-ml-[23px]">
-            {/* The cable — thin, dark, a hint of cylindrical sheen. */}
+            {/* The cable — 3px, dark edges with a fine gold thread
+                down its center, so the hang reads as a cable
+                catching the stage light, not a scratch. */}
             <div
               data-mic="cable"
-              className="w-[2px] flex-1"
+              className="w-[3px] flex-1"
               style={{
                 background:
-                  "linear-gradient(90deg, #0B0702 0%, #4A3410 50%, #0B0702 100%)",
+                  "linear-gradient(90deg, #0B0702 0%, #57431A 30%, #D9B45C 50%, #57431A 70%, #0B0702 100%)",
               }}
             />
             {/* The microphone — shaded brass condenser, hanging
-                grille-down in its shock mount. */}
-            <div data-mic="head" style={{ filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))" }}>
+                grille-down in its shock mount, with a warm halo
+                glowing behind the head (light, not equipment: the
+                rig's lamp-glow language, sized to hug the head). */}
+            <div data-mic="head" className="relative">
+              <div
+                data-mic="halo"
+                className="absolute left-1/2 top-1/2 h-[104px] w-[64px] -translate-x-1/2 -translate-y-1/2 blur-[6px] lg:h-[136px] lg:w-[88px]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(255,238,180,0.75) 0%, rgba(255,214,110,0.42) 45%, rgba(201,168,76,0.14) 65%, transparent 72%)",
+                }}
+              />
+              <div className="relative" style={{ filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))" }}>
               <svg viewBox="0 0 46 96" className="block h-auto w-full" aria-hidden>
                 <defs>
                   <linearGradient id="mic-body" x1="0" y1="0" x2="1" y2="0">
@@ -174,37 +202,47 @@ export function HangingMic({ className = "" }: { className?: string }) {
                   </linearGradient>
                   <linearGradient id="mic-grille" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#17100A" />
-                    <stop offset="30%" stopColor="#3D2C10" />
-                    <stop offset="50%" stopColor="#54401A" />
-                    <stop offset="74%" stopColor="#20160A" />
+                    <stop offset="30%" stopColor="#503A16" />
+                    <stop offset="50%" stopColor="#715A24" />
+                    <stop offset="74%" stopColor="#2A1D08" />
                     <stop offset="100%" stopColor="#100A03" />
                   </linearGradient>
+                  <radialGradient id="mic-grille-light" cx="0.5" cy="0.22" r="0.75">
+                    <stop offset="0%" stopColor="#FFECAA" stopOpacity="0.5" />
+                    <stop offset="45%" stopColor="#E8B33C" stopOpacity="0.18" />
+                    <stop offset="70%" stopColor="#E8B33C" stopOpacity="0" />
+                  </radialGradient>
                   <pattern id="mic-mesh" width="3" height="3" patternUnits="userSpaceOnUse">
-                    <circle cx="1.1" cy="1.1" r="0.85" fill="#C9A84C" opacity="0.5" />
-                    <circle cx="2.6" cy="2.6" r="0.85" fill="#8A6B1F" opacity="0.45" />
+                    <circle cx="1.1" cy="1.1" r="0.95" fill="#E8B33C" opacity="0.8" />
+                    <circle cx="2.6" cy="2.6" r="0.95" fill="#C9A84C" opacity="0.65" />
                   </pattern>
                 </defs>
                 {/* cable entry + gold collar ring */}
                 <rect x="20.5" y="0" width="5" height="7" fill="#17100A" />
                 <rect x="16.5" y="5.5" width="13" height="3.5" rx="1.5" fill="#C9A84C" />
+                <rect x="16.5" y="5.5" width="13" height="1.3" rx="0.6" fill="#FFE9A8" opacity="0.8" />
                 {/* shock mount: top band + side rails + lower band */}
-                <rect x="3" y="9" width="40" height="5.5" rx="2.5" fill="#241708" stroke="#C9A84C" strokeOpacity="0.6" strokeWidth="0.75" />
+                <rect x="3" y="9" width="40" height="5.5" rx="2.5" fill="#241708" stroke="#C9A84C" strokeOpacity="0.8" strokeWidth="0.75" />
                 <rect x="4" y="14" width="3.5" height="24" rx="1.5" fill="#8A6B1F" />
                 <rect x="38.5" y="14" width="3.5" height="24" rx="1.5" fill="#8A6B1F" />
-                <rect x="3" y="36" width="40" height="4.5" rx="2" fill="#241708" stroke="#C9A84C" strokeOpacity="0.5" strokeWidth="0.75" />
+                <rect x="3" y="36" width="40" height="4.5" rx="2" fill="#241708" stroke="#C9A84C" strokeOpacity="0.7" strokeWidth="0.75" />
                 {/* body cylinder */}
                 <rect x="13" y="11" width="20" height="41" rx="4" fill="url(#mic-body)" stroke="#C9A84C" strokeOpacity="0.35" strokeWidth="0.75" />
-                <rect x="13" y="16" width="20" height="2.5" fill="#C9A84C" opacity="0.85" />
+                <rect x="13" y="16" width="20" height="2.5" fill="#C9A84C" opacity="0.95" />
+                <circle cx="23" cy="33" r="3.2" fill="#E8B33C" opacity="0.25" />
                 <circle cx="23" cy="33" r="1.7" fill="#E8B33C" />
-                <rect x="15.5" y="20" width="2.5" height="28" rx="1.2" fill="#FFFFFF" opacity="0.07" />
+                <rect x="15" y="20" width="3" height="28" rx="1.2" fill="#FFFFFF" opacity="0.14" />
                 {/* gold rim between body and grille */}
                 <rect x="12" y="50" width="22" height="4" rx="2" fill="#C9A84C" />
-                {/* grille head — mesh over dark bronze, rounded foot */}
+                <rect x="12" y="50" width="22" height="1.4" rx="0.7" fill="#FFE9A8" opacity="0.8" />
+                {/* grille head — lit mesh over bronze, rounded foot */}
                 <path d="M13,54 H33 V82 Q33,92 23,92 Q13,92 13,82 Z" fill="url(#mic-grille)" />
-                <path d="M13,54 H33 V82 Q33,92 23,92 Q13,92 13,82 Z" fill="url(#mic-mesh)" opacity="0.55" />
-                <rect x="16" y="57" width="3" height="30" rx="1.5" fill="#FFFFFF" opacity="0.06" />
-                <ellipse cx="23" cy="90.5" rx="6.5" ry="1.8" fill="#E8B33C" opacity="0.35" />
+                <path d="M13,54 H33 V82 Q33,92 23,92 Q13,92 13,82 Z" fill="url(#mic-grille-light)" />
+                <path d="M13,54 H33 V82 Q33,92 23,92 Q13,92 13,82 Z" fill="url(#mic-mesh)" opacity="0.9" />
+                <rect x="16" y="57" width="3" height="30" rx="1.5" fill="#FFFFFF" opacity="0.1" />
+                <ellipse cx="23" cy="90.5" rx="6.5" ry="1.8" fill="#E8B33C" opacity="0.55" />
               </svg>
+              </div>
             </div>
           </div>
         </div>
