@@ -795,20 +795,32 @@ function OrdersTab() {
 
 /* ── Discounts tab ───────────────────────────────────────────────────── */
 function DiscountsTab() {
+  const isLight = useIsLightTheme();
   const getToken = useToken();
   const [codes, setCodes] = useState<DiscountCodeDTO[] | null>(null);
   const [form, setForm] = useState({ code: "", percentOff: "15", maxUses: "-1", expiresAt: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  /* Discount load failures are NOT "no codes yet" — they get their own
+     error state with a retry, scoped to the code list only (the
+     generator form above stays usable). The empty state renders ONLY
+     for a successful load with zero codes. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(async () => {
-    const token = await getToken();
-    const r = await listDiscounts(token);
-    setCodes(r.codes);
+    setLoadError(false);
+    try {
+      const token = await getToken();
+      const r = await listDiscounts(token);
+      setCodes(r.codes);
+    } catch {
+      setLoadError(true);
+    }
   }, [getToken]);
 
-  useEffect(() => { load().catch(() => setCodes([])); }, [load]);
+  useEffect(() => { load(); }, [load, retryNonce]);
 
   const randomCode = () => {
     const words = ["BOWDOWN", "CHEATCODE", "KING", "SHARK", "GOLD", "LAUNCH", "VIP"];
@@ -888,7 +900,22 @@ function DiscountsTab() {
         </button>
       </div>
 
-      {!codes ? (
+      {loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your discount codes.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — your codes are safe, this tab just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : !codes ? (
         <div className="flex justify-center py-10 text-white/40"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : codes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
