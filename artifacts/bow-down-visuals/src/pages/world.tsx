@@ -73,6 +73,12 @@ export default function WorldPage() {
     let volumeTick: ReturnType<typeof setInterval> | null = null;
 
     (async () => {
+      /* Boot failures BEFORE the socket exists (the scene chunk fails
+         to load, or the WebGL2-only renderer throws on a no-WebGL2
+         client) used to escape this IIFE uncaught — status stayed
+         "connecting" forever and the page's own error card was
+         unreachable. Route them to that error state instead. */
+      try {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const { KingsHallScene } = await import("@/lib/world/hall-scene");
@@ -162,6 +168,9 @@ export default function WorldPage() {
       }, 250);
 
       await client.connect();
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
     })();
 
     return () => {
