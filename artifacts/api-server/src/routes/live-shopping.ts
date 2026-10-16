@@ -17,6 +17,12 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import {
+  createPaymentCheckout,
+  retrieveCheckoutSession,
+  checkoutBaseUrl,
+  isCheckoutTestMode,
+} from "../lib/stripe-checkout";
 
 /* Mirror-on-save (2026-10-13 law): live-shop product images are re-hosted
    into permanent storage at save time; the serializer mints a fresh signed
@@ -34,12 +40,16 @@ import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
      an AI-written product description, charged BEFORE the model call and
      refunded if the provider fails (same pattern as hook-studio).
 
-   Honest v1 boundaries (never fake a transaction):
-   - Platform checkout does NOT exist yet: product "buy" buttons open the
-     creator's own `external_url` in a new tab, and the UI labels it.
-   - POST /live-shopping/sales and /streams/:id/alerts record TEST sales —
-     every response and the dashboard label them as test sales until
-     platform checkout ships.
+   Checkout (0132, never fake a transaction):
+   - The default buy path is ON-platform: POST /live-shopping/checkout
+     starts a TEST-mode checkout at the product's listed price, and
+     POST /live-shopping/verify records the sale (status 'paid') only
+     after the session verifies as paid. Displayed = charged.
+   - `external_url` stays as the creator's own off-platform link — a
+     secondary option, never the default buy path.
+   - POST /live-shopping/sales and /streams/:id/alerts still record TEST
+     sales/alerts for overlay demos; those rows keep status 'test' and
+     the dashboard labels them separately from paid sales forever.
    - Ownership is enforced on every row: users can only touch their own.
 
    Endpoints (all authed):
@@ -53,6 +63,8 @@ import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
    POST   /live-shopping/streams/:id/alerts  → record TEST purchase alert (free)
    GET    /live-shopping/streams/:id/alerts  → alert feed for the overlay (free)
    POST   /live-shopping/sales               → record TEST sale (free)
+   POST   /live-shopping/checkout             → start on-platform checkout
+   POST   /live-shopping/verify              → verify paid session → paid sale
    GET    /live-shopping/dashboard           → revenue per stream (free)
    POST   /live-shopping/ai-description      → AI product description (1 credit) */
 
@@ -93,6 +105,16 @@ export const saleSchema = z.object({
   quantity: z.number().int().min(1).max(99).default(1),
 });
 
+export const checkoutSchema = z.object({
+  product_id: z.string().uuid(),
+  stream_id: z.string().uuid().optional(),
+  quantity: z.number().int().min(1).max(99).default(1),
+});
+
+export const checkoutVerifySchema = z.object({
+  sessionId: z.string().min(1).max(200),
+});
+
 export const aiDescriptionSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(120),
   selling_points: z.string().trim().max(1000).optional(),
@@ -128,8 +150,9 @@ router.get("/live-shopping/catalog", requireAuth, async (req: Request, res: Resp
   res.json({
     products: await Promise.all(rows.map(serializeProduct)),
     fee_bps: LIVE_SHOPPING_FEE_BPS,
-    checkout_status: "coming_soon",
-    note: "Platform checkout is coming soon — buy buttons link to your own checkout page, and sales recorded here are test sales.",
+    checkout_status: "live",
+    testMode: isCheckoutTestMode(),
+    note: "Platform checkout is live (test mode): buy buttons check out right here. Your external link stays available as a secondary option, and manually recorded sales are test sales.",
   });
 });
 
@@ -514,6 +537,210 @@ router.post(
   },
 );
 
+/* ── On-platform checkout (0132) ─────────────────────────────────────────
+   Default buy path: a viewer buys without leaving the platform. The
+   amount is the product's listed price × quantity — the same number the
+   product card displays. A 'paid' sale exists only after verify. */
+
+router.post(
+  "/live-shopping/checkout",
+  publicApiLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const parsed = checkoutSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Invalid checkout.",
+        details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+      });
+      return;
+    }
+    const product = await db
+      .select()
+      .from(liveShopProductsTable)
+      .where(eq(liveShopProductsTable.id, parsed.data.product_id))
+      .limit(1);
+    const row = product[0];
+    if (!row || !row.is_active) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    if (row.user_id === req.userId) {
+      res.status(400).json({ error: "You can't buy your own product." });
+      return;
+    }
+    if (parsed.data.stream_id) {
+      const stream = await db
+        .select({ id: liveShopStreamsTable.id })
+        .from(liveShopStreamsTable)
+        .where(
+          and(
+            eq(liveShopStreamsTable.id, parsed.data.stream_id),
+            eq(liveShopStreamsTable.user_id, row.user_id),
+          ),
+        )
+        .limit(1);
+      if (stream.length === 0) {
+        res.status(400).json({ error: "Stream not found." });
+        return;
+      }
+    }
+    const totalCents = row.price_cents * parsed.data.quantity;
+    if (totalCents <= 0) {
+      res.status(400).json({ error: "This product has no price set." });
+      return;
+    }
+    try {
+      const baseUrl = checkoutBaseUrl(req);
+      const session = await createPaymentCheckout({
+        amountCents: totalCents,
+        productName: row.name,
+        description: "Live shopping purchase",
+        successUrl: `${baseUrl}/live-shopping?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${baseUrl}/live-shopping`,
+        metadata: {
+          purchase_kind: "live_shop",
+          product_id: row.id,
+          seller_user_id: row.user_id,
+          buyer_user_id: req.userId!,
+          quantity: String(parsed.data.quantity),
+          stream_id: parsed.data.stream_id ?? "",
+        },
+      });
+      res.json({
+        url: session.url,
+        sessionId: session.sessionId,
+        totalCents,
+        total: formatPrice(totalCents),
+        testMode: isCheckoutTestMode(),
+      });
+    } catch (err) {
+      logger.error({ err, productId: row.id }, "[live-shopping] checkout failed");
+      res.status(500).json({ error: "Could not start checkout. Try again in a moment." });
+    }
+  },
+);
+
+router.post(
+  "/live-shopping/verify",
+  publicApiLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "sessionId is required" });
+      return;
+    }
+    const { sessionId } = parsed.data;
+    let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+    try {
+      session = await retrieveCheckoutSession(sessionId);
+    } catch {
+      res.status(400).json({ error: "Could not retrieve this checkout session." });
+      return;
+    }
+    if (session.payment_status !== "paid") {
+      res.status(400).json({ error: "Payment has not been completed." });
+      return;
+    }
+    const meta = session.metadata ?? {};
+    if (meta["purchase_kind"] !== "live_shop" || !meta["product_id"] || !meta["seller_user_id"]) {
+      res.status(400).json({ error: "This session isn't a live shopping purchase." });
+      return;
+    }
+    if (meta["buyer_user_id"] !== req.userId) {
+      res.status(403).json({ error: "This purchase doesn't belong to you." });
+      return;
+    }
+    try {
+      /* Idempotency: the unique session index + this read-back make a
+         double verify a no-op. */
+      const existing = await db
+        .select()
+        .from(liveShopSalesTable)
+        .where(eq(liveShopSalesTable.stripe_session_id, sessionId))
+        .limit(1);
+      const product = await db
+        .select()
+        .from(liveShopProductsTable)
+        .where(eq(liveShopProductsTable.id, meta["product_id"]))
+        .limit(1);
+      const row = product[0];
+      if (!row) {
+        res.status(400).json({ error: "The product for this purchase no longer exists." });
+        return;
+      }
+      const quantity = Math.max(1, Number(meta["quantity"] ?? "1") || 1);
+      const totalCents = row.price_cents * quantity;
+      if ((session.amount_total ?? 0) !== totalCents) {
+        res.status(400).json({ error: "The paid amount doesn't match the product price." });
+        return;
+      }
+      if (existing[0]) {
+        res.json({
+          success: true,
+          duplicate: true,
+          sale: {
+            id: existing[0].id,
+            productId: existing[0].product_id,
+            quantity: existing[0].quantity,
+            totalCents: existing[0].price_cents * existing[0].quantity,
+            status: existing[0].status,
+          },
+        });
+        return;
+      }
+      const feeCents = platformFeeCents(totalCents);
+      const [sale] = await db
+        .insert(liveShopSalesTable)
+        .values({
+          user_id: meta["seller_user_id"],
+          stream_id: meta["stream_id"] || null,
+          product_id: row.id,
+          quantity,
+          price_cents: row.price_cents,
+          platform_fee_cents: feeCents,
+          buyer_user_id: req.userId!,
+          stripe_session_id: sessionId,
+          status: "paid",
+        })
+        .returning();
+      /* A real purchase during a stream fires the same overlay alert a
+         test purchase does — but only a verified one reaches this line. */
+      if (meta["stream_id"]) {
+        await db.insert(liveShopAlertsTable).values({
+          user_id: meta["seller_user_id"],
+          stream_id: meta["stream_id"],
+          product_id: row.id,
+          buyer_name: "A viewer",
+          quantity,
+          total_cents: totalCents,
+        });
+      }
+      logger.info({ sessionId, saleId: sale!.id, totalCents }, "[live-shopping] paid sale recorded");
+      res.json({
+        success: true,
+        duplicate: false,
+        sale: {
+          id: sale!.id,
+          productId: row.id,
+          productName: row.name,
+          quantity,
+          totalCents,
+          total: formatPrice(totalCents),
+          platformFeeCents: feeCents,
+          creatorPayoutCents: totalCents - feeCents,
+          status: "paid",
+        },
+        testMode: isCheckoutTestMode(),
+      });
+    } catch (err) {
+      logger.error({ err, sessionId }, "[live-shopping] verify failed");
+      res.status(500).json({ error: "Payment confirmed but the sale couldn't be recorded. Contact support." });
+    }
+  },
+);
+
 router.get("/live-shopping/dashboard", requireAuth, async (req: Request, res: Response) => {
   const streams = await db
     .select()
@@ -542,9 +769,16 @@ router.get("/live-shopping/dashboard", requireAuth, async (req: Request, res: Re
       row.fees_cents += sale.platform_fee_cents;
     }
   }
+  const paidSales = sales.filter((s) => s.status === "paid");
+  const testSales = sales.filter((s) => s.status !== "paid");
+  const paidRevenue = paidSales.reduce((sum, s) => sum + s.price_cents * s.quantity, 0);
   res.json({
     totals: {
       sales: sales.length,
+      paid_sales: paidSales.length,
+      test_sales: testSales.length,
+      paid_revenue: formatPrice(paidRevenue),
+      paid_revenue_cents: paidRevenue,
       revenue: formatPrice(totalRevenue),
       revenue_cents: totalRevenue,
       platform_fees: formatPrice(totalFees),
@@ -557,8 +791,13 @@ router.get("/live-shopping/dashboard", requireAuth, async (req: Request, res: Re
       revenue: formatPrice(r.revenue_cents),
       fees: formatPrice(r.fees_cents),
     })),
-    test_data: true,
-    note: "Sales recorded here are test sales — platform checkout is coming soon.",
+    /* Honest labeling: test_data is true only when test rows are in the
+       mix; paid checkout sales are real (test-mode) transactions. */
+    test_data: testSales.length > 0,
+    note:
+      testSales.length > 0
+        ? "Paid sales came through platform checkout (test mode). Rows marked test were recorded manually — no money moved on those."
+        : "All sales here came through platform checkout (test mode).",
   });
 });
 
