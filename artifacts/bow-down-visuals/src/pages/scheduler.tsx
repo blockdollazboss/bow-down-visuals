@@ -221,6 +221,17 @@ export default function Scheduler() {
   const [posts, setPosts] = useState<ScheduledPostShape[]>([]);
   const [accounts, setAccounts] = useState<SocialAccountInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Initial posts-load failures are NOT "nothing scheduled" — every tab
+     derives from posts, so a rejected first load used to render each
+     tab's genuine-looking empty state. The initial failure now gets its
+     own error state with a retry. postsLoadedRef guards the gate: once
+     posts have loaded successfully, a later background refresh failure
+     (refresh() after a mutation) must NOT blank loaded content into
+     the error state. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const postsLoadedRef = useRef(false);
+  const isLight = useIsLightTheme();
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [monthCursor, setMonthCursor] = useState(() => {
     const n = new Date();
@@ -311,8 +322,15 @@ export default function Scheduler() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    Promise.all([loadPosts(), loadAccounts()]).finally(() => setLoading(false));
-  }, [user, loadPosts, loadAccounts]);
+    setLoadError(false);
+    /* loadAccounts swallows its own failures ("not fatal"), so a
+       rejection here is the posts load — gate the page on it only
+       until posts have loaded successfully once. */
+    Promise.all([loadPosts(), loadAccounts()])
+      .then(() => { postsLoadedRef.current = true; })
+      .catch(() => { if (!postsLoadedRef.current) setLoadError(true); })
+      .finally(() => setLoading(false));
+  }, [user, loadPosts, loadAccounts, retryNonce]);
 
   const refresh = useCallback(async () => {
     await loadPosts();
@@ -504,6 +522,21 @@ export default function Scheduler() {
         {loading ? (
           <div className="flex items-center justify-center py-24 text-white/40">
             <Loader2 className="mr-3 h-6 w-6 animate-spin" /> {t("scheduler.loading")}
+          </div>
+        ) : loadError ? (
+          <div className={`relative mt-8 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your scheduled posts.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — your posts are safe, this page just couldn't reach them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
           </div>
         ) : (
           <div className="relative mt-8">
