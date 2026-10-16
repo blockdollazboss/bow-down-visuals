@@ -111,6 +111,15 @@ export interface ThemePreset extends ThemeConfig {
 /* Six gold/black luxury presets — the house look. */
 export const THEME_PRESETS: ThemePreset[] = [
   {
+    themeId: "royal-gold",
+    name: "Royal Gold",
+    blurb: "The house look. Golden black marble, bronze light, cream type.",
+    colors: { background: "#0d0a04", surface: "#14100a", primary: "#c9a84c", accent: "#f0d488", text: "#f7ecd2", mutedText: "#a08c5f", cardBg: "#171208", border: "#3d2e12" },
+    fonts: { heading: "Cinzel", body: "Inter" },
+    banner: { layout: "full-bleed", overlayOpacity: 0.5 },
+    spacing: "comfortable", cornerRadius: "rounded",
+  },
+  {
     themeId: "midnight-gold",
     name: "Midnight Gold",
     blurb: "The signature. Black velvet, molten gold, sharp edges.",

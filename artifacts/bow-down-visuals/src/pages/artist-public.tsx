@@ -3,14 +3,21 @@ import { useRoute, Link } from "wouter";
 import { Loader2, Link2Off, Crown, BadgeCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
-import type { CreatorProfile } from "@/lib/artist-profiles";
+import type { CreatorProfile, ProfileSection } from "@/lib/artist-profiles";
 import { fetchPublicProfile, themeVars } from "@/lib/artist-profiles";
 import {
-  HeroSection, ProfileActions, ProfileSections, MadeWithBadge,
+  ProfileActions, ProfileSectionByType, MadeWithBadge,
 } from "@/components/artist/profile-sections";
 import TrophyShelf from "@/components/artist/TrophyShelf";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
+import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
+import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
+import {
+  fetchPublicLayout,
+  grandStageFallbackBlocks,
+  type ProfileBlockDto,
+} from "@/lib/profile-website";
 import { EmbedButton } from "@/components/player/EmbedButton";
 
 /* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
@@ -87,10 +94,16 @@ function LiveNowBadge({ slug }: { slug: string }) {
 }
 
 /* ─── Public creator profile — /artist/:slug (coordinator wires the route) ──
-   Renders the creator's theme_config + sections. Themed head-to-toe via
-   safe CSS tokens. Featured media is CLICK-TO-PLAY (never autoplay with
-   sound). Includes follow, tip jar, share (?ref=), and the
-   "Made with Bow Down Visuals" badge. */
+   The profile IS the website: the page renders the creator's block
+   layout in order — for an untouched profile that's the Grand Stage
+   composition (The Stage → The Front Row → Music → Videos → Store →
+   Memberships under the masthead, Royal Gold house theme), and an
+   owner's saved arrangement wins when one exists. If the layout read
+   fails, the page falls back to the same Grand Stage order built from
+   the profile's own sections — it never breaks over a layout call.
+   Themed head-to-toe via safe CSS tokens. Featured media is
+   CLICK-TO-PLAY (never autoplay with sound). Includes follow, tip jar,
+   share (?ref=), and the "Made with Bow Down Visuals" badge. */
 
 const SOCIAL_ICONS: Record<string, string> = {
   instagram: "📸", tiktok: "🎵", youtube: "▶️", x: "𝕏",
@@ -101,6 +114,7 @@ export default function ArtistPublic() {
   const [, params] = useRoute("/artist/:slug");
   const slug = params?.slug ?? "";
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [blocks, setBlocks] = useState<ProfileBlockDto[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -131,6 +145,28 @@ export default function ArtistPublic() {
     })();
     return () => { cancelled = true; };
   }, [slug, retryNonce]);
+
+  /* The block layout drives the page. Its failure is NOT a page failure:
+     fall back to the Grand Stage order over the profile's own sections. */
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const dto = await fetchPublicLayout(slug);
+        if (!cancelled) {
+          setBlocks(
+            dto.layout.length > 0
+              ? dto.layout
+              : grandStageFallbackBlocks(profile.sections),
+          );
+        }
+      } catch {
+        if (!cancelled) setBlocks(grandStageFallbackBlocks(profile.sections));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile, slug]);
 
   usePageTitle(
     profile ? `${profile.display_name}` : "Creator Profile",
@@ -177,6 +213,65 @@ export default function ArtistPublic() {
 
   const socials = Object.entries(profile.social_links ?? {}).filter(([, v]) => v);
 
+  /* One layout block → its section. Page blocks are their own data-
+     fetching components; section blocks render through the shared
+     section switch with the BLOCK's title (an editor retitle wins over
+     the stored section title). */
+  const renderBlock = (block: ProfileBlockDto) => {
+    switch (block.type) {
+      case "spotlight":
+        /* The Stage: the live badge rides on the stage block — a creator
+           who is live right now is ON STAGE, above their featured pin. */
+        return (
+          <>
+            <LiveNowBadge slug={slug} />
+            <SpotlightPinSection slug={slug} title={block.title} />
+          </>
+        );
+      case "court":
+        return <RoyalCourtSection slug={slug} title={block.title} />;
+      case "store":
+        return <ProfileStoreSection slug={slug} title={block.title} />;
+      case "memberships":
+        return <ProfileMembershipsSection creatorUserId={profile.user_id} title={block.title} />;
+      case "achievements":
+        return (
+          <TrophyShelf slug={slug} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
+        );
+      case "links":
+        return socials.length > 0 ? (
+          <div className="flex justify-center gap-2 px-4 pb-6">
+            {socials.map(([platform, url]) => (
+              <a
+                key={platform}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={platform}
+                title={platform}
+                className="flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:scale-110"
+                style={{ borderColor: "var(--ap-border)", backgroundColor: "var(--ap-card)" }}
+              >
+                {SOCIAL_ICONS[platform] ?? "🔗"}
+              </a>
+            ))}
+          </div>
+        ) : null;
+      default: {
+        const stored = profile.sections.find((s) => s.type === block.type);
+        const section: ProfileSection = stored
+          ? { ...stored, title: block.title }
+          : {
+              id: `block-${block.type}`,
+              type: block.type as ProfileSection["type"],
+              title: block.title,
+              visible: true,
+            };
+        return <ProfileSectionByType profile={profile} section={section} mode="public" />;
+      }
+    }
+  };
+
   return (
     <>
       <JsonLd
@@ -203,33 +298,21 @@ export default function ArtistPublic() {
           fontFamily: "var(--ap-body-font)",
         }}
       >
-        {/* Hero is rendered first by the sections renderer (hero is always first) */}
-        <ProfileSections profile={profile} mode="public" />
-        <SpotlightPinSection slug={slug} />
-        <RoyalCourtSection slug={slug} />
-        <LiveNowBadge slug={slug} />
-        {profile.is_official && <OfficialBadge />}
-        {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
-        <TrophyShelf slug={slug} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
-        <ProfileActions profile={profile} />
-        {socials.length > 0 && (
-          <div className="flex justify-center gap-2 px-4 pb-6">
-            {socials.map(([platform, url]) => (
-              <a
-                key={platform}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={platform}
-                title={platform}
-                className="flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:scale-110"
-                style={{ borderColor: "var(--ap-border)", backgroundColor: "var(--ap-card)" }}
-              >
-                {SOCIAL_ICONS[platform] ?? "🔗"}
-              </a>
-            ))}
+        {/* The block layout, in order. Until it lands, the Grand Stage
+            fallback over the profile's sections stands in — same order. */}
+        {(blocks ?? grandStageFallbackBlocks(profile.sections)).map((block, i) => (
+          <div key={block.type}>
+            {renderBlock(block)}
+            {/* Identity badges ride directly under the masthead. */}
+            {i === 0 && (
+              <>
+                {profile.is_official && <OfficialBadge />}
+                {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+              </>
+            )}
           </div>
-        )}
+        ))}
+        <ProfileActions profile={profile} />
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton
             kind="profile"

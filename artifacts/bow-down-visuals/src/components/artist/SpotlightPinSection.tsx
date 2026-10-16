@@ -11,16 +11,24 @@ import {
 } from "@/lib/profile-website";
 import { fetchMyProfile } from "@/lib/artist-profiles";
 
-/* ─── Spotlight Pin — public profile section (Stack 3, item 5) ──────────
-   The creator's ONE featured track or video, pinned to the top of their
-   profile. Click-to-play with the house media pattern (never autoplay).
-   The section hides entirely when there's no pin; the OWNER viewing
-   their own unpinned page gets the "Pin a track or video" invitation
-   with an inline picker over their own published catalog, and can
-   change or clear the pin in place. A failed load is an honest error +
-   retry — never a fake-empty. */
+/* ─── The Stage — public profile section (Stack 3, item 5) ───────────────
+   The creator's ONE featured track or video, pinned to the Stage at the
+   top of their profile (the Grand Stage composition's first block).
+   Click-to-play with the house media pattern (never autoplay). The
+   section hides entirely when there's no pin; the OWNER viewing their
+   own unpinned page gets the "Pin a track or video" invitation with an
+   inline picker over their own published catalog, and can change or
+   clear the pin in place. A failed load is an honest error + retry —
+   never a fake-empty. The heading is the block's layout title — "The
+   Stage" in the default composition. */
 
-export default function SpotlightPinSection({ slug }: { slug: string }) {
+export default function SpotlightPinSection({
+  slug,
+  title = "The Stage",
+}: {
+  slug: string;
+  title?: string;
+}) {
   const [pin, setPin] = useState<SpotlightPin | null>(null);
   const [status, setStatus] = useState<SpotlightLoadStatus>("loading");
   const [isOwner, setIsOwner] = useState(false);
@@ -176,7 +184,7 @@ export default function SpotlightPinSection({ slug }: { slug: string }) {
           className="text-xl font-bold tracking-wide sm:text-2xl"
           style={{ fontFamily: "var(--ap-heading-font)", color: "var(--ap-text)" }}
         >
-          Spotlight
+          {title}
         </h2>
       </div>
 
@@ -184,7 +192,7 @@ export default function SpotlightPinSection({ slug }: { slug: string }) {
         <div className="flex flex-col items-center gap-2 rounded-xl border border-[#d4af37]/40 bg-black/30 px-4 py-6 text-center">
           <AlertTriangle className="h-6 w-6 text-[#d4af37]" />
           <p className="text-sm" style={{ color: "var(--ap-text)" }}>
-            The spotlight couldn't load right now.
+            {title} couldn't load right now.
           </p>
           <button
             type="button"
@@ -203,7 +211,7 @@ export default function SpotlightPinSection({ slug }: { slug: string }) {
             Pin a track or video
           </p>
           <p className="max-w-sm text-xs" style={{ color: "var(--ap-muted)" }}>
-            One featured drop at the top of your page — the first thing every visitor hears.
+            One featured drop on your stage — the first thing every visitor hears.
           </p>
           {!pickerOpen && (
             <button

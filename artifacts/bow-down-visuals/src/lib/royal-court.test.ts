@@ -1,5 +1,5 @@
 /**
- * The Royal Court — client logic tests.
+ * The Front Row — client logic tests.
  *
  * Profile render contract (components/artist/RoyalCourtSection is a thin
  * shell over courtViewState):
@@ -9,7 +9,7 @@
  * - failed load → "error" for everyone, never dressed up as empty
  * - still loading → "loading" (renders nothing yet)
  *
- * Picker contract (pages/artist-setup's Royal Court picker drives these):
+ * Picker contract (pages/artist-setup's Front Row picker drives these):
  * - at most 8 seats, no duplicate crowns
  * - up/down moves swap exactly one seat; edges are no-ops
  * - the save flow speaks the real API shape: PUT memberProfileIds in
@@ -120,7 +120,7 @@ describe("save flow — driven the way the picker drives it", () => {
     expect(JSON.parse(init.body)).toEqual({ memberProfileIds: ["id-1", "id-2"] });
     expect(saved).toEqual(serverCourt);
     // The confirmation reads back what the server stored, seat by seat.
-    expect(courtSaveSummary(saved)).toBe("Court saved: #1 Crowned First · #2 Crowned Second");
+    expect(courtSaveSummary(saved)).toBe("Front Row saved: #1 Crowned First · #2 Crowned Second");
   });
 
   it("a rejected save throws with the server's message and status", async () => {
@@ -129,11 +129,11 @@ describe("save flow — driven the way the picker drives it", () => {
       vi.fn(async () => ({
         ok: false,
         status: 400,
-        json: async () => ({ error: "SELF_CROWN", message: "You can't crown yourself — the Court is for your people." }),
+        json: async () => ({ error: "SELF_CROWN", message: "You can't take a seat yourself — the Front Row is for your people." }),
       })),
     );
     await expect(saveMyCourt(["id-self"])).rejects.toMatchObject({
-      message: "You can't crown yourself — the Court is for your people.",
+      message: "You can't take a seat yourself — the Front Row is for your people.",
       status: 400,
     });
   });
@@ -150,6 +150,6 @@ describe("save flow — driven the way the picker drives it", () => {
   });
 
   it("an empty saved Court confirms honestly as empty", () => {
-    expect(courtSaveSummary([])).toBe("Your Court is empty — no one is crowned right now.");
+    expect(courtSaveSummary([])).toBe("Your Front Row is empty — no one has a seat right now.");
   });
 });

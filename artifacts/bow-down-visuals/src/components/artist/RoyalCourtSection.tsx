@@ -9,14 +9,25 @@ import {
 } from "@/lib/royal-court";
 import { fetchMyProfile } from "@/lib/artist-profiles";
 
-/* ─── The Royal Court — public profile section ────────────────────────────
-   The creator's crowned circle: up to 8 creators in rank order, each a
-   gold-framed card linking to their profile. Viewer side renders ONLY
-   when populated (an empty Court is not a section). The owner viewing
-   their own empty Court gets the "Add your Court" invitation instead.
-   A failed load shows its own honest error + retry — never fake-empty. */
+/* ─── The Front Row — public profile section ──────────────────────────────
+   The creator's chosen circle: up to 8 creators in rank order, seated
+   under the Stage in the Grand Stage composition — the #1 seat front
+   and center in a full-width featured card, the rest of the row beneath
+   it, each card linking to that creator's profile. Viewer side renders
+   ONLY when populated (an empty Front Row is not a section). The owner
+   viewing their own empty Front Row gets the invitation instead. A
+   failed load shows its own honest error + retry — never fake-empty.
+   (Renamed from "The Royal Court" by the owner's pick, Oct 16 — the
+   internal identifiers keep the court name; everything a person reads
+   says The Front Row.) */
 
-export default function RoyalCourtSection({ slug }: { slug: string }) {
+export default function RoyalCourtSection({
+  slug,
+  title = "The Front Row",
+}: {
+  slug: string;
+  title?: string;
+}) {
   const [members, setMembers] = useState<CourtMember[]>([]);
   const [status, setStatus] = useState<CourtLoadStatus>("loading");
   const [isOwner, setIsOwner] = useState(false);
@@ -61,28 +72,34 @@ export default function RoyalCourtSection({ slug }: { slug: string }) {
   const view = courtViewState({ status, members, isOwner });
   if (view === "loading" || view === "hidden") return null;
 
+  const [featured, ...row] = members;
+
   return (
-    <section className="ap-section" style={{ padding: "var(--ap-pad)" }} data-testid="royal-court">
+    <section className="ap-section" style={{ padding: "var(--ap-pad)" }} data-testid="front-row">
       <div className="mb-3 flex items-center gap-2">
-        <Crown className="h-5 w-5 text-[#d4af37]" />
+        <Crown className="h-5 w-5" style={{ color: "var(--ap-primary)" }} />
         <h2
           className="text-xl font-bold tracking-wide sm:text-2xl"
           style={{ fontFamily: "var(--ap-heading-font)", color: "var(--ap-text)" }}
         >
-          The Royal Court
+          {title}
         </h2>
       </div>
 
       {view === "error" && (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-[#d4af37]/40 bg-black/30 px-4 py-6 text-center">
-          <AlertTriangle className="h-6 w-6 text-[#d4af37]" />
+        <div
+          className="flex flex-col items-center gap-2 rounded-xl px-4 py-6 text-center"
+          style={{ border: "1px solid var(--ap-border)", backgroundColor: "var(--ap-card)" }}
+        >
+          <AlertTriangle className="h-6 w-6" style={{ color: "var(--ap-primary)" }} />
           <p className="text-sm" style={{ color: "var(--ap-text)" }}>
-            The Royal Court couldn't load right now.
+            The Front Row couldn't load right now.
           </p>
           <button
             type="button"
             onClick={() => setRetryNonce((n) => n + 1)}
-            className="mt-1 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+            className="mt-1 inline-flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+            style={{ backgroundColor: "var(--ap-primary)" }}
           >
             <RotateCcw className="h-3.5 w-3.5" /> Try again
           </button>
@@ -90,62 +107,137 @@ export default function RoyalCourtSection({ slug }: { slug: string }) {
       )}
 
       {view === "owner-empty" && (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 bg-black/20 px-4 py-6 text-center">
-          <Crown className="h-6 w-6 text-[#d4af37]" />
+        <div
+          className="flex flex-col items-center gap-2 rounded-xl px-4 py-6 text-center"
+          style={{ border: "1px dashed var(--ap-primary)", backgroundColor: "var(--ap-card)" }}
+        >
+          <Crown className="h-6 w-6" style={{ color: "var(--ap-primary)" }} />
           <p className="text-sm font-semibold" style={{ color: "var(--ap-text)" }}>
-            Add your Court
+            Fill your Front Row
           </p>
           <p className="max-w-sm text-xs" style={{ color: "var(--ap-muted)" }}>
-            Crown up to 8 creators you ride with — your circle, ranked, front and center on your page.
+            Seat up to 8 creators you ride with — your people, ranked, front and center under your stage.
           </p>
           <Link
             href="/artist-setup"
-            className="mt-1 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+            className="mt-1 inline-flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+            style={{ backgroundColor: "var(--ap-primary)" }}
           >
-            <Plus className="h-3.5 w-3.5" /> Crown your Court
+            <Plus className="h-3.5 w-3.5" /> Build your Front Row
           </Link>
         </div>
       )}
 
-      {view === "cards" && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {members.map((m) => (
-            <Link
-              key={m.profileId}
-              href={m.profileUrl}
-              className="group relative rounded-xl border border-[#d4af37]/60 bg-gradient-to-b from-[#d4af37]/15 to-transparent p-[1px] shadow-[0_0_18px_rgba(212,175,55,0.15)] transition hover:scale-[1.03]"
-              data-testid="royal-court-card"
+      {view === "cards" && featured && (
+        <div className="space-y-3">
+          {/* The #1 seat — front and center. */}
+          <Link
+            href={featured.profileUrl}
+            className="group relative block overflow-hidden rounded-2xl p-[1.5px] transition hover:scale-[1.01]"
+            style={{
+              background: "linear-gradient(135deg, var(--ap-primary), transparent 55%, var(--ap-primary))",
+              boxShadow: "0 0 28px rgba(201,168,76,0.22)",
+            }}
+            data-testid="front-row-featured"
+          >
+            <span
+              className="flex items-center gap-4 rounded-[15px] px-5 py-5 sm:gap-6 sm:px-8"
+              style={{ backgroundColor: "var(--ap-card)" }}
             >
-              <span className="flex h-full flex-col items-center gap-2 rounded-[11px] px-3 py-4 text-center" style={{ backgroundColor: "var(--ap-card)" }}>
-                <span className="absolute left-2 top-2 rounded-full bg-[#d4af37] px-1.5 py-0.5 text-[10px] font-black text-black">
-                  #{m.position}
-                </span>
-                {m.avatarUrl ? (
-                  <img
-                    src={m.avatarUrl}
-                    alt={m.displayName}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                    className="h-16 w-16 rounded-full border-2 border-[#d4af37] object-cover"
-                  />
-                ) : (
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#d4af37] bg-black/40 text-xl font-black text-[#d4af37]">
-                    {m.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
+              {featured.avatarUrl ? (
+                <img
+                  src={featured.avatarUrl}
+                  alt={featured.displayName}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                  className="h-20 w-20 shrink-0 rounded-full object-cover sm:h-24 sm:w-24"
+                  style={{ border: "3px solid var(--ap-primary)" }}
+                />
+              ) : (
                 <span
-                  className="w-full truncate text-sm font-bold"
+                  className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-3xl font-black sm:h-24 sm:w-24"
+                  style={{ border: "3px solid var(--ap-primary)", color: "var(--ap-primary)", backgroundColor: "var(--ap-surface)" }}
+                >
+                  {featured.displayName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span className="min-w-0">
+                <span
+                  className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.25em]"
+                  style={{ color: "var(--ap-primary)" }}
+                >
+                  <Crown className="h-3.5 w-3.5" /> #1 in the Front Row
+                </span>
+                <span
+                  className="mt-1 block truncate text-2xl font-bold sm:text-3xl"
                   style={{ color: "var(--ap-text)", fontFamily: "var(--ap-heading-font)" }}
                 >
-                  {m.displayName}
+                  {featured.displayName}
                 </span>
-                <span className="w-full truncate text-[11px]" style={{ color: "var(--ap-muted)" }}>
-                  @{m.slug}
+                <span className="block truncate text-sm" style={{ color: "var(--ap-muted)" }}>
+                  @{featured.slug}
                 </span>
               </span>
-            </Link>
-          ))}
+            </span>
+          </Link>
+
+          {/* The rest of the row. */}
+          {row.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {row.map((m) => (
+                <Link
+                  key={m.profileId}
+                  href={m.profileUrl}
+                  className="group relative rounded-xl p-[1px] transition hover:scale-[1.03]"
+                  style={{
+                    background: "linear-gradient(to bottom, var(--ap-primary), transparent)",
+                    opacity: 0.95,
+                  }}
+                  data-testid="front-row-card"
+                >
+                  <span
+                    className="flex h-full flex-col items-center gap-2 rounded-[11px] px-3 py-4 text-center"
+                    style={{ backgroundColor: "var(--ap-card)" }}
+                  >
+                    <span
+                      className="absolute left-2 top-2 rounded-full px-1.5 py-0.5 text-[10px] font-black text-black"
+                      style={{ backgroundColor: "var(--ap-primary)" }}
+                    >
+                      #{m.position}
+                    </span>
+                    {m.avatarUrl ? (
+                      <img
+                        src={m.avatarUrl}
+                        alt={m.displayName}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                        className="h-16 w-16 rounded-full object-cover"
+                        style={{ border: "2px solid var(--ap-primary)" }}
+                      />
+                    ) : (
+                      <span
+                        className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-black"
+                        style={{ border: "2px solid var(--ap-primary)", color: "var(--ap-primary)", backgroundColor: "var(--ap-surface)" }}
+                      >
+                        {m.displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span
+                      className="w-full truncate text-sm font-bold"
+                      style={{ color: "var(--ap-text)", fontFamily: "var(--ap-heading-font)" }}
+                    >
+                      {m.displayName}
+                    </span>
+                    <span className="w-full truncate text-[11px]" style={{ color: "var(--ap-muted)" }}>
+                      @{m.slug}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

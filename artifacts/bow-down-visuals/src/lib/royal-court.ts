@@ -1,4 +1,4 @@
-/* ─── The Royal Court — client ─────────────────────────────────────────────
+/* ─── The Front Row — client ─────────────────────────────────────────────
    A creator crowns up to 8 other creators into their Court, in rank
    order. API: routes/royal-court.ts (GET /creator-profiles/:slug/court,
    GET|PUT /creator-profiles/me/court, GET /me/court-candidates).
@@ -127,7 +127,7 @@ export function moveInCourt(ids: string[], index: number, dir: -1 | 1): string[]
 /** The save confirmation: exactly who holds which seat, in rank order —
     the owner reads back what the server stored, not what they hoped. */
 export function courtSaveSummary(members: CourtMember[]): string {
-  if (members.length === 0) return "Your Court is empty — no one is crowned right now.";
+  if (members.length === 0) return "Your Front Row is empty — no one has a seat right now.";
   const seats = members.map((m) => `#${m.position} ${m.displayName}`).join(" · ");
-  return `Court saved: ${seats}`;
+  return `Front Row saved: ${seats}`;
 }

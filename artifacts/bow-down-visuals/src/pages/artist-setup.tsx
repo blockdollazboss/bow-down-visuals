@@ -18,6 +18,7 @@ import AiPageDesigner from "@/components/artist/ai-page-designer";
 import LightningSetup from "@/components/artist/lightning-setup";
 import ConfettiBurst from "@/components/artist/confetti-burst";
 import RoyalCourtPicker from "@/components/artist/RoyalCourtPicker";
+import ProfileLayoutEditor from "@/components/artist/ProfileLayoutEditor";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
 import { HeroSection, ProfileSections } from "@/components/artist/profile-sections";
 import { useToast } from "@/hooks/use-toast";
@@ -966,6 +967,8 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
       </div>
 
       <RoyalCourtPicker />
+
+      <ProfileLayoutEditor />
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="mb-1 text-sm font-bold uppercase tracking-widest text-white/50">Media kit — for the influencer lane</h3>

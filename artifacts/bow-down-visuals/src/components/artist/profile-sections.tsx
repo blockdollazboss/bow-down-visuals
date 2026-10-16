@@ -879,64 +879,75 @@ export function MadeWithBadge({ referralCode }: { referralCode?: string | null }
   );
 }
 
-/* ─── Master section switch ─── */
-export function ProfileSections({
-  profile, mode = "public",
-}: { profile: CreatorProfile; mode?: "public" | "preview" }) {
+/* ─── Master section switch ───
+   ProfileSectionByType renders ONE section-sourced block. The public
+   page drives it from the profile's block layout (the Grand Stage
+   composition); ProfileSections below keeps the stored-sections order
+   for the AI Designer preview and the editor. */
+export function ProfileSectionByType({
+  profile, section, mode = "public",
+}: { profile: CreatorProfile; section: ProfileSection; mode?: "public" | "preview" }) {
   const preview = mode === "preview";
+  const s = section;
   /* Extension content lives on the profile defensively. */
   const mediaItems = (profile as unknown as { media_items?: { tracks?: MediaItem[]; videos?: MediaItem[] } }).media_items;
 
+  switch (s.type) {
+    case "hero":
+      return <HeroSection profile={profile} />;
+    case "tracks":
+      return mediaItems?.tracks?.length
+        ? <MediaRowSection title={s.title} items={mediaItems.tracks} kind="track" />
+        : preview ? <Shell title={s.title}><EmptyHint text="No drops yet — add your first drop. Every play is a future fan, and fans pay." /></Shell> : null;
+    case "videos":
+      return mediaItems?.videos?.length
+        ? <MediaRowSection title={s.title} items={mediaItems.videos} kind="video" />
+        : preview ? <Shell title={s.title}><EmptyHint text="No videos yet — add your first drop. Views turn into follows, follows turn into money." /></Shell> : null;
+    case "series":
+      return profile.series?.length
+        ? <SeriesSection title={s.title} series={profile.series} />
+        : preview ? <Shell title={s.title}><EmptyHint text="No series yet — group your content into bingeable seasons. Binges build superfans." /></Shell> : null;
+    case "merch":
+      return <MerchSection title={s.title} profile={profile} />;
+    case "events":
+      return <EventsSection title={s.title} profile={profile} />;
+    case "posts":
+      return profile.social_posts?.length
+        ? <PostsSection title={s.title} posts={profile.social_posts} />
+        : preview ? <Shell title={s.title}><EmptyHint text="No posts yet — your feed keeps fans coming back between drops." /></Shell> : null;
+    case "schedule":
+      return profile.stream_schedule
+        ? <ScheduleSection title={s.title} profile={profile} />
+        : preview ? <Shell title={s.title}><EmptyHint text="No schedule yet — tell fans when you're live. Live viewers tip the most." /></Shell> : null;
+    case "mediakit":
+      return profile.media_kit
+        ? <MediaKitSection title={s.title} profile={profile} />
+        : preview ? <Shell title={s.title}><EmptyHint text="No media kit yet — brands can't pay you if they can't see your numbers." /></Shell> : null;
+    case "bio":
+      return profile.bio ? (
+        <Shell title={s.title}>
+          <RichText source={profile.bio} className="ap-bio max-w-3xl text-sm leading-relaxed sm:text-base" />
+        </Shell>
+      ) : preview ? <Shell title={s.title}><EmptyHint text="No story yet — fans buy from creators they feel. The AI bio writer drafts it in one click." /></Shell> : null;
+    case "shoutwall":
+      return <ShoutWallSection title={s.title} slug={profile.slug} preview={preview} />;
+    case "stories":
+      return <StoriesSection profileId={profile.id} />;
+    case "topcreators":
+      return <TopCreatorsSection title={s.title} slugs={profile.top_creators} />;
+    default:
+      return null;
+  }
+}
+
+export function ProfileSections({
+  profile, mode = "public",
+}: { profile: CreatorProfile; mode?: "public" | "preview" }) {
   return (
     <>
-      {profile.sections.filter((s) => s.visible).map((s: ProfileSection) => {
-        switch (s.type) {
-          case "hero":
-            return <HeroSection key={s.id} profile={profile} />;
-          case "tracks":
-            return mediaItems?.tracks?.length
-              ? <MediaRowSection key={s.id} title={s.title} items={mediaItems.tracks} kind="track" />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No drops yet — add your first drop. Every play is a future fan, and fans pay." /></Shell> : null;
-          case "videos":
-            return mediaItems?.videos?.length
-              ? <MediaRowSection key={s.id} title={s.title} items={mediaItems.videos} kind="video" />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No videos yet — add your first drop. Views turn into follows, follows turn into money." /></Shell> : null;
-          case "series":
-            return profile.series?.length
-              ? <SeriesSection key={s.id} title={s.title} series={profile.series} />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No series yet — group your content into bingeable seasons. Binges build superfans." /></Shell> : null;
-          case "merch":
-            return <MerchSection key={s.id} title={s.title} profile={profile} />;
-          case "events":
-            return <EventsSection key={s.id} title={s.title} profile={profile} />;
-          case "posts":
-            return profile.social_posts?.length
-              ? <PostsSection key={s.id} title={s.title} posts={profile.social_posts} />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No posts yet — your feed keeps fans coming back between drops." /></Shell> : null;
-          case "schedule":
-            return profile.stream_schedule
-              ? <ScheduleSection key={s.id} title={s.title} profile={profile} />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No schedule yet — tell fans when you're live. Live viewers tip the most." /></Shell> : null;
-          case "mediakit":
-            return profile.media_kit
-              ? <MediaKitSection key={s.id} title={s.title} profile={profile} />
-              : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No media kit yet — brands can't pay you if they can't see your numbers." /></Shell> : null;
-          case "bio":
-            return profile.bio ? (
-              <Shell key={s.title + s.id} title={s.title}>
-                <RichText source={profile.bio} className="ap-bio max-w-3xl text-sm leading-relaxed sm:text-base" />
-              </Shell>
-            ) : preview ? <Shell key={s.id} title={s.title}><EmptyHint text="No story yet — fans buy from creators they feel. The AI bio writer drafts it in one click." /></Shell> : null;
-          case "shoutwall":
-            return <ShoutWallSection key={s.id} title={s.title} slug={profile.slug} preview={preview} />;
-          case "stories":
-            return <StoriesSection key={s.id} profileId={profile.id} />;
-          case "topcreators":
-            return <TopCreatorsSection key={s.id} title={s.title} slugs={profile.top_creators} />;
-          default:
-            return null;
-        }
-      })}
+      {profile.sections.filter((s) => s.visible).map((s: ProfileSection) => (
+        <ProfileSectionByType key={s.id} profile={profile} section={s} mode={mode} />
+      ))}
     </>
   );
 }

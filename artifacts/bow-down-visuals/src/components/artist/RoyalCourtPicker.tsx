@@ -13,7 +13,7 @@ import {
   type CourtCandidate,
 } from "@/lib/royal-court";
 
-/* ─── The Royal Court picker (profile settings) ─────────────────────────────
+/* ─── The Front Row picker (profile settings) ─────────────────────────────
    Crown up to 8 creators, ranked. Sources: creators you follow first,
    search for anyone else. The ordered list IS the ranking — up/down
    moves swap one seat. Save is replace-all against the owner's own
@@ -74,8 +74,8 @@ export default function RoyalCourtPicker() {
         const status = (err as { status?: number }).status;
         setLoadError(
           status === 404
-            ? "Your creator profile comes first — save it, then crown your Court."
-            : "Couldn't load your Court. Check your connection and try again.",
+            ? "Your creator profile comes first — save it, then set your Front Row."
+            : "Couldn't load your Front Row. Check your connection and try again.",
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -134,22 +134,22 @@ export default function RoyalCourtPicker() {
       setCourtIds(saved.map((m) => m.profileId));
       setSavedMessage(courtSaveSummary(saved));
     } catch (err) {
-      setSaveError((err as Error).message || "Couldn't save your Court. Try again.");
+      setSaveError((err as Error).message || "Couldn't save your Front Row. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4" data-testid="royal-court-picker">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4" data-testid="front-row-picker">
       <h3 className="mb-1 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white/50">
-        <Crown className="h-4 w-4 text-amber-400" /> The Royal Court
+        <Crown className="h-4 w-4 text-amber-400" /> The Front Row
       </h3>
       <p className="mb-3 text-xs text-white/40">
-        Crown up to {MAX_COURT_MEMBERS} creators you ride with — ranked, gold-framed, front and center on your public page. #1 sits at the head of the Court.
+        Seat up to {MAX_COURT_MEMBERS} creators you ride with — ranked, gold-framed, front and center on your public page. #1 takes the head seat in your Front Row.
       </p>
 
-      {loading && <p className="py-4 text-center text-sm text-white/40">Loading your Court…</p>}
+      {loading && <p className="py-4 text-center text-sm text-white/40">Loading your Front Row…</p>}
 
       {!loading && loadError && (
         <div className="flex flex-col items-center gap-2 py-4 text-center">
@@ -170,7 +170,7 @@ export default function RoyalCourtPicker() {
           {/* ── Current Court, in rank order ── */}
           {courtIds.length === 0 ? (
             <p className="mb-3 rounded-lg border border-dashed border-white/15 px-3 py-3 text-center text-xs text-white/40">
-              No one is crowned yet. Pick from your people below — your Court shows on your page the moment you save.
+              No one has a seat yet. Pick from your people below — your Front Row shows on your page the moment you save.
             </p>
           ) : (
             <ol className="mb-3 space-y-1.5">
@@ -200,7 +200,7 @@ export default function RoyalCourtPicker() {
                     <button type="button" onClick={() => move(i, 1)} disabled={i === courtIds.length - 1} aria-label={`Move ${m?.displayName ?? "member"} down`} className="rounded p-1 text-white/60 transition hover:text-amber-300 disabled:opacity-25">
                       <ChevronDown className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => drop(id)} aria-label={`Remove ${m?.displayName ?? "member"} from your Court`} className="rounded p-1 text-white/60 transition hover:text-red-300">
+                    <button type="button" onClick={() => drop(id)} aria-label={`Remove ${m?.displayName ?? "member"} from your Front Row`} className="rounded p-1 text-white/60 transition hover:text-red-300">
                       <X className="h-4 w-4" />
                     </button>
                   </li>
@@ -215,7 +215,7 @@ export default function RoyalCourtPicker() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search creators to crown…"
+              placeholder="Search creators to seat…"
               className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
             />
           </div>
@@ -253,7 +253,7 @@ export default function RoyalCourtPicker() {
                           : "rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-30 disabled:hover:scale-100"
                       }
                     >
-                      {crowned ? "Crowned ✓" : "Crown"}
+                      {crowned ? "Seated ✓" : "Seat"}
                     </button>
                   </span>
                 );
@@ -261,7 +261,7 @@ export default function RoyalCourtPicker() {
             </div>
           )}
           {courtIds.length >= MAX_COURT_MEMBERS && (
-            <p className="mb-3 text-xs text-amber-300/80">Your Court is full — all {MAX_COURT_MEMBERS} seats are taken. Remove someone to crown another.</p>
+            <p className="mb-3 text-xs text-amber-300/80">Your Front Row is full — all {MAX_COURT_MEMBERS} seats are taken. Remove someone to seat another.</p>
           )}
 
           {/* ── Save + confirmation ── */}
@@ -272,7 +272,7 @@ export default function RoyalCourtPicker() {
               disabled={saving}
               className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
             >
-              {saving ? "Saving…" : "Save my Court"}
+              {saving ? "Saving…" : "Save my Front Row"}
             </button>
             {savedMessage && (
               <span className="inline-flex items-start gap-1.5 text-xs font-semibold text-emerald-300">
@@ -288,7 +288,7 @@ export default function RoyalCourtPicker() {
               </span>
             )}
             {!savedMessage && !saveError && (
-              <span className="text-xs text-white/35">Seats fill in the order you crown. Reorder with the arrows, then save.</span>
+              <span className="text-xs text-white/35">Seats fill in the order you pick. Reorder with the arrows, then save.</span>
             )}
           </div>
         </>
