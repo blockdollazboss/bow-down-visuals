@@ -40,7 +40,7 @@ export function useConfirmedApi() {
       if (!skipConfirm) {
         const registered = getCreditCost(endpoint);
         const cost = overrideCost ?? registered?.cost;
-        const feature = overrideFeature ?? registered?.feature ?? "AI Feature";
+        const feature = overrideFeature ?? registered?.feature ?? "Feature";
 
         if (cost && cost > 0) {
           const confirmed = await confirmSpend({ cost, feature });
@@ -64,7 +64,7 @@ export function useConfirmedApi() {
       if (!skipConfirm && response.ok) {
         const registered = getCreditCost(endpoint);
         const cost = overrideCost ?? registered?.cost;
-        const feature = overrideFeature ?? registered?.feature ?? "AI Feature";
+        const feature = overrideFeature ?? registered?.feature ?? "Feature";
         if (cost && cost > 0) {
           toast({
             title: `${cost.toLocaleString("en-US")} Visual Bucs spent`,
