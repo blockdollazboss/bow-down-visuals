@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Radio, Square, Loader2, AlertTriangle, Camera, Mic, Users, Clock,
-  Megaphone, Video, VideoOff, CheckCircle2, RotateCcw,
+  Megaphone, Video, CheckCircle2, RotateCcw, MonitorPlay, Wand2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,22 +16,38 @@ import {
 } from "@/lib/stream-kit/background-changer";
 import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
 import { BACKDROPS, BACKDROP_URIS } from "@/lib/stream-kit/backdrops";
-import { WhipTransport, TransportError, type TransportState } from "@/lib/stream-kit/transport";
+import {
+  WhipTransport,
+  TransportError,
+  SITE_DESTINATION,
+  DESTINATION_PLATFORMS,
+  type TransportState,
+} from "@/lib/stream-kit/transport";
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
+import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
+import type { SceneSource } from "@/lib/stream-kit/scenes";
+import ScenesPanel from "./studio/ScenesPanel";
+import SourcesPanel from "./studio/SourcesPanel";
 
 /* ─── Broadcast Studio — the "Broadcast" tab of the /go-live hub ──────────
-   Our OBS: the Live Camera kit (backdrops, camera effects, noise
-   cancellation, voice effects) feeding ONE processed stream, published
-   through a StreamTransport (transport.ts). WHIP-to-Cloudflare is the
-   first transport; the UI never touches WHIP itself, so a second
-   transport (a companion app's virtual camera/mic) slots in behind the
-   same interface later.
+   Our OBS, in the browser, no downloads:
 
-   While live, the browser also records the processed feed (StreamRecorder)
-   and on End Stream the recording uploads through the site's storage path
-   and registers on the stream — it lands in the creator's clips library.
-   If the recording fails, the stream still ends cleanly and the UI says
-   the recording didn't save. Going live is free (no credit charge). */
+   - Scenes & sources: a scene list (create/rename/duplicate/delete); each
+     scene is a stack of sources — the Live Camera kit (backdrops,
+     segmentation, effects, or a real green-screen chroma key), screen /
+     window share, image, styled text, color/gradient, a direct media
+     URL — each with position/size/opacity/fit/visibility/lock.
+   - Studio mode: a Preview canvas to frame the next scene (drag sources
+     right on it) and the Program canvas that is actually published,
+     with Cut / Fade transitions.
+   - Publish runs through a StreamTransport (transport.ts): WHIP to the
+     site is implementation #1. The destinations model rides along —
+     v1 broadcasts to the creator's profile only, and says so.
+   - While live, the browser records the Program feed (StreamRecorder);
+     on End Stream it uploads through the site's storage path and
+     registers on the stream — landing in the creator's clips. If the
+     recording fails, the stream still ends cleanly and the UI says the
+     recording didn't save. Going live is free (no credit charge). */
 
 type Phase = "off" | "starting" | "preview" | "connecting" | "live" | "ending";
 
@@ -137,14 +153,33 @@ export default function BroadcastStudio() {
   const [announcing, setAnnouncing] = useState(false);
   const [lastVodUrl, setLastVodUrl] = useState<string | null>(null);
 
+  /* stage (scenes/sources) ui state */
+  const [, setUiTick] = useState(0);
+  const bump = useCallback(() => setUiTick((t) => t + 1), []);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [screenSharing, setScreenSharing] = useState(false);
+
   const getAnalyser = useCallback(() => changerRef.current?.getAnalyser() ?? null, []);
 
-  const previewRef = useRef<HTMLVideoElement>(null);
   const changerRef = useRef<BackgroundChanger | null>(null);
   const transportRef = useRef<WhipTransport | null>(null);
   const recorderRef = useRef<StreamRecorder | null>(null);
+  const stageRef = useRef<Stage | null>(null);
+  const previewStageRef = useRef<PreviewStage | null>(null);
+  const programCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    id: string;
+    mode: "move" | "resize";
+    startNx: number;
+    startNy: number;
+    orig: { x: number; y: number; w: number; h: number };
+  } | null>(null);
   const phaseRef = useRef<Phase>("off");
   phaseRef.current = phase;
+  const liveRef = useRef(false);
+  liveRef.current = phase === "live" || phase === "ending" || phase === "connecting";
 
   const panel = isLight
     ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
@@ -191,6 +226,37 @@ export default function BroadcastStudio() {
     WhipTransport.api.getAccessToken = getAccessToken;
     void loadStatus();
   }, [getAccessToken, loadStatus]);
+
+  /* ── Stage lifecycle: the compositing stage + preview renderer. The
+        pool's camera providers read the changer lazily, so scene camera
+        sources light up the moment the kit starts. */
+  useEffect(() => {
+    const programCanvas = programCanvasRef.current;
+    const previewCanvas = previewCanvasRef.current;
+    if (!programCanvas || !previewCanvas || stageRef.current) return;
+    const stage = new Stage(programCanvas);
+    stage.pool.cameraCanvas = () => {
+      const changer = changerRef.current;
+      return changer && changer.running ? changer.canvas : null;
+    };
+    stage.pool.rawCameraVideo = () => changerRef.current?.getSourceVideo() ?? null;
+    stage.onChange = bump;
+    stageRef.current = stage;
+    const preview = new PreviewStage(previewCanvas, stage);
+    previewStageRef.current = preview;
+    stage.start();
+    preview.start();
+    bump();
+    return () => {
+      preview.stop();
+      stage.stop();
+      if (!liveRef.current) {
+        void changerRef.current?.stop().catch(() => undefined);
+        changerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Live clock + viewer count while broadcasting. */
   useEffect(() => {
@@ -251,13 +317,13 @@ export default function BroadcastStudio() {
         });
       }
       const changer = changerRef.current;
-      const { stream } = await changer.start(cameraId || undefined);
-      if (previewRef.current) previewRef.current.srcObject = stream;
+      await changer.start(cameraId || undefined);
       if (mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
       setPhase("preview");
-      setStatusMsg("That's your feed — exactly what viewers will see. Pick a title and go live when you're ready.");
+      setStatusMsg("That's your feed in the Camera source — frame it in a scene, pick a title, and go live when you're ready.");
+      bump();
       await refreshDevices();
     } catch (err) {
       setPhase("off");
@@ -270,19 +336,63 @@ export default function BroadcastStudio() {
     if (phase === "live" || phase === "connecting" || phase === "ending") return;
     await changerRef.current?.stop();
     changerRef.current = null;
-    if (previewRef.current) previewRef.current.srcObject = null;
     setPhase("off");
     setStatusMsg("Camera is off.");
+    bump();
   }
+
+  /* ── Screen share (a source type + its own mixer channel later) ────── */
+  const startScreenShare = useCallback(async () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    try {
+      const stream = await stage.pool.attachScreen();
+      setScreenSharing(true);
+      const track = stream.getVideoTracks()[0];
+      track?.addEventListener("ended", () => {
+        setScreenSharing(false);
+        bump();
+      });
+      setStatusMsg("Screen share is on — it's live in any scene with a Screen source.");
+      bump();
+    } catch {
+      setStatusMsg("Screen share was cancelled — nothing is sharing.");
+    }
+  }, [bump]);
+
+  const stopScreenShare = useCallback(() => {
+    stageRef.current?.pool.detachScreen();
+    setScreenSharing(false);
+    bump();
+  }, [bump]);
+
+  /* ── The published feed: Program video + the kit's cleaned audio.
+        (The mixer takes over the audio side in the next step.) */
+  const assembleStream = useCallback((): MediaStream | null => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    const videoTracks = stage.getStream(30).getVideoTracks();
+    const audioTracks = changerRef.current?.getStream()?.getAudioTracks() ?? [];
+    return new MediaStream([...videoTracks, ...audioTracks]);
+  }, []);
 
   async function goLive() {
     const changer = changerRef.current;
-    const stream = changer?.getStream();
-    if (!changer || !stream) return;
+    const cameraRunning = !!changer?.running;
+    if (!cameraRunning && !screenSharing) {
+      toast({
+        title: "Nothing to broadcast yet",
+        description: "Start your camera or share a screen — that's the feed your scenes are built from.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!title.trim()) {
       toast({ title: "Give your stream a title", description: "Viewers find you by it in the Live rail.", variant: "destructive" });
       return;
     }
+    const stream = assembleStream();
+    if (!stream) return;
     setRecordNote(null);
     setLastVodUrl(null);
     setAnnouncedLive(false);
@@ -294,15 +404,15 @@ export default function BroadcastStudio() {
       if (s === "failed" && phaseRef.current === "connecting") setPhase("preview");
     });
     try {
-      await transport.start(stream, { title: title.trim() });
+      await transport.start(stream, { title: title.trim(), destinations: [{ ...SITE_DESTINATION }] });
       const id = transport.streamId;
       setLiveId(id);
       setLiveSince(Date.now());
       setElapsed(0);
       setViewerCount(0);
       setPhase("live");
-      setStatusMsg("You're live. Your stream is on your profile and in the Live rail on Explore.");
-      // Record the same processed feed for the VOD. A recorder failure
+      setStatusMsg("You're live — the Program feed is on your profile and in the Live rail on Explore.");
+      // Record the same Program feed for the VOD. A recorder failure
       // never touches the broadcast — it just means no replay.
       try {
         const recorder = new StreamRecorder({
@@ -318,8 +428,8 @@ export default function BroadcastStudio() {
     } catch (err) {
       setPhase("preview");
       const msg =
-        err instanceof TransportError && err.code === "NOT_CONFIGURED"
-          ? "Live streaming isn't switched on yet on this site. Your camera kit works — broadcasting turns on the moment the owner enables it."
+        err instanceof TransportError && (err.code === "NOT_CONFIGURED" || err.code === "STREAM_NOT_CONFIGURED")
+          ? "Live streaming isn't switched on yet on this site. Your studio works — broadcasting turns on the moment the owner enables it."
           : describeError(err);
       setStatusMsg(msg);
       toast({ title: "Couldn't go live", description: msg, variant: "destructive" });
@@ -422,19 +532,82 @@ export default function BroadcastStudio() {
     }
   }
 
+  /* ── Preview drag editing: move by dragging the source, resize from
+        its gold corner handle. Locked sources select but don't drag. */
+  const beginDrag = (e: React.PointerEvent, dragMode: "move" | "resize") => {
+    const stage = stageRef.current;
+    const wrap = previewWrapRef.current;
+    if (!stage || !wrap) return;
+    const scene = stage.previewScene();
+    const rect = wrap.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+    let source: SceneSource | undefined;
+    if (dragMode === "resize") {
+      source = scene.sources.find((s) => s.id === selectedSourceId);
+    } else {
+      source = [...scene.sources]
+        .reverse()
+        .find((s) => s.visible && nx >= s.x && nx <= s.x + s.w && ny >= s.y && ny <= s.y + s.h);
+    }
+    if (!source) {
+      if (dragMode === "move") setSelectedSourceId(null);
+      return;
+    }
+    setSelectedSourceId(source.id);
+    if (source.locked) return;
+    e.preventDefault();
+    dragRef.current = {
+      id: source.id,
+      mode: dragMode,
+      startNx: nx,
+      startNy: ny,
+      orig: { x: source.x, y: source.y, w: source.w, h: source.h },
+    };
+    const move = (ev: PointerEvent) => {
+      const drag = dragRef.current;
+      const w = previewWrapRef.current;
+      if (!drag || !w) return;
+      const r = w.getBoundingClientRect();
+      const dx = (ev.clientX - r.left) / r.width - drag.startNx;
+      const dy = (ev.clientY - r.top) / r.height - drag.startNy;
+      if (drag.mode === "move") {
+        stage.updateSource(scene.id, drag.id, {
+          x: Math.min(Math.max(drag.orig.x + dx, -drag.orig.w + 0.05), 0.95),
+          y: Math.min(Math.max(drag.orig.y + dy, -drag.orig.h + 0.05), 0.95),
+        });
+      } else {
+        stage.updateSource(scene.id, drag.id, {
+          w: Math.min(Math.max(drag.orig.w + dx, 0.05), 1 - drag.orig.x),
+          h: Math.min(Math.max(drag.orig.h + dy, 0.05), 1 - drag.orig.y),
+        });
+      }
+    };
+    const up = () => {
+      dragRef.current = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const stage = stageRef.current;
+  const previewScene = stage?.previewScene() ?? null;
+  const selectedSource = previewScene?.sources.find((s) => s.id === selectedSourceId) ?? null;
   const isLivePhase = phase === "live" || phase === "ending";
   const watchPath = liveId ? `/live/${liveId}` : null;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16 pt-6 md:px-8">
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 md:px-8">
       <div className="mb-6">
         <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]">
           <Radio className="h-3 w-3" aria-hidden="true" /> Broadcast studio
         </p>
-        <h2 className="text-2xl font-black tracking-tight md:text-3xl">Go live right here — no extra software.</h2>
+        <h2 className="text-2xl font-black tracking-tight md:text-3xl">Your whole studio — no downloads.</h2>
         <p className={`mt-2 max-w-2xl text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          Your camera, your backdrop, your sound — cleaned up and broadcast straight from this page to your profile.
-          Free to stream; the whole kit below is yours to shape before and during the show.
+          Scenes, sources, a mixer-clean voice and your camera kit, broadcast straight from this page to your profile.
+          Build the show in Preview, send it to Program when it's ready — free to stream.
         </p>
       </div>
 
@@ -444,8 +617,8 @@ export default function BroadcastStudio() {
           <div className="text-sm">
             <p className="font-bold">Live streaming isn't switched on yet.</p>
             <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>
-              The studio below fully works — camera, backdrops, effects, clean voice. Broadcasting turns on the
-              moment the site owner enables it; until then, Go Live will tell you the same thing instead of faking it.
+              The studio below fully works — scenes, camera, backdrops, effects, clean voice. Broadcasting turns on
+              the moment the site owner enables it; until then, Go Live will tell you the same thing instead of faking it.
             </p>
           </div>
         </div>
@@ -466,32 +639,105 @@ export default function BroadcastStudio() {
         </div>
       )}
 
-      {/* ── Stage ── */}
+      {/* ── Monitors: Program (published) + Preview (framing) ── */}
       <section className={`relative mb-6 rounded-2xl border p-4 md:p-5 ${panel}`}>
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
-          <video ref={previewRef} autoPlay playsInline muted className="h-full w-full object-contain" data-testid="broadcast-preview" />
-          {phase === "off" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-              <VideoOff className="h-8 w-8 text-[#C9A84C]/60" />
-              <p className="text-sm font-bold text-white/80">Your processed feed shows here.</p>
-              <p className="max-w-sm text-xs text-white/40">Start the camera, allow access, and pick what's behind you. Everything runs in your browser.</p>
-            </div>
-          )}
-          {isLivePhase && (
-            <div className="absolute left-3 top-3 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> Live
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+          <div>
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <span className={`text-[11px] font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
+                Program
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-xs font-bold text-white">
-                <Clock className="h-3.5 w-3.5" /> {formatDuration(elapsed)}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-xs font-bold text-white">
-                <Users className="h-3.5 w-3.5" /> {viewerCount}
+              <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                what goes out — {stage ? stage.programScene().name : "…"}
               </span>
             </div>
-          )}
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+              <canvas ref={programCanvasRef} width={1280} height={720} className="block h-full w-full" data-testid="broadcast-program" />
+              {isLivePhase && (
+                <div className="absolute left-3 top-3 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> Live
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-xs font-bold text-white">
+                    <Clock className="h-3.5 w-3.5" /> {formatDuration(elapsed)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-xs font-bold text-white">
+                    <Users className="h-3.5 w-3.5" /> {viewerCount}
+                  </span>
+                </div>
+              )}
+              {phase === "off" && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+                  <p className="rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white/80">
+                    Start the camera and your scenes come alive here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <span className={`text-[11px] font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-emerald-400"}`}>
+                Preview
+              </span>
+              <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                frame the next scene — {stage ? stage.previewScene().name : "…"}
+              </span>
+            </div>
+            <div
+              ref={previewWrapRef}
+              className="relative aspect-video w-full touch-none overflow-hidden rounded-xl border border-emerald-500/30 bg-black"
+              onPointerDown={(e) => beginDrag(e, "move")}
+            >
+              <canvas ref={previewCanvasRef} width={640} height={360} className="block h-full w-full" data-testid="broadcast-preview" />
+              {selectedSource && (
+                <div
+                  className="pointer-events-none absolute border border-dashed border-[#C9A84C]"
+                  style={{
+                    left: `${selectedSource.x * 100}%`,
+                    top: `${selectedSource.y * 100}%`,
+                    width: `${selectedSource.w * 100}%`,
+                    height: `${selectedSource.h * 100}%`,
+                  }}
+                >
+                  <div
+                    className="pointer-events-auto absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm border border-black/50 bg-[#C9A84C]"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      beginDrag(e, "resize");
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 gap-2"
+                disabled={!stage || stage.previewId === stage.programId}
+                onClick={() => stage?.transition("cut")}
+                data-testid="btn-transition-cut"
+              >
+                <MonitorPlay className="h-4 w-4" /> Cut
+              </Button>
+              <Button
+                className="flex-1 gap-2 bg-gradient-to-r from-[#fbbf24] to-[#d4a017] font-bold text-black hover:brightness-110"
+                disabled={!stage || stage.previewId === stage.programId}
+                onClick={() => stage?.transition("fade")}
+                data-testid="btn-transition-fade"
+              >
+                <Wand2 className="h-4 w-4" /> Transition
+              </Button>
+            </div>
+            <p className={`mt-2 text-[11px] leading-snug ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              Drag a source on Preview to move it; drag its gold corner to resize. Program only changes when you
+              Cut or Transition.
+            </p>
+          </div>
         </div>
 
+        {/* camera controls */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {phase === "off" || phase === "starting" ? (
             <Button onClick={startCamera} disabled={phase === "starting"} className="gold-glow gap-2 bg-gradient-to-r from-[#fbbf24] to-[#d4a017] font-bold text-black hover:brightness-110" data-testid="btn-start-camera">
@@ -571,6 +817,30 @@ export default function BroadcastStudio() {
         <p className={`mt-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} role="status">{statusMsg}</p>
       </section>
 
+      {/* ── Scenes & sources ── */}
+      <section className={`mb-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
+        <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Scenes &amp; sources</h3>
+        {stage ? (
+          <div className="mt-4 grid gap-6 md:grid-cols-2">
+            <ScenesPanel stage={stage} isLight={isLight} onTake={(id) => stage.cutTo(id)} />
+            <SourcesPanel
+              stage={stage}
+              isLight={isLight}
+              selectedId={selectedSourceId}
+              onSelect={setSelectedSourceId}
+              onStartScreenShare={() => void startScreenShare()}
+              onStopScreenShare={stopScreenShare}
+              screenSharing={screenSharing}
+              onNotify={setStatusMsg}
+            />
+          </div>
+        ) : (
+          <p className={`mt-3 flex items-center gap-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            <Loader2 className="h-4 w-4 animate-spin" /> Setting up the stage…
+          </p>
+        )}
+      </section>
+
       {/* ── Go live ── */}
       <section className={`mb-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
         <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
@@ -591,7 +861,7 @@ export default function BroadcastStudio() {
           {phase !== "live" && phase !== "ending" ? (
             <Button
               onClick={goLive}
-              disabled={phase !== "preview"}
+              disabled={phase !== "preview" && !screenSharing}
               className="gold-glow gap-2 bg-gradient-to-r from-[#fbbf24] to-[#d4a017] font-bold text-black hover:brightness-110"
               data-testid="btn-go-live"
             >
@@ -605,9 +875,9 @@ export default function BroadcastStudio() {
             </Button>
           )}
         </div>
-        {phase === "preview" && (
+        {phase !== "live" && phase !== "ending" && phase !== "preview" && !screenSharing && (
           <p className={`mt-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-            Go Live needs the camera running — what you see above is exactly what goes out.
+            Go Live needs a feed — start the camera or share a screen, and what you see in Program is exactly what goes out.
           </p>
         )}
         {isLivePhase && watchPath && (
@@ -615,6 +885,36 @@ export default function BroadcastStudio() {
             Watching: <Link href={watchPath} className="font-bold text-amber-400 underline underline-offset-2">{watchPath}</Link> — share it anywhere; viewers watch right here on the site.
           </p>
         )}
+
+        {/* Destinations — v1 broadcasts to the profile; fan-out is coming
+            and is labeled as such, with each platform's real recording
+            behavior spelled out. No dead toggles. */}
+        <div className={`mt-4 rounded-xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+          <p className="text-xs font-bold uppercase tracking-wider opacity-60">Broadcasting to</p>
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <span className={`inline-block h-2 w-2 rounded-full ${isLivePhase ? "animate-pulse bg-red-500" : "bg-emerald-500"}`} />
+            <span className="font-bold">Your profile</span>
+            <span className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              {isLivePhase ? "live now" : "ready"} · replay saves to your clips
+            </span>
+          </div>
+          <div className="mt-3 space-y-1.5 border-t border-dashed border-[#C9A84C]/25 pt-3">
+            {DESTINATION_PLATFORMS.filter((p) => p.platform !== "site").map((p) => (
+              <div key={p.platform} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm opacity-70">
+                <span className="font-semibold">{p.label}</span>
+                <span className="rounded-full border border-current px-1.5 py-px text-[10px] font-bold uppercase tracking-wide">
+                  Coming soon
+                </span>
+                <span className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>{p.recordingNote}</span>
+              </div>
+            ))}
+          </div>
+          <p className={`mt-2.5 text-[11px] leading-snug ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+            Streaming to other platforms at the same time is on the way. When it lands, each platform you connect will
+            save the stream its own way — the notes above are how they really work.
+          </p>
+        </div>
+
         {recordNote === "saved" && (
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-500">
             <CheckCircle2 className="h-4 w-4" /> Recording saved — it's in your clips, and on the watch page as the replay.
@@ -647,6 +947,9 @@ export default function BroadcastStudio() {
       {/* ── Behind me ── */}
       <section className={`mb-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
         <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Behind me</h3>
+        <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+          Shapes the Camera source in your scenes — pick a camera source there and choose Studio backdrop or Green screen.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Background mode">
           {(
             [
@@ -818,7 +1121,7 @@ export default function BroadcastStudio() {
 
       <p className={`mt-6 flex items-center gap-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/35"}`}>
         <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-        Everything you set here applies live — switch backdrops, effects, and voices mid-stream and the audience sees it instantly.
+        Everything applies live — switch scenes, backdrops, effects, and voices mid-stream and the audience sees it instantly.
       </p>
     </div>
   );
