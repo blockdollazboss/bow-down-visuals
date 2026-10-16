@@ -373,22 +373,30 @@ function SpotlightInbox({ authHeaders }: { authHeaders: () => Promise<HeadersIni
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Load failures (500s, network) are NOT "no inquiries" — they get
+     their own error state with a retry, separate from the status-update
+     error line. The empty state renders ONLY for a successful load
+     with zero inquiries. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch("/api/admin/spotlight-inquiries", { headers: await authHeaders() });
       const data = (await res.json()) as { inquiries?: SpotlightInquiry[] };
       if (res.ok) setInquiries(data.inquiries ?? []);
-      else setError(t("admin.spotlight.loadError"));
+      else setLoadError(true);
     } catch {
-      setError(t("admin.spotlight.loadError"));
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authHeaders]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, retryNonce]);
 
   async function setStatus(id: string, status: string) {
     setBusyId(id);
@@ -421,6 +429,21 @@ function SpotlightInbox({ authHeaders }: { authHeaders: () => Promise<HeadersIni
       </p>
       {loading ? (
         <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load spotlight inquiries.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — the inquiries are safe, this inbox just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
       ) : inquiries.length === 0 ? (
         <p className="text-sm text-white/40">{t("admin.spotlight.empty")}</p>
       ) : (
