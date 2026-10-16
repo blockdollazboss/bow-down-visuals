@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   LayoutDashboard, Loader2, Briefcase, BadgeDollarSign, Banknote,
-  ArrowRight, PlusCircle, PenLine, CheckCircle2, Clock,
+  ArrowRight, PlusCircle, PenLine, CheckCircle2, Clock, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBudgetRange } from "@/lib/sponsors";
@@ -72,6 +72,7 @@ export default function SponsorDashboard() {
   const [tab, setTab] = useState<"deals" | "applications" | "earnings">("deals");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [postedDeals, setPostedDeals] = useState<PostedDeal[]>([]);
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -107,7 +108,7 @@ export default function SponsorDashboard() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, retryNonce]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -174,7 +175,17 @@ export default function SponsorDashboard() {
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {t("sponsorDashboard.loading")}
             </div>
           ) : error ? (
-            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+              <div>
+                <button
+                  onClick={() => setRetryNonce((n) => n + 1)}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
+            </div>
           ) : tab === "deals" ? (
             postedDeals.length === 0 ? (
               <EmptyState
