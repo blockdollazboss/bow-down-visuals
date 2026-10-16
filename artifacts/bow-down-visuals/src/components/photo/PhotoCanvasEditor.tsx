@@ -10,11 +10,13 @@ import {
 } from "lucide-react";
 import {
   createPhotoCanvasDoc, makeImageLayer, makeTextLayer, makeShapeLayer,
-  addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer,
+  addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer, layerAtPoint,
   drawFlattenPlan, clampDevelop, recipeFromDevelop, parseDoc, serializeDoc,
   SAFE_FONTS, DEFAULT_DEVELOP,
   type PhotoCanvasDoc, type PhotoLayer, type ImageLayer, type TextLayer, type DevelopSettings,
 } from "@/lib/photo-canvas";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildPhotoLayerContextItems } from "@/lib/photo-context-menu";
 
 /**
  * PhotoCanvasEditor — the Photo desk as a real editor (Stack 7):
@@ -59,6 +61,7 @@ export function PhotoCanvasEditor() {
     return createPhotoCanvasDoc(1280, 720);
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [exportOutputs, setExportOutputs] = useState<ExportOutput[] | null>(null);
@@ -102,6 +105,48 @@ export function PhotoCanvasEditor() {
     if (!canvas || !ctx) return;
     drawFlattenPlan(ctx as never, doc, imagesRef.current);
   }, [doc]);
+
+  /* ── right-click menus: layer rows and the canvas itself share one
+        menu (the model's own stack operations via the builder). */
+  const openLayerMenu = (e: React.MouseEvent, layer: PhotoLayer) => {
+    e.preventDefault();
+    setSelectedId(layer.id);
+    setMenu({ x: e.clientX, y: e.clientY, layerId: layer.id });
+  };
+
+  const onCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = ((e.clientX - rect.left) / rect.width) * doc.width;
+    const y = ((e.clientY - rect.top) / rect.height) * doc.height;
+    const layer = layerAtPoint(doc, x, y);
+    if (!layer) return; // empty canvas: leave the browser menu alone
+    openLayerMenu(e, layer);
+  };
+
+  const commitLayerDoc = (layerId: string) => (next: PhotoCanvasDoc) => {
+    setDoc(next);
+    if (!next.layers.some((l) => l.id === layerId)) {
+      setSelectedId((cur) => (cur === layerId ? null : cur));
+    }
+  };
+
+  const renderLayerMenu = () => {
+    if (!menu) return null;
+    const layer = doc.layers.find((l) => l.id === menu.layerId);
+    if (!layer) return null;
+    return (
+      <ClipContextMenu
+        x={menu.x}
+        y={menu.y}
+        onClose={() => setMenu(null)}
+        testId="photo-layer-context-menu"
+        items={buildPhotoLayerContextItems(doc, layer, commitLayerDoc(layer.id))}
+      />
+    );
+  };
 
   const patch = (layer: PhotoLayer, p: Partial<PhotoLayer>) => setDoc((d) => updateLayer(d, layer.id, p));
   const patchTransform = (layer: PhotoLayer, p: Partial<PhotoLayer["transform"]>) =>
@@ -252,7 +297,7 @@ export function PhotoCanvasEditor() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-          <canvas ref={canvasRef} width={doc.width} height={doc.height} className="h-auto w-full" />
+          <canvas ref={canvasRef} width={doc.width} height={doc.height} className="h-auto w-full" onContextMenu={onCanvasContextMenu} />
           <p className="px-4 py-2 text-[11px] text-white/35">
             Preview and PNG download flatten this exact layer stack. Color develop (sliders) is applied server-side in the multi-format export below — geometry, order and text are identical in both.
           </p>
@@ -265,7 +310,7 @@ export function PhotoCanvasEditor() {
             {doc.layers.length === 0 && <p className="text-sm text-white/40">No layers yet — add a photo to start.</p>}
             <ul className="space-y-1.5">
               {[...doc.layers].reverse().map((layer) => (
-                <li key={layer.id} className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm ${selectedId === layer.id ? "bg-amber-400/15 text-white" : "text-white/60"}`}>
+                <li key={layer.id} onContextMenu={(e) => openLayerMenu(e, layer)} className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm ${selectedId === layer.id ? "bg-amber-400/15 text-white" : "text-white/60"}`}>
                   <button type="button" className="flex-1 text-left" onClick={() => setSelectedId(layer.id)}>
                     {layer.kind === "text" ? "T" : layer.kind === "shape" ? "▬" : "▣"} {layer.name}
                   </button>
@@ -396,6 +441,7 @@ export function PhotoCanvasEditor() {
           </ul>
         </section>
       </div>
+      {renderLayerMenu()}
     </div>
   );
 }
