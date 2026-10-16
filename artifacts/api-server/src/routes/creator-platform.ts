@@ -82,6 +82,7 @@ export async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Pro
   return value;
 }
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { resolvePaidPlan } from "../lib/profile-website";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
 function adminEmails(): string[] {
@@ -830,6 +831,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
     const extras = await profileExtras(profile);
     /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
     const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
+    /* Stack 3, item 7: the free-tier branding rule — the public page
+       carries the "Powered by Bow Down Visuals" mark unless the owner
+       is on a paid plan (the ONE definition in lib/profile-website). */
+    const paidPlan = await resolvePaidPlan(profile.id, profile.userId);
 
     res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
@@ -857,6 +862,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         follower_count: profile.followerCount,
         total_plays: profile.totalPlays,
         created_at: profile.createdAt,
+        // Stack 3, item 7: paid-plan state for the branding rule.
+        paid_plan: paidPlan,
         // Virality wave: the creator's referral rank badge (null when none).
         recruiter_badge: recruiterBadge,
         // Presence flags + monetization checklist — neighbors link off these
