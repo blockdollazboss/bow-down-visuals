@@ -8,9 +8,10 @@
    - Unlock gates verify against recorded graph/action rows, never claims. */
 
 /* ── Money: integer cents, decimal strings at the edges ────────────────── */
-export function legacyToCents(amount: string): number {
-  const neg = amount.trim().startsWith("-");
-  const [whole = "0", frac = ""] = amount.replace("-", "").split(".");
+export function legacyToCents(amount: string | number): number {
+  const raw = String(amount);
+  const neg = raw.trim().startsWith("-");
+  const [whole = "0", frac = ""] = raw.replace("-", "").split(".");
   const cents = parseInt(whole || "0", 10) * 100 + parseInt((frac + "00").slice(0, 2), 10);
   return neg ? -cents : cents;
 }
