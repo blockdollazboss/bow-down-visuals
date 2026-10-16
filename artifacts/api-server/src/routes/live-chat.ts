@@ -15,6 +15,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
+import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 
 /* ── Live stream chat ────────────────────────────────────────────────────
    Chat for native broadcasts (live_streams, migration 0129; chat rows
@@ -224,6 +225,7 @@ router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Respons
       messages: await toDtos(rows),
       hasMore,
       pinned: await getActivePin(stream.id).catch(() => null),
+      moderatorIds: await getModeratorIds(stream.profile_id).catch(() => [] as string[]),
     });
   } catch (err) {
     logger.error({ err }, "live chat history failed");
@@ -329,7 +331,11 @@ router.delete("/live/:id/chat/:messageId", requireAuth, async (req: Request, res
     }
     const isAuthor = message.user_id === userId;
     const isOwner = stream.user_id === userId;
-    if (!isAuthor && !isOwner) {
+    // Appointed moderators can remove chatter messages too — but
+    // never the owner's: only the owner moderates their own words.
+    const role = isAuthor || isOwner ? null : await chatRoleFor(stream, userId).catch(() => "viewer" as const);
+    const isMod = role === "moderator";
+    if (!isAuthor && !isOwner && !(isMod && message.user_id !== stream.user_id)) {
       res.status(403).json({ error: "You can only remove your own messages here." });
       return;
     }
@@ -363,8 +369,12 @@ router.post("/live/:id/chat/mute", requireAuth, async (req: Request, res: Respon
       res.status(404).json({ error: "That stream doesn't exist." });
       return;
     }
-    if (stream.user_id !== userId) {
-      res.status(403).json({ error: "Only the streamer can mute in their own stream." });
+    // Owner OR an appointed channel moderator may mute. A moderator
+    // can never mute the owner or another moderator — only the
+    // owner moderates the moderators.
+    const callerRole = await chatRoleFor(stream, userId).catch(() => "viewer" as const);
+    if (callerRole === "viewer") {
+      res.status(403).json({ error: "Only the streamer and their moderators can mute here." });
       return;
     }
     const parsed = muteBodySchema.safeParse(req.body ?? {});
@@ -376,6 +386,17 @@ router.post("/live/:id/chat/mute", requireAuth, async (req: Request, res: Respon
     if (targetId === stream.user_id) {
       res.status(400).json({ error: "The streamer can't be muted in their own stream." });
       return;
+    }
+    if (callerRole === "moderator") {
+      if (targetId === userId) {
+        res.status(400).json({ error: "You can't mute yourself." });
+        return;
+      }
+      const targetRole = await chatRoleFor(stream, targetId).catch(() => "viewer" as const);
+      if (targetRole === "moderator") {
+        res.status(403).json({ error: "Moderators can't mute other moderators — that's the streamer's call." });
+        return;
+      }
     }
     const mutedUntil = new Date(Date.now() + MUTE_MS);
     const existing = await db
@@ -411,9 +432,19 @@ router.delete("/live/:id/chat/mute/:userId", requireAuth, async (req: Request, r
       res.status(404).json({ error: "That stream doesn't exist." });
       return;
     }
-    if (stream.user_id !== userId) {
-      res.status(403).json({ error: "Only the streamer can unmute in their own stream." });
+    // Unmute follows the same shape as mute: owner OR moderator,
+    // and a moderator can't lift a mute on another moderator.
+    const callerRole = await chatRoleFor(stream, userId).catch(() => "viewer" as const);
+    if (callerRole === "viewer") {
+      res.status(403).json({ error: "Only the streamer and their moderators can unmute here." });
       return;
+    }
+    if (callerRole === "moderator" && UUID_RE.test(param(req, "userId"))) {
+      const targetRole = await chatRoleFor(stream, param(req, "userId")).catch(() => "viewer" as const);
+      if (targetRole === "moderator") {
+        res.status(403).json({ error: "Moderators can't unmute other moderators — that's the streamer's call." });
+        return;
+      }
     }
     if (!UUID_RE.test(param(req, "userId"))) {
       res.status(404).json({ error: "That chatter isn't muted here." });

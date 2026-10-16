@@ -43,6 +43,8 @@ export interface ChatPage {
   hasMore: boolean;
   /** The server's active paid pin (null when there is none). */
   pinned?: ChatPin | null;
+  /** Appointed channel moderators (user ids) for badge + controls. */
+  moderatorIds?: string[];
 }
 
 /** A live alert event from the room (tip / follow) — the studio's
@@ -134,6 +136,16 @@ export class LiveChatClient {
   pinned: ChatPin | null = null;
   /** Live alert events (tips/follows) for the studio overlay. */
   onAlert: ((alert: LiveAlertEvent) => void) | null = null;
+  /** Appointed channel moderators, from server data only. */
+  moderatorIds = new Set<string>();
+
+  /** My role on this stream, from server data (owner / moderator / viewer). */
+  get selfRole(): "owner" | "moderator" | "viewer" {
+    const selfId = this.deps.selfId;
+    if (!selfId) return "viewer";
+    if (this.ownerId && selfId === this.ownerId) return "owner";
+    return this.moderatorIds.has(selfId) ? "moderator" : "viewer";
+  }
 
   private _socket: ChatSocketLike | null = null;
   private _pollTimer: TimerHandle | null = null;
@@ -189,6 +201,7 @@ export class LiveChatClient {
     this.streamStatus = page.streamStatus;
     this.ownerId = page.ownerId;
     this.pinned = page.pinned ?? null;
+    if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
     const byId = new Map<string, ChatMessage>();
     for (const m of page.messages) byId.set(m.id, m);
     this.messages = [...byId.values()].sort(byTime);
@@ -313,6 +326,7 @@ export class LiveChatClient {
       this.streamStatus = page.streamStatus;
       this.ownerId = page.ownerId;
       this.pinned = page.pinned ?? this.pinned;
+      if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
       this.mergeMessages(page.messages);
       if (statusChanged) {
         if (this.streamStatus !== "live") this.closeSocket();

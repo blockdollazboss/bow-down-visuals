@@ -77,6 +77,8 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
   }, [messageCount]);
 
   const isOwner = !!user && !!client.ownerId && user.id === client.ownerId;
+  const selfRole = user ? client.selfRole : "viewer";
+  const canModerate = selfRole === "owner" || selfRole === "moderator";
   const composer = composerState({
     signedIn: !!user,
     streamStatus: client.streamStatus,
@@ -180,7 +182,10 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                   message={m}
                   mine={!!user && m.userId === user.id}
                   isOwner={isOwner}
+                  canModerate={canModerate}
+                  selfIsMod={selfRole === "moderator"}
                   authorIsOwner={!!client.ownerId && m.userId === client.ownerId}
+                  authorIsMod={client.moderatorIds.has(m.userId)}
                   muted={client.mutedUsers.has(m.userId)}
                   onDelete={() => void client.deleteMessage(m.id)}
                   onMute={() => void client.muteUser(m.userId)}
@@ -301,7 +306,10 @@ function ChatRow({
   message,
   mine,
   isOwner,
+  canModerate,
+  selfIsMod,
   authorIsOwner,
+  authorIsMod,
   muted,
   onDelete,
   onMute,
@@ -310,14 +318,20 @@ function ChatRow({
   message: ChatMessage;
   mine: boolean;
   isOwner: boolean;
+  canModerate: boolean;
+  selfIsMod: boolean;
   authorIsOwner: boolean;
+  authorIsMod: boolean;
   muted: boolean;
   onDelete: () => void;
   onMute: () => void;
   onUnmute: () => void;
 }) {
-  const canDelete = mine || isOwner;
-  const canMute = isOwner && !mine && !authorIsOwner;
+  // Moderation rules mirror the server: the owner moderates anyone;
+  // a moderator moderates chatters — never the owner, never a
+  // fellow moderator.
+  const canDelete = mine || isOwner || (canModerate && !authorIsOwner);
+  const canMute = canModerate && !mine && !authorIsOwner && !(selfIsMod && authorIsMod);
   const isTip = message.kind === "tip";
   const time = new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return (
@@ -352,6 +366,14 @@ function ChatRow({
           {isTip && (
             <span className="rounded-full bg-amber-400 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-black">
               {formatBucs(message.tipAmountVb ?? 0)} tip
+            </span>
+          )}
+          {authorIsMod && !authorIsOwner && (
+            <span
+              className="rounded-full bg-sky-400/20 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-sky-200"
+              data-testid="chat-mod-badge"
+            >
+              Mod
             </span>
           )}
           <span className="text-white/30">{time}</span>

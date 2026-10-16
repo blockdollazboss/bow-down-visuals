@@ -119,6 +119,7 @@ import liveStreamsRouter from "./live-streams";
 import liveChatRouter from "./live-chat";
 import pushRouter from "./push";
 import liveTipsRouter from "./live-tips";
+import liveModeratorsRouter from "./live-moderators";
 import membershipsRouter from "./generate/memberships";
 import podcastRouter from "./generate/podcast";
 import podcastDialogueRouter from "./generate/podcast-dialogue";
@@ -435,6 +436,7 @@ router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broa
 router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat + moderation)
 router.use(pushRouter);                      // /api/push/* (web-push subscriptions)
 router.use(liveTipsRouter);                  // /api/live/:id/tips (stream tips + paid pins)
+router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role
 router.use(membershipsRouter);
 router.use(podcastRouter);
 router.use(podcastDialogueRouter);

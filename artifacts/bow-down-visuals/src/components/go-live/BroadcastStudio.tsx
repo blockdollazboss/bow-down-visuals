@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
+import ChannelModerators from "@/components/live/ChannelModerators";
 import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerStageClient,
@@ -1443,6 +1444,9 @@ export default function BroadcastStudio() {
 
       {/* ── Stream chat ── */}
       <section className="mb-6">
+        <div className="mb-4">
+          <ChannelModerators />
+        </div>
         {liveId ? (
           <LiveChatPanel streamId={liveId} className="h-[420px]" />
         ) : (
