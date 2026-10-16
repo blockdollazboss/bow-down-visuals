@@ -170,13 +170,13 @@ export function ProToolsSection({
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const body = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        toast({ title: "Out of Visual Bucs", description: "Top up to use AI Auto-Grade.", variant: "destructive" });
+        toast({ title: "Out of Visual Bucs", description: "Top up to use Auto-Grade.", variant: "destructive" });
         return;
       }
       if (!res.ok || !body.correction) throw new Error(body.error ?? "Auto-grade failed");
       patchColor(body.correction);
       toast({
-        title: "✨ AI Auto-Grade applied",
+        title: "✨ Auto-Grade applied",
         description: body.usedVision
           ? "Vision AI analyzed your frame and set the correction."
           : "AI set the correction from your look description (frame analysis unavailable).",

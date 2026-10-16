@@ -1070,7 +1070,7 @@ export function LipSyncSection({
     /* Auto-fix timing if mismatch detected */
     if (timingBlock) {
       rebuildFromRealClipDuration();
-      setAutoAiMessage("Timing mismatch auto-detected — audio segment rebuilt from real clip duration. Click Auto AI Lip Sync again once the clip duration reloads.");
+      setAutoAiMessage("Timing mismatch auto-detected — audio segment rebuilt from real clip duration. Click Auto Lip Sync again once the clip duration reloads.");
       setAutoAiOk(false);
       return;
     }
@@ -1235,7 +1235,7 @@ export function LipSyncSection({
     });
 
     if (!selectedScene || !ce) return blank("No clip selected", "Select a clip in the Scene Selector above.");
-    if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto AI Lip Sync first, then re-analyze.");
+    if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto Lip Sync first, then re-analyze.");
 
     /* ── Offsets ── */
     const previewOffset     = ce.lipSyncAudioOffset  ?? 0;   // shifts audio window sent to Sync.so
@@ -1525,7 +1525,7 @@ export function LipSyncSection({
           value={ls.enabled}
           onChange={v => updateLipSync({ enabled: v })}
           label="Enable Lip Sync"
-          sub="Applies AI lip sync to video clips using project vocals"
+          sub="Applies lip sync to video clips using project vocals"
         />
       </EditorCard>
 
@@ -2260,7 +2260,7 @@ export function LipSyncSection({
           )}
 
           {/* ── Auto AI Lip Sync ── */}
-          <EditorCard title="Auto AI Lip Sync" icon={<Radio className="h-4 w-4" />}>
+          <EditorCard title="Auto Lip Sync" icon={<Radio className="h-4 w-4" />}>
             {(() => {
               const ce = selectedClipEdit;
               const hasCompletedResult = ce?.lipSyncStatus === "done" && !!ce.lipSyncUrl;
@@ -2279,7 +2279,7 @@ export function LipSyncSection({
                   {/* Status table */}
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">
-                      Auto AI Lip Sync Status
+                      Auto Lip Sync Status
                     </p>
                     <StatusRow label="selected scene"         value={selectedScene ? `Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}` : "none selected"}                                    ok={!!selectedScene} />
                     <StatusRow label="detected clip duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s ✓` : selectedScene?.demoClipUrl ? "loading…" : "—"}                  ok={clipVideoDuration != null ? true : null} />
@@ -2466,7 +2466,7 @@ export function LipSyncSection({
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-black text-[12px] font-bold hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Radio className="h-4 w-4" />
-                      Auto AI Lip Sync Selected Scene
+                      Auto Lip Sync Selected Scene
                     </button>
                   )}
 
@@ -3192,7 +3192,7 @@ export function LipSyncSection({
                         <div className="flex items-center gap-2">
                           <Sliders className="h-3.5 w-3.5 text-violet-400" />
                           <p className="text-[11px] font-black text-white/85 uppercase tracking-widest">
-                            Auto AI Lip Sync Timing
+                            Auto Lip Sync Timing
                           </p>
                         </div>
                         {timingLocked && (
@@ -3541,7 +3541,7 @@ export function LipSyncSection({
                     </button>
                   </div>
                   {!hasResult && (
-                    <p className="text-[10px] text-white/50 text-center">Run Auto AI Lip Sync first to enable analysis.</p>
+                    <p className="text-[10px] text-white/50 text-center">Run Auto Lip Sync first to enable analysis.</p>
                   )}
 
                   {/* Detection result */}

@@ -464,7 +464,7 @@
                       {!scene.demoClipUrl ? "No generated video yet" : "Clip link expired"}
                     </p>
                     <p className="text-[11px] text-yellow-300/60 mt-0.5">
-                      Click "Generate AI Clip" below to launch your rendering engine pipeline.
+                      Click "Generate Clip" below to launch your rendering engine pipeline.
                     </p>
                   </div>
                 </div>
@@ -508,7 +508,7 @@
                   data-testid="btn-generate-runway-clip"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Generate AI Clip
+                  Generate Clip
                   {!hasPrompt && (
                     <span className="text-primary/50 font-normal">
                       (using scene info)
@@ -671,7 +671,7 @@
           if (!improvedPrompt) return; // user cancelled
           onUpdate({ aiVideoPrompt: improvedPrompt });
           setEditedPrompt(improvedPrompt);
-          toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced." });
+          toast({ title: "Prompt improved!", description: "Your Video Prompt has been enhanced." });
         } catch {
           toast({ title: "Could not improve prompt", variant: "destructive" });
         } finally {
@@ -743,7 +743,7 @@
               <button
                 onClick={handleImprovePrompt}
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors inline-flex items-center gap-1 shrink-0"
-                title="This scene's AI Video Prompt is short or generic — click to improve it"
+                title="This scene's Video Prompt is short or generic — click to improve it"
                 data-testid={`badge-weak-prompt-${index}`}
               >
                 <AlertTriangle className="h-2.5 w-2.5" /> Weak Prompt
@@ -832,7 +832,7 @@
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-primary/50 uppercase tracking-widest">
-                  AI Video Prompt
+                  Video Prompt
                 </span>
 
                 <div className="flex items-center gap-1">

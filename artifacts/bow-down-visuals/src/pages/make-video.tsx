@@ -234,7 +234,7 @@ const SECTION_META: Record<string, { labelKey: string; icon: React.ElementType }
   "WARDROBE & ARTIST LOOK": { labelKey: "makeVideo.sectionWardrobe",          icon: Music2 },
   "CAMERA DIRECTIONS":      { labelKey: "makeVideo.sectionCamera",            icon: Camera },
   "SCENE-BY-SCENE BREAKDOWN": { labelKey: "makeVideo.sectionSceneBreakdown",  icon: Clapperboard },
-  "AI VIDEO PROMPTS":       { labelKey: "makeVideo.sectionAiPrompts",         icon: Sparkles },
+  "VIDEO PROMPTS":       { labelKey: "makeVideo.sectionAiPrompts",         icon: Sparkles },
   "NEGATIVE PROMPTS":       { labelKey: "makeVideo.sectionNegativePrompts",   icon: Film },
   "THUMBNAIL PROMPTS":      { labelKey: "makeVideo.sectionThumbnailPrompts",  icon: Film },
   "PROMO CLIP IDEAS":       { labelKey: "makeVideo.sectionPromoClips",        icon: Film },

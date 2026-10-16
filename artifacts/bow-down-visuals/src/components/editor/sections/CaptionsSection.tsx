@@ -834,7 +834,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         });
         setAiSyncStatus({
           type: "error",
-          message: `AI sync failed validation — ${Math.round(bad * 100)}% of rows had invalid timings. Existing captions were not overwritten.`,
+          message: `Sync failed validation — ${Math.round(bad * 100)}% of rows had invalid timings. Existing captions were not overwritten.`,
         });
         return;
       }
@@ -1355,7 +1355,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           AI SYNC CAPTIONS TO VOCALS  (Advanced)
       ══════════════════════════════════════════════════ */}
       <EditorCard
-        title="AI Sync Captions To Vocals (Advanced)"
+        title="Sync Captions To Vocals (Advanced)"
         subtitle="Matches your existing caption text to vocal timestamps — use Rebuild above if sync fails"
         icon={<Wand2 className="h-4 w-4" />}
       >
@@ -1417,7 +1417,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {aiSyncing && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.05]">
               <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
-              <span className="text-sm text-primary/70 font-semibold">{aiSyncPhase ?? "AI syncing captions…"}</span>
+              <span className="text-sm text-primary/70 font-semibold">{aiSyncPhase ?? "Syncing captions…"}</span>
             </div>
           )}
 
@@ -1431,7 +1431,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             >
               {aiSyncing
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Syncing…</>
-                : <><Sparkles className="h-4 w-4" /> AI Sync Captions To Vocals</>
+                : <><Sparkles className="h-4 w-4" /> Sync Captions To Vocals</>
               }
             </Button>
           )}
@@ -1439,7 +1439,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {/* AI Sync Status panel */}
           {aiSyncDetails && (
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">AI Sync Status</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Sync Status</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] text-white/40">Audio found</span>

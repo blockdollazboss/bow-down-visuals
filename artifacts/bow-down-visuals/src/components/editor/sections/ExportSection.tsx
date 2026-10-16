@@ -387,7 +387,7 @@ export function ExportSection({
             </p>
             <p className="text-[10px] text-white/35 mt-0.5">
               {settings.aiEdit?.applied
-                ? `AI edit is active — style: ${settings.aiEdit.style}`
+                ? `Edit is active — style: ${settings.aiEdit.style}`
                 : "Let AI plan transitions, effects, color grade & caption style before export"}
             </p>
           </div>

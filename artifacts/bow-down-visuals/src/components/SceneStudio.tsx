@@ -1141,7 +1141,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
     setShowPrompt(true);
     const seed = aiPrompt.trim() || sceneSeedPrompt(scene);
     if (!seed) {
-      toast({ title: "Enter a prompt first", description: "Type an AI Video Prompt before improving it.", variant: "destructive" });
+      toast({ title: "Enter a prompt first", description: "Type a Video Prompt before improving it.", variant: "destructive" });
       return;
     }
     setImproving(true);
@@ -1156,7 +1156,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
       if (!improvedPrompt) return; // user cancelled the credit confirmation
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
-      toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced." });
+      toast({ title: "Prompt improved!", description: "Your Video Prompt has been enhanced." });
     } catch (err) {
       const message = err instanceof ImprovePromptError ? err.message : "Something went wrong. Please try again.";
       toast({ title: "Could not improve prompt", description: message, variant: "destructive" });
@@ -1236,7 +1236,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             <button
               onClick={handleImprovePrompt}
               className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors"
-              title="This scene's AI Video Prompt is short or generic — click to improve it"
+              title="This scene's Video Prompt is short or generic — click to improve it"
               data-testid={`badge-weak-prompt-${index}`}
             >
               <AlertTriangle className="h-3 w-3" /> Weak Prompt
@@ -1283,7 +1283,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               data-testid={`btn-toggle-prompt-${index}`}
             >
               <Zap className="h-3.5 w-3.5" />
-              {showPrompt ? "Hide AI Prompt" : "AI Prompt & Details"}
+              {showPrompt ? "Hide Prompt" : "Prompt & Details"}
               {showPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
 
@@ -1367,7 +1367,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               {/* AI Video Prompt */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
-                  <Zap className="h-2.5 w-2.5" /> AI Video Prompt
+                  <Zap className="h-2.5 w-2.5" /> Video Prompt
                 </label>
                 <textarea
                   value={aiPrompt}
