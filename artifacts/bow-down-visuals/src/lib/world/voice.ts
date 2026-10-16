@@ -21,7 +21,14 @@
  *
  * Everything RTC/media is behind injected deps so the mesh logic is
  * unit-tested in node with fake peer connections.
+ *
+ * Lip levels: each browser sink ALSO taps an analyser off the raw
+ * stream (pre-gain) so the hall can move a character figure's lips
+ * with its speaker's voice (`levelFor` / `VoiceSink.getLevel`) —
+ * measurement only; the audio path above is untouched.
  */
+
+import { SpeechLevelTracker, rmsFromTimeDomain } from "./lips";
 
 export const VOICE_FULL_HEAR_DISTANCE = 2; // metres: full volume inside this
 export const VOICE_MAX_DISTANCE = 16; // metres: silence beyond this
@@ -63,6 +70,11 @@ export interface RtcPeerConnectionLike {
 export interface VoiceSink {
   setGain(value: number): void;
   dispose(): void;
+  /** The speaker's current voice level (0..1, smoothed) when the sink
+   *  can measure one — tapped BEFORE the proximity gain, so a far-off
+   *  friend's lips still move while their voice is faint. Drives the
+   *  hall's character lip motion; sinks without it read as silent. */
+  getLevel?: () => number;
 }
 
 export interface VoiceMeshDeps {
@@ -142,6 +154,14 @@ export class VoiceMesh {
         peer.pendingIce.push(data.candidate);
       }
     }
+  }
+
+  /** A peer's live voice level (0..1, smoothed) — 0 for peers with no
+   *  stream or a sink that can't measure. The hall reads this to move
+   *  a character figure's lips with its speaker's voice. */
+  levelFor(peerId: string): number {
+    const rec = this.peers.get(peerId);
+    return rec?.sink?.getLevel ? rec.sink.getLevel() : 0;
   }
 
   /** A peer left voice (or the room): tear their connection down. */
@@ -253,14 +273,27 @@ export function createBrowserVoiceSink(_peerId: string, stream: unknown): VoiceS
   gain.gain.value = 0; // silent until the first proximity pass places them
   source.connect(gain);
   gain.connect(ctx.destination);
+  // Lip-motion tap: an analyser on the RAW stream (pre-gain, so a
+  // distant speaker's lips still move even when their voice is too
+  // faint to hear) feeding the shared speech smoothing.
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const samples = new Uint8Array(analyser.fftSize);
+  const tracker = new SpeechLevelTracker();
   return {
     setGain(value: number) {
       gain.gain.setTargetAtTime(value, ctx.currentTime, 0.08);
+    },
+    getLevel() {
+      analyser.getByteTimeDomainData(samples);
+      return tracker.push(rmsFromTimeDomain(samples));
     },
     dispose() {
       try {
         source.disconnect();
         gain.disconnect();
+        analyser.disconnect();
       } catch {
         /* already torn down */
       }

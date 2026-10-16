@@ -50,6 +50,7 @@ const SELF = {
   tint: "#d4af37",
   guest: false,
   voice: false,
+  character: null,
   x: 0,
   y: 0,
   z: 9.5,
@@ -212,6 +213,50 @@ describe("voice plumbing", () => {
     expect(client.voicePeerIds.has("w-other")).toBe(false);
     expect(client.peers.get("w-other")?.voice).toBe(false);
     expect(leftVoice).toEqual(["w-other"]);
+  });
+});
+
+describe("vault characters — walk in as", () => {
+  const NOVA = { id: "char-nova", name: "Nova", portraitUrl: "https://img.example/nova.png" };
+
+  it("a pick made before entry is sent the moment the welcome lands", async () => {
+    const { client, socket } = makeClient();
+    client.setCharacter(NOVA.id);
+    await client.connect();
+    expect(socket.sent.find((m) => m.type === "character")).toBeUndefined();
+    socket.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(socket.sent).toContainEqual({ type: "character", characterId: NOVA.id });
+  });
+
+  it("picks and clears while inside go straight out; guests never send", async () => {
+    const { client, socket } = await inside();
+    client.setCharacter(NOVA.id);
+    expect(socket.sent).toContainEqual({ type: "character", characterId: NOVA.id });
+    client.setCharacter(null);
+    expect(socket.sent).toContainEqual({ type: "character", characterId: null });
+
+    const guestSelf = { ...SELF, peerId: "w-guest", guest: true, displayName: "Guest" };
+    const g = await inside({ t: 0 }, guestSelf);
+    g.client.setCharacter(NOVA.id);
+    expect(g.socket.sent.find((m) => m.type === "character")).toBeUndefined();
+  });
+
+  it("peer.character frames update the roster and notify; snapshot characters ride the welcome", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [{ ...OTHER, character: NOVA }]);
+    expect(client.peers.get("w-other")?.character).toEqual(NOVA);
+
+    const seen: Array<[string, unknown]> = [];
+    client.onPeerCharacter = (peerId, character) => seen.push([peerId, character]);
+    const REY = { id: "char-rey", name: "Rey", portraitUrl: "https://img.example/rey.png" };
+    socket.receive({ type: "peer.character", peerId: "w-other", character: REY });
+    expect(client.peers.get("w-other")?.character).toEqual(REY);
+    socket.receive({ type: "peer.character", peerId: "w-other", character: null });
+    expect(client.peers.get("w-other")?.character).toBeNull();
+    expect(seen).toEqual([["w-other", REY], ["w-other", null]]);
+
+    // A malformed character payload degrades to null, never a crash.
+    socket.receive({ type: "peer.character", peerId: "w-other", character: { nope: true } });
+    expect(client.peers.get("w-other")?.character).toBeNull();
   });
 });
 

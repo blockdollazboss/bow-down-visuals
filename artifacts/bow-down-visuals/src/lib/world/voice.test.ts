@@ -64,6 +64,7 @@ class FakePc implements RtcPeerConnectionLike {
 class FakeSink implements VoiceSink {
   gains: number[] = [];
   disposed = false;
+  getLevel?: () => number;
   setGain(v: number): void {
     this.gains.push(v);
   }
@@ -231,5 +232,23 @@ describe("mute, proximity, teardown", () => {
     mesh.leave();
     expect(pcB.closed).toBe(true);
     expect(mesh.peerCount).toBe(0);
+  });
+
+  it("levelFor reads the sink's live voice level and defaults to silence", async () => {
+    const { mesh, pcs, sinks, localStream } = makeMesh();
+    mesh.start(localStream as never);
+    await mesh.handleVoiceState(["peer-a"]);
+    expect(mesh.levelFor("peer-a")).toBe(0); // no stream yet
+    expect(mesh.levelFor("nobody")).toBe(0);
+
+    const [pcA] = [...pcs.values()] as [FakePc];
+    pcA.emitTrack({ id: "stream-a" });
+    const sink = sinks.get("peer-a")!;
+    // Sinks that can't measure read as silent — lips stay shut honestly.
+    expect(mesh.levelFor("peer-a")).toBe(0);
+    sink.getLevel = () => 0.42;
+    expect(mesh.levelFor("peer-a")).toBeCloseTo(0.42);
+    mesh.dropPeer("peer-a");
+    expect(mesh.levelFor("peer-a")).toBe(0);
   });
 });
