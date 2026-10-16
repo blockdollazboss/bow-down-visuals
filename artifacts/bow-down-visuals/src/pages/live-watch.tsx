@@ -3,6 +3,7 @@ import { useRoute, Link } from "wouter";
 import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
+import LiveChatPanel from "@/components/live/LiveChatPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
@@ -230,7 +231,9 @@ export default function LiveWatch() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+        <div className="flex flex-col gap-5 lg:flex-row">
+          <div className="min-w-0 flex-1">
         <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[#C9A84C]/25 bg-black">
           {isLive ? (
             <>
@@ -310,6 +313,9 @@ export default function LiveWatch() {
               <FollowButton profileId={creator.id} initialFollowing={followStates[creator.id]} />
             </div>
           )}
+        </div>
+          </div>
+          <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
+import LiveChatPanel from "@/components/live/LiveChatPanel";
 import {
   BackgroundChanger,
   BackgroundChangerError,
@@ -1309,6 +1310,21 @@ export default function BroadcastStudio() {
                 Post the wrap-up to Discord
               </Button>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Stream chat ── */}
+      <section className="mb-6">
+        {liveId ? (
+          <LiveChatPanel streamId={liveId} className="h-[420px]" />
+        ) : (
+          <div className={`rounded-2xl border p-5 md:p-6 ${panel}`}>
+            <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Stream chat</h3>
+            <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              Chat opens with your stream — go live and the conversation lands here, where you can read it, post, and
+              moderate while you broadcast.
+            </p>
           </div>
         )}
       </section>
