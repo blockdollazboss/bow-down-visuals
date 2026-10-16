@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
+  AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -57,6 +58,11 @@ export default function MyShop() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [activeShop, setActiveShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  /* Product-list load failures are NOT "no products yet" — they get
+     their own error state with a retry, scoped to the products list
+     only. The empty state renders ONLY for a successful load with
+     zero products. */
+  const [productsLoadError, setProductsLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -139,13 +145,15 @@ export default function MyShop() {
   }
 
   async function loadProducts(shop: Shop) {
+    setProductsLoadError(false);
     try {
       /* Products come from the public storefront endpoint for the shop's handle. */
       const pub = await fetch(`/api/shops/handle/${shop.handle}`);
       const data = (await pub.json().catch(() => ({}))) as { products?: Product[] };
+      if (!pub.ok) throw new Error("products load failed");
       setProducts(data.products ?? []);
     } catch {
-      setProducts([]);
+      setProductsLoadError(true);
     }
   }
 
@@ -615,7 +623,22 @@ export default function MyShop() {
                     </div>
                   )}
 
-                  {products.length === 0 && !showProductForm ? (
+                  {productsLoadError ? (
+                    <div className={`mt-6 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                      <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                      <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your products.</p>
+                      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                        Something went wrong on our end — your products are safe, this shop just couldn't load them.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { if (activeShop) loadProducts(activeShop); }}
+                        className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                      >
+                        <RotateCcw className="h-4 w-4" /> Try again
+                      </button>
+                    </div>
+                  ) : products.length === 0 && !showProductForm ? (
                     <p className="mt-6 text-sm text-white/40 text-center py-8">{t("myShop.noProducts")}</p>
                   ) : (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
