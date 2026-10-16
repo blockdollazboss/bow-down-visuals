@@ -2258,6 +2258,13 @@ export default function VideoEditor() {
                       onRestart={() => timelinePlayerRef.current?.restart()}
                       audioUrl={previewAudioUrl}
                       transcriptText={transcriptText}
+                      onTextEdit={(nextScenes, nextCaptionLines) => {
+                        setScenes(nextScenes);
+                        setSettings((prev) => ({
+                          ...prev,
+                          captions: { ...prev.captions, lines: nextCaptionLines },
+                        }));
+                      }}
                     />
                     {/* Wave 9 sections moved to their own rail tabs (Beat Sync / Edit Recipes) for direct reachability. */}
                     </>

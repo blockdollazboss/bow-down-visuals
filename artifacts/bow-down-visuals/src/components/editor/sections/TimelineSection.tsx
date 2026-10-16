@@ -6,6 +6,8 @@ import { EditorCard } from "@/components/editor/controls";
 import { FormatSection } from "@/components/editor/sections/FormatSection";
 import { AutoChaptersCard } from "@/components/editor/sections/AutoChaptersCard";
 import { LanesPanel } from "@/components/editor/sections/LanesPanel";
+import { TranscriptEditPanel } from "@/components/editor/sections/TranscriptEditPanel";
+import type { CaptionLine } from "@/lib/editor-settings";
 
 interface TimelineSectionProps {
   scenes: SceneData[];
@@ -29,6 +31,8 @@ interface TimelineSectionProps {
   audioUrl?: string | null;
   /** Project transcript — prefilled into the Auto Chapters paste box. */
   transcriptText?: string | null;
+  /** Text-based editing (Stack 5 #7): apply a transcript reorder/delete. */
+  onTextEdit?: (nextScenes: SceneData[], nextCaptionLines: CaptionLine[]) => void;
 }
 
 const TRANSITION_OPTIONS = ["Cut", ...TRANSITIONS.filter(t => t !== "Cut")];
@@ -61,6 +65,7 @@ export function TimelineSection({
   onRestart,
   audioUrl = null,
   transcriptText = null,
+  onTextEdit,
 }: TimelineSectionProps) {
   const approvedScenes = scenes.filter(s => s.approved && s.demoClipUrl);
 
@@ -319,6 +324,11 @@ export function TimelineSection({
       {/* Multi-track lanes — overlay/caption/adjustment tracks (Stack 5 #1/#6) */}
       <div className="mt-4">
         <LanesPanel settings={settings} setSettings={setSettings} />
+      </div>
+
+      {/* Text-based editing v1 (Stack 5 #7) */}
+      <div className="mt-4">
+        <TranscriptEditPanel scenes={scenes} settings={settings} totalDuration={totalDuration} onTextEdit={onTextEdit} />
       </div>
 
       {/* Auto Chapters — generate → edit → copy for YouTube, saved with the project */}
