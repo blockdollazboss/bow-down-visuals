@@ -33,6 +33,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 const h = vi.hoisted(() => ({
   state: {
     profilesBySlug: new Map<string, Record<string, unknown>>(),
+    referralCodesByUserId: new Map<string, string>(),
   },
 }));
 
@@ -81,9 +82,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
     profileTracksTable,
     profileVideosTable,
     playlistsTable,
+    referralCodesTable,
   } = actual;
 
   function rowsFor(table: unknown, fields: unknown, cond: unknown): unknown[] {
+    if (table === referralCodesTable) {
+      const userId = String(render(cond).params[0] ?? "");
+      const code = state.referralCodesByUserId.get(userId);
+      return code ? [{ code }] : [];
+    }
     if (table === creatorProfilesTable) {
       const slug = String(render(cond).params[0] ?? "");
       const row = state.profilesBySlug.get(slug);
@@ -178,6 +185,7 @@ function officialProfileRow(): Record<string, unknown> {
 
 beforeEach(() => {
   h.state.profilesBySlug = new Map();
+  h.state.referralCodesByUserId = new Map();
 });
 
 async function get(path: string) {
@@ -194,6 +202,18 @@ describe("GET /api/creator-profiles/:slug — public profile contract", () => {
 
     expect(status).toBe(200);
     expect(json.profile.slug).toBe("thy-cheat-code");
+    // The user_id regression pin (live-verified on staging): the client
+    // contract declares user_id and the profile page's Memberships block
+    // fetches /api/memberships/public/<user_id> with it. The DTO omitted
+    // the field, so the fetch went out as /undefined, the endpoint's
+    // UUID gate 400'd, and the section showed "couldn't load" on EVERY
+    // profile. The value must be the row's owner id, UUID-shaped.
+    expect(json.profile.user_id).toBe("00000000-0000-4000-8000-000000000001");
+    expect(json.profile.user_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    // No referral code minted for this user → null, never a crash.
+    expect(json.profile.referral_code).toBeNull();
     // The regression pin: the page renders only when this is truthy.
     expect(json.profile.is_public).toBe(true);
     expect(json.profile.is_official).toBe(true);
@@ -219,8 +239,25 @@ describe("GET /api/creator-profiles/:slug — public profile contract", () => {
     const { status, json } = await get("/creator-profiles/some-creator");
 
     expect(status).toBe(200);
+    expect(json.profile.user_id).toBe("44444444-4444-4444-8444-444444444444");
     expect(json.profile.is_public).toBe(true);
     expect(json.profile.is_official).toBe(false);
+  });
+
+  it("carries the creator's referral_code when one has been minted", async () => {
+    // The page's embed button + Made-With badge read referral_code off
+    // this payload so shares from the creator's own page carry their
+    // ?ref= credit. Codes are 8-char share codes (routes/referrals).
+    h.state.profilesBySlug.set("thy-cheat-code", officialProfileRow());
+    h.state.referralCodesByUserId.set(
+      "00000000-0000-4000-8000-000000000001",
+      "KNGPN42X",
+    );
+
+    const { status, json } = await get("/creator-profiles/thy-cheat-code");
+
+    expect(status).toBe(200);
+    expect(json.profile.referral_code).toBe("KNGPN42X");
   });
 
  it("serves a COMPLETE theme_config when the stored row carries the column default ({})", async () => {

@@ -205,6 +205,14 @@ describe("GET /api/creator-profiles/me — the owner's own profile", () => {
     expect(status).toBe(200);
     expect(profile.slug).toBe("my-corner");
     expect(profile.display_name).toBe("My Corner");
+    // user_id is declared on the client contract and consumed from THIS
+    // payload: ProfileMembershipsSection's owner check compares
+    // mine.user_id against the public page's creator id — toPublicProfile
+    // omitted it, so the owner was never recognized on their own page.
+    expect(profile.user_id).toBe(AUTH_USER_ID);
+    // No referral code minted for the owner → null (fake db has no
+    // referral_codes rows), the field the setup page's ?ref= hint reads.
+    expect(profile.referral_code).toBeNull();
     expect(profile.is_public).toBe(true);
     expect(profile.follower_count).toBe(12);
     // Stored theme_config is the {} column default — the DTO must serve
