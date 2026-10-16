@@ -19,6 +19,15 @@ import {
   createBrowserVoiceSink,
   type VoiceSignalData,
 } from "@/lib/world/voice";
+import {
+  initialVoiceToggle,
+  reduceVoiceToggle,
+  canJoinVoice,
+  loadVoiceEnabled,
+  storeVoiceEnabled,
+  type VoiceToggleAction,
+  type VoiceToggleState,
+} from "@/lib/world/voice-toggle";
 import type { KingsHallScene, HallScreenSource } from "@/lib/world/hall-scene";
 import { normalizeHallTheme, type HallTheme } from "@/lib/world/hall-looks";
 import {
@@ -81,7 +90,15 @@ export default function WorldPage() {
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
   const [sayLog, setSayLog] = useState<WorldSayEvent[]>([]);
   const [draft, setDraft] = useState("");
-  const [voiceOn, setVoiceOn] = useState(false);
+  /* The proximity-voice switch (owner's order): a master on/off for
+     hall voice, remembered on this device. `inVoice` inside it is
+     the live mesh session; the switch gates it, never replaces the
+     explicit Join-voice act. */
+  const [voiceSwitch, setVoiceSwitch] = useState<VoiceToggleState>(() =>
+    initialVoiceToggle(loadVoiceEnabled()),
+  );
+  const voiceSwitchRef = useRef(voiceSwitch);
+  voiceSwitchRef.current = voiceSwitch;
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
@@ -143,6 +160,39 @@ export default function WorldPage() {
     clientRef.current?.setCharacter(walkInAs);
   }, [walkInAs]);
 
+  /* Run one voice-switch action through the machine and carry out
+     its effects: the mic is hardware (release = stop the tracks and
+     tear the mesh down), the announcement is a presence frame, and
+     the preference is device memory. */
+  const teardownVoiceSession = () => {
+    meshRef.current?.leave();
+    meshRef.current = null;
+    micStreamRef.current?.getTracks().forEach((t) => t.stop());
+    micStreamRef.current = null;
+    clientRef.current?.leaveVoice();
+    setMuted(false);
+  };
+
+  const dispatchVoice = (action: VoiceToggleAction) => {
+    const { state, effects } = reduceVoiceToggle(voiceSwitchRef.current, action);
+    setVoiceSwitch(state);
+    for (const effect of effects) {
+      if (effect === "release-mic") teardownVoiceSession();
+      if (effect === "announce-off") {
+        storeVoiceEnabled(false);
+        clientRef.current?.setVoiceOff(true);
+      }
+      if (effect === "announce-on") {
+        storeVoiceEnabled(true);
+        clientRef.current?.setVoiceOff(false);
+      }
+    }
+  };
+
+  const toggleVoiceSwitch = () => {
+    dispatchVoice({ type: voiceSwitchRef.current.enabled ? "switch-off" : "switch-on" });
+  };
+
   useEffect(() => {
     let cancelled = false;
     let peerSync: ReturnType<typeof setInterval> | null = null;
@@ -176,6 +226,9 @@ export default function WorldPage() {
       // A remembered pick walks in with us (the client holds the
       // want and sends it the moment the welcome lands).
       if (walkInAsRef.current) client.setCharacter(walkInAsRef.current);
+      // A remembered voice-off walks in with us too — the room's
+      // name plates are right from the first frame.
+      if (!loadVoiceEnabled()) client.setVoiceOff(true);
       scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
 
       client.onStatus = (s) => {
@@ -206,7 +259,7 @@ export default function WorldPage() {
         if (cancelled) return;
         if (notice === "full") {
           setVoiceNote("Voice is full right now — 12 people are talking. The hall still hears you in text.");
-          setVoiceOn(false);
+          dispatchVoice({ type: "voice-left" });
           setVoiceBusy(false);
         }
       };
@@ -288,7 +341,7 @@ export default function WorldPage() {
 
   const joinVoice = async () => {
     const client = clientRef.current;
-    if (!client || voiceBusy || voiceOn) return;
+    if (!client || voiceBusy || !canJoinVoice(voiceSwitchRef.current)) return;
     setVoiceBusy(true);
     setVoiceNote(null);
     try {
@@ -303,7 +356,7 @@ export default function WorldPage() {
       mesh.start(stream);
       setMuted(false);
       client.joinVoice();
-      setVoiceOn(true);
+      dispatchVoice({ type: "voice-joined" });
     } catch {
       setVoiceNote("Your mic was blocked — voice needs mic permission. You can still walk the hall and use text.");
     } finally {
@@ -312,13 +365,8 @@ export default function WorldPage() {
   };
 
   const leaveVoice = () => {
-    meshRef.current?.leave();
-    meshRef.current = null;
-    micStreamRef.current?.getTracks().forEach((t) => t.stop());
-    micStreamRef.current = null;
-    clientRef.current?.leaveVoice();
-    setVoiceOn(false);
-    setMuted(false);
+    teardownVoiceSession();
+    dispatchVoice({ type: "voice-left" });
   };
 
   const toggleMute = () => {
@@ -483,22 +531,55 @@ export default function WorldPage() {
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {voiceNote && <span className={`max-w-xs text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{voiceNote}</span>}
-            {!isGuest && status === "inside" && !voiceOn && (
-              <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
-                {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-                Join voice
-              </button>
-            )}
-            {voiceOn && (
+            {!isGuest && status === "inside" && (
               <>
-                <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
-                  {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  {muted ? "Muted" : "Mic live"}
+                {/* The voice switch — proximity chat on/off, in words,
+                    no menu. Off releases the mic and marks your name
+                    plate voice-off for the whole hall. */}
+                <span className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                  Voice
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={voiceSwitch.enabled}
+                  aria-label="Proximity voice"
+                  onClick={toggleVoiceSwitch}
+                  data-testid="world-voice-switch"
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    voiceSwitch.enabled
+                      ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
+                      : isLight
+                        ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36] hover:text-[#2a1e07]"
+                        : "border-white/20 bg-white/5 text-white/60 hover:text-white"
+                  }`}
+                >
+                  {voiceSwitch.enabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+                  {voiceSwitch.enabled ? "Voice on" : "Voice off"}
                 </button>
-                <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
-                  <PhoneOff className="h-4 w-4" /> Leave voice
-                </button>
-                <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>Voice is by distance — walk up to talk.</span>
+                {!voiceSwitch.enabled && (
+                  <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    You can't hear or be heard here — your name plate shows it. Text still works.
+                  </span>
+                )}
+                {voiceSwitch.enabled && !voiceSwitch.inVoice && (
+                  <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                    {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                    Join voice
+                  </button>
+                )}
+                {voiceSwitch.inVoice && (
+                  <>
+                    <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
+                      {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      {muted ? "Muted" : "Mic live"}
+                    </button>
+                    <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                      <PhoneOff className="h-4 w-4" /> Leave voice
+                    </button>
+                    <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>Voice is by distance — walk up to talk.</span>
+                  </>
+                )}
               </>
             )}
             {xrSupported ? (

@@ -183,6 +183,57 @@ function hazeTexture(): THREE.CanvasTexture {
   return hazeTex;
 }
 
+/** Everything the name plate shows — when any of it changes the
+ *  plate is redrawn (see upsertPeer's plate reconcile). */
+function namePlateKey(peer: WorldPeer): string {
+  return [
+    peer.displayName,
+    peer.guest ? "guest" : "",
+    peer.profileSlug ?? "",
+    peer.voiceOff ? "off" : "",
+  ].join("|");
+}
+
+/** A small muted-mic badge: gold-ringed disc, pale mic, red slash.
+ *  Drawn on the name plate of a voice-off peer — the hall's cue that
+ *  this person can't hear voice right now. */
+function drawVoiceOffBadge(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+  g.save();
+  g.beginPath();
+  g.arc(cx, cy, 22, 0, Math.PI * 2);
+  g.fillStyle = "rgba(10,8,6,0.78)";
+  g.fill();
+  g.lineWidth = 3;
+  g.strokeStyle = "rgba(232,200,106,0.9)";
+  g.stroke();
+  // The mic: capsule body + cradle arc + stem.
+  g.fillStyle = "#e8e2d4";
+  g.beginPath();
+  g.arc(cx, cy - 6, 5.5, Math.PI, 0);
+  g.fill();
+  g.fillRect(cx - 5.5, cy - 6, 11, 11);
+  g.beginPath();
+  g.arc(cx, cy + 5, 5.5, 0, Math.PI);
+  g.fill();
+  g.strokeStyle = "#e8e2d4";
+  g.lineWidth = 2.6;
+  g.beginPath();
+  g.arc(cx, cy - 1, 10, 0.15 * Math.PI, 0.85 * Math.PI);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(cx, cy + 9);
+  g.lineTo(cx, cy + 14);
+  g.stroke();
+  // The slash.
+  g.strokeStyle = "#e0653f";
+  g.lineWidth = 4.5;
+  g.beginPath();
+  g.moveTo(cx - 14, cy + 13);
+  g.lineTo(cx + 14, cy - 13);
+  g.stroke();
+  g.restore();
+}
+
 function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 512;
@@ -197,11 +248,20 @@ function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
   g.fillStyle = "#ffffff";
   g.fillText(name, 256, 58);
   g.font = "600 34px system-ui, sans-serif";
-  const sub = peer.guest ? "guest" : peer.profileSlug ? `@${peer.profileSlug}` : "";
+  /* Voice-off outranks the slug on the sub-line: "this person can't
+   *  hear you" is the fact the hall needs at a glance. */
+  const sub = peer.voiceOff
+    ? "voice off"
+    : peer.guest
+      ? "guest"
+      : peer.profileSlug
+        ? `@${peer.profileSlug}`
+        : "";
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
-  g.fillStyle = peer.guest ? "#b8b0a0" : "#e8c86a";
+  g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.guest ? "#b8b0a0" : "#e8c86a";
   g.fillText(sub, 256, 112);
+  if (peer.voiceOff) drawVoiceOffBadge(g, 470, 34);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -230,6 +290,8 @@ interface AvatarRig {
   group: THREE.Group;
   body: THREE.Group;
   sprite: THREE.Sprite;
+  /** Signature of what the name plate currently shows. */
+  plateKey: string;
   tint: string;
   target: { x: number; z: number; rotY: number };
   /** The character the standing figure currently shows (null = capsule). */
@@ -398,6 +460,7 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     group,
     body,
     sprite,
+    plateKey: namePlateKey(peer),
     tint: peer.tint,
     target: { x: peer.x, z: peer.z, rotY: peer.rotY },
     characterId: null,
@@ -1308,12 +1371,27 @@ export class KingsHallScene {
     if (existing) {
       existing.target = { x: peer.x, z: peer.z, rotY: peer.rotY };
       this.reconcileFigure(existing, peer);
+      this.reconcilePlate(existing, peer);
       return;
     }
     const rig = buildAvatar(peer);
     this.avatars.set(peer.peerId, rig);
     this.scene.add(rig.group);
     this.reconcileFigure(rig, peer);
+  }
+
+  /** Keep the name plate matched to the peer: when what it shows
+   *  changes (a name settles, the voice switch flips), redraw the
+   *  sprite's texture in place — the sprite itself never moves. */
+  private reconcilePlate(rig: AvatarRig, peer: WorldPeer): void {
+    const key = namePlateKey(peer);
+    if (key === rig.plateKey) return;
+    rig.plateKey = key;
+    const mat = rig.sprite.material as THREE.SpriteMaterial;
+    const old = mat.map;
+    mat.map = nameSpriteTexture(peer);
+    mat.needsUpdate = true;
+    old?.dispose();
   }
 
   /** Keep the standing figure matched to the peer's character: a new

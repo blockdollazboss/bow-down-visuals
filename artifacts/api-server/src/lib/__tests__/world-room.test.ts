@@ -418,6 +418,83 @@ describe("vault characters (walk in as)", () => {
   });
 });
 
+describe("the voice switch (voice.off)", () => {
+  it("flags the peer in the DTO and broadcasts peer.voiceoff to the room", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const bId = b.sent.find((m) => m.type === "welcome").peerId;
+
+    frame(a, room, { type: "voice.off", off: true });
+    const seenByB = b.sent.find((m) => m.type === "peer.voiceoff");
+    expect(seenByB).toMatchObject({ peerId: expect.any(String), off: true });
+    expect(room.peerFor(a)?.voiceOff).toBe(true);
+    // The sender hears its own flip back (plates settle from one source).
+    expect(a.sent.some((m) => m.type === "peer.voiceoff" && m.off === true)).toBe(true);
+    expect(bId).toBeTruthy();
+
+    // A late joiner's snapshot carries the flag from the first frame.
+    const c = fakeSocket();
+    room.attach(c, member("Cara"));
+    const snap = c.sent.find((m) => m.type === "welcome");
+    expect(snap.peers.find((p: any) => p.displayName === "Alpha")?.voiceOff).toBe(true);
+    expect(snap.peers.find((p: any) => p.displayName === "Beta")?.voiceOff).toBe(false);
+  });
+
+  it("switching off while in voice leaves the mesh first, then flags", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "voice.join" });
+    expect(room.voiceSize()).toBe(1);
+    b.sent.length = 0;
+
+    frame(a, room, { type: "voice.off", off: true });
+    expect(room.voiceSize()).toBe(0);
+    expect(types(b)).toEqual(["voice.left", "peer.voiceoff"]);
+    // And signaling is closed to them now — they're out of the mesh.
+    frame(b, room, { type: "voice.join" });
+    frame(a, room, { type: "voice.signal", to: "nobody", data: { kind: "offer" } });
+    expect(room.peerFor(a)?.voice).toBe(false);
+  });
+
+  it("switching back on clears the flag without joining voice", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "voice.off", off: true });
+    b.sent.length = 0;
+
+    frame(a, room, { type: "voice.off", off: false });
+    expect(room.peerFor(a)?.voiceOff).toBe(false);
+    expect(room.peerFor(a)?.voice).toBe(false);
+    expect(types(b)).toEqual(["peer.voiceoff"]);
+    expect(b.sent[0]).toMatchObject({ off: false });
+  });
+
+  it("a redundant flip broadcasts nothing; guests can't flip at all", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const g = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(g, guest());
+    a.sent.length = 0;
+    g.sent.length = 0;
+
+    frame(a, room, { type: "voice.off", off: false }); // already on
+    expect(a.sent).toEqual([]);
+    frame(g, room, { type: "voice.off", off: true }); // guest — ignored
+    expect(room.peerFor(g)?.voiceOff).toBe(false);
+    expect(types(a)).toEqual([]);
+  });
+});
+
 describe("tints", () => {
   it("are stable per key and always from the house palette", () => {
     expect(tintForKey("hall-member")).toBe(tintForKey("hall-member"));

@@ -15,6 +15,13 @@
  *                                            server resolves + verifies
  *                                            ownership; null clears)
  *     { type: "voice.join" } / { type: "voice.leave" }
+ *     { type: "voice.off", off }             the member's proximity-
+ *                                            voice switch: off means
+ *                                            they neither send nor hear
+ *                                            voice (and are out of the
+ *                                            mesh); the room carries
+ *                                            the flag so name plates
+ *                                            can say "voice off"
  *     { type: "voice.signal", to, data }     WebRTC offer/answer/ice
  *                                            relay (voice members only)
  *   server → client
@@ -25,6 +32,9 @@
  *     { type: "peer.character", peerId, character }   a peer's vault
  *                                            character (or null) changed
  *     { type: "voice.joined", peerId } / { type: "voice.left", peerId }
+ *     { type: "peer.voiceoff", peerId, off }    a peer's voice switch
+ *                                            flipped (name plates mark
+ *                                            the voice-off)
  *     { type: "voice.state", voicePeerIds }     answer to voice.join
  *     { type: "voice.signal", from, data }      relayed signaling
  *     { type: "voice.full" } / { type: "voice.denied", reason }
@@ -105,6 +115,11 @@ export interface WorldPeerDto {
   tint: string;
   guest: boolean;
   voice: boolean;
+  /** The member's proximity-voice switch is OFF: they can't hear
+   *  voice and won't be heard — distinct from merely not having
+   *  joined voice yet. Name plates mark it so nobody talks to
+   *  someone who can't hear them. */
+  voiceOff: boolean;
   character: WorldCharacterRef | null;
   x: number;
   y: number;
@@ -118,6 +133,7 @@ interface WorldPeer extends WorldIdentity {
   tint: string;
   guest: boolean;
   voice: boolean;
+  voiceOff: boolean;
   character: WorldCharacterRef | null;
   /** Bumped on every character pick/clear so a slow resolution can't
    *  land after a newer pick and resurrect a stale character. */
@@ -172,6 +188,7 @@ export class WorldRoom {
       tint: peer.tint,
       guest: peer.guest,
       voice: peer.voice,
+      voiceOff: peer.voiceOff,
       character: peer.character,
       x: peer.x,
       y: peer.y,
@@ -218,6 +235,7 @@ export class WorldRoom {
       tint: tintForKey(identity.profileSlug ?? identity.userId ?? peerId),
       guest: identity.userId === null,
       voice: false,
+      voiceOff: false,
       character: null,
       characterSeq: 0,
       x: (slot - 4.5) * 1.1,
@@ -362,6 +380,24 @@ export class WorldRoom {
         if (!peer.voice) return;
         peer.voice = false;
         this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
+        return;
+      }
+      case "voice.off": {
+        /* The proximity-voice switch. Members only — guests have no
+         * voice to switch. OFF is total: out of the mesh first (the
+         * room hears voice.left), then the flag lands so every name
+         * plate can mark them voice-off. ON just clears the flag —
+         * joining voice stays the separate, explicit act it is today,
+         * so flipping the switch never starts a mic by itself. */
+        if (peer.guest) return;
+        const off = frame["off"] === true;
+        if (off === peer.voiceOff && !peer.voice) return;
+        if (off && peer.voice) {
+          peer.voice = false;
+          this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
+        }
+        peer.voiceOff = off;
+        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voiceoff", peerId: peer.peerId, off });
         return;
       }
       case "voice.signal": {
