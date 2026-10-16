@@ -1398,6 +1398,16 @@ function DigitalSalesTab() {
           <p className="mt-2 text-amber-100/60">
             Set up your creator profile first — then every drop you sell shows up here.
           </p>
+          {/* This panel is also where genuine load failures land, and it
+              offered no way back — add a retry that re-runs the sales
+              load (which resets the loading and error states itself). */}
+          <button
+            type="button"
+            onClick={() => load()}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
         </div>
       ) : (
         <>
