@@ -7,11 +7,11 @@
    subscribed are distinct states the UI renders differently. */
 
 /** VAPID public keys arrive base64url — the Push API wants raw bytes. */
-export function urlBase64ToUint8Array(base64: string): Uint8Array {
+export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(normalized);
-  const out = new Uint8Array(raw.length);
+  const out = new Uint8Array(new ArrayBuffer(raw.length));
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
   return out;
 }
@@ -21,11 +21,18 @@ export type PushSupport =
   | "ready"
   | "denied"; // the user blocked notifications for this site
 
+/** The Notification constructor as a window property (lib.dom types
+ *  it as a global, not a Window member). */
+function notificationOf(win: Window): typeof Notification | undefined {
+  return (win as unknown as { Notification?: typeof Notification }).Notification;
+}
+
 export function pushSupport(win: Window = window): PushSupport {
-  if (!("serviceWorker" in win.navigator) || !("PushManager" in win) || !("Notification" in win)) {
+  const NotificationApi = notificationOf(win);
+  if (!("serviceWorker" in win.navigator) || !("PushManager" in win) || !NotificationApi) {
     return "unsupported";
   }
-  if (win.Notification.permission === "denied") return "denied";
+  if (NotificationApi.permission === "denied") return "denied";
   return "ready";
 }
 
@@ -62,7 +69,9 @@ export async function subscribeToPush(
   if (support !== "ready") return support === "denied" ? "denied" : "unsupported";
   const config = await fetchPushConfig(deps);
   if (!config.configured || !config.publicKey) return "not_configured";
-  const permission = await win.Notification.requestPermission();
+  const NotificationApi = notificationOf(win);
+  if (!NotificationApi) return "unsupported";
+  const permission = await NotificationApi.requestPermission();
   if (permission !== "granted") return "denied";
   const registration = await win.navigator.serviceWorker.ready;
   const existing = await registration.pushManager.getSubscription();
