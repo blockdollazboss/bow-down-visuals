@@ -381,9 +381,16 @@ function ConnectPayoutCard() {
 
 /* ── Products tab ────────────────────────────────────────────────────── */
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
+  const isLight = useIsLightTheme();
   const getToken = useToken();
   const { stars } = useUserMode();
   const [products, setProducts] = useState<StoreProductDTO[] | null>(null);
+  /* Product-list load failures are NOT "your shelves are empty" — they
+     get their own error state with a retry, scoped to the list only
+     (the header and create form above stay usable). The empty state
+     renders ONLY for a successful load with zero products. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -404,15 +411,16 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
   });
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const r = await listProducts(slug);
       setProducts(r.products);
     } catch {
-      setProducts([]);
+      setLoadError(true);
     }
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, retryNonce]);
 
   const aiStartingPrice = () => {
     setForm((f) => ({ ...f, priceDollars: (KIND_STARTING_PRICE[f.kind] / 100).toFixed(2) }));
@@ -566,7 +574,22 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         </div>
       )}
 
-      {!products ? (
+      {loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your products.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — your products are safe, this tab just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : !products ? (
         <div className="flex justify-center py-10 text-white/40"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : products.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
