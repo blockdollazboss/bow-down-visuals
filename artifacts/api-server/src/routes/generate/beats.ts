@@ -16,6 +16,12 @@ import {
 } from "./beats-pricing";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
+import {
+  createPaymentCheckout,
+  retrieveCheckoutSession,
+  checkoutBaseUrl,
+  isCheckoutTestMode,
+} from "../../lib/stripe-checkout";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
@@ -352,10 +358,121 @@ router.delete("/beats/:id", requireAuth, async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   POST /api/beats/:id/license — choose a license tier (v1: intent only).
-   Payment processing is coming soon, so this records the license as
-   'pending_payment' and NEVER completes a purchase. The UI says so plainly.
+   Beat license payments (0132, TEST-mode checkout).
+   POST /api/beats/:id/license creates a pending_payment license + a
+   checkout session for the tier's listed price (displayed = charged).
+   POST /api/beats/licenses/verify is the ONLY path to 'completed': it
+   re-retrieves the session, requires payment_status 'paid', the buyer
+   to match, and the paid total to equal the license's locked price.
 ───────────────────────────────────────────────────────────────────────────── */
+
+type BeatLicenseRow = typeof beatLicensesTable.$inferSelect;
+
+export function toLicenseJson(l: BeatLicenseRow) {
+  return {
+    id: l.id,
+    beatId: l.beat_id,
+    buyerId: l.buyer_id,
+    producerId: l.producer_id,
+    tier: l.tier,
+    priceCents: l.price_cents,
+    commissionCents: l.commission_cents,
+    status: l.status,
+    createdAt: l.created_at,
+  };
+}
+
+const licenseVerifySchema = z.object({
+  sessionId: z.string().min(1).max(200),
+});
+
+router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
+  const parsed = licenseVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const meta = session.metadata ?? {};
+  if (meta["purchase_kind"] !== "beat_license" || !meta["license_id"]) {
+    res.status(400).json({ error: "This session isn't a beat license purchase." });
+    return;
+  }
+  if (meta["buyer_user_id"] !== req.userId) {
+    res.status(403).json({ error: "This purchase doesn't belong to you." });
+    return;
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(beatLicensesTable)
+      .where(eq(beatLicensesTable.stripe_session_id, sessionId))
+      .limit(1);
+    const license = rows[0];
+    if (!license || license.id !== meta["license_id"]) {
+      res.status(400).json({ error: "License for this session not found." });
+      return;
+    }
+    if ((session.amount_total ?? 0) !== license.price_cents) {
+      res.status(400).json({ error: "The paid amount doesn't match the license price." });
+      return;
+    }
+    const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, license.beat_id)).limit(1);
+    const beat = beatRows[0];
+    if (!beat) {
+      res.status(400).json({ error: "The beat for this license no longer exists." });
+      return;
+    }
+    const presented = await presentBeat(beat);
+    if (license.status === "completed") {
+      res.json({
+        success: true,
+        duplicate: true,
+        license: toLicenseJson(license),
+        downloadUrl: presented.audio_url,
+      });
+      return;
+    }
+    if (license.tier === "exclusive" && beat.exclusive_sold) {
+      res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
+      return;
+    }
+    const [updated] = await db
+      .update(beatLicensesTable)
+      .set({ status: "completed" })
+      .where(eq(beatLicensesTable.id, license.id))
+      .returning();
+    if (license.tier === "exclusive") {
+      await db
+        .update(beatsTable)
+        .set({ exclusive_sold: true, updated_at: new Date() })
+        .where(eq(beatsTable.id, beat.id));
+    }
+    res.json({
+      success: true,
+      duplicate: false,
+      license: toLicenseJson(updated ?? { ...license, status: "completed" }),
+      downloadUrl: presented.audio_url,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to verify license";
+    res.status(500).json({ error: msg });
+  }
+});
+
 router.post("/beats/:id/license", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = beatLicenseSchema.safeParse(req.body ?? {});
@@ -389,6 +506,9 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     : beat.exclusive_price_cents;
 
   try {
+    /* Insert first with a placeholder, then bind the session id — the
+       session metadata carries the license id, and the row carries the
+       session id, so verify can cross-check both directions. */
     const inserted = await db.insert(beatLicensesTable).values({
       beat_id: beat.id,
       buyer_id: req.userId!,
@@ -396,23 +516,55 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       tier: licenseTier,
       price_cents: priceCents,
       commission_cents: commissionFor(priceCents),
-      // v1 honesty: payment is coming soon — intent recorded, never completed.
       status: "pending_payment",
     }).returning();
+    const license = inserted[0]!;
+
+    let session: { sessionId: string; url: string };
+    try {
+      const baseUrl = checkoutBaseUrl(req);
+      session = await createPaymentCheckout({
+        amountCents: priceCents,
+        productName: `${beat.title} — ${licenseTier} license`,
+        description: `Beat license (${licenseTier})`,
+        successUrl: `${baseUrl}/beats?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${baseUrl}/beats`,
+        metadata: {
+          purchase_kind: "beat_license",
+          license_id: license.id,
+          beat_id: beat.id,
+          buyer_user_id: req.userId!,
+          tier: licenseTier,
+        },
+      });
+    } catch (err) {
+      /* No checkout → no dangling payable license; remove the intent row. */
+      await db.delete(beatLicensesTable).where(eq(beatLicensesTable.id, license.id));
+      throw err;
+    }
+    const [bound] = await db
+      .update(beatLicensesTable)
+      .set({ stripe_session_id: session.sessionId })
+      .where(eq(beatLicensesTable.id, license.id))
+      .returning();
 
     res.status(201).json({
-      license: inserted[0],
-      paymentStatus: "coming_soon",
-      message: "License reserved. Payment processing is coming soon — no charge was made.",
+      license: toLicenseJson(bound ?? license),
+      checkoutUrl: session.url,
+      sessionId: session.sessionId,
+      paymentStatus: "pending_payment",
+      testMode: isCheckoutTestMode(),
+      message: "License reserved — complete checkout to activate it. No charge has been made yet.",
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to reserve license";
+    const msg = err instanceof Error ? err.message : "Failed to start license checkout";
     res.status(500).json({ error: msg });
   }
 });
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats/licenses/mine — buyer's license library (auth).
+   Entitlement (downloadUrl) is present ONLY on completed licenses.
 ───────────────────────────────────────────────────────────────────────────── */
 router.get("/beats/licenses/mine", requireAuth, async (req, res) => {
   try {
@@ -421,7 +573,16 @@ router.get("/beats/licenses/mine", requireAuth, async (req, res) => {
       .from(beatLicensesTable)
       .where(eq(beatLicensesTable.buyer_id, req.userId!))
       .orderBy(desc(beatLicensesTable.created_at));
-    res.json({ licenses });
+    const out = [];
+    for (const l of licenses) {
+      let downloadUrl: string | null = null;
+      if (l.status === "completed") {
+        const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, l.beat_id)).limit(1);
+        if (beatRows[0]) downloadUrl = (await presentBeat(beatRows[0])).audio_url;
+      }
+      out.push({ ...toLicenseJson(l), downloadUrl });
+    }
+    res.json({ licenses: out });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to load licenses";
     res.status(500).json({ error: msg });

@@ -166,10 +166,9 @@ describe("beat filter validation", () => {
   });
 });
 
-describe("v1 honesty contract", () => {
-  it("the route file never writes a completed license", async () => {
-    // Static guarantee: grep the route source for status writes. The only
-    // status the license endpoint may write is 'pending_payment'.
+describe("payment honesty contract (0132)", () => {
+  it("licenses start pending_payment and complete only behind the paid-verify gate", async () => {
+    // Static guarantee: grep the route source for status writes.
     const { readFileSync } = await import("fs");
     const { join, dirname } = await import("path");
     const { fileURLToPath } = await import("url");
@@ -178,18 +177,25 @@ describe("v1 honesty contract", () => {
 
     // The license endpoint must set status: "pending_payment".
     expect(src).toContain('status: "pending_payment"');
-    // No code path may mark a license completed until payments ship.
-    const completedWrites = src.match(/status:\s*["']completed["']/g) ?? [];
-    expect(completedWrites).toHaveLength(0);
+    // Every 'completed' write sits AFTER the paid-session check in the
+    // verify handler — no other path may complete a license.
+    const paidGate = src.indexOf('session.payment_status !== "paid"');
+    expect(paidGate).toBeGreaterThan(-1);
+    const completedWrites = [...src.matchAll(/status:\s*["']completed["']/g)];
+    expect(completedWrites.length).toBeGreaterThan(0);
+    for (const w of completedWrites) {
+      expect(w.index!).toBeGreaterThan(paidGate);
+    }
   });
 
-  it("the license endpoint advertises payment as coming soon", async () => {
+  it("the license endpoint starts a real checkout (no more coming_soon)", async () => {
     const { readFileSync } = await import("fs");
     const { join, dirname } = await import("path");
     const { fileURLToPath } = await import("url");
     const here = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(here, "../beats.ts"), "utf8");
-    expect(src).toContain("coming_soon");
+    expect(src).not.toContain("coming_soon");
+    expect(src).toContain("createPaymentCheckout");
   });
 });
 
