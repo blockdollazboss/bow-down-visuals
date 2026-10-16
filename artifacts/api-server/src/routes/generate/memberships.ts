@@ -657,7 +657,13 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
     const values = {
       user_id: tier.user_id,
       tier_id: tierId,
-      fan_label: session.customer_details?.email ?? req.userEmail ?? `fan:${fanUserId}`,
+      /* The label must identify the FAN, never the payer: for gifts the
+         checkout email is the purchaser's, and reusing it would collide
+         on the (tier_id, fan_label) unique index when the same person
+         gifts the same tier to two different fans. */
+      fan_label: isGift
+        ? `fan:${fanUserId}`
+        : (session.customer_details?.email ?? req.userEmail ?? `fan:${fanUserId}`),
       fan_user_id: fanUserId,
       status: "active" as const,
       price_cents: amountCents,
