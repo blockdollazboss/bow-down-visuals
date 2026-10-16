@@ -289,8 +289,15 @@ export default function ArtistPublic() {
           },
         }}
       />
+      {/* The profile is a self-themed surface (the creator's own
+          colorway, resolved into --ap-* tokens): data-dark-lock keeps
+          the site light theme's palace backdrop repaint off it, the
+          same exemption the players and cinema surfaces carry — the
+          creator's stage keeps its own lighting in both site themes,
+          and its cream-on-marble text stays readable in each. */}
       <div
         className="min-h-screen"
+        data-dark-lock
         style={{
           ...themeVars(profile.theme_config),
           backgroundColor: "var(--ap-bg)",
