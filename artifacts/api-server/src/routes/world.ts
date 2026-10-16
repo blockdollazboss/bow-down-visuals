@@ -16,11 +16,13 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { desc, eq } from "drizzle-orm";
-import { db, creatorProfilesTable, liveStreamsTable } from "@workspace/db";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { db, artistVaultsTable, creatorProfilesTable, liveStreamsTable } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { playbackUrlsFromWhip } from "../lib/cloudflare-stream";
+import { getUserActiveTeam } from "../lib/teams";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import {
   LiveWsGateway,
   RoomHub,
@@ -28,7 +30,7 @@ import {
   type AccessTokenVerifier,
   type WsClientSocket,
 } from "../lib/live-ws";
-import { WorldRoom, type WorldIdentity } from "../lib/world-room";
+import { WorldRoom, type WorldCharacterRef, type WorldIdentity } from "../lib/world-room";
 
 const router = Router();
 
@@ -146,10 +148,53 @@ async function defaultResolveIdentity(userId: string, email: string | null): Pro
   return { userId, displayName: fromEmail || "Creator", avatarUrl: null, profileSlug: null };
 }
 
+/** "Walk in as" resolver: a Creative Vault pick becomes a presence
+ *  character ONLY when the vault row belongs to the member (or their
+ *  active team — the same visibility rule as GET /artist-vaults), is
+ *  not soft-deleted, and carries a portrait to stand in the hall with.
+ *  The portrait rides out through the standard storage-URL refresh so
+ *  every screen in the hall gets a fresh, working URL. */
+async function resolveVaultCharacter(userId: string, characterId: string): Promise<WorldCharacterRef | null> {
+  try {
+    const activeTeam = await getUserActiveTeam(userId);
+    const [row] = await db
+      .select({
+        id: artistVaultsTable.id,
+        name: artistVaultsTable.artist_name,
+        portrait: artistVaultsTable.reference_image_url,
+      })
+      .from(artistVaultsTable)
+      .where(
+        and(
+          eq(artistVaultsTable.id, characterId),
+          isNull(artistVaultsTable.deleted_at),
+          activeTeam
+            ? or(
+                eq(artistVaultsTable.user_id, userId),
+                eq(artistVaultsTable.team_id, activeTeam.team.id),
+              )
+            : eq(artistVaultsTable.user_id, userId),
+        ),
+      )
+      .limit(1);
+    if (!row?.portrait) return null;
+    const portraitUrl = await refreshSupabaseStorageUrlsDeep(row.portrait);
+    if (typeof portraitUrl !== "string" || !portraitUrl) return null;
+    return {
+      id: row.id,
+      name: (row.name ?? "Character").slice(0, 80),
+      portraitUrl: portraitUrl.slice(0, 2048),
+    };
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] vault character lookup failed — pick refused");
+    return null;
+  }
+}
+
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldRoom {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
-  const room = new WorldRoom(hub);
+  const room = new WorldRoom(hub, { resolveCharacter: resolveVaultCharacter });
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
     const token = query.get("token");

@@ -13,6 +13,9 @@
  * - say: members only (guests are look-only), paced, trimmed, capped.
  * - voice: members only, mesh cap 12 with voice.full, signaling relays
  *   ONLY between two voice members and carries the sender's peerId.
+ * - characters: members only, id-only picks resolved + ownership-
+ *   verified by the injected resolver; refused picks change nothing;
+ *   a superseded resolution never lands; null clears for the room.
  */
 import { describe, it, expect } from "vitest";
 import { RoomHub, type WsClientSocket } from "../live-ws";
@@ -301,6 +304,117 @@ describe("voice mesh membership + signaling", () => {
     b.sent = [];
     frame(a, room, { type: "voice.signal", to: bId, data: { kind: "offer" } });
     expect(b.sent.some((m) => m.type === "voice.signal")).toBe(false);
+  });
+});
+
+describe("vault characters (walk in as)", () => {
+  const flush = () => new Promise<void>((r) => setImmediate(r));
+  const NOVA = { id: "char-nova", name: "Nova", portraitUrl: "https://img.example/nova.png" };
+
+  function roomWithResolver(resolveCharacter: (userId: string, id: string) => Promise<typeof NOVA | null>) {
+    return new WorldRoom(new RoomHub(), { resolveCharacter });
+  }
+
+  it("resolves a member's pick and broadcasts the character to the whole room", async () => {
+    const room = roomWithResolver(async (userId, id) => {
+      expect(userId).toBe("user-Alpha");
+      return id === NOVA.id ? NOVA : null;
+    });
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    a.sent = [];
+    b.sent = [];
+
+    frame(a, room, { type: "character", characterId: NOVA.id });
+    await flush();
+
+    const seenByB = b.sent.find((m) => m.type === "peer.character");
+    expect(seenByB.character).toEqual(NOVA);
+    // The picker hears its own confirmation too (broadcast includes self).
+    expect(a.sent.some((m) => m.type === "peer.character")).toBe(true);
+    expect(room.peerFor(a)?.character).toEqual(NOVA);
+
+    // A late joiner's welcome snapshot already carries the character.
+    const c = fakeSocket();
+    room.attach(c, member("Gamma"));
+    const welcomeC = c.sent.find((m) => m.type === "welcome");
+    expect(welcomeC.peers.find((p: any) => p.displayName === "Alpha")?.character).toEqual(NOVA);
+  });
+
+  it("refused picks (resolver says no) change nothing and broadcast nothing", async () => {
+    const room = roomWithResolver(async () => null);
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+    frame(a, room, { type: "character", characterId: "not-mine" });
+    await flush();
+    expect(b.sent.some((m) => m.type === "peer.character")).toBe(false);
+    expect(room.peerFor(a)?.character).toBeNull();
+  });
+
+  it("guests cannot pick a character", async () => {
+    let called = false;
+    const room = roomWithResolver(async () => {
+      called = true;
+      return NOVA;
+    });
+    const g = fakeSocket();
+    room.attach(g, guest());
+    frame(g, room, { type: "character", characterId: NOVA.id });
+    await flush();
+    expect(called).toBe(false);
+    expect(room.peerFor(g)?.character).toBeNull();
+  });
+
+  it("a null pick clears the character for the whole room", async () => {
+    const room = roomWithResolver(async () => NOVA);
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "character", characterId: NOVA.id });
+    await flush();
+    b.sent = [];
+    frame(a, room, { type: "character", characterId: null });
+    const cleared = b.sent.find((m) => m.type === "peer.character");
+    expect(cleared.character).toBeNull();
+    expect(room.peerFor(a)?.character).toBeNull();
+  });
+
+  it("a superseded pick never lands after a newer one", async () => {
+    const pending = new Map<string, (v: typeof NOVA | null) => void>();
+    const room = roomWithResolver(
+      (userId, id) => new Promise((resolve) => pending.set(id, resolve)),
+    );
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const SLOW = { id: "char-slow", name: "Slow", portraitUrl: "https://img.example/slow.png" };
+    frame(a, room, { type: "character", characterId: SLOW.id });
+    frame(a, room, { type: "character", characterId: NOVA.id });
+    // The newer pick resolves first; the stale one resolves after.
+    pending.get(NOVA.id)?.(NOVA);
+    await flush();
+    pending.get(SLOW.id)?.(SLOW);
+    await flush();
+    expect(room.peerFor(a)?.character).toEqual(NOVA);
+    const broadcasts = b.sent.filter((m) => m.type === "peer.character");
+    expect(broadcasts).toHaveLength(1);
+    expect(broadcasts[0].character).toEqual(NOVA);
+  });
+
+  it("without an injected resolver, picks are inert", async () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    frame(a, room, { type: "character", characterId: NOVA.id });
+    await flush();
+    expect(room.peerFor(a)?.character).toBeNull();
   });
 });
 
