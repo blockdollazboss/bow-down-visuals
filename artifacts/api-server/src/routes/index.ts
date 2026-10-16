@@ -115,6 +115,7 @@ import copyrightRouter from "./generate/copyright";
 import coverArtRouter from "./generate/cover-art";
 import emailListRouter from "./generate/email-list";
 import liveShoppingRouter from "./live-shopping";
+import liveStreamsRouter from "./live-streams";
 import membershipsRouter from "./generate/memberships";
 import podcastRouter from "./generate/podcast";
 import podcastDialogueRouter from "./generate/podcast-dialogue";
@@ -425,6 +426,7 @@ router.use(copyrightRouter);
 router.use(coverArtRouter);
 router.use(emailListRouter);
 router.use(liveShoppingRouter);
+router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broadcasts)
 router.use(membershipsRouter);
 router.use(podcastRouter);
 router.use(podcastDialogueRouter);

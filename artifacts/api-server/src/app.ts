@@ -47,10 +47,15 @@ app.use((_req, res, next) => {
         ].join("; ")
       : [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+          /* jsdelivr serves the Go Live kit's in-browser engines (MediaPipe
+             segmentation + RNNoise suppression WASM); 'wasm-unsafe-eval'
+             lets those WASM modules compile. Cloudflare Stream hosts take
+             the WHIP/WHEP calls for native broadcasts. */
+          "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: https: blob:",
-          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co",
+          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com",
+          "worker-src 'self' blob:",
           "frame-src https://js.stripe.com",
           "font-src 'self' data: https:",
           "media-src 'self' https: blob:",

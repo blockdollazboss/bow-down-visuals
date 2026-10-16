@@ -1,0 +1,557 @@
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
+import { eq, and, desc, lt, inArray } from "drizzle-orm";
+import {
+  db,
+  liveStreamsTable,
+  creatorProfilesTable,
+  generatedClipsTable,
+  type LiveStream,
+  type CreatorProfile,
+} from "@workspace/db";
+import { requireAuth } from "../middlewares/require-auth";
+import { publicApiLimiter } from "../lib/rate-limit";
+import { logger } from "../lib/logger";
+import {
+  isStreamConfigured,
+  createLiveInput,
+  deleteLiveInput,
+  playbackUrlsFromWhip,
+  StreamNotConfiguredError,
+  StreamProviderError,
+} from "../lib/cloudflare-stream";
+
+/* ── Go Live — native on-site broadcasts ───────────────────────────────────
+   The stream studio (a tab in the /go-live hub) publishes the creator's
+   processed camera feed straight from the browser via WHIP; viewers watch
+   on /live/:id via WHEP (HLS URL rides along as the fallback). Sessions
+   live in live_streams (migration 0129) — NOT discord_streams, whose rows
+   are schedule/announce records for Discord webhook posts.
+
+   Endpoints:
+   GET    /live-streams/status          (auth)  → { configured, live_stream }
+   POST   /live-streams                 (auth)  → create input + session → 201 { stream (owner, incl. whip_url) }
+   POST   /live-streams/:id/end         (auth, owner) → end session (idempotent)
+   POST   /live-streams/:id/vod         (auth, owner) → register the browser-recorded VOD
+   GET    /live-streams/live            (public) → the "Live now" rail list
+   GET    /live-streams/profile/:slug   (public) → that creator's live stream, if any
+   GET    /live-streams/:id             (public) → watch-page DTO
+   POST   /live-streams/:id/heartbeat   (public) → viewer presence → { viewer_count }
+
+   Provider credentials (CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_STREAM_TOKEN)
+   arrive via env. Until they do, create answers an honest 503 with code
+   STREAM_NOT_CONFIGURED — never a fake success. Going live is FREE at
+   launch: no credit charge exists for broadcasting (the per-minute
+   provider cost is the site's; a streamer charge is an owner ruling for
+   later, not something this code invents).
+
+   No status webhook: the provider's live-input notifications are
+   configured account-wide in its dashboard and carry no per-stream secret
+   we can verify, so lifecycle is driven by our own create/end calls plus
+   WHIP session state. A creator who closes the tab mid-stream reconciles
+   two ways: the studio resumes/ends via /status, and reads lazily end any
+   "live" row older than MAX_LIVE_MS (12h). */
+
+const router = Router();
+
+const MAX_LIVE_MS = 12 * 60 * 60 * 1000;
+const VIEWER_TTL_MS = 45_000;
+
+/* ── Viewer presence (in-memory; the API runs as a single instance) ──────
+   The watch page heartbeats every ~15s with a random session id. Counts
+   are real presence, pruned lazily on read; the peak is persisted to the
+   row when it grows. Exported for tests. */
+const viewersByStream = new Map<string, Map<string, number>>();
+
+export function touchViewer(streamId: string, sessionId: string, now: number = Date.now()): number {
+  let sessions = viewersByStream.get(streamId);
+  if (!sessions) {
+    sessions = new Map();
+    viewersByStream.set(streamId, sessions);
+  }
+  sessions.set(sessionId, now);
+  return countViewers(streamId, now);
+}
+
+export function countViewers(streamId: string, now: number = Date.now()): number {
+  const sessions = viewersByStream.get(streamId);
+  if (!sessions) return 0;
+  for (const [sessionId, seenAt] of sessions) {
+    if (now - seenAt > VIEWER_TTL_MS) sessions.delete(sessionId);
+  }
+  if (sessions.size === 0) viewersByStream.delete(streamId);
+  return sessions.size;
+}
+
+export function clearViewers(streamId: string): void {
+  viewersByStream.delete(streamId);
+}
+
+export function __resetViewerTracker(): void {
+  viewersByStream.clear();
+}
+
+/* ── DTOs (explicit, snake_case — the house API shape) ──────────────────── */
+
+export interface LiveCreatorDto {
+  id: string;
+  slug: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+export interface LiveStreamDto {
+  id: string;
+  title: string;
+  status: string;
+  started_at: string | null;
+  ended_at: string | null;
+  viewer_count: number;
+  peak_viewers: number;
+  vod_url: string | null;
+  creator: LiveCreatorDto | null;
+  playback: { whep_url: string | null; hls_url: string | null } | null;
+}
+
+export interface LiveStreamOwnerDto extends LiveStreamDto {
+  whip_url: string | null;
+}
+
+function iso(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+}
+
+export function toCreatorDto(profile: CreatorProfile | null | undefined): LiveCreatorDto | null {
+  if (!profile) return null;
+  return {
+    id: profile.id,
+    slug: profile.slug,
+    display_name: profile.displayName,
+    avatar_url: profile.avatarUrl ?? null,
+  };
+}
+
+export function toStreamDto(
+  row: LiveStream,
+  profile: CreatorProfile | null | undefined,
+  liveViewerCount?: number,
+): LiveStreamDto {
+  const isLive = row.status === "live";
+  const urls = isLive ? playbackUrlsFromWhip(row.whip_url) : { whep_url: null, hls_url: null };
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    started_at: iso(row.started_at),
+    ended_at: iso(row.ended_at),
+    viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
+    peak_viewers: row.peak_viewers ?? 0,
+    vod_url: row.vod_url ?? null,
+    creator: toCreatorDto(profile),
+    playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
+  };
+}
+
+export function toOwnerDto(
+  row: LiveStream,
+  profile: CreatorProfile | null | undefined,
+  liveViewerCount?: number,
+): LiveStreamOwnerDto {
+  return { ...toStreamDto(row, profile, liveViewerCount), whip_url: row.whip_url ?? null };
+}
+
+/* ── DB helpers ─────────────────────────────────────────────────────────── */
+
+async function getProfileByUserId(userId: string): Promise<CreatorProfile | null> {
+  const rows = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getProfileById(id: string): Promise<CreatorProfile | null> {
+  const rows = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getProfileBySlug(slug: string): Promise<CreatorProfile | null> {
+  const rows = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.slug, slug))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getStreamById(id: string): Promise<LiveStream | null> {
+  const rows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(eq(liveStreamsTable.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getLiveStreamForUser(userId: string): Promise<LiveStream | null> {
+  const rows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(and(eq(liveStreamsTable.user_id, userId), eq(liveStreamsTable.status, "live")))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getLiveStreamForProfile(profileId: string): Promise<LiveStream | null> {
+  const rows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(and(eq(liveStreamsTable.profile_id, profileId), eq(liveStreamsTable.status, "live")))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<LiveStream> {
+  const now = new Date();
+  const updated = await db
+    .update(liveStreamsTable)
+    .set({
+      status: "ended",
+      ended_at: now,
+      viewer_count: 0,
+      peak_viewers: Math.max(row.peak_viewers ?? 0, finalViewerCount),
+      updated_at: now,
+    })
+    .where(eq(liveStreamsTable.id, row.id))
+    .returning();
+  return updated[0] ?? { ...row, status: "ended", ended_at: now };
+}
+
+/** A "live" row older than MAX_LIVE_MS is a zombie (tab closed, WHIP long
+ *  gone). End it lazily wherever it's read so the rail never lies. */
+async function reconcileStale(row: LiveStream): Promise<LiveStream> {
+  if (row.status !== "live") return row;
+  const started = row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
+  if (!Number.isFinite(started) || Date.now() - started <= MAX_LIVE_MS) return row;
+  clearViewers(row.id);
+  return endStreamRow(row, 0);
+}
+
+async function sweepStaleLive(): Promise<void> {
+  const cutoff = new Date(Date.now() - MAX_LIVE_MS);
+  await db
+    .update(liveStreamsTable)
+    .set({ status: "ended", ended_at: new Date(), viewer_count: 0, updated_at: new Date() })
+    .where(and(eq(liveStreamsTable.status, "live"), lt(liveStreamsTable.started_at, cutoff)));
+}
+
+/* ── Schemas ────────────────────────────────────────────────────────────── */
+
+const createSchema = z.object({
+  title: z.string().trim().min(1, "Give your stream a title").max(200),
+});
+
+const vodSchema = z.object({
+  vod_url: z.string().url().max(2048),
+});
+
+const heartbeatSchema = z.object({
+  session_id: z.string().min(8).max(64),
+});
+
+/* ── Broadcaster endpoints ──────────────────────────────────────────────── */
+
+router.get("/live-streams/status", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const profile = await getProfileByUserId(req.userId!);
+    let live: LiveStream | null = await getLiveStreamForUser(req.userId!);
+    if (live) live = await reconcileStale(live);
+    res.json({
+      configured: isStreamConfigured(),
+      live_stream: live && live.status === "live" ? toOwnerDto(live, profile, countViewers(live.id)) : null,
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams/status failed");
+    res.status(500).json({ error: "Could not check live streaming status." });
+  }
+});
+
+router.post("/live-streams", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!isStreamConfigured()) {
+      res.status(503).json({
+        error: "Live streaming isn't switched on yet. It turns on here the moment the site owner enables it — your camera kit below still works for checking your setup.",
+        code: "STREAM_NOT_CONFIGURED",
+      });
+      return;
+    }
+    const parsed = createSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Give your stream a title." });
+      return;
+    }
+    const profile = await getProfileByUserId(req.userId!);
+    if (!profile) {
+      res.status(400).json({
+        error: "Create your creator profile first — your stream lives on it, and viewers follow you there.",
+        code: "NO_PROFILE",
+      });
+      return;
+    }
+    const existing = await getLiveStreamForUser(req.userId!);
+    if (existing) {
+      const reconciled = await reconcileStale(existing);
+      if (reconciled.status === "live") {
+        res.status(409).json({
+          error: "You're already live. End that stream before starting a new one.",
+          code: "ALREADY_LIVE",
+          stream: toOwnerDto(reconciled, profile, countViewers(reconciled.id)),
+        });
+        return;
+      }
+    }
+
+    let input;
+    try {
+      input = await createLiveInput(parsed.data.title);
+    } catch (err) {
+      if (err instanceof StreamNotConfiguredError) {
+        res.status(503).json({ error: "Live streaming isn't switched on yet.", code: "STREAM_NOT_CONFIGURED" });
+        return;
+      }
+      if (err instanceof StreamProviderError) {
+        logger.error({ err }, "live-streams create: provider failed");
+        res.status(502).json({
+          error: "The streaming provider couldn't start your stream. Give it a moment and try again.",
+          code: "PROVIDER_ERROR",
+        });
+        return;
+      }
+      throw err;
+    }
+
+    try {
+      const inserted = await db
+        .insert(liveStreamsTable)
+        .values({
+          user_id: req.userId!,
+          profile_id: profile.id,
+          title: parsed.data.title,
+          status: "live",
+          provider: "cloudflare-stream",
+          provider_input_id: input.providerInputId,
+          playback_id: input.playbackId,
+          whip_url: input.whipUrl,
+        })
+        .returning();
+      const row = inserted[0]!;
+      res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
+    } catch (err) {
+      // Lost a race against the one-live-per-user unique index: clean up
+      // the provider input we just made and report the real live stream.
+      const code = (err as { code?: string })?.code;
+      if (code === "23505") {
+        await deleteLiveInput(input.providerInputId).catch(() => undefined);
+        const liveNow = await getLiveStreamForUser(req.userId!);
+        res.status(409).json({
+          error: "You're already live. End that stream before starting a new one.",
+          code: "ALREADY_LIVE",
+          stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id)) : null,
+        });
+        return;
+      }
+      // The row never landed — don't leak the provider input.
+      await deleteLiveInput(input.providerInputId).catch(() => undefined);
+      throw err;
+    }
+  } catch (err) {
+    logger.error({ err }, "live-streams create failed");
+    res.status(500).json({ error: "Could not start your stream." });
+  }
+});
+
+router.post("/live-streams/:id/end", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (row.user_id !== req.userId) {
+      res.status(403).json({ error: "That's not your stream." });
+      return;
+    }
+    const profile = await getProfileById(row.profile_id);
+    if (row.status === "ended") {
+      res.json({ stream: toStreamDto(row, profile) });
+      return;
+    }
+    const finalCount = countViewers(row.id);
+    const ended = await endStreamRow(row, finalCount);
+    clearViewers(row.id);
+    if (row.provider_input_id) {
+      await deleteLiveInput(row.provider_input_id).catch((err) => {
+        logger.warn({ err }, "live-streams end: provider input delete failed (stream already ended locally)");
+      });
+    }
+    res.json({ stream: toStreamDto(ended, profile) });
+  } catch (err) {
+    logger.error({ err }, "live-streams end failed");
+    res.status(500).json({ error: "Could not end your stream." });
+  }
+});
+
+router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (row.user_id !== req.userId) {
+      res.status(403).json({ error: "That's not your stream." });
+      return;
+    }
+    const parsed = vodSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "A recording URL is required." });
+      return;
+    }
+    const vodUrl = parsed.data.vod_url;
+    /* The recording is uploaded by the broadcaster's browser through the
+       site's own storage path under their user prefix — refuse anything
+       that doesn't carry it, so a stream can only ever point at its
+       owner's own upload. */
+    if (!vodUrl.includes(`/${req.userId}/live/`)) {
+      res.status(400).json({ error: "That recording doesn't belong to your uploads." });
+      return;
+    }
+    const profile = await getProfileById(row.profile_id);
+    if (row.vod_url && row.vod_clip_id) {
+      res.json({ stream: toStreamDto(row, profile), clip_id: row.vod_clip_id });
+      return;
+    }
+    const clip = await db
+      .insert(generatedClipsTable)
+      .values({
+        user_id: req.userId!,
+        title: row.title,
+        video_url: vodUrl,
+        status: "completed",
+      })
+      .returning();
+    const clipId = clip[0]?.id ?? null;
+    const now = new Date();
+    const updated = await db
+      .update(liveStreamsTable)
+      .set({ vod_url: vodUrl, vod_clip_id: clipId, updated_at: now })
+      .where(eq(liveStreamsTable.id, row.id))
+      .returning();
+    res.json({ stream: toStreamDto(updated[0] ?? row, profile), clip_id: clipId });
+  } catch (err) {
+    logger.error({ err }, "live-streams vod failed");
+    res.status(500).json({ error: "Could not save your recording." });
+  }
+});
+
+/* ── Public watch endpoints ─────────────────────────────────────────────── */
+
+router.get("/live-streams/live", async (_req: Request, res: Response) => {
+  try {
+    await sweepStaleLive();
+    const rows = await db
+      .select()
+      .from(liveStreamsTable)
+      .where(eq(liveStreamsTable.status, "live"))
+      .orderBy(desc(liveStreamsTable.viewer_count), desc(liveStreamsTable.started_at))
+      .limit(24);
+    const profileIds = [...new Set(rows.map((r) => r.profile_id))];
+    const profiles = profileIds.length
+      ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, profileIds))
+      : [];
+    const byId = new Map(profiles.map((p) => [p.id, p]));
+    res.json({
+      streams: rows.map((r) => toStreamDto(r, byId.get(r.profile_id), countViewers(r.id))),
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams/live failed");
+    res.status(500).json({ error: "Could not load who's live." });
+  }
+});
+
+router.get("/live-streams/profile/:slug", async (req: Request, res: Response) => {
+  try {
+    const profile = await getProfileBySlug(String(req.params.slug));
+    if (!profile) {
+      res.json({ stream: null });
+      return;
+    }
+    let live = await getLiveStreamForProfile(profile.id);
+    if (live) live = await reconcileStale(live);
+    res.json({
+      stream: live && live.status === "live" ? toStreamDto(live, profile, countViewers(live.id)) : null,
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams/profile failed");
+    res.status(500).json({ error: "Could not check if this creator is live." });
+  }
+});
+
+router.get("/live-streams/:id", async (req: Request, res: Response) => {
+  try {
+    let row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    row = await reconcileStale(row);
+    const profile = await getProfileById(row.profile_id);
+    res.json({ stream: toStreamDto(row, profile, countViewers(row.id)) });
+  } catch (err) {
+    logger.error({ err }, "live-streams get failed");
+    res.status(500).json({ error: "Could not load that stream." });
+  }
+});
+
+router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const parsed = heartbeatSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "A viewer session id is required." });
+      return;
+    }
+    const row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (row.status !== "live") {
+      res.status(410).json({ error: "That stream has ended.", code: "STREAM_ENDED" });
+      return;
+    }
+    const count = touchViewer(row.id, parsed.data.session_id);
+    if (count > (row.peak_viewers ?? 0)) {
+      try {
+        await db
+          .update(liveStreamsTable)
+          .set({ viewer_count: count, peak_viewers: count, updated_at: new Date() })
+          .where(eq(liveStreamsTable.id, row.id));
+      } catch (err) {
+        logger.warn({ err }, "live-streams heartbeat: peak persist failed");
+      }
+    }
+    res.json({ viewer_count: count });
+  } catch (err) {
+    logger.error({ err }, "live-streams heartbeat failed");
+    res.status(500).json({ error: "Could not register your view." });
+  }
+});
+
+export default router;
