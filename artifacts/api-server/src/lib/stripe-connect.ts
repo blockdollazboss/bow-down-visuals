@@ -14,6 +14,12 @@ import { getSupabaseAdmin } from "./supabase-admin";
 export function getConnectStripe(): Stripe {
   const key = process.env["STRIPE_SECRET_KEY"];
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  /* Fail closed on live keys (Lane V3 F7): the same test-mode guard
+     lib/stripe-checkout.ts enforces — money-out must never ride a
+     live key because an environment was misconfigured. */
+  if (!key.startsWith("sk_test_")) {
+    throw new Error("Live payment keys are not enabled — test mode only.");
+  }
   return new Stripe(key);
 }
 

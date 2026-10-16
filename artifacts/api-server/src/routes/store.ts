@@ -67,6 +67,13 @@ const ItemKindSchema = z.enum(DIGITAL_ITEM_KINDS);
 function getStripe(): Stripe {
   const key = process.env["STRIPE_SECRET_KEY"];
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  /* Fail closed on live keys (Lane V3 F7): the same test-mode guard
+     lib/stripe-checkout.ts enforces — this client previously checked
+     only that a key exists, so test-mode safety rested entirely on
+     the configured environment. */
+  if (!key.startsWith("sk_test_")) {
+    throw new Error("Live payment keys are not enabled — test mode only.");
+  }
   return new Stripe(key);
 }
 
