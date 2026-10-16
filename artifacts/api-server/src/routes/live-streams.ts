@@ -193,14 +193,21 @@ function readStatus(v: unknown): StreamDestinationStatus {
     : "pending";
 }
 
-function destinationOutcome(e: RawDestination): Pick<StreamDestinationDto, "save_recording" | "vod_url" | "vod_state" | "error_reason" | "has_key"> {
-  return {
+function destinationOutcome(
+  e: RawDestination,
+): Pick<StreamDestinationDto, "save_recording" | "vod_url" | "vod_state"> &
+  Partial<Pick<StreamDestinationDto, "error_reason" | "has_key">> {
+  // error_reason / has_key keys are OMITTED entirely when there is
+  // nothing to report — the destinations shape stays exactly the
+  // pre-fan-out one for streams that never fanned out.
+  const out: ReturnType<typeof destinationOutcome> = {
     save_recording: typeof e.save_recording === "boolean" ? e.save_recording : true,
     vod_url: typeof e.vod_url === "string" ? e.vod_url : null,
     vod_state: e.vod_state === "saved" || e.vod_state === "not_saved" ? e.vod_state : null,
-    error_reason: typeof e.error_reason === "string" ? e.error_reason : null,
-    has_key: typeof e.has_key === "boolean" ? e.has_key : undefined,
   };
+  if (typeof e.error_reason === "string" && e.error_reason) out.error_reason = e.error_reason;
+  if (e.has_key === true) out.has_key = true;
+  return out;
 }
 
 export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
@@ -238,7 +245,7 @@ export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
  */
 export function sanitizeRequestedDestinations(raw: unknown): StreamDestinationDto[] {
   return normalizeDestinations(raw).map((d) =>
-    d.platform === "site" ? d : { ...d, status: d.status === "off" ? ("off" as const) : ("pending" as const), error_reason: null },
+    d.platform === "site" ? d : { ...d, status: d.status === "off" ? ("off" as const) : ("pending" as const) },
   );
 }
 

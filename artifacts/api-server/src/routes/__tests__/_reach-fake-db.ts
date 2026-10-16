@@ -66,10 +66,9 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
       const vals = idxs.map((i) => params[i - 1]);
       return (row) => vals.some((v) => String(row[col] ?? "") === String(v ?? ""));
     }
-    m = s.match(/"(\w+)"\s*=\s*any\(\$(\d+)\)$/);
-    if (m) {
-      const col = prop(streamProp(store, m[1]));
-      void col;
+    if (/"(\w+)"\s*=\s*any\(\$\d+\)$/.test(s)) {
+      // `= any($n)` array-membership conditions are not exercised by
+      // the suites using this fake; accept-all keeps them inert.
       return () => true;
     }
     m = s.match(/"(\w+)"\s+is\s+(not\s+)?null$/);
@@ -85,10 +84,6 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
       return (row) => String(row[col] ?? "").toLowerCase().includes(pat);
     }
     return null;
-  }
-
-  function streamProp(store: TableStore, dbCol: string): string {
-    return prop(store, dbCol);
   }
 
   function splitTopLevel(sql: string, sep: " and " | " or "): string[] {
