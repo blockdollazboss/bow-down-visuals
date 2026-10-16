@@ -19,6 +19,7 @@ import {
   chargeCredits,
   refundCredits,
   buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
   OutOfCreditsError,
   CreditsDisabledError,
   LedgerWriteError,
@@ -222,30 +223,59 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
       // 2) The tip's chat message + the tip row. A tip with no text
       // still lands in chat as a tip notice (its body is generated
       // from the real amount, never invented copy about the fan).
-      const insertedMessage = await db
-        .insert(liveChatMessagesTable)
-        .values({
-          stream_id: stream.id,
-          user_id: tipperUserId,
-          body,
-          kind: "tip",
-          tip_amount_vb: amountVb,
-        })
-        .returning();
-      const messageRow = insertedMessage[0];
-      const insertedTip = await db
-        .insert(liveStreamTipsTable)
-        .values({
-          stream_id: stream.id,
-          tipper_user_id: tipperUserId,
-          creator_user_id: stream.user_id,
-          amount_vb: amountVb,
-          message_id: messageRow?.id ?? null,
-          idempotency_key: scopedKey,
-        })
-        .returning();
-      tip = insertedTip[0] ?? null;
-      if (!tip) throw new Error("tip insert returned no row");
+      // Lane V3 F6: the debit has landed by now — if either insert
+      // fails, refund IMMEDIATELY (the old code let the throw reach
+      // the outer 500 with the fan's VB gone), void the debit key and
+      // drop any orphan chat message, so a retry starts clean.
+      let messageRowId: string | null = null;
+      try {
+        const insertedMessage = await db
+          .insert(liveChatMessagesTable)
+          .values({
+            stream_id: stream.id,
+            user_id: tipperUserId,
+            body,
+            kind: "tip",
+            tip_amount_vb: amountVb,
+          })
+          .returning();
+        messageRowId = insertedMessage[0]?.id ?? null;
+        const insertedTip = await db
+          .insert(liveStreamTipsTable)
+          .values({
+            stream_id: stream.id,
+            tipper_user_id: tipperUserId,
+            creator_user_id: stream.user_id,
+            amount_vb: amountVb,
+            message_id: messageRowId,
+            idempotency_key: scopedKey,
+          })
+          .returning();
+        tip = insertedTip[0] ?? null;
+        if (!tip) throw new Error("tip insert returned no row");
+      } catch (insertErr) {
+        logger.error({ insertErr }, "live tip: record failed after debit — refunding the fan");
+        let refundOk = false;
+        try {
+          await refundCredits(tipperUserId, amountVb, { action: "Live Stream Tip — Refund (record failed)" });
+          refundOk = true;
+        } catch (refundErr) {
+          logger.error({ refundErr }, "live tip: CRITICAL refund after record failure also failed — manual reconciliation required");
+        }
+        if (refundOk) {
+          await voidChargeIdempotencyKey(scopedKey);
+          if (messageRowId) {
+            await db.delete(liveChatMessagesTable).where(eq(liveChatMessagesTable.id, messageRowId)).catch(() => {});
+          }
+        }
+        res.status(500).json({
+          error: refundOk
+            ? "That tip couldn't be recorded, so you've been refunded in full."
+            : "That tip couldn't be recorded and the refund didn't land either — it's been flagged for reconciliation.",
+          code: "RECORD_FAILED",
+        });
+        return;
+      }
     }
 
     // 3) Credit the creator — once. The derived ledger key is checked
@@ -258,9 +288,18 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
         .where(eq(creditUsageTable.idempotencyKey, creditKey))
         .limit(1)
         .catch(() => [] as Array<{ id: string }>);
+      /* Lane V3 F2: the balance credit and its ledger write are two
+         stores (they cannot share one transaction), so the pair is
+         made atomic by COMPENSATION: if the ledger write throws after
+         the balance credit landed, the credit is reversed before the
+         fan is refunded. The old shape left the creator paid AND the
+         fan refunded — duplicated value — and claimed "refunded in
+         full" even when the refund itself had failed. */
+      let creditLanded = false;
       try {
         if (!priorCredit[0]) {
           await addCreditsAtomic(stream.user_id, amountVb);
+          creditLanded = true;
           await recordCreditUsageStrict({
             userId: stream.user_id,
             action: "Live Stream Tip — Received",
@@ -269,16 +308,42 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
           });
         }
       } catch (err) {
-        logger.error({ err, tipId: tip.id }, "live tip: creator credit failed — refunding the fan");
+        logger.error({ err, tipId: tip.id }, "live tip: creator credit failed — reversing any landed credit, refunding the fan");
+        if (creditLanded) {
+          try {
+            await addCreditsAtomic(stream.user_id, -amountVb);
+          } catch (revErr) {
+            logger.error({ revErr, tipId: tip.id }, "live tip: CRITICAL creator-credit reversal failed — duplicated value possible, manual reconciliation required");
+          }
+        }
+        let refundOk = false;
         if (!isRetry) {
-          await refundCredits(tipperUserId, amountVb, { action: "Live Stream Tip — Refund (credit failed)" }).catch(
-            (refundErr) => logger.error({ refundErr, tipId: tip.id }, "live tip: CRITICAL refund after credit failure also failed"),
-          );
+          try {
+            await refundCredits(tipperUserId, amountVb, { action: "Live Stream Tip — Refund (credit failed)" });
+            refundOk = true;
+          } catch (refundErr) {
+            logger.error({ refundErr, tipId: tip.id }, "live tip: CRITICAL refund after credit failure also failed");
+          }
+          if (refundOk) {
+            /* Fresh-retry hygiene (the F1 discipline): the attempt is
+               fully unwound, so remove its rows and void the debit key
+               — otherwise a same-key retry would skip the debit (the
+               fan was refunded) yet credit the creator: a free tip. */
+            const failedTipId = tip.id;
+            const failedMessageId = tip.message_id;
+            await db.delete(liveStreamTipsTable).where(eq(liveStreamTipsTable.id, failedTipId)).catch(() => {});
+            if (failedMessageId) {
+              await db.delete(liveChatMessagesTable).where(eq(liveChatMessagesTable.id, failedMessageId)).catch(() => {});
+            }
+            await voidChargeIdempotencyKey(scopedKey);
+          }
         }
         res.status(502).json({
           error: isRetry
             ? "That tip is recorded but the payout step hiccuped — it will be reconciled, and you were not charged twice."
-            : "That tip didn't go through — you've been refunded in full.",
+            : refundOk
+              ? "That tip didn't go through — you've been refunded in full."
+              : "That tip didn't go through, and the refund didn't land either — it's been flagged for reconciliation. You have not been charged twice.",
           code: "CREDIT_FAILED",
         });
         return;

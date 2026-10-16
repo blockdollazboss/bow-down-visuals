@@ -124,6 +124,7 @@ vi.mock("../../lib/credits", () => {
       h.balances.set(userId, (h.balances.get(userId) ?? 0) + amount);
       h.refunds.push({ userId, amount });
     },
+    voidChargeIdempotencyKey: async (key: string) => h.chargedKeys.delete(key),
   };
 });
 
