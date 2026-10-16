@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon, Share2,
   Mail, CheckCircle2, ExternalLink, Lock, Gift, Users, Timer,
-  PartyPopper, Copy, Check, BellRing,
+  PartyPopper, Copy, Check, BellRing, RotateCcw,
 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -68,6 +68,7 @@ export default function PresaveLanding() {
   usePageTitle(data?.title ? `${data.title} — Presave` : "Presave", "Pre-save the upcoming release on Bow Down Visuals.");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   /* fan engagement state */
   const [email, setEmail] = useState("");
@@ -83,6 +84,8 @@ export default function PresaveLanding() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const res = await fetch(`/api/distribution/presave/${encodeURIComponent(slug)}`);
         const json = (await res.json().catch(() => ({}))) as {
@@ -105,7 +108,7 @@ export default function PresaveLanding() {
       }
     })();
     return () => { cancelled = true; };
-  }, [slug, t]);
+  }, [slug, t, retryNonce]);
 
   const now = useNow(1000);
   const target = useMemo(() => releaseTarget(data?.releaseDate ?? null), [data?.releaseDate]);
@@ -242,6 +245,12 @@ export default function PresaveLanding() {
           <div className="relative mx-auto mt-10 rounded-3xl border border-red-500/30 bg-red-500/10 p-10 text-center">
             <AlertTriangle className="mx-auto h-10 w-10 text-red-300" />
             <p className="mt-4 text-sm text-red-200">{error ?? t("presave.errors.notFound")}</p>
+            <button
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
           </div>
         ) : (
           <div className={cardCls}>
