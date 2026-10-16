@@ -22,6 +22,8 @@ import ViralSoundFinder from "@/pages/sounds";
 import { HumToSong } from "@/components/HumToSong";
 import { FinishMySong } from "@/components/audio-studio/FinishMySong";
 import { RateMyMix } from "@/components/audio-studio/RateMyMix";
+import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
+import { PodcastTranscriptEditor } from "@/components/audio-studio/PodcastTranscriptEditor";
 import { LufsPanel } from "@/components/audio/LufsPanel";
 import { DeverbPanel } from "@/components/audio/DeverbPanel";
 import { VocalTunePanel } from "@/components/audio/VocalTunePanel";
@@ -3401,7 +3403,7 @@ function MixMasterPanel() {
    One page, three tools. Each tab keeps its own paid endpoint, credit cost,
    and charge-then-refund discipline — only the page chrome is shared. */
 
-type StudioTab = "cleanup" | "deverb" | "loudness" | "stems" | "master" | "tune" | "aiaudio" | "voiceover" | "podcast" | "sounds" | "hum" | "finish" | "ratemix";
+type StudioTab = "cleanup" | "deverb" | "loudness" | "stems" | "master" | "tune" | "aiaudio" | "voiceover" | "podcast" | "sounds" | "hum" | "finish" | "ratemix" | "arrange";
 
 const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> = [
   { id: "cleanup", labelKey: "audioStudio.tabs.cleanup", descKey: "audioStudio.desc.cleanup" },
@@ -3417,6 +3419,7 @@ const STUDIO_TABS: Array<{ id: StudioTab; labelKey: string; descKey: string }> =
   { id: "hum", labelKey: "audioStudio.tabs.hum", descKey: "audioStudio.desc.hum" },
   { id: "finish", labelKey: "audioStudio.tabs.finish", descKey: "audioStudio.desc.finish" },
   { id: "ratemix", labelKey: "audioStudio.tabs.ratemix", descKey: "audioStudio.desc.ratemix" },
+  { id: "arrange", labelKey: "audioStudio.tabs.arrange", descKey: "audioStudio.desc.arrange" },
 ];
 
 export default function AudioStudio() {
@@ -3425,7 +3428,7 @@ export default function AudioStudio() {
   const [tab, setTab] = useState<StudioTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds" || q === "hum" || q === "finish" || q === "ratemix" || q === "deverb" || q === "loudness" || q === "tune") return q;
+      if (q === "arrange" || q === "stems" || q === "master" || q === "aiaudio" || q === "voiceover" || q === "podcast" || q === "sounds" || q === "hum" || q === "finish" || q === "ratemix" || q === "deverb" || q === "loudness" || q === "tune") return q;
       return "cleanup";
     } catch {
       return "cleanup";
@@ -3502,7 +3505,14 @@ export default function AudioStudio() {
         </p>
 
         <div className={`mt-2 rounded-3xl border p-4 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
-          {tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? <PodcastStudio /> : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
+          {tab === "arrange" ? <ArrangementStudio /> : tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? (
+            <div className="space-y-8">
+              <PodcastStudio />
+              <div className="border-t border-white/[0.08] pt-6">
+                <PodcastTranscriptEditor />
+              </div>
+            </div>
+          ) : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
         </div>
       </main>
     </div>

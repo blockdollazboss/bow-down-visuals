@@ -11437,7 +11437,8 @@
       "ratemix": "Rate My Mix",
       "tune": "Tune",
       "deverb": "De-Reverb",
-      "loudness": "Loudness"
+      "loudness": "Loudness",
+      "arrange": "Arrange"
     },
     "desc": {
       "cleanup": "Remove background noise and room hiss from any recording — 300 Visual Bucs.",
@@ -11452,7 +11453,8 @@
       "ratemix": "Upload your mix — real measurements + AI fix-it coaching. Coaching only, your audio stays untouched (100 Visual Bucs).",
       "tune": "Pitch-correct any vocal — transparent polish or hard-tune snap.",
       "deverb": "Strip room echo from dialogue and vocals.",
-      "loudness": "Measure true loudness (LUFS) and normalize any audio to streaming targets."
+      "loudness": "Measure true loudness (LUFS) and normalize any audio to streaming targets.",
+      "arrange": "Build the song on a timeline — tracks, effects, automation, vocal comps, ducking and MIDI. Free to edit; export renders it for real."
     }
   },
   "aiAudio": {
