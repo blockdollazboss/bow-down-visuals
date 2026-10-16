@@ -1,15 +1,24 @@
 /**
- * hall-scene.ts — the King's Hall in Three.js: a golden black-marble
- * hall, a stage at the front, and a big screen over it that plays the
- * hall's featured reel — or a live stream's HLS when one is truly live
- * (the page decides from GET /api/world/screen; this file just plays
- * what it's handed).
+ * hall-scene.ts — the King's Hall in Three.js: a palace hall with a
+ * stage at the front and a big screen over it that plays the hall's
+ * featured reel — or a live stream's HLS when one is truly live (the
+ * page decides from GET /api/world/screen; this file just plays what
+ * it's handed).
  *
- * Built for phone-class hardware (headsets included): low-poly
- * primitives, no shadow maps, capped pixel ratio, a handful of lights,
- * canvas-baked floor/wall detail instead of shaders. Imported ONLY via
- * dynamic import from the /world page, so three.js ships in the world
- * chunk and nowhere else.
+ * The owner picked the hall's two faces (2026-10-16), switched by the
+ * visitor's site theme (see hall-looks.ts):
+ *   LIGHT → Look A "Golden Hour Palace": sunlit cream-and-gold marble,
+ *           tall windows, dust in the light beams, mirror-bright floor.
+ *   DARK  → Look B "Midnight Throne Room": black marble with gold
+ *           veining, candle sconces and fire braziers, haze, deep
+ *           premium shadow over a mirror-dark floor.
+ * Both looks are PBR: real texture maps, themed environment
+ * reflections, a true planar-reflection floor under a polished marble
+ * overlay, and per-look light rigs. A quality ladder keeps phone-class
+ * hardware (headsets included) honest: low tiers drop the planar
+ * reflection, shadow maps and the extra point lights, in that order.
+ * Imported ONLY via dynamic import from the /world page, so three.js
+ * ships in the world chunk and nowhere else.
  *
  * Controls: WASD/arrows + drag-look (click for pointer-lock mouse
  * look) on desktop; left-thumb virtual stick + drag-look on touch;
@@ -19,7 +28,9 @@
  * the stage is a stage.
  */
 import * as THREE from "three";
+import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
+import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 
 export interface HallScreenSource {
   mode: "live" | "featured";
@@ -34,8 +45,6 @@ const RUN_SPEED = 6;
 
 const GOLD = 0xd4af37;
 const GOLD_DEEP = 0x8a6a1c;
-const MARBLE = 0x14110c;
-const MARBLE_LIGHT = 0x1d1913;
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -48,62 +57,47 @@ function angleLerp(a: number, b: number, t: number): number {
   return a + d * t;
 }
 
-/* ── Baked canvas textures (cheap marble + the screen's idle card) ──── */
+/* ── Quality ladder ───────────────────────────────────────────────────
+   high:   planar mirror floor, soft shadow maps, every light live.
+   medium: smaller mirror, shadow maps, candle points still live.
+   low:    no mirror (polished env-reflective floor only), no shadow
+           maps, candlelight is emissive-only. Pixel ratio steps down
+           with the tier. Touch devices start a rung lower. */
+type QualityTier = "high" | "medium" | "low";
 
-function floorTexture(): THREE.CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = 1024;
-  c.height = 1024;
-  const g = c.getContext("2d")!;
-  g.fillStyle = "#0b0a09";
-  g.fillRect(0, 0, 1024, 1024);
-  // Tile seams.
-  g.strokeStyle = "rgba(255,255,255,0.05)";
-  g.lineWidth = 2;
-  for (let i = 0; i <= 1024; i += 128) {
-    g.beginPath();
-    g.moveTo(i, 0);
-    g.lineTo(i, 1024);
-    g.stroke();
-    g.beginPath();
-    g.moveTo(0, i);
-    g.lineTo(1024, i);
-    g.stroke();
-  }
-  // Marble veins — soft, sparse, never repeating visibly.
-  for (let i = 0; i < 70; i++) {
-    g.strokeStyle = `rgba(205,195,175,${0.02 + Math.random() * 0.045})`;
-    g.lineWidth = 0.6 + Math.random() * 1.6;
-    g.beginPath();
-    let x = Math.random() * 1024;
-    let y = Math.random() * 1024;
-    g.moveTo(x, y);
-    for (let s = 0; s < 4; s++) {
-      x += (Math.random() - 0.5) * 260;
-      y += (Math.random() - 0.5) * 260;
-      g.quadraticCurveTo(x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 60, x, y);
-    }
-    g.stroke();
-  }
-  // Gold inlay border + centre medallion.
-  g.strokeStyle = "rgba(212,175,55,0.55)";
-  g.lineWidth = 7;
-  g.strokeRect(42, 42, 940, 940);
-  g.strokeStyle = "rgba(212,175,55,0.35)";
-  g.lineWidth = 2;
-  g.strokeRect(62, 62, 900, 900);
-  g.beginPath();
-  g.arc(512, 512, 128, 0, Math.PI * 2);
-  g.strokeStyle = "rgba(212,175,55,0.4)";
-  g.lineWidth = 4;
-  g.stroke();
-  g.beginPath();
-  g.arc(512, 512, 100, 0, Math.PI * 2);
-  g.lineWidth = 2;
-  g.stroke();
-  const tex = new THREE.CanvasTexture(c);
+function detectQuality(): QualityTier {
+  const coarse = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(pointer: coarse)").matches
+    : false;
+  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency ?? 4 : 4;
+  if (coarse) return cores >= 6 ? "medium" : "low";
+  return cores >= 4 ? "high" : "medium";
+}
+
+const QUALITY = {
+  high: { pixelRatio: 2, reflectorSize: 1024, shadows: true, candleLights: true },
+  medium: { pixelRatio: 1.75, reflectorSize: 512, shadows: true, candleLights: true },
+  low: { pixelRatio: 1.5, reflectorSize: 0, shadows: false, candleLights: false },
+} as const;
+
+/* ── Texture maps (public assets, lazy with the world chunk) ─────────
+   One cached instance per (url, repeat) — materials vary by repeat,
+   never by look, so a theme re-skin re-uses what's already loaded.
+   Mirrored wrapping hides the tile seams of generated maps. */
+const textureCache = new Map<string, THREE.Texture>();
+
+function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Texture {
+  const key = `${url}@${repeatX}x${repeatY}`;
+  const hit = textureCache.get(key);
+  if (hit) return hit;
+  const path = `${import.meta.env.BASE_URL}${url.replace(/^\//, "")}`;
+  const tex = new THREE.TextureLoader().load(path);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.wrapS = THREE.MirroredRepeatWrapping;
+  tex.wrapT = THREE.MirroredRepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.anisotropy = 8;
+  textureCache.set(key, tex);
   return tex;
 }
 
@@ -127,6 +121,44 @@ function screenIdleTexture(): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
+}
+
+/** Soft radial glow — candle flames, light halos, dust motes, haze. */
+function glowTexture(stops: Array<[number, string]>): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+  for (const [at, col] of stops) grad.addColorStop(at, col);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+let flameTex: THREE.CanvasTexture | null = null;
+function flameTexture(): THREE.CanvasTexture {
+  if (!flameTex) {
+    flameTex = glowTexture([
+      [0, "rgba(255,246,214,1)"],
+      [0.25, "rgba(255,196,92,0.85)"],
+      [0.6, "rgba(255,122,38,0.32)"],
+      [1, "rgba(255,110,20,0)"],
+    ]);
+  }
+  return flameTex;
+}
+
+let hazeTex: THREE.CanvasTexture | null = null;
+function hazeTexture(): THREE.CanvasTexture {
+  if (!hazeTex) {
+    hazeTex = glowTexture([
+      [0, "rgba(216,200,168,0.55)"],
+      [0.55, "rgba(200,182,150,0.22)"],
+      [1, "rgba(190,170,140,0)"],
+    ]);
+  }
+  return hazeTex;
 }
 
 function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
@@ -202,6 +234,27 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
   return { group, target: { x: peer.x, z: peer.z, rotY: peer.rotY } };
 }
 
+/* ── Per-look materials + animation registry ────────────────────────── */
+
+interface LookMaterials {
+  gold: THREE.MeshStandardMaterial;
+  goldDark: THREE.MeshStandardMaterial;
+  marble: THREE.MeshStandardMaterial;
+  marbleWall: THREE.MeshStandardMaterial;
+  ceiling: THREE.MeshStandardMaterial;
+  fabric: THREE.MeshStandardMaterial;
+  darkMetal: THREE.MeshStandardMaterial;
+}
+
+interface LookAnim {
+  flames: Array<{ sprite: THREE.Sprite; baseX: number; baseY: number; phase: number }>;
+  flickerLights: Array<{ light: THREE.PointLight; base: number; phase: number }>;
+  dust: THREE.Points | null;
+  smokes: Array<{ mesh: THREE.Mesh; baseX: number; phase: number; speed: number }>;
+}
+
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [] };
+
 /* ── The scene ──────────────────────────────────────────────────────── */
 
 export class KingsHallScene {
@@ -228,17 +281,30 @@ export class KingsHallScene {
   private resizeObs: ResizeObserver | null = null;
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
 
-  constructor(private canvas: HTMLCanvasElement) {
+  private quality: QualityTier;
+  private theme: HallTheme;
+  private lookGroup: THREE.Group | null = null;
+  private lookAnim: LookAnim = EMPTY_ANIM;
+  private floorReflector: Reflector | null = null;
+  private envTarget: THREE.WebGLRenderTarget | null = null;
+
+  constructor(private canvas: HTMLCanvasElement, theme: HallTheme = "dark") {
+    this.quality = detectQuality();
+    const q = QUALITY[this.quality];
+    this.theme = theme;
+
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = q.shadows;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.xr.enabled = true;
     try {
       this.renderer.xr.setReferenceSpaceType("local");
     } catch {
       /* default reference space is fine */
     }
-    this.scene.background = new THREE.Color(0x030303);
-    this.scene.fog = new THREE.Fog(0x030303, 20, 48);
 
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 120);
     this.camera.position.set(0, EYE_HEIGHT, 0);
@@ -248,7 +314,7 @@ export class KingsHallScene {
     this.scene.add(this.rig);
 
     this.screenMaterial = new THREE.MeshBasicMaterial({ map: screenIdleTexture() });
-    this.buildHall();
+    this.applyLook(theme);
     this.bindControls();
     this.resize();
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -256,125 +322,748 @@ export class KingsHallScene {
     this.renderer.setAnimationLoop(() => this.tick());
   }
 
-  /* ── Hall construction ── */
-  private buildHall(): void {
-    const goldMat = new THREE.MeshStandardMaterial({ color: GOLD, emissive: GOLD_DEEP, emissiveIntensity: 0.45, roughness: 0.35, metalness: 0.8 });
-    const marbleMat = new THREE.MeshStandardMaterial({ color: MARBLE, roughness: 0.85, metalness: 0.1 });
-    const marbleLightMat = new THREE.MeshStandardMaterial({ color: MARBLE_LIGHT, roughness: 0.8, metalness: 0.1 });
+  /* ── Theme ── */
 
-    // Floor — canvas-baked black marble with gold inlay.
-    const floor = new THREE.Mesh(
+  /** Re-skin the hall for the visitor's site theme. No-op if already
+   *  wearing it. Presence, the screen and the controls are untouched —
+   *  only the look group is rebuilt. */
+  setTheme(theme: HallTheme): void {
+    if (theme === this.theme || this.disposed) return;
+    this.theme = theme;
+    this.applyLook(theme);
+  }
+
+  get currentTheme(): HallTheme {
+    return this.theme;
+  }
+
+  private applyLook(theme: HallTheme): void {
+    const look = hallLookFor(theme);
+
+    // Tear down the previous look — never the shared texture cache,
+    // never the screen material (the reel keeps playing across a
+    // re-skin), and avatars are not part of the look group.
+    if (this.lookGroup) {
+      this.scene.remove(this.lookGroup);
+      this.disposeLookGroup(this.lookGroup);
+      this.lookGroup = null;
+      this.floorReflector = null;
+    }
+    if (this.envTarget) {
+      this.envTarget.dispose();
+      this.envTarget = null;
+    }
+    this.lookAnim = EMPTY_ANIM;
+
+    this.renderer.toneMappingExposure = look.exposure;
+    this.scene.background = new THREE.Color(look.background);
+    this.scene.fog = new THREE.Fog(look.fogColor, look.fogNear, look.fogFar);
+    this.envTarget = this.buildEnvironment(look);
+    this.scene.environment = this.envTarget.texture;
+    this.scene.environmentIntensity = look.environmentIntensity;
+
+    const group = new THREE.Group();
+    this.buildLook(group, look);
+    this.scene.add(group);
+    this.lookGroup = group;
+  }
+
+  private disposeLookGroup(group: THREE.Group): void {
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (mesh.geometry) mesh.geometry.dispose();
+      const mat = (obj as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+      for (const m of mats) {
+        if (m !== this.screenMaterial) m.dispose();
+      }
+    });
+    if (this.floorReflector) this.floorReflector.getRenderTarget().dispose();
+  }
+
+  /** Themed reflections, baked from a thumbnail stand-in room: the
+   *  palace gets a blazing window wall to mirror in its gold; the
+   *  throne room gets near-black with a few warm candle glows. */
+  private buildEnvironment(look: HallLook): THREE.WebGLRenderTarget {
+    const env = new THREE.Scene();
+    const roomMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+    const room = new THREE.Mesh(new THREE.BoxGeometry(24, 14, 24), roomMat);
+    if (look.theme === "light") {
+      roomMat.color.setRGB(0.5, 0.46, 0.38);
+      const windowWall = new THREE.Mesh(
+        new THREE.PlaneGeometry(16, 10),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(6.5, 5.9, 4.4) }),
+      );
+      windowWall.position.set(-11.8, 1, 0);
+      windowWall.rotation.y = Math.PI / 2;
+      env.add(windowWall);
+      const floorGlow = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 20),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.72, 0.5) }),
+      );
+      floorGlow.rotation.x = -Math.PI / 2;
+      floorGlow.position.y = -6.8;
+      env.add(floorGlow);
+      const screenGlow = new THREE.Mesh(
+        new THREE.PlaneGeometry(11, 5),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 0.5, 0.75) }),
+      );
+      screenGlow.position.set(0, 0.5, -11.8);
+      env.add(screenGlow);
+    } else {
+      roomMat.color.setRGB(0.012, 0.011, 0.013);
+      for (let i = 0; i < 7; i++) {
+        const glow = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.7, 1.1),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(4.2, 1.8, 0.5) }),
+        );
+        const side = i % 2 === 0 ? -11.8 : 11.8;
+        glow.position.set(side, -2.5 + (i % 3), -8 + i * 2.6);
+        glow.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+        env.add(glow);
+      }
+      const screenGlow = new THREE.Mesh(
+        new THREE.PlaneGeometry(11, 5),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.13, 0.22) }),
+      );
+      screenGlow.position.set(0, 0.5, -11.8);
+      env.add(screenGlow);
+    }
+    env.add(room);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const target = pmrem.fromScene(env, 0.05);
+    pmrem.dispose();
+    return target;
+  }
+
+  /* ── Look construction ── */
+
+  private makeMaterials(look: HallLook): LookMaterials {
+    const marbleMap = hallTexture(look.marbleTextureUrl, 2, 2);
+    const gold = new THREE.MeshStandardMaterial({
+      color: 0xd9b45c, metalness: 1, roughness: look.theme === "light" ? 0.21 : 0.3, envMapIntensity: 1.35,
+    });
+    const goldDark = new THREE.MeshStandardMaterial({
+      color: 0x9a7a24, metalness: 1, roughness: 0.45, envMapIntensity: 0.9,
+      emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
+    });
+    const marble = new THREE.MeshStandardMaterial({
+      map: marbleMap, bumpMap: marbleMap, bumpScale: 0.12, roughness: 0.42, metalness: 0.06, envMapIntensity: 0.7,
+    });
+    const marbleWall = new THREE.MeshStandardMaterial({
+      map: hallTexture(look.marbleTextureUrl, 5, 1.4), roughness: 0.58, metalness: 0.05, envMapIntensity: 0.55,
+    });
+    const ceiling = new THREE.MeshStandardMaterial({
+      map: hallTexture(look.marbleTextureUrl, 6, 6),
+      color: look.theme === "light" ? 0xe9dfc8 : 0x59503f, roughness: 0.72, metalness: 0.05,
+    });
+    const fabric = new THREE.MeshStandardMaterial({
+      map: hallTexture(look.throneFabricTextureUrl, 1.5, 1.5),
+      roughness: look.theme === "light" ? 0.62 : 0.92, metalness: 0, envMapIntensity: 0.5,
+    });
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.55, metalness: 0.5 });
+    return { gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal };
+  }
+
+  private buildLook(group: THREE.Group, look: HallLook): void {
+    const mats = this.makeMaterials(look);
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [] };
+    this.buildFloor(group, look, mats);
+    this.buildWalls(group, look, mats, anim);
+    this.buildCeiling(group, look, mats);
+    this.buildColumns(group, look, mats);
+    this.buildStage(group, look, mats);
+    this.buildScreen(group, mats);
+    this.buildSpeakersAndMic(group, mats);
+    this.buildLights(group, look);
+    if (look.chandeliers) this.buildChandeliers(group, mats);
+    if (look.candles) this.buildBraziers(group, mats, anim);
+    if (look.lightBeams) this.buildBeams(group);
+    if (look.dust) anim.dust = this.buildDust(group);
+    if (look.haze) this.buildHaze(group, anim);
+    this.lookAnim = anim;
+  }
+
+  /** The mirror floor: a true planar reflection under a polished
+   *  marble overlay (front-side only, so the reflection pass never
+   *  sees it) with the v1 hall's gold inlay kept as geometry. Low
+   *  tiers skip the mirror and lean on environment reflections. */
+  private buildFloor(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const q = QUALITY[this.quality];
+    if (q.reflectorSize > 0) {
+      const reflector = new Reflector(new THREE.PlaneGeometry(28, 30), {
+        clipBias: 0.003,
+        textureWidth: q.reflectorSize,
+        textureHeight: q.reflectorSize,
+        color: look.floorReflectionTint,
+      });
+      reflector.rotation.x = -Math.PI / 2;
+      reflector.position.set(0, 0, -3);
+      group.add(reflector);
+      this.floorReflector = reflector;
+    }
+    const floorMap = hallTexture(look.marbleTextureUrl, look.floorRepeat, look.floorRepeat * (30 / 28));
+    const overlay = new THREE.Mesh(
       new THREE.PlaneGeometry(28, 30),
-      new THREE.MeshStandardMaterial({ map: floorTexture(), roughness: 0.4, metalness: 0.25 }),
+      new THREE.MeshPhysicalMaterial({
+        map: floorMap, bumpMap: floorMap, bumpScale: 0.08,
+        transparent: true, opacity: q.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97,
+        roughness: look.floorRoughness, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3,
+        envMapIntensity: 0.85, depthWrite: false,
+      }),
     );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, 0, -3);
-    this.scene.add(floor);
+    overlay.rotation.x = -Math.PI / 2;
+    overlay.position.set(0, 0.01, -3);
+    overlay.renderOrder = 2;
+    overlay.receiveShadow = q.shadows;
+    group.add(overlay);
 
-    // Ceiling.
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(28, 30), marbleMat);
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.set(0, 6.5, -3);
-    this.scene.add(ceiling);
+    // Gold inlay: double border + centre medallion, as the v1 hall had.
+    const strip = (w: number, d: number, x: number, z: number) => {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(w, 0.012, d), mats.goldDark);
+      s.position.set(x, 0.018, z);
+      group.add(s);
+    };
+    const border = (inset: number, w: number) => {
+      const x = 14 - inset;
+      const zTop = -18 + inset;
+      const zBot = 12 - inset;
+      strip(2 * x, w, 0, zTop);
+      strip(2 * x, w, 0, zBot);
+      strip(w, zBot - zTop, -x, (zTop + zBot) / 2);
+      strip(w, zBot - zTop, x, (zTop + zBot) / 2);
+    };
+    border(1.1, 0.07);
+    border(1.45, 0.03);
+    for (const r of [[1.85, 2.0], [1.5, 1.58]] as Array<[number, number]>) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r[0], r[1], 56), mats.goldDark);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(0, 0.016, -3);
+      ring.renderOrder = 3;
+      group.add(ring);
+    }
+  }
 
-    // Walls (front carries the screen; back is the entrance wall).
+  private buildWalls(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const mkWall = (w: number, x: number, z: number, rotY: number) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 6.5, 0.4), marbleMat);
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 6.5, 0.4), mats.marbleWall);
       wall.position.set(x, 3.25, z);
       wall.rotation.y = rotY;
-      this.scene.add(wall);
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.09, 0.06), goldMat);
+      group.add(wall);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.09, 0.06), mats.gold);
       trim.position.set(x, 5.7, z);
       trim.rotation.y = rotY;
       trim.translateZ(0.24);
-      this.scene.add(trim);
+      group.add(trim);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.05), mats.goldDark);
+      base.position.set(x, 0.16, z);
+      base.rotation.y = rotY;
+      base.translateZ(0.23);
+      group.add(base);
     };
     mkWall(28.8, 0, -18.2, 0);
     mkWall(28.8, 0, 12.2, 0);
     mkWall(30.8, -14.2, -3, Math.PI / 2);
     mkWall(30.8, 14.2, -3, Math.PI / 2);
 
-    // Columns with gold capitals.
+    if (look.windows) {
+      for (const z of [-9, -2, 5]) this.buildWindow(group, mats, z);
+      for (const z of [-9, -2, 5]) this.buildPanelFrame(group, mats, 1, z);
+    } else {
+      for (const side of [-1, 1] as const) {
+        for (const z of [-9, -2, 5]) this.buildPanelFrame(group, mats, side, z);
+        for (const z of [-5.5, 2.5]) this.buildSconce(group, mats, anim, side, z, side * 13.3);
+      }
+      for (const x of [-6, 6]) this.buildSconce(group, mats, anim, 0, x, null);
+    }
+  }
+
+  /** A tall arched window pouring daylight in (Look A, left wall).
+   *  Built facing +Z in a subgroup, then turned into the room. */
+  private buildWindow(group: THREE.Group, mats: LookMaterials, z: number): void {
+    const win = new THREE.Group();
+    win.position.set(-13.96, 0, z);
+    win.rotation.y = Math.PI / 2;
+    const paneMat = new THREE.MeshBasicMaterial({ color: 0xfff3d0 });
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 4.0), paneMat);
+    pane.position.set(0, 3.0, 0.01);
+    win.add(pane);
+    const arch = new THREE.Mesh(new THREE.CircleGeometry(1.15, 28, 0, Math.PI), paneMat);
+    arch.position.set(0, 5.0, 0.01);
+    win.add(arch);
+    const bar = (w: number, h: number, x: number, y: number, d = 0.07) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats.gold);
+      b.position.set(x, y, 0.05);
+      win.add(b);
+    };
+    bar(0.12, 4.0, -1.21, 3.0);
+    bar(0.12, 4.0, 1.21, 3.0);
+    bar(2.54, 0.12, 0, 0.97);
+    bar(0.05, 4.0, 0, 3.0, 0.04);
+    bar(2.3, 0.05, 0, 2.3, 0.04);
+    bar(2.3, 0.05, 0, 3.7, 0.04);
+    const archTrim = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.06, 8, 28, Math.PI), mats.gold);
+    archTrim.position.set(0, 5.0, 0.05);
+    win.add(archTrim);
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.1, 0.2), mats.marble);
+    sill.position.set(0, 0.9, 0.06);
+    win.add(sill);
+    group.add(win);
+  }
+
+  /** A gilt panel frame dressing a side wall. side: -1 left, +1 right. */
+  private buildPanelFrame(group: THREE.Group, mats: LookMaterials, side: -1 | 1, z: number): void {
+    const frame = new THREE.Group();
+    frame.position.set(side * 13.96, 0, z);
+    frame.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+    const bar = (w: number, h: number, x: number, y: number) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), mats.goldDark);
+      b.position.set(x, y, 0.03);
+      frame.add(b);
+    };
+    bar(3.2, 0.07, 0, 5.15);
+    bar(3.2, 0.07, 0, 1.05);
+    bar(0.07, 4.17, -1.6, 3.1);
+    bar(0.07, 4.17, 1.6, 3.1);
+    group.add(frame);
+  }
+
+  /** A three-candle wall sconce (Look B). When `lightX` is a number the
+   *  sconce also gets a real flickering point light at that world X
+   *  (side walls); back-wall sconces (side 0) stay emissive-only. */
+  private buildSconce(
+    group: THREE.Group, mats: LookMaterials, anim: LookAnim,
+    side: -1 | 0 | 1, along: number, lightX: number | null,
+  ): void {
+    const sconce = new THREE.Group();
+    if (side === 0) {
+      sconce.position.set(along, 0, 11.96);
+      sconce.rotation.y = Math.PI;
+    } else {
+      sconce.position.set(side * 13.96, 0, along);
+      sconce.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+    }
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.52, 0.06), mats.goldDark);
+    plate.position.set(0, 3.1, 0.04);
+    sconce.add(plate);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.26), mats.goldDark);
+    arm.position.set(0, 3.3, 0.14);
+    sconce.add(arm);
+    const candleMat = new THREE.MeshStandardMaterial({ color: 0xf3e5c0, roughness: 0.6 });
+    for (const dx of [-0.09, 0, 0.09]) {
+      const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 8), candleMat);
+      candle.position.set(dx, 3.44, 0.26);
+      sconce.add(candle);
+      const flame = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      }));
+      flame.scale.set(0.085, 0.17, 1);
+      flame.position.set(dx, 3.62, 0.26);
+      sconce.add(flame);
+      anim.flames.push({ sprite: flame, baseX: 0.085, baseY: 0.17, phase: Math.random() * 20 });
+    }
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: flameTexture(), transparent: true, opacity: 0.14, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    glow.scale.set(0.6, 0.6, 1);
+    glow.position.set(0, 3.6, 0.26);
+    sconce.add(glow);
+    group.add(sconce);
+
+    if (lightX !== null && QUALITY[this.quality].candleLights) {
+      const light = new THREE.PointLight(0xffa245, 15, 11, 1.9);
+      light.position.set(lightX, 3.4, along);
+      group.add(light);
+      anim.flickerLights.push({ light, base: 15, phase: Math.random() * 20 });
+    }
+  }
+
+  private buildCeiling(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(28, 30), mats.ceiling);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(0, 6.5, -3);
+    group.add(ceiling);
+    // Gilt coffer grid under the ceiling slab.
+    for (const z of [-15, -10, -5, 0, 5, 10]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(28, 0.07, 0.16), mats.goldDark);
+      beam.position.set(0, 6.44, z);
+      group.add(beam);
+    }
+    for (const x of [-10, -5, 0, 5, 10]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 30), mats.goldDark);
+      beam.position.set(x, 6.44, -3);
+      group.add(beam);
+    }
+    void look;
+  }
+
+  private buildColumns(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const shadows = QUALITY[this.quality].shadows;
     for (const x of [-12.4, 12.4]) {
       for (const z of [-8, 0, 8]) {
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.52, 6.5, 14), marbleLightMat);
-        col.position.set(x, 3.25, z);
-        this.scene.add(col);
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.24, 1.35), goldMat);
-        cap.position.set(x, 6.15, z);
-        this.scene.add(cap);
-        const base = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.22, 1.3), goldMat);
-        base.position.set(x, 0.11, z);
-        this.scene.add(base);
+        const col = new THREE.Group();
+        col.position.set(x, 0, z);
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 1.5), mats.marble);
+        plinth.position.y = 0.14;
+        col.add(plinth);
+        if (look.columnStyle === "gold-round") {
+          const foot = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.18, 1.15), mats.gold);
+          foot.position.y = 0.37;
+          col.add(foot);
+          const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 5.2, 20), mats.gold);
+          shaft.position.y = 3.06;
+          shaft.castShadow = shadows;
+          col.add(shaft);
+          const neck = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.05, 8, 24), mats.gold);
+          neck.rotation.x = Math.PI / 2;
+          neck.position.y = 5.6;
+          col.add(neck);
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.22, 1.2), mats.gold);
+          cap.position.y = 5.77;
+          cap.castShadow = shadows;
+          col.add(cap);
+          const abacus = new THREE.Mesh(new THREE.BoxGeometry(1.38, 0.18, 1.38), mats.gold);
+          abacus.position.y = 5.97;
+          col.add(abacus);
+        } else {
+          const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.98, 5.2, 0.98), mats.marble);
+          shaft.position.y = 3.06;
+          shaft.castShadow = shadows;
+          col.add(shaft);
+          for (const y of [0.62, 5.5]) {
+            const band = new THREE.Mesh(new THREE.BoxGeometry(1.07, 0.09, 1.07), mats.goldDark);
+            band.position.y = y;
+            col.add(band);
+          }
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.24, 1.3), mats.gold);
+          cap.position.y = 5.78;
+          cap.castShadow = shadows;
+          col.add(cap);
+          const abacus = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.16, 1.44), mats.goldDark);
+          abacus.position.y = 5.98;
+          col.add(abacus);
+        }
+        group.add(col);
       }
     }
+  }
 
-    // Stage (front, z from -18 to -12.2), raised, gold-lipped.
-    const stage = new THREE.Mesh(new THREE.BoxGeometry(22, 0.7, 5.8), marbleLightMat);
+  private buildStage(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const shadows = QUALITY[this.quality].shadows;
+    const stage = new THREE.Mesh(new THREE.BoxGeometry(22, 0.7, 5.8), mats.marble);
     stage.position.set(0, 0.35, -15.1);
-    this.scene.add(stage);
-    const lip = new THREE.Mesh(new THREE.BoxGeometry(22, 0.07, 0.07), goldMat);
+    stage.receiveShadow = shadows;
+    group.add(stage);
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(22, 0.07, 0.07), mats.gold);
     lip.position.set(0, 0.71, -12.22);
-    this.scene.add(lip);
+    group.add(lip);
 
-    // The big screen + its gold frame.
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(13.4, 5.6), this.screenMaterial);
-    screen.position.set(0, 3.55, -17.95);
-    this.scene.add(screen);
-    const frameMat = goldMat;
+    // The dais the throne sits on — wide and pale for the palace,
+    // a narrower two-tier climb for the throne room.
+    let throneBaseY = 0.7;
+    if (look.theme === "light") {
+      const dais = new THREE.Mesh(new THREE.BoxGeometry(12, 0.26, 4.4), mats.marble);
+      dais.position.set(0, 0.83, -15.7);
+      dais.receiveShadow = shadows;
+      group.add(dais);
+      throneBaseY = 0.96;
+    } else {
+      const tier1 = new THREE.Mesh(new THREE.BoxGeometry(9, 0.15, 4.6), mats.marble);
+      tier1.position.set(0, 0.775, -15.7);
+      group.add(tier1);
+      const tier2 = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.28, 4.2), mats.marble);
+      tier2.position.set(0, 0.99, -15.7);
+      tier2.receiveShadow = shadows;
+      group.add(tier2);
+      throneBaseY = 1.13;
+    }
+    this.buildThrone(group, mats, throneBaseY);
+  }
+
+  /** The throne, centred on the dais under the big screen (both
+   *  reference looks put it there): gilt frame, the look's fabric. */
+  private buildThrone(group: THREE.Group, mats: LookMaterials, baseY: number): void {
+    const shadows = QUALITY[this.quality].shadows;
+    const throne = new THREE.Group();
+    const z = -15.9;
+    const seatBase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.15), mats.gold);
+    seatBase.position.set(0, baseY + 0.15, z);
+    seatBase.castShadow = shadows;
+    throne.add(seatBase);
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.16, 1.0), mats.fabric);
+    cushion.position.set(0, baseY + 0.38, z);
+    throne.add(cushion);
+    for (const sx of [-0.7, 0.7]) {
+      const foot = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), mats.gold);
+      foot.position.set(sx, baseY + 0.05, z + 0.5);
+      throne.add(foot);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.5, 10), mats.gold);
+      post.position.set(sx + 0.02, baseY + 1.55, z - 0.48);
+      post.castShadow = shadows;
+      throne.add(post);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), mats.gold);
+      finial.position.set(sx + 0.02, baseY + 2.86, z - 0.48);
+      throne.add(finial);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.95), mats.gold);
+      arm.position.set(sx + 0.06, baseY + 0.95, z - 0.02);
+      throne.add(arm);
+      const support = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), mats.gold);
+      support.position.set(sx + 0.06, baseY + 0.68, z + 0.32);
+      throne.add(support);
+    }
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.56, 2.3, 0.16), mats.gold);
+    back.position.set(0, baseY + 1.5, z - 0.52);
+    back.castShadow = shadows;
+    throne.add(back);
+    const inset = new THREE.Mesh(new THREE.BoxGeometry(1.24, 1.95, 0.06), mats.fabric);
+    inset.position.set(0, baseY + 1.5, z - 0.42);
+    throne.add(inset);
+    // Crown crest over the back.
+    const crest = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.23, 0.2, 10), mats.gold);
+    crest.position.set(0, baseY + 2.78, z - 0.52);
+    throne.add(crest);
+    for (const dx of [-0.14, 0, 0.14]) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.24, 8), mats.gold);
+      spike.position.set(dx, baseY + 2.98, z - 0.52);
+      throne.add(spike);
+    }
+    const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), mats.gold);
+    jewel.position.set(0, baseY + 2.62, z - 0.4);
+    throne.add(jewel);
+    group.add(throne);
+  }
+
+  /** The big screen + its gold frame — centre of the front wall in
+   *  both looks, playing whatever setScreenSource handed it. */
+  private buildScreen(group: THREE.Group, mats: LookMaterials): void {
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(HALL_SCREEN.width, HALL_SCREEN.height),
+      this.screenMaterial,
+    );
+    screen.position.set(HALL_SCREEN.centerX, HALL_SCREEN.centerY, HALL_SCREEN.z);
+    group.add(screen);
     const mkBar = (w: number, h: number, x: number, y: number) => {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), frameMat);
-      bar.position.set(x, y, -17.93);
-      this.scene.add(bar);
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), mats.gold);
+      bar.position.set(x, y, HALL_SCREEN.z + 0.02);
+      group.add(bar);
     };
     mkBar(13.9, 0.22, 0, 6.46);
     mkBar(13.9, 0.22, 0, 0.64);
     mkBar(0.22, 6.04, -6.84, 3.55);
     mkBar(0.22, 6.04, 6.84, 3.55);
+  }
 
+  private buildSpeakersAndMic(group: THREE.Group, mats: LookMaterials): void {
     // Speaker stacks flanking the stage (the house set's voice).
     for (const x of [-9.8, 9.8]) {
       const stack = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.7, 1.2), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7 }));
       stack.position.set(x, 0.7 + 1.35, -14.6);
-      this.scene.add(stack);
+      group.add(stack);
       for (const [r, y] of [[0.52, 2.6], [0.34, 1.35]] as Array<[number, number]>) {
         const cone = new THREE.Mesh(new THREE.CircleGeometry(r, 24), new THREE.MeshStandardMaterial({ color: 0x171310, roughness: 0.5 }));
         cone.position.set(x, 0.7 + y, -13.98);
-        this.scene.add(cone);
-        const ringM = new THREE.Mesh(new THREE.TorusGeometry(r, 0.025, 8, 32), goldMat);
+        group.add(cone);
+        const ringM = new THREE.Mesh(new THREE.TorusGeometry(r, 0.025, 8, 32), mats.gold);
         ringM.position.set(x, 0.7 + y, -13.97);
-        this.scene.add(ringM);
+        group.add(ringM);
       }
     }
-
     // Hanging mic over the stage lip — center front, house signature.
     const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.7, 6), new THREE.MeshStandardMaterial({ color: 0x222222 }));
     cable.position.set(0, 5.6, -13.2);
-    this.scene.add(cable);
+    group.add(cable);
     const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.34, 10), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.6 }));
     mic.position.set(0, 4.6, -13.2);
     mic.rotation.z = 0.35;
-    this.scene.add(mic);
-    const micBand = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.014, 8, 20), goldMat);
+    group.add(mic);
+    const micBand = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.014, 8, 20), mats.gold);
     micBand.position.set(0.06, 4.68, -13.2);
     micBand.rotation.z = 0.35;
-    this.scene.add(micBand);
+    group.add(micBand);
+  }
 
-    // Lights — a warm ambient base + stage spots. No shadow maps:
-    // the "baked" look comes from materials and the floor bake.
-    this.scene.add(new THREE.AmbientLight(0x6b5836, 0.85));
-    const hemi = new THREE.HemisphereLight(0x3a3222, 0x050505, 0.5);
-    this.scene.add(hemi);
+  private buildLights(group: THREE.Group, look: HallLook): void {
+    group.add(new THREE.AmbientLight(look.ambient.color, look.ambient.intensity));
+    group.add(new THREE.HemisphereLight(look.hemisphere.sky, look.hemisphere.ground, look.hemisphere.intensity));
     for (const x of [-6, 0, 6]) {
-      const spot = new THREE.SpotLight(0xffdf9e, 160, 30, 0.55, 0.65, 1.6);
+      const spot = new THREE.SpotLight(look.stageSpot.color, look.stageSpot.intensity, 30, 0.55, 0.65, 1.6);
       spot.position.set(x, 6.3, -10.5);
       spot.target.position.set(x * 0.6, 0.7, -15.5);
-      this.scene.add(spot);
-      this.scene.add(spot.target);
+      group.add(spot);
+      group.add(spot.target);
     }
-    const house = new THREE.PointLight(0xffe2a8, 42, 26, 1.8);
+    const house = new THREE.PointLight(look.houseLight.color, look.houseLight.intensity, 26, 1.8);
     house.position.set(0, 5.6, 2);
-    this.scene.add(house);
+    group.add(house);
+
+    if (look.sun.present) {
+      const sun = new THREE.DirectionalLight(look.sun.color, look.sun.intensity);
+      sun.position.set(-13.5, 10.5, -1);
+      sun.target.position.set(7, 0, -5);
+      if (QUALITY[this.quality].shadows) {
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(this.quality === "high" ? 2048 : 1024, this.quality === "high" ? 2048 : 1024);
+        sun.shadow.camera.left = -20;
+        sun.shadow.camera.right = 20;
+        sun.shadow.camera.top = 20;
+        sun.shadow.camera.bottom = -20;
+        sun.shadow.camera.near = 1;
+        sun.shadow.camera.far = 45;
+        sun.shadow.bias = -0.0004;
+        sun.shadow.normalBias = 0.03;
+      }
+      group.add(sun);
+      group.add(sun.target);
+    }
+  }
+
+  private buildChandeliers(group: THREE.Group, mats: LookMaterials): void {
+    const bulbMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1206, emissive: 0xffc978, emissiveIntensity: 2.4, roughness: 0.4,
+    });
+    const candleMat = new THREE.MeshStandardMaterial({ color: 0xf3e5c0, roughness: 0.6 });
+    for (const z of [-5, 4]) {
+      const ch = new THREE.Group();
+      ch.position.set(0, 0, z);
+      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.5, 6), mats.darkMetal);
+      chain.position.y = 5.75;
+      ch.add(chain);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.05, 10, 44), mats.gold);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 4.95;
+      ch.add(ring);
+      const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 10, 36), mats.gold);
+      ring2.rotation.x = Math.PI / 2;
+      ring2.position.y = 5.22;
+      ch.add(ring2);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 6), candleMat);
+        stick.position.set(Math.cos(a) * 1.05, 5.04, Math.sin(a) * 1.05);
+        ch.add(stick);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), bulbMat);
+        bulb.position.set(Math.cos(a) * 1.05, 5.16, Math.sin(a) * 1.05);
+        ch.add(bulb);
+      }
+      group.add(ch);
+    }
+    const glow = new THREE.PointLight(0xffd9a0, 34, 22, 1.8);
+    glow.position.set(0, 4.7, -0.5);
+    group.add(glow);
+  }
+
+  /** Fire braziers flanking the dais (Look B) — bronze bowls, live
+   *  flame sprites, and a real flickering light on stronger tiers. */
+  private buildBraziers(group: THREE.Group, mats: LookMaterials, anim: LookAnim): void {
+    const bronze = new THREE.MeshStandardMaterial({ color: 0x4a3418, metalness: 0.85, roughness: 0.4 });
+    for (const x of [-3.6, 3.6]) {
+      const brazier = new THREE.Group();
+      brazier.position.set(x, 0, -11.3);
+      const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.5, 10), mats.darkMetal);
+      pedestal.position.y = 0.25;
+      brazier.add(pedestal);
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.18, 0.3, 18), bronze);
+      bowl.position.y = 0.65;
+      brazier.add(bowl);
+      const coals = new THREE.Mesh(new THREE.CircleGeometry(0.4, 20), new THREE.MeshBasicMaterial({ color: 0xff7a26 }));
+      coals.rotation.x = -Math.PI / 2;
+      coals.position.y = 0.79;
+      brazier.add(coals);
+      const flame = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      }));
+      flame.scale.set(0.6, 0.95, 1);
+      flame.position.y = 1.18;
+      brazier.add(flame);
+      anim.flames.push({ sprite: flame, baseX: 0.6, baseY: 0.95, phase: Math.random() * 20 });
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: flameTexture(), transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending,
+      }));
+      glow.scale.set(1.7, 1.7, 1);
+      glow.position.y = 1.15;
+      brazier.add(glow);
+      group.add(brazier);
+      if (QUALITY[this.quality].candleLights) {
+        const light = new THREE.PointLight(0xff9040, 26, 13, 1.9);
+        light.position.set(x, 1.35, -11.3);
+        group.add(light);
+        anim.flickerLights.push({ light, base: 26, phase: Math.random() * 20 });
+      }
+    }
+  }
+
+  /** Fake god-rays slanting from the window wall (Look A), with a
+   *  warm pool where each beam lands. */
+  private buildBeams(group: THREE.Group): void {
+    const dir = new THREE.Vector3(0.94, -0.34, 0.02).normalize();
+    const len = 13.5;
+    for (const z of [-9, -2, 5]) {
+      for (const [half, opacity] of [[2.0, 0.05], [1.1, 0.04]] as Array<[number, number]>) {
+        const a = new THREE.Vector3(-13.9, 5.5, z - half);
+        const b = new THREE.Vector3(-13.9, 5.5, z + half);
+        const c = b.clone().addScaledVector(dir, len);
+        const d = a.clone().addScaledVector(dir, len);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute([
+          a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x, d.y, d.z,
+        ], 3));
+        geo.setIndex([0, 1, 2, 0, 2, 3]);
+        const beam = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+          color: 0xffdf9e, transparent: true, opacity, blending: THREE.AdditiveBlending,
+          depthWrite: false, side: THREE.DoubleSide, fog: false,
+        }));
+        beam.renderOrder = 4;
+        group.add(beam);
+      }
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(2.7, 26), new THREE.MeshBasicMaterial({
+        color: 0xffdf9e, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      }));
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(-1.2, 0.022, z);
+      pool.renderOrder = 3;
+      group.add(pool);
+    }
+  }
+
+  /** Dust motes hanging in the sunbeams (Look A). */
+  private buildDust(group: THREE.Group): THREE.Points {
+    const count = 340;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = -13.5 + Math.random() * 15.5;
+      positions[i * 3 + 1] = 0.3 + Math.random() * 5.3;
+      positions[i * 3 + 2] = -11.5 + Math.random() * 19;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const dust = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: hazeTexture(), size: 0.055, transparent: true, opacity: 0.5, color: 0xffe9bb,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    }));
+    dust.renderOrder = 5;
+    group.add(dust);
+    return dust;
+  }
+
+  /** Slow haze sheets drifting over the midnight floor (Look B). */
+  private buildHaze(group: THREE.Group, anim: LookAnim): void {
+    const specs: Array<[number, number, number]> = [
+      [0, 2.3, -8], [-5.5, 2.7, -1], [5.5, 2.1, 3.5], [0, 2.9, -13.5],
+    ];
+    specs.forEach(([x, y, z], i) => {
+      const sheet = new THREE.Mesh(
+        new THREE.PlaneGeometry(11, 4.2),
+        new THREE.MeshBasicMaterial({
+          map: hazeTexture(), transparent: true, opacity: 0.15, depthWrite: false,
+          fog: false, color: 0xa89372, side: THREE.DoubleSide,
+        }),
+      );
+      sheet.position.set(x, y, z);
+      sheet.rotation.y = i * 0.7;
+      sheet.renderOrder = 4;
+      group.add(sheet);
+      anim.smokes.push({ mesh: sheet, baseX: x, phase: i * 1.7, speed: 0.5 + (i % 3) * 0.3 });
+    });
   }
 
   /* ── Screen ── */
@@ -563,6 +1252,7 @@ export class KingsHallScene {
   private tick(): void {
     if (this.disposed) return;
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    const t = this.clock.elapsedTime;
 
     if (this.renderer.xr.isPresenting) {
       this.tickXrMove(dt);
@@ -571,6 +1261,9 @@ export class KingsHallScene {
       this.rig.rotation.y = this.yaw;
       this.camera.rotation.x = this.pitch;
     }
+    // The planar mirror rests while presenting — Reflector and XR
+    // don't mix; the polished overlay carries the floor in a headset.
+    if (this.floorReflector) this.floorReflector.visible = !this.renderer.xr.isPresenting;
 
     // Remote avatars glide to their latest reported spots.
     const k = 1 - Math.exp(-9 * dt);
@@ -578,6 +1271,25 @@ export class KingsHallScene {
       rig.group.position.x += (rig.target.x - rig.group.position.x) * k;
       rig.group.position.z += (rig.target.z - rig.group.position.z) * k;
       rig.group.rotation.y = angleLerp(rig.group.rotation.y, rig.target.rotY, k);
+    }
+
+    // The look's living details: candle flames breathing, braziers
+    // flickering, dust drifting in the sunbeams, haze rolling slow.
+    const anim = this.lookAnim;
+    for (const f of anim.flames) {
+      const n = Math.sin(t * 11 + f.phase) * 0.5 + Math.sin(t * 23 + f.phase * 1.7) * 0.5;
+      f.sprite.scale.set(f.baseX * (1 + n * 0.07), f.baseY * (1 + n * 0.14), 1);
+    }
+    for (const l of anim.flickerLights) {
+      l.light.intensity = l.base * (1 + 0.13 * Math.sin(t * 9 + l.phase) + 0.06 * Math.sin(t * 27 + l.phase * 1.7));
+    }
+    if (anim.dust) {
+      anim.dust.position.y = Math.sin(t * 0.12) * 0.12;
+      anim.dust.rotation.y = t * 0.005;
+    }
+    for (const s of anim.smokes) {
+      s.mesh.rotation.y += dt * 0.03 * s.speed;
+      s.mesh.position.x = s.baseX + Math.sin(t * 0.05 + s.phase) * 0.7;
     }
 
     // Report my pose when it meaningfully changed (client throttles).
@@ -660,6 +1372,22 @@ export class KingsHallScene {
       this.video.load();
     }
     for (const peerId of [...this.avatars.keys()]) this.removePeer(peerId);
+    if (this.lookGroup) {
+      this.scene.remove(this.lookGroup);
+      this.disposeLookGroup(this.lookGroup);
+      this.lookGroup = null;
+      this.floorReflector = null;
+    }
+    if (this.envTarget) {
+      this.envTarget.dispose();
+      this.envTarget = null;
+    }
+    for (const tex of textureCache.values()) tex.dispose();
+    textureCache.clear();
+    flameTex?.dispose();
+    flameTex = null;
+    hazeTex?.dispose();
+    hazeTex = null;
     this.renderer.dispose();
   }
 }
