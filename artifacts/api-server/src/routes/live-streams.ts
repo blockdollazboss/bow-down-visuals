@@ -21,6 +21,7 @@ import {
   StreamProviderError,
 } from "../lib/cloudflare-stream";
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
+import { fanOutGoLiveAlerts } from "../lib/live-alerts";
 import {
   initOwnServerLive,
   beginSession,
@@ -574,6 +575,8 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           });
           return;
         }
+        // Go-live alerts fan out off the response path (dedupe-safe).
+        void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
         res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
         return;
       } catch (err) {
@@ -626,6 +629,8 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
         })
         .returning();
       const row = inserted[0]!;
+      // Go-live alerts fan out off the response path (dedupe-safe).
+      void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
       res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
     } catch (err) {
       // Lost a race against the one-live-per-user unique index: clean up
