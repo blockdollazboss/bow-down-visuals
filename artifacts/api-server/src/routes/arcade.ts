@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { count, eq, inArray, max } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, arcadeScoresTable, retentionPrefsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
@@ -38,23 +38,28 @@ interface RankedRow {
   plays: number;
 }
 
-/** Best score per user for one game, ranked. Users who opted out of
- *  leaderboards (retention_prefs.leaderboard_visible = false) are
- *  excluded — except the viewer, who always sees their own standing. */
+/** Best score per user for one game, ranked. Aggregation happens in JS
+ *  over plain rows (v1 scale; mirrors the retention leaderboard's
+ *  in-memory ranking). Users who opted out of leaderboards
+ *  (retention_prefs.leaderboard_visible = false) are excluded — except
+ *  the viewer, who always sees their own standing. */
 async function rankedBests(game: ArcadeGame, viewerId: string): Promise<RankedRow[]> {
-  const bestRows = await db
-    .select({
-      userId: arcadeScoresTable.userId,
-      best: max(arcadeScoresTable.score),
-      plays: count(),
-    })
+  const scoreRows = await db
+    .select({ userId: arcadeScoresTable.userId, score: arcadeScoresTable.score })
     .from(arcadeScoresTable)
-    .where(eq(arcadeScoresTable.game, game))
-    .groupBy(arcadeScoresTable.userId);
+    .where(eq(arcadeScoresTable.game, game));
 
-  const rows: RankedRow[] = bestRows
-    .filter((r) => typeof r.best === "number")
-    .map((r) => ({ userId: r.userId, best: r.best as number, plays: r.plays }));
+  const byUser = new Map<string, RankedRow>();
+  for (const r of scoreRows) {
+    const cur = byUser.get(r.userId);
+    if (cur) {
+      cur.best = Math.max(cur.best, r.score);
+      cur.plays += 1;
+    } else {
+      byUser.set(r.userId, { userId: r.userId, best: r.score, plays: 1 });
+    }
+  }
+  const rows = [...byUser.values()];
   if (rows.length === 0) return rows;
 
   const prefRows = await db
@@ -159,15 +164,19 @@ router.get("/arcade/me", requireAuth, publicApiLimiter, async (req: Request, res
   const userId = req.userId!;
   try {
     const rows = await db
-      .select({
-        game: arcadeScoresTable.game,
-        best: max(arcadeScoresTable.score),
-        plays: count(),
-      })
+      .select({ game: arcadeScoresTable.game, score: arcadeScoresTable.score })
       .from(arcadeScoresTable)
-      .where(eq(arcadeScoresTable.userId, userId))
-      .groupBy(arcadeScoresTable.game);
-    const byGame = new Map(rows.map((r) => [r.game, r]));
+      .where(eq(arcadeScoresTable.userId, userId));
+    const byGame = new Map<string, { best: number; plays: number }>();
+    for (const r of rows) {
+      const cur = byGame.get(r.game);
+      if (cur) {
+        cur.best = Math.max(cur.best, r.score);
+        cur.plays += 1;
+      } else {
+        byGame.set(r.game, { best: r.score, plays: 1 });
+      }
+    }
     res.json({
       games: ARCADE_GAMES.map((game) => ({
         game,
