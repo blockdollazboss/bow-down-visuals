@@ -4,7 +4,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Mic2, Video, Film, FolderOpen, Headphones, ArrowRight, ArrowUpRight,
-  Zap, AlertCircle, User, Flame, Star, Sparkles, Clapperboard, ImageIcon,
+  Zap, AlertCircle, AlertTriangle, RotateCcw, User, Flame, Star, Sparkles, Clapperboard, ImageIcon,
   Lightbulb, TrendingUp, DollarSign, Activity, ChevronRight, Play, Plus,
   Music2, BadgeDollarSign, Scissors as ScissorsIcon, Gift, UsersRound, Store,
   ShoppingBag, Coffee, Disc3, Megaphone, Crown,
@@ -125,6 +125,13 @@ export default function Dashboard() {
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [streak, setStreak] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Section-load failures are NOT empty sections — if any core fetch
+     (projects/deals/usage/stats) rejects or answers non-OK, the
+     sections area below the header gets its own error state with a
+     retry. Genuinely empty sections render ONLY on a fully successful
+     load. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
   const [sharkDrop, setSharkDrop] = useState<SharkDrop | null>(null);
   const [levelUp, setLevelUp] = useState<number | null>(null);
@@ -175,6 +182,7 @@ export default function Dashboard() {
     if (!user) return;
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       const token = await getAccessToken();
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
@@ -185,6 +193,14 @@ export default function Dashboard() {
         fetch("/api/bonus/status", { headers }),
       ]);
       if (cancelled) return;
+      /* A rejected fetch OR a non-OK response in any core section is a
+         load failure — previously each was silently skipped, leaving
+         that section rendering as if it were genuinely empty. */
+      const anyFailed = [pRes, dRes, uRes, sRes].some((r) => {
+        if (r.status === "rejected") return true;
+        return !r.value.ok;
+      });
+      if (anyFailed) setLoadError(true);
       if (pRes.status === "fulfilled" && pRes.value.ok) {
         const d = await pRes.value.json().catch(() => ({ projects: [] }));
         setProjects(d.projects ?? []);
@@ -202,9 +218,9 @@ export default function Dashboard() {
         setStreak(typeof d.streak === "number" ? d.streak : 0);
       }
       setLoading(false);
-    })().catch(() => { if (!cancelled) setLoading(false); });
+    })().catch(() => { if (!cancelled) { setLoadError(true); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [user, getAccessToken]);
+  }, [user, getAccessToken, retryNonce]);
 
   /* ── Retention delight: shark drop dice roll + level-up check ──
      The server owns all the rules (15% drop chance, 2-per-7-day cap,
@@ -402,6 +418,23 @@ export default function Dashboard() {
           );
         })() : null}
 
+        {loadError ? (
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — your projects and progress are safe, this page just couldn't load them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
+        ) : (
+          <>
         {/* ── 2. CONTINUE ── */}
         <section>
           <SectionLabel icon={Play} action={
@@ -581,6 +614,8 @@ export default function Dashboard() {
         <LeaderboardWidget />
 
         <ExtensionPromoBanner />
+          </>
+        )}
       </div>
     </div>
     {/* ── FIXED MODALS — outside .lux-page so `fixed inset-0` = viewport ── */}
