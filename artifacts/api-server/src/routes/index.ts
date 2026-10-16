@@ -621,7 +621,7 @@ router.use(reactionVideoRouter);
 
 // ── Creator Streaming Platform ──
 router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows, likes, plays, DMCA
-router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Royal Court)
+router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Front Row)
 router.use(profileWebsiteRouter);           // /api/creator-profiles layout/theme/store/spotlight, /api/collections/* (Stack 3)
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)

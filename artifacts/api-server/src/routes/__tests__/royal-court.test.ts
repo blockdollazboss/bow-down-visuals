@@ -1,5 +1,5 @@
 /**
- * Route tests for The Royal Court in routes/royal-court:
+ * Route tests for The Front Row in routes/royal-court:
  *   GET /api/creator-profiles/:slug/court            public, rank-ordered
  *   GET /api/creator-profiles/me/court               owner view (auth)
  *   PUT /api/creator-profiles/me/court               replace-all save (auth)

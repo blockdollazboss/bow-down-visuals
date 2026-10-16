@@ -6,7 +6,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
-/* ── The Royal Court ──────────────────────────────────────────────────────
+/* ── The Front Row ──────────────────────────────────────────────────────
    A creator crowns up to 8 other creators into their Court, in rank
    order (migration 0131, table royal_court). The Court renders on the
    creator's public profile page; the owner builds it from profile
