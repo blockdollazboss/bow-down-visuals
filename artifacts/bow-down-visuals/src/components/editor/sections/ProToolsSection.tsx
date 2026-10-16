@@ -30,6 +30,7 @@ import {
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { MotionTrackCard } from "./MotionTrackCard";
+import { ColorCurvesPanel } from "./ColorCurvesPanel";
 import { MaskCard } from "./MaskCard";
 import { FillerRemoverCard } from "./FillerRemoverCard";
 import { useToast } from "@/hooks/use-toast";
@@ -380,6 +381,11 @@ export function ProToolsSection({
               )}
             </div>
           </div>
+          <ColorCurvesPanel
+            curves={pt.curves ?? null}
+            onChange={(curves) => patchProTools({ curves })}
+            videoRef={videoRef}
+          />
           <Collapsible title={`Advanced — manual sliders${ccActive ? " ●" : ""}`}>
             <div className="space-y-1">
               {SLIDERS.map(({ key, label }) => (

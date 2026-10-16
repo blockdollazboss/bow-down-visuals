@@ -655,6 +655,11 @@ export interface Keyframe {
   rotation: number;
   /** Opacity 0-1. */
   opacity: number;
+  /** Bézier easing handles for the segment STARTING at this keyframe
+   *  (Stack 5 #8): control points in unit space (x: time fraction,
+   *  y: value fraction). Absent = the legacy smoothstep easing. */
+  easeOutCp?: { x: number; y: number };
+  easeInCp?: { x: number; y: number };
 }
 
 /** Interpolated transform values at a given time. */
@@ -744,8 +749,30 @@ export interface CropSettings {
   h: number;
 }
 
+/** One point on a colour curve: input level (x) → output level (y), 0..1. */
+export interface CurvePoint { x: number; y: number; }
+
+/** RGB + HSL colour curves (Stack 5 #2), per clip, beside the sliders.
+ *  Export composition order (server pro-tools-ffmpeg.ts, documented there):
+ *  sliders (eq/colorbalance/vibrance) FIRST, then RGB curves exactly via the
+ *  ffmpeg curves filter, then the HSL approximation (L→master curve,
+ *  S→saturation sampled at mid-tones, H→hue shift sampled at mid-tones). */
+export interface ColorCurves {
+  rgb: { all: CurvePoint[]; r: CurvePoint[]; g: CurvePoint[]; b: CurvePoint[] };
+  hsl: { h: CurvePoint[]; s: CurvePoint[]; l: CurvePoint[] };
+}
+
+export function defaultColorCurves(): ColorCurves {
+  const id = (): CurvePoint[] => [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  return { rgb: { all: id(), r: id(), g: id(), b: id() }, hsl: { h: id(), s: id(), l: id() } };
+}
+
 export interface ProToolsSettings {
   colorCorrection: ColorCorrectionSettings;
+  /** Colour curves (Stack 5 #2). null = identity (no curve pass). */
+  curves: ColorCurves | null;
+  /** Custom speed-ramp segments (Stack 5 #4). null = use speedCurve/speed. */
+  speedSegments: SpeedSegment[] | null;
   /** Grade preset used as a starting point (null = manual only). */
   colorGradePreset: string | null;
   chromaKey: ChromaKeySettings;
@@ -769,6 +796,19 @@ export const SPEED_PRESETS = [
   { label: "2× Hyper", value: 2 },
   { label: "4× Timelapse", value: 4 },
 ] as const;
+
+/** One custom speed-ramp segment (Stack 5 #4): a slice of the clip played
+ *  at a constant speed. Segments tile the clip (see normalizeSpeedSegments
+ *  in lib/motion-pro.ts); presets remain the starting points that fill them. */
+export interface SpeedSegment {
+  id: string;
+  /** Normalized start 0..1 across the clip. */
+  startT: number;
+  /** Normalized end 0..1 across the clip (> startT). */
+  endT: number;
+  /** Playback speed for this segment, 0.25..4. */
+  speed: number;
+}
 
 /** A point on a speed curve: time (0-1 normalized across the clip) → speed multiplier. */
 export interface SpeedCurvePoint {
@@ -1574,6 +1614,8 @@ export function defaultCrop(): CropSettings {
 export function defaultProTools(): ProToolsSettings {
   return {
     colorCorrection: defaultColorCorrection(),
+    curves: null,
+    speedSegments: null,
     colorGradePreset: null,
     chromaKey: defaultChromaKey(),
     speed: 1,
@@ -1604,6 +1646,16 @@ export const GRADE_PRESET_CORRECTIONS: Record<string, ColorCorrectionSettings> =
   "Cinematic Contrast":{ ...defaultColorCorrection(), contrast: 40, saturation: -10, brightness: -8, highlights: -10, shadows: -10 },
 };
 
+/** True when any curve point leaves the identity diagonal. */
+export function colorCurvesActive(curves: ColorCurves | null | undefined): boolean {
+  if (!curves) return false;
+  const channels = [
+    curves.rgb.all, curves.rgb.r, curves.rgb.g, curves.rgb.b,
+    curves.hsl.h, curves.hsl.s, curves.hsl.l,
+  ];
+  return channels.some((pts) => Array.isArray(pts) && pts.some((p) => Math.abs(p.y - p.x) > 0.005));
+}
+
 /** True when any pro-tool differs from its neutral default (i.e. export must run the filter pass). */
 export function proToolsActive(pt: ProToolsSettings | null | undefined): boolean {
   if (!pt) return false;
@@ -1614,6 +1666,8 @@ export function proToolsActive(pt: ProToolsSettings | null | undefined): boolean
     cc.shadows !== 0 || cc.vibrance !== 0 || cc.exposure !== 0;
   return (
     ccActive ||
+    (pt.curves != null && colorCurvesActive(pt.curves)) ||
+    (Array.isArray(pt.speedSegments) && pt.speedSegments.length > 0) ||
     pt.chromaKey.enabled ||
     pt.speed !== 1 ||
     pt.reverse ||

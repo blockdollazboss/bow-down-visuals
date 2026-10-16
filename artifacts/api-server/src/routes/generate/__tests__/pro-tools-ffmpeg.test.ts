@@ -168,3 +168,45 @@ describe("proToolsFilterActive", () => {
     ).toBe(true);
   });
 });
+
+import { buildCurvesFilters, curveIsIdentity } from "../pro-tools-ffmpeg";
+
+const ID = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+const curves = (over: Record<string, unknown> = {}) => ({
+  rgb: { all: ID, r: ID, g: ID, b: ID },
+  hsl: { h: ID, s: ID, l: ID },
+  ...over,
+}) as never;
+
+describe("buildCurvesFilters (Stack 5 #2)", () => {
+  it("identity curves emit no filters", () => {
+    expect(buildCurvesFilters(curves())).toEqual([]);
+    expect(curveIsIdentity(ID)).toBe(true);
+  });
+  it("RGB curves map exactly to one curves filter", () => {
+    const out = buildCurvesFilters(curves({
+      rgb: { all: ID, r: [{ x: 0, y: 0 }, { x: 0.5, y: 0.7 }, { x: 1, y: 1 }], g: ID, b: ID },
+    }));
+    expect(out).toEqual(["curves=r='0.000/0.000 0.500/0.700 1.000/1.000'"]);
+  });
+  it("HSL lightness uses a master curves pass; S/H sample mid-tones", () => {
+    const out = buildCurvesFilters(curves({
+      hsl: {
+        h: [{ x: 0, y: 0 }, { x: 0.5, y: 0.75 }, { x: 1, y: 1 }],
+        s: [{ x: 0, y: 0 }, { x: 0.5, y: 0.75 }, { x: 1, y: 1 }],
+        l: [{ x: 0, y: 0.1 }, { x: 1, y: 0.9 }],
+      },
+    }));
+    expect(out[0]).toContain("curves=all='0.000/0.100 1.000/0.900'");
+    expect(out).toContain("eq=saturation=1.5000"); // 0.75/0.5
+    expect(out).toContain("hue=h=90.00"); // (0.75-0.5)*360
+  });
+  it("curves compose AFTER sliders in the full chain (never collapsed to a preset)", () => {
+    const chain = buildProToolsFilterChain({
+      colorCorrection: { ...NEUTRAL_CC, contrast: 20 },
+      curves: curves({ rgb: { all: ID, r: [{ x: 0, y: 0.2 }, { x: 1, y: 1 }], g: ID, b: ID } }),
+    });
+    expect(chain.indexOf("eq=")).toBeGreaterThan(-1);
+    expect(chain.indexOf("curves=")).toBeGreaterThan(chain.indexOf("eq="));
+  });
+});

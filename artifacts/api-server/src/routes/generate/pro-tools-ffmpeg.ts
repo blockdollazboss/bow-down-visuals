@@ -9,7 +9,14 @@
  *   3. crop     → crop (creative crop, aspect presets or free rect)
  *   4. rotate   → transpose (90/180/270)
  *   5. flip     → hflip / vflip
- *   6. color    → eq + colorbalance + vibrance
+ *   6. color    → eq + colorbalance + vibrance (the SLIDERS)
+ *   6b. curves  → ffmpeg curves (RGB, exact) then the HSL approximation —
+ *                 curves COMPOSE AFTER the sliders: a curve-adjusted clip is
+ *                 never collapsed back to a nearest preset. HSL mapping:
+ *                 L curve → curves master (exact for lightness); S curve →
+ *                 eq saturation sampled at mid-tones; H curve → hue shift
+ *                 sampled at mid-tones (both documented approximations —
+ *                 ffmpeg has no per-level HSL curve filter).
  *   7. chroma   → chromakey + composite over bg color (drawbox+overlay trick)
  *
  * Mapping table (UI slider -100..100 → FFmpeg):
@@ -62,8 +69,19 @@ export interface ProToolsCrop {
   h: number;
 }
 
+export interface CurvePointInput { x: number; y: number }
+
+export interface ColorCurvesInput {
+  rgb: { all: CurvePointInput[]; r: CurvePointInput[]; g: CurvePointInput[]; b: CurvePointInput[] };
+  hsl: { h: CurvePointInput[]; s: CurvePointInput[]; l: CurvePointInput[] };
+}
+
 export interface ProToolsFilterInput {
   colorCorrection?: ProToolsColorCorrection | null;
+  /** Colour curves (Stack 5 #2) — compose after the sliders, see header. */
+  curves?: ColorCurvesInput | null;
+  /** Custom speed-ramp segments (Stack 5 #4) — take precedence over speedCurve. */
+  speedSegments?: { startT: number; endT: number; speed: number }[] | null;
   chromaKey?: ProToolsChromaKey | null;
   speed?: number | null;
   /** Variable speed curve (CapCut-style). Takes precedence over flat speed. */
@@ -176,6 +194,9 @@ export function buildProToolsFilterChain(input: ProToolsFilterInput): string {
     if (vib !== 0) parts.push(`vibrance=intensity=${f4((vib / 100) * 2)}`);
   }
 
+  // ── 6b. Colour curves (after sliders, documented in the header) ──
+  if (input.curves) parts.push(...buildCurvesFilters(input.curves));
+
   if (parts.length === 0 && !input.chromaKey?.enabled) return "";
 
   // ── 7. Chroma key (needs stream labels: split → bg fill + keyed fg → overlay) ──
@@ -202,6 +223,78 @@ export function buildProToolsFilterChain(input: ProToolsFilterInput): string {
 /** True when the input would produce a non-empty filter chain. */
 export function proToolsFilterActive(input: ProToolsFilterInput): boolean {
   return buildProToolsFilterChain(input).length > 0;
+}
+
+/* ─── Colour curves (Stack 5 #2) ────────────────────────────────────────── */
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0));
+
+/** Normalize curve points the same way the editor does (sort, pin ends). */
+export function normalizeCurvePoints(points: CurvePointInput[] | null | undefined): CurvePointInput[] {
+  const pts = (points ?? [])
+    .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))
+    .map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) }))
+    .sort((a, b) => a.x - b.x);
+  if (pts.length === 0) return [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  if (pts[0]!.x > 0) pts.unshift({ x: 0, y: pts[0]!.y });
+  if (pts[pts.length - 1]!.x < 1) pts.push({ x: 1, y: pts[pts.length - 1]!.y });
+  return pts;
+}
+
+export function curveIsIdentity(points: CurvePointInput[] | null | undefined): boolean {
+  return normalizeCurvePoints(points).every((p) => Math.abs(p.y - p.x) <= 0.005);
+}
+
+function pointsArg(points: CurvePointInput[]): string {
+  return normalizeCurvePoints(points).map((p) => `${p.x.toFixed(3)}/${p.y.toFixed(3)}`).join(" ");
+}
+
+/** Value of a curve at x — used to sample the HSL S/H approximations. */
+export function curveValueAt(points: CurvePointInput[] | null | undefined, x: number): number {
+  const pts = normalizeCurvePoints(points);
+  const cx = clamp01(x);
+  if (cx <= pts[0]!.x) return pts[0]!.y;
+  if (cx >= pts[pts.length - 1]!.x) return pts[pts.length - 1]!.y;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]!, b = pts[i + 1]!;
+    if (cx >= a.x && cx <= b.x) {
+      const f = (cx - a.x) / (b.x - a.x || 1);
+      return a.y + (b.y - a.y) * f;
+    }
+  }
+  return cx;
+}
+
+/**
+ * Curves → ffmpeg filters, in composition order:
+ *   1. RGB curves exactly via `curves` (all/r/g/b in one filter instance).
+ *   2. HSL lightness via a second `curves` master pass (exact for L).
+ *   3. HSL saturation/hue sampled at mid-tones (x=0.5) — approximations,
+ *      because ffmpeg exposes no per-level HSL curve; the editor labels
+ *      them as such. Identity channels emit nothing.
+ */
+export function buildCurvesFilters(curves: ColorCurvesInput): string[] {
+  const out: string[] = [];
+  const rgbBits: string[] = [];
+  if (!curveIsIdentity(curves.rgb.all)) rgbBits.push(`all='${pointsArg(curves.rgb.all)}'`);
+  if (!curveIsIdentity(curves.rgb.r)) rgbBits.push(`r='${pointsArg(curves.rgb.r)}'`);
+  if (!curveIsIdentity(curves.rgb.g)) rgbBits.push(`g='${pointsArg(curves.rgb.g)}'`);
+  if (!curveIsIdentity(curves.rgb.b)) rgbBits.push(`b='${pointsArg(curves.rgb.b)}'`);
+  if (rgbBits.length > 0) out.push(`curves=${rgbBits.join(":")}`);
+
+  if (!curveIsIdentity(curves.hsl.l)) {
+    out.push(`curves=all='${pointsArg(curves.hsl.l)}'`);
+  }
+  if (!curveIsIdentity(curves.hsl.s)) {
+    const mid = curveValueAt(curves.hsl.s, 0.5);
+    const sat = clamp(mid / 0.5, 0, 3);
+    if (Math.abs(sat - 1) > 0.01) out.push(`eq=saturation=${sat.toFixed(4)}`);
+  }
+  if (!curveIsIdentity(curves.hsl.h)) {
+    const shift = (curveValueAt(curves.hsl.h, 0.5) - 0.5) * 360;
+    if (Math.abs(shift) > 0.5) out.push(`hue=h=${shift.toFixed(2)}`);
+  }
+  return out;
 }
 
 /* ─── Speed curves ──────────────────────────────────────────────────────── */
