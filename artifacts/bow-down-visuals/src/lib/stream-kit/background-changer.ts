@@ -48,7 +48,7 @@ const GREEN = "#00FF00";
 /**
  * The camera-effects library. The UI renders its preset row from this
  * array; growing the library = adding an entry here plus its grade /
- * overlay in CAMERA_EFFECT_FILTERS / _composite(). Grades are cheap
+ * overlay in CAMERA_EFFECT_FILTERS / _compositeMatte(). Grades are cheap
  * canvas filter strings applied to the composited frame; Vignette and
  * Gold Frame are pre-rendered overlays (built once per frame size).
  */
