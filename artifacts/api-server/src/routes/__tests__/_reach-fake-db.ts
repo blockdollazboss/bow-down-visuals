@@ -312,6 +312,10 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
       },
     }),
     execute: async () => ({ rows: [] }),
+    /* Single-threaded fake: a transaction is a pass-through (the
+       advisory-lock execute inside is the no-op above). Concurrency
+       semantics are asserted against pg-mem / real Postgres suites. */
+    transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(db),
   };
 
   return {

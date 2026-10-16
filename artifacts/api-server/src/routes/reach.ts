@@ -32,7 +32,7 @@ import { sweepIfLarge } from "../lib/sweep-map";
 import { attemptFanOut, stopDestinationRelay } from "../lib/fanout";
 import { countViewers } from "./live-streams";
 import { liveChatHub } from "./live-chat";
-import { awardCrossedStreamDrops, STREAM_DROP_THRESHOLDS, STREAM_DROP_WEEKLY_CAP_VB, streamDropWeekSpendVb } from "../lib/stream-drops";
+import { awardCrossedStreamDrops, STREAM_DROP_THRESHOLDS, STREAM_DROP_WEEKLY_CAP_VB, combinedDropWeekSpendVb } from "../lib/stream-drops";
 import { currentWeekStart } from "../lib/retention";
 import {
   getLoyaltySettings,
@@ -559,7 +559,9 @@ async function dropProgressDto(userId: string, streamId: string) {
     .from(streamDropAwardsTable)
     .where(and(eq(streamDropAwardsTable.user_id, userId), eq(streamDropAwardsTable.stream_id, streamId)));
   const earned = new Set(awards.map((a) => a.threshold_seconds));
-  const weekSpent = await streamDropWeekSpendVb(currentWeekStart());
+  /* The displayed budget is the COMBINED envelope (stream awards +
+     regular shark-drop claims), matching enforcement (Lane V3 F8). */
+  const weekSpent = await combinedDropWeekSpendVb(currentWeekStart());
   return {
     secondsWatched,
     thresholds: STREAM_DROP_THRESHOLDS.map((t) => ({

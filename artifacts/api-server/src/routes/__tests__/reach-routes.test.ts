@@ -474,6 +474,60 @@ describe("stream-linked drops — server-measured time, capped budget", () => {
     expect(beat.json.budgetReached).toBe(true);
     expect(h.grants).toEqual([{ userId: FAN, amount: 100 }]);
   });
+
+  it("F8: regular shark drops claimed this week count against the SAME cap (combined envelope)", async () => {
+    seedLiveStream();
+    // 500 VB of stream awards + a 400 VB REGULAR shark drop claimed
+    // this week by another user = 900 combined.
+    h.fake.seed("streamDropAwards", [
+      { id: "a1", user_id: OTHER, stream_id: TARGET_STREAM, threshold_seconds: 600, amount_vb: 500, week_start: currentWeekStart(), created_at: new Date(Date.now() - 3600_000) },
+    ]);
+    h.fake.seed("sharkDrops", [
+      { id: "d1", userId: OTHER, amount: 400, droppedAt: new Date(Date.now() - 2 * 3600_000), claimedAt: new Date(Date.now() - 3500_000), expiresAt: new Date(Date.now() + 3600_000) },
+    ]);
+    h.fake.seed("streamWatchProgress", [{ id: "p3", user_id: FAN, stream_id: STREAM, seconds_watched: 1790 }]);
+    const beat1 = await call("POST", `/reach/streams/${STREAM}/watch`, FAN, { sessionId: "session-f8a" });
+    expect(beat1.json.justAwarded).toEqual([{ thresholdSeconds: 600, amountVb: 100 }]); // the last 100 of the combined envelope
+    h.now += 20_000;
+    const beat2 = await call("POST", `/reach/streams/${STREAM}/watch`, FAN, { sessionId: "session-f8a" });
+    expect(beat2.json.justAwarded).toEqual([]);
+    expect(beat2.json.budgetReached).toBe(true);
+    expect(h.grants).toEqual([{ userId: FAN, amount: 100 }]);
+  });
+
+  it("F8: a stream award's mirror ledger row is not double-counted against the cap", async () => {
+    seedLiveStream();
+    const awardAt = new Date(Date.now() - 3600_000);
+    // One 300 VB stream award + its mirror shark_drops row (same user,
+    // same amount, claimed the instant it dropped) + one genuine
+    // 300 VB regular claim = 600 combined, NOT 900.
+    h.fake.seed("streamDropAwards", [
+      { id: "a1", user_id: OTHER, stream_id: TARGET_STREAM, threshold_seconds: 1800, amount_vb: 300, week_start: currentWeekStart(), created_at: awardAt },
+    ]);
+    h.fake.seed("sharkDrops", [
+      { id: "d1", userId: OTHER, amount: 300, droppedAt: awardAt, claimedAt: awardAt, expiresAt: new Date(Date.now() + 3600_000) },
+      { id: "d2", userId: FAN, amount: 300, droppedAt: new Date(Date.now() - 7200_000), claimedAt: new Date(Date.now() - 7000_000), expiresAt: new Date(Date.now() + 3600_000) },
+    ]);
+    h.fake.seed("streamWatchProgress", [{ id: "p4", user_id: FAN, stream_id: STREAM, seconds_watched: 590 }]);
+    await call("POST", `/reach/streams/${STREAM}/watch`, FAN, { sessionId: "session-f8b" }); // baseline beat
+    h.now += 20_000;
+    const beat = await call("POST", `/reach/streams/${STREAM}/watch`, FAN, { sessionId: "session-f8b" });
+    // Combined spend is 600 (300 stream + 300 regular; the mirror is
+    // counted once, inside the 300 stream). FAN's 100 pays (700).
+    expect(beat.json.justAwarded).toEqual([{ thresholdSeconds: 600, amountVb: 100 }]);
+    // The sharp check: ANOTHER viewer crossing 100 pays only if the
+    // base was really 600 — double-counting the mirror would put the
+    // envelope at 900 + 100 (FAN) = 1000 and refuse this one.
+    h.fake.seed("streamWatchProgress", [{ id: "p5", user_id: OTHER, stream_id: STREAM, seconds_watched: 590 }]);
+    await call("POST", `/reach/streams/${STREAM}/watch`, OTHER, { sessionId: "session-f8c" });
+    h.now += 20_000;
+    const beat2 = await call("POST", `/reach/streams/${STREAM}/watch`, OTHER, { sessionId: "session-f8c" });
+    expect(beat2.json.justAwarded).toEqual([{ thresholdSeconds: 600, amountVb: 100 }]);
+    expect(h.grants).toEqual([
+      { userId: FAN, amount: 100 },
+      { userId: OTHER, amount: 100 },
+    ]);
+  });
 });
 
 /* ── #6 loyalty ──────────────────────────────────────────────────── */
