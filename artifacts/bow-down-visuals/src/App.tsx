@@ -112,6 +112,7 @@ const WinnersPage     = lazyWithRetry(() => import("@/pages/winners"));
 const HashtagPage     = lazyWithRetry(() => import("@/pages/hashtag"));
 // ── Creator Streaming Platform pages ──
 const ArtistPublic = lazyWithRetry(() => import("@/pages/artist-public"));
+const FanCollection = lazyWithRetry(() => import("@/pages/fan-collection"));
 const ArtistSetup = lazyWithRetry(() => import("@/pages/artist-setup"));
 const Publish = lazyWithRetry(() => import("@/pages/publish"));
 const StreamTrackPage = lazyWithRetry(() => import("@/pages/stream/track"));
@@ -530,6 +531,7 @@ function AppShell() {
           <Route path="/hashtag/:tag"><HashtagPage /></Route>
           {/* Creator Streaming Platform — public surfaces */}
           <Route path="/artist/:slug"><ArtistPublic /></Route>
+          <Route path="/collection/:slug"><FanCollection /></Route>
           <Route path="/track/:id"><StreamTrackPage /></Route>
           <Route path="/watch/:id"><StreamWatchPage /></Route>
           <Route path="/live/:id"><LiveWatch /></Route>
