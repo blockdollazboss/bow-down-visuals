@@ -15,8 +15,18 @@
  * so the model operations and the chroma keyer are unit-testable.
  */
 
-export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media";
+export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media" | "widget";
 export type FitMode = "cover" | "contain" | "stretch";
+
+/** Overlay widget kinds (Stack 2): all three render from real stream
+ *  data — see stream-kit/widget-data.ts. */
+export type WidgetKind = "latest-follower" | "tip-ticker" | "goal-bar";
+
+export const WIDGET_KIND_LABELS: Record<WidgetKind, string> = {
+  "latest-follower": "Latest follower",
+  "tip-ticker": "Tip ticker",
+  "goal-bar": "Tip goal bar",
+};
 
 export interface ChromaSettings {
   /** Key color as #rrggbb. */
@@ -62,6 +72,8 @@ export interface SceneSource {
   text?: TextSettings;
   /* color: gradient from → to (equal values = solid) */
   fill?: { from: string; to: string };
+  /* widget: which overlay widget this source renders */
+  widget?: { kind: WidgetKind };
 }
 
 export interface Scene {
@@ -83,6 +95,7 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   text: "Text",
   color: "Color / Gradient",
   media: "Media URL",
+  widget: "Stream Widget",
 };
 
 export function createSource(type: SourceType, name?: string): SceneSource {
@@ -127,6 +140,17 @@ export function createSource(type: SourceType, name?: string): SceneSource {
       return { ...base, fill: { from: "#14100a", to: "#0d0a04" } };
     case "media":
       return { ...base, fit: "contain" };
+    case "widget":
+      return {
+        ...base,
+        name: "Latest follower",
+        x: 0.04,
+        y: 0.05,
+        w: 0.46,
+        h: 0.11,
+        fit: "contain",
+        widget: { kind: "latest-follower" },
+      };
     default:
       return base;
   }
@@ -151,6 +175,7 @@ export function duplicateScene(scene: Scene, name?: string): Scene {
       chroma: s.chroma ? { ...s.chroma } : undefined,
       text: s.text ? { ...s.text } : undefined,
       fill: s.fill ? { ...s.fill } : undefined,
+      widget: s.widget ? { ...s.widget } : undefined,
     })),
   };
 }

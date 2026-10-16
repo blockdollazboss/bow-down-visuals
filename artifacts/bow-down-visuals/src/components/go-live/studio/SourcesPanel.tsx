@@ -23,9 +23,11 @@ import {
 import type { Stage } from "@/lib/stream-kit/stage";
 import {
   SOURCE_TYPE_LABELS,
+  WIDGET_KIND_LABELS,
   type FitMode,
   type SceneSource,
   type SourceType,
+  type WidgetKind,
 } from "@/lib/stream-kit/scenes";
 
 const FONT_OPTIONS = [
@@ -221,6 +223,31 @@ export default function SourcesPanel({
                 <option value="contain">Contain (letterbox)</option>
                 <option value="stretch">Stretch</option>
               </select>
+            </label>
+          )}
+
+          {selected.type === "widget" && (
+            <label className={`block text-[10px] font-semibold uppercase ${label}`}>
+              Widget
+              <select
+                value={selected.widget?.kind ?? "latest-follower"}
+                onChange={(e) => {
+                  const kind = e.target.value as WidgetKind;
+                  update(selected, { widget: { kind }, name: WIDGET_KIND_LABELS[kind] });
+                }}
+                className={`mt-0.5 ${inputCls}`}
+                data-testid="widget-kind"
+              >
+                {(Object.keys(WIDGET_KIND_LABELS) as WidgetKind[]).map((k) => (
+                  <option key={k} value={k}>
+                    {WIDGET_KIND_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block normal-case text-white/40">
+                Renders live stream data on Program. With no data yet it stays invisible on the feed — the
+                Widgets panel below the chat shows the real numbers.
+              </span>
             </label>
           )}
 

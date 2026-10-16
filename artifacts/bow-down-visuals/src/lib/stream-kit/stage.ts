@@ -21,6 +21,7 @@ import {
   fitRects,
   applyChromaKey,
 } from "./scenes";
+import { getWidgetData, widgetLines, goalProgress } from "./widget-data";
 
 type MediaState = "loading" | "ready" | "error";
 
@@ -373,6 +374,62 @@ function drawSource(
         ctx.fillStyle = t.color;
         ctx.fillText(line, cx, baseline, dest.w);
         baseline += lineHeight;
+      }
+      ctx.restore();
+      return;
+    }
+    case "widget": {
+      // Overlay widgets render real stream data only (widget-data.ts
+      // is fed by the studio's poll of /api/live/:id/widgets). No
+      // data → draw nothing: the program output stays clean instead
+      // of showing a placeholder box.
+      const kind = source.widget?.kind ?? "latest-follower";
+      const data = getWidgetData();
+      const lines = widgetLines(kind, data, performance.now() / 1000);
+      if (!lines) return;
+      ctx.save();
+      ctx.fillStyle = "rgba(13,10,4,0.82)";
+      ctx.strokeStyle = "rgba(201,168,76,0.65)";
+      ctx.lineWidth = Math.max(1, H / 540);
+      const radius = Math.min(14, dest.h / 3);
+      ctx.beginPath();
+      ctx.roundRect(dest.x, dest.y, dest.w, dest.h, radius);
+      ctx.fill();
+      ctx.stroke();
+      const pad = dest.h * 0.16;
+      ctx.textBaseline = "middle";
+      if (kind === "goal-bar") {
+        const progress = goalProgress(data) ?? 0;
+        ctx.fillStyle = "#F7ECD2";
+        ctx.font = `700 ${Math.max(11, dest.h * 0.3)}px Georgia, serif`;
+        ctx.textAlign = "left";
+        ctx.fillText(lines[0]!, dest.x + pad, dest.y + dest.h * 0.3, dest.w - pad * 2);
+        // The bar itself: gold fill over a dark track.
+        const barY = dest.y + dest.h * 0.58;
+        const barH = Math.max(4, dest.h * 0.18);
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        ctx.beginPath();
+        ctx.roundRect(dest.x + pad, barY, dest.w - pad * 2, barH, barH / 2);
+        ctx.fill();
+        if (progress > 0) {
+          ctx.fillStyle = "#C9A84C";
+          ctx.beginPath();
+          ctx.roundRect(dest.x + pad, barY, (dest.w - pad * 2) * progress, barH, barH / 2);
+          ctx.fill();
+        }
+      } else if (lines.length > 1) {
+        ctx.fillStyle = "rgba(232,200,106,0.9)";
+        ctx.font = `700 ${Math.max(9, dest.h * 0.22)}px Georgia, serif`;
+        ctx.textAlign = "left";
+        ctx.fillText(lines[0]!.toUpperCase(), dest.x + pad, dest.y + dest.h * 0.3, dest.w - pad * 2);
+        ctx.fillStyle = "#F7ECD2";
+        ctx.font = `700 ${Math.max(11, dest.h * 0.36)}px Georgia, serif`;
+        ctx.fillText(lines[1]!, dest.x + pad, dest.y + dest.h * 0.68, dest.w - pad * 2);
+      } else {
+        ctx.fillStyle = "#F7ECD2";
+        ctx.font = `700 ${Math.max(11, dest.h * 0.34)}px Georgia, serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(lines[0]!, dest.x + dest.w / 2, dest.y + dest.h / 2, dest.w - pad * 2);
       }
       ctx.restore();
       return;
