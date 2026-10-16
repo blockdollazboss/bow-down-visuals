@@ -6,8 +6,11 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, Copy, ArrowUp, ArrowDown, Eye, EyeOff, Download, Loader2,
-  Type, Square, Image as ImageIcon, Save, FolderOpen, Share2,
+  Type, Square, Image as ImageIcon, Save, FolderOpen, Share2, Eraser,
 } from "lucide-react";
+import {
+  createStillMattingEngine, cutoutDataUrl, type StillMattingEngine,
+} from "@/lib/photo-matting";
 import {
   createPhotoCanvasDoc, makeImageLayer, makeTextLayer, makeShapeLayer,
   addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer,
@@ -23,6 +26,13 @@ import {
  * packs. Editing is free; the canvas preview and the export share the
  * same layer model/flatten plan (geometry, order, text identical;
  * color develop is applied server-side at export).
+ *
+ * Editor Pass Job 1 dock: Pro matting (Stack 7's still engine, the
+ * stream desk's matting run one frame at a time) also lives HERE, on
+ * the selected image layer — before this pass it could only be reached
+ * by leaving the editor for the separate Background tab, so a creator
+ * compositing layers had no way to cut out the photo they were working
+ * on. Same engine, same words as the Background tab; nothing forked.
  */
 
 const LS_KEY = "bdv-photo-canvas-doc-v1";
@@ -69,6 +79,7 @@ export function PhotoCanvasEditor() {
   const [presets, setPresets] = useState<PresetDto[]>([]);
 
   const selected = doc.layers.find((l) => l.id === selectedId) ?? null;
+  const selectedImage: ImageLayer | null = selected?.kind === "image" ? selected : null;
   const firstImage = doc.layers.find((l): l is ImageLayer => l.kind === "image") ?? null;
   const activeImage: ImageLayer | null = selected?.kind === "image" ? selected : firstImage;
   const recipe = useMemo(() => recipeFromDevelop(activeImage?.develop), [activeImage]);
@@ -117,6 +128,51 @@ export function PhotoCanvasEditor() {
     if (!url) return;
     setDoc((d) => addLayer(d, makeImageLayer(url, d, "Photo")));
     setImageUrlInput("");
+  }
+
+  /* ── Pro matting, docked on the layer (Editor Pass Job 1) ──
+     The Background tab's engine (lib/photo-matting), run on the
+     selected image layer without leaving the editor. The layer's src
+     becomes the cut-out; the original photo file is never touched. */
+  const [matting, setMatting] = useState(false);
+  const matteEngineRef = useRef<StillMattingEngine | null>(null);
+  useEffect(() => () => { void matteEngineRef.current?.dispose().catch(() => undefined); }, []);
+
+  async function removeLayerBackground(layer: ImageLayer) {
+    if (matting) return;
+    setMatting(true);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.crossOrigin = "anonymous";
+        el.onload = () => resolve(el);
+        el.onerror = () => {
+          /* Same CORS fallback as ensureImage: retry without the flag. */
+          const plain = new Image();
+          plain.onload = () => resolve(plain);
+          plain.onerror = () => reject(new Error("That photo could not be read."));
+          plain.src = layer.src;
+        };
+        el.src = layer.src;
+      });
+      if (!matteEngineRef.current) matteEngineRef.current = createStillMattingEngine();
+      const matte = await matteEngineRef.current.processStill(img);
+      const cutout = cutoutDataUrl(img, matte);
+      imagesRef.current.delete(layer.id); // drop the pre-cutout bitmap so the layer reloads
+      patch(layer, { src: cutout } as Partial<PhotoLayer>);
+      toast({
+        title: "Background removed",
+        description: "This layer is a cut-out now — stack it over any layer beneath. The original photo was not changed.",
+      });
+    } catch (e) {
+      toast({
+        title: "Background removal could not run",
+        description: e instanceof Error ? e.message : "Pro matting could not run on this device.",
+        variant: "destructive",
+      });
+    } finally {
+      setMatting(false);
+    }
   }
 
   /* ── export: PNG from the same canvas (client flatten) ── */
@@ -298,6 +354,18 @@ export function PhotoCanvasEditor() {
                 <Input type="range" min={0} max={1} step={0.05} value={selected.transform.opacity} onChange={(e) => patchTransform(selected, { opacity: Number(e.target.value) })} className="accent-amber-400" />
               </div>
 
+              {selectedImage && (
+                <div className="space-y-2 border-t border-white/10 pt-3">
+                  <Button size="sm" variant="outline" onClick={() => void removeLayerBackground(selectedImage)} disabled={matting} className="w-full">
+                    {matting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eraser className="mr-1.5 h-4 w-4" />}
+                    {matting ? "Removing background…" : "Remove background — Pro matting (free, on-device)"}
+                  </Button>
+                  <p className="text-[11px] text-white/35">
+                    The same on-device matting engine as the Background tab, run right on this layer — soft,
+                    hair-level edges, and the original photo is never overwritten.
+                  </p>
+                </div>
+              )}
               {selected.kind === "text" && (
                 <TextControls layer={selected} onPatch={(p) => patch(selected, p as Partial<PhotoLayer>)} />
               )}
