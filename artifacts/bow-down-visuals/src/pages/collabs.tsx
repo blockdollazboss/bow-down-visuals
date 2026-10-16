@@ -1,10 +1,11 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
+  AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -97,6 +98,14 @@ export default function CollabFinder() {
   const [profiles, setProfiles] = useState<CreatorProfile[]>([]);
   const [browseLoading, setBrowseLoading] = useState(false);
   const [nicheFilter, setNicheFilter] = useState("");
+  /* Browse-load failures are NOT "no creators yet" — browse is the
+     page's gating list (the default tab, and the match dropdown derives
+     from it), so its failure gets its own error state with a retry.
+     browseLoadedRef guards the gate: once profiles have loaded
+     successfully, a later failed reload (filter change, post-save
+     refresh) must NOT blank the profiles already on screen. */
+  const [browseLoadError, setBrowseLoadError] = useState(false);
+  const browseLoadedRef = useRef(false);
 
   /* ── my profile ── */
   const [displayName, setDisplayName] = useState("");
@@ -144,10 +153,15 @@ export default function CollabFinder() {
 
   async function loadBrowse() {
     setBrowseLoading(true);
+    setBrowseLoadError(false);
     try {
       const q = nicheFilter ? `?niche=${encodeURIComponent(nicheFilter)}` : "";
       const { res, data } = await authed(`/api/collabs/profiles${q}`);
-      if (res.ok) setProfiles((data.profiles as CreatorProfile[]) ?? []);
+      if (!res.ok) throw new Error("browse load failed");
+      setProfiles((data.profiles as CreatorProfile[]) ?? []);
+      browseLoadedRef.current = true;
+    } catch {
+      if (!browseLoadedRef.current) setBrowseLoadError(true);
     } finally {
       setBrowseLoading(false);
     }
@@ -378,6 +392,21 @@ export default function CollabFinder() {
             </div>
             {browseLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-amber-400" /></div>
+            ) : browseLoadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load creators.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — the creators are out there, this page just couldn't reach them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadBrowse()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : profiles.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center text-white/50">
                 {t("collabs.emptyBrowse")}
