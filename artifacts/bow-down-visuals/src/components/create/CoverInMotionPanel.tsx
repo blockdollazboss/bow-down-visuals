@@ -5,6 +5,7 @@ import { Play, Loader2, Sparkles, Upload, Check, Download, CalendarClock } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ── Cover in Motion ──────────────────────────────────────────────────────
    Create hub panel. Animates cover art into a looping Spotify-canvas-style
@@ -20,6 +21,7 @@ export default function CoverInMotionPanel() {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   const [imageUrl, setImageUrl] = useState("");
   const [style, setStyle] = useState("");
@@ -56,6 +58,9 @@ export default function CoverInMotionPanel() {
       }
       if (!res.ok || !data.videoUrl) throw new Error(data.message || "Animation failed.");
       setVideoUrl(data.videoUrl);
+      /* Hub project spine (Stack 4 #2): the animated cover reports into the
+         active hub project so the video desk can pick it up. */
+      try { addAsset({ kind: "video", url: data.videoUrl, label: "Cover in Motion", detail: "Animated cover art" }); } catch { /* non-fatal */ }
       refreshProfile();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Animation failed.");

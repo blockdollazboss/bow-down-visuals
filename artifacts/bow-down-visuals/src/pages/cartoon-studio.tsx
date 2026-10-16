@@ -22,6 +22,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useHubProject } from "@/lib/hub-project";
 
 type StudioTab = "video" | "characters" | "cartoonize";
 
@@ -77,6 +78,9 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
+  /* Hub project spine (Stack 4 #2): finished cartoon outputs report into
+     the active hub project like every other desk's outputs. */
+  const { addAsset } = useHubProject();
   usePageTitle(t("cartoonStudio.pageTitle"), t("cartoonStudio.pageDescription"));
 
   const [tab, setTab] = useState<StudioTab>(() => {
@@ -206,7 +210,10 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
       const data = (await res.json()) as { taskId?: string; error?: string };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? t("cartoonStudio.generationFailed"));
       toast({ title: t("cartoonStudio.videoStarted"), description: t("cartoonStudio.videoStartedDesc") });
-      await pollTask(`/api/generate-runway-clip/${data.taskId}`, (url) => setVideoUrl(url));
+      await pollTask(`/api/generate-runway-clip/${data.taskId}`, (url) => {
+        setVideoUrl(url);
+        try { addAsset({ kind: "video", url, label: "Cartoon video", detail: `Cartoon Studio · ${style.nameKey}` }); } catch { /* non-fatal */ }
+      });
     } catch (err) {
       setBusy(false);
       setError(err instanceof Error ? err.message : t("cartoonStudio.generationFailed"));
@@ -241,7 +248,10 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
       }
       const data = (await res.json()) as { taskId?: string; error?: string };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? t("cartoonStudio.generationFailed"));
-      await pollTask(`/api/generate-artist-image/${data.taskId}`, (url) => setImageUrl(url));
+      await pollTask(`/api/generate-artist-image/${data.taskId}`, (url) => {
+        setImageUrl(url);
+        try { addAsset({ kind: "image", url, label: "Cartoon image", detail: `Cartoon Studio · ${style.nameKey}` }); } catch { /* non-fatal */ }
+      });
     } catch (err) {
       setBusy(false);
       setError(err instanceof Error ? err.message : t("cartoonStudio.generationFailed"));
@@ -306,7 +316,10 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
       }
       const data = (await res.json()) as { taskId?: string; error?: string };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? t("cartoonStudio.generationFailed"));
-      await pollTask(`/api/generate-artist-image/${data.taskId}`, (url) => setImageUrl(url));
+      await pollTask(`/api/generate-artist-image/${data.taskId}`, (url) => {
+        setImageUrl(url);
+        try { addAsset({ kind: "image", url, label: "Cartoon image", detail: `Cartoon Studio · ${style.nameKey}` }); } catch { /* non-fatal */ }
+      });
     } catch (err) {
       setBusy(false);
       setError(err instanceof Error ? err.message : t("cartoonStudio.generationFailed"));
