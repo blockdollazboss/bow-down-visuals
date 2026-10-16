@@ -12,6 +12,7 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { buildDuckingMixFilter } from "./ducking-filter";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -32,6 +33,12 @@ const duckSchema = z.object({
   releaseMs: z.number().min(50).max(3000).optional().default(500),
   /** Base music level multiplier before ducking (default 0.6). */
   musicLevel: z.number().min(0.1).max(1).optional().default(0.6),
+  /** Sidechain threshold (Stack 5 #5 — the editor's payload shape sends its
+   *  simple-terms mapping; previously threshold/ratio were hardcoded and
+   *  any caller-supplied values were silently ignored). */
+  threshold: z.number().min(0.005).max(0.2).optional(),
+  /** Sidechain ratio 1..20. */
+  ratio: z.number().min(1).max(20).optional(),
 });
 
 router.post("/duck-audio", requireAuth, async (req, res) => {
@@ -85,12 +92,15 @@ router.post("/duck-audio", requireAuth, async (req, res) => {
 
     const { attackMs, releaseMs, musicLevel } = parsed.data;
     // sidechaincompress uses the voice (input 1) to duck the music (input 0).
-    // Threshold 0.02 triggers on voice presence; ratio 20 gives strong ducking.
-    const filterComplex =
-      `[1:a]asplit=2[voice_out][sc];` +
-      `[0:a]volume=${musicLevel}[music_leveled];` +
-      `[music_leveled][sc]sidechaincompress=threshold=0.02:ratio=20:attack=${attackMs}:release=${releaseMs}[ducked];` +
-      `[ducked][voice_out]amix=inputs=2:duration=longest:normalize=0[aout]`;
+    // Defaults preserve the original proven sound (threshold 0.02, ratio 20);
+    // caller-supplied threshold/ratio (editor simple-terms mapping) now win.
+    const filterComplex = buildDuckingMixFilter({
+      threshold: parsed.data.threshold ?? 0.02,
+      ratio: parsed.data.ratio ?? 20,
+      attackMs,
+      releaseMs,
+      musicLevel,
+    });
 
     await execFileAsync("ffmpeg", [
       "-y", "-i", musicPath, "-i", voicePath,

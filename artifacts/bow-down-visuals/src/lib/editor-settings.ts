@@ -1,5 +1,7 @@
 import type { SceneData } from "@/lib/scene-parser";
 import { sanitizeLanes, type TimelineLanes } from "@/lib/timeline-lanes";
+import { defaultDuckingSettings, type DuckingSettings } from "@/lib/ducking";
+export type { DuckingSettings } from "@/lib/ducking";
 export type { TimelineLanes } from "@/lib/timeline-lanes";
 import { DEFAULT_CAPTION_FONT_ID } from "@/lib/fonts";
 
@@ -688,7 +690,7 @@ export function keyframeAt(keyframes: Keyframe[], t: number): KeyframeTransform 
     const a = sorted[i]!, b = sorted[i + 1]!;
     if (t >= a.time && t <= b.time) {
       const f = (t - a.time) / (b.time - a.time || 1);
-      const e = f * f * (3 - 2 * f);
+      const e = easedKeyframeFraction(a, b, f);
       return {
         x: a.x + (b.x - a.x) * e,
         y: a.y + (b.y - a.y) * e,
@@ -699,6 +701,39 @@ export function keyframeAt(keyframes: Keyframe[], t: number): KeyframeTransform 
     }
   }
   return neutral;
+}
+
+/** Cubic bézier easing solve — mirror of lib/motion-pro.ts cubicBezierY and
+ *  the server copy in pro-tools-ffmpeg.ts (all three must agree so preview
+ *  and export show the same curve). */
+export function cubicBezierYEased(
+  cp1: { x: number; y: number }, cp2: { x: number; y: number }, x: number,
+): number {
+  const cx = Math.min(1, Math.max(0, x));
+  if (cx === 0 || cx === 1) return cx;
+  const bx = (t: number) => 3 * (1 - t) ** 2 * t * cp1.x + 3 * (1 - t) * t ** 2 * cp2.x + t ** 3;
+  const by = (t: number) => 3 * (1 - t) ** 2 * t * cp1.y + 3 * (1 - t) * t ** 2 * cp2.y + t ** 3;
+  let t = cx;
+  for (let i = 0; i < 8; i++) {
+    const err = bx(t) - cx;
+    if (Math.abs(err) < 1e-5) return by(t);
+    const d = 3 * (1 - t) ** 2 * cp1.x + 6 * (1 - t) * t * (cp2.x - cp1.x) + 3 * t ** 2 * (1 - cp2.x);
+    if (Math.abs(d) < 1e-6) break;
+    t = Math.min(1, Math.max(0, t - err / d));
+  }
+  let lo = 0, hi = 1;
+  t = cx;
+  for (let i = 0; i < 20; i++) {
+    if (bx(t) < cx) lo = t; else hi = t;
+    t = (lo + hi) / 2;
+  }
+  return by(t);
+}
+
+/** Segment easing: bézier handles when set, legacy smoothstep otherwise. */
+export function easedKeyframeFraction(a: Keyframe, b: Keyframe, f: number): number {
+  if (!a.easeOutCp && !b.easeInCp) return f * f * (3 - 2 * f);
+  return cubicBezierYEased(a.easeOutCp ?? { x: 0.33, y: 0 }, b.easeInCp ?? { x: 0.67, y: 1 }, Math.min(1, Math.max(0, f)));
 }
 
 /* ── Pro video tools ─────────────────────────────────────────────────── */
@@ -1562,6 +1597,8 @@ export interface EditorSettings {
    *  (migrateLegacyToLanes) and from then on lanes are the source the
    *  export payload is projected from. */
   lanes: TimelineLanes | null;
+  /** Audio ducking on the music lane (Stack 5 #5): song ducks under voice. */
+  audioDucking: DuckingSettings;
   /** Structured transition data (fromSceneId → toSceneId). */
   transitions: TransitionItem[];
   audio: AudioSettings;
@@ -1789,6 +1826,7 @@ export function defaultEditorSettings(): EditorSettings {
     soloPreviewOverlay: null,
     overlayItems: [],
     lanes: null,
+    audioDucking: defaultDuckingSettings(),
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 }, fitMode: "fill" as FitMode },
@@ -2106,6 +2144,7 @@ export function normalizeEditorSettings(
     soloPreviewOverlay: typeof stored.soloPreviewOverlay === "string" ? stored.soloPreviewOverlay : null,
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
     lanes: sanitizeLanes((stored as Partial<EditorSettings>).lanes),
+    audioDucking: { ...defaultDuckingSettings(), ...((stored as Partial<EditorSettings>).audioDucking ?? {}) },
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },

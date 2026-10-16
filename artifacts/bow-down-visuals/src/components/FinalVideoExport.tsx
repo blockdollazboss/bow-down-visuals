@@ -149,6 +149,10 @@ interface FinalVideoExportProps {
   clipProTools?: (ProToolsSettings | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
+  /** Adjustment-lane clips (Stack 5 #6) — windowed grade over the cut. */
+  adjustmentItems?: { startSec: number; endSec: number; colorCorrection: Record<string, number>; effects: string[] }[] | null;
+  /** Music-lane ducking (Stack 5 #5) — applied inside the export render. */
+  ducking?: { enabled: boolean; amount: number; sensitivity: number; voiceUrl: string | null } | null;
   /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
    *  gaps (including a leading gap before the first clip) are held as freeze-frame padding
    *  in the export, mirroring the editor preview. */
@@ -241,6 +245,8 @@ export function FinalVideoExport({
   clipTransitions,
   clipProTools,
   overlayItems,
+  adjustmentItems,
+  ducking,
   timelineLayout = "auto",
   clipEdits,
   audioDurationSec = null,
@@ -593,10 +599,12 @@ export function FinalVideoExport({
         exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
         exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
         clipTransitions:  orderedClipTransitions ?? null,
-        clipProTools:    orderedClipProTools?.some((p) => p && proToolsActive(p)) ? orderedClipProTools : null,
+        clipProTools:    orderedClipProTools?.some((p) => p && (proToolsActive(p) || ((p as { keyframes?: unknown[] }).keyframes?.length ?? 0) > 0)) ? orderedClipProTools : null,
         manualGapsBeforeSec: manualGapsBeforeSec ?? null,
         effects:               effects?.length ? effects : null,
         overlayItems:          overlayItems?.length ? overlayItems : null,
+        adjustmentItems:       adjustmentItems?.length ? adjustmentItems : null,
+        ducking:               ducking?.enabled ? ducking : null,
         overlayEffects:        overlays?.length ? overlays : null,
         overlayEffectIntensity: overlayIntensity ?? null,
         fitMode:               fitMode ?? "fill",

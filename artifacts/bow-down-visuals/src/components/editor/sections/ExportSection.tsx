@@ -21,6 +21,8 @@ import {
   type ExportRangeMode,
   type AudioVideoSyncMode,
 } from "@/lib/editor-settings";
+import { resolveLanes, lanesToOverlayItems } from "@/lib/timeline-lanes";
+import { buildExportDucking } from "@/lib/ducking";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1006,10 +1008,19 @@ export function ExportSection({
           return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
         })}
         clipProTools={scenes.filter(isExportSelected).map((s) => {
-          const pt = getClipEdit(settings, s.id).proTools;
-          return proToolsActive(pt) ? pt : null;
+          const clip = getClipEdit(settings, s.id);
+          const pt = clip.proTools;
+          // Keyframes ride inside the pro-tools payload (server reads
+          // proTools.keyframes) — before Stack 5 they were never sent, so
+          // keyframed clips silently exported without their animation.
+          const withKeyframes = clip.keyframes?.length
+            ? { ...pt, keyframes: clip.keyframes }
+            : pt;
+          return proToolsActive(pt) || clip.keyframes?.length ? withKeyframes : null;
         })}
-        overlayItems={settings.overlayItems}
+        overlayItems={lanesToOverlayItems(resolveLanes({ lanes: settings.lanes, overlayItems: settings.overlayItems, captionLines: settings.captions.lines }))}
+        adjustmentItems={resolveLanes({ lanes: settings.lanes, overlayItems: settings.overlayItems, captionLines: settings.captions.lines }).adjustmentLane.items.map((it) => ({ startSec: it.startSec, endSec: it.endSec, colorCorrection: it.colorCorrection, effects: it.effects }))}
+        ducking={buildExportDucking(settings.audioDucking)}
         timelineLayout={settings.timelineLayout}
         clipEdits={settings.clips}
         audioDurationSec={settings.musicStudio.videoAudio.duration}

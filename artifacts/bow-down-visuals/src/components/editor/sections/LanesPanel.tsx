@@ -166,6 +166,44 @@ export function LanesPanel({ settings, setSettings }: {
           </div>
         </div>
 
+        {/* Music lane — ducking control (#5) */}
+        <div>
+          <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Music lane — song under voice</p>
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-2 space-y-2">
+            <label className="inline-flex items-center gap-2 text-[11px] font-bold text-white/70 cursor-pointer">
+              <input type="checkbox" checked={settings.audioDucking.enabled}
+                onChange={(e) => setSettings({ ...settings, audioDucking: { ...settings.audioDucking, enabled: e.target.checked } })}
+                className="h-4 w-4" style={{ accentColor: "#C9A84C" }} />
+              Duck the music when the voice speaks
+            </label>
+            {settings.audioDucking.enabled && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["amount", "sensitivity"] as const).map((key) => (
+                    <label key={key} className="text-[10px] text-white/50">
+                      {key === "amount" ? "Duck amount" : "Voice sensitivity"} {settings.audioDucking[key]}
+                      <input type="range" min={0} max={100} value={settings.audioDucking[key]}
+                        onChange={(e) => setSettings({ ...settings, audioDucking: { ...settings.audioDucking, [key]: Number(e.target.value) } })}
+                        className="w-full h-1 cursor-pointer" style={{ accentColor: "#C9A84C" }} />
+                    </label>
+                  ))}
+                </div>
+                <input
+                  value={settings.audioDucking.voiceUrl ?? ""}
+                  onChange={(e) => setSettings({ ...settings, audioDucking: { ...settings.audioDucking, voiceUrl: e.target.value.trim() || null } })}
+                  placeholder="Voice track URL — a vocal stem or uploaded voice recording"
+                  className="w-full bg-black/50 border border-white/10 rounded px-2 py-1.5 text-[11px] text-white/80 placeholder:text-white/25 focus:outline-none focus:border-[#C9A84C]/50"
+                />
+                {!settings.audioDucking.voiceUrl && (
+                  <p className="text-[11px] text-amber-200/80">
+                    No voice track set — ducking can't apply yet, and export will stop and tell you rather than ship unducked audio.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Adjustment lane (#6) */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
