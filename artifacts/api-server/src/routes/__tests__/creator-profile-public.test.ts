@@ -144,7 +144,8 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-/** The official profile exactly as migrations 0125/0126 seed it. */
+/** The official profile as migrations 0125/0126 seed it, with the bio
+ *  in its post-0128 form (0128 strips the seeded stock emoji). */
 function officialProfileRow(): Record<string, unknown> {
   return {
     id: "22222222-2222-4222-8222-222222222222",
@@ -154,7 +155,7 @@ function officialProfileRow(): Record<string, unknown> {
     vertical: "influencer",
     streamSchedule: null,
     mediaKit: null,
-    bio: "🦈 The King Shark — I run Bow Down Visuals, the content creation cheat code.",
+    bio: "The King Shark — I run Bow Down Visuals, the content creation cheat code.",
     avatarUrl: "/images/shark-king-clean-authority.png",
     bannerUrl: "/bowdownvisuals-banner-sharkking.jpg",
     themeId: "gold-lux",
