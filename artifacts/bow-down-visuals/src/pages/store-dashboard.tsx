@@ -996,6 +996,7 @@ function DiscountsTab() {
 /* ── Page ────────────────────────────────────────────────────────────── */
 export default function StoreDashboard() {
   usePageTitle("Store Dashboard — Get Paid", "Your store earnings, orders, products, and discount codes. The Get Paid finale.");
+  const isLight = useIsLightTheme();
   const getToken = useToken();
   const { stars } = useUserMode();
   const search = useSearch();
@@ -1014,21 +1015,32 @@ export default function StoreDashboard() {
   });
   const [checklist, setChecklist] = useState<MoneyChecklist | null>(null);
   const [slug, setSlug] = useState("");
-  const [failed, setFailed] = useState(false);
+  /* The money-checklist endpoint answers a genuine no-profile account
+     with 404 { error: "NO_PROFILE" } — that case keeps the setup-CTA
+     box below. Every OTHER failure (500s, network) used to land in the
+     same box, telling a profile owner to "set up a creator profile"
+     during a plain outage, with no way to retry. Failures now get
+     their own error state with a retry. */
+  const [noProfile, setNoProfile] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(async () => {
+    setNoProfile(false);
+    setLoadError(false);
     try {
       const token = await getToken();
       const c = await moneyChecklist(token);
       setChecklist(c);
       const storeUrl: string = c.links.storeUrl ?? "";
       setSlug(storeUrl.split("/artist/")[1] ?? "");
-    } catch {
-      setFailed(true);
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_PROFILE") setNoProfile(true);
+      else setLoadError(true);
     }
   }, [getToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, retryNonce]);
   useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
@@ -1059,7 +1071,22 @@ export default function StoreDashboard() {
         )}
       </div>
 
-      {failed ? (
+      {loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — your store is safe, this page just couldn't load it.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : noProfile ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-8 text-center">
           <p className="text-sm font-bold text-white">Couldn't load your dashboard.</p>
           <p className="mt-1 text-xs text-white/50">You need a creator profile first — then this page becomes your money command center.</p>
