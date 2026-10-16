@@ -126,6 +126,7 @@ import liveModeratorsRouter from "./live-moderators";
 import liveWidgetsRouter from "./live-widgets";
 import liveSummaryRouter from "./live-summary";
 import reachRouter from "./reach";
+import trustRouter from "./trust";
 import membershipsRouter from "./generate/memberships";
 import podcastRouter from "./generate/podcast";
 import podcastDialogueRouter from "./generate/podcast-dialogue";
@@ -448,6 +449,7 @@ router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live
 router.use(liveWidgetsRouter);               // /api/live/:id/widgets + /api/live/:id/tip-goal
 router.use(liveSummaryRouter);               // /api/live/:id/summary (post-stream, owner)
 router.use(reachRouter);                     // /api/reach/* (Stack 9: fan-out, premieres, raids, drops, loyalty, close-friends, broadcast)
+router.use(trustRouter);                     // Stack 10: /api/content-id/fingerprints|scan|claims, /api/legacy/*, /api/catalog-export, /api/mod-console, /api/earnings/statements, /api/stage-rooms, group roles/onboarding, retention analytics
 router.use(membershipsRouter);
 router.use(podcastRouter);
 router.use(podcastDialogueRouter);

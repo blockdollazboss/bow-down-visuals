@@ -17,6 +17,20 @@ import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 import { awardChatPoints } from "../lib/loyalty";
+import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
+import { evaluateAutomod } from "../lib/automod";
+
+/** Stack 10 #4: record a moderation action in the unified console log.
+ *  Best-effort by design — logging must never fail the action itself. */
+export async function logModAction(entry: { profileId: string; streamId: string; actorUserId: string | null; targetUserId: string | null; action: string; reason: string; rule?: string | null; messageBody?: string | null }): Promise<void> {
+  try {
+    await db.insert(chatModActionsTable).values({
+      profile_id: entry.profileId, stream_id: entry.streamId, actor_user_id: entry.actorUserId,
+      target_user_id: entry.targetUserId, action: entry.action, reason: entry.reason,
+      rule: entry.rule ?? null, message_body: entry.messageBody ?? null,
+    });
+  } catch { /* console log is additive; the action already happened */ }
+}
 
 /* ── Live stream chat ────────────────────────────────────────────────────
    Chat for native broadcasts (live_streams, migration 0129; chat rows
@@ -274,6 +288,27 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
       });
       return;
     }
+
+    /* Stack 10 #4 automod: the creator's configured rules for this
+       channel. A flagged message is NOT posted and NOT silently
+       dropped — the chatter gets the honest reason, and the flag is
+       logged in the unified mod console with the rule that fired. */
+    try {
+      const ruleRows = await db.select().from(chatAutomodRulesTable)
+        .where(eq(chatAutomodRulesTable.profile_id, stream.profile_id)).limit(1);
+      const r = ruleRows[0];
+      if (r) {
+        const verdict = evaluateAutomod(body, {
+          blockLinks: r.block_links, blockedWords: r.blocked_words ?? [],
+          capsPercent: r.caps_percent, capsMinLength: r.caps_min_length,
+        });
+        if (verdict.action === "flag") {
+          await logModAction({ profileId: stream.profile_id, streamId: stream.id, actorUserId: null, targetUserId: userId, action: "automod_flag", reason: verdict.reason ?? "Flagged by automod.", rule: verdict.rule, messageBody: body });
+          res.status(422).json({ error: verdict.reason, code: "AUTOMOD_FLAGGED", rule: verdict.rule });
+          return;
+        }
+      }
+    } catch { /* no automod configured / table absent → chat proceeds */ }
 
     const rateKey = `${stream.id}:${userId}`;
     const now = Date.now();
