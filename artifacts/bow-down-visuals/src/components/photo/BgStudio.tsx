@@ -19,14 +19,22 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
+import {
+  createStillMattingEngine, cutoutDataUrl, chromaKeyAlpha, tierLabel,
+  type MattingTier, type StillMattingEngine,
+} from "@/lib/photo-matting";
 
 /* ─── Background Studio — photo background remover + replacer ───────────────
    Difficulty ladder: one-tap "Remove background" (simple) → preset
    colors/gradients/backdrops (guided) → custom prompt + color picker +
    aggressiveness slider (manual, top).
    Docks as the "background" tab on thumbnail-studio.tsx.
-   Credits: removal = 200 VB (existing /api/remove-background, unchanged);
-   AI backdrop = 100 VB PLACEHOLDER (not user-approved). */
+   Removal quality tiers (Stack 7 #3, labeled truthfully):
+   - Pro matting: the stream desk's on-device matting engine run for a
+     single frame (lib/photo-matting.ts) — free, soft edges.
+   - Basic color-key: a corner-sampling color heuristic — the client
+     fallback (free) and the server /api/remove-background path
+     (200 VB, unchanged price). A color heuristic is never called AI. */
 
 const REMOVE_COST = 200; // existing backend price — do not change here
 const BACKDROP_COST = 100; // PLACEHOLDER — not user-approved
@@ -110,6 +118,10 @@ export function BgStudio() {
   const [dragOver, setDragOver] = useState(false);
 
   /* removal */
+  const [matting, setMatting] = useState(false);
+  const [matteError, setMatteError] = useState<string | null>(null);
+  const [cutoutTier, setCutoutTier] = useState<MattingTier | null>(null);
+  const stillEngineRef = useRef<StillMattingEngine | null>(null);
   const [aggressiveness, setAggressiveness] = useState(0.5);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -212,12 +224,51 @@ export function BgStudio() {
         throw new Error(data.message || data.error || t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
       }
       if (!data.url) throw new Error(t("bgStudio.noOutput", { defaultValue: "No output image returned." }));
+      setCutoutTier("basic"); // server path is the corner-sampling color-key
       setCutoutUrl(data.url as string);
       setDetectedColor((data.backgroundColor as string | undefined) ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
     } finally {
       setRemoving(false);
+    }
+  }
+
+  /* ── Pro matting: the stream desk's engine, one frame, on-device ── */
+  async function handleProMatting() {
+    if (!photoUrl || matting) return;
+    setError(null); setMatteError(null); setMatting(true);
+    try {
+      if (!stillEngineRef.current) stillEngineRef.current = createStillMattingEngine();
+      const img = await loadImage(photoUrl);
+      const matte = await stillEngineRef.current.processStill(img);
+      setCutoutTier("pro");
+      setCutoutUrl(cutoutDataUrl(img, matte));
+    } catch (e) {
+      // Honest failure + a labeled Basic fallback — never a silent swap.
+      setMatteError(e instanceof Error ? e.message : t("bgStudio.matteFailed", { defaultValue: "Pro matting could not run on this device." }));
+    } finally {
+      setMatting(false);
+    }
+  }
+
+  /* ── Basic color-key fallback (client-side, free, honestly labeled) ── */
+  async function handleBasicKey() {
+    if (!photoUrl) return;
+    setError(null); setMatteError(null);
+    try {
+      const img = await loadImage(photoUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Canvas unavailable.");
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const alpha = chromaKeyAlpha(data.data, canvas.width, canvas.height, aggressiveness);
+      setCutoutTier("basic");
+      setCutoutUrl(cutoutDataUrl(img, { alpha, width: canvas.width, height: canvas.height }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
     }
   }
 
@@ -359,16 +410,40 @@ export function BgStudio() {
           <CostBadge cost={REMOVE_COST} className="ml-1" />
         </div>
 
-        <Button
-          onClick={handleRemoveBackground}
-          disabled={!photoUrl || removing || uploading}
-          className="w-full sm:w-auto bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-bold hover:opacity-90"
-        >
-          {removing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eraser className="mr-2 h-4 w-4" />}
-          {removing
-            ? t("bgStudio.removing", { defaultValue: "Removing background…" })
-            : t("bgStudio.removeCta", { defaultValue: "Remove background" })}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => void handleProMatting()}
+            disabled={!photoUrl || matting || uploading}
+            className="bg-gradient-to-r from-[#fbbf24] to-[#d4a017] text-black font-bold hover:opacity-90"
+          >
+            {matting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {matting
+              ? t("bgStudio.matting", { defaultValue: "Matting…" })
+              : t("bgStudio.proCta", { defaultValue: "Remove background — Pro matting (free, on-device)" })}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRemoveBackground}
+            disabled={!photoUrl || removing || uploading}
+          >
+            {removing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eraser className="mr-2 h-4 w-4" />}
+            {removing
+              ? t("bgStudio.removing", { defaultValue: "Removing background…" })
+              : t("bgStudio.removeCta", { defaultValue: "Remove background — Basic color-key" })}
+          </Button>
+        </div>
+        <p className="mt-2 text-[11px] text-white/35">
+          {t("bgStudio.tierNote", { defaultValue: "Pro matting uses the on-device matting model for soft, hair-level edges. Basic color-key is a color heuristic for solid backgrounds only." })}
+          {cutoutTier && <> {t("bgStudio.lastTier", { defaultValue: "Last cut-out used: {{tier}}.", tier: tierLabel(cutoutTier) })}</>}
+        </p>
+        {matteError && (
+          <div className="mt-3">
+            <p className="text-sm text-red-300">{matteError}</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => void handleBasicKey()} disabled={!photoUrl}>
+              {t("bgStudio.basicFallbackCta", { defaultValue: "Try Basic color-key instead (free)" })}
+            </Button>
+          </div>
+        )}
 
         <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="mt-3 flex items-center gap-1 text-xs text-white/40 hover:text-white/70">
           <ChevronDown className={`h-3.5 w-3.5 transition ${showAdvanced ? "rotate-180" : ""}`} />
