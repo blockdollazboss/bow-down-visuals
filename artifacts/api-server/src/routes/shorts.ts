@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { createClient } from "@supabase/supabase-js";
 import { db } from "@workspace/db";
 import {
   creatorProfilesTable,
@@ -14,7 +13,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { effectiveStatus } from "./challenge-engine";
+import challengeEngineRouter, { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -45,8 +44,6 @@ import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 const router = Router();
 
-const SUPABASE_URL = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "";
-const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? process.env["VITE_SUPABASE_ANON_KEY"] ?? "";
 
 /** Bow Down official creator slugs get a home-field boost in the feed. */
 const OFFICIAL_SLUGS = (process.env["BDV_OFFICIAL_SLUGS"] ?? "bow-down-visuals,thy-cheat-code,bowdownvisuals")
@@ -73,20 +70,6 @@ const writeLimiter = rateLimit({
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
-/** Best-effort viewer resolution for public endpoints — never fails the request. */
-async function optionalViewerId(req: Request): Promise<string | null> {
-  const h = req.headers["authorization"];
-  if (!h?.startsWith("Bearer ")) return null;
-  try {
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-    const { data: { user }, error } = await client.auth.getUser(h.slice(7));
-    if (error || !user) return null;
-    return user.id;
-  } catch {
-    return null;
-  }
-}
-
 /** Cursor: base64url({ s: score, id }). Lenient — garbage in, fresh page out. */
 function encodeCursor(score: number, id: string): string {
   return Buffer.from(JSON.stringify({ s: score, id }), "utf8").toString("base64url");
@@ -102,20 +85,8 @@ function decodeCursor(raw: unknown): { s: number; id: string } | null {
   return null;
 }
 
-function slugify(s: string, max = 48): string {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, max) || "untitled";
-}
-
 function makeSoundId(title: string): string {
   return `${slugify(title, 40)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/** Profile must belong to the caller. */
-async function requireOwnProfile(userId: string, profileId: string) {
-  const [p] = await db.select().from(creatorProfilesTable)
-    .where(and(eq(creatorProfilesTable.id, profileId), eq(creatorProfilesTable.userId, userId)))
-    .limit(1);
-  return p ?? null;
 }
 
 /** Best-effort notification to a profile owner; never fails the request. */
@@ -621,271 +592,6 @@ router.get("/sounds/:id", feedLimiter, async (req, res) => {
   }
 });
 
-/* ── Challenges ─────────────────────────────────────────────────────────── */
-
-const HASHTAG_RE = /^[a-z0-9_]{2,40}$/;
-function normHashtag(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const h = v.trim().replace(/^#+/, "").toLowerCase();
-  return HASHTAG_RE.test(h) ? h : null;
-}
-
-const createChallengeSchema = z.object({
-  profile_id: z.string().uuid(),
-  title: z.string().trim().min(3).max(80),
-  hashtag: z.string().trim().min(2).max(42),
-  description: z.string().max(2000).optional().default(""),
-  cover_url: z.string().url().max(2048).optional().nullable(),
-  prize_text: z.string().trim().max(300).optional().default(""),
-  /* Challenge engine 2.0: optional schedule — starts in the future = upcoming. */
-  starts_at: z.string().datetime({ offset: true }).optional().nullable(),
-  ends_at: z.string().datetime({ offset: true }).optional().nullable(),
-  judging_ends_at: z.string().datetime({ offset: true }).optional().nullable(),
-});
-
-/** POST /challenges — start one. Every challenge carries the prize/earning angle. */
-router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
-  try {
-    const parsed = createChallengeSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Challenge needs a name and a hashtag.", details: parsed.error.issues.map((i) => i.message) });
-      return;
-    }
-    const hashtag = normHashtag(parsed.data.hashtag);
-    if (!hashtag) {
-      res.status(400).json({ error: "Hashtag: letters, numbers, underscores only. No # needed — we add the drip." });
-      return;
-    }
-    const profile = await requireOwnProfile(req.userId!, parsed.data.profile_id);
-    if (!profile) {
-      res.status(403).json({ error: "That's not your profile. Claim it first." });
-      return;
-    }
-    let slug = slugify(parsed.data.title, 44);
-    const startsAt = parsed.data.starts_at ? new Date(parsed.data.starts_at) : null;
-    const endsAt = parsed.data.ends_at ? new Date(parsed.data.ends_at) : null;
-    if (startsAt && endsAt && endsAt <= startsAt) {
-      res.status(400).json({ error: "ends_at must be after starts_at." });
-      return;
-    }
-    const judgingEndsAt = parsed.data.judging_ends_at ? new Date(parsed.data.judging_ends_at) : null;
-    if (endsAt && judgingEndsAt && judgingEndsAt <= endsAt) {
-      res.status(400).json({ error: "judging_ends_at must be after ends_at." });
-      return;
-    }
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate = attempt === 0 ? slug : `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-      const [inserted] = await db.insert(challengesTable).values({
-        slug: candidate,
-        title: parsed.data.title.trim(),
-        description: parsed.data.description ?? "",
-        hashtag,
-        coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
-        creatorProfileId: parsed.data.profile_id,
-        prizeText: parsed.data.prize_text ?? "",
-        status: startsAt && startsAt.getTime() > Date.now() ? "upcoming" : "live",
-        startsAt,
-        endsAt,
-        judgingEndsAt,
-      }).onConflictDoNothing({ target: challengesTable.slug }).returning();
-      if (inserted) {
-        res.status(201).json({ challenge: await refreshSupabaseStorageUrlsDeep(inserted) });
-        return;
-      }
-    }
-    res.status(409).json({ error: "That challenge name's taken. Remix it." });
-  } catch (err) {
-    req.log.error({ err }, "challenge create error");
-    res.status(500).json({ error: "The challenge didn't launch. Try again." });
-  }
-});
-
-/** Wire DTO for challenge cards (trending + hashtag hub). The clients
-    (ShortsMenu, challenge "More challenges", hashtag cards) read snake_case
-    end to end — entry_count, prize_text, prize_pool_credits, cover_url —
-    so build the payload field-by-field; never spread the camelCase row.
-    `status` stays the stored lifecycle value and `effective_status` the
-    derived one, exactly as the payload has always carried them. */
-interface ChallengeCardRow {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  hashtag: string;
-  coverUrl: string | null;
-  prizeText: string;
-  entryCount: number;
-  totalViews: number;
-  createdAt: Date;
-  creatorProfileId: string | null;
-  status: string;
-  startsAt: Date | null;
-  endsAt: Date | null;
-  judgingEndsAt: Date | null;
-  prizePoolCredits: number;
-}
-
-function toChallengeDto(r: ChallengeCardRow) {
-  return {
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    description: r.description,
-    hashtag: r.hashtag,
-    cover_url: r.coverUrl,
-    prize_text: r.prizeText,
-    entry_count: r.entryCount,
-    total_views: r.totalViews,
-    created_at: r.createdAt,
-    creator_profile_id: r.creatorProfileId,
-    status: r.status,
-    starts_at: r.startsAt,
-    ends_at: r.endsAt,
-    judging_ends_at: r.judgingEndsAt,
-    prize_pool_credits: r.prizePoolCredits,
-    effective_status: effectiveStatus(r),
-  };
-}
-
-/** GET /challenges/trending — what the streets are running right now.
-    Engine 2.0: carries the effective lifecycle state + prize pool so every
-    surface can show the money upfront. */
-router.get("/challenges/trending", feedLimiter, async (req, res) => {
-  try {
-    const limit = Math.min(Math.max(parseInt(String(req.query["limit"] ?? "20"), 10) || 20, 1), 50);
-    const rows = await db.select({
-      id: challengesTable.id, slug: challengesTable.slug, title: challengesTable.title,
-      description: challengesTable.description, hashtag: challengesTable.hashtag,
-      coverUrl: challengesTable.coverUrl, prizeText: challengesTable.prizeText,
-      entryCount: challengesTable.entryCount, totalViews: challengesTable.totalViews,
-      createdAt: challengesTable.createdAt, creatorProfileId: challengesTable.creatorProfileId,
-      status: challengesTable.status, startsAt: challengesTable.startsAt,
-      endsAt: challengesTable.endsAt, judgingEndsAt: challengesTable.judgingEndsAt,
-      prizePoolCredits: challengesTable.prizePoolCredits,
-    }).from(challengesTable)
-      .orderBy(desc(challengesTable.entryCount), desc(challengesTable.totalViews))
-      .limit(limit);
-    res.json(await refreshSupabaseStorageUrlsDeep({
-      challenges: rows.map(toChallengeDto),
-    }));
-  } catch (err) {
-    req.log.error({ err }, "challenges trending error");
-    res.status(500).json({ error: "Couldn't load challenges." });
-  }
-});
-
-/** GET /challenges/:slug — hero + entries. The money angle leads.
-    Engine 2.0: lifecycle state (upcoming/live/judging/winners), the prize
-    pool (shown upfront), vote counts + the viewer's votes on each entry. */
-router.get("/challenges/:slug", feedLimiter, async (req, res) => {
-  try {
-    const slug = String(req.params["slug"]);
-    const [ch] = await db.select().from(challengesTable).where(eq(challengesTable.slug, slug)).limit(1);
-    if (!ch) {
-      res.status(404).json({ error: "No challenge by that name. Start it yourself — the crown's empty." });
-      return;
-    }
-    const viewerId: string | null = await optionalViewerId(req);
-    const entries = await db.execute(sql`
-      SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count,
-             pv.created_at, ce.created_at AS entered_at, ce.vote_count,
-             CASE WHEN cv.user_id IS NOT NULL THEN true ELSE false END AS viewer_voted,
-             cp.id AS profile_id, cp.slug AS creator_slug, cp.display_name AS creator_name,
-             cp.avatar_url AS creator_avatar
-      FROM challenge_entries ce
-      JOIN profile_videos pv ON pv.id = ce.video_id
-      JOIN creator_profiles cp ON cp.id = pv.profile_id
-      LEFT JOIN challenge_votes cv ON cv.video_id = pv.id AND cv.user_id = ${viewerId}
-      WHERE ce.challenge_id = ${ch.id} AND pv.is_published = true
-      ORDER BY pv.view_count DESC
-      LIMIT 48
-    `);
-    const prizes = await db
-      .select()
-      .from(challengePrizesTable)
-      .where(eq(challengePrizesTable.challengeId, ch.id))
-      .orderBy(challengePrizesTable.place);
-    const [{ n: winnerCount }] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(challengeWinnersTable)
-      .where(eq(challengeWinnersTable.challengeId, ch.id));
-    res.json(await refreshSupabaseStorageUrlsDeep({
-      challenge: {
-        id: ch.id, slug: ch.slug, title: ch.title, description: ch.description,
-        hashtag: ch.hashtag, cover_url: ch.coverUrl, prize_text: ch.prizeText,
-        entry_count: ch.entryCount, total_views: ch.totalViews, created_at: ch.createdAt,
-        status: effectiveStatus(ch),
-        starts_at: ch.startsAt, ends_at: ch.endsAt, judging_ends_at: ch.judgingEndsAt,
-        prize_pool_credits: ch.prizePoolCredits,
-        prizes: prizes.map((p) => ({
-          place: p.place, prize_credits: p.prizeCredits, description: p.description,
-        })),
-        winners_announced: (winnerCount ?? 0) > 0,
-      },
-      entries: (entries.rows as Record<string, unknown>[]).map((r) => ({
-        id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
-        view_count: Number(r["view_count"] ?? 0), like_count: Number(r["like_count"] ?? 0),
-        vote_count: Number(r["vote_count"] ?? 0), viewer_voted: !!r["viewer_voted"],
-        entered_at: r["entered_at"], created_at: r["created_at"],
-        creator: { id: r["profile_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
-      })),
-    }));
-  } catch (err) {
-    req.log.error({ err }, "challenge detail error");
-    res.status(500).json({ error: "Couldn't load that challenge." });
-  }
-});
-
-const enterChallengeSchema = z.object({
-  video_id: z.string().uuid(),
-});
-
-/** POST /challenges/:slug/enter — link your video. Tags the hashtag automatically. */
-router.post("/challenges/:slug/enter", requireAuth, writeLimiter, async (req, res) => {
-  try {
-    const slug = String(req.params["slug"]);
-    const parsed = enterChallengeSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "video_id is required — which video's entering?" });
-      return;
-    }
-    const [ch] = await db.select().from(challengesTable).where(eq(challengesTable.slug, slug)).limit(1);
-    if (!ch) {
-      res.status(404).json({ error: "No challenge by that name." });
-      return;
-    }
-    const [video] = await db.select().from(profileVideosTable)
-      .where(eq(profileVideosTable.id, parsed.data.video_id)).limit(1);
-    if (!video) {
-      res.status(404).json({ error: "That video doesn't exist here." });
-      return;
-    }
-    const profile = await requireOwnProfile(req.userId!, video.profileId);
-    if (!profile) {
-      res.status(403).json({ error: "That's not your video to enter." });
-      return;
-    }
-    const [entry] = await db.insert(challengeEntriesTable)
-      .values({ challengeId: ch.id, videoId: video.id })
-      .onConflictDoNothing({ target: [challengeEntriesTable.challengeId, challengeEntriesTable.videoId] })
-      .returning();
-    if (entry) {
-      await db.execute(sql`
-        UPDATE challenges SET entry_count = (
-          SELECT COUNT(*)::int FROM challenge_entries WHERE challenge_id = ${ch.id}
-        ) WHERE id = ${ch.id}
-      `);
-      const tag = `#${ch.hashtag}`;
-      const tags = [...new Set([...(video.tags ?? []), tag, ch.hashtag])].slice(0, 30);
-      await db.update(profileVideosTable).set({ tags }).where(eq(profileVideosTable.id, video.id));
-    }
-    res.json({ entered: true, already_entered: !entry });
-  } catch (err) {
-    req.log.error({ err }, "challenge enter error");
-    res.status(500).json({ error: "The entry didn't land. Try again." });
-  }
-});
-
 /* ── Hashtag hub — every tag is a doorway, never a dead end ─────────────── */
 
 /** GET /hashtag/:tag — videos + shorts + tracks + challenges, all tagged. */
@@ -964,5 +670,7 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
     res.status(500).json({ error: "Couldn't load that tag." });
   }
 });
+
+router.use(challengeEngineRouter);
 
 export default router;

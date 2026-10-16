@@ -71,9 +71,22 @@ vi.mock("../../middlewares/require-auth", () => ({
 /* shorts.ts pulls effectiveStatus from challenge-engine; the status
    helper is not what this file guards — stub it to keep the module
    tree (and its own db chains) out of these tests. */
-vi.mock("../challenge-engine", () => ({
-  effectiveStatus: (c: any) => c?.status ?? "live",
-}));
+vi.mock("../challenge-engine", async () => {
+  // Stack 8 #4: shorts.ts now also mounts the engine's default router
+  // (the /challenges/* routes moved there) and imports the shared
+  // helpers back — the stub must carry those names or the module tree
+  // fails to link. Behavior under test here is unchanged.
+  const { Router } = await import("express");
+  return {
+    effectiveStatus: (c: any) => c?.status ?? "live",
+    optionalViewerId: async () => null,
+    slugify: (s: string, max = 48) =>
+      s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, max) || "untitled",
+    requireOwnProfile: async () => null,
+    toChallengeDto: (r: any) => r,
+    default: Router(),
+  };
+});
 
 vi.mock("../../lib/mirrorMedia", () => ({
   mirrorExternalMediaUrl: async (u: unknown) => u,
