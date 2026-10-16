@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import {
   Disc3, Loader2, Play, Pause, Sparkles, Plus, Search, SlidersHorizontal,
   Tag, BadgeDollarSign, Store, BarChart3, Music2, AlertTriangle, CheckCircle2,
-  X, Wand2,
+  X, Wand2, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -73,6 +73,14 @@ export default function Beats() {
   const { addAsset } = useHubProject();
   const [beats, setBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Beats-list load failures are NOT "no beats listed" — they get their
+     own error state with a retry, scoped to the browse list. The error
+     reflects the LATEST attempt: it clears at the start of each load and
+     on success. beatsLoadedRef guards the gate: once beats have loaded
+     successfully, a later failed reload (e.g. a filter re-run) must NOT
+     blank the beats already on screen into the error state. */
+  const [loadError, setLoadError] = useState(false);
+  const beatsLoadedRef = useRef(false);
   const [tab, setTab] = useState<"browse" | "sell" | "dashboard">("browse");
 
   /* Browse filters */
@@ -116,6 +124,7 @@ export default function Beats() {
 
   const fetchBeats = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const q = new URLSearchParams();
       if (genre) q.set("genre", genre);
@@ -124,11 +133,13 @@ export default function Beats() {
       if (minBpm) q.set("minBpm", minBpm);
       if (maxBpm) q.set("maxBpm", maxBpm);
       const res = await fetch(`/api/beats?${q.toString()}`);
-      if (res.ok) {
-        const data = await res.json() as { beats?: Beat[] };
-        setBeats(data.beats ?? []);
-      }
-    } catch { /* page still renders */ }
+      if (!res.ok) throw new Error("load failed");
+      const data = await res.json() as { beats?: Beat[] };
+      setBeats(data.beats ?? []);
+      beatsLoadedRef.current = true;
+    } catch {
+      if (!beatsLoadedRef.current) setLoadError(true);
+    }
     setLoading(false);
   };
 
@@ -336,6 +347,21 @@ export default function Beats() {
 
             {loading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
+            ) : loadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load beats.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — the marketplace is safe, this page just couldn't reach it.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchBeats()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : beats.length === 0 ? (
               <div className="text-center py-16 text-white/40">
                 <Music2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
