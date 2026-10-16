@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { fetchAssetLibrary, libraryAssetsOfKind } from "@/lib/asset-library";
 import type { HubAsset } from "@/lib/hub-project";
 import { AttributionToggle } from "@/components/AttributionToggle";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
@@ -192,13 +193,17 @@ function SingleShotCoverArt() {
     let cancelled = false;
     (async () => {
       try {
-        const token = await getAccessToken();
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const res = await fetch("/api/thumbnails", { headers });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setRecentThumbs((data.thumbnails ?? []).slice(0, 8));
+        /* Unified asset library (Stack 4 #5): the recent-thumbnails strip
+           reads the shared library (project assets + generations), images
+           only — same strip, one data source across desks. */
+        const assets = await fetchAssetLibrary(getAccessToken);
+        if (!cancelled) {
+          setRecentThumbs(
+            libraryAssetsOfKind(assets, "image")
+              .slice(0, 8)
+              .map((a) => ({ id: a.id, thumbnail_url: a.url, song_title: a.label })),
+          );
+        }
       } catch {
         /* Library strip is a nicety — never block the maker on it. */
       }
