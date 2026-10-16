@@ -109,18 +109,18 @@ router.get("/distribution/releases/:id/landing-content", requireAuth, async (req
    ONLY after that API answers success. Where no parseable track/album
    link exists, or the fan hasn't connected, the API says so and the
    landing keeps its follow/email capture as the headline action. */
-interface PendingSpotify { userId: string; expiresAt: number }
+interface PendingSpotify { userId: string; expiresAt: number; returnSlug: string | null }
 const pendingSpotify = new Map<string, PendingSpotify>();
-function mintState(userId: string): string {
+function mintState(userId: string, returnSlug: string | null): string {
   const state = randomBytes(24).toString("hex");
-  pendingSpotify.set(state, { userId, expiresAt: Date.now() + 10 * 60 * 1000 });
+  pendingSpotify.set(state, { userId, expiresAt: Date.now() + 10 * 60 * 1000, returnSlug });
   return state;
 }
-function consumeState(state: string): string | null {
+function consumeState(state: string): PendingSpotify | null {
   const e = pendingSpotify.get(state);
   pendingSpotify.delete(state);
   if (!e || e.expiresAt < Date.now()) return null;
-  return e.userId;
+  return e;
 }
 
 router.get("/distribution/spotify/auth-url", requireAuth, (req, res) => {
@@ -128,15 +128,18 @@ router.get("/distribution/spotify/auth-url", requireAuth, (req, res) => {
     res.status(503).json({ error: "not_configured", message: "Account pre-save isn't configured yet — fans can still pre-save by email on the landing page." });
     return;
   }
-  res.json({ authUrl: buildSpotifyAuthUrl(process.env["SPOTIFY_CLIENT_ID"]!, mintState(req.userId!)) });
+  const rawReturn = typeof req.query["returnTo"] === "string" ? req.query["returnTo"] : "";
+  const returnSlug = /^[a-z0-9-]{1,60}$/i.test(rawReturn) ? rawReturn : null;
+  res.json({ authUrl: buildSpotifyAuthUrl(process.env["SPOTIFY_CLIENT_ID"]!, mintState(req.userId!, returnSlug)) });
 });
 
 router.get("/distribution/spotify/callback", async (req, res) => {
   const fail = (reason: string) => res.redirect(`${APP_PUBLIC_URL}/presave?spotify=error&reason=${encodeURIComponent(reason)}`);
   const { code, state } = req.query as { code?: string; state?: string };
   if (typeof code !== "string" || typeof state !== "string") { fail("missing_params"); return; }
-  const userId = consumeState(state);
-  if (!userId) { fail("bad_state"); return; }
+  const pending = consumeState(state);
+  if (!pending) { fail("bad_state"); return; }
+  const userId = pending.userId;
   try {
     const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
@@ -155,7 +158,7 @@ router.get("/distribution/spotify/callback", async (req, res) => {
       INSERT INTO social_accounts (id, user_id, platform, provider_user_id, username, access_token_encrypted, refresh_token_encrypted, token_expires_at)
       VALUES (${randomUUID()}, ${userId}, 'spotify', ${me.id ?? null}, ${me.display_name ?? null}, ${encrypted}, ${refreshEncrypted}, ${expiresAt})
     `);
-    res.redirect(`${APP_PUBLIC_URL}/presave?spotify=connected`);
+    res.redirect(pending.returnSlug ? `${APP_PUBLIC_URL}/presave/${pending.returnSlug}?spotify=connected` : `${APP_PUBLIC_URL}/presave?spotify=connected`);
   } catch (err) { logger.warn({ err }, "[stack11] spotify callback failed"); fail("oauth_failed"); }
 });
 

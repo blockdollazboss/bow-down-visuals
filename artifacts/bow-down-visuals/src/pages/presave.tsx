@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
    HyperFollow-level: no auth required — this page is meant to be shared
@@ -32,6 +33,12 @@ interface PresaveRelease {
   bonusUrl: string | null;
   followerCount: number;
   shareCount: number;
+  /* Stack 11: the page persists post-release as the smartlink, and the
+     headline action can be a real account save where supported. */
+  released?: boolean;
+  persistsAfterRelease?: boolean;
+  landing?: { videoUrl: string | null; storeUrl: string | null; socialLinks: Record<string, string> };
+  accountPresave?: { platform: string; supported: boolean; itemKind?: string; actionLabel: string | null; accountSaveCount?: number; reason?: string };
 }
 
 const PLATFORM_ORDER = [
@@ -61,8 +68,47 @@ function releaseTarget(releaseDate: string | null): number | null {
 
 export default function PresaveLanding() {
   const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
   const [, params] = useRoute("/presave/:slug");
   const slug = params?.slug ?? "";
+  const [accountSaveState, setAccountSaveState] = useState<"idle" | "working" | "saved" | "error">("idle");
+  const [accountSaveMsg, setAccountSaveMsg] = useState<string | null>(null);
+
+  /* Real account pre-save: the server calls the platform's library API
+     with the fan's own connected account and records the save ONLY when
+     the platform confirms. No confirmation → no "saved" claim here. */
+  async function doAccountPresave() {
+    if (accountSaveState === "working" || accountSaveState === "saved") return;
+    if (!user) {
+      window.location.href = `/login?next=${encodeURIComponent(`/presave/${slug}`)}`;
+      return;
+    }
+    setAccountSaveState("working");
+    setAccountSaveMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/distribution/presave/${encodeURIComponent(slug)}/account-presave`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({}),
+      });
+      const json = (await res.json().catch(() => ({}))) as { saved?: boolean; error?: string; message?: string };
+      if (res.status === 409 && json.error === "spotify_not_connected") {
+        const authRes = await fetch(`/api/distribution/spotify/auth-url?returnTo=${encodeURIComponent(slug)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const authJson = (await authRes.json().catch(() => ({}))) as { authUrl?: string; message?: string };
+        if (authRes.ok && authJson.authUrl) { window.location.href = authJson.authUrl; return; }
+        throw new Error(authJson.message || json.message || "Account pre-save isn't available right now.");
+      }
+      if (!res.ok || !json.saved) throw new Error(json.message || "The save wasn't confirmed — nothing was recorded.");
+      setAccountSaveState("saved");
+      setAccountSaveMsg("Saved to your library — it's yours the moment it drops.");
+    } catch (err) {
+      setAccountSaveState("error");
+      setAccountSaveMsg(err instanceof Error ? err.message : "The save wasn't confirmed — nothing was recorded.");
+    }
+  }
 
   const [data, setData] = useState<PresaveRelease | null>(null);
   usePageTitle(data?.title ? `${data.title} — Presave` : "Presave", "Pre-save the upcoming release on Bow Down Visuals.");
@@ -327,6 +373,32 @@ export default function PresaveLanding() {
               </span>
             </div>
 
+            {/* ── Stack 11 #2: real account pre-save (headline action when
+                the platform API can actually save this release) ── */}
+            {data.accountPresave?.supported && (
+              <div className="mx-auto mt-6 max-w-md rounded-2xl border border-primary/30 bg-primary/[0.07] p-5">
+                <p className="text-sm font-black text-white">{released ? "Add it to your library" : "Pre-save it to your library"}</p>
+                <p className="mt-1 text-xs text-white/50">
+                  {user
+                    ? "One tap saves it with your connected account — confirmed by the platform, not just recorded here."
+                    : "Sign in and connect your account — the save lands in your own library, confirmed by the platform."}
+                  {typeof data.accountPresave.accountSaveCount === "number" && data.accountPresave.accountSaveCount > 0
+                    ? ` ${data.accountPresave.accountSaveCount.toLocaleString()} fans already saved it this way.`
+                    : ""}
+                </p>
+                <button
+                  onClick={doAccountPresave}
+                  disabled={accountSaveState === "working" || accountSaveState === "saved"}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {accountSaveState === "working" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {accountSaveState === "saved" ? "Saved to your library" : (data.accountPresave.actionLabel ?? "Save on Spotify")}
+                </button>
+                {accountSaveMsg && <p className={`mt-2 text-xs ${accountSaveState === "error" ? "text-red-300" : "text-emerald-300"}`}>{accountSaveMsg}</p>}
+                <p className="mt-2 text-[11px] text-white/35">Prefer email? The pre-save below still joins the artist&apos;s list.</p>
+              </div>
+            )}
+
             {/* ── email capture (joins the artist's email list) ── */}
             {followState === "done" ? (
               <div className="mx-auto mt-6 max-w-md rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
@@ -420,6 +492,34 @@ export default function PresaveLanding() {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── Stack 11 #1: persistent smartlink — video / store / socials.
+                This page is the release's home link after release day. ── */}
+            {data.landing && (data.landing.videoUrl || data.landing.storeUrl || Object.keys(data.landing.socialLinks ?? {}).length > 0) && (
+              <div className="mt-6">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  {released ? "Everything for this release, in one place" : "More from this release"}
+                </p>
+                <div className="grid gap-2">
+                  {data.landing.videoUrl && (
+                    <a href={data.landing.videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                      <span>Watch the video</span><ExternalLink className="h-4 w-4 opacity-60" />
+                    </a>
+                  )}
+                  {data.landing.storeUrl && (
+                    <a href={data.landing.storeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                      <span>Get it in the store</span><ExternalLink className="h-4 w-4 opacity-60" />
+                    </a>
+                  )}
+                  {Object.entries(data.landing.socialLinks ?? {}).map(([k, url]) => (
+                    <a key={k} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                      <span>{k === "x" ? "X" : k === "website" ? "Website" : k[0]!.toUpperCase() + k.slice(1)}</span><ExternalLink className="h-4 w-4 opacity-60" />
+                    </a>
+                  ))}
+                </div>
+                {released && <p className="mt-2 text-[11px] text-white/35">This page stays live — it&apos;s the release&apos;s home link, not a countdown that expired.</p>}
               </div>
             )}
 
