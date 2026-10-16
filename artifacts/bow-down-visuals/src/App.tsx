@@ -139,6 +139,7 @@ const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const StreamControllerPage = lazyWithRetry(() => import("@/pages/stream-controller"));
 const LiveWatch = lazyWithRetry(() => import("@/pages/live-watch"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
@@ -655,6 +656,7 @@ function AppShell() {
                 <Route path="/sponsorship-outreach"><Redirect to="/brand-deals?tab=pitch" /></Route>
                 <Route path="/release-checklist"><Redirect to="/distribute?tab=plan" /></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/go-live/controller"><ProtectedRoute><StreamControllerPage /></ProtectedRoute></Route>
                 <Route path="/discord-bot"><Redirect to="/go-live?tab=discord" /></Route>
                 <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
                 <Route path="/gamers"><Redirect to="/go-live?tab=gamers" /></Route>

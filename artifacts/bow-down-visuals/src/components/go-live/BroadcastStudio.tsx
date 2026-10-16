@@ -10,6 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
+import StreamDeck from "@/components/live/StreamDeck";
+import {
+  ControllerStageClient,
+  controllerSocketUrl,
+  type ControllerCommand,
+  type ControllerSocketLike,
+  type ControllerState,
+} from "@/lib/stream-controller";
 import {
   BackgroundChanger,
   BackgroundChangerError,
@@ -206,6 +214,64 @@ export default function BroadcastStudio() {
   const healthPrevRef = useRef<RtcStatSample | null>(null);
   const stageRef = useRef<Stage | null>(null);
   const previewStageRef = useRef<PreviewStage | null>(null);
+
+  /* ── Stream Controller: this studio is a "stage" on its account's
+     control channel. The phone remote and the docked deck below run
+     commands through the SAME handlers as the studio's own buttons
+     (wired at the bottom of the component, where the live state
+     lives); the refs here keep the socket client stable. ── */
+  const controllerStageIdRef = useRef<string>("");
+  if (!controllerStageIdRef.current) {
+    controllerStageIdRef.current =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `stage-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+  const controllerBuildRef = useRef<() => ControllerState>(() => ({
+    stageId: controllerStageIdRef.current,
+    label: "Your studio",
+    live: false,
+    title: "",
+    scenes: [],
+    activeSceneId: null,
+    previewSceneId: null,
+    micMuted: false,
+    cameraOn: false,
+    recording: false,
+    liveSince: null,
+  }));
+  const controllerExecRef = useRef<
+    (command: ControllerCommand, args: Record<string, unknown>) => Promise<void>
+  >(async () => undefined);
+  const controllerClientRef = useRef<ControllerStageClient | null>(null);
+  const [controllerLinkUp, setControllerLinkUp] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const client = new ControllerStageClient(
+      {
+        getAccessToken,
+        socketUrl: controllerSocketUrl(window.location, "stage"),
+        openSocket: (url) => new WebSocket(url) as unknown as ControllerSocketLike,
+      },
+      (command, args) => controllerExecRef.current(command, args),
+      () => controllerBuildRef.current(),
+      () => setControllerLinkUp(client.socketUp),
+    );
+    controllerClientRef.current = client;
+    void client.start();
+    return () => {
+      client.stop();
+      if (controllerClientRef.current === client) controllerClientRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  /* Remotes mirror CONFIRMED state — republish on every render (the
+     studio already re-renders on every stage/phase/timer change). */
+  useEffect(() => {
+    controllerClientRef.current?.publish();
+  });
   const programCanvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
@@ -888,6 +954,67 @@ export default function BroadcastStudio() {
   const isLivePhase = phase === "live" || phase === "ending";
   const watchPath = liveId ? `/live/${liveId}` : null;
 
+  /* Stream Controller: the confirmed-state snapshot the deck and the
+     phone remote render, and the executor that runs their commands
+     through the studio's OWN handlers — a remote Go Live is this
+     page's goLive(), transports, destinations and all. */
+  const controllerState: ControllerState = {
+    stageId: controllerStageIdRef.current,
+    label: isLivePhase ? title.trim() || "Your stream" : "Your studio",
+    live: isLivePhase,
+    title,
+    scenes: (stageRef.current?.scenes ?? []).map((s) => ({ id: s.id, name: s.name })),
+    activeSceneId: stageRef.current?.programId ?? null,
+    previewSceneId: stageRef.current?.previewId ?? null,
+    micMuted: mixerRef.current?.getInputState("mic")?.muted ?? false,
+    cameraOn: phase !== "off",
+    recording: recPhase === "recording" || isLivePhase,
+    liveSince: isLivePhase ? Date.now() - elapsed * 1000 : null,
+  };
+  controllerBuildRef.current = () => controllerState;
+  controllerExecRef.current = async (command, args) => {
+    const st = stageRef.current;
+    switch (command) {
+      case "scene.select": {
+        const sceneId = typeof args.sceneId === "string" ? args.sceneId : null;
+        if (st && sceneId && st.sceneById(sceneId)) {
+          st.cutTo(sceneId);
+          st.setPreview(sceneId);
+        }
+        break;
+      }
+      case "transition.cut":
+        st?.transition("cut");
+        break;
+      case "transition.fade":
+        st?.transition("fade");
+        break;
+      case "mic.toggle": {
+        const mixer = mixerRef.current;
+        const mic = mixer?.getInputState("mic");
+        if (mixer && mic) {
+          mixer.setMuted("mic", !mic.muted);
+          bump();
+        }
+        break;
+      }
+      case "camera.toggle":
+        if (phase === "off") await startCamera();
+        else await stopCamera();
+        break;
+      case "record.toggle":
+        // While live, the broadcast already records its replay.
+        if (!isLivePhase) await toggleRecord();
+        break;
+      case "stream.start":
+        if (!isLivePhase) await goLive();
+        break;
+      case "stream.end":
+        if (isLivePhase) await endStream();
+        break;
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 md:px-8">
       <div className="mb-6">
@@ -1327,6 +1454,33 @@ export default function BroadcastStudio() {
             </p>
           </div>
         )}
+      </section>
+
+      {/* ── Stream Controller ── */}
+      <section className={`mb-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Stream Controller</h3>
+          <span className={`flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`} role="status">
+            <span className={`inline-block h-2 w-2 rounded-full ${controllerLinkUp ? "bg-emerald-500" : "bg-white/30"}`} />
+            {controllerLinkUp ? "Phone remote link: ready" : "Phone remote link: connecting…"}
+          </span>
+        </div>
+        <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+          Big buttons for running the show — here, or from your phone: open the{" "}
+          <Link href="/go-live/controller" className="font-bold text-amber-500 underline underline-offset-2">
+            Stream Controller
+          </Link>{" "}
+          on your phone and it pairs with this studio automatically, because it's signed in as you.
+        </p>
+        <div className="mt-4 rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-3.5" data-dark-lock>
+          <StreamDeck
+            state={controllerState}
+            canControl
+            onCommand={(cmd, args) => {
+              void controllerExecRef.current(cmd, args ?? {});
+            }}
+          />
+        </div>
       </section>
 
       {/* ── Behind me ── */}
