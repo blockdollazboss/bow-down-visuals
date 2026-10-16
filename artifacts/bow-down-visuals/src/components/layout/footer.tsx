@@ -5,6 +5,7 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { InstagramIcon, TikTokIcon, YouTubeIcon, SOCIAL_HANDLE } from "@/components/social-icons";
 import { ThemedLogo } from "@/components/ThemedLogo";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
 
 const STUDIO_LINKS = [
   { label: "Home",        href: "/" },
@@ -71,6 +72,7 @@ const BUSINESS_LINKS = [
    section carries. */
 const SOCIAL_LINKS = [
   { label: "Home Feed", href: "/home" },
+  { label: SHORTS_NAV_ENTRY.label, href: SHORTS_NAV_ENTRY.href },
   { label: "Explore", href: "/explore" },
   { label: "Groups", href: "/groups" },
   { label: "Contests", href: "/contests" },

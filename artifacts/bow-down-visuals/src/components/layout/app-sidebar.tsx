@@ -112,6 +112,7 @@ import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import { ThemedLogo } from "@/components/ThemedLogo";
+import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -268,6 +269,7 @@ const SECTIONS: NavSection[] = [
     titleKey: "nav.social",
     links: [
       { href: "/home", labelKey: "nav.feed", icon: Newspaper },
+      { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard },
       { href: "/explore", labelKey: "nav.explore", icon: Compass },
       { href: "/groups", labelKey: "nav.groups", icon: Users },
       { href: "/events", labelKey: "nav.events", icon: CalendarDays },
@@ -645,6 +647,7 @@ function HorizontalSidebarNav() {
     { titleKey: "nav.branding", href: "/branding-kit", icon: Crown },
     { titleKey: "nav.promote", href: "/promote", icon: Megaphone },
     { titleKey: "nav.social", href: "/home", icon: Newspaper },
+    { titleKey: SHORTS_NAV_ENTRY.labelKey, href: SHORTS_NAV_ENTRY.href, icon: Clapperboard },
     { titleKey: "nav.getPaid", href: "/coach", icon: DollarSign },
   ];
   return (
