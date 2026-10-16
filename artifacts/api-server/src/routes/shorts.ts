@@ -232,7 +232,7 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
         SELECT pv.*,
                cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar,
                CASE WHEN f.profile_id IS NOT NULL THEN 2.5 ELSE 1.0 END AS follow_mult,
-               CASE WHEN cp.slug = ANY(${OFFICIAL_SLUGS}::text[]) THEN 1.5 ELSE 1.0 END AS bdv_mult,
+               CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
                CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
                CASE WHEN f.profile_id IS NOT NULL THEN true ELSE false END AS viewer_following,
                ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.repost_count * 4.0 + pv.view_count * 0.1 + 1.0)
@@ -284,7 +284,7 @@ router.get("/shorts/:id", feedLimiter, async (req, res) => {
       SELECT pv.*,
              cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar,
              CASE WHEN f.profile_id IS NOT NULL THEN 2.5 ELSE 1.0 END AS follow_mult,
-             CASE WHEN cp.slug = ANY(${OFFICIAL_SLUGS}::text[]) THEN 1.5 ELSE 1.0 END AS bdv_mult,
+             CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
              CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
              CASE WHEN f.profile_id IS NOT NULL THEN true ELSE false END AS viewer_following,
              ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.repost_count * 4.0 + pv.view_count * 0.1 + 1.0)
@@ -498,7 +498,7 @@ async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Respo
       ? await db.select({
           id: creatorProfilesTable.id, slug: creatorProfilesTable.slug,
           displayName: creatorProfilesTable.displayName, avatarUrl: creatorProfilesTable.avatarUrl,
-        }).from(creatorProfilesTable).where(sql`${creatorProfilesTable.id} = ANY(${creatorIds}::uuid[])`)
+        }).from(creatorProfilesTable).where(sql`${creatorProfilesTable.id} = ANY(${sql`ARRAY[${sql.join(creatorIds.map((i) => sql`${i}`), sql`, `)}]::uuid[]`})`)
       : [];
     const byId = new Map(creators.map((c) => [c.id, c]));
     res.json(await refreshSupabaseStorageUrlsDeep({

@@ -690,7 +690,7 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
       SELECT pv.id AS video_id, pv.profile_id, cp.user_id AS owner_user_id
       FROM profile_videos pv
       LEFT JOIN creator_profiles cp ON cp.id = pv.profile_id
-      WHERE pv.id = ANY(${videoIds}::uuid[])
+      WHERE pv.id = ANY(${sql`ARRAY[${sql.join(videoIds.map((i) => sql`${i}`), sql`, `)}]::uuid[]`})
     `);
     const ownerByVideo = new Map(
       (vids.rows as Record<string, unknown>[]).map((r) => [
