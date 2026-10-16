@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBucs } from "@/lib/visual-bucs";
+import { normalizeShortsFeed, normalizeShortItem } from "@/lib/shorts-data";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
@@ -117,12 +118,13 @@ export default function ShortsFeed() {
 
   const loadFeed = useCallback(async (cursorIn: string | null, seedStartId?: string | null): Promise<FeedResponse> => {
     const url = cursorIn ? `/api/shorts/feed?cursor=${encodeURIComponent(cursorIn)}` : "/api/shorts/feed";
-    const data = (await apiGet(url)) as FeedResponse;
+    const data = normalizeShortsFeed(await apiGet(url));
     let next = data.items;
     if (seedStartId && !cursorIn) {
       try {
-        const s = (await apiGet(`/api/shorts/${encodeURIComponent(seedStartId)}`)) as { short: ShortItem };
-        if (s?.short && !next.some((i) => i.id === s.short.id)) next = [s.short, ...next];
+        const s = (await apiGet(`/api/shorts/${encodeURIComponent(seedStartId)}`)) as { short?: unknown };
+        const seedItem = normalizeShortItem(s?.short);
+        if (seedItem && !next.some((i) => i.id === seedItem.id)) next = [seedItem, ...next];
       } catch { /* start id may be gone — feed stands on its own */ }
     }
     return { items: next, next_cursor: data.next_cursor };
@@ -157,7 +159,7 @@ export default function ShortsFeed() {
     setLoadingMore(true);
     try {
       const res = await fetch(cursor ? `/api/shorts/feed?cursor=${encodeURIComponent(cursor)}` : "/api/shorts/feed");
-      const data = (await res.json()) as FeedResponse;
+      const data = normalizeShortsFeed(await res.json());
       setItems((prev) => {
         const ids = new Set(prev.map((i) => i.id));
         return [...prev, ...data.items.filter((i) => !ids.has(i.id))];
@@ -199,9 +201,10 @@ export default function ShortsFeed() {
       const exists = items.some((i) => i.id === sid);
       if (!exists) {
         try {
-          const s = (await apiGet(`/api/shorts/${encodeURIComponent(sid)}`)) as { short: ShortItem };
-          if (s?.short) {
-            setItems((prev) => [s.short, ...prev.filter((p) => p.id !== s.short.id)]);
+          const s = (await apiGet(`/api/shorts/${encodeURIComponent(sid)}`)) as { short?: unknown };
+          const seedItem = normalizeShortItem(s?.short);
+          if (seedItem) {
+            setItems((prev) => [seedItem, ...prev.filter((p) => p.id !== seedItem.id)]);
           }
         } catch { /* ignore */ }
       }

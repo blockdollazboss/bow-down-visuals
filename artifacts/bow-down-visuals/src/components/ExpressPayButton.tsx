@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { loadStripe, type Stripe, type PaymentRequest } from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe, PaymentRequest } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentRequestButtonElement,
@@ -14,9 +15,24 @@ import { useAuth } from "@/contexts/AuthContext";
    then fulfilled via /api/payments/express/verify which credits Visual Bucs.
    The button only renders when the device supports Apple Pay / Google Pay. */
 
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
-);
+/* Stripe.js loads LAZILY, only when this button actually mounts
+   (Lane V4 fix): this module used to call loadStripe() at module
+   level, and App.tsx imports the pricing page statically — so the
+   script loaded at app boot on EVERY page, and a blocked/failed
+   Stripe CDN surfaced a "Failed to load Stripe.js" error site-wide.
+   The /pure entry also skips the package's import-time auto-load.
+   A failed load resolves null: <Elements> stays inert, the inner
+   component's no-stripe path keeps the button hidden, and the rest
+   of checkout (which never needed this script) is unaffected. */
+let stripePromise: Promise<Stripe | null> | null = null;
+function getStripePromise(): Promise<Stripe | null> {
+  if (!stripePromise) {
+    stripePromise = loadStripe(
+      import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
+    ).catch(() => null);
+  }
+  return stripePromise;
+}
 
 type ExpressPayResult = {
   added: number;
@@ -206,7 +222,7 @@ export function ExpressPayButton({
     | undefined;
   if (!publishableKey) return null;
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={getStripePromise()}>
       <ExpressPayInner
         packKey={packKey}
         onSuccess={onSuccess}

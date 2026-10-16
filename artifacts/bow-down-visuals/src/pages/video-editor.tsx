@@ -5395,6 +5395,7 @@ function MasterPreviewPlayer({
           items={buildPlayerCtxItems()}
           onClose={() => setPlayerCtx(null)}
           testId="player-context-menu"
+          tone="dark"
         />
       )}
 

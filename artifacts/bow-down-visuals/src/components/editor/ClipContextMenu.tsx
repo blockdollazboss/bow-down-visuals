@@ -2,14 +2,21 @@
  * ClipContextMenu — reusable custom right-click context menu for the video
  * editor (timeline clips + preview player).
  *
- * Custom dark/gold marble styling (NOT the browser default menu):
- *   - bg-[#0a0a0a] marble body, gold (#C9A84C) borders
+ * Custom gold marble styling (NOT the browser default menu):
+ *   - dark tone: bg-[#0a0a0a] marble body, gold (#C9A84C) borders
+ *   - light tone: ivory marble body, bronze ink (the house light panel
+ *     recipe) — the dark panel's text classes are repainted to bronze
+ *     by the light theme's global remaps while its arbitrary-value
+ *     black background is not, which made labels dark-on-black on
+ *     theme-adaptive surfaces (Lane V4 item 3)
  *   - positioned at the cursor, clamped to the viewport
  *   - closes on click-away, Escape, or window scroll/resize
  *   - supports nested submenus (hover to open, flips to the left near the edge)
  *   - supports custom row content (e.g. a volume slider) via `custom`
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { menuToneClasses, type MenuToneClasses } from "@/lib/context-menu-tone";
 import { Check, ChevronRight } from "lucide-react";
 
 export interface ContextMenuItem {
@@ -39,12 +46,19 @@ interface ClipContextMenuProps {
   items: ContextMenuItem[];
   onClose: () => void;
   testId?: string;
+  /** Panel treatment. Defaults to the site theme (light → ivory).
+      The video editor passes "dark" explicitly: its gold/black look
+      is protected in both site themes. */
+  tone?: "dark" | "light";
 }
 
 const MENU_W = 232;
 const SUB_W = 208;
 
-export function ClipContextMenu({ x, y, items, onClose, testId }: ClipContextMenuProps) {
+export function ClipContextMenu({ x, y, items, onClose, testId, tone: toneProp }: ClipContextMenuProps) {
+  const siteLight = useIsLightTheme();
+  const tone = toneProp ?? (siteLight ? "light" : "dark");
+  const tc = menuToneClasses(tone);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState({ left: x, top: y });
   const [openSub, setOpenSub] = useState<string | null>(null);
@@ -95,22 +109,22 @@ export function ClipContextMenu({ x, y, items, onClose, testId }: ClipContextMen
     <div
       ref={rootRef}
       data-testid={testId ?? "clip-context-menu"}
-      className="fixed z-[200] rounded-xl border border-[#C9A84C]/40 bg-[#0a0a0a]/[0.98] backdrop-blur-md
-        shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_18px_rgba(201,168,76,0.12)]
-        py-1.5 overflow-visible select-none"
+      className={`fixed z-[200] rounded-xl border backdrop-blur-md py-1.5 overflow-visible select-none ${tc.panel}`}
       style={{ left: pos.left, top: pos.top, width: MENU_W }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
     >
       {/* marble sheen */}
-      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-white/[0.05] via-transparent to-[#C9A84C]/[0.05]" aria-hidden />
+      <div className={`pointer-events-none absolute inset-0 rounded-xl ${tc.sheen}`} aria-hidden />
       <div className="relative">
         {items.map((item) =>
           item.divider ? (
-            <div key={item.key} className="mx-3 my-1.5 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
+            <div key={item.key} className={`mx-3 my-1.5 h-px ${tc.divider}`} />
           ) : (
             <MenuRow
               key={item.key}
               item={item}
+              tc={tc}
+              tone={tone}
               openSub={openSub}
               setOpenSub={setOpenSub}
               onItemClick={handleItemClick}
@@ -124,9 +138,11 @@ export function ClipContextMenu({ x, y, items, onClose, testId }: ClipContextMen
 }
 
 function MenuRow({
-  item, openSub, setOpenSub, onItemClick, onClose,
+  item, tc, tone, openSub, setOpenSub, onItemClick, onClose,
 }: {
   item: ContextMenuItem;
+  tc: MenuToneClasses;
+  tone: "dark" | "light";
   openSub: string | null;
   setOpenSub: React.Dispatch<React.SetStateAction<string | null>>;
   onItemClick: (item: ContextMenuItem) => void;
@@ -149,11 +165,11 @@ function MenuRow({
   const rowCls = [
     "relative flex items-center gap-2.5 w-full px-3 py-2 text-left text-[12px] font-semibold transition-colors",
     item.disabled
-      ? "text-white/25 cursor-not-allowed"
+      ? tc.rowDisabled
       : item.danger
-        ? "text-red-300/90 hover:bg-red-500/10 hover:text-red-200 cursor-pointer"
-        : "text-white/85 hover:bg-[#C9A84C]/15 hover:text-[#f3d98b] cursor-pointer",
-    item.active && !item.disabled ? "text-[#f3d98b]" : "",
+        ? tc.rowDanger
+        : `${tc.row} ${tc.rowHover} cursor-pointer`,
+    item.active && !item.disabled ? (tone === "light" ? "text-[#7A5A12]" : "text-[#f3d98b]") : "",
   ].join(" ");
 
   return (
@@ -181,27 +197,26 @@ function MenuRow({
         >
           <span className="w-4 h-4 shrink-0 flex items-center justify-center">
             {item.checked ? (
-              <Check className="h-3.5 w-3.5 text-[#C9A84C]" strokeWidth={3} />
+              <Check className={`h-3.5 w-3.5 ${tc.check}`} strokeWidth={3} />
             ) : (
-              <span className={item.disabled ? "text-white/20" : "text-[#C9A84C]/70"}>{item.icon}</span>
+              <span className={item.disabled ? tc.iconDisabled : tc.icon}>{item.icon}</span>
             )}
           </span>
           <span className="flex-1 min-w-0 truncate">{item.label}</span>
-          {hasSub && <ChevronRight className="h-3.5 w-3.5 text-[#C9A84C]/60 shrink-0" />}
+          {hasSub && <ChevronRight className={`h-3.5 w-3.5 ${tc.chevron} shrink-0`} />}
         </button>
       )}
       {hasSub && isOpen && (
         <div
           ref={subRef}
-          className="absolute top-[-6px] z-[201] rounded-xl border border-[#C9A84C]/40 bg-[#0a0a0a]/[0.98] backdrop-blur-md
-            shadow-[0_12px_40px_rgba(0,0,0,0.8)] py-1.5"
+          className={`absolute top-[-6px] z-[201] rounded-xl border backdrop-blur-md py-1.5 ${tc.panel}`}
           style={subDir === "right" ? { left: MENU_W - 4 } : { right: MENU_W - 4, width: SUB_W }}
         >
-          <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-white/[0.05] via-transparent to-[#C9A84C]/[0.05]" aria-hidden />
+          <div className={`pointer-events-none absolute inset-0 rounded-xl ${tc.sheen}`} aria-hidden />
           <div className="relative" style={{ width: SUB_W }}>
             {item.children!.map((sub) =>
               sub.divider ? (
-                <div key={sub.key} className="mx-3 my-1.5 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
+                <div key={sub.key} className={`mx-3 my-1.5 h-px ${tc.divider}`} />
               ) : (
                 <button
                   key={sub.key}
@@ -217,17 +232,17 @@ function MenuRow({
                   className={[
                     "flex items-center gap-2.5 w-full px-3 py-2 text-left text-[12px] font-semibold transition-colors",
                     sub.disabled
-                      ? "text-white/25 cursor-not-allowed"
+                      ? tc.rowDisabled
                       : sub.danger
-                        ? "text-red-300/90 hover:bg-red-500/10 hover:text-red-200 cursor-pointer"
-                        : "text-white/85 hover:bg-[#C9A84C]/15 hover:text-[#f3d98b] cursor-pointer",
+                        ? tc.rowDanger
+                        : `${tc.row} ${tc.rowHover} cursor-pointer`,
                   ].join(" ")}
                 >
                   <span className="w-4 h-4 shrink-0 flex items-center justify-center">
                     {sub.checked ? (
-                      <Check className="h-3.5 w-3.5 text-[#C9A84C]" strokeWidth={3} />
+                      <Check className={`h-3.5 w-3.5 ${tc.check}`} strokeWidth={3} />
                     ) : (
-                      <span className="text-[#C9A84C]/70">{sub.icon}</span>
+                      <span className={tc.icon}>{sub.icon}</span>
                     )}
                   </span>
                   <span className="flex-1 min-w-0 truncate">{sub.label}</span>

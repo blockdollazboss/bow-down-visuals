@@ -1581,6 +1581,7 @@ export function TimelineDock({
           items={buildClipCtxItems(ctxMenu.sceneIdx)}
           onClose={() => setCtxMenu(null)}
           testId="timeline-clip-context-menu"
+          tone="dark"
         />
       )}
     </div>

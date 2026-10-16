@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Timer, Sparkles, X, Gift, Loader2, Package } from "lucide-react";
 import { DraggableWidget } from "@/components/draggable-widget";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { coerceCooldownSeconds, isUsableSeconds } from "@/lib/cooldown";
 
 interface BoxPrize {
   credits: number;
@@ -59,7 +60,10 @@ export function MysteryCrate() {
     try {
       const s: BonusStatus = await api("/api/bonus/status");
       setStatus(s);
-      setCooldown(s.wheelCooldownSeconds);
+      /* Guard at the source (Lane V4 item 4): a partial payload used to
+         put undefined here; the tick then produced NaN and the floating
+         chip rendered the literal text "NaNs" on every page. */
+      setCooldown(coerceCooldownSeconds(s.wheelCooldownSeconds));
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -73,7 +77,7 @@ export function MysteryCrate() {
   }, [loadStatus]);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (!isUsableSeconds(cooldown) || cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
@@ -87,6 +91,7 @@ export function MysteryCrate() {
   }, [open, loadStatus]);
 
   function formatCooldown(s: number): string {
+    if (!isUsableSeconds(s)) return "0:00";
     if (s >= 3600) {
       const h = Math.floor(s / 3600);
       const m = Math.floor((s % 3600) / 60);
@@ -98,6 +103,7 @@ export function MysteryCrate() {
   }
 
   function formatCompact(s: number): string {
+    if (!isUsableSeconds(s)) return "0s";
     if (s >= 3600) return `${Math.floor(s / 3600)}h`;
     if (s >= 60) return `${Math.floor(s / 60)}m`;
     return `${s}s`;
@@ -134,9 +140,8 @@ export function MysteryCrate() {
         // Someone else claimed this hour's crate — tell the user instead of silently doing nothing
         setClaimedMessage("Someone beat you to this hour's crate! Try again next hour.");
         // Backend sends nextHourIn (seconds until next UTC hour); fall back to cooldownSeconds, then 1h
-        const wait = typeof r.nextHourIn === "number" ? r.nextHourIn
-          : typeof r.cooldownSeconds === "number" ? r.cooldownSeconds
-          : 3600;
+        const wait = coerceCooldownSeconds(r.nextHourIn,
+          coerceCooldownSeconds(r.cooldownSeconds, 3600));
         setCooldown(wait);
       } else if (res.status === 401) {
         setPhase("closed");
