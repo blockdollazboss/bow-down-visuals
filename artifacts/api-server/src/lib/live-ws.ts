@@ -23,6 +23,10 @@ const SUPABASE_URL = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_U
 const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? process.env["VITE_SUPABASE_ANON_KEY"] ?? "";
 
 /** Verify a session access token the same way requireAuth does. */
+export type AccessTokenVerifier = (
+  token: string,
+) => Promise<{ userId: string; email: string | null } | null>;
+
 export async function verifyAccessToken(token: string): Promise<{ userId: string; email: string | null } | null> {
   if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   try {

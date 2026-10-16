@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
+import { registerLiveControlWs } from "./routes/live-control";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
@@ -58,8 +59,9 @@ const server = app.listen(port, (err) => {
 });
 
 /* Live WebSockets on the same server/origin: stream chat delivery
-   registers here (the stream controller relays over the same gateway
-   when it lands). Session-token authed — see lib/live-ws.ts. */
+   and the stream-controller relay register here. Session-token
+   authed — see lib/live-ws.ts. */
 const wsGateway = new LiveWsGateway();
 registerLiveChatWs(wsGateway);
+registerLiveControlWs(wsGateway);
 wsGateway.attach(server);
