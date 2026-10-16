@@ -630,6 +630,80 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* ── Generalized desk handoff: ?handoff=<id> (Stack 4 #3) ──
+     Any desk can send an asset here via lib/asset-handoff (typed intents).
+     Audio intents land as timeline stems (same state the beat handoff
+     feeds); scene intents land as scenes via the ProjectFlowBar path.
+     One-shot: the param is stripped once consumed. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("handoff");
+      if (!id) return;
+      import("@/lib/asset-handoff").then(({ takeAssetHandoff, handoffIntent }) => {
+        const entry = takeAssetHandoff(id);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("handoff");
+        window.history.replaceState(null, "", url.toString());
+        if (!entry) return;
+        const intent = handoffIntent(entry.intentId);
+        if (!intent) return;
+        if (intent.inputRole === "timeline-audio") {
+          setSettings((prev) => ({
+            ...prev,
+            musicStudio: {
+              ...prev.musicStudio,
+              stems: [
+                ...prev.musicStudio.stems,
+                {
+                  id: `handoff-${Date.now()}`,
+                  name: entry.asset.label,
+                  type: entry.asset.kind === "beat" ? "beat" : "song",
+                  url: entry.asset.url,
+                  storagePath: "",
+                  fileType: "audio/mpeg",
+                  fileSize: entry.blob?.size ?? 0,
+                  uploadedAt: new Date().toISOString(),
+                  durationSec: Number(entry.asset.meta?.durationSec ?? 0),
+                  muted: false,
+                  solo: false,
+                  locked: false,
+                  volume: 100,
+                  pan: 0,
+                  trimStart: 0,
+                  trimEnd: 0,
+                  startTime: 0,
+                  effects: defaultStemEffects(),
+                },
+              ],
+            },
+          }));
+          setTab("music");
+          toast({
+            title: t("videoEditor.handoffAudioTitle", { defaultValue: "Audio added to your timeline" }),
+            description: t("videoEditor.handoffAudioDesc", { defaultValue: "{{title}} is now an audio stem — trim, mix, and export it with your video.", title: entry.asset.label }),
+          });
+        } else if (intent.inputRole === "scene") {
+          addHubAssetAsScene({
+            id: entry.asset.hubAssetId ?? entry.id,
+            kind: entry.asset.kind,
+            url: entry.asset.url,
+            label: entry.asset.label,
+            detail: entry.asset.detail,
+            meta: entry.asset.meta,
+            createdAt: entry.createdAt,
+          });
+          toast({
+            title: t("videoEditor.handoffSceneTitle", { defaultValue: "Added to your timeline" }),
+            description: t("videoEditor.handoffSceneDesc", { defaultValue: "{{title}} is now a scene in this project.", title: entry.asset.label }),
+          });
+        }
+      }).catch(() => { /* handoff unavailable — ignore */ });
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /* ── MediaLinkBar "Use this sound": ?sound=track:<id> ──
      The streaming track resolves through the media API and is attached
      as a project soundtrack stem — the same settings.musicStudio.stems
