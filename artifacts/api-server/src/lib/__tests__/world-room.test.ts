@@ -1,0 +1,314 @@
+/**
+ * The World — presence protocol tests (lib/world-room).
+ *
+ * Drives WorldRoom exactly the way routes/world.ts does: fake sockets
+ * with the WsClientSocket surface, JSON frames in, JSON frames out.
+ * Pinned contract:
+ * - join → welcome snapshot (self + everyone already inside); others
+ *   get peer.join. Disconnect → peer.leave despawn broadcast.
+ * - presence cap 30: the 31st arrival gets an honest room_full frame
+ *   and a 4429 close — nobody is silently queued or ghosted in.
+ * - move sync broadcasts to everyone EXCEPT the mover, is throttled
+ *   server-side to ~10/s per peer, and positions clamp to the hall.
+ * - say: members only (guests are look-only), paced, trimmed, capped.
+ * - voice: members only, mesh cap 12 with voice.full, signaling relays
+ *   ONLY between two voice members and carries the sender's peerId.
+ */
+import { describe, it, expect } from "vitest";
+import { RoomHub, type WsClientSocket } from "../live-ws";
+import {
+  WorldRoom,
+  tintForKey,
+  WORLD_TINTS,
+  WORLD_PRESENCE_CAP,
+  WORLD_VOICE_CAP,
+  HALL_BOUNDS,
+  type WorldIdentity,
+} from "../world-room";
+
+interface FakeSocket extends WsClientSocket {
+  sent: any[];
+  closedWith: { code?: number; reason?: string } | null;
+}
+
+function fakeSocket(): FakeSocket {
+  const s: FakeSocket = {
+    readyState: 1,
+    sent: [],
+    closedWith: null,
+    send(data: string) {
+      s.sent.push(JSON.parse(data));
+    },
+    close(code?: number, reason?: string) {
+      s.closedWith = { code, reason };
+      s.readyState = 3;
+    },
+    terminate() {
+      s.readyState = 3;
+    },
+    ping() {},
+    on() {
+      return s;
+    },
+  };
+  return s;
+}
+
+const member = (name: string): WorldIdentity => ({
+  userId: `user-${name}`,
+  displayName: name,
+  avatarUrl: null,
+  profileSlug: name.toLowerCase(),
+});
+const guest = (): WorldIdentity => ({ userId: null, displayName: "Guest", avatarUrl: null, profileSlug: null });
+
+function frame(socket: FakeSocket, room: WorldRoom, payload: unknown, now?: number) {
+  room.handleFrame(socket, JSON.stringify(payload), now);
+}
+
+function types(socket: FakeSocket): string[] {
+  return socket.sent.map((m) => m.type as string);
+}
+
+describe("join / leave", () => {
+  it("welcomes the joiner with a snapshot and announces them to the room", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+
+    expect(room.attach(a, member("Alpha"))).toBe(true);
+    const welcomeA = a.sent.find((m) => m.type === "welcome");
+    expect(welcomeA.peers).toEqual([]);
+    expect(welcomeA.you.displayName).toBe("Alpha");
+    expect(welcomeA.you.guest).toBe(false);
+
+    expect(room.attach(b, member("Beta"))).toBe(true);
+    const welcomeB = b.sent.find((m) => m.type === "welcome");
+    expect(welcomeB.peers.map((p: any) => p.displayName)).toEqual(["Alpha"]);
+    expect(welcomeB.peerId).not.toBe(welcomeA.peerId);
+
+    const joinSeenByA = a.sent.find((m) => m.type === "peer.join");
+    expect(joinSeenByA.peer.displayName).toBe("Beta");
+    expect(joinSeenByA.peer.peerId).toBe(welcomeB.peerId);
+  });
+
+  it("guests join as labeled guests", () => {
+    const room = new WorldRoom(new RoomHub());
+    const g = fakeSocket();
+    room.attach(g, guest());
+    const welcome = g.sent.find((m) => m.type === "welcome");
+    expect(welcome.you.guest).toBe(true);
+    expect(welcome.you.displayName).toBe("Guest");
+  });
+
+  it("despawns on detach — peer.leave to the room, voice.left first if they were in voice", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(b, room, { type: "voice.join" });
+    a.sent = [];
+    room.detach(b);
+    expect(types(a)).toEqual(["voice.left", "peer.leave"]);
+    expect(room.size()).toBe(1);
+    // A second detach is a no-op (close + error can both fire).
+    room.detach(b);
+    expect(types(a)).toEqual(["voice.left", "peer.leave"]);
+  });
+
+  it("refuses the 31st arrival with room_full + close 4429", () => {
+    const room = new WorldRoom(new RoomHub());
+    for (let i = 0; i < WORLD_PRESENCE_CAP; i++) {
+      expect(room.attach(fakeSocket(), member(`M${i}`))).toBe(true);
+    }
+    const late = fakeSocket();
+    expect(room.attach(late, member("Late"))).toBe(false);
+    expect(late.sent).toEqual([{ type: "room_full", cap: WORLD_PRESENCE_CAP }]);
+    expect(late.closedWith?.code).toBe(4429);
+    expect(room.size()).toBe(WORLD_PRESENCE_CAP);
+  });
+});
+
+describe("move sync", () => {
+  it("broadcasts to everyone except the mover, clamped to the hall", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    a.sent = [];
+    b.sent = [];
+
+    frame(a, room, { type: "move", x: 999, z: -999, rotY: 1.25 }, 10_000);
+    expect(a.sent).toEqual([]); // no echo
+    const move = b.sent.find((m) => m.type === "peer.move");
+    expect(move.x).toBe(HALL_BOUNDS.maxX);
+    expect(move.z).toBe(HALL_BOUNDS.minZ);
+    expect(move.rotY).toBeCloseTo(1.25);
+  });
+
+  it("throttles a peer to ~10 moves a second server-side", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+
+    frame(a, room, { type: "move", x: 1, z: 1, rotY: 0 }, 1_000);
+    frame(a, room, { type: "move", x: 2, z: 2, rotY: 0 }, 1_050); // 50ms later — dropped
+    frame(a, room, { type: "move", x: 3, z: 3, rotY: 0 }, 1_200); // 200ms later — through
+    const moves = b.sent.filter((m) => m.type === "peer.move");
+    expect(moves.map((m: any) => m.x)).toEqual([1, 3]);
+  });
+
+  it("ignores garbage frames without dying", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.handleFrame(a, "not json{{{", 5_000);
+    room.handleFrame(a, JSON.stringify({ type: "move", x: "north", z: null }), 6_000);
+    room.handleFrame(a, JSON.stringify({ type: "teleport" }), 7_000);
+    const dto = room.peerFor(a);
+    expect(dto).not.toBeNull();
+    expect(Number.isFinite(dto!.x)).toBe(true);
+    expect(Number.isFinite(dto!.z)).toBe(true);
+  });
+});
+
+describe("say (room text)", () => {
+  it("members speak to the whole room including themselves; guests cannot", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const g = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(g, guest());
+    a.sent = [];
+    g.sent = [];
+
+    frame(a, room, { type: "say", body: "  the hall is open  " }, 1_000);
+    const said = a.sent.find((m) => m.type === "peer.say");
+    expect(said.body).toBe("the hall is open");
+    expect(g.sent.some((m) => m.type === "peer.say")).toBe(true);
+
+    frame(g, room, { type: "say", body: "let me in" }, 2_000);
+    expect(a.sent.filter((m) => m.type === "peer.say")).toHaveLength(1);
+  });
+
+  it("paces say frames and caps their length", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+    frame(a, room, { type: "say", body: "x".repeat(500) }, 1_000);
+    frame(a, room, { type: "say", body: "too fast" }, 1_100);
+    const says = b.sent.filter((m) => m.type === "peer.say");
+    expect(says).toHaveLength(1);
+    expect(says[0].body).toHaveLength(300);
+  });
+});
+
+describe("voice mesh membership + signaling", () => {
+  it("voice.join announces to the room and answers with the current mesh", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+
+    frame(a, room, { type: "voice.join" });
+    const stateA = a.sent.find((m) => m.type === "voice.state");
+    expect(stateA.voicePeerIds).toEqual([]);
+    expect(b.sent.some((m) => m.type === "voice.joined")).toBe(true);
+
+    frame(b, room, { type: "voice.join" });
+    const stateB = b.sent.find((m) => m.type === "voice.state");
+    const aId = a.sent.find((m) => m.type === "welcome").peerId;
+    expect(stateB.voicePeerIds).toEqual([aId]);
+    expect(room.voiceSize()).toBe(2);
+  });
+
+  it("guests are denied voice, honestly", () => {
+    const room = new WorldRoom(new RoomHub());
+    const g = fakeSocket();
+    room.attach(g, guest());
+    frame(g, room, { type: "voice.join" });
+    expect(g.sent.find((m) => m.type === "voice.denied")?.reason).toBe("guests");
+    expect(room.voiceSize()).toBe(0);
+  });
+
+  it("the 13th voice join gets voice.full — the mesh cap is real", () => {
+    const room = new WorldRoom(new RoomHub());
+    const sockets: FakeSocket[] = [];
+    for (let i = 0; i < WORLD_VOICE_CAP; i++) {
+      const s = fakeSocket();
+      sockets.push(s);
+      room.attach(s, member(`V${i}`));
+      frame(s, room, { type: "voice.join" });
+    }
+    expect(room.voiceSize()).toBe(WORLD_VOICE_CAP);
+    const late = fakeSocket();
+    room.attach(late, member("LateVoice"));
+    frame(late, room, { type: "voice.join" });
+    expect(late.sent.some((m) => m.type === "voice.full" && m.cap === WORLD_VOICE_CAP)).toBe(true);
+    expect(room.voiceSize()).toBe(WORLD_VOICE_CAP);
+  });
+
+  it("relays signaling only between two voice members, stamped with the sender", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    const c = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    room.attach(c, member("Quiet")); // never joins voice
+    const aId = a.sent.find((m) => m.type === "welcome").peerId;
+    const bId = b.sent.find((m) => m.type === "welcome").peerId;
+    const cId = c.sent.find((m) => m.type === "welcome").peerId;
+    frame(a, room, { type: "voice.join" });
+    frame(b, room, { type: "voice.join" });
+    a.sent = [];
+    b.sent = [];
+    c.sent = [];
+
+    frame(a, room, { type: "voice.signal", to: bId, data: { kind: "offer", sdp: "v=0…" } });
+    const relayed = b.sent.find((m) => m.type === "voice.signal");
+    expect(relayed.from).toBe(aId);
+    expect(relayed.data).toEqual({ kind: "offer", sdp: "v=0…" });
+
+    // A non-voice member can't be signaled, and can't signal.
+    frame(a, room, { type: "voice.signal", to: cId, data: { kind: "offer" } });
+    frame(c, room, { type: "voice.signal", to: aId, data: { kind: "offer" } });
+    expect(c.sent.some((m) => m.type === "voice.signal")).toBe(false);
+    expect(a.sent.some((m) => m.type === "voice.signal")).toBe(false);
+  });
+
+  it("voice.leave leaves the mesh and stops signaling", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const bId = b.sent.find((m) => m.type === "welcome").peerId;
+    frame(a, room, { type: "voice.join" });
+    frame(b, room, { type: "voice.join" });
+    frame(a, room, { type: "voice.leave" });
+    expect(room.voiceSize()).toBe(1);
+    expect(b.sent.some((m) => m.type === "voice.left")).toBe(true);
+    b.sent = [];
+    frame(a, room, { type: "voice.signal", to: bId, data: { kind: "offer" } });
+    expect(b.sent.some((m) => m.type === "voice.signal")).toBe(false);
+  });
+});
+
+describe("tints", () => {
+  it("are stable per key and always from the house palette", () => {
+    expect(tintForKey("hall-member")).toBe(tintForKey("hall-member"));
+    for (const key of ["a", "some-creator", "thy-cheat-code", "user-123"]) {
+      expect(WORLD_TINTS).toContain(tintForKey(key));
+    }
+  });
+});

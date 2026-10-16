@@ -305,6 +305,7 @@ import videoDubRouter from "./generate/video-dub";
 // ── Creator Streaming Platform (12-worker build, 2026-10-07) ──
 import creatorPlatformRouter from "./creator-platform";
 import royalCourtRouter from "./royal-court";
+import worldRouter from "./world";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
 import discoveryRouter from "./discovery";
@@ -602,6 +603,7 @@ router.use(reactionVideoRouter);
 // ── Creator Streaming Platform ──
 router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows, likes, plays, DMCA
 router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Royal Court)
+router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)
 router.use("/discovery", discoveryRouter);  // /api/discovery/*

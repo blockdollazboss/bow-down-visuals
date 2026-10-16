@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
+import { registerWorldWs } from "./routes/world";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
@@ -64,4 +65,5 @@ const server = app.listen(port, (err) => {
 const wsGateway = new LiveWsGateway();
 registerLiveChatWs(wsGateway);
 registerLiveControlWs(wsGateway);
+registerWorldWs(wsGateway);
 wsGateway.attach(server);
