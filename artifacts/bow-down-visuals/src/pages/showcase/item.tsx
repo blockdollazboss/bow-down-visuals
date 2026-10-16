@@ -6,7 +6,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { ArrowLeft, ArrowRight, Heart, Eye } from "lucide-react";
+import { ArrowLeft, ArrowRight, Heart, Eye, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
 import type { ShowcaseItem } from "./index";
@@ -24,24 +24,33 @@ export default function ShowcaseItemPage() {
   const [item, setItem] = useState<ShowcaseItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Load failures (500s, network) are NOT "this doesn't exist" — they
+     get their own error state with a retry. notFound is reserved for a
+     genuine HTTP 404 response ONLY. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     fetch(`/api/showcase/${encodeURIComponent(slug)}`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) throw new Error("load failed");
         return r.json();
       })
       .then((d) => {
         if (d?.item) { setItem(d.item); setLikes(d.item.likes); }
-        else if (!notFound) setNotFound(true);
+        else if (d) setLoadError(true);
       })
-      .catch(() => setNotFound(true))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   usePageTitle(
     item ? `${item.title} — Creator Showcase` : "Creator Showcase",
@@ -65,6 +74,27 @@ export default function ShowcaseItemPage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <p className="text-white/40">Loading…</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load this creation.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — this page just couldn't reach it.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
       </div>
     );
   }
