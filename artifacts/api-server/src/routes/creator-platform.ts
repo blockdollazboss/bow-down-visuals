@@ -697,6 +697,12 @@ export function completeThemeConfig(raw: unknown): Record<string, unknown> {
 function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
   return {
     id: p.id,
+    // Declared on the client contract (CreatorProfile.user_id) and
+    // consumed from the /me payload too: ProfileMembershipsSection's
+    // owner check compares mine.user_id against the page's creator
+    // id — without the field the owner was never recognized on their
+    // own page and got the fan's Join buttons on their own tiers.
+    user_id: p.userId,
     slug: p.slug,
     display_name: p.displayName,
     vertical: p.vertical,
@@ -839,6 +845,12 @@ router.get("/creator-profiles/:slug", async (req, res) => {
     res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
         id: profile.id,
+        // The client contract declares user_id and the page's
+        // Memberships block fetches /memberships/public/<user_id>
+        // with it — omitting it sent the literal "undefined" into
+        // that endpoint's UUID gate (400) and the section rendered
+        // its "couldn't load" card on EVERY public profile.
+        user_id: profile.userId,
         slug: profile.slug,
         display_name: profile.displayName,
         vertical: profile.vertical,
