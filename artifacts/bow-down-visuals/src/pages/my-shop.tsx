@@ -56,6 +56,11 @@ export default function MyShop() {
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
+  /* Shops-list load failures are NOT "no shops yet" — they get their
+     own error state with a retry, scoped to the shops list. The empty
+     state renders ONLY for a successful load with zero shops. */
+  const [shopsLoadError, setShopsLoadError] = useState(false);
+  const [shopsRetryNonce, setShopsRetryNonce] = useState(0);
   const [activeShop, setActiveShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   /* Product-list load failures are NOT "no products yet" — they get
@@ -121,14 +126,17 @@ export default function MyShop() {
   async function loadShops() {
     setLoading(true);
     setError(null);
+    setShopsLoadError(false);
     try {
       const res = await authed("/api/shops/mine");
       const data = (await res.json().catch(() => ({}))) as { shops?: Shop[]; error?: string };
       if (!res.ok) throw new Error(data.error || t("myShop.loadShopsFailed"));
       setShops(data.shops ?? []);
       if (data.shops?.length && !activeShop) selectShop(data.shops[0]!);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.loadShopsFailed"));
+    } catch {
+      /* List-load failure gets the scoped error state below, not the
+         shared mutation error banner — and never the fake-empty box. */
+      setShopsLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -161,7 +169,7 @@ export default function MyShop() {
     if (user) loadShops();
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, shopsRetryNonce]);
 
   async function createShop() {
     if (creating || !newName.trim() || !newHandle.trim()) return;
@@ -435,6 +443,21 @@ export default function MyShop() {
 
         {loading ? (
           <div className="mt-16 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
+        ) : shopsLoadError ? (
+          <div className={`mt-16 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your shops.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — your shops are safe, this page just couldn't load them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShopsRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
         ) : shops.length === 0 && !showCreate ? (
           <div className="mt-16 rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
             <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
