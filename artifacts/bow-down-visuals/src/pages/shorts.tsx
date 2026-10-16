@@ -444,8 +444,15 @@ function ShortCard({
         {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
       </button>
 
-      {/* right action rail — every button goes somewhere real */}
-      <div className="absolute bottom-28 right-3 z-10 flex flex-col items-center gap-4">
+      {/* right action rail — every button goes somewhere real.
+          Desktop lift (sm:bottom-60): the caption block's name row ends
+          in the Follow/Following pill at the slide's right edge, and at
+          desktop widths that pill lands exactly on the rail's Share
+          label (measured: the label sat entirely inside the pill's
+          rect). Raising the rail's anchor on sm+ screens moves the
+          whole column clear of the caption row; the phone layout keeps
+          bottom-28 untouched. */}
+      <div className="absolute bottom-28 right-3 z-10 flex flex-col items-center gap-4 sm:bottom-60">
         <button onClick={doLike} className="flex flex-col items-center gap-1" title="Like">
           <span className={cn("rounded-full bg-black/60 p-3 transition", liked && "bg-red-500/20")}>
             <Heart className={cn("h-6 w-6 text-white", liked && "text-red-500")} fill={liked ? "currentColor" : "none"} />
