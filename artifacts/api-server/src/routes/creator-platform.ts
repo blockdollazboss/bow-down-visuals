@@ -17,6 +17,7 @@ import {
   dmcaReportsTable,
   shopsTable,
   liveStreamsTable,
+  referralCodesTable,
 } from "@workspace/db";
 import { liveChatHub } from "./live-chat";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
@@ -520,6 +521,28 @@ async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) 
   };
 }
 
+/**
+ * The creator's referral code (referral_codes, one row per user), or
+ * null when they have none yet — codes are minted lazily by the
+ * referrals flow and the client contract (CreatorProfile.referral_code)
+ * treats null/absent as "no code to carry". The public page reads it
+ * for the embed button's refCode and the Made-With badge, so shares
+ * off a creator's own page credit the creator; artist-setup reads it
+ * for the "?ref=" hint. Best-effort like the recruiter badge: the
+ * profile payload never fails over this lookup.
+ */
+async function referralCodeForUser(userId: string): Promise<string | null> {
+  try {
+    const [row] = await db.select({ code: referralCodesTable.code })
+      .from(referralCodesTable)
+      .where(eq(referralCodesTable.userId, userId))
+      .limit(1);
+    return row?.code ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Batch-resolve sound linkage for videos: sound_track_id -> {id,title,audio_url,artwork_url,profile_slug}. */
 async function soundMapFor(
   videos: VideoRow[], profileSlug: string,
@@ -741,7 +764,10 @@ router.get("/creator-profiles", requireAuth, async (req, res) => {
       res.json({});
       return;
     }
-    res.json(await refreshSupabaseStorageUrlsDeep(toPublicProfile(profile)));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      ...toPublicProfile(profile),
+      referral_code: await referralCodeForUser(profile.userId),
+    }));
   } catch (err) {
     req.log.error({ err }, "creator-profiles GET (me) error");
     res.status(500).json({ error: "Couldn't load your creator profile." });
@@ -788,7 +814,10 @@ router.get("/creator-profiles/me", requireAuth, async (req, res) => {
       res.status(404).json({ error: "No profile yet — claim your corner of the cheat code first." });
       return;
     }
-    res.json(await refreshSupabaseStorageUrlsDeep(toPublicProfile(profile)));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      ...toPublicProfile(profile),
+      referral_code: await referralCodeForUser(profile.userId),
+    }));
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me GET error");
     res.status(500).json({ error: "Couldn't load your creator profile." });
@@ -841,6 +870,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
        carries the "Powered by Bow Down Visuals" mark unless the owner
        is on a paid plan (the ONE definition in lib/profile-website). */
     const paidPlan = await resolvePaidPlan(profile.id, profile.userId);
+    /* The creator's referral code rides the payload so the page's
+       embed/share surfaces carry ?ref= for the creator (null when the
+       creator has no code yet — consumers already read it that way). */
+    const referralCode = await referralCodeForUser(profile.userId);
 
     res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
@@ -878,6 +911,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         paid_plan: paidPlan,
         // Virality wave: the creator's referral rank badge (null when none).
         recruiter_badge: recruiterBadge,
+        // The creator's referral code (null when none minted yet).
+        referral_code: referralCode,
         // Presence flags + monetization checklist — neighbors link off these
         // without extra round-trips; UI renders "N of 5 money moves done".
         ...extras,
@@ -976,7 +1011,7 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     if (existing) {
       const [updated] = await db.update(creatorProfilesTable).set(values)
         .where(eq(creatorProfilesTable.id, existing.id)).returning();
-      res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)) }, created: false });
+      res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)), referral_code: await referralCodeForUser(updated.userId) }, created: false });
       return;
     }
     const [created] = await db.insert(creatorProfilesTable).values(values).returning();
@@ -984,7 +1019,7 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     // follow back (and the user follows Thy if anything missed it).
     // Idempotent, never throws.
     await ensureKingsWelcome(userId);
-    res.status(201).json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(created))), ...(await profileExtras(created)) }, created: true });
+    res.status(201).json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(created))), ...(await profileExtras(created)), referral_code: await referralCodeForUser(created.userId) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
     res.status(500).json({ error: "The save fumbled. Run it back." });
@@ -1029,7 +1064,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();
-    res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)) } });
+    res.json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(updated))), ...(await profileExtras(updated)), referral_code: await referralCodeForUser(updated.userId) } });
   } catch (err) {
     req.log.error({ err }, "creator-profiles/me error");
     res.status(500).json({ error: "The update slipped. Try again." });
