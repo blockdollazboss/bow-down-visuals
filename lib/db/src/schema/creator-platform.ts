@@ -30,6 +30,19 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   mediaKit:        jsonb("media_kit").$type<Record<string, unknown> | null>(),
   themeConfig:     jsonb("theme_config").$type<Record<string, unknown>>().notNull().default({}),
   sections:        jsonb("sections").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  /** Block layout model (migration 0134, Stack 3 item 2 plumbing): an
+      ordered list of {type, title, visible, config} blocks. Empty means
+      "no saved layout" — reads derive the default from the profile's
+      current section order, so an untouched profile renders as today. */
+  layoutBlocks:    jsonb("layout_blocks").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  /** Spotlight pin (migration 0134, Stack 3 item 5): ONE featured item —
+      kind 'track' | 'video' + the content's id. Both null = no pin. */
+  pinnedKind:      text("pinned_kind").$type<"track" | "video" | null>(),
+  pinnedItemId:    uuid("pinned_item_id"),
+  /** Fan collection privacy (migration 0134, Stack 3 item 6): 'public'
+      (house default — profiles/achievements are public by default) or
+      'private'. */
+  collectionVisibility: text("collection_visibility").$type<"public" | "private">().notNull().default("public"),
   featuredMedia:   jsonb("featured_media").$type<Record<string, unknown> | null>(),
   socialLinks:     jsonb("social_links").$type<Record<string, string>>().notNull().default({}),
   topCreators:     jsonb("top_creators").$type<Array<Record<string, unknown>>>().notNull().default([]),
