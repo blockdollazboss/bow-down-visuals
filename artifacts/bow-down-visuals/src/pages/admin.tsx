@@ -514,22 +514,30 @@ function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Load failures (500s, network) are NOT "no messages" — they get
+     their own error state with a retry, separate from the mark-read
+     error line. The empty state renders ONLY for a successful load
+     with zero messages. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch("/api/admin/contact-messages", { headers: await authHeaders() });
       const data = (await res.json()) as { messages?: ContactMessage[] };
       if (res.ok) setMessages(data.messages ?? []);
-      else setError(t("admin.contact.loadError"));
+      else setLoadError(true);
     } catch {
-      setError(t("admin.contact.loadError"));
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authHeaders]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, retryNonce]);
 
   async function setRead(id: string, read: boolean) {
     setBusyId(id);
@@ -562,6 +570,21 @@ function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       </p>
       {loading ? (
         <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load contact messages.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — the messages are safe, this inbox just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
       ) : messages.length === 0 ? (
         <p className="text-sm text-white/40">{t("admin.contact.empty")}</p>
       ) : (
