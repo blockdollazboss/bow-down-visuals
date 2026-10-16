@@ -31,6 +31,8 @@ import {
   type WidgetKind,
 } from "@/lib/stream-kit/scenes";
 import { AVATAR_CHARACTERS, type AvatarCharacterId } from "@/lib/stream-kit/avatar-rigs";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildSourceContextItems } from "@/lib/studio-context-menu";
 
 const FONT_OPTIONS = [
   "Georgia, serif",
@@ -61,6 +63,7 @@ export default function SourcesPanel({
   onNotify: (msg: string) => void;
 }) {
   const scene = stage.previewScene();
+  const [menu, setMenu] = useState<{ x: number; y: number; sourceId: string } | null>(null);
   const [addType, setAddType] = useState<SourceType>("text");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
@@ -80,6 +83,19 @@ export default function SourcesPanel({
     if (!created) return;
     onSelect(created.id);
     if (addType === "screen") onStartScreenShare(created.id);
+  };
+
+  /* Right-click rename: select the source, then take the new name and
+     apply it through the same update the name field uses. */
+  const renameSource = (source: SceneSource) => {
+    onSelect(source.id);
+    const next = window.prompt("Rename source", source.name);
+    if (next && next.trim()) update(source, { name: next.trim().slice(0, 80) });
+  };
+
+  const removeSource = (source: SceneSource) => {
+    stage.removeSource(scene.id, source.id);
+    if (selectedId === source.id) onSelect(null);
   };
 
   const frontFirst = [...scene.sources].reverse();
@@ -123,6 +139,11 @@ export default function SourcesPanel({
         {frontFirst.map((source) => (
           <div
             key={source.id}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onSelect(source.id);
+              setMenu({ x: e.clientX, y: e.clientY, sourceId: source.id });
+            }}
             className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm ${
               selectedId === source.id
                 ? "border-[#C9A84C]/70 bg-[#C9A84C]/10"
@@ -618,6 +639,23 @@ export default function SourcesPanel({
           )}
         </div>
       )}
+      {menu && (() => {
+        const source = scene.sources.find((s) => s.id === menu.sourceId);
+        if (!source) return null;
+        return (
+          <ClipContextMenu
+            x={menu.x}
+            y={menu.y}
+            onClose={() => setMenu(null)}
+            testId="source-context-menu"
+            items={buildSourceContextItems(stage, scene, source, {
+              onSelect,
+              onRename: renameSource,
+              onRemove: removeSource,
+            })}
+          />
+        );
+      })()}
     </div>
   );
 }

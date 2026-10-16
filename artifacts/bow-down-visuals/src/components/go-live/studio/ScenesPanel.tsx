@@ -7,6 +7,8 @@
 import { useState } from "react";
 import { Copy, MonitorPlay, Plus, Trash2 } from "lucide-react";
 import type { Stage } from "@/lib/stream-kit/stage";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildSceneContextItems } from "@/lib/studio-context-menu";
 
 export default function ScenesPanel({
   stage,
@@ -19,6 +21,7 @@ export default function ScenesPanel({
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [menu, setMenu] = useState<{ x: number; y: number; sceneId: string } | null>(null);
   const label = isLight ? "text-[#6B5B36]" : "text-zinc-400";
 
   return (
@@ -40,6 +43,11 @@ export default function ScenesPanel({
           return (
             <div
               key={scene.id}
+              onContextMenu={(e) => {
+                if (editingId === scene.id) return; // the rename field keeps its own menu
+                e.preventDefault();
+                setMenu({ x: e.clientX, y: e.clientY, sceneId: scene.id });
+              }}
               className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-sm ${
                 isPreview
                   ? "border-[#C9A84C]/70 bg-[#C9A84C]/10"
@@ -115,6 +123,25 @@ export default function ScenesPanel({
       <p className={`mt-2 text-[11px] leading-snug ${label}`}>
         Click a scene to frame it in Preview. Number keys 1–9 take a scene straight to Program.
       </p>
+      {menu && (() => {
+        const scene = stage.scenes.find((s) => s.id === menu.sceneId);
+        if (!scene) return null;
+        return (
+          <ClipContextMenu
+            x={menu.x}
+            y={menu.y}
+            onClose={() => setMenu(null)}
+            testId="scene-context-menu"
+            items={buildSceneContextItems(stage, scene, {
+              onTake,
+              onRename: (s) => {
+                setDraft(s.name);
+                setEditingId(s.id);
+              },
+            })}
+          />
+        );
+      })()}
     </div>
   );
 }

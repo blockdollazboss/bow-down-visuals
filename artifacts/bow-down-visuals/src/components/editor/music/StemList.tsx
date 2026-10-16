@@ -12,6 +12,8 @@ import {
 } from "@/lib/editor-settings";
 import { uploadStemFile, removeStemFile, makeStem, readAudioDuration } from "@/lib/audio-stems";
 import { Field, Dropdown, Collapsible, Chip } from "@/components/editor/controls";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildStemContextItems } from "@/lib/track-context-menu";
 
 type Variant = "tracks" | "mixer" | "effects";
 
@@ -28,6 +30,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
   const replaceRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [replacingId, setReplacingId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; stemId: string } | null>(null);
 
   const ms = settings.musicStudio;
   const stems = ms.stems;
@@ -118,6 +121,13 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
     await removeStemFile(stem.storagePath);
   }
 
+  /* Right-click rename: focus the row's own inline name field. */
+  function focusRename(id: string) {
+    const el = document.querySelector<HTMLInputElement>(`[data-testid="stem-name-${id}"]`);
+    el?.focus();
+    el?.select();
+  }
+
   return (
     <div className="space-y-4">
       <input
@@ -165,6 +175,10 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
               <div
                 key={stem.id}
                 data-testid={`stem-row-${stem.id}`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, stemId: stem.id });
+                }}
                 className={`rounded-xl border bg-white/[0.02] overflow-hidden transition-opacity ${
                   stem.locked ? "border-amber-500/20" : "border-white/[0.07]"
                 } ${dimmed ? "opacity-40" : ""}`}
@@ -280,6 +294,26 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
           })}
         </div>
       )}
+      {menu && (() => {
+        const stem = stems.find((s) => s.id === menu.stemId);
+        if (!stem) return null;
+        return (
+          <ClipContextMenu
+            x={menu.x}
+            y={menu.y}
+            onClose={() => setMenu(null)}
+            testId="stem-context-menu"
+            items={buildStemContextItems(stem, {
+              patchStem,
+              deleteStem: (s) => { void deleteStem(s); },
+              startReplace,
+              focusRename,
+              addTrack: variant === "tracks" ? () => fileRef.current?.click() : undefined,
+              uploading,
+            })}
+          />
+        );
+      })()}
     </div>
   );
 }
