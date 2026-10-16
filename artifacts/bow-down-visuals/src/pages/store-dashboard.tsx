@@ -253,22 +253,12 @@ function ConnectPayoutCard() {
     }
   };
 
+  /* "Manage payout setup" routes through the working onboarding path:
+     a fresh hosted setup link for the same account (POST /connect/refresh).
+     The old dashboard login-link button was removed — the accounts API
+     has no login-link endpoint, so that button could only ever fail. */
   const openManage = async () => {
-    setErr(""); setBusy("manage");
-    try {
-      const token = await getToken();
-      const res = await fetch("/api/connect/login-link", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't open Stripe.");
-      window.open(data.url, "_blank", "noopener");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't open Stripe.");
-    } finally {
-      setBusy(null);
-    }
+    await goOnboard("/api/connect/refresh");
   };
 
   if (noProfile) return null;
@@ -355,11 +345,11 @@ function ConnectPayoutCard() {
             </button>
             <button
               onClick={openManage}
-              disabled={busy === "manage"}
+              disabled={busy === "connect"}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white/55 hover:text-white"
             >
-              {busy === "manage" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
-              Manage in Stripe
+              {busy === "connect" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+              Manage payout setup
             </button>
           </div>
         </>

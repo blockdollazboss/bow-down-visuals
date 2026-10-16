@@ -143,31 +143,12 @@ router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) =>
   }
 });
 
-/* ── POST /api/connect/login-link — manage the Express account in Stripe.
- * NOTE: Accounts v2 has no login-link API. Creators sign in at the Stripe
- * Express dashboard directly; this endpoint explains that gracefully. */
-router.post("/connect/login-link", requireAuth, publicApiLimiter, async (req, res) => {
-  if (!stripeOr503(res)) return;
-  try {
-    const profileId = await callerProfileId(req.userId!);
-    if (!profileId) {
-      res.status(404).json({ error: "NO_PROFILE" });
-      return;
-    }
-    const fields = await getProfileConnectFields(profileId);
-    if (!fields.accountId) {
-      res.status(400).json({ error: "NO_ACCOUNT", message: "Start onboarding first." });
-      return;
-    }
-    res.status(501).json({
-      error: "NO_LOGIN_LINK",
-      message: "Stripe's v2 API doesn't issue dashboard login links — manage your account in the Stripe Express dashboard directly.",
-    });
-  } catch (err) {
-    logger.error({ err, userId: req.userId }, "[connect] login link failed");
-    res.status(500).json({ error: "Could not open your Stripe dashboard. Try again." });
-  }
-});
+/* REMOVED (0132): POST /api/connect/login-link always returned 501 —
+ * connected accounts are created through the v2 API, which has no
+ * login-link endpoint (see lib/stripe-connect.ts). A button that can
+ * only fail must not survive: creators manage their payout setup through
+ * the working onboarding path instead (POST /connect/onboard and
+ * /connect/refresh issue fresh hosted setup links for the same account). */
 
 /* ── POST /api/connect/payout — send pending earnings to the connected bank
  * TEST MODE: exercises the real test-mode transfer API; no real money moves.
