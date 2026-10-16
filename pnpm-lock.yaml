@@ -261,6 +261,9 @@ importers:
       stripe:
         specifier: ^22.6.2
         version: 22.6.2(@types/node@25.9.8)
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -283,6 +286,9 @@ importers:
       '@types/pdfkit':
         specifier: ^0.17.3
         version: 0.17.6
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       esbuild:
         specifier: 0.28.1
         version: 0.28.1

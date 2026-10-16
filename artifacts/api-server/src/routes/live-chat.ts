@@ -1,0 +1,426 @@
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
+import { eq, and, asc, desc, gt, isNull, inArray } from "drizzle-orm";
+import {
+  db,
+  liveStreamsTable,
+  liveChatMessagesTable,
+  liveChatMutesTable,
+  creatorProfilesTable,
+  type LiveStream,
+  type LiveChatMessage,
+} from "@workspace/db";
+import { requireAuth } from "../middlewares/require-auth";
+import { publicApiLimiter } from "../lib/rate-limit";
+import { logger } from "../lib/logger";
+import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
+
+/* ── Live stream chat ────────────────────────────────────────────────────
+   Chat for native broadcasts (live_streams, migration 0129; chat rows
+   in migration 0130). One shared panel serves the watch page and the
+   studio; this router is its whole backend:
+
+   GET    /live/:id/chat                (public) history + catch-up (?after=<messageId>)
+   POST   /live/:id/chat                (auth)   post — live only, ~1 per 1.5s, mute-enforced
+   DELETE /live/:id/chat/:messageId     (auth)   author or stream owner
+   POST   /live/:id/chat/mute           (auth, owner) mute a chatter for this stream
+   DELETE /live/:id/chat/mute/:userId   (auth, owner) unmute
+   WS     /live/:id/chat/ws?token=…     (session token) live delivery room
+
+   Writes go through POST (one write path: validation, rate limit and
+   moderation all live here); the socket is delivery only — a posted
+   message is broadcast to the stream's room after it is stored.
+   Clients whose socket fails fall back to polling GET ?after=….
+   Deleted messages are soft-deleted with the body cleared and are
+   never served again; live clients get a message_deleted event so
+   the row disappears in place. No presence counts are exposed —
+   nothing here pretends to know who is "in" the chat. */
+
+const router = Router();
+
+const MAX_LIVE_MS = 12 * 60 * 60 * 1000; // matches live-streams' lifecycle cap
+const HISTORY_LIMIT = 100;
+const MAX_BODY_CHARS = 500;
+const POST_INTERVAL_MS = 1500;
+const MUTE_MS = MAX_LIVE_MS; // a mute lasts the rest of the stream (streams cap at 12h)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Sockets subscribed to each stream's chat, keyed by stream id. */
+export const liveChatHub = new RoomHub();
+
+/* Per-user-per-stream post pacing (in-memory; single instance). */
+const lastPostAt = new Map<string, number>();
+export function __resetChatRateLimit(): void {
+  lastPostAt.clear();
+}
+
+/* ------------------------------------------------------------ helpers */
+
+/** Express 5 types route params as string | string[]; ours are single. */
+function param(req: Request, name: string): string {
+  const v = req.params[name];
+  return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
+}
+
+async function getStreamRow(id: string): Promise<LiveStream | null> {
+  if (!UUID_RE.test(id)) return null;
+  const rows = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** The status the chat acts on — a "live" row older than the stream
+ *  lifetime cap is over, whatever the row still says (the streams
+ *  router reconciles the row itself on its own reads). */
+function effectiveStatus(stream: LiveStream): "live" | "ended" {
+  if (stream.status !== "live") return "ended";
+  const started = stream.started_at ? new Date(stream.started_at).getTime() : 0;
+  if (started && Date.now() - started > MAX_LIVE_MS) return "ended";
+  return "live";
+}
+
+interface AuthorCard {
+  displayName: string;
+  avatarUrl: string | null;
+  slug: string | null;
+}
+
+/** Batch-resolve chat authors to their creator profiles — the same
+ *  pattern community.ts uses (profileCards). A chatter without a
+ *  creator profile reads as "Someone", never as a fake name. */
+async function authorCards(userIds: string[]): Promise<Map<string, AuthorCard>> {
+  const out = new Map<string, AuthorCard>();
+  const uniq = [...new Set(userIds.filter(Boolean))];
+  if (!uniq.length) return out;
+  const rows = await db
+    .select({
+      userId: creatorProfilesTable.userId,
+      slug: creatorProfilesTable.slug,
+      displayName: creatorProfilesTable.displayName,
+      avatarUrl: creatorProfilesTable.avatarUrl,
+    })
+    .from(creatorProfilesTable)
+    .where(inArray(creatorProfilesTable.userId, uniq));
+  for (const r of rows) {
+    out.set(r.userId, { displayName: r.displayName, avatarUrl: r.avatarUrl ?? null, slug: r.slug ?? null });
+  }
+  return out;
+}
+
+export interface LiveChatMessageDto {
+  id: string;
+  streamId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+  author: AuthorCard;
+}
+
+function toDto(row: LiveChatMessage, cards: Map<string, AuthorCard>): LiveChatMessageDto {
+  return {
+    id: row.id,
+    streamId: row.stream_id,
+    userId: row.user_id,
+    body: row.body,
+    createdAt: new Date(row.created_at).toISOString(),
+    author: cards.get(row.user_id) ?? { displayName: "Someone", avatarUrl: null, slug: null },
+  };
+}
+
+async function toDtos(rows: LiveChatMessage[]): Promise<LiveChatMessageDto[]> {
+  const cards = await authorCards(rows.map((r) => r.user_id));
+  return rows.map((r) => toDto(r, cards));
+}
+
+/* ------------------------------------------------------------ routes */
+
+router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const stream = await getStreamRow(param(req, "id"));
+    if (!stream) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    const after = typeof req.query.after === "string" ? req.query.after : null;
+    let cursor: LiveChatMessage | null = null;
+    if (after && UUID_RE.test(after)) {
+      const rows = await db
+        .select()
+        .from(liveChatMessagesTable)
+        .where(and(eq(liveChatMessagesTable.id, after), eq(liveChatMessagesTable.stream_id, stream.id)))
+        .limit(1);
+      cursor = rows[0] ?? null; // unknown cursor → full history, never a dead end
+    }
+
+    let rows: LiveChatMessage[];
+    let hasMore = false;
+    if (cursor) {
+      rows = await db
+        .select()
+        .from(liveChatMessagesTable)
+        .where(
+          and(
+            eq(liveChatMessagesTable.stream_id, stream.id),
+            isNull(liveChatMessagesTable.deleted_at),
+            gt(liveChatMessagesTable.created_at, cursor.created_at),
+          ),
+        )
+        .orderBy(asc(liveChatMessagesTable.created_at), asc(liveChatMessagesTable.id))
+        .limit(HISTORY_LIMIT + 1);
+      hasMore = rows.length > HISTORY_LIMIT;
+      rows = rows.slice(0, HISTORY_LIMIT);
+    } else {
+      rows = await db
+        .select()
+        .from(liveChatMessagesTable)
+        .where(and(eq(liveChatMessagesTable.stream_id, stream.id), isNull(liveChatMessagesTable.deleted_at)))
+        .orderBy(desc(liveChatMessagesTable.created_at), desc(liveChatMessagesTable.id))
+        .limit(HISTORY_LIMIT);
+      rows = rows.reverse();
+    }
+
+    res.json({
+      streamId: stream.id,
+      streamStatus: effectiveStatus(stream),
+      streamTitle: stream.title,
+      ownerId: stream.user_id,
+      messages: await toDtos(rows),
+      hasMore,
+    });
+  } catch (err) {
+    logger.error({ err }, "live chat history failed");
+    res.status(500).json({ error: "Chat couldn't load. Try again in a moment." });
+  }
+});
+
+const postBodySchema = z.object({ body: z.string() });
+
+router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to chat." });
+      return;
+    }
+    const stream = await getStreamRow(param(req, "id"));
+    if (!stream) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (effectiveStatus(stream) !== "live") {
+      res.status(409).json({ error: "Chat is closed — this stream isn't live right now.", code: "STREAM_NOT_LIVE" });
+      return;
+    }
+
+    const parsed = postBodySchema.safeParse(req.body ?? {});
+    const body = parsed.success ? parsed.data.body.trim() : "";
+    if (!parsed.success || body.length < 1 || body.length > MAX_BODY_CHARS) {
+      res.status(400).json({ error: `Messages run 1–${MAX_BODY_CHARS} characters.`, code: "BAD_BODY" });
+      return;
+    }
+
+    const mutes = await db
+      .select()
+      .from(liveChatMutesTable)
+      .where(and(eq(liveChatMutesTable.stream_id, stream.id), eq(liveChatMutesTable.user_id, userId)))
+      .limit(1);
+    const mute = mutes[0];
+    if (mute && new Date(mute.muted_until).getTime() > Date.now()) {
+      res.status(403).json({
+        error: "You've been muted in this stream by the streamer.",
+        code: "MUTED",
+        mutedUntil: new Date(mute.muted_until).toISOString(),
+      });
+      return;
+    }
+
+    const rateKey = `${stream.id}:${userId}`;
+    const now = Date.now();
+    const last = lastPostAt.get(rateKey) ?? 0;
+    if (now - last < POST_INTERVAL_MS) {
+      res.status(429).json({
+        error: "Slow down a touch — one message every couple of seconds.",
+        code: "RATE_LIMITED",
+        retryAfterMs: POST_INTERVAL_MS - (now - last),
+      });
+      return;
+    }
+
+    const inserted = await db
+      .insert(liveChatMessagesTable)
+      .values({ stream_id: stream.id, user_id: userId, body })
+      .returning();
+    const row = inserted[0];
+    if (!row) throw new Error("chat insert returned no row");
+    lastPostAt.set(rateKey, now);
+
+    const dto = (await toDtos([row]))[0];
+    liveChatHub.broadcast(stream.id, { type: "message", message: dto });
+    res.status(201).json({ message: dto });
+  } catch (err) {
+    logger.error({ err }, "live chat post failed");
+    res.status(500).json({ error: "Your message didn't go through. Try again." });
+  }
+});
+
+router.delete("/live/:id/chat/:messageId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to do that." });
+      return;
+    }
+    const stream = await getStreamRow(param(req, "id"));
+    if (!stream) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (!UUID_RE.test(param(req, "messageId"))) {
+      res.status(404).json({ error: "That message doesn't exist." });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(liveChatMessagesTable)
+      .where(and(eq(liveChatMessagesTable.id, param(req, "messageId")), eq(liveChatMessagesTable.stream_id, stream.id)))
+      .limit(1);
+    const message = rows[0];
+    if (!message) {
+      res.status(404).json({ error: "That message doesn't exist." });
+      return;
+    }
+    const isAuthor = message.user_id === userId;
+    const isOwner = stream.user_id === userId;
+    if (!isAuthor && !isOwner) {
+      res.status(403).json({ error: "You can only remove your own messages here." });
+      return;
+    }
+    if (!message.deleted_at) {
+      // Soft delete: the body is cleared in the same write, so the text
+      // is gone from storage too — not just hidden from readers.
+      await db
+        .update(liveChatMessagesTable)
+        .set({ deleted_at: new Date(), body: "" })
+        .where(eq(liveChatMessagesTable.id, message.id));
+      liveChatHub.broadcast(stream.id, { type: "message_deleted", messageId: message.id });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "live chat delete failed");
+    res.status(500).json({ error: "That message couldn't be removed. Try again." });
+  }
+});
+
+const muteBodySchema = z.object({ userId: z.string().uuid() });
+
+router.post("/live/:id/chat/mute", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to do that." });
+      return;
+    }
+    const stream = await getStreamRow(param(req, "id"));
+    if (!stream) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (stream.user_id !== userId) {
+      res.status(403).json({ error: "Only the streamer can mute in their own stream." });
+      return;
+    }
+    const parsed = muteBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "That chatter couldn't be muted." });
+      return;
+    }
+    const targetId = parsed.data.userId;
+    if (targetId === stream.user_id) {
+      res.status(400).json({ error: "The streamer can't be muted in their own stream." });
+      return;
+    }
+    const mutedUntil = new Date(Date.now() + MUTE_MS);
+    const existing = await db
+      .select()
+      .from(liveChatMutesTable)
+      .where(and(eq(liveChatMutesTable.stream_id, stream.id), eq(liveChatMutesTable.user_id, targetId)))
+      .limit(1);
+    if (existing[0]) {
+      await db
+        .update(liveChatMutesTable)
+        .set({ muted_until: mutedUntil })
+        .where(and(eq(liveChatMutesTable.stream_id, stream.id), eq(liveChatMutesTable.user_id, targetId)));
+    } else {
+      await db.insert(liveChatMutesTable).values({ stream_id: stream.id, user_id: targetId, muted_until: mutedUntil });
+    }
+    liveChatHub.broadcast(stream.id, { type: "user_muted", userId: targetId });
+    res.json({ ok: true, mutedUntil: mutedUntil.toISOString() });
+  } catch (err) {
+    logger.error({ err }, "live chat mute failed");
+    res.status(500).json({ error: "That chatter couldn't be muted. Try again." });
+  }
+});
+
+router.delete("/live/:id/chat/mute/:userId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to do that." });
+      return;
+    }
+    const stream = await getStreamRow(param(req, "id"));
+    if (!stream) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (stream.user_id !== userId) {
+      res.status(403).json({ error: "Only the streamer can unmute in their own stream." });
+      return;
+    }
+    if (!UUID_RE.test(param(req, "userId"))) {
+      res.status(404).json({ error: "That chatter isn't muted here." });
+      return;
+    }
+    await db
+      .delete(liveChatMutesTable)
+      .where(and(eq(liveChatMutesTable.stream_id, stream.id), eq(liveChatMutesTable.user_id, param(req, "userId"))));
+    liveChatHub.broadcast(stream.id, { type: "user_unmuted", userId: param(req, "userId") });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "live chat unmute failed");
+    res.status(500).json({ error: "That chatter couldn't be unmuted. Try again." });
+  }
+});
+
+/* ------------------------------------------------------------ websocket */
+
+/**
+ * Register the chat delivery socket on the shared gateway. Session
+ * token auth (see live-ws.ts); the socket is delivery-only — writes
+ * stay on POST so validation, pacing and moderation have one home.
+ * Guests are refused here (4401) and the panel polls instead.
+ */
+export function registerLiveChatWs(
+  gateway: LiveWsGateway,
+  deps: { verifyToken?: typeof verifyAccessToken } = {},
+): void {
+  const verifyToken = deps.verifyToken ?? verifyAccessToken;
+  gateway.register("/api/live/:id/chat/ws", async ({ socket, params, query }) => {
+    const token = query.get("token") ?? "";
+    const auth = await verifyToken(token);
+    if (!auth) {
+      socket.close(4401, "Sign in to join the chat live");
+      return;
+    }
+    const stream = await getStreamRow(params.id);
+    if (!stream) {
+      socket.close(4404, "That stream doesn't exist");
+      return;
+    }
+    const client = socket as unknown as WsClientSocket;
+    liveChatHub.join(stream.id, client);
+    socket.on("close", () => liveChatHub.leave(stream.id, client));
+    socket.send(JSON.stringify({ type: "hello", streamId: stream.id, streamStatus: effectiveStatus(stream) }));
+  });
+}
+
+export default router;

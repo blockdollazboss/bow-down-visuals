@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { LiveWsGateway } from "./lib/live-ws";
+import { registerLiveChatWs } from "./routes/live-chat";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
@@ -15,7 +17,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
+const server = app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -54,3 +56,10 @@ app.listen(port, (err) => {
     logger.error({ recoveryErr }, "Distribution delivery recovery failed"),
   );
 });
+
+/* Live WebSockets on the same server/origin: stream chat delivery
+   registers here (the stream controller relays over the same gateway
+   when it lands). Session-token authed — see lib/live-ws.ts. */
+const wsGateway = new LiveWsGateway();
+registerLiveChatWs(wsGateway);
+wsGateway.attach(server);
