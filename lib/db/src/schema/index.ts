@@ -53,6 +53,7 @@ export * from "./invoices";
 export * from "./fan-memberships";
 export * from "./press-kits";
 export * from "./live-shopping";
+export * from "./live-streams";
 export * from "./scheduled-posts";
 export * from "./merch";
 export * from "./playlist-pitch";
