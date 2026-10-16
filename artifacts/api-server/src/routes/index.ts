@@ -331,6 +331,7 @@ import aiPageDesignerRouter from "./ai-page-designer";
 import publicStatsRouter from "./public-stats";
 import retentionDropsRouter from "./retention-drops";
 import arcadeRouter from "./arcade";
+import partyRouter from "./party";
 
 const router: IRouter = Router();
 
@@ -666,5 +667,6 @@ router.use(lyricStoriesRouter);        // /api/lyric-stories/*
 router.use(coverInMotionRouter);       // /api/cover-in-motion/*
 router.use(retentionDropsRouter);      // /api/retention/daily-drop, /api/retention/away-digest
 router.use(arcadeRouter);              // /api/arcade/scores, /api/arcade/leaderboard, /api/arcade/me
+router.use(partyRouter);               // /api/party/rooms, /api/party/leaderboard, /api/party/me
 
 export default router;
