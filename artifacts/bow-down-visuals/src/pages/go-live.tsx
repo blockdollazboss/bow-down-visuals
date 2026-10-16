@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Radio, Square, Loader2, CheckCircle2, AlertTriangle, CalendarPlus,
-  Trash2, ArrowLeft, Bell, BellOff, Clock, Gamepad2,
+  Trash2, ArrowLeft, Bell, BellOff, Clock, Gamepad2, Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -466,6 +466,31 @@ export default function GoLive() {
             </button>
           ))}
         </div>
+      </div>
+      {/* ── The World — the King's Hall lives here in the Go Live hub:
+          one shared room where everybody watches the big screen
+          together (and a live stream takes the screen while it's on). ── */}
+      <div className="mx-auto max-w-5xl px-4 pt-4">
+        <Link
+          href="/world"
+          className="group flex flex-wrap items-center gap-3 rounded-2xl border border-[#d4af37]/40 bg-gradient-to-r from-[#d4af37]/[0.13] via-[#0a0908] to-[#0a0908] px-5 py-4 transition hover:border-[#d4af37]/70"
+          data-testid="world-entry"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10">
+            <Crown className="h-5 w-5 text-[#d4af37]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-black tracking-wide text-white">
+              The World — step into the King's Hall
+            </span>
+            <span className="block text-sm text-white/50">
+              One room, everybody in it together: walk the hall, watch the big screen, talk by proximity. Works on this screen — and in a VR headset if you've got one.
+            </span>
+          </span>
+          <span className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition group-hover:scale-105">
+            Enter the hall
+          </span>
+        </Link>
       </div>
       {tab === "broadcast" ? <BroadcastStudio /> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
     </div>
