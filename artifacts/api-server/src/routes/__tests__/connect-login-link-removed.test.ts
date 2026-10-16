@@ -26,7 +26,7 @@ describe("connect login-link removal", () => {
 
   it("no frontend code calls the removed endpoint", () => {
     const dash = readFileSync(
-      join(here, "../../../bow-down-visuals/src/pages/store-dashboard.tsx"),
+      join(here, "../../../../bow-down-visuals/src/pages/store-dashboard.tsx"),
       "utf8",
     );
     expect(dash).not.toContain("/api/connect/login-link");
