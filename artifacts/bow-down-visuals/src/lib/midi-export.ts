@@ -111,6 +111,86 @@ export function buildMidiFile(
   ]);
 }
 
+/* ── Polyphonic piano-roll export (Stack 6 #7) ───────────────────────────
+ * The roll is polyphonic with per-note velocity, which the monophonic
+ * hum-analysis writer above deliberately clips away. This writer keeps
+ * overlaps and velocities: same SMF format-0 container, one event per
+ * note on/off, offs before ons at equal ticks. */
+
+export interface PolyMidiNote extends MidiNote {
+  /** 0–127 (falls back to the house default when absent). */
+  velocity?: number;
+}
+
+export function buildMidiFilePolyphonic(
+  notes: PolyMidiNote[],
+  tempoBpm: number | null,
+  title?: string,
+): Uint8Array<ArrayBuffer> {
+  const bpm = tempoBpm && tempoBpm >= 30 && tempoBpm <= 300 ? tempoBpm : FALLBACK_BPM;
+  const microsPerQuarter = Math.round(60_000_000 / bpm);
+  const toTicks = (sec: number) => Math.max(0, Math.round(sec * (bpm / 60) * PPQ));
+
+  interface Ev {
+    tick: number;
+    bytes: number[];
+    order: number;
+  }
+  const events: Ev[] = [];
+  for (const n of notes) {
+    if (!Number.isFinite(n.midi) || n.durationSec <= 0) continue;
+    const note = Math.min(127, Math.max(0, Math.round(n.midi)));
+    const vel = Math.min(127, Math.max(1, Math.round(n.velocity ?? VELOCITY)));
+    const onTick = toTicks(n.startSec);
+    const offTick = Math.max(onTick + 1, toTicks(n.startSec + n.durationSec));
+    events.push({ tick: onTick, bytes: [0x90, note, vel], order: 1 });
+    events.push({ tick: offTick, bytes: [0x80, note, 0], order: 0 });
+  }
+  events.sort((a, b) => a.tick - b.tick || a.order - b.order);
+
+  const track: number[] = [];
+  track.push(
+    0x00, 0xff, 0x51, 0x03,
+    (microsPerQuarter >> 16) & 0xff,
+    (microsPerQuarter >> 8) & 0xff,
+    microsPerQuarter & 0xff,
+  );
+  if (title) {
+    const name = asciiBytes(title.slice(0, 60));
+    track.push(0x00, 0xff, 0x03, ...vlq(name.length), ...name);
+  }
+  track.push(0x00, 0xc0, 0x00);
+  let lastTick = 0;
+  for (const ev of events) {
+    track.push(...vlq(ev.tick - lastTick), ...ev.bytes);
+    lastTick = ev.tick;
+  }
+  track.push(0x00, 0xff, 0x2f, 0x00);
+
+  return new Uint8Array([
+    ...asciiBytes("MThd"), ...u32(6), ...u16(0), ...u16(1), ...u16(PPQ),
+    ...asciiBytes("MTrk"), ...u32(track.length), ...track,
+  ]);
+}
+
+/** Download a piano-roll track as .mid (free — the user's own notes). */
+export function downloadMidiPolyphonic(
+  notes: PolyMidiNote[],
+  tempoBpm: number | null,
+  title?: string,
+): void {
+  const bytes = buildMidiFilePolyphonic(notes, tempoBpm, title);
+  const blob = new Blob([bytes as BlobPart], { type: "audio/midi" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${midiFilenameBase(title)}.mid`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /** Slug a user title into a safe filename base ("hum" when untitled). */
 export function midiFilenameBase(title: string | null | undefined): string {
   const slug = (title ?? "")
