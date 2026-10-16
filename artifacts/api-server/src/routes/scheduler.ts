@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db, scheduledPostsTable, type ScheduledPost } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { logger } from "../lib/logger";
@@ -14,7 +14,7 @@ import {
 } from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
-import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 /* Mirror-on-save (2026-10-13 law): scheduled media is re-hosted into
    permanent storage at save time — a post firing weeks later must never
@@ -530,6 +530,127 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
     await refund();
     logger.error({ err, userId: req.userId }, "[scheduler] best-time failed");
     res.status(502).json({ error: "ai_failed", message: "Couldn't get a best-time suggestion — your Visual Buc was refunded." });
+  }
+});
+
+/* ─── Legacy scheduler surface (Stack 8 #1 merge) ────────────────────────
+   Merged in from routes/generate/scheduler.ts, which duplicated this
+   table behind a second, older API. Behavior is preserved VERBATIM —
+   this surface is FREE (no credit charge), takes the single-platform
+   {content, platform} payload, requires a future scheduledAt, and
+   returns RAW snake_case rows. It is NOT the canonical contract (the
+   /scheduler/posts surface above is: paid reservation, DTO responses);
+   the two contracts diverged before this merge and no in-repo caller
+   uses the legacy one, so it is kept as a compatibility surface on the
+   one canonical router rather than silently changing its money or
+   payload behavior. Characterization: scheduler-merge-characterization
+   .test.ts drives both surfaces unchanged pre/post merge. */
+
+function inferMediaKind(url: string): "image" | "video" {
+  return /\.(png|jpe?g|webp|gif|avif)(\?|#|$)/i.test(url) ? "image" : "video";
+}
+
+const legacySchedulePostSchema = z.object({
+  content: z.string().trim().min(1, "Content is required.").max(5000),
+  mediaUrl: z.string().trim().min(1, "A media URL is required.").max(2048),
+  platform: z.enum(PLATFORMS),
+  scheduledAt: z
+    .string()
+    .datetime({ message: "scheduledAt must be an ISO datetime string." })
+    .refine((v) => new Date(v).getTime() > Date.now(), {
+      message: "scheduledAt must be in the future.",
+    }),
+  hashtags: z.string().trim().max(500).optional().default(""),
+});
+
+// POST /schedule-post — save a post for later publishing (free)
+router.post("/schedule-post", requireAuth, async (req, res) => {
+  const parsed = legacySchedulePostSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+
+  try {
+    const [post] = await db
+      .insert(scheduledPostsTable)
+      .values({
+        user_id: req.userId!,
+        status: "scheduled",
+        media_url:
+          (await mirrorExternalMediaUrl(parsed.data.mediaUrl, {
+            kind: inferMediaKind(parsed.data.mediaUrl),
+            ownerKey: req.userId!,
+          })) ?? parsed.data.mediaUrl,
+        caption: parsed.data.content,
+        hashtags: parsed.data.hashtags,
+        platforms: [parsed.data.platform],
+        scheduled_at: new Date(parsed.data.scheduledAt),
+      })
+      .returning();
+
+    res.status(201).json({ post: await refreshSupabaseStorageUrlsDeep(post) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] schedule-post failed");
+    res.status(500).json({ error: "Could not schedule the post." });
+  }
+});
+
+// GET /scheduled-posts — list the user's scheduled posts, upcoming first
+router.get("/scheduled-posts", requireAuth, async (req, res) => {
+  try {
+    const posts = await db
+      .select()
+      .from(scheduledPostsTable)
+      .where(eq(scheduledPostsTable.user_id, req.userId!))
+      .orderBy(asc(scheduledPostsTable.scheduled_at));
+    res.json({ posts: await refreshSupabaseStorageUrlsDeep(posts) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] scheduled-posts list failed");
+    res.status(500).json({ error: "Could not load scheduled posts." });
+  }
+});
+
+// DELETE /scheduled-posts/:id — cancel a scheduled post (owner only)
+router.delete("/scheduled-posts/:id", requireAuth, async (req, res) => {
+  try {
+    const existing = await db
+      .select({ id: scheduledPostsTable.id, status: scheduledPostsTable.status })
+      .from(scheduledPostsTable)
+      .where(
+        and(
+          eq(scheduledPostsTable.id, req.params.id as string),
+          eq(scheduledPostsTable.user_id, req.userId!),
+        ),
+      )
+      .limit(1);
+
+    const row = existing[0];
+    if (!row) {
+      res.status(404).json({ error: "Scheduled post not found." });
+      return;
+    }
+    if (row.status === "posted" || row.status === "publishing") {
+      res.status(409).json({ error: "This post is already being published and cannot be cancelled." });
+      return;
+    }
+
+    const [cancelled] = await db
+      .update(scheduledPostsTable)
+      .set({ status: "canceled", updated_at: new Date() })
+      .where(eq(scheduledPostsTable.id, row.id))
+      .returning();
+
+    res.json({ post: await refreshSupabaseStorageUrlsDeep(cancelled) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] cancel failed");
+    res.status(500).json({ error: "Could not cancel the scheduled post." });
   }
 });
 
