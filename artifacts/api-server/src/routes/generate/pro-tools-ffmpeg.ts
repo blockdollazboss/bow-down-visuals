@@ -346,6 +346,63 @@ export function buildSpeedCurveFilter(curve: SpeedCurvePoint[], durationSec: num
   return parts.join(";");
 }
 
+/* ─── Custom speed segments (Stack 5 #4) ──────────────────────────────── */
+
+export interface SpeedSegmentInput { startT: number; endT: number; speed: number }
+
+/** Normalize segments into a tiling of [0,1] — mirrors the editor model
+ *  (frontend lib/motion-pro.ts normalizeSpeedSegments). */
+export function normalizeSpeedSegments(
+  segments: SpeedSegmentInput[] | null | undefined,
+): SpeedSegmentInput[] {
+  const segs = (segments ?? [])
+    .filter((x) => x && Number.isFinite(x.startT) && Number.isFinite(x.endT) && x.endT > x.startT)
+    .map((x) => ({
+      startT: clamp(x.startT, 0, 1),
+      endT: clamp(x.endT, 0, 1),
+      speed: clamp(Number.isFinite(x.speed) ? x.speed : 1, 0.25, 4),
+    }))
+    .filter((x) => x.endT > x.startT)
+    .sort((a, b) => a.startT - b.startT);
+  if (segs.length === 0) return [{ startT: 0, endT: 1, speed: 1 }];
+  const out: SpeedSegmentInput[] = [];
+  let cursor = 0;
+  for (const seg of segs) {
+    const startT = cursor;
+    const endT = Math.min(1, Math.max(seg.endT, startT + 0.01));
+    out.push({ ...seg, startT, endT });
+    cursor = endT;
+    if (cursor >= 1) break;
+  }
+  if (cursor < 1) out[out.length - 1] = { ...out[out.length - 1]!, endT: 1 };
+  return out;
+}
+
+/**
+ * Apply custom speed segments via the existing segment machinery:
+ * split → trim each segment's window → per-segment setpts → concat.
+ * Video-only like buildSpeedCurveFilter (the export's audio is the song
+ * track, which is not retimed — same as preset curves today).
+ */
+export function buildSpeedSegmentsFilter(
+  segments: SpeedSegmentInput[], durationSec: number,
+): string {
+  if (!segments?.length || durationSec <= 0) return "";
+  const segs = normalizeSpeedSegments(segments);
+  if (segs.length === 1 && segs[0]!.speed === 1) return "";
+  const splitLabels = segs.map((_, i) => `[ss${i}]`).join("");
+  const parts: string[] = [`[0:v]split=${segs.length}${splitLabels}`];
+  const concatInputs: string[] = [];
+  segs.forEach((seg, i) => {
+    const start = (seg.startT * durationSec).toFixed(3);
+    const end = (seg.endT * durationSec).toFixed(3);
+    parts.push(`[ss${i}]trim=start=${start}:end=${end},setpts=${f4(1 / seg.speed)}*PTS[sg${i}]`);
+    concatInputs.push(`[sg${i}]`);
+  });
+  parts.push(`${concatInputs.join("")}concat=n=${segs.length}:v=1:a=0[ptout]`);
+  return parts.join(";");
+}
+
 /* ─── Keyframes ───────────────────────────────────────────────────────── */
 
 export interface KeyframePoint {
@@ -356,6 +413,45 @@ export interface KeyframePoint {
   scale: number;
   rotation: number;
   opacity: number;
+  /** Bézier easing handles (Stack 5 #8) for the segment starting at this
+   *  keyframe (easeOutCp) / ending at this keyframe (easeInCp). Absent =
+   *  legacy smoothstep — old projects render identically. */
+  easeOutCp?: { x: number; y: number };
+  easeInCp?: { x: number; y: number };
+}
+
+/** Cubic bézier easing — mirror of frontend lib/motion-pro.ts cubicBezierY. */
+export function cubicBezierY(
+  cp1: { x: number; y: number }, cp2: { x: number; y: number }, x: number,
+): number {
+  const cx = clamp(x, 0, 1);
+  if (cx === 0 || cx === 1) return cx;
+  const bx = (t: number) => 3 * (1 - t) ** 2 * t * cp1.x + 3 * (1 - t) * t ** 2 * cp2.x + t ** 3;
+  const by = (t: number) => 3 * (1 - t) ** 2 * t * cp1.y + 3 * (1 - t) * t ** 2 * cp2.y + t ** 3;
+  let t = cx;
+  for (let i = 0; i < 8; i++) {
+    const err = bx(t) - cx;
+    if (Math.abs(err) < 1e-5) return by(t);
+    const d = 3 * (1 - t) ** 2 * cp1.x + 6 * (1 - t) * t * (cp2.x - cp1.x) + 3 * t ** 2 * (1 - cp2.x);
+    if (Math.abs(d) < 1e-6) break;
+    t = clamp(t - err / d, 0, 1);
+  }
+  let lo = 0, hi = 1;
+  t = cx;
+  for (let i = 0; i < 20; i++) {
+    if (bx(t) < cx) lo = t; else hi = t;
+    t = (lo + hi) / 2;
+  }
+  return by(t);
+}
+
+const SMOOTHSTEP_OUT = { x: 0.33, y: 0 };
+const SMOOTHSTEP_IN = { x: 0.67, y: 1 };
+
+/** Eased fraction for segment a→b; smoothstep when no handles are set. */
+export function easedFraction(a: KeyframePoint, b: KeyframePoint, f: number): number {
+  if (!a.easeOutCp && !b.easeInCp) return f * f * (3 - 2 * f);
+  return cubicBezierY(a.easeOutCp ?? SMOOTHSTEP_OUT, b.easeInCp ?? SMOOTHSTEP_IN, clamp(f, 0, 1));
 }
 
 /** Interpolate keyframe values at time t (seconds). */
@@ -375,7 +471,7 @@ export function keyframeAt(kfs: KeyframePoint[], t: number): { x: number; y: num
     const a = sorted[i]!, b = sorted[i + 1]!;
     if (t >= a.time && t <= b.time) {
       const f = (t - a.time) / (b.time - a.time || 1);
-      const e = f * f * (3 - 2 * f);
+      const e = easedFraction(a, b, f);
       return {
         x: a.x + (b.x - a.x) * e,
         y: a.y + (b.y - a.y) * e,
@@ -393,8 +489,35 @@ export function keyframeAt(kfs: KeyframePoint[], t: number): { x: number; y: num
  * into N segments, applying per-segment scale/rotate/opacity, and concatenating.
  * Position (x,y) is implemented via crop offset for pan effects.
  */
-export function buildKeyframeFilter(kfs: KeyframePoint[], durationSec: number, segments = 12): string {
+/**
+ * Adaptive approximation density (Stack 5 #8): the eased curve is rendered
+ * through this segment approximation — NOT a true per-frame expression —
+ * with denser sampling where the eased scale curve bends hardest
+ * (up to 4x base, capped at 48 segments). Mirror of the frontend
+ * planKeyframeSegments rule.
+ */
+export function planKeyframeSegments(kfs: KeyframePoint[], durationSec: number, baseSegments = 12, maxTotal = 48): number {
+  if (kfs.length < 2 || durationSec <= 0) return Math.min(baseSegments, maxTotal);
+  const N = 40;
+  let curvature = 0;
+  let prevSlope: number | null = null;
+  let prevVal: number | null = null;
+  for (let i = 0; i <= N; i++) {
+    const v = keyframeAt(kfs, (i / N) * durationSec).scale;
+    if (prevVal !== null) {
+      const slope = v - prevVal;
+      if (prevSlope !== null) curvature += Math.abs(slope - prevSlope);
+      prevSlope = slope;
+    }
+    prevVal = v;
+  }
+  const density = 1 + Math.min(3, Math.floor(curvature * 6));
+  return Math.min(maxTotal, baseSegments * density);
+}
+
+export function buildKeyframeFilter(kfs: KeyframePoint[], durationSec: number, segments?: number): string {
   if (kfs.length === 0 || durationSec <= 0) return "";
+  if (segments === undefined) segments = planKeyframeSegments(kfs, durationSec);
   const segDur = durationSec / segments;
   const splitLabels = Array.from({ length: segments }, (_, i) => `[k${i}]`).join("");
   const parts: string[] = [`[0:v]split=${segments}${splitLabels}`];

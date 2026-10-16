@@ -210,3 +210,51 @@ describe("buildCurvesFilters (Stack 5 #2)", () => {
     expect(chain.indexOf("curves=")).toBeGreaterThan(chain.indexOf("eq="));
   });
 });
+
+import { buildSpeedSegmentsFilter, normalizeSpeedSegments, planKeyframeSegments, keyframeAt as kfAt } from "../pro-tools-ffmpeg";
+
+describe("buildSpeedSegmentsFilter (Stack 5 #4)", () => {
+  it("builds split/trim/setpts/concat per segment window", () => {
+    const f = buildSpeedSegmentsFilter([
+      { startT: 0, endT: 0.5, speed: 0.5 },
+      { startT: 0.5, endT: 1, speed: 2 },
+    ], 10);
+    expect(f).toContain("[0:v]split=2[ss0][ss1]");
+    expect(f).toContain("[ss0]trim=start=0.000:end=5.000,setpts=2.0000*PTS[sg0]");
+    expect(f).toContain("[ss1]trim=start=5.000:end=10.000,setpts=0.5000*PTS[sg1]");
+    expect(f).toContain("concat=n=2:v=1:a=0[ptout]");
+  });
+  it("a single 1x segment is a no-op", () => {
+    expect(buildSpeedSegmentsFilter([{ startT: 0, endT: 1, speed: 1 }], 10)).toBe("");
+  });
+  it("normalize tiles gaps like the editor model", () => {
+    const segs = normalizeSpeedSegments([{ startT: 0.3, endT: 0.8, speed: 2 }]);
+    expect(segs[0]!.startT).toBe(0);
+    expect(segs[segs.length - 1]!.endT).toBe(1);
+  });
+});
+
+describe("bézier keyframes (Stack 5 #8)", () => {
+  const base = { id: "a", time: 0, x: 0.5, y: 0.5, scale: 1, rotation: 0, opacity: 1 };
+  it("no handles keep legacy smoothstep values", () => {
+    const v = kfAt([base, { ...base, id: "b", time: 2, scale: 2 }], 1);
+    expect(v.scale).toBeCloseTo(1.5);
+  });
+  it("ease-out handles move the midpoint ahead", () => {
+    const v = kfAt([
+      { ...base, easeOutCp: { x: 0.1, y: 0.9 } },
+      { ...base, id: "b", time: 2, scale: 2, easeInCp: { x: 0.3, y: 1 } },
+    ], 1);
+    expect(v.scale).toBeGreaterThan(1.5);
+  });
+  it("adaptive plan densifies high-curvature spans and caps at 48", () => {
+    const snap = [
+      { ...base, easeOutCp: { x: 0.05, y: 0.98 } },
+      { ...base, id: "b", time: 4, scale: 3, easeInCp: { x: 0.95, y: 1 } },
+    ];
+    const n = planKeyframeSegments(snap, 4);
+    expect(n).toBeGreaterThan(12);
+    expect(n).toBeLessThanOrEqual(48);
+    expect(planKeyframeSegments([base, { ...base, id: "b", time: 4 }], 4)).toBe(12);
+  });
+});

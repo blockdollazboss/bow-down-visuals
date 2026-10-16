@@ -8,6 +8,7 @@ import {
   type Keyframe,
   keyframeAt,
 } from "@/lib/editor-settings";
+import { keyframeAtEased, EASING_PRESETS } from "@/lib/motion-pro";
 import { EditorCard } from "@/components/editor/controls";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +26,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
   const { toast } = useToast();
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [graphProp, setGraphProp] = useState<"scale" | "x" | "y" | "rotation" | "opacity">("scale");
 
   const clips = useMemo(() => scenes.filter((s) => s.demoClipUrl), [scenes]);
   const activeScene = clips.find((s) => s.id === sceneId) ?? clips[0] ?? null;
@@ -241,6 +243,92 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
                 onChange={(e) => updateSelected({ opacity: Number(e.target.value) })}
                 className="w-full h-1 cursor-pointer" style={{ accentColor: "#C9A84C" }} />
             </label>
+          </div>
+        )}
+
+        {/* ── Keyframe graph (Stack 5 #8): per-property eased curve ── */}
+        {keyframes.length > 0 && (
+          <div className="rounded border border-white/10 bg-black/30 p-3 space-y-2" data-testid="keyframe-graph">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="text-[11px] font-bold text-white/60 mr-1">Graph</p>
+              {(["scale", "x", "y", "rotation", "opacity"] as const).map((prop) => (
+                <button key={prop} type="button" onClick={() => setGraphProp(prop)}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
+                    graphProp === prop ? "bg-primary/20 border-primary text-primary" : "border-white/15 text-white/50"
+                  }`}>
+                  {prop}
+                </button>
+              ))}
+            </div>
+            <svg viewBox="0 0 100 40" className="w-full h-20 rounded bg-white/[0.03] border border-white/10" preserveAspectRatio="none">
+              {(() => {
+                const vals = Array.from({ length: 41 }, (_, i) => keyframeAtEased(keyframes, (i / 40) * clipDuration)[graphProp]);
+                const min = Math.min(...vals), max = Math.max(...vals);
+                const span = Math.max(0.001, max - min);
+                const d = vals.map((v, i) => `${i === 0 ? "M" : "L"}${(i / 40) * 100},${36 - ((v - min) / span) * 32}`).join(" ");
+                return <path d={d} fill="none" stroke="#C9A84C" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />;
+              })()}
+              {keyframes.map((k) => (
+                <circle key={k.id} cx={(k.time / clipDuration) * 100}
+                  cy={36 - ((keyframeAtEased(keyframes, k.time)[graphProp] - Math.min(...keyframes.map((q) => q[graphProp]))) /
+                    Math.max(0.001, Math.max(...keyframes.map((q) => q[graphProp])) - Math.min(...keyframes.map((q) => q[graphProp])))) * 32}
+                  r="1.6" fill={selectedId === k.id ? "#C9A84C" : "#fff"} />
+              ))}
+            </svg>
+            <p className="text-[10px] text-white/30">
+              Export renders this curve through segment approximation, sampled denser where it bends — not a per-frame expression.
+            </p>
+            {selected && (
+              <div className="space-y-2 border-t border-white/[0.06] pt-2">
+                <p className="text-[11px] font-bold text-white/60">
+                  Easing for the segment starting at {selected.time.toFixed(2)}s
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {EASING_PRESETS.map((preset) => (
+                    <button key={preset.id} type="button"
+                      onClick={() => {
+                        const idx = keyframes.findIndex((k) => k.id === selected.id);
+                        const nextKf = keyframes[idx + 1];
+                        patchKeyframes(keyframes.map((k, i) => {
+                          if (i === idx) return { ...k, easeOutCp: { ...preset.out } };
+                          if (nextKf && k.id === nextKf.id) return { ...k, easeInCp: { ...preset.in } };
+                          return k;
+                        }));
+                      }}
+                      className="text-[10px] font-bold px-2 py-1 rounded-full border border-white/15 text-white/60 hover:border-primary hover:text-primary">
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button type="button"
+                    onClick={() => updateSelected({ easeOutCp: undefined, easeInCp: undefined })}
+                    className="text-[10px] font-bold px-2 py-1 rounded-full border border-white/15 text-white/40 hover:text-white">
+                    Legacy smooth
+                  </button>
+                </div>
+                {(["easeOutCp", "easeInCp"] as const).map((which) => {
+                  const cp = which === "easeOutCp"
+                    ? (selected.easeOutCp ?? { x: 0.33, y: 0 })
+                    : (selected.easeInCp ?? { x: 0.67, y: 1 });
+                  return (
+                    <div key={which} className="grid grid-cols-2 gap-3">
+                      {(["x", "y"] as const).map((axis) => (
+                        <label key={axis} className="block">
+                          <span className="text-[11px] text-white/60">
+                            {which === "easeOutCp" ? "Out" : "In"} handle {axis.toUpperCase()}: {cp[axis].toFixed(2)}
+                          </span>
+                          <input type="range" min={0} max={1} step={0.01} value={cp[axis]}
+                            onChange={(e) => updateSelected({ [which]: { ...cp, [axis]: Number(e.target.value) } })}
+                            className="w-full h-1 cursor-pointer" style={{ accentColor: "#C9A84C" }} />
+                        </label>
+                      ))}
+                    </div>
+                  );
+                })}
+                <p className="text-[10px] text-white/30">
+                  Drag the handles to shape the curve between this keyframe and the next. No handles = the original smooth easing.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
