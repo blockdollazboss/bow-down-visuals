@@ -26,11 +26,30 @@
  * Heading convention (shared with the server): rotY 0 faces the
  * stage/screen (-Z). The local walker stays on the audience floor —
  * the stage is a stage.
+ *
+ * Character figures: a member who walked in as a Creative Vault
+ * character (presence carries the server-verified ref) stands as
+ * their portrait on a gold-framed panel figure, billboarded toward
+ * the viewer, instead of the tinted capsule; everyone else — and
+ * any portrait that fails to load — keeps the capsule. When the
+ * portrait has a face (mouth located once by portrait-mouth.ts from
+ * the real landmarks), its lips move with the speaker's live voice
+ * level via setSpeechLevel; a portrait with no face found never
+ * grows a mouth.
  */
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
+import {
+  coverTransform,
+  mouthOpennessForLevel,
+  normalizedToCanvas,
+  MOUTH_OPEN_HEIGHT_RATIO,
+  type CoverTransform,
+  type MouthBox,
+} from "./lips";
+import { locatePortraitMouth } from "./portrait-mouth";
 
 export interface HallScreenSource {
   mode: "live" | "featured";
@@ -56,6 +75,9 @@ function angleLerp(a: number, b: number, t: number): number {
   if (d < -Math.PI) d += Math.PI * 2;
   return a + d * t;
 }
+
+/** Shared scratch for the per-frame camera position (tick-only). */
+const SCRATCH_VEC = new THREE.Vector3();
 
 /* ── Quality ladder ───────────────────────────────────────────────────
    high:   planar mirror floor, soft shadow maps, every light live.
@@ -185,26 +207,66 @@ function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
   return tex;
 }
 
-/* ── Avatar ─────────────────────────────────────────────────────────── */
+/* ── Avatar ───────────────────────────────────────────────────────────
+   Every peer stands as a `body` group inside their rig group: the
+   tinted capsule by default, or — for a member who walked in as a
+   Creative Vault character — their portrait on a gold-framed panel.
+   The floor ring and the name sprite live on the rig group itself,
+   so a figure swap never disturbs identity or footing. */
+
+interface PortraitState {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  texture: THREE.CanvasTexture;
+  image: HTMLImageElement;
+  srcW: number;
+  srcH: number;
+  cover: CoverTransform;
+  /** The mouth the landmarks found — null = no face, no lips, ever. */
+  mouth: MouthBox | null;
+}
 
 interface AvatarRig {
   group: THREE.Group;
+  body: THREE.Group;
+  sprite: THREE.Sprite;
+  tint: string;
   target: { x: number; z: number; rotY: number };
+  /** The character the standing figure currently shows (null = capsule). */
+  characterId: string | null;
+  /** The character the presence payload wants. A portrait load is in
+   *  flight (or failed terminally) whenever this differs from
+   *  characterId; upsertPeer never re-fires a load for the same id. */
+  requestedId: string | null;
+  swapSeq: number;
+  portrait: PortraitState | null;
+  /** Mouth openness the speaker's voice asks for / currently drawn. */
+  speechTarget: number;
+  speechShown: number;
+  lastMouthDrawAt: number;
 }
 
-function buildAvatar(peer: WorldPeer): AvatarRig {
-  const group = new THREE.Group();
-  const tint = new THREE.Color(peer.tint);
+const PORTRAIT_CANVAS_W = 384;
+const PORTRAIT_CANVAS_H = 512;
+const PORTRAIT_PANEL_W = 1.0;
+const PORTRAIT_PANEL_H = PORTRAIT_PANEL_W * (PORTRAIT_CANVAS_H / PORTRAIT_CANVAS_W);
+const PORTRAIT_BASE_Y = 0.5; // easel height — the panel's bottom edge
+const PORTRAIT_SPRITE_Y = 2.18;
+const CAPSULE_SPRITE_Y = 2.3;
+
+function buildCapsuleBody(tintHex: string): THREE.Group {
+  const body = new THREE.Group();
+  const tint = new THREE.Color(tintHex);
   const bodyMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.3 });
   const darkMat = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.6, metalness: 0.2 });
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.78, 4, 12), bodyMat);
-  body.position.y = 0.98;
-  group.add(body);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.78, 4, 12), bodyMat);
+  torso.position.y = 0.98;
+  body.add(torso);
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 18, 14), darkMat);
   head.position.y = 1.83;
-  group.add(head);
+  body.add(head);
 
   // Gold visor — the face cue (front = -Z at rotY 0).
   const visor = new THREE.Mesh(
@@ -212,7 +274,105 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     new THREE.MeshStandardMaterial({ color: GOLD, emissive: GOLD_DEEP, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.8 }),
   );
   visor.position.set(0, 1.86, -0.19);
-  group.add(visor);
+  body.add(visor);
+  return body;
+}
+
+/** Draw the portrait (cover-fit) plus — only when the landmarks found
+ *  a mouth and the speaker's voice opens it — the mouth opening: a
+ *  shaded ellipse exactly at the landmarked mouth, its height scaled
+ *  by the openness. The closed-mouth draw is the portrait untouched. */
+function drawPortraitCanvas(portrait: PortraitState, openness: number): void {
+  const { ctx, canvas, image, cover } = portrait;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, cover.offsetX, cover.offsetY, cover.drawnW, cover.drawnH);
+  const mouth = portrait.mouth;
+  if (mouth && openness > 0.015) {
+    const center = normalizedToCanvas({ x: mouth.cx, y: mouth.cy }, portrait.srcW, portrait.srcH, cover);
+    const mouthW = mouth.w * portrait.srcW * cover.scale;
+    const rx = Math.max(3, mouthW / 2);
+    const ry = Math.max(1.2, (openness * mouthW * MOUTH_OPEN_HEIGHT_RATIO) / 2);
+    const cy = center.y + ry * 0.35; // the opening drops as it widens
+    const grad = ctx.createRadialGradient(center.x, cy, 0, center.x, cy, rx);
+    grad.addColorStop(0, "rgba(43,10,8,0.96)");
+    grad.addColorStop(0.55, "rgba(74,22,16,0.92)");
+    grad.addColorStop(0.85, "rgba(96,38,28,0.55)");
+    grad.addColorStop(1, "rgba(96,38,28,0)");
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(center.x, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+  portrait.texture.needsUpdate = true;
+}
+
+interface BuiltFigure {
+  body: THREE.Group;
+  portrait: PortraitState;
+}
+
+function buildPortraitFigure(image: HTMLImageElement, mouth: MouthBox | null): BuiltFigure {
+  const canvas = document.createElement("canvas");
+  canvas.width = PORTRAIT_CANVAS_W;
+  canvas.height = PORTRAIT_CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("portrait canvas has no 2d context");
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const portrait: PortraitState = {
+    canvas,
+    ctx,
+    texture,
+    image,
+    srcW: image.naturalWidth || image.width,
+    srcH: image.naturalHeight || image.height,
+    cover: coverTransform(
+      image.naturalWidth || image.width,
+      image.naturalHeight || image.height,
+      PORTRAIT_CANVAS_W,
+      PORTRAIT_CANVAS_H,
+    ),
+    mouth,
+  };
+
+  const body = new THREE.Group();
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: GOLD,
+    emissive: GOLD_DEEP,
+    emissiveIntensity: 0.35,
+    roughness: 0.3,
+    metalness: 0.9,
+  });
+  const centerY = PORTRAIT_BASE_Y + PORTRAIT_PANEL_H / 2;
+  // The gold frame behind the portrait panel.
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(PORTRAIT_PANEL_W + 0.1, PORTRAIT_PANEL_H + 0.1, 0.05),
+    goldMat,
+  );
+  frame.position.set(0, centerY, 0);
+  body.add(frame);
+  // The portrait itself, proud of the frame's front face (+Z — the
+  // figure billboards this side toward the viewer).
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(PORTRAIT_PANEL_W, PORTRAIT_PANEL_H),
+    new THREE.MeshStandardMaterial({ map: texture, roughness: 0.55, metalness: 0.05 }),
+  );
+  panel.position.set(0, centerY, 0.028);
+  body.add(panel);
+  // The easel post down to the floor ring.
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, PORTRAIT_BASE_Y - 0.02, 10), goldMat);
+  post.position.y = (PORTRAIT_BASE_Y - 0.02) / 2 + 0.02;
+  body.add(post);
+
+  drawPortraitCanvas(portrait, 0);
+  return { body, portrait };
+}
+
+function buildAvatar(peer: WorldPeer): AvatarRig {
+  const group = new THREE.Group();
 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(0.44, 0.02, 8, 40),
@@ -226,12 +386,40 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     new THREE.SpriteMaterial({ map: nameSpriteTexture(peer), transparent: true, depthWrite: false }),
   );
   sprite.scale.set(2.3, 0.65, 1);
-  sprite.position.y = 2.3;
+  sprite.position.y = CAPSULE_SPRITE_Y;
   group.add(sprite);
+
+  const body = buildCapsuleBody(peer.tint);
+  group.add(body);
 
   group.position.set(peer.x, 0, peer.z);
   group.rotation.y = peer.rotY;
-  return { group, target: { x: peer.x, z: peer.z, rotY: peer.rotY } };
+  return {
+    group,
+    body,
+    sprite,
+    tint: peer.tint,
+    target: { x: peer.x, z: peer.z, rotY: peer.rotY },
+    characterId: null,
+    requestedId: null,
+    swapSeq: 0,
+    portrait: null,
+    speechTarget: 0,
+    speechShown: 0,
+    lastMouthDrawAt: 0,
+  };
+}
+
+function disposeObjectTree(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const mat = (mesh as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+    else if (mat) mat.dispose();
+    const sprite = obj as THREE.Sprite;
+    if (sprite.material) (sprite.material as THREE.SpriteMaterial).map?.dispose();
+  });
 }
 
 /* ── Per-look materials + animation registry ────────────────────────── */
@@ -1119,11 +1307,71 @@ export class KingsHallScene {
     const existing = this.avatars.get(peer.peerId);
     if (existing) {
       existing.target = { x: peer.x, z: peer.z, rotY: peer.rotY };
+      this.reconcileFigure(existing, peer);
       return;
     }
     const rig = buildAvatar(peer);
     this.avatars.set(peer.peerId, rig);
     this.scene.add(rig.group);
+    this.reconcileFigure(rig, peer);
+  }
+
+  /** Keep the standing figure matched to the peer's character: a new
+   *  pick starts the portrait load (the capsule keeps standing until
+   *  it lands), clearing the pick restores the capsule at once, and a
+   *  failed load leaves the capsule — requestedId stays set so the
+   *  120 ms upsert cadence never turns into a retry storm. */
+  private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
+    const want = peer.character && peer.character.portraitUrl ? peer.character : null;
+    const wantId = want?.id ?? null;
+    if (wantId === rig.requestedId) return;
+    rig.requestedId = wantId;
+    const seq = ++rig.swapSeq;
+    if (!want) {
+      this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+      void locatePortraitMouth(img).then((mouth) => {
+        if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+        try {
+          const built = buildPortraitFigure(img, mouth);
+          this.swapFigure(rig, built.body, built.portrait, wantId);
+        } catch {
+          /* canvas unavailable — the capsule keeps standing */
+        }
+      });
+    };
+    img.onerror = () => {
+      /* portrait unreachable (or not CORS-clean for WebGL): the
+         capsule keeps standing; no retry until the pick changes */
+    };
+    img.src = want.portraitUrl;
+  }
+
+  private swapFigure(rig: AvatarRig, body: THREE.Group, portrait: PortraitState | null, characterId: string | null): void {
+    rig.group.remove(rig.body);
+    if (rig.portrait) rig.portrait.texture.dispose();
+    disposeObjectTree(rig.body);
+    rig.body = body;
+    rig.portrait = portrait;
+    rig.characterId = characterId;
+    rig.speechTarget = 0;
+    rig.speechShown = 0;
+    rig.sprite.position.y = portrait ? PORTRAIT_SPRITE_Y : CAPSULE_SPRITE_Y;
+    rig.group.add(body);
+  }
+
+  /** The speaker's live voice level (0..1) for this peer's character
+   *  figure — the lips follow it. Ignored for capsule figures: a
+   *  capsule has no mouth to move. */
+  setSpeechLevel(peerId: string, level: number): void {
+    const rig = this.avatars.get(peerId);
+    if (!rig || !rig.portrait) return;
+    rig.speechTarget = mouthOpennessForLevel(level);
   }
 
   setPeerTarget(peerId: string, x: number, z: number, rotY: number): void {
@@ -1136,15 +1384,8 @@ export class KingsHallScene {
     if (!rig) return;
     this.avatars.delete(peerId);
     this.scene.remove(rig.group);
-    rig.group.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (mesh.geometry) mesh.geometry.dispose();
-      const mat = (mesh as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-      else if (mat) mat.dispose();
-      const sprite = obj as THREE.Sprite;
-      if (sprite.material) (sprite.material as THREE.SpriteMaterial).map?.dispose();
-    });
+    if (rig.portrait) rig.portrait.texture.dispose();
+    disposeObjectTree(rig.group);
   }
 
   setSpawn(x: number, z: number): void {
@@ -1271,6 +1512,32 @@ export class KingsHallScene {
       rig.group.position.x += (rig.target.x - rig.group.position.x) * k;
       rig.group.position.z += (rig.target.z - rig.group.position.z) * k;
       rig.group.rotation.y = angleLerp(rig.group.rotation.y, rig.target.rotY, k);
+    }
+
+    // Character figures: the portrait panel billboards toward the
+    // viewer (a portrait is a face — it should meet your eye, not the
+    // walker's heading), and its lips track the speaker's voice.
+    if (this.avatars.size) {
+      this.camera.getWorldPosition(SCRATCH_VEC);
+      const nowMs = performance.now();
+      for (const rig of this.avatars.values()) {
+        if (!rig.portrait) continue;
+        const faceYaw =
+          Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
+          rig.group.rotation.y;
+        rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
+
+        const opennessDiff = rig.speechTarget - rig.speechShown;
+        if (Math.abs(opennessDiff) > 0.002) {
+          rig.speechShown += opennessDiff * Math.min(1, dt * 20);
+          if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
+          // ~15 fps texture updates while the mouth is actually moving.
+          if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
+            rig.lastMouthDrawAt = nowMs;
+            drawPortraitCanvas(rig.portrait, rig.speechShown);
+          }
+        }
+      }
     }
 
     // The look's living details: candle flames breathing, braziers
