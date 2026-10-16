@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, integer, boolean, jsonb, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, jsonb, timestamp, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -65,7 +66,12 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   stripeConnectPayoutsEnabled: boolean("stripe_connect_payouts_enabled").notNull().default(false),
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:       timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  /* Migration 0134: the pin is a track or a video; collection visibility
+     is a closed set. Same names + predicates as the SQL constraints. */
+  check("creator_profiles_pinned_kind_check", sql`${t.pinnedKind} IS NULL OR ${t.pinnedKind} IN ('track', 'video')`),
+  check("creator_profiles_collection_visibility_check", sql`${t.collectionVisibility} IN ('public', 'private')`),
+]);
 
 export const insertCreatorProfileSchema = createInsertSchema(creatorProfilesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCreatorProfile = z.infer<typeof insertCreatorProfileSchema>;

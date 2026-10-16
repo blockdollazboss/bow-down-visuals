@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, timestamp, boolean, integer, doublePrecision, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* ── Stack 10 "Trust, safety & the literal end" (migration 0138) ─────────
    Deepens the existing trust machinery; it does not duplicate it:
@@ -126,7 +127,7 @@ export const groupJoinRequestsTable = pgTable("group_join_requests", {
   reviewed_by: uuid("reviewed_by"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("group_join_requests_group_idx").on(t.group_id, t.status), uniqueIndex("group_join_requests_pending_uidx").on(t.group_id, t.user_id, t.status)]);
+}, (t) => [index("group_join_requests_group_idx").on(t.group_id, t.status), uniqueIndex("group_join_requests_open_uidx").on(t.group_id, t.user_id).where(sql`${t.status} = 'pending'`)]);
 
 export const videoRetentionEventsTable = pgTable("video_retention_events", {
   id: uuid("id").primaryKey().defaultRandom(),

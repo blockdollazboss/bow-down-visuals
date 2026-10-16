@@ -69,8 +69,8 @@ export const liveStreamTipsTable = pgTable(
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("live_stream_tips_stream_created_idx").on(t.stream_id, t.created_at),
-    index("live_stream_tips_stream_pinned_idx").on(t.stream_id, t.pinned_until),
+    index("live_stream_tips_stream_created_idx").on(t.stream_id, t.created_at.desc()),
+    index("live_stream_tips_stream_pinned_idx").on(t.stream_id, t.pinned_until.desc()),
   ],
 );
 

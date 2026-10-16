@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * photo_presets — user preset packs for the Photo desk (Stack 7 #8).
@@ -18,6 +19,10 @@ export const photoPresetsTable = pgTable("photo_presets", {
   store_product_id: text("store_product_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  /* Migration 0135: lookup by owner + the public/share listing (partial). */
+  index("photo_presets_user_idx").on(t.user_id),
+  index("photo_presets_public_idx").on(t.is_public).where(sql`${t.is_public}`),
+]);
 
 export type PhotoPresetRow = typeof photoPresetsTable.$inferSelect;

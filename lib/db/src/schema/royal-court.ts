@@ -1,4 +1,5 @@
-import { pgTable, uuid, integer, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, integer, timestamp, uniqueIndex, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { creatorProfilesTable } from "./creator-platform";
 
 /**
@@ -35,6 +36,8 @@ export const royalCourtTable = pgTable(
     /* One seat per member — nobody holds two chairs at the same court. */
     uniqueIndex("royal_court_owner_member_ux").on(t.ownerProfileId, t.memberProfileId),
     index("royal_court_owner_idx").on(t.ownerProfileId),
+    /* Migration 0131: seats are ranks 1-8, enforced by the database. */
+    check("royal_court_position_check", sql`${t.position} >= 1 AND ${t.position} <= 8`),
   ],
 );
 

@@ -49,7 +49,7 @@ export const liveStreamsTable = pgTable(
         }>
       >()
       .notNull()
-      .default(sql`'[{"platform":"site","label":"Your profile","status":"active"}]'::jsonb`),
+      .default(sql`'[{"platform":"site","label":"Your profile","status":"active","save_recording":true,"vod_url":null,"vod_state":null}]'::jsonb`),
     /* The creator's Visual Bucs tip goal for this stream (0133);
        null = no goal set. Drives the overlay goal bar. */
     tip_goal_vb: integer("tip_goal_vb"),
@@ -65,7 +65,7 @@ export const liveStreamsTable = pgTable(
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("live_streams_status_started_idx").on(t.status, t.started_at),
+    index("live_streams_status_started_idx").on(t.status, t.started_at.desc()),
     index("live_streams_user_id_idx").on(t.user_id),
     index("live_streams_profile_id_idx").on(t.profile_id),
     uniqueIndex("live_streams_one_live_per_user_idx")

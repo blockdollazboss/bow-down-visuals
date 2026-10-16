@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { creatorProfilesTable } from "./creator-platform";
 
 /**
@@ -21,6 +21,7 @@ export const creatorHostingTable = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     profileId: uuid("profile_id")
       .notNull()
+      .unique()
       .references(() => creatorProfilesTable.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("active"),
     stripeSubscriptionId: text("stripe_subscription_id"),
@@ -31,7 +32,6 @@ export const creatorHostingTable = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("creator_hosting_profile_ux").on(t.profileId),
     index("creator_hosting_stripe_sub_idx").on(t.stripeSubscriptionId),
     index("creator_hosting_stripe_customer_idx").on(t.stripeCustomerId),
   ],
