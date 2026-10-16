@@ -797,6 +797,13 @@ export default function AdminPage() {
   const [bowOverride, setBowOverride] = useState("");
   const [bowRace, setBowRace] = useState<BowRaceStatus | null>(null);
   const [bowHistory, setBowHistory] = useState<BowRaceHistory[]>([]);
+  /* Bow Race load failures are NOT "no race yet" — they get their own
+     error state with a retry, scoped to the Bow Race data only. The
+     no-race empty state renders ONLY for a successful load with no
+     race. bowMsg still carries save feedback and save failures. */
+  const [bowLoading, setBowLoading] = useState(true);
+  const [bowLoadError, setBowLoadError] = useState(false);
+  const [bowRetryNonce, setBowRetryNonce] = useState(0);
   const [bowSaving, setBowSaving] = useState(false);
   const [bowMsg, setBowMsg] = useState<string | null>(null);
   const [bowTestPopup, setBowTestPopup] = useState(false);
@@ -809,11 +816,13 @@ export default function AdminPage() {
   }, [getAccessToken]);
 
   const loadBowRace = useCallback(async () => {
+    setBowLoading(true);
+    setBowLoadError(false);
     try {
       const headers = await authHeaders();
       const res = await fetch("/api/admin/bow-challenge", { headers });
       if (!res.ok) {
-        setBowMsg(t("admin.bowRaceUnavailable", { status: res.status }));
+        setBowLoadError(true);
         return;
       }
       const data = await res.json();
@@ -823,8 +832,10 @@ export default function AdminPage() {
       setBowRace(data.race);
       setBowHistory(data.history ?? []);
       setBowMsg(null);
-    } catch (err) {
-      setBowMsg(t("admin.bowRaceLoadError", { reason: err instanceof Error ? err.message : t("admin.networkError") }));
+    } catch {
+      setBowLoadError(true);
+    } finally {
+      setBowLoading(false);
     }
   }, [authHeaders]);
 
@@ -836,7 +847,7 @@ export default function AdminPage() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bowRetryNonce]);
 
   const handleBowSave = useCallback(async () => {
     setBowSaving(true);
@@ -1104,32 +1115,53 @@ export default function AdminPage() {
             <p className="text-sm text-white/60 mb-4">
               {t("admin.bowRaceDescription")}
             </p>
-            {bowRace?.raceOver && bowRace.winnerEmail && (
-              <div className="mb-4 rounded-xl border border-[#C9A84C]/60 bg-[#C9A84C]/10 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-[#e8c86a]" />
-                  <p className="text-sm font-semibold text-[#e8c86a]">
-                    {t("admin.raceWon", { period: bowRace.period })}
-                  </p>
-                </div>
-                <p className="mt-1 text-sm text-white/80">
-                  {t("admin.raceWonDetail", { email: bowRace.winnerEmail, target: bowRace.target.toLocaleString(), wonAt: bowRace.wonAt ? ` ${new Date(bowRace.wonAt).toLocaleString()}` : "" })}
+            {bowLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-white/40" /></div>
+            ) : bowLoadError ? (
+              <div className={`mb-4 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load the Bow Race.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — the race is safe, this panel just couldn't load its status.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setBowRetryNonce((n) => n + 1)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
               </div>
-            )}
-            {bowRace && !bowRace.raceOver && (
-              <p className="mb-4 text-sm text-white/60">
-                {t("admin.currentRacePrefix")} <span className="text-white/90 font-semibold">{bowRace.period}</span>:
-                {" "}<span className="text-white/90 font-semibold">{bowRace.totalBows.toLocaleString()}</span>
-                {" "}{t("admin.bowsSoFar")} — {t("admin.targetLabel")}{" "}
-                <span className="text-white/90 font-semibold">{bowRace.target.toLocaleString()}</span>.
-                {t("admin.noWinnerYet")}
-              </p>
-            )}
-            {!bowRace && (
-              <p className="mb-4 text-sm text-white/40">
-                {t("admin.noRaceYet")}
-              </p>
+            ) : (
+              <>
+                {bowRace?.raceOver && bowRace.winnerEmail && (
+                  <div className="mb-4 rounded-xl border border-[#C9A84C]/60 bg-[#C9A84C]/10 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-[#e8c86a]" />
+                      <p className="text-sm font-semibold text-[#e8c86a]">
+                        {t("admin.raceWon", { period: bowRace.period })}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm text-white/80">
+                      {t("admin.raceWonDetail", { email: bowRace.winnerEmail, target: bowRace.target.toLocaleString(), wonAt: bowRace.wonAt ? ` ${new Date(bowRace.wonAt).toLocaleString()}` : "" })}
+                    </p>
+                  </div>
+                )}
+                {bowRace && !bowRace.raceOver && (
+                  <p className="mb-4 text-sm text-white/60">
+                    {t("admin.currentRacePrefix")} <span className="text-white/90 font-semibold">{bowRace.period}</span>:
+                    {" "}<span className="text-white/90 font-semibold">{bowRace.totalBows.toLocaleString()}</span>
+                    {" "}{t("admin.bowsSoFar")} — {t("admin.targetLabel")}{" "}
+                    <span className="text-white/90 font-semibold">{bowRace.target.toLocaleString()}</span>.
+                    {t("admin.noWinnerYet")}
+                  </p>
+                )}
+                {!bowRace && (
+                  <p className="mb-4 text-sm text-white/40">
+                    {t("admin.noRaceYet")}
+                  </p>
+                )}
+              </>
             )}
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs text-white/40">
@@ -1180,7 +1212,7 @@ export default function AdminPage() {
             <p className="mt-4 text-[11px] text-white/30">
               {t("admin.bowRaceFooterNote")}
             </p>
-            {bowHistory.length > 0 && (
+            {!bowLoadError && bowHistory.length > 0 && (
               <div className="mt-4">
                 <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">
                   {t("admin.winHistory")}
