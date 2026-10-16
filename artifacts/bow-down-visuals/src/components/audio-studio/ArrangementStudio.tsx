@@ -581,7 +581,6 @@ export default function ArrangementStudio() {
   const { snap, play, pause, stop, seek } = useArrangementPreview(arrangement, bounces);
   const duration = Math.max(arrangementDuration(arrangement), snap.duration, 30);
   const timelineW = Math.ceil((duration + 8) * pxPerSec);
-  const selectedTrack = arrangement.tracks.find((t) => t.id === selectedTrackId) ?? null;
 
   /* Server draft restore (only fills an empty local state — local wins). */
   useEffect(() => {

@@ -11,6 +11,7 @@ import {
   arrangementDuckingParams,
   runMixExport,
   isFfmpegAvailable,
+  isAllowedStemUrl,
   type ExportStemInput,
 } from "../audioExport";
 import { duckingParamsFromSimple } from "../../routes/generate/ducking-filter";
@@ -176,6 +177,31 @@ describe("buildPanAutomationGraph", () => {
     /* left gain expression starts at 1 (constant head), right at 0 */
     expect(joined).toContain("if(lt(t,0),1,");
     expect(joined).toContain("if(lt(t,0),0,");
+  });
+});
+
+describe("isAllowedStemUrl — own storage hosts only", () => {
+  const prevSupabase = process.env["SUPABASE_URL"];
+  const prevR2 = process.env["R2_PUBLIC_URL"];
+  beforeAll(() => {
+    process.env["SUPABASE_URL"] = "https://proj.supabase.co";
+    process.env["R2_PUBLIC_URL"] = "https://media.example.com";
+  });
+  afterAll(() => {
+    if (prevSupabase === undefined) delete process.env["SUPABASE_URL"];
+    else process.env["SUPABASE_URL"] = prevSupabase;
+    if (prevR2 === undefined) delete process.env["R2_PUBLIC_URL"];
+    else process.env["R2_PUBLIC_URL"] = prevR2;
+  });
+  it("allows Supabase and R2 public hosts over https", () => {
+    expect(isAllowedStemUrl("https://proj.supabase.co/storage/v1/object/public/x.wav")).toBe(true);
+    expect(isAllowedStemUrl("https://media.example.com/audio-stems/u/x.wav")).toBe(true);
+  });
+  it("rejects arbitrary hosts, http, and lookalike subdomains", () => {
+    expect(isAllowedStemUrl("https://evil.example.com/x.wav")).toBe(false);
+    expect(isAllowedStemUrl("http://media.example.com/x.wav")).toBe(false);
+    expect(isAllowedStemUrl("https://media.example.com.evil.com/x.wav")).toBe(false);
+    expect(isAllowedStemUrl("not a url")).toBe(false);
   });
 });
 

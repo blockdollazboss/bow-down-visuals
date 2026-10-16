@@ -157,26 +157,31 @@ const MAX_STEM_BYTES = 200 * 1024 * 1024;
 const FFMPEG_TIMEOUT_MS = 10 * 60_000;
 
 /**
- * SSRF guard: only allow downloading stems from the project's own Supabase
- * storage host over HTTPS. Stems are always uploaded to that bucket, so any
- * other host is untrusted user input and must be rejected.
+ * SSRF guard: only allow downloading stems from the project's own storage
+ * hosts over HTTPS — Supabase Storage (generated stems) and the R2 public
+ * host (user uploads moved there; see lib/r2-client.ts). Any other host is
+ * untrusted user input and must be rejected. Without the R2 host here,
+ * stems a user uploads in the editor/arrangement could never export.
  */
 export function isAllowedStemUrl(url: string): boolean {
-  const base = process.env["SUPABASE_URL"];
-  if (!base) return false;
-  let allowedHost: string;
-  try {
-    allowedHost = new URL(base).host;
-  } catch {
-    return false;
+  const bases = [process.env["SUPABASE_URL"], process.env["R2_PUBLIC_URL"]];
+  const allowedHosts = new Set<string>();
+  for (const base of bases) {
+    if (!base) continue;
+    try {
+      allowedHosts.add(new URL(base).host);
+    } catch {
+      /* ignore malformed env */
+    }
   }
+  if (allowedHosts.size === 0) return false;
   let u: URL;
   try {
     u = new URL(url);
   } catch {
     return false;
   }
-  return u.protocol === "https:" && u.host === allowedHost;
+  return u.protocol === "https:" && allowedHosts.has(u.host);
 }
 
 let ffmpegAvailable: boolean | null = null;
