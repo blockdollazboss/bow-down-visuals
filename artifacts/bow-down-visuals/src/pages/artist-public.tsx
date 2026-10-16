@@ -9,6 +9,7 @@ import {
   HeroSection, ProfileActions, ProfileSections, MadeWithBadge,
 } from "@/components/artist/profile-sections";
 import TrophyShelf from "@/components/artist/TrophyShelf";
+import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import { EmbedButton } from "@/components/player/EmbedButton";
 
 /* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
@@ -203,6 +204,7 @@ export default function ArtistPublic() {
       >
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
+        <RoyalCourtSection slug={slug} />
         <LiveNowBadge slug={slug} />
         {profile.is_official && <OfficialBadge />}
         {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
