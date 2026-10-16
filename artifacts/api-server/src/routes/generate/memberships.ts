@@ -467,12 +467,17 @@ router.get("/memberships/public/:creatorUserId", publicApiLimiter, async (req, r
     res.status(400).json({ error: "Invalid creator." });
     return;
   }
-  const tiers = await db
-    .select()
-    .from(fanTiersTable)
-    .where(and(eq(fanTiersTable.user_id, creatorUserId), eq(fanTiersTable.is_active, "true")))
-    .orderBy(fanTiersTable.sort_order, fanTiersTable.created_at);
-  res.json({ creatorUserId, tiers: tiers.map(toTierJson), testMode: isCheckoutTestMode() });
+  try {
+    const tiers = await db
+      .select()
+      .from(fanTiersTable)
+      .where(and(eq(fanTiersTable.user_id, creatorUserId), eq(fanTiersTable.is_active, "true")))
+      .orderBy(fanTiersTable.sort_order, fanTiersTable.created_at);
+    res.json({ creatorUserId, tiers: tiers.map(toTierJson), testMode: isCheckoutTestMode() });
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "[memberships] public tiers load failed");
+    res.status(500).json({ error: "Couldn't load memberships. Try again." });
+  }
 });
 
 /* POST /api/memberships/checkout — start a join (or gift) checkout.
