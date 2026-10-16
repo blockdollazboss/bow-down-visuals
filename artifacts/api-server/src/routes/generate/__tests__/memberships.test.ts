@@ -116,14 +116,15 @@ describe("GPT-6 token parameter contract", () => {
 });
 
 describe("honesty contract", () => {
-  it("the route source never claims payments are live", async () => {
+  it("payments are live via verified checkout only (0132)", async () => {
     const fs = await import("node:fs");
     const src = fs.readFileSync(
       new URL("../memberships.ts", import.meta.url),
       "utf8",
     );
-    expect(src).toContain("coming soon");
-    expect(src).toContain("paymentsLive: false");
+    expect(src).toContain("paymentsLive: true");
+    /* Activation is gated on a verified paid session — never on intent. */
+    expect(src).toContain('session.payment_status !== "paid"');
     expect(src).not.toContain("stripe.charges.create");
     expect(src).not.toContain("payment_intent");
   });

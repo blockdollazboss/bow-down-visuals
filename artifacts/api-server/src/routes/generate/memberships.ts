@@ -2,8 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, fanTiersTable, fanMembersTable } from "@workspace/db";
+import { db, fanTiersTable, fanMembersTable, fanMembershipGiftsTable } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import {
+  createPaymentCheckout,
+  retrieveCheckoutSession,
+  checkoutBaseUrl,
+  isCheckoutTestMode,
+} from "../../lib/stripe-checkout";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -13,13 +19,21 @@ const router = Router();
 
 /* ─── Fan Memberships ────────────────────────────────────────────────────
    /memberships — creators launch fan clubs with paid tiers.
-   v1 honesty contract: tier setup + member tracking are real. Actual payment
-   processing is "coming soon" — members are tracked manually (or imported)
-   until Stripe billing lands. The UI and API never fake a transaction.
-   Pricing: free to set up. The site's 10% platform fee applies to future
-   payment processing (revenue share, not credits). Only the AI perk
-   suggester costs credits (1 credit, charge-before-generate, refund on
-   provider failure). */
+   Payments (0132): fans join through a TEST-mode checkout; a membership
+   turns active only after POST /memberships/verify confirms the session
+   was paid. Displayed price = charged price (the amount is computed from
+   the tier row in exactly one place — checkoutChargeCents — and verify
+   re-checks the session total against it). Manual member tracking from
+   v1 still exists for imported subscribers (fan_user_id null).
+   Trials: tiers can offer a 7-day free trial — no charge during the
+   trial; it converts only via a real paid checkout, otherwise the
+   membership reads as expired (effectiveMemberStatus).
+   Renewal: memberships are one paid period at a time (monthly/annual) —
+   there is no silent auto-charge; when a period ends the membership
+   reads expired and the fan renews with a fresh checkout.
+   Pricing: free to set up. The site's 10% platform fee comes out of the
+   creator's cut. Only the AI perk suggester costs credits (1 credit,
+   charge-before-generate, refund on provider failure). */
 
 /* 1 credit per AI perk suggestion — env-overridable without a deploy. */
 export const MEMBERSHIPS_AI_CREDITS = Number(process.env["MEMBERSHIPS_AI_CREDIT_COST"]) || 100;
@@ -36,6 +50,9 @@ const tierCreateSchema = z.object({
   priceDollars: z.number().min(0).max(999.99),
   description: z.string().trim().max(500).optional().default(""),
   perks: z.array(perkSchema).max(20).optional().default([]),
+  /* Creator toggles (0132): 7-day free trial + annual discount %. */
+  trialEnabled: z.boolean().optional().default(false),
+  annualDiscountPct: z.number().int().min(0).max(90).optional().default(0),
 });
 
 const tierUpdateSchema = z.object({
@@ -44,6 +61,8 @@ const tierUpdateSchema = z.object({
   description: z.string().trim().max(500).optional(),
   perks: z.array(perkSchema).max(20).optional(),
   is_active: z.enum(["true", "false"]).optional(),
+  trialEnabled: z.boolean().optional(),
+  annualDiscountPct: z.number().int().min(0).max(90).optional(),
 });
 
 const memberAddSchema = z.object({
@@ -53,7 +72,24 @@ const memberAddSchema = z.object({
 });
 
 const memberStatusSchema = z.object({
-  status: z.enum(["active", "past_due", "canceled"]),
+  status: z.enum(["trialing", "active", "past_due", "canceled", "expired"]),
+});
+
+const billingPeriodSchema = z.enum(["monthly", "annual"]);
+
+const checkoutSchema = z.object({
+  tierId: z.string().uuid("tierId must be a UUID."),
+  billingPeriod: billingPeriodSchema.optional().default("monthly"),
+  /* Gifted membership: the caller pays, this user becomes the member. */
+  recipientUserId: z.string().uuid("recipientUserId must be a UUID.").optional(),
+});
+
+const verifySchema = z.object({
+  sessionId: z.string().min(1).max(200),
+});
+
+const joinTrialSchema = z.object({
+  tierId: z.string().uuid("tierId must be a UUID."),
 });
 
 const perkSuggestSchema = z.object({
@@ -82,16 +118,105 @@ export function netAfterFee(cents: number): number {
   return Math.round(cents * (100 - MEMBERSHIPS_PLATFORM_FEE_PCT) / 100);
 }
 
+/* ── Billing math (single source of truth for displayed = charged) ────── */
+
+/** Free-trial length on tiers that enable it. No charge during the trial. */
+export const MEMBERSHIP_TRIAL_DAYS = 7;
+
+/** Annual charge for a tier: 12 monthly payments minus the creator's
+    discount %. Used for BOTH the fan-facing display and the checkout
+    amount, so the two can never drift apart. */
+export function annualPriceCents(monthlyCents: number, discountPct: number): number {
+  const pct = Math.max(0, Math.min(90, Math.round(discountPct)));
+  return Math.round((monthlyCents * 12 * (100 - pct)) / 100);
+}
+
+/** The exact amount a join charges, from the tier row alone. */
+export function checkoutChargeCents(
+  tier: { price_cents: number; annual_discount_pct: number },
+  billingPeriod: "monthly" | "annual",
+): number {
+  return billingPeriod === "annual"
+    ? annualPriceCents(tier.price_cents, tier.annual_discount_pct)
+    : tier.price_cents;
+}
+
+export function membershipPeriodEnd(billingPeriod: "monthly" | "annual", from: Date): Date {
+  const d = new Date(from);
+  if (billingPeriod === "annual") d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
+  return d;
+}
+
+export function trialEndDate(from: Date): Date {
+  const d = new Date(from);
+  d.setDate(d.getDate() + MEMBERSHIP_TRIAL_DAYS);
+  return d;
+}
+
+type MemberLike = {
+  status: string;
+  fan_user_id: string | null;
+  trial_ends_at: Date | null;
+  current_period_end: Date | null;
+};
+
+/** The status a member is REALLY in right now: an unconverted trial past
+    its end is expired, and a paid period that ran out without a renewal
+    checkout is expired too. Stored rows are never silently rewritten —
+    this is computed at read time so every surface agrees. */
+export function effectiveMemberStatus(m: MemberLike, now: Date = new Date()): string {
+  if (m.status === "trialing" && m.trial_ends_at && new Date(m.trial_ends_at) <= now) {
+    return "expired";
+  }
+  if (
+    m.status === "active" &&
+    m.fan_user_id &&
+    m.current_period_end &&
+    new Date(m.current_period_end) <= now
+  ) {
+    return "expired";
+  }
+  return m.status;
+}
+
 function toTierJson(t: typeof fanTiersTable.$inferSelect) {
   return {
     id: t.id,
+    creatorUserId: t.user_id,
     name: t.name,
     priceDollars: centsToDollars(t.price_cents),
     priceCents: t.price_cents,
     description: t.description ?? "",
     perks: t.perks ?? [],
     isActive: t.is_active === "true",
+    trialEnabled: t.trial_enabled,
+    annualDiscountPct: t.annual_discount_pct,
+    annualPriceCents: annualPriceCents(t.price_cents, t.annual_discount_pct),
+    annualPriceDollars: centsToDollars(annualPriceCents(t.price_cents, t.annual_discount_pct)),
     createdAt: t.created_at,
+  };
+}
+
+function toMemberJson(m: typeof fanMembersTable.$inferSelect, tierName?: string) {
+  return {
+    id: m.id,
+    tierId: m.tier_id,
+    tierName: tierName ?? null,
+    creatorUserId: m.user_id,
+    fanLabel: m.fan_label,
+    fanUserId: m.fan_user_id,
+    status: effectiveMemberStatus(m),
+    storedStatus: m.status,
+    priceCents: m.price_cents,
+    priceDollars: centsToDollars(m.price_cents),
+    billingPeriod: m.billing_period,
+    currentPeriodStart: m.current_period_start,
+    currentPeriodEnd: m.current_period_end,
+    trialEndsAt: m.trial_ends_at,
+    isGift: m.is_gift,
+    giftedByUserId: m.gifted_by_user_id,
+    joinedAt: m.joined_at,
   };
 }
 
@@ -115,7 +240,7 @@ router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res
     });
     return;
   }
-  const { name, priceDollars, description, perks } = parsed.data;
+  const { name, priceDollars, description, perks, trialEnabled, annualDiscountPct } = parsed.data;
   const [tier] = await db
     .insert(fanTiersTable)
     .values({
@@ -124,6 +249,8 @@ router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res
       price_cents: dollarsToCents(priceDollars),
       description,
       perks,
+      trial_enabled: trialEnabled,
+      annual_discount_pct: annualDiscountPct,
     })
     .returning();
   res.status(201).json({ tier: toTierJson(tier!) });
@@ -139,13 +266,15 @@ router.put("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, 
     });
     return;
   }
-  const { name, priceDollars, description, perks, is_active } = parsed.data;
+  const { name, priceDollars, description, perks, is_active, trialEnabled, annualDiscountPct } = parsed.data;
   const updates: Partial<typeof fanTiersTable.$inferInsert> = { updated_at: new Date() };
   if (name !== undefined) updates.name = name;
   if (priceDollars !== undefined) updates.price_cents = dollarsToCents(priceDollars);
   if (description !== undefined) updates.description = description;
   if (perks !== undefined) updates.perks = perks;
   if (is_active !== undefined) updates.is_active = is_active;
+  if (trialEnabled !== undefined) updates.trial_enabled = trialEnabled;
+  if (annualDiscountPct !== undefined) updates.annual_discount_pct = annualDiscountPct;
   const [tier] = await db
     .update(fanTiersTable)
     .set(updates)
@@ -181,8 +310,8 @@ router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, 
     .select()
     .from(fanMembersTable)
     .where(eq(fanMembersTable.user_id, req.userId!));
-  const active = members.filter((m) => m.status === "active");
-  const canceled = members.filter((m) => m.status === "canceled");
+  const active = members.filter((m) => effectiveMemberStatus(m) === "active");
+  const canceled = members.filter((m) => effectiveMemberStatus(m) === "canceled");
   const mrrCents = active.reduce((sum, m) => sum + m.price_cents, 0);
   const total = active.length + canceled.length;
   const churnPct = total === 0 ? 0 : Math.round((canceled.length / total) * 100);
@@ -194,7 +323,7 @@ router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, 
     .where(eq(fanTiersTable.user_id, req.userId!))
     .orderBy(fanTiersTable.sort_order);
   const byTier = tiers.map((t) => {
-    const tm = members.filter((m) => m.tier_id === t.id && m.status === "active");
+    const tm = members.filter((m) => m.tier_id === t.id && effectiveMemberStatus(m) === "active");
     return {
       tierId: t.id,
       name: t.name,
@@ -205,14 +334,17 @@ router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, 
 
   res.json({
     activeMembers: active.length,
-    pastDueMembers: members.filter((m) => m.status === "past_due").length,
+    pastDueMembers: members.filter((m) => effectiveMemberStatus(m) === "past_due").length,
+    trialingMembers: members.filter((m) => effectiveMemberStatus(m) === "trialing").length,
+    expiredMembers: members.filter((m) => effectiveMemberStatus(m) === "expired").length,
     canceledMembers: canceled.length,
     mrrCents,
     mrrDollars: centsToDollars(mrrCents),
     netMrrCents: netAfterFee(mrrCents),
     churnPct,
     byTier,
-    paymentsLive: false, /* v1 honesty: tracking only until Stripe billing ships */
+    paymentsLive: true, /* 0132: TEST-mode checkout — joins verify as paid before activating */
+    testMode: isCheckoutTestMode(),
   });
 });
 
@@ -230,22 +362,13 @@ router.get("/memberships/members", publicApiLimiter, requireAuth, async (req, re
     .where(eq(fanTiersTable.user_id, req.userId!));
   const tierNames = new Map(tiers.map((t) => [t.id, t.name]));
   res.json({
-    members: members.map((m) => ({
-      id: m.id,
-      tierId: m.tier_id,
-      tierName: tierNames.get(m.tier_id) ?? "Unknown tier",
-      fanLabel: m.fan_label,
-      status: m.status,
-      priceCents: m.price_cents,
-      priceDollars: centsToDollars(m.price_cents),
-      joinedAt: m.joined_at,
-    })),
+    members: members.map((m) => toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier")),
   });
 });
 
 /* POST /api/memberships/members — add a member manually (free).
-   Manual tracking until payment processing ships; the UI labels this
-   honestly ("add manually — payments coming soon"). */
+   Manual tracking for imported/off-platform subscribers; the UI labels
+   these honestly (no payment was taken here). */
 router.post("/memberships/members", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = memberAddSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -317,6 +440,364 @@ router.delete("/memberships/members/:id", publicApiLimiter, requireAuth, async (
     return;
   }
   res.json({ deleted: true });
+});
+
+/* ── Payments: join / gift / trial / verify (TEST-mode checkout) ──────── */
+
+async function findTierById(tierId: string) {
+  const rows = await db.select().from(fanTiersTable).where(eq(fanTiersTable.id, tierId)).limit(1);
+  return rows[0] ?? null;
+}
+
+async function findMemberForFan(tierId: string, fanUserId: string) {
+  const rows = await db
+    .select()
+    .from(fanMembersTable)
+    .where(and(eq(fanMembersTable.tier_id, tierId), eq(fanMembersTable.fan_user_id, fanUserId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/* GET /api/memberships/public/:creatorUserId — a creator's joinable tiers
+   (public: fans land here from the creator's shared join link). */
+router.get("/memberships/public/:creatorUserId", publicApiLimiter, async (req, res) => {
+  const creatorUserId = param(req.params.creatorUserId);
+  if (!/^[0-9a-f-]{36}$/i.test(creatorUserId)) {
+    res.status(400).json({ error: "Invalid creator." });
+    return;
+  }
+  const tiers = await db
+    .select()
+    .from(fanTiersTable)
+    .where(and(eq(fanTiersTable.user_id, creatorUserId), eq(fanTiersTable.is_active, "true")))
+    .orderBy(fanTiersTable.sort_order, fanTiersTable.created_at);
+  res.json({ creatorUserId, tiers: tiers.map(toTierJson), testMode: isCheckoutTestMode() });
+});
+
+/* POST /api/memberships/checkout — start a join (or gift) checkout.
+   The charged amount comes from checkoutChargeCents(tier, period) — the
+   same number the tier DTO displays as the price. Free tiers skip
+   checkout entirely and activate immediately (no payment to verify). */
+router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = checkoutSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid checkout.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { tierId, billingPeriod } = parsed.data;
+  const recipientUserId = parsed.data.recipientUserId ?? req.userId!;
+  const isGift = recipientUserId !== req.userId;
+
+  const tier = await findTierById(tierId);
+  if (!tier || tier.is_active !== "true") {
+    res.status(404).json({ error: "Tier not found." });
+    return;
+  }
+  if (recipientUserId === tier.user_id) {
+    res.status(400).json({ error: "A creator can't join their own fan club." });
+    return;
+  }
+  const existing = await findMemberForFan(tierId, recipientUserId);
+  if (existing && effectiveMemberStatus(existing) === "active") {
+    res.status(409).json({
+      error: "ALREADY_MEMBER",
+      message: isGift ? "That fan is already an active member of this tier." : "You're already an active member of this tier.",
+    });
+    return;
+  }
+
+  const amountCents = checkoutChargeCents(tier, billingPeriod);
+  const now = new Date();
+
+  /* Free tier: nothing to charge — activate honestly with a real period. */
+  if (amountCents <= 0) {
+    const values = {
+      user_id: tier.user_id,
+      tier_id: tierId,
+      fan_label: req.userEmail ?? `fan:${recipientUserId}`,
+      fan_user_id: recipientUserId,
+      status: "active" as const,
+      price_cents: 0,
+      billing_period: billingPeriod,
+      current_period_start: now,
+      current_period_end: membershipPeriodEnd(billingPeriod, now),
+      trial_ends_at: null,
+      is_gift: isGift,
+      gifted_by_user_id: isGift ? req.userId! : null,
+      updated_at: now,
+    };
+    let member: typeof fanMembersTable.$inferSelect;
+    if (existing) {
+      const [updated] = await db.update(fanMembersTable).set(values).where(eq(fanMembersTable.id, existing.id)).returning();
+      member = updated!;
+    } else {
+      const [inserted] = await db.insert(fanMembersTable).values(values).returning();
+      member = inserted!;
+    }
+    res.status(201).json({ free: true, membership: toMemberJson(member, tier.name) });
+    return;
+  }
+
+  try {
+    const baseUrl = checkoutBaseUrl(req);
+    const session = await createPaymentCheckout({
+      amountCents,
+      productName: `${tier.name} membership — ${billingPeriod}`,
+      description: isGift ? "Gifted fan membership" : "Fan membership",
+      successUrl: `${baseUrl}/memberships?creator=${tier.user_id}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/memberships?creator=${tier.user_id}`,
+      metadata: {
+        purchase_kind: "membership",
+        tier_id: tierId,
+        creator_user_id: tier.user_id,
+        fan_user_id: recipientUserId,
+        purchaser_user_id: req.userId!,
+        billing_period: billingPeriod,
+        amount_cents: String(amountCents),
+        is_gift: isGift ? "true" : "false",
+      },
+    });
+    if (isGift) {
+      await db.insert(fanMembershipGiftsTable).values({
+        tier_id: tierId,
+        creator_user_id: tier.user_id,
+        purchaser_user_id: req.userId!,
+        recipient_user_id: recipientUserId,
+        stripe_session_id: session.sessionId,
+        amount_cents: amountCents,
+        billing_period: billingPeriod,
+        status: "pending_payment",
+      });
+    }
+    logger.info(
+      { tierId, fanUserId: recipientUserId, amountCents, billingPeriod, isGift, sessionId: session.sessionId },
+      "[memberships] checkout session created",
+    );
+    res.json({
+      url: session.url,
+      sessionId: session.sessionId,
+      amountCents,
+      amountDollars: centsToDollars(amountCents),
+      billingPeriod,
+      isGift,
+      testMode: isCheckoutTestMode(),
+    });
+  } catch (err) {
+    logger.error({ err, tierId }, "[memberships] checkout failed");
+    res.status(500).json({ error: "Could not start checkout. Try again in a moment." });
+  }
+});
+
+/* POST /api/memberships/verify — the ONLY path from paid checkout to an
+   active membership. Idempotent on the session id (unique index +
+   read-back), and the session total must match the tier's computed
+   charge for the period — a tampered or stale session never activates. */
+router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = verifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const meta = session.metadata ?? {};
+  if (meta["purchase_kind"] !== "membership" || !meta["tier_id"] || !meta["fan_user_id"]) {
+    res.status(400).json({ error: "This session isn't a membership purchase." });
+    return;
+  }
+  if (meta["purchaser_user_id"] !== req.userId) {
+    res.status(403).json({ error: "This purchase doesn't belong to you." });
+    return;
+  }
+  const tierId = meta["tier_id"];
+  const fanUserId = meta["fan_user_id"];
+  const billingPeriod = meta["billing_period"] === "annual" ? "annual" : "monthly";
+  const isGift = meta["is_gift"] === "true";
+
+  const tier = await findTierById(tierId);
+  if (!tier) {
+    res.status(400).json({ error: "The tier for this purchase no longer exists." });
+    return;
+  }
+  const amountCents = session.amount_total ?? 0;
+  const expectedCents = checkoutChargeCents(tier, billingPeriod);
+  if (amountCents !== expectedCents) {
+    logger.error({ sessionId, amountCents, expectedCents }, "[memberships] verify: amount mismatch");
+    res.status(400).json({ error: "The paid amount doesn't match this tier's price." });
+    return;
+  }
+
+  try {
+    /* Idempotency: this session already produced a membership. */
+    const bySession = await db
+      .select()
+      .from(fanMembersTable)
+      .where(eq(fanMembersTable.stripe_session_id, sessionId))
+      .limit(1);
+    if (bySession[0]) {
+      res.json({ success: true, duplicate: true, membership: toMemberJson(bySession[0], tier.name) });
+      return;
+    }
+
+    const now = new Date();
+    const values = {
+      user_id: tier.user_id,
+      tier_id: tierId,
+      fan_label: session.customer_details?.email ?? req.userEmail ?? `fan:${fanUserId}`,
+      fan_user_id: fanUserId,
+      status: "active" as const,
+      price_cents: amountCents,
+      billing_period: billingPeriod,
+      current_period_start: now,
+      current_period_end: membershipPeriodEnd(billingPeriod, now),
+      trial_ends_at: null,
+      stripe_session_id: sessionId,
+      external_ref: sessionId,
+      is_gift: isGift,
+      gifted_by_user_id: isGift ? req.userId! : null,
+      canceled_at: null,
+      updated_at: now,
+    };
+    /* Trial conversion (or renewal of an expired/canceled seat) reuses
+       the fan's existing row for the tier instead of duplicating it. */
+    const existing = await findMemberForFan(tierId, fanUserId);
+    let member: typeof fanMembersTable.$inferSelect;
+    if (existing) {
+      const [updated] = await db.update(fanMembersTable).set(values).where(eq(fanMembersTable.id, existing.id)).returning();
+      member = updated!;
+    } else {
+      const [inserted] = await db.insert(fanMembersTable).values(values).returning();
+      member = inserted!;
+    }
+    if (isGift) {
+      await db
+        .update(fanMembershipGiftsTable)
+        .set({ status: "active", member_id: member.id, amount_cents: amountCents, updated_at: now })
+        .where(eq(fanMembershipGiftsTable.stripe_session_id, sessionId));
+    }
+    logger.info({ sessionId, memberId: member.id, amountCents }, "[memberships] membership activated");
+    res.json({ success: true, duplicate: false, membership: toMemberJson(member, tier.name) });
+  } catch (err) {
+    logger.error({ err, sessionId }, "[memberships] verify failed");
+    res.status(500).json({ error: "Payment confirmed but the membership couldn't be recorded. Contact support." });
+  }
+});
+
+/* POST /api/memberships/join-trial — start the 7-day free trial.
+   No charge, no checkout: the membership is 'trialing' until trial end.
+   It converts ONLY through a paid checkout + verify; otherwise it reads
+   as expired. One trial per fan per tier, ever. */
+router.post("/memberships/join-trial", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = joinTrialSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "tierId is required" });
+    return;
+  }
+  const tier = await findTierById(parsed.data.tierId);
+  if (!tier || tier.is_active !== "true") {
+    res.status(404).json({ error: "Tier not found." });
+    return;
+  }
+  if (!tier.trial_enabled || tier.price_cents <= 0) {
+    res.status(400).json({ error: "TRIAL_NOT_AVAILABLE", message: "This tier doesn't offer a free trial." });
+    return;
+  }
+  if (tier.user_id === req.userId) {
+    res.status(400).json({ error: "A creator can't trial their own fan club." });
+    return;
+  }
+  const existing = await findMemberForFan(tier.id, req.userId!);
+  if (existing) {
+    res.status(409).json({
+      error: "TRIAL_ALREADY_USED",
+      message: "You've already had a trial or membership on this tier — join with a paid plan to continue.",
+    });
+    return;
+  }
+  const now = new Date();
+  const ends = trialEndDate(now);
+  const [member] = await db
+    .insert(fanMembersTable)
+    .values({
+      user_id: tier.user_id,
+      tier_id: tier.id,
+      fan_label: req.userEmail ?? `fan:${req.userId!}`,
+      fan_user_id: req.userId!,
+      status: "trialing",
+      price_cents: tier.price_cents,
+      billing_period: "monthly",
+      current_period_start: now,
+      current_period_end: ends,
+      trial_ends_at: ends,
+    })
+    .returning();
+  res.status(201).json({
+    membership: toMemberJson(member!, tier.name),
+    trialDays: MEMBERSHIP_TRIAL_DAYS,
+    chargedCents: 0,
+  });
+});
+
+/* GET /api/memberships/mine — the fan's own view: memberships they hold,
+   gifts they've sent, and gifts they've received — all honest states. */
+router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) => {
+  const me = req.userId!;
+  const members = await db
+    .select()
+    .from(fanMembersTable)
+    .where(eq(fanMembersTable.fan_user_id, me))
+    .orderBy(desc(fanMembersTable.joined_at))
+    .limit(200);
+  const tierIds = [...new Set(members.map((m) => m.tier_id))];
+  const tierNames = new Map<string, string>();
+  for (const id of tierIds) {
+    const t = await findTierById(id);
+    if (t) tierNames.set(id, t.name);
+  }
+  const giftsSent = await db
+    .select()
+    .from(fanMembershipGiftsTable)
+    .where(eq(fanMembershipGiftsTable.purchaser_user_id, me))
+    .orderBy(desc(fanMembershipGiftsTable.created_at))
+    .limit(100);
+  const giftsReceived = await db
+    .select()
+    .from(fanMembershipGiftsTable)
+    .where(eq(fanMembershipGiftsTable.recipient_user_id, me))
+    .orderBy(desc(fanMembershipGiftsTable.created_at))
+    .limit(100);
+  const giftJson = (g: typeof fanMembershipGiftsTable.$inferSelect) => ({
+    id: g.id,
+    tierId: g.tier_id,
+    creatorUserId: g.creator_user_id,
+    purchaserUserId: g.purchaser_user_id,
+    recipientUserId: g.recipient_user_id,
+    memberId: g.member_id,
+    amountCents: g.amount_cents,
+    amountDollars: centsToDollars(g.amount_cents),
+    billingPeriod: g.billing_period,
+    status: g.status,
+    createdAt: g.created_at,
+  });
+  res.json({
+    memberships: members.map((m) => toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier")),
+    giftsSent: giftsSent.map(giftJson),
+    giftsReceived: giftsReceived.map(giftJson),
+  });
 });
 
 /* POST /api/memberships/ai-perks { niche, audienceSize, tierCount }
