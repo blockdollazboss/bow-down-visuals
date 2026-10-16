@@ -323,7 +323,7 @@ export function MysteryCrate() {
               ) : loadError ? (
                 <div className="w-56 h-56 mx-auto rounded-2xl border-4 border-[#c9a84c]/30 flex flex-col items-center justify-center gap-3 p-8">
                   <p className="text-sm text-muted-foreground">
-                    Couldn't load the Mystery Crate. Check your connection and try again.
+                    Couldn't load the Mystery Crate. Something went wrong on our end — try again.
                   </p>
                   <Button
                     onClick={() => loadStatus()}
