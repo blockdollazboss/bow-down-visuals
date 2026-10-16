@@ -740,7 +740,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               {/* AI rewrites */}
               <div className="space-y-2">
-                <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">AI rewrites — ready to use</p>
+                <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Rewrites — ready to use</p>
                 <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">

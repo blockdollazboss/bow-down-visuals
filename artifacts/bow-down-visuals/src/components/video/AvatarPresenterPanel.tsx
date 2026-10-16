@@ -79,7 +79,7 @@ export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelPr
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-black text-white uppercase tracking-wider">
-            {t("avatarPresenter.title", { defaultValue: "AI Avatar Presenter" })}
+            {t("avatarPresenter.title", { defaultValue: "Avatar Presenter" })}
           </h3>
           <p className="text-xs text-white/40 mt-0.5">
             {t("avatarPresenter.subtitle", { defaultValue: "A talking-head host that presents your video." })}

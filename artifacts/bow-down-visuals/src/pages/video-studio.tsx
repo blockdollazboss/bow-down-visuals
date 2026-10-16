@@ -97,7 +97,7 @@ export default function VideoStudio() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
-  usePageTitle("AI Video Studio", "Generate cinematic videos with camera controls");
+  usePageTitle("Video Studio", "Generate cinematic videos with camera controls");
 
   const [mode, setMode] = useState<"text" | "image">("text");
   const [prompt, setPrompt] = useState("");
@@ -235,7 +235,7 @@ export default function VideoStudio() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
               <Video className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">AI Video Studio</MarketingBadge>
+            <MarketingBadge variant="muted">Video Studio</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
             Create Cinematic Videos

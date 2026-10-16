@@ -2659,7 +2659,7 @@ function ReleasePlanTab() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         overrideCost: RELEASE_PLAN_CREDIT_COST, // matches backend RELEASE_PLAN_CREDITS (200)
-        overrideFeature: "Release Checklist AI",
+        overrideFeature: "Release Checklist",
         body: JSON.stringify({
           releaseType,
           title: finalTitle,

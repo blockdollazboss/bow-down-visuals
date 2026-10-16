@@ -369,7 +369,7 @@ export function Composer({
             <ShoppingBag className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">link your drop</span>
           </button>
-          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="AI writes it for you (1 Visual Buc)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (1 Visual Buc)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>

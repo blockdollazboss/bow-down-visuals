@@ -238,7 +238,7 @@ export function BgStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, provider, ratio }),
         overrideCost: BACKDROP_COST,
-        overrideFeature: "AI Photo Backdrop (price TBD)",
+        overrideFeature: "Photo Backdrop (price TBD)",
       });
       if (!res) { setGenerating(false); return; } // user cancelled the confirm
       const data = await res.json();

@@ -114,7 +114,7 @@ export function HeadshotStudio() {
           referenceImageUrl: referenceUrl.trim() || null,
         }),
         overrideCost: HEADSHOT_COST,
-        overrideFeature: t("headshotStudio.featureName", { defaultValue: "AI Headshot" }) as string,
+        overrideFeature: t("headshotStudio.featureName", { defaultValue: "Headshot" }) as string,
       });
       if (!res) { setGenerating(false); return; } // user cancelled the credit confirmation
       const data = (await res.json()) as GenerateResponse;
@@ -146,7 +146,7 @@ export function HeadshotStudio() {
         </p>
         <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
           <span className={isLight ? "gold-foil" : "bg-gradient-to-r from-[#d4af37] via-[#f7e9b8] to-[#d4af37] bg-clip-text text-transparent"}>
-            {t("headshotStudio.title", { defaultValue: "AI Headshots" })}
+            {t("headshotStudio.title", { defaultValue: "Headshots" })}
           </span>
         </h2>
         <p className="mt-2 text-sm text-white/45 max-w-md mx-auto">

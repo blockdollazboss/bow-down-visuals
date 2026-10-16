@@ -433,7 +433,7 @@ export default function LightningSetup({
               {generating ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> The designer is cooking…</>
               ) : (
-                <><Wand2 className="h-4 w-4" /> Design my page with AI — 400 Visual Bucs</>
+                <><Wand2 className="h-4 w-4" /> Design my page — 400 Visual Bucs</>
               )}
             </button>
           </div>
