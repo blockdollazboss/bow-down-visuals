@@ -3,6 +3,12 @@ import { KeyRound, Radio, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { reachApi, type SavedDestination } from "@/lib/reach-api";
 import { apiJson } from "@/lib/social-api";
+import {
+  liveStreamDestinations,
+  savedDestinationsFromPayload,
+  savedDestinationsOrEmpty,
+  type LiveStreamDestination,
+} from "@/lib/destination-keys";
 
 /* ── Multistream destinations (Stack 9 #1) ──────────────────────────────
    Stream keys are WRITE-ONLY here: the form accepts a key, the list
@@ -15,7 +21,7 @@ const PLATFORM_SUGGESTIONS = ["youtube", "twitch", "facebook", "tiktok", "kick",
 
 interface StreamDtoLite {
   id: string;
-  destinations?: Array<{ platform: string; label: string; status: string; error_reason?: string | null; has_key?: boolean }>;
+  destinations?: LiveStreamDestination[];
 }
 
 export default function DestinationKeysPanel() {
@@ -35,8 +41,16 @@ export default function DestinationKeysPanel() {
         reachApi.listDestinations(getAccessToken),
         apiJson<{ live_stream: StreamDtoLite | null }>(getAccessToken, "/api/live-streams/status").catch(() => ({ live_stream: null })),
       ]);
-      setSaved(d.destinations);
-      setLiveStream(status.live_stream);
+      const parsedDestinations = savedDestinationsFromPayload(d);
+      setLiveStream(
+        (status as { live_stream?: StreamDtoLite | null } | null)?.live_stream ?? null,
+      );
+      if (!parsedDestinations) {
+        setSaved([]);
+        setLoadError("Your destinations couldn't load. Try again in a moment.");
+        return;
+      }
+      setSaved(parsedDestinations);
       setLoadError(null);
     } catch {
       setLoadError("Your destinations couldn't load. Try again in a moment.");
@@ -47,7 +61,10 @@ export default function DestinationKeysPanel() {
     void load();
   }, [load]);
 
-  const destinations = (liveStream?.destinations ?? []).filter((d) => d.platform !== "site");
+  const savedDestinations = savedDestinationsOrEmpty(saved);
+  const destinations = liveStreamDestinations(liveStream?.destinations).filter(
+    (d) => d.platform !== "site",
+  );
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 pb-10" data-testid="destination-keys-panel">
@@ -61,9 +78,9 @@ export default function DestinationKeysPanel() {
         </p>
         {loadError && <p className="mt-3 text-sm text-red-300">{loadError}</p>}
 
-        {saved.length > 0 && (
+        {savedDestinations.length > 0 && (
           <ul className="mt-4 space-y-2">
-            {saved.map((d) => {
+            {savedDestinations.map((d) => {
               const live = destinations.find((x) => x.platform === d.platform);
               return (
                 <li key={d.platform} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-sm">
