@@ -101,6 +101,15 @@ const tipPages = new Map<string, TipPageSettings>();
 const tipPagesByHandle = new Map<string, string>(); // handle -> userId
 const tipIntents = new Map<string, TipIntent>();
 
+/** Pending tip-jar intents for one creator (Stack 8 #5 earnings view).
+    Intents are pending_payment by design — no real charge exists — so
+    callers must present these as pending, never as received earnings. */
+export function tipJarPendingForUser(userId: string): { totalCents: number; count: number } {
+  const mine = [...tipIntents.values()].filter((t) => t.pageUserId === userId);
+  const { total, count } = sumTipIntents(mine);
+  return { totalCents: Math.round(total * 100), count };
+}
+
 export function __resetTipJarStores() {
   tipPages.clear();
   tipPagesByHandle.clear();

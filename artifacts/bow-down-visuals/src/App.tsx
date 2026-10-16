@@ -187,6 +187,7 @@ const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+const Earnings = lazyWithRetry(() => import("@/pages/earnings"));
 /* ── Phase 2: Academy / Go Live de-hosted pages ── */
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
@@ -560,6 +561,7 @@ function AppShell() {
           <Route path="/contests"><Contests /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/my-shop"><MyShop /></Route>
+          <Route path="/earnings"><Earnings /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
