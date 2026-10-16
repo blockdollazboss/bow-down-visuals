@@ -433,8 +433,15 @@ export class BackgroundChanger {
     // studio reads segmentationAvailable / engineError /
     // getEngineKind() after start() resolves and tells the creator
     // plainly. _selectEngine never throws.
+    //
+    // Raw sessions (mode "none") skip the engine ENTIRELY (Lane F
+    // audit, Flag E-1): no ~37 MB download, no inference CPU for a
+    // matte that is never drawn. The engine loads lazily when the
+    // first backdrop mode is picked (see setMode).
     this._engineError = null;
-    await this._selectEngine();
+    if (this.mode !== "none") {
+      await this._selectEngine();
+    }
     await this._acquireCamera(this.deviceId);
     if (this.config.image) await this.setImage(this.config.image);
 
@@ -482,6 +489,17 @@ export class BackgroundChanger {
       throw new BackgroundChangerError("UNSUPPORTED", `Unknown background mode: ${mode}`);
     }
     this.mode = mode;
+    if (mode === "none") {
+      /* Raw mode runs NO engine (Flag E-1): stand the matte engine
+         down so a mid-session switch to None stops the download-side
+         cost and the per-frame inference with it. */
+      if (this._engine) void this._teardownEngine();
+    } else if (this._running && !this._engine) {
+      /* First backdrop mode of a raw-started session: load the engine
+         now, lazily. _selectEngine never throws; the outcome lands via
+         onEngineStatus / getEngineKind() as usual. */
+      void this._selectEngine();
+    }
     return this;
   }
 
@@ -656,6 +674,7 @@ export class BackgroundChanger {
     }
     this.config.quality = quality;
     if (!this._running && !this._engine) return; // applies at next start()
+    if (this.mode === "none") return; // raw session: no engine to re-select — applies when a backdrop mode is picked
     await this._selectEngine();
   }
 
@@ -703,12 +722,19 @@ export class BackgroundChanger {
    * otherwise) with engineError set and onEngineStatus fired.
    */
   private async _selectEngine(): Promise<void> {
+    /* Raw mode never selects an engine (Flag E-1) — including a
+       selection that was already in flight when the mode flipped. */
+    if (this.mode === "none") {
+      await this._teardownEngine();
+      return;
+    }
     const quality = this.config.quality;
     let firstError: unknown = null;
     if (quality === "auto" || quality === "pro") {
       try {
         const engine = new RvmEngine();
         await engine.init();
+        if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
         await this._swapEngine(engine);
         return;
       } catch (err) {
@@ -719,6 +745,7 @@ export class BackgroundChanger {
       try {
         const engine = new MediaPipeEngine(this.config.modelSelection);
         await engine.init();
+        if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
         await this._swapEngine(engine);
         return;
       } catch (err) {
@@ -726,6 +753,37 @@ export class BackgroundChanger {
       }
     }
     await this._swapEngine(null, firstError);
+  }
+
+  /** Live mode read for async continuations (the mode can flip while an
+   *  engine init is in flight; a method read also stays honest to the
+   *  type checker, unlike a narrowed property access). */
+  private _isRawMode(): boolean {
+    return this.mode === "none";
+  }
+
+  /**
+   * Retire the live engine because the session went raw (mode "none").
+   * Unlike _swapEngine(null, err) this is NOT a failure: the error
+   * state clears and the status honestly reports "off".
+   */
+  private async _teardownEngine(): Promise<void> {
+    const old = this._engine;
+    this._engineEpoch++;
+    this._engine = null;
+    this._engineKind = "off";
+    this._busy = false;
+    this.segmenter = null;
+    this._engineError = null;
+    this._mattePost.reset();
+    if (old) {
+      try {
+        await old.dispose();
+      } catch {
+        /* already disposed */
+      }
+    }
+    if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
   }
 
   /** Adopt a new live engine (or none), retiring the previous one. */
@@ -912,6 +970,12 @@ export class BackgroundChanger {
     if (!this._running) return;
     this._rafId = requestAnimationFrame(() => this._loop());
     if (this._video.readyState < 2) return;
+    if (this.mode === "none") {
+      // Raw mode: the raw frame, never an inference (Flag E-1) — even
+      // if an engine somehow exists, it does not run here.
+      this._compositeRaw();
+      return;
+    }
     const engine = this._engine;
     if (!engine) {
       // Engine down: draw the raw frame (with the camera-effect finish)

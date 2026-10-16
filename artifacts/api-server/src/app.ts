@@ -11,6 +11,7 @@ import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { stagingGate } from "./lib/staging-gate";
 import { ogPreviewMiddleware } from "./lib/og-preview";
+import { cacheControlForFile } from "./lib/cache-policy";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
 
 const app: Express = express();
@@ -213,11 +214,11 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
   app.use(
     express.static(frontendDist, {
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith("index.html")) {
-          res.setHeader("Cache-Control", "no-cache");
-        } else if (/[.-][0-9a-f]{8,}\.[^.]+$/.test(filePath)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        }
+        /* Policy lives in lib/cache-policy.ts (index.html revalidates;
+           hashed assets AND the version-pinned /engines/* files are
+           immutable for a year). */
+        const cc = cacheControlForFile(filePath);
+        if (cc) res.setHeader("Cache-Control", cc);
       },
     })
   );

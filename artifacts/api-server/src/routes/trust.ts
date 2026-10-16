@@ -14,7 +14,7 @@ import { logger } from "../lib/logger";
 import { computeFingerprint, decodePcm16Base64, matchFingerprints } from "../lib/fingerprint";
 import { evaluateAutomod } from "../lib/automod";
 import { canGroupAction, canAssignRole, normalizeGroupRole } from "../lib/group-roles";
-import { getOrCreateStageRoom, stageRooms, STAGE_PRESENCE_CAP, STAGE_SPEAKER_CAP } from "../lib/stage-room";
+import { evictStageRoom, getOrCreateStageRoom, stageRooms, STAGE_PRESENCE_CAP, STAGE_SPEAKER_CAP } from "../lib/stage-room";
 import { liveChatHub } from "./live-chat";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { PdfBuilder, GOLD, GREY, BLACK, WHITE } from "../lib/pdf";
@@ -509,6 +509,9 @@ router.post("/stage-rooms/:id/close", requireAuth, async (req, res) => {
     const [row] = await db.update(stageRoomsTable).set({ status: "closed", closed_at: new Date(), updated_at: new Date() })
       .where(and(eq(stageRoomsTable.id, id), eq(stageRoomsTable.host_user_id, req.userId!))).returning();
     if (!row) { res.status(404).json({ error: "Room not found, or it isn't yours to close." }); return; }
+    /* The in-process presence dies with the row (Flag S-2) — before
+       this, the registry kept every closed room for the process life. */
+    evictStageRoom(id);
     res.json({ room: stageDto(row) });
   } catch (err) { logger.error({ err }, "[trust] stage close failed"); res.status(500).json({ error: "Could not close that room." }); }
 });

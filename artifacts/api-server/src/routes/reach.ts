@@ -28,6 +28,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { protectKey } from "../lib/multistream";
+import { sweepIfLarge } from "../lib/sweep-map";
 import { attemptFanOut, stopDestinationRelay } from "../lib/fanout";
 import { countViewers } from "./live-streams";
 import { liveChatHub } from "./live-chat";
@@ -596,6 +597,10 @@ router.post("/reach/streams/:id/watch", requireAuth, async (req: Request, res: R
     const last = watchLastAt.get(key);
     const delta = last === undefined ? 0 : Math.min(WATCH_MAX_DELTA_SECONDS, Math.max(0, Math.floor((now - last) / 1000)));
     watchLastAt.set(key, now);
+    /* Flag S-4: session ids are client-supplied, so keys are mintable —
+       sweep entries idle past 10 minutes (a delta from them would cap
+       at 30s anyway; past that they're indistinguishable from new). */
+    sweepIfLarge(watchLastAt, 5000, 10 * 60_000, now);
 
     let secondsWatched = 0;
     if (delta > 0) {

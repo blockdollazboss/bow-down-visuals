@@ -1,14 +1,17 @@
 /* Bow Down Visuals service worker.
  * Cache-first ONLY for hashed build assets (/assets/* — a new deploy means
- * new URLs, so cache-first can never serve stale code). Everything else
- * same-origin (public files with stable names: the extension zip, posters,
- * opengraph, llms.txt, sitemap) is network-first with a cache fallback —
- * those files are rebuilt under the SAME name, and cache-first would pin
- * returning visitors to the old copy indefinitely.
+ * new URLs, so cache-first can never serve stale code) and for the vendored
+ * engine files (/engines/* — version-pinned WASM/models under stable names,
+ * served immutable by the API; cache-first stops repeat visits from
+ * re-downloading tens of MB). Everything else same-origin (public files
+ * with stable names: the extension zip, posters, opengraph, llms.txt,
+ * sitemap) is network-first with a cache fallback — those files are
+ * rebuilt under the SAME name, and cache-first would pin returning
+ * visitors to the old copy indefinitely.
  * Network-first for API + navigations.
  * Bump CACHE_VERSION to force clients onto fresh assets after a deploy.
  */
-const CACHE_VERSION = "bdv-v3";
+const CACHE_VERSION = "bdv-v4";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
@@ -139,7 +142,9 @@ self.addEventListener("fetch", (event) => {
 
   // Hashed build assets (/assets/*): the filename carries a content hash,
   // so a cached copy can never be stale — cache-first, populate on miss.
-  if (url.pathname.startsWith("/assets/")) {
+  // Vendored engines (/engines/*) get the same treatment: version-pinned
+  // files under stable names, served with immutable cache headers.
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/engines/")) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;

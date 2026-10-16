@@ -160,14 +160,31 @@ export function __setRelayFactory(f: RelayProcessFactory): void {
 const relays = new Map<string, RelayProcess>();
 const relayKey = (streamId: string, platform: string) => `${streamId}:${platform}`;
 
+/** Process-global ceiling on concurrent fan-out relays (Lane F audit,
+ *  Flag S-3). The relays are native ffmpeg processes living OUTSIDE the
+ *  V8 heap but INSIDE the same 512 MB container (400 MB heap ceiling →
+ *  ~112 MB of headroom, shared with up to 3 own-server HLS remuxers).
+ *  A remux-only (-c copy) ffmpeg idles around 10–20 MB RSS, so the
+ *  uncapped worst case — 3 streams × 7 external destinations = 21
+ *  relays + 3 HLS remuxers — could crowd the container into an OOM.
+ *  8 relays covers real use (e.g. two creators fanning out to 4
+ *  platforms each, or one stream at the 7-destination max plus one
+ *  more) while bounding the media plane to ~11 ffmpeg processes. */
+export const MAX_CONCURRENT_RELAYS = 8;
+
+export function activeRelayCount(): number {
+  return relays.size;
+}
+
 export function startRelay(
   streamId: string,
   platform: string,
   args: string[],
   onExit: (code: number | null) => void,
-): { started: boolean } {
+): { started: boolean; capped?: boolean } {
   const k = relayKey(streamId, platform);
   if (relays.has(k)) return { started: false };
+  if (relays.size >= MAX_CONCURRENT_RELAYS) return { started: false, capped: true };
   const proc = factory(args);
   relays.set(k, proc);
   proc.onExit((code) => {

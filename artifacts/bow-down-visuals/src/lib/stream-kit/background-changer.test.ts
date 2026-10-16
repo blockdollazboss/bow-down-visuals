@@ -454,3 +454,44 @@ describe("rnnoise asset urls", () => {
     expect(urls.worklet).toBe("/engines/rnnoise/rnnoise/workletProcessor.js");
   });
 });
+
+describe("raw mode pays nothing for the engine (Lane F Flag E-1)", () => {
+  it("start() in mode 'none' loads NO engine; the first backdrop mode loads it lazily", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ quality: "standard", mode: "none" });
+    const { stream } = await changer.start();
+    expect(stream).toBeTruthy();
+    expect(scripts).toHaveLength(0); // no segmentation script was ever requested
+    expect(FakeSegmenter.instances).toHaveLength(0);
+    expect(changer.getEngineKind()).toBe("off");
+    expect(changer.segmentationAvailable).toBe(false);
+
+    // First backdrop mode of the session: the engine loads now.
+    changer.setMode("green");
+    await flush();
+    expect(scripts).toHaveLength(1);
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0]!.onload?.();
+    await flush();
+    await flush();
+    expect(changer.segmentationAvailable).toBe(true);
+    await changer.stop();
+  });
+
+  it("switching to 'none' mid-session stands the engine down — as a choice, not a failure", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ quality: "standard" });
+    const started = changer.start();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0]!.onload?.();
+    await started;
+    expect(changer.segmentationAvailable).toBe(true);
+
+    changer.setMode("none");
+    await flush();
+    expect(changer.getEngineKind()).toBe("off");
+    expect(changer.segmentationAvailable).toBe(false);
+    expect(changer.engineError).toBeNull();
+    await changer.stop();
+  });
+});

@@ -140,8 +140,16 @@ interface WsRoute {
  * A 30s heartbeat (ping / pong tracking) reaps connections the
  * network dropped without a close frame.
  */
+/** Per-message payload ceiling for every socket on the shared gateway.
+ *  Handlers cap legitimate frames at 8–16 KB (World 8 KB, stage rooms
+ *  16 KB, chat 500 chars, control acks are tiny); 64 KB leaves generous
+ *  headroom while closing the ws library's 100 MiB default, which let
+ *  a handful of guest-reachable oversized frames spike the heap before
+ *  any handler check ran (Lane F audit, Flag S-1). */
+export const WS_MAX_PAYLOAD_BYTES = 64 * 1024;
+
 export class LiveWsGateway {
-  private wss = new WebSocketServer({ noServer: true });
+  private wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD_BYTES });
   private routes: WsRoute[] = [];
   private liveness = new Map<WebSocket, boolean>();
   private heartbeat: NodeJS.Timeout | null = null;
@@ -217,6 +225,11 @@ export class LiveWsGateway {
     this.liveness.set(ws, true);
     ws.on("pong", () => this.liveness.set(ws, true));
     ws.on("close", () => this.liveness.delete(ws));
+    /* An oversized payload (maxPayload) or a reset peer surfaces as an
+       'error' event; with no listener Node would throw it in-process —
+       the exact crash the payload cap exists to prevent. The close
+       handler above does the cleanup; this just absorbs the event. */
+    ws.on("error", () => undefined);
   }
 
   /** Stop the heartbeat (tests / shutdown). */

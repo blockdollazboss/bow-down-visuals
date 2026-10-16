@@ -120,6 +120,10 @@ export function countViewers(streamId: string, now: number = Date.now()): number
 
 export function clearViewers(streamId: string): void {
   viewersByStream.delete(streamId);
+  /* The viewer-sample throttle entry dies with the stream (Flag S-4:
+     lastViewerSampleAt otherwise only ever grew, one entry per stream
+     ever run). */
+  lastViewerSampleAt.delete(streamId);
 }
 
 export function __resetViewerTracker(): void {
@@ -429,15 +433,29 @@ async function reconcileStale(row: LiveStream): Promise<LiveStream> {
   const started = row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
   if (!Number.isFinite(started) || Date.now() - started <= MAX_LIVE_MS) return row;
   clearViewers(row.id);
-  return endStreamRow(row, 0);
+  const ended = await endStreamRow(row, 0);
+  /* Ending a stream ALWAYS closes out its destinations (stops the
+     fan-out relays, marks them ended) — the stale paths used to skip
+     this, leaving relays running against a dead stream (Flag S-3). */
+  await closeOutDestinations(row.id).catch(() => undefined);
+  return ended;
 }
 
 async function sweepStaleLive(): Promise<void> {
   const cutoff = new Date(Date.now() - MAX_LIVE_MS);
+  const stale = await db
+    .select({ id: liveStreamsTable.id })
+    .from(liveStreamsTable)
+    .where(and(eq(liveStreamsTable.status, "live"), lt(liveStreamsTable.started_at, cutoff)));
+  if (stale.length === 0) return;
   await db
     .update(liveStreamsTable)
     .set({ status: "ended", ended_at: new Date(), viewer_count: 0, updated_at: new Date() })
     .where(and(eq(liveStreamsTable.status, "live"), lt(liveStreamsTable.started_at, cutoff)));
+  for (const s of stale) {
+    clearViewers(s.id);
+    await closeOutDestinations(s.id).catch(() => undefined);
+  }
 }
 
 /* ── VOD registration (shared by the /vod endpoint + own-server finalize) ──
@@ -520,6 +538,11 @@ async function handleOwnServerStall(streamId: string, _reason: StallReason): Pro
     const finalCount = countViewers(row.id);
     await endStreamRow(row, finalCount).catch(() => undefined);
     clearViewers(row.id);
+    /* A stalled stream's fan-out relays stop here too — before this,
+       only the manual /end route closed destinations out, so a relay
+       could outlive its stream until the session files aged out
+       (Flag S-3). */
+    await closeOutDestinations(row.id).catch(() => undefined);
   }
   if (row.provider === "own-server") {
     await finalizeOwnServerStream(row);

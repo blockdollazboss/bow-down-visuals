@@ -82,3 +82,29 @@ describe("StageRoom", () => {
     expect(got?.body).toBe("hello stage");
   });
 });
+
+describe("stage room registry eviction (Flag S-2)", () => {
+  it("the last peer leaving evicts the room from the registry", async () => {
+    const { evictStageRoom, getOrCreateStageRoom, stageRooms } = await import("../stage-room");
+    const room = getOrCreateStageRoom(new RoomHub(), "evict-room", "host-user");
+    expect(stageRooms.has("evict-room")).toBe(true);
+    const s = new FakeSocket();
+    room.attach(asSock(s), { userId: "host-user", displayName: "Host" });
+    room.detach(asSock(s));
+    expect(stageRooms.has("evict-room")).toBe(false);
+    expect(evictStageRoom("evict-room")).toBe(false); // already gone
+  });
+
+  it("evictStageRoom (REST close path) detaches all peers and drops the entry", async () => {
+    const { evictStageRoom, getOrCreateStageRoom, stageRooms } = await import("../stage-room");
+    const room = getOrCreateStageRoom(new RoomHub(), "close-room", "host-user");
+    const a = new FakeSocket();
+    const b = new FakeSocket();
+    room.attach(asSock(a), { userId: "host-user", displayName: "Host" });
+    room.attach(asSock(b), { userId: "fan", displayName: "Fan" });
+    expect(room.size()).toBe(2);
+    expect(evictStageRoom("close-room")).toBe(true);
+    expect(room.size()).toBe(0);
+    expect(stageRooms.has("close-room")).toBe(false);
+  });
+});

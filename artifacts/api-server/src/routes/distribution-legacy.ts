@@ -112,8 +112,15 @@ router.get("/distribution/releases/:id/landing-content", requireAuth, async (req
 interface PendingSpotify { userId: string; expiresAt: number; returnSlug: string | null }
 const pendingSpotify = new Map<string, PendingSpotify>();
 function mintState(userId: string, returnSlug: string | null): string {
+  /* Flag S-4: expired states used to sit in the map until a callback
+     consumed them — abandoned OAuth flows accumulated forever. Sweep
+     the dead ones on each mint (the map is small; cost is trivial). */
+  const now = Date.now();
+  for (const [k, e] of pendingSpotify) {
+    if (e.expiresAt < now) pendingSpotify.delete(k);
+  }
   const state = randomBytes(24).toString("hex");
-  pendingSpotify.set(state, { userId, expiresAt: Date.now() + 10 * 60 * 1000, returnSlug });
+  pendingSpotify.set(state, { userId, expiresAt: now + 10 * 60 * 1000, returnSlug });
   return state;
 }
 function consumeState(state: string): PendingSpotify | null {

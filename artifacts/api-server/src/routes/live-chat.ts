@@ -16,6 +16,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
+import { sweepIfLarge } from "../lib/sweep-map";
 import { awardChatPoints } from "../lib/loyalty";
 import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
 import { evaluateAutomod } from "../lib/automod";
@@ -329,6 +330,10 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
     const row = inserted[0];
     if (!row) throw new Error("chat insert returned no row");
     lastPostAt.set(rateKey, now);
+    /* Flag S-4: pacing entries older than the 1.5s window are dead
+       weight — sweep them once the map grows past a threshold so it
+       can't accumulate one entry per chatter forever. */
+    sweepIfLarge(lastPostAt, 5000, 60_000, now);
 
     const dto = (await toDtos([row]))[0];
     liveChatHub.broadcast(stream.id, { type: "message", message: dto });

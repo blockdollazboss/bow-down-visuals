@@ -52,12 +52,25 @@ export class StageRoom {
     return true;
   }
 
+  /** End the room in-process: every peer is detached (they keep their
+   *  sockets — the client learns the room closed from the REST state —
+   *  but presence/voice state here is torn down). */
+  closeAll(): void {
+    for (const socket of [...this.peers.keys()]) this.detach(socket);
+  }
+
   detach(socket: WsClientSocket): void {
     const peer = this.peers.get(socket);
     if (!peer) return;
     this.peers.delete(socket);
     this.hub.leave(this.roomKey(), socket);
     this.broadcast({ type: "peer.leave", peerId: peer.peerId });
+    /* Registry hygiene (Lane F audit, Flag S-2): an empty room is just
+       a shell — evict it so the registry can't grow by one entry per
+       room ever created. A later join re-creates it via
+       getOrCreateStageRoom; the REST list reads peers with a ?? []
+       fallback, so an absent room renders correctly as empty. */
+    if (this.peers.size === 0) stageRooms.delete(this.roomId);
   }
 
   /** Host-only role change. Returns an honest error string or null. */
@@ -129,4 +142,15 @@ export function getOrCreateStageRoom(hub: RoomHub, roomId: string, hostUserId: s
   let r = stageRooms.get(roomId);
   if (!r) { r = new StageRoom(hub, roomId, hostUserId); stageRooms.set(roomId, r); }
   return r;
+}
+
+/** Remove a room from the registry, detaching any peers still in it.
+ *  Called by the REST close endpoint so a closed room's presence state
+ *  dies with its row instead of lingering for the process lifetime. */
+export function evictStageRoom(roomId: string): boolean {
+  const r = stageRooms.get(roomId);
+  if (!r) return false;
+  r.closeAll();
+  stageRooms.delete(roomId);
+  return true;
 }

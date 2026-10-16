@@ -105,7 +105,7 @@ export async function attemptFanOut(streamId: string): Promise<FanOutVerdict[]> 
         verdicts.push({ platform: entry.platform, status: "live", reason: null });
         continue;
       }
-      const { started } = startRelay(streamId, entry.platform, plan.args, (code) => {
+      const { started, capped } = startRelay(streamId, entry.platform, plan.args, (code) => {
         // Relay died mid-stream: honest error, never a silent "live".
         void (async () => {
           const fresh = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, streamId)).limit(1);
@@ -120,6 +120,12 @@ export async function attemptFanOut(streamId: string): Promise<FanOutVerdict[]> 
       if (started) {
         await setEntry(streamId, entry.platform, { status: "live", error_reason: null, has_key: true });
         verdicts.push({ platform: entry.platform, status: "live", reason: null });
+      } else if (capped) {
+        // Global relay ceiling reached (Flag S-3): an honest error the
+        // creator can act on, never a fake "live".
+        const reason = "Too many streams are relaying right now — this destination wasn't started. Try again in a bit.";
+        await setEntry(streamId, entry.platform, { status: "error", error_reason: reason, has_key: true });
+        verdicts.push({ platform: entry.platform, status: "error", reason });
       } else {
         verdicts.push({ platform: entry.platform, status: "live", reason: null });
       }
