@@ -1,4 +1,5 @@
-import { Router, type Request, type Response } from "express";
+import express, { Router, type Request, type Response } from "express";
+import fs from "node:fs";
 import { z } from "zod";
 import { eq, and, desc, lt, inArray } from "drizzle-orm";
 import {
@@ -13,37 +14,63 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import {
-  isStreamConfigured,
   createLiveInput,
   deleteLiveInput,
   playbackUrlsFromWhip,
   StreamNotConfiguredError,
   StreamProviderError,
 } from "../lib/cloudflare-stream";
+import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
+import {
+  initOwnServerLive,
+  beginSession,
+  hasSession,
+  activeSessionCount,
+  ownServerConfig,
+  acceptChunk,
+  endSession as endOwnServerSession,
+  finalizeRecording,
+  isLiveFileName,
+  liveFilePath,
+  liveFileContentType,
+  LiveIngestError,
+  type StallReason,
+} from "../lib/own-server-live";
 
 /* ── Go Live — native on-site broadcasts ───────────────────────────────────
    The stream studio (a tab in the /go-live hub) publishes the creator's
-   processed camera feed straight from the browser via WHIP; viewers watch
-   on /live/:id via WHEP (HLS URL rides along as the fallback). Sessions
-   live in live_streams (migration 0129) — NOT discord_streams, whose rows
-   are schedule/announce records for Discord webhook posts.
+   processed camera feed straight from the browser; viewers watch on
+   /live/:id. Sessions live in live_streams (migration 0129) — NOT
+   discord_streams, whose rows are schedule/announce records for Discord
+   webhook posts.
+
+   The publish transport is selected by env (LIVE_TRANSPORT, see
+   lib/live-config) and the studio learns the selection from /status:
+   - "own" (default): the site's own service carries the stream — the
+     browser POSTs short recording chunks to the ingest endpoint, the
+     own-server-live engine remuxes them into a live HLS feed, and the
+     same chunk stream becomes the replay. No external keys, no
+     per-minute bill; ready unless LIVE_OWN_SERVER=off.
+   - "cloudflare": WHIP/WebRTC via Cloudflare Stream (WHEP playback,
+     HLS URL as fallback). Credentials (CLOUDFLARE_ACCOUNT_ID /
+     CLOUDFLARE_STREAM_TOKEN) arrive via env; until they do, create
+     answers an honest 503 STREAM_NOT_CONFIGURED — never a fake success.
 
    Endpoints:
-   GET    /live-streams/status          (auth)  → { configured, live_stream }
-   POST   /live-streams                 (auth)  → create input + session → 201 { stream (owner, incl. whip_url) }
+   GET    /live-streams/status          (auth)  → { configured, transport, live_stream }
+   POST   /live-streams                 (auth)  → create session → 201 { stream (owner DTO) }
    POST   /live-streams/:id/end         (auth, owner) → end session (idempotent)
    POST   /live-streams/:id/vod         (auth, owner) → register the browser-recorded VOD
+   POST   /live-streams/:id/ingest/segment (auth, owner) → own-server media chunk in
+   GET    /live-streams/:id/hls/:file   (public) → own-server live playlist/segments
    GET    /live-streams/live            (public) → the "Live now" rail list
    GET    /live-streams/profile/:slug   (public) → that creator's live stream, if any
    GET    /live-streams/:id             (public) → watch-page DTO
    POST   /live-streams/:id/heartbeat   (public) → viewer presence → { viewer_count }
 
-   Provider credentials (CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_STREAM_TOKEN)
-   arrive via env. Until they do, create answers an honest 503 with code
-   STREAM_NOT_CONFIGURED — never a fake success. Going live is FREE at
-   launch: no credit charge exists for broadcasting (the per-minute
-   provider cost is the site's; a streamer charge is an owner ruling for
-   later, not something this code invents).
+   Going live is FREE at launch: no credit charge exists for
+   broadcasting (any running cost is the site's; a streamer charge is an
+   owner ruling for later, not something this code invents).
 
    No status webhook: the provider's live-input notifications are
    configured account-wide in its dashboard and carry no per-stream secret
@@ -218,7 +245,11 @@ export function toStreamDto(
   liveViewerCount?: number,
 ): LiveStreamDto {
   const isLive = row.status === "live";
-  const urls = isLive ? playbackUrlsFromWhip(row.whip_url) : { whep_url: null, hls_url: null };
+  const urls = !isLive
+    ? { whep_url: null, hls_url: null }
+    : row.provider === "own-server"
+      ? { whep_url: null, hls_url: `/api/live-streams/${row.id}/hls/playlist.m3u8` }
+      : playbackUrlsFromWhip(row.whip_url);
   return {
     id: row.id,
     title: row.title,
@@ -332,6 +363,98 @@ async function sweepStaleLive(): Promise<void> {
     .where(and(eq(liveStreamsTable.status, "live"), lt(liveStreamsTable.started_at, cutoff)));
 }
 
+/* ── VOD registration (shared by the /vod endpoint + own-server finalize) ──
+   Registering a recording means: a generated_clips row the creator owns,
+   the stream row pointing at it, and the site destination's recording
+   outcome recorded as the fact it now is ("saved", at this URL). */
+async function registerStreamVod(
+  row: LiveStream,
+  vodUrl: string,
+): Promise<{ row: LiveStream; clipId: string | null }> {
+  const clip = await db
+    .insert(generatedClipsTable)
+    .values({
+      user_id: row.user_id,
+      title: row.title,
+      video_url: vodUrl,
+      status: "completed",
+    })
+    .returning();
+  const clipId = clip[0]?.id ?? null;
+  const now = new Date();
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    d.platform === "site" ? { ...d, vod_url: vodUrl, vod_state: "saved" as const } : d,
+  );
+  const updated = await db
+    .update(liveStreamsTable)
+    .set({ vod_url: vodUrl, vod_clip_id: clipId, destinations, updated_at: now })
+    .where(eq(liveStreamsTable.id, row.id))
+    .returning();
+  return { row: updated[0] ?? row, clipId };
+}
+
+/** The flip side, recorded just as honestly: the recording did not save. */
+async function markSiteVodNotSaved(row: LiveStream): Promise<void> {
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    d.platform === "site" ? { ...d, vod_state: "not_saved" as const } : d,
+  );
+  await db
+    .update(liveStreamsTable)
+    .set({ destinations, updated_at: new Date() })
+    .where(eq(liveStreamsTable.id, row.id));
+}
+
+/* ── Own-server finalize ──────────────────────────────────────────────────
+   When an own-server stream ends (cleanly via /end, or via the engine's
+   stall watchdog), the media engine finishes the remux and uploads the
+   raw master; the recording then registers exactly like a
+   browser-uploaded one. Runs fire-and-forget off the request path — a
+   long upload never holds a streamer's End Stream click hostage — and
+   every failure lands as a loud log + an honest "not_saved" outcome. */
+async function finalizeOwnServerStream(row: LiveStream): Promise<void> {
+  try {
+    await endOwnServerSession(row.id);
+    const rec = await finalizeRecording(row.id, row.user_id);
+    const fresh = await getStreamById(row.id);
+    if (!fresh || fresh.vod_url) return;
+    if (rec) {
+      await registerStreamVod(fresh, rec.vodUrl);
+    } else {
+      await markSiteVodNotSaved(fresh).catch(() => undefined);
+    }
+  } catch (err) {
+    logger.error({ err, streamId: row.id }, "live-streams: own-server finalize failed");
+    const fresh = await getStreamById(row.id).catch(() => null);
+    if (fresh && !fresh.vod_url) {
+      await markSiteVodNotSaved(fresh).catch(() => undefined);
+    }
+  }
+}
+
+/** The engine's publisher went quiet (or hit a cap): end the row the
+ *  same way /end would, then finalize whatever media exists. */
+async function handleOwnServerStall(streamId: string, _reason: StallReason): Promise<void> {
+  const row = await getStreamById(streamId).catch(() => null);
+  if (!row) {
+    await endOwnServerSession(streamId).catch(() => undefined);
+    return;
+  }
+  if (row.status === "live") {
+    const finalCount = countViewers(row.id);
+    await endStreamRow(row, finalCount).catch(() => undefined);
+    clearViewers(row.id);
+  }
+  if (row.provider === "own-server") {
+    await finalizeOwnServerStream(row);
+  }
+}
+
+initOwnServerLive({
+  onStall: (streamId, reason) => {
+    void handleOwnServerStall(streamId, reason);
+  },
+});
+
 /* ── Schemas ────────────────────────────────────────────────────────────── */
 
 const createSchema = z.object({
@@ -366,8 +489,10 @@ router.get("/live-streams/status", requireAuth, async (req: Request, res: Respon
     const profile = await getProfileByUserId(req.userId!);
     let live: LiveStream | null = await getLiveStreamForUser(req.userId!);
     if (live) live = await reconcileStale(live);
+    const transport = selectedLiveTransport();
     res.json({
-      configured: isStreamConfigured(),
+      configured: isLiveTransportReady(transport),
+      transport,
       live_stream: live && live.status === "live" ? toOwnerDto(live, profile, countViewers(live.id)) : null,
     });
   } catch (err) {
@@ -378,7 +503,8 @@ router.get("/live-streams/status", requireAuth, async (req: Request, res: Respon
 
 router.post("/live-streams", requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!isStreamConfigured()) {
+    const transport = selectedLiveTransport();
+    if (!isLiveTransportReady(transport)) {
       res.status(503).json({
         error: "Live streaming isn't switched on yet. It turns on here the moment the site owner enables it — your camera kit below still works for checking your setup.",
         code: "STREAM_NOT_CONFIGURED",
@@ -408,6 +534,60 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           stream: toOwnerDto(reconciled, profile, countViewers(reconciled.id)),
         });
         return;
+      }
+    }
+
+    if (transport === "own") {
+      /* Own-server session: the row IS the session (no provider input to
+         create) and the media engine holds a slot for it. Capacity is a
+         real limit of the shared box — say so plainly when it's full. */
+      if (activeSessionCount() >= ownServerConfig().maxConcurrent) {
+        res.status(503).json({
+          error: "The live stage is full right now — a few creators are already on. Try again in a little while.",
+          code: "LIVE_CAPACITY",
+        });
+        return;
+      }
+      try {
+        const inserted = await db
+          .insert(liveStreamsTable)
+          .values({
+            user_id: req.userId!,
+            profile_id: profile.id,
+            title: parsed.data.title,
+            status: "live",
+            provider: "own-server",
+            provider_input_id: null,
+            playback_id: null,
+            whip_url: null,
+            destinations: normalizeDestinations(parsed.data.destinations),
+          })
+          .returning();
+        const row = inserted[0]!;
+        const begun = beginSession(row.id);
+        if (!begun.ok) {
+          // Lost the capacity race between the check and the insert.
+          await endStreamRow(row, 0).catch(() => undefined);
+          res.status(503).json({
+            error: "The live stage is full right now — a few creators are already on. Try again in a little while.",
+            code: "LIVE_CAPACITY",
+          });
+          return;
+        }
+        res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
+        return;
+      } catch (err) {
+        const code = (err as { code?: string })?.code;
+        if (code === "23505") {
+          const liveNow = await getLiveStreamForUser(req.userId!);
+          res.status(409).json({
+            error: "You're already live. End that stream before starting a new one.",
+            code: "ALREADY_LIVE",
+            stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id)) : null,
+          });
+          return;
+        }
+        throw err;
       }
     }
 
@@ -490,7 +670,11 @@ router.post("/live-streams/:id/end", requireAuth, async (req: Request, res: Resp
     const finalCount = countViewers(row.id);
     const ended = await endStreamRow(row, finalCount);
     clearViewers(row.id);
-    if (row.provider_input_id) {
+    if (row.provider === "own-server") {
+      // The engine finishes the remux + uploads the recording in the
+      // background; the replay registers on the row when it's ready.
+      void finalizeOwnServerStream(row);
+    } else if (row.provider_input_id) {
       await deleteLiveInput(row.provider_input_id).catch((err) => {
         logger.warn({ err }, "live-streams end: provider input delete failed (stream already ended locally)");
       });
@@ -532,30 +716,122 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
       res.json({ stream: toStreamDto(row, profile), clip_id: row.vod_clip_id });
       return;
     }
-    const clip = await db
-      .insert(generatedClipsTable)
-      .values({
-        user_id: req.userId!,
-        title: row.title,
-        video_url: vodUrl,
-        status: "completed",
-      })
-      .returning();
-    const clipId = clip[0]?.id ?? null;
-    const now = new Date();
-    // The site destination's recording outcome is now a fact: saved, here.
-    const destinations = normalizeDestinations(row.destinations).map((d) =>
-      d.platform === "site" ? { ...d, vod_url: vodUrl, vod_state: "saved" as const } : d,
-    );
-    const updated = await db
-      .update(liveStreamsTable)
-      .set({ vod_url: vodUrl, vod_clip_id: clipId, destinations, updated_at: now })
-      .where(eq(liveStreamsTable.id, row.id))
-      .returning();
-    res.json({ stream: toStreamDto(updated[0] ?? row, profile), clip_id: clipId });
+    const { row: updated, clipId } = await registerStreamVod(row, vodUrl);
+    res.json({ stream: toStreamDto(updated, profile), clip_id: clipId });
   } catch (err) {
     logger.error({ err }, "live-streams vod failed");
     res.status(500).json({ error: "Could not save your recording." });
+  }
+});
+
+/* ── Own-server media plane ───────────────────────────────────────────────
+   Ingest: the broadcaster's browser POSTs one MediaRecorder chunk every
+   ~2s (raw body, x-segment-seq header). Only the stream's owner can
+   publish to it, only while the row is live, only for own-server rows.
+   Playback: the engine's live HLS files, served by name from a strict
+   whitelist — the playlist is never cached, segments are immutable. */
+
+const segmentBody = express.raw({ type: () => true, limit: "12mb" });
+
+router.post(
+  "/live-streams/:id/ingest/segment",
+  (req: Request, res: Response, next: () => void) => {
+    segmentBody(req, res, (err?: unknown) => {
+      if (err) {
+        res.status(413).json({ error: "That chunk was too large to carry." });
+        return;
+      }
+      next();
+    });
+  },
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        res.status(400).json({ error: "Send the recording chunk as the request body." });
+        return;
+      }
+      const row = await getStreamById(String(req.params.id));
+      if (!row) {
+        res.status(404).json({ error: "That stream doesn't exist." });
+        return;
+      }
+      if (row.user_id !== req.userId) {
+        res.status(403).json({ error: "That's not your stream." });
+        return;
+      }
+      if (row.provider !== "own-server") {
+        res.status(400).json({
+          error: "This stream doesn't publish through the site's own stage.",
+          code: "WRONG_TRANSPORT",
+        });
+        return;
+      }
+      if (row.status !== "live") {
+        res.status(410).json({ error: "That stream has ended.", code: "STREAM_ENDED" });
+        return;
+      }
+      if (!hasSession(row.id)) {
+        res.status(409).json({
+          error: "This stream's stage session is gone — end it and go live again.",
+          code: "NO_INGEST_SESSION",
+        });
+        return;
+      }
+      const seq = Number(req.header("x-segment-seq"));
+      if (!Number.isInteger(seq) || seq < 0) {
+        res.status(400).json({ error: "A segment sequence number is required." });
+        return;
+      }
+      try {
+        const out = await acceptChunk(row.id, seq, req.body, String(req.header("content-type") ?? ""));
+        res.json({ ok: true, duplicate: out.duplicate, seq });
+      } catch (err) {
+        if (err instanceof LiveIngestError) {
+          if (err.code === "SESSION_FULL") {
+            // The cap ends the stream properly — row + replay finalize.
+            void handleOwnServerStall(row.id, "full");
+            res.status(413).json({ error: err.message, code: err.code });
+            return;
+          }
+          res
+            .status(err.code === "UNSUPPORTED_MIME" ? 415 : 409)
+            .json({ error: err.message, code: err.code });
+          return;
+        }
+        throw err;
+      }
+    } catch (err) {
+      logger.error({ err }, "live-streams ingest segment failed");
+      res.status(500).json({ error: "That chunk didn't land. The next one may still carry the show." });
+    }
+  },
+);
+
+router.get("/live-streams/:id/hls/:file", publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const name = String(req.params.file);
+    const row = await getStreamById(String(req.params.id));
+    if (!row || row.provider !== "own-server" || !isLiveFileName(name)) {
+      res.status(404).json({ error: "Not found." });
+      return;
+    }
+    const filePath = liveFilePath(row.id, name);
+    if (!filePath) {
+      res.status(404).json({ error: "Not found." });
+      return;
+    }
+    res.setHeader("Content-Type", liveFileContentType(name));
+    res.setHeader("Cache-Control", name === "playlist.m3u8" ? "no-cache" : "public, max-age=30");
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", () => {
+      if (!res.headersSent) res.status(404).json({ error: "Not found." });
+      else res.destroy();
+    });
+    stream.pipe(res);
+  } catch (err) {
+    logger.error({ err }, "live-streams hls serve failed");
+    res.status(500).json({ error: "Could not load the live feed." });
   }
 });
 
