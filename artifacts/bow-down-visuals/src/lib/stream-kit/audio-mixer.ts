@@ -24,6 +24,7 @@ interface Channel {
   analyser: AnalyserNode;
   src: MediaStreamAudioSourceNode | null;
   stream: MediaStream | null;
+  track: MediaStreamTrack | null;
   volume: number;
   muted: boolean;
 }
@@ -60,7 +61,7 @@ export class AudioMixer {
     analyser.smoothingTimeConstant = 0.55;
     gain.connect(analyser);
     analyser.connect(this._master);
-    this._channels.set(id, { gain, analyser, src: null, stream: null, volume: 1, muted: false });
+    this._channels.set(id, { gain, analyser, src: null, stream: null, track: null, volume: 1, muted: false });
   }
 
   removeInput(id: string): void {
@@ -76,15 +77,21 @@ export class AudioMixer {
     return this._channels.has(id);
   }
 
-  /** Point a channel at a stream (its first audio track is the source). */
+  /**
+   * Point a channel at a stream (its first audio track is the source).
+   * Rewires when the stream OR its audio track changes — the kit swaps
+   * its output track in place when the mic device or NC level changes.
+   */
   setInputStream(id: string, stream: MediaStream | null): void {
     if (!this._channels.has(id)) this.addInput(id);
     const ch = this._channels.get(id)!;
-    if (ch.stream === stream) return;
+    const track = stream?.getAudioTracks()[0] ?? null;
+    if (ch.stream === stream && ch.track === track) return;
     ch.src?.disconnect();
     ch.src = null;
     ch.stream = stream;
-    if (stream && stream.getAudioTracks().length) {
+    ch.track = track;
+    if (stream && track) {
       ch.src = this.ctx.createMediaStreamSource(stream);
       ch.src.connect(ch.gain);
     }

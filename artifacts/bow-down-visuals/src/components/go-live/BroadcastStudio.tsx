@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import {
   Radio, Square, Loader2, AlertTriangle, Camera, Mic, Users, Clock,
   Megaphone, Video, CheckCircle2, RotateCcw, MonitorPlay, Wand2,
+  Circle, Download, Keyboard, Save,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -21,13 +22,18 @@ import {
   TransportError,
   SITE_DESTINATION,
   DESTINATION_PLATFORMS,
+  summarizeRtcStats,
+  type RtcStatSample,
+  type RtcSummary,
   type TransportState,
 } from "@/lib/stream-kit/transport";
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
 import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
+import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
 import type { SceneSource } from "@/lib/stream-kit/scenes";
 import ScenesPanel from "./studio/ScenesPanel";
 import SourcesPanel from "./studio/SourcesPanel";
+import MixerPanel from "./studio/MixerPanel";
 
 /* ─── Broadcast Studio — the "Broadcast" tab of the /go-live hub ──────────
    Our OBS, in the browser, no downloads:
@@ -158,12 +164,26 @@ export default function BroadcastStudio() {
   const bump = useCallback(() => setUiTick((t) => t + 1), []);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [screenSharing, setScreenSharing] = useState(false);
+  const [screenHasAudio, setScreenHasAudio] = useState(false);
+  const [hotkeysOn, setHotkeysOn] = useState(true);
+  const [health, setHealth] = useState<RtcSummary | null>(null);
+
+  /* standalone recording (independent of going live) */
+  const [recPhase, setRecPhase] = useState<"idle" | "recording" | "saving" | "saved" | "failed">("idle");
+  const [recSecs, setRecSecs] = useState(0);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [recResult, setRecResult] = useState<{ blob: Blob; mimeType: string; storage: "opfs" | "memory" } | null>(null);
+  const [recSavingLib, setRecSavingLib] = useState(false);
+  const [recSavedLib, setRecSavedLib] = useState(false);
 
   const getAnalyser = useCallback(() => changerRef.current?.getAnalyser() ?? null, []);
 
   const changerRef = useRef<BackgroundChanger | null>(null);
   const transportRef = useRef<WhipTransport | null>(null);
   const recorderRef = useRef<StreamRecorder | null>(null);
+  const mixerRef = useRef<AudioMixer | null>(null);
+  const recRecorderRef = useRef<StreamRecorder | null>(null);
+  const healthPrevRef = useRef<RtcStatSample | null>(null);
   const stageRef = useRef<Stage | null>(null);
   const previewStageRef = useRef<PreviewStage | null>(null);
   const programCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -253,6 +273,8 @@ export default function BroadcastStudio() {
       if (!liveRef.current) {
         void changerRef.current?.stop().catch(() => undefined);
         changerRef.current = null;
+        void mixerRef.current?.close().catch(() => undefined);
+        mixerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -280,6 +302,7 @@ export default function BroadcastStudio() {
     };
   }, [phase, liveId, liveSince]);
 
+
   const describeError = (err: unknown): string => {
     if (err instanceof BackgroundChangerError) return err.message;
     if (err instanceof Error) return err.message;
@@ -301,6 +324,15 @@ export default function BroadcastStudio() {
     }
   }
 
+  /* The mixer's mic channel follows the kit's output stream — the kit
+     swaps its audio track when the mic device or NC level changes, so
+     every audio-affecting kit action re-wires the channel. */
+  const wireMicIntoMixer = useCallback(() => {
+    const mixer = mixerRef.current;
+    const stream = changerRef.current?.getStream();
+    if (mixer && stream) mixer.setInputStream("mic", stream);
+  }, []);
+
   async function startCamera() {
     setPhase("starting");
     setStatusMsg("Starting the camera and loading the effects engine…");
@@ -321,6 +353,16 @@ export default function BroadcastStudio() {
       if (mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
+      if (!mixerRef.current) {
+        const mixer = new AudioMixer();
+        mixer.addInput("mic");
+        mixer.addInput("screen");
+        mixerRef.current = mixer;
+      }
+      await mixerRef.current.resume();
+      wireMicIntoMixer();
+      const shareStream = stageRef.current?.pool.screenStream;
+      if (shareStream) mixerRef.current.setInputStream("screen", shareStream);
       setPhase("preview");
       setStatusMsg("That's your feed in the Camera source — frame it in a scene, pick a title, and go live when you're ready.");
       bump();
@@ -336,6 +378,7 @@ export default function BroadcastStudio() {
     if (phase === "live" || phase === "connecting" || phase === "ending") return;
     await changerRef.current?.stop();
     changerRef.current = null;
+    mixerRef.current?.setInputStream("mic", null);
     setPhase("off");
     setStatusMsg("Camera is off.");
     bump();
@@ -348,9 +391,13 @@ export default function BroadcastStudio() {
     try {
       const stream = await stage.pool.attachScreen();
       setScreenSharing(true);
+      setScreenHasAudio(stream.getAudioTracks().length > 0);
+      mixerRef.current?.setInputStream("screen", stream);
       const track = stream.getVideoTracks()[0];
       track?.addEventListener("ended", () => {
         setScreenSharing(false);
+        setScreenHasAudio(false);
+        mixerRef.current?.setInputStream("screen", null);
         bump();
       });
       setStatusMsg("Screen share is on — it's live in any scene with a Screen source.");
@@ -362,17 +409,24 @@ export default function BroadcastStudio() {
 
   const stopScreenShare = useCallback(() => {
     stageRef.current?.pool.detachScreen();
+    mixerRef.current?.setInputStream("screen", null);
     setScreenSharing(false);
+    setScreenHasAudio(false);
     bump();
   }, [bump]);
 
-  /* ── The published feed: Program video + the kit's cleaned audio.
-        (The mixer takes over the audio side in the next step.) */
+  /* ── The published feed: Program video + the mixer's mixed audio
+        (mic through the voice chain + screen audio + master bus). Until
+        the mixer exists (camera never started) it falls back to the
+        kit's own audio track. */
   const assembleStream = useCallback((): MediaStream | null => {
     const stage = stageRef.current;
     if (!stage) return null;
     const videoTracks = stage.getStream(30).getVideoTracks();
-    const audioTracks = changerRef.current?.getStream()?.getAudioTracks() ?? [];
+    const mixerTrack = mixerRef.current?.getOutputTrack();
+    const audioTracks = mixerTrack
+      ? [mixerTrack]
+      : (changerRef.current?.getStream()?.getAudioTracks() ?? []);
     return new MediaStream([...videoTracks, ...audioTracks]);
   }, []);
 
@@ -410,6 +464,8 @@ export default function BroadcastStudio() {
       setLiveSince(Date.now());
       setElapsed(0);
       setViewerCount(0);
+      healthPrevRef.current = null;
+      setHealth(null);
       setPhase("live");
       setStatusMsg("You're live — the Program feed is on your profile and in the Live rail on Explore.");
       // Record the same Program feed for the VOD. A recorder failure
@@ -453,6 +509,7 @@ export default function BroadcastStudio() {
     setPhase("preview");
     setLiveId(null);
     setLiveSince(null);
+    setHealth(null);
     setStatusMsg("You're off air. That was the show — post the replay to Discord from the Announce tab if you want the crowd to catch it.");
 
     if (recording && streamId && user) {
@@ -531,6 +588,153 @@ export default function BroadcastStudio() {
       setAnnouncing(false);
     }
   }
+
+  /* Stream health while live: real RTC stats off the publisher's peer
+     connection, summarized honestly (nulls render as "unavailable"). */
+  useEffect(() => {
+    if (phase !== "live") return;
+    const transport = transportRef.current;
+    if (!transport) return;
+    const id = setInterval(() => {
+      void transport.getStats().then((report) => {
+        if (!report) return;
+        const entries: Record<string, unknown>[] = [];
+        report.forEach((s) => entries.push(s as Record<string, unknown>));
+        const { summary, sample } = summarizeRtcStats(entries, healthPrevRef.current);
+        healthPrevRef.current = sample;
+        setHealth(summary);
+      });
+    }, 2000);
+    return () => clearInterval(id);
+  }, [phase, liveId]);
+
+  /* ── Standalone recording: the Program feed, without going live ───── */
+  useEffect(() => {
+    if (recPhase !== "recording") return;
+    const started = Date.now() - recSecs * 1000;
+    const id = setInterval(() => setRecSecs(Math.floor((Date.now() - started) / 1000)), 500);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recPhase]);
+
+  const toggleRecord = useCallback(async () => {
+    if (recPhase === "recording") {
+      const recorder = recRecorderRef.current;
+      recRecorderRef.current = null;
+      setRecPhase("saving");
+      const result = await recorder?.stop().catch(() => null);
+      if (result && recorder) {
+        setRecResult({ blob: result.blob, mimeType: result.mimeType, storage: recorder.sinkKind ?? "memory" });
+        setRecPhase("saved");
+        setRecSavedLib(false);
+      } else {
+        setRecPhase("failed");
+        setRecError("The recording didn't save — the studio is fine, but that take is gone.");
+      }
+      return;
+    }
+    setRecError(null);
+    setRecResult(null);
+    const stream = assembleStream();
+    if (!stream) return;
+    const recorder = new StreamRecorder();
+    recRecorderRef.current = recorder;
+    try {
+      await recorder.start(stream);
+      setRecSecs(0);
+      setRecPhase("recording");
+    } catch {
+      setRecPhase("failed");
+      setRecError("Recording couldn't start in this browser.");
+    }
+  }, [recPhase, assembleStream]);
+
+  function downloadRecording() {
+    if (!recResult) return;
+    const url = URL.createObjectURL(recResult.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title.trim() || "studio-recording").replace(/[^\w-]+/g, "-")}.webm`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  async function saveRecordingToLibrary() {
+    if (!recResult || !user) return;
+    setRecSavingLib(true);
+    try {
+      const headers = await authed();
+      const key = `${user.id}/live/rec-${Date.now()}.webm`;
+      const presign = await fetch("/api/r2/presign-upload", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ key, contentType: recResult.mimeType || "video/webm" }),
+      });
+      if (!presign.ok) throw new Error("presign failed");
+      const { uploadUrl, publicUrl } = (await presign.json()) as { uploadUrl: string; publicUrl: string };
+      const put = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": recResult.mimeType || "video/webm" },
+        body: recResult.blob,
+      });
+      if (!put.ok) throw new Error("upload failed");
+      const reg = await fetch("/api/generated-clips", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim() || "Studio recording", videoUrl: publicUrl, status: "completed" }),
+      });
+      if (!reg.ok) throw new Error("register failed");
+      setRecSavedLib(true);
+    } catch {
+      setRecError("Saving to your clips didn't go through — you can still download the recording below.");
+    } finally {
+      setRecSavingLib(false);
+    }
+  }
+
+  /* ── Hotkeys (toggleable; paused while typing in a field) ─────────── */
+  useEffect(() => {
+    if (!hotkeysOn) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)
+      ) {
+        return;
+      }
+      const stage = stageRef.current;
+      if (!stage) return;
+      if (/^Digit[1-9]$/.test(e.code)) {
+        const scene = stage.scenes[Number(e.code.slice(5)) - 1];
+        if (scene) {
+          stage.cutTo(scene.id);
+          e.preventDefault();
+        }
+      } else if (e.code === "KeyT") {
+        stage.transition("fade");
+        e.preventDefault();
+      } else if (e.code === "KeyC") {
+        stage.transition("cut");
+        e.preventDefault();
+      } else if (e.code === "KeyM") {
+        const mixer = mixerRef.current;
+        const state = mixer?.getInputState("mic");
+        if (mixer && state) {
+          mixer.setMuted("mic", !state.muted);
+          bump();
+          e.preventDefault();
+        }
+      } else if (e.code === "KeyR") {
+        if (!liveRef.current) {
+          void toggleRecord();
+          e.preventDefault();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hotkeysOn, bump, toggleRecord]);
 
   /* ── Preview drag editing: move by dragging the source, resize from
         its gold corner handle. Locked sources select but don't drag. */
@@ -737,6 +941,19 @@ export default function BroadcastStudio() {
           </div>
         </div>
 
+        {isLivePhase && (
+          <p className={`mt-3 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`} data-testid="stream-health">
+            Stream health:{" "}
+            {health
+              ? [
+                  health.bitrateKbps != null ? `${health.bitrateKbps.toLocaleString()} kbps` : "bitrate unavailable",
+                  health.fps != null ? `${Math.round(health.fps)} fps` : "fps unavailable",
+                  health.droppedFrames != null ? `${health.droppedFrames} dropped frames` : "dropped frames unavailable",
+                ].join(" · ")
+              : "reading…"}
+          </p>
+        )}
+
         {/* camera controls */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {phase === "off" || phase === "starting" ? (
@@ -782,6 +999,7 @@ export default function BroadcastStudio() {
                 if (changerRef.current && phase !== "off") {
                   try {
                     await changerRef.current.switchMicrophone(e.target.value || undefined);
+                    wireMicIntoMixer();
                   } catch (err) {
                     setStatusMsg(describeError(err));
                   }
@@ -913,6 +1131,67 @@ export default function BroadcastStudio() {
             Streaming to other platforms at the same time is on the way. When it lands, each platform you connect will
             save the stream its own way — the notes above are how they really work.
           </p>
+        </div>
+
+        {/* Standalone recording — the Program feed, no broadcast needed */}
+        <div className={`mt-4 rounded-xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider opacity-60">Record</p>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={isLivePhase || recPhase === "saving"}
+              onClick={() => void toggleRecord()}
+              title={isLivePhase ? "Your broadcast is already recording its replay" : "Record the Program feed without going live"}
+              data-testid="btn-record"
+            >
+              {recPhase === "recording" ? (
+                <>
+                  <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" /> Stop · {formatDuration(recSecs)}
+                </>
+              ) : recPhase === "saving" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Circle className="h-4 w-4 text-red-500" /> Record
+                </>
+              )}
+            </Button>
+            <span className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              {isLivePhase
+                ? "While you're live, the broadcast records its own replay automatically."
+                : "Record the Program feed any time — for clips, promos, or a rehearsal."}
+            </span>
+          </div>
+          {recPhase === "failed" && recError && (
+            <p className="mt-2 text-xs font-bold text-red-400">{recError}</p>
+          )}
+          {recPhase === "saved" && recResult && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className={isLight ? "text-[#2A1E07]" : "text-white/70"}>
+                Recording saved ({(recResult.blob.size / 1024 / 1024).toFixed(1)} MB
+                {recResult.storage === "memory" ? " — kept in memory, so download it before closing this tab" : ""}).
+                {recSavedLib ? " It's in your clips too." : ""}
+              </span>
+              <Button variant="outline" className="gap-2" onClick={downloadRecording} data-testid="btn-download-recording">
+                <Download className="h-4 w-4" /> Download
+              </Button>
+              {!recSavedLib && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => void saveRecordingToLibrary()}
+                  disabled={recSavingLib}
+                  data-testid="btn-save-recording"
+                >
+                  {recSavingLib ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save to my clips
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {recordNote === "saved" && (
@@ -1085,6 +1364,7 @@ export default function BroadcastStudio() {
                   return;
                 }
                 await changerRef.current.setNoiseCancellation(lvl).catch((err) => setNcMsg(describeError(err)));
+                wireMicIntoMixer();
               }}
               data-testid={`btn-nc-${lvl}`}
             >
@@ -1109,6 +1389,7 @@ export default function BroadcastStudio() {
                   return;
                 }
                 await changerRef.current.setVoiceEffect(e.id).catch((err) => setNcMsg(describeError(err)));
+                wireMicIntoMixer();
               }}
               data-testid={`btn-fx-${e.id}`}
             >
@@ -1117,6 +1398,44 @@ export default function BroadcastStudio() {
           ))}
         </div>
         <p className={`mt-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} role="status">{ncMsg}</p>
+      </section>
+
+      {/* ── Mixer & hotkeys ── */}
+      <section className={`mt-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
+        <MixerPanel
+          mixer={mixerRef.current}
+          isLight={isLight}
+          onChange={bump}
+          screenSharing={screenSharing}
+          screenHasAudio={screenHasAudio}
+        />
+        <div className="mt-5 border-t border-dashed border-[#C9A84C]/25 pt-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>
+              <Keyboard className="h-3.5 w-3.5" /> Hotkeys
+            </p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hotkeysOn}
+              onClick={() => setHotkeysOn((v) => !v)}
+              className={`relative h-5 w-9 rounded-full transition ${hotkeysOn ? "bg-[#C9A84C]" : "bg-zinc-500"}`}
+              data-testid="switch-hotkeys"
+            >
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${hotkeysOn ? "left-[18px]" : "left-0.5"}`} />
+            </button>
+          </div>
+          <ul className={`grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] sm:grid-cols-3 ${isLight ? "text-[#6B5B36]" : "text-zinc-400"}`}>
+            <li><strong>1–9</strong> take scene to Program</li>
+            <li><strong>T</strong> transition (fade)</li>
+            <li><strong>C</strong> cut to Preview scene</li>
+            <li><strong>M</strong> mute / unmute mic</li>
+            <li><strong>R</strong> start / stop recording</li>
+          </ul>
+          <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-zinc-500"}`}>
+            Hotkeys pause while you're typing in a field, and R stays out of the way while you're live (the broadcast records itself).
+          </p>
+        </div>
       </section>
 
       <p className={`mt-6 flex items-center gap-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/35"}`}>
