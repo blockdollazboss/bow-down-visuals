@@ -1048,6 +1048,28 @@ router.post("/reach/broadcast/channels", requireAuth, async (req: Request, res: 
   }
 });
 
+router.get("/reach/broadcast/channels", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const channels = await db.select().from(broadcastChannelsTable).orderBy(desc(broadcastChannelsTable.created_at)).limit(50);
+    const memberships = await db.select().from(broadcastMembersTable).where(eq(broadcastMembersTable.user_id, req.userId!));
+    const memberOf = new Set(memberships.map((m) => m.channel_id));
+    const profileIds = [...new Set(channels.map((c) => c.profile_id))];
+    const profiles = profileIds.length ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, profileIds)) : [];
+    const byId = new Map(profiles.map((pr) => [pr.id, pr]));
+    const out = [];
+    for (const ch of channels) {
+      out.push({
+        ...channelDto(ch, await memberCount(ch.id), memberOf.has(ch.id), ch.owner_user_id === req.userId),
+        creator: creatorCard(byId.get(ch.profile_id) ?? null),
+      });
+    }
+    res.json({ channels: out });
+  } catch (err) {
+    logger.error({ err }, "broadcast channels list failed");
+    res.status(500).json({ error: "Could not load broadcast channels." });
+  }
+});
+
 router.get("/reach/broadcast/by-profile/:profileId", publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const rows = await db.select().from(broadcastChannelsTable).where(eq(broadcastChannelsTable.profile_id, param(req, "profileId"))).limit(1);
