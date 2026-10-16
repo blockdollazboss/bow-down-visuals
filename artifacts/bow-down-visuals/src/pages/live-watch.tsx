@@ -6,6 +6,7 @@ import { FollowButton, useFollowStates } from "@/components/discovery/FollowButt
 import LiveChatPanel from "@/components/live/LiveChatPanel";
 import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamSummaryCard from "@/components/live/StreamSummaryCard";
+import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
@@ -289,6 +290,7 @@ export default function LiveWatch() {
         </div>
 
         {!isLive && <StreamSummaryCard streamId={stream.id} />}
+        <ReachWatchPanel streamId={stream.id} profileId={stream.creator?.id ?? null} isLive={!!isLive} isOwner={false} />
 
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">

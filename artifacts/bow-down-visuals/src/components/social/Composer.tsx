@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users } from "lucide-react";
+import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
 
@@ -30,7 +30,7 @@ export function Composer({
   const [pollOpen, setPollOpen] = useState(false);
   const [pollDraft, setPollDraft] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
-  const [audience, setAudience] = useState<"public" | "followers">("public");
+  const [audience, setAudience] = useState<"public" | "followers" | "close_friends">("public");
   const [urlDraft, setUrlDraft] = useState("");
   const [showUrlBox, setShowUrlBox] = useState(false);
   const [urlMode, setUrlMode] = useState<"media" | "product" | "track" | "event">("media");
@@ -340,6 +340,9 @@ export function Composer({
           </button>
           <button onClick={() => setAudience("followers")} className={`flex items-center gap-1 px-3 py-1.5 ${audience === "followers" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`}>
             <Users className="h-3.5 w-3.5" /> Followers
+          </button>
+          <button onClick={() => setAudience("close_friends")} className={`flex items-center gap-1 px-3 py-1.5 ${audience === "close_friends" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`} title="Only your close-friends circle can see it — manage the list on your feed page">
+            <Heart className="h-3.5 w-3.5" /> Close friends
           </button>
         </div>
       </div>}

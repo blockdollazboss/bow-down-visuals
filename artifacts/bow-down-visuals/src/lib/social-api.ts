@@ -94,6 +94,9 @@ export interface FeedPost {
   reaction_counts: Record<string, number>;
   quoted: FeedPost | null;
   poll: PollData | null;
+  /** For-You v1 (Stack 9 #4): the honest reason this post is in your
+     For You feed — derived from the actual ranking signal. */
+  why?: { kind: string; label: string } | null;
 }
 
 export interface Story {
@@ -102,6 +105,7 @@ export interface Story {
   media_url: string;
   media_kind: string;
   caption: string;
+  audience?: string;
   view_count: number;
   expires_at: string;
   created_at: string;

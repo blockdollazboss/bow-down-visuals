@@ -144,6 +144,8 @@ const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const World = lazyWithRetry(() => import("@/pages/world"));
 const StreamControllerPage = lazyWithRetry(() => import("@/pages/stream-controller"));
 const LiveWatch = lazyWithRetry(() => import("@/pages/live-watch"));
+const PremierePage = lazyWithRetry(() => import("@/pages/premiere"));
+const BroadcastPage = lazyWithRetry(() => import("@/pages/broadcast"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
@@ -538,6 +540,8 @@ function AppShell() {
           <Route path="/track/:id"><StreamTrackPage /></Route>
           <Route path="/watch/:id"><StreamWatchPage /></Route>
           <Route path="/live/:id"><LiveWatch /></Route>
+          <Route path="/premiere/:id"><PremierePage /></Route>
+          <Route path="/broadcast"><ProtectedRoute><BroadcastPage /></ProtectedRoute></Route>
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}

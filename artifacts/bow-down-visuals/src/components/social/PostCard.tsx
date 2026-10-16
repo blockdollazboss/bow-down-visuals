@@ -202,8 +202,14 @@ export function PostCard({
             {post.audience === "followers" && (
               <span className="shrink-0 rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[10px] text-neutral-400">followers</span>
             )}
+            {post.audience === "close_friends" && (
+              <span className="shrink-0 rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] text-[#e8c86a]">close friends</span>
+            )}
           </div>
 
+          {post.why && (
+            <p className="mt-1 text-[11px] text-neutral-500" data-testid="post-why">{post.why.label}</p>
+          )}
           {post.body && <RichText body={post.body} className="mt-1.5 text-[15px] leading-relaxed text-neutral-100" />}
 
           <AttachmentView attachments={post.media_urls ?? []} />

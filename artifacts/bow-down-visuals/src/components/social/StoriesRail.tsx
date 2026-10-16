@@ -15,6 +15,7 @@ export function StoriesRail() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [mediaUrl, setMediaUrl] = useState("");
   const [caption, setCaption] = useState("");
+  const [storyAudience, setStoryAudience] = useState<"public" | "close_friends">("public");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +57,7 @@ export function StoriesRail() {
     try {
       await apiJson(getAccessToken, "/api/stories", {
         method: "POST",
-        body: JSON.stringify({ media_url: mediaUrl.trim(), caption: caption.trim().slice(0, 280) }),
+        body: JSON.stringify({ media_url: mediaUrl.trim(), caption: caption.trim().slice(0, 280), audience: storyAudience }),
       });
       setMediaUrl("");
       setCaption("");
@@ -127,6 +128,10 @@ export function StoriesRail() {
             maxLength={280}
             className="mb-3 w-full rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-[#d4af37] focus:outline-none"
           />
+          <div className="mb-3 flex overflow-hidden rounded-lg border border-[#2a2a2a] text-xs w-fit">
+            <button type="button" onClick={() => setStoryAudience("public")} className={`px-3 py-1.5 ${storyAudience === "public" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`}>Everyone</button>
+            <button type="button" onClick={() => setStoryAudience("close_friends")} className={`px-3 py-1.5 ${storyAudience === "close_friends" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`}>Close friends</button>
+          </div>
           {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
           <button
             onClick={postStory}

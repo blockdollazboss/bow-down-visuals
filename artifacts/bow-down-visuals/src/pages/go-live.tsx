@@ -45,6 +45,8 @@ import DiscordBotSetup from "@/pages/discord-bot";
 import GamersHub from "@/pages/gamers";
 import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 import BroadcastStudio from "@/components/go-live/BroadcastStudio";
+import DestinationKeysPanel from "@/components/reach/DestinationKeysPanel";
+import LoyaltySettingsPanel from "@/components/reach/LoyaltySettingsPanel";
 
 type LiveTab = "broadcast" | "golive" | "shows" | "discord" | "gamers" | "copilot";
 
@@ -492,7 +494,7 @@ export default function GoLive() {
           </span>
         </Link>
       </div>
-      {tab === "broadcast" ? <BroadcastStudio /> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      {tab === "broadcast" ? <><BroadcastStudio /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
     </div>
   );
 }

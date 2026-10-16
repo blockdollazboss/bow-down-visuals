@@ -9,6 +9,7 @@ import { Composer } from "@/components/social/Composer";
 import { PostCard } from "@/components/social/PostCard";
 import { DropsWire } from "@/components/discovery/DropsWire";
 import { SocialRetentionRail } from "@/components/social/SocialRetentionRail";
+import CloseFriendsPanel from "@/components/reach/CloseFriendsPanel";
 
 /* ─── /home — the creator feed ─────────────────────────────────────────────
    Your timeline, no algorithm overlords 🦈 — chronological by default,
@@ -132,7 +133,7 @@ export default function FeedPage() {
           ? "New Drops — every release from creators you follow, last 30 days."
           : mode === "chrono"
             ? "Chronological — your timeline, no algorithm overlords. 🦈"
-            : "For You — creators you follow and high-engagement posts get a boost."}
+            : "For You — ranked by who you follow, creators you engage with, what's popular and what's fresh. Every post says why it's here. No paid boosting."}
       </p>
 
       {view === "drops" ? (
@@ -196,8 +197,9 @@ export default function FeedPage() {
           {/* Retention rail — a single DOM instance: right column at xl,
               interleaved after the first posts below xl. Unmounts with the
               timeline view, which stops the activity feed's polling. */}
-          <div className="mt-6 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0">
+          <div className="mt-6 space-y-4 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0">
             <SocialRetentionRail getToken={getAccessToken} />
+            <CloseFriendsPanel />
           </div>
 
           {/* The rest of the timeline */}
