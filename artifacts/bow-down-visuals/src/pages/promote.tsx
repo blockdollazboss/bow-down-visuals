@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
+import { UnlockGatesPanel } from "@/components/promote/UnlockGatesPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -443,6 +444,11 @@ export default function Promote() {
             social-kit flow. Deep-linked from /distribute and /presave/:slug. */}
         <div className="mt-10">
           <PromoCardsPanel />
+        </div>
+
+        {/* Stack 11 #8 — generalized follow/share-to-unlock gates. */}
+        <div className="mt-10">
+          <UnlockGatesPanel />
         </div>
           </>
         )}

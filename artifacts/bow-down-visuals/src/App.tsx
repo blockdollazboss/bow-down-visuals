@@ -129,6 +129,7 @@ const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
+const UnlockGate = lazyWithRetry(() => import("@/pages/unlock"));
 const SplitsAgreement = lazyWithRetry(() => import("@/pages/splits-agreement"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
@@ -572,6 +573,7 @@ function AppShell() {
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
+          <Route path="/unlock/:slug"><UnlockGate /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
