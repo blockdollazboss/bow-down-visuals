@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   AudioWaveform, Sparkles, Loader2, Heart, Search, ArrowRight,
-  Music2, Clock3, Lightbulb, Timer, Clapperboard,
+  Music2, Clock3, Lightbulb, Timer, Clapperboard, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -113,6 +113,7 @@ export default function ViralSoundFinder() {
   const [disclaimer, setDisclaimer] = useState("");
   const [browseLoading, setBrowseLoading] = useState(true);
   const [browseError, setBrowseError] = useState<string | null>(null);
+  const [browseRetryNonce, setBrowseRetryNonce] = useState(0);
   const [niche, setNiche] = useState<string>("all");
   const [mood, setMood] = useState<string>("all");
   const [query, setQuery] = useState("");
@@ -162,7 +163,7 @@ export default function ViralSoundFinder() {
     }
     load();
     return () => { cancelled = true; };
-  }, [niche, mood]);
+  }, [niche, mood, browseRetryNonce]);
 
   function toggleFavorite(id: string) {
     setFavorites((prev) => {
@@ -336,9 +337,17 @@ export default function ViralSoundFinder() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
             </div>
           ) : browseError ? (
-            <p className="mx-auto mt-8 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+            <div className="mx-auto mt-8 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
               {browseError}
-            </p>
+              <div>
+                <button
+                  onClick={() => setBrowseRetryNonce((n) => n + 1)}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
+            </div>
           ) : visibleSounds.length === 0 ? (
             <div className={`mt-8 rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <AudioWaveform className="mx-auto mb-3 h-8 w-8 text-white/25" aria-hidden="true" />
