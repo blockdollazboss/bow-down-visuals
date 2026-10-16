@@ -24,10 +24,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * background image.
  *
  * AI Generate tab: server-side background-plate generation via
- * POST /api/bg-generate, gated on GET /api/bg-generate/status. No image
- * provider key is configured yet, so the Generate button stays disabled with
- * a clear "isn't connected yet" message — uploads and presets keep working
- * and nothing charges. When a plate lands, it is loaded as an HTMLImage and
+ * POST /api/bg-generate, gated on GET /api/bg-generate/status. The route
+ * is wired to the house image provider and charges 200 VB (the status
+ * endpoint's creditCost IS the charged price); when no key is configured
+ * the button stays disabled with a clear "isn't connected yet" message —
+ * uploads and presets keep working and nothing charges. When a plate lands, it is loaded as an HTMLImage and
  * drawn by drawBackground inside the SAME on-device composite pipeline
  * below — no duplicated segmentation/composite code.
  *
@@ -205,6 +206,8 @@ export function BackgroundReplaceSection({
   const [aiGenerating, setAiGenerating] = useState(false);
   /** The AI-generated plate (HTMLImage) feeding the existing composite pipeline. */
   const [aiBg, setAiBg] = useState<HTMLImageElement | null>(null);
+  /** Idempotency key for the current AI generate attempt (Stack 7 #4). */
+  const aiAttemptKey = useRef<string | null>(null);
 
   void _setSettings;
   void settings;
@@ -227,7 +230,7 @@ export function BackgroundReplaceSection({
 
   /* ── AI background generation (gated) ────────────────────────────────
    * GET /api/bg-generate/status decides whether the Generate button is
-   * enabled. No provider key is configured yet, so this stays closed: the
+   * enabled. When the server has no image key this stays closed: the
    * button is disabled and a clear "isn't connected yet" notice shows.
    * The plate returned by POST /api/bg-generate feeds the SAME on-device
    * composite pipeline (drawBackground) as uploads/presets.
@@ -296,13 +299,17 @@ export function BackgroundReplaceSection({
     setAiGenerating(true);
     setMessage(null);
     try {
-      // PLACEHOLDER price path: cost comes from the status endpoint (server
-      // BG_GENERATE_CREDIT_COST, NOT user-approved yet). Do not add to
-      // credit-costs.ts — the coordinator wires the real price on approval.
+      // Price comes from the status endpoint — the server's
+      // BG_GENERATE_CREDIT_COST (200), which is exactly what is charged.
+      // One idempotency key per user attempt: a retry of THIS attempt
+      // reuses the key (no double charge); a new Generate click mints one.
+      if (!aiAttemptKey.current) {
+        aiAttemptKey.current = `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      }
       const res = await confirmedFetch("/api/bg-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style: aiStyle }),
+        body: JSON.stringify({ prompt, style: aiStyle, idempotencyKey: aiAttemptKey.current }),
         overrideCost: aiStatus?.creditCost,
         overrideFeature: t(`${ns}.ai.confirmFeature`, { defaultValue: "AI background plate" }),
       });
@@ -339,6 +346,7 @@ export function BackgroundReplaceSection({
         );
       }
       const img = await loadPlateImage(data.imageUrl);
+      aiAttemptKey.current = null; // success — next Generate is a new attempt
       setAiBg(img);
       setMessage(null);
       toast({
@@ -740,10 +748,11 @@ export function BackgroundReplaceSection({
                       ? t(`${ns}.ai.generating`, { defaultValue: "Generating…" })
                       : t(`${ns}.ai.generate`, { defaultValue: "Generate background ({{cost}} VB)", cost: aiCost })}
                   </button>
-                  {aiConfigured && aiStatus?.pricePlaceholder && (
+                  {aiConfigured && (
                     <p className="text-[11px] text-white/35 mt-1.5">
                       {t(`${ns}.ai.priceNote`, {
-                        defaultValue: "Price not final — AI background pricing hasn't been set yet.",
+                        defaultValue: "Charged exactly {{cost}} VB when a background generates — a failed generation is refunded.",
+                        cost: aiCost,
                       })}
                     </p>
                   )}
