@@ -91,6 +91,13 @@ export interface ExportStemPayload {
   durationSec?: number;
   /** Per-stem effect chain (EQ, reverb, delay, compression, saturation, de-ess, denoise). */
   effects?: StemEffects;
+  /* Stack 6 arrangement fields (server render honors all of them). */
+  startTime?: number;
+  fadeInSec?: number;
+  fadeOutSec?: number;
+  fxChain?: import("@/lib/arrangement").FxStep[];
+  automation?: import("@/lib/arrangement").TrackAutomation;
+  duck?: { sourceStemIds: string[]; amount: number; sensitivity: number };
 }
 
 export interface MasterBusPayload {
