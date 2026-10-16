@@ -21,6 +21,7 @@ import {
   type AggregatorReleasePayload,
   type PlatformDeliveryStatus,
 } from "../../lib/distribution-aggregator";
+import { parseSpotifyItem } from "../../lib/distribution-legacy";
 
 const router = Router();
 
@@ -1679,6 +1680,34 @@ router.get("/distribution/presave/:slug", async (req, res) => {
     const artworkUrl = row.artwork_url
       ? await refreshSupabaseStorageUrl(row.artwork_url)
       : row.artwork_url;
+    /* ── Stack 11 #1: the landing PERSISTS after release day as the
+       release's all-content smartlink. Landing extras (video / store /
+       socials) ride in their own table; a missing table on an older
+       install degrades to the presave-only page, never an error. ── */
+    let landing = { videoUrl: null as string | null, storeUrl: null as string | null, socialLinks: {} as Record<string, string> };
+    try {
+      const lr = await db.execute(sql`
+        SELECT video_url, store_url, social_links FROM release_landing_content WHERE release_id = ${row.id} LIMIT 1
+      `);
+      const lrow = lr.rows[0] as unknown as { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | undefined;
+      if (lrow) landing = { videoUrl: lrow.video_url, storeUrl: lrow.store_url, socialLinks: lrow.social_links ?? {} };
+    } catch { /* landing extras are additive */ }
+    const releaseTargetMs = row.release_date
+      ? (/^\d{4}-\d{2}-\d{2}$/.test(row.release_date.trim())
+          ? new Date(`${row.release_date.trim()}T00:00:00Z`).getTime()
+          : new Date(row.release_date).getTime())
+      : NaN;
+    const released = Number.isFinite(releaseTargetMs) && Date.now() >= releaseTargetMs;
+    /* ── Stack 11 #2: account pre-save is offered only where the platform
+       API can really save — a parseable Spotify track/album link. ── */
+    const spotifyItem = parseSpotifyItem(((row.presave_platform_links ?? {}) as Record<string, string>)["spotify"]);
+    /* How many fans completed a REAL account save (confirmed by the
+       platform API) — reported separately from follows, never blended. */
+    let accountSaveCount = 0;
+    try {
+      const ac = await db.execute(sql`SELECT COUNT(*) AS c FROM presave_account_actions WHERE release_id = ${row.id} AND status = 'saved'`);
+      accountSaveCount = Number((ac.rows[0] as { c: string | number }).c ?? 0);
+    } catch { /* additive */ }
     res.json({
       presave: {
         title: row.title,
@@ -1695,6 +1724,13 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         bonusUrl: row.presave_bonus_url ?? null,
         followerCount,
         shareCount,
+        /* ── Stack 11: persistent smartlink + account pre-save ── */
+        released,
+        persistsAfterRelease: true,
+        landing,
+        accountPresave: spotifyItem
+          ? { platform: "spotify", supported: true, itemKind: spotifyItem.kind, actionLabel: "Save on Spotify", accountSaveCount }
+          : { platform: "spotify", supported: false, reason: "No Spotify track or album link on this release yet — email pre-save is the action.", actionLabel: null, accountSaveCount },
       },
     });
   } catch (err) {

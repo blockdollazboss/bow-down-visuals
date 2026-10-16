@@ -245,6 +245,7 @@ import discordRouter from "./discord";
 import discordBotRouter from "./discord-bot";
 import jobNotificationsRouter from "./job-notifications";
 import distributionRouter from "./generate/distribution";
+import distributionLegacyRouter from "./distribution-legacy";
 import schedulerRouter from "./scheduler";
 import merchRouter from "./generate/merch";
 import jewelryRouter from "./generate/jewelry";
@@ -565,6 +566,7 @@ router.use(discordRouter);
 router.use(discordBotRouter);
 router.use(jobNotificationsRouter);
 router.use(distributionRouter);
+router.use(distributionLegacyRouter);        // Stack 11: /api/distribution/{landing-content, spotify, splits/statements, lyrics-package, change-requests, permanence, roster} + /api/promote/unlock-gates
 router.use(schedulerRouter);
 router.use(merchRouter);
 router.use(jewelryRouter);
