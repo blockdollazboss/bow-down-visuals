@@ -6,12 +6,13 @@ import { FollowButton, useFollowStates } from "@/components/discovery/FollowButt
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
-   Playback is WebRTC (WHEP) for live streams; when WebRTC can't connect
-   and the browser can play HLS natively (Safari), the same element takes
-   the HLS URL. Anything else fails honestly with a retry — never a
-   frozen fake player. While live, this page heartbeats so the viewer
-   count the creator sees is real, and polls for the end of the stream;
-   once ended, the recording (when one was saved) becomes the replay. */
+   Playback is WebRTC (WHEP) where the transport offers it; streams from
+   the site's own stage arrive as HLS — played natively where the browser
+   can (Safari), through hls.js (MSE, lazy-loaded) everywhere else.
+   Anything else fails honestly with a retry — never a frozen fake
+   player. While live, this page heartbeats so the viewer count the
+   creator sees is real, and polls for the end of the stream; once
+   ended, the recording (when one was saved) becomes the replay. */
 
 interface LiveStreamDto {
   id: string;
@@ -39,6 +40,7 @@ export default function LiveWatch() {
   const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<WhepPlayer | null>(null);
+  const hlsRef = useRef<{ destroy: () => void } | null>(null);
   const sessionRef = useRef<string>("");
   if (!sessionRef.current) {
     sessionRef.current =
@@ -109,13 +111,41 @@ export default function LiveWatch() {
           if (cancelled) return;
         }
       }
-      // WebRTC didn't connect — HLS is the fallback where the browser can
-      // play it natively (Safari). Everywhere else: honest failure.
+      // WebRTC didn't connect (or wasn't offered) — HLS next: natively
+      // where the browser can (Safari), hls.js everywhere else.
       if (hlsUrl && video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = hlsUrl;
         await video.play().catch(() => undefined);
         if (!cancelled) setPlay("playing");
         return;
+      }
+      if (hlsUrl) {
+        try {
+          const { default: Hls } = await import("hls.js");
+          if (cancelled) return;
+          if (Hls.isSupported()) {
+            const hls = new Hls({ liveSyncDurationCount: 3, maxLiveSyncPlaybackRate: 1.5 });
+            hlsRef.current = hls;
+            const ok = await new Promise<boolean>((resolve) => {
+              hls.on(Hls.Events.MANIFEST_PARSED, () => resolve(true));
+              hls.on(Hls.Events.ERROR, (_evt, data) => {
+                if (data.fatal) resolve(false);
+              });
+              hls.loadSource(hlsUrl);
+              hls.attachMedia(video);
+            });
+            if (cancelled) return;
+            if (ok) {
+              await video.play().catch(() => undefined);
+              if (!cancelled) setPlay("playing");
+              return;
+            }
+            hls.destroy();
+            hlsRef.current = null;
+          }
+        } catch {
+          /* hls.js unavailable — fall through to the honest failure */
+        }
       }
       if (!cancelled) setPlay("failed");
     })();
@@ -123,6 +153,8 @@ export default function LiveWatch() {
       cancelled = true;
       playerRef.current?.stop();
       playerRef.current = null;
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLive, stream?.id, retryNonce]);

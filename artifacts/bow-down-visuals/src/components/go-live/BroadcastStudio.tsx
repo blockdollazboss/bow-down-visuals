@@ -19,12 +19,15 @@ import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voi
 import { BACKDROPS, BACKDROP_URIS } from "@/lib/stream-kit/backdrops";
 import {
   WhipTransport,
+  OwnServerTransport,
+  createStreamTransport,
   TransportError,
   SITE_DESTINATION,
   DESTINATION_PLATFORMS,
   summarizeRtcStats,
   type RtcStatSample,
   type RtcSummary,
+  type StreamTransport,
   type TransportState,
 } from "@/lib/stream-kit/transport";
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
@@ -46,14 +49,19 @@ import MixerPanel from "./studio/MixerPanel";
    - Studio mode: a Preview canvas to frame the next scene (drag sources
      right on it) and the Program canvas that is actually published,
      with Cut / Fade transitions.
-   - Publish runs through a StreamTransport (transport.ts): WHIP to the
-     site is implementation #1. The destinations model rides along —
-     v1 broadcasts to the creator's profile only, and says so.
-   - While live, the browser records the Program feed (StreamRecorder);
-     on End Stream it uploads through the site's storage path and
-     registers on the stream — landing in the creator's clips. If the
-     recording fails, the stream still ends cleanly and the UI says the
-     recording didn't save. Going live is free (no credit charge). */
+   - Publish runs through a StreamTransport (transport.ts), chosen by
+     the server's /status selection: the site's own stage by default
+     (chunked publish; the server keeps the replay itself), WHIP when
+     the server selects it. The destinations model rides along — v1
+     broadcasts to the creator's profile only, and says so.
+   - While live on a transport that doesn't keep its own recording, the
+     browser records the Program feed (StreamRecorder); on End Stream it
+     uploads through the site's storage path and registers on the
+     stream — landing in the creator's clips. On the site's own stage
+     the published feed IS the recording, so the studio just watches
+     for the replay to register. If the recording fails, the stream
+     still ends cleanly and the UI says the recording didn't save.
+     Going live is free (no credit charge). */
 
 type Phase = "off" | "starting" | "preview" | "connecting" | "live" | "ending";
 
@@ -138,6 +146,9 @@ export default function BroadcastStudio() {
   const [cameraId, setCameraId] = useState("");
   const [micId, setMicId] = useState("");
   const [mode, setMode] = useState<BackgroundMode>("green");
+  /* True when the segmentation engine couldn't load: the camera runs
+     plain and only the AI backdrop modes disable (one inline notice). */
+  const [engineDown, setEngineDown] = useState(false);
   const [backdropId, setBackdropId] = useState("stage");
   const [camFx, setCamFx] = useState("none");
   const [nc, setNc] = useState<NoiseCancellationLevel>("on");
@@ -146,6 +157,7 @@ export default function BroadcastStudio() {
   const [statusMsg, setStatusMsg] = useState("Camera is off. Start it to check your picture and sound before you go live.");
   const [ncMsg, setNcMsg] = useState("Noise cancellation starts with the camera.");
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [transportKind, setTransportKind] = useState<"own" | "cloudflare">("own");
   const [leftover, setLeftover] = useState<LiveStreamOwnerDto | null>(null);
   const [liveId, setLiveId] = useState<string | null>(null);
   const [liveSince, setLiveSince] = useState<number | null>(null);
@@ -179,7 +191,7 @@ export default function BroadcastStudio() {
   const getAnalyser = useCallback(() => changerRef.current?.getAnalyser() ?? null, []);
 
   const changerRef = useRef<BackgroundChanger | null>(null);
-  const transportRef = useRef<WhipTransport | null>(null);
+  const transportRef = useRef<StreamTransport | null>(null);
   const recorderRef = useRef<StreamRecorder | null>(null);
   const mixerRef = useRef<AudioMixer | null>(null);
   const recRecorderRef = useRef<StreamRecorder | null>(null);
@@ -228,8 +240,13 @@ export default function BroadcastStudio() {
       const headers = await authed();
       const res = await fetch("/api/live-streams/status", { headers });
       if (res.ok) {
-        const d = (await res.json()) as { configured: boolean; live_stream: LiveStreamOwnerDto | null };
+        const d = (await res.json()) as {
+          configured: boolean;
+          transport?: string;
+          live_stream: LiveStreamOwnerDto | null;
+        };
         setConfigured(d.configured);
+        if (d.transport === "cloudflare" || d.transport === "own") setTransportKind(d.transport);
         setLeftover(d.live_stream);
       }
       const dRes = await fetch("/api/discord/status", { headers });
@@ -244,6 +261,7 @@ export default function BroadcastStudio() {
 
   useEffect(() => {
     WhipTransport.api.getAccessToken = getAccessToken;
+    OwnServerTransport.api.getAccessToken = getAccessToken;
     void loadStatus();
   }, [getAccessToken, loadStatus]);
 
@@ -350,7 +368,11 @@ export default function BroadcastStudio() {
       }
       const changer = changerRef.current;
       await changer.start(cameraId || undefined);
-      if (mode === "image" && !changer.hasBackdrop()) {
+      /* The engine never holds the camera hostage: a failed engine load
+         leaves the camera running plain with the AI backdrop modes off. */
+      const engineOk = changer.segmentationAvailable;
+      setEngineDown(!engineOk);
+      if (engineOk && mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
       if (!mixerRef.current) {
@@ -364,13 +386,22 @@ export default function BroadcastStudio() {
       const shareStream = stageRef.current?.pool.screenStream;
       if (shareStream) mixerRef.current.setInputStream("screen", shareStream);
       setPhase("preview");
-      setStatusMsg("That's your feed in the Camera source — frame it in a scene, pick a title, and go live when you're ready.");
+      setStatusMsg(
+        engineOk
+          ? "That's your feed in the Camera source — frame it in a scene, pick a title, and go live when you're ready."
+          : "Background effects couldn't load — your camera is running plain. Scenes, sound, recording and the green-screen key all still work.",
+      );
       bump();
       await refreshDevices();
     } catch (err) {
       setPhase("off");
       setStatusMsg(describeError(err));
-      toast({ title: "Camera didn't start", description: describeError(err), variant: "destructive" });
+      /* Engine errors get ONE surface — the inline status above. (The
+         failure used to show twice: inline AND as a red toast.) */
+      const isEngineError = err instanceof BackgroundChangerError && err.code === "CDN_LOAD_FAILED";
+      if (!isEngineError) {
+        toast({ title: "Camera didn't start", description: describeError(err), variant: "destructive" });
+      }
     }
   }
 
@@ -379,6 +410,7 @@ export default function BroadcastStudio() {
     await changerRef.current?.stop();
     changerRef.current = null;
     mixerRef.current?.setInputStream("mic", null);
+    setEngineDown(false);
     setPhase("off");
     setStatusMsg("Camera is off.");
     bump();
@@ -452,7 +484,7 @@ export default function BroadcastStudio() {
     setAnnouncedLive(false);
     setAnnouncedEnd(false);
     setPhase("connecting");
-    const transport = new WhipTransport();
+    const transport = createStreamTransport(transportKind);
     transportRef.current = transport;
     transport.onStateChange((s: TransportState) => {
       if (s === "failed" && phaseRef.current === "connecting") setPhase("preview");
@@ -460,7 +492,7 @@ export default function BroadcastStudio() {
     try {
       await transport.start(stream, { title: title.trim(), destinations: [{ ...SITE_DESTINATION }] });
       const id = transport.streamId;
-      setLiveId(id);
+      setLiveId(id ?? null);
       setLiveSince(Date.now());
       setElapsed(0);
       setViewerCount(0);
@@ -468,18 +500,22 @@ export default function BroadcastStudio() {
       setHealth(null);
       setPhase("live");
       setStatusMsg("You're live — the Program feed is on your profile and in the Live rail on Explore.");
-      // Record the same Program feed for the VOD. A recorder failure
-      // never touches the broadcast — it just means no replay.
-      try {
-        const recorder = new StreamRecorder({
-          onWarning: (m) => setRecordWarning(m),
-          onError: () => setRecordNote("failed"),
-        });
-        recorderRef.current = recorder;
-        await recorder.start(stream);
-      } catch {
-        recorderRef.current = null;
-        setRecordNote("failed");
+      // Record the same Program feed for the VOD — unless the transport
+      // keeps the recording itself (the site's own stage: the published
+      // feed IS the replay master). A recorder failure never touches
+      // the broadcast — it just means no replay.
+      if (!transport.serverRecording) {
+        try {
+          const recorder = new StreamRecorder({
+            onWarning: (m) => setRecordWarning(m),
+            onError: () => setRecordNote("failed"),
+          });
+          recorderRef.current = recorder;
+          await recorder.start(stream);
+        } catch {
+          recorderRef.current = null;
+          setRecordNote("failed");
+        }
       }
     } catch (err) {
       setPhase("preview");
@@ -496,6 +532,7 @@ export default function BroadcastStudio() {
     const transport = transportRef.current;
     if (!transport) return;
     setPhase("ending");
+    const serverRecording = transport.serverRecording === true;
     const streamId = transport.streamId ?? liveId;
     // Stop the recorder first (final chunk flush), then end the session.
     const hadRecorder = recorderRef.current !== null;
@@ -511,6 +548,40 @@ export default function BroadcastStudio() {
     setLiveSince(null);
     setHealth(null);
     setStatusMsg("You're off air. That was the show — post the replay to Discord from the Announce tab if you want the crowd to catch it.");
+
+    if (serverRecording && streamId) {
+      // The stage kept this recording: the replay registers on the
+      // stream once the server finishes saving it. Watch for the fact
+      // (vod_url, or the site destination's recorded vod_state) —
+      // never guess either way.
+      void (async () => {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          try {
+            const res = await fetch(`/api/live-streams/${streamId}`);
+            if (!res.ok) continue;
+            const d = (await res.json()) as {
+              stream: {
+                vod_url: string | null;
+                destinations?: Array<{ platform: string; vod_state: string | null }>;
+              };
+            };
+            if (d.stream.vod_url) {
+              setRecordNote("saved");
+              setLastVodUrl(d.stream.vod_url);
+              return;
+            }
+            const site = d.stream.destinations?.find((x) => x.platform === "site");
+            if (site?.vod_state === "not_saved") {
+              setRecordNote("failed");
+              return;
+            }
+          } catch {
+            /* keep watching */
+          }
+        }
+      })();
+    }
 
     if (recording && streamId && user) {
       // Upload through the site's own storage path, then register the
@@ -594,9 +665,10 @@ export default function BroadcastStudio() {
   useEffect(() => {
     if (phase !== "live") return;
     const transport = transportRef.current;
-    if (!transport) return;
+    if (!transport?.getStats) return;
+    const getStats = transport.getStats.bind(transport);
     const id = setInterval(() => {
-      void transport.getStats().then((report) => {
+      void getStats().then((report) => {
         if (!report) return;
         const entries: Record<string, unknown>[] = [];
         report.forEach((s) => entries.push(s as Record<string, unknown>));
@@ -1116,6 +1188,11 @@ export default function BroadcastStudio() {
               {isLivePhase ? "live now" : "ready"} · replay saves to your clips
             </span>
           </div>
+          {transportKind === "own" && (
+            <p className={`mt-1.5 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              This site carries your stream itself — viewers see it a few seconds behind real time.
+            </p>
+          )}
           <div className="mt-3 space-y-1.5 border-t border-dashed border-[#C9A84C]/25 pt-3">
             {DESTINATION_PLATFORMS.filter((p) => p.platform !== "site").map((p) => (
               <div key={p.platform} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm opacity-70">
@@ -1241,7 +1318,8 @@ export default function BroadcastStudio() {
             <button
               key={m}
               type="button"
-              className={pillBtn(mode === m)}
+              disabled={engineDown && m !== "none"}
+              className={`${pillBtn(mode === m)} disabled:cursor-not-allowed disabled:opacity-40`}
               onClick={async () => {
                 setMode(m);
                 const changer = changerRef.current;
@@ -1257,11 +1335,17 @@ export default function BroadcastStudio() {
             </button>
           ))}
         </div>
+        {engineDown && (
+          <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`} data-testid="engine-down-note">
+            Background effects couldn&rsquo;t load — camera is running plain.
+          </p>
+        )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">
           {BACKDROPS.map((b) => (
             <button
               key={b.id}
               type="button"
+              disabled={engineDown}
               onClick={async () => {
                 setBackdropId(b.id);
                 setMode("image");
@@ -1273,7 +1357,7 @@ export default function BroadcastStudio() {
                 changer.setMode("image");
                 await changer.setImage(b.uri).catch((err) => setStatusMsg(describeError(err)));
               }}
-              className={`overflow-hidden rounded-lg border p-1 text-center transition ${
+              className={`overflow-hidden rounded-lg border p-1 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
                 backdropId === b.id && mode === "image"
                   ? "border-transparent bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]"
                   : isLight

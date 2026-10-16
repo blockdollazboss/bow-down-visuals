@@ -16,6 +16,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   WhipTransport,
   WhepPlayer,
+  OwnServerTransport,
+  createStreamTransport,
+  pickIngestMimeType,
+  INGEST_MIME_CANDIDATES,
   TransportError,
   resolveSessionUrl,
   waitForIceGathering,
@@ -353,5 +357,189 @@ describe("summarizeRtcStats (stream health)", () => {
   it("no video stats at all → everything null except the sample", () => {
     const { summary } = summarizeRtcStats([{ type: "candidate-pair", timestamp: 5 }], null);
     expect(summary).toEqual({ bitrateKbps: null, fps: null, droppedFrames: null, framesSent: null });
+  });
+});
+
+/* ── OwnServerTransport (implementation #2 — the site's own stage) ─────
+   Chunked HTTPS ingest: MediaRecorder emits ~2s chunks, each POSTed in
+   order with its sequence number; the server IS the recorder
+   (serverRecording), so the studio must not run a second one. */
+
+class FakeRecorder {
+  static instances: FakeRecorder[] = [];
+  mimeType: string;
+  state = "inactive";
+  startedWith: number | null = null;
+  ondataavailable: ((ev: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  constructor(_stream: unknown, opts?: { mimeType?: string }) {
+    this.mimeType = opts?.mimeType ?? "video/webm";
+    FakeRecorder.instances.push(this);
+  }
+  start(timeslice?: number): void {
+    this.state = "recording";
+    this.startedWith = timeslice ?? null;
+  }
+  emit(text: string): void {
+    this.ondataavailable?.({ data: new Blob([text]) });
+  }
+  stop(): void {
+    this.state = "inactive";
+    this.onstop?.();
+  }
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+const ownFakeStream = () => ({}) as unknown as MediaStream;
+
+describe("OwnServerTransport", () => {
+  beforeEach(() => {
+    FakeRecorder.instances = [];
+  });
+
+  function harness(over: Partial<Parameters<typeof makeDeps>[0]> = {}) {
+    return makeDeps(over);
+  }
+  function makeDeps(over: {
+    createSession?: (title: string) => Promise<{ streamId: string }>;
+    postChunk?: (id: string, seq: number, body: ArrayBuffer, mime: string) => Promise<void>;
+    supported?: (m: string) => boolean;
+  } = {}) {
+    const calls = {
+      created: [] as string[],
+      ended: [] as string[],
+      posted: [] as Array<{ id: string; seq: number; text: string; mime: string }>,
+    };
+    const deps = {
+      mediaRecorderImpl: FakeRecorder as never,
+      isTypeSupported: over.supported ?? ((m: string) => m.includes("webm")),
+      createSession: over.createSession ?? (async (title: string) => {
+        calls.created.push(title);
+        return { streamId: "stream-own-1" };
+      }),
+      endSession: async (id: string) => {
+        calls.ended.push(id);
+      },
+      postChunk: over.postChunk ?? (async (id: string, seq: number, body: ArrayBuffer, mime: string) => {
+        calls.posted.push({ id, seq, text: new TextDecoder().decode(body), mime });
+      }),
+    };
+    return { deps, calls };
+  }
+
+  it("is a server-recording transport with no RTC stats", async () => {
+    const { deps } = harness();
+    const t = new OwnServerTransport(deps);
+    expect(t.serverRecording).toBe(true);
+    expect(await t.getStats()).toBeNull();
+  });
+
+  it("creates the session, picks the first supported mime, and starts the recorder on the 2s cadence", async () => {
+    const { deps, calls } = harness();
+    const t = new OwnServerTransport(deps);
+    await t.start(ownFakeStream(), { title: "Friday Night Live" });
+    expect(calls.created).toEqual(["Friday Night Live"]);
+    expect(t.state).toBe("live");
+    expect(t.streamId).toBe("stream-own-1");
+    const rec = FakeRecorder.instances[0];
+    expect(rec.mimeType).toBe("video/webm;codecs=vp9,opus");
+    expect(rec.startedWith).toBe(2000);
+    await t.stop();
+  });
+
+  it("posts chunks in order with sequence numbers; stop flushes before ending the session", async () => {
+    const { deps, calls } = harness();
+    const t = new OwnServerTransport(deps);
+    await t.start(ownFakeStream(), { title: "Show" });
+    const rec = FakeRecorder.instances[0];
+    rec.emit("chunk-zero");
+    rec.emit("chunk-one");
+    await flush();
+    rec.emit("chunk-two-final");
+    await t.stop();
+    expect(calls.posted.map((p) => p.seq)).toEqual([0, 1, 2]);
+    expect(calls.posted.map((p) => p.text)).toEqual(["chunk-zero", "chunk-one", "chunk-two-final"]);
+    expect(calls.posted.every((p) => p.id === "stream-own-1" && p.mime.includes("webm"))).toBe(true);
+    expect(calls.ended).toEqual(["stream-own-1"]);
+    expect(t.state).toBe("idle");
+    expect(t.streamId).toBeNull();
+  });
+
+  it("surfaces a session refusal with its server code and lands in failed state", async () => {
+    const { deps } = harness({
+      createSession: async () => {
+        throw new TransportError("LIVE_CAPACITY", "The live stage is full right now.");
+      },
+    });
+    const t = new OwnServerTransport(deps);
+    await expect(t.start(ownFakeStream(), { title: "Show" })).rejects.toMatchObject({ code: "LIVE_CAPACITY" });
+    expect(t.state).toBe("failed");
+  });
+
+  it("a mid-stream ingest failure fails the transport and ends the session", async () => {
+    const { deps, calls } = harness({
+      postChunk: async () => {
+        throw new TransportError("STREAM_ENDED", "That stream has ended.");
+      },
+    });
+    const t = new OwnServerTransport(deps);
+    await t.start(ownFakeStream(), { title: "Show" });
+    FakeRecorder.instances[0].emit("doomed");
+    await flush();
+    await flush();
+    expect(t.state).toBe("failed");
+    expect(calls.ended).toEqual(["stream-own-1"]);
+  });
+
+  it("default chunk upload targets the ingest endpoint with the seq header; a 410 is fatal (no retry)", async () => {
+    const seen: Array<{ url: string; seq: string | null; ct: string | null }> = [];
+    const fetchImpl = async (url: string, init?: { headers?: Record<string, string> }) => {
+      seen.push({
+        url,
+        seq: init?.headers?.["X-Segment-Seq"] ?? null,
+        ct: init?.headers?.["Content-Type"] ?? null,
+      });
+      return {
+        ok: false,
+        status: 410,
+        json: async () => ({ code: "STREAM_ENDED", error: "That stream has ended." }),
+      };
+    };
+    const prevToken = OwnServerTransport.api.getAccessToken;
+    OwnServerTransport.api.getAccessToken = async () => "tok-1";
+    try {
+      const t = new OwnServerTransport({
+        mediaRecorderImpl: FakeRecorder as never,
+        isTypeSupported: (m: string) => m.includes("webm"),
+        createSession: async () => ({ streamId: "stream-own-9" }),
+        endSession: async () => undefined,
+        fetchImpl: fetchImpl as never,
+      });
+      await t.start(ownFakeStream(), { title: "Show" });
+      FakeRecorder.instances[0].emit("only-chunk");
+      await flush();
+      await flush();
+      expect(seen).toHaveLength(1); // fatal statuses are never retried
+      expect(seen[0].url).toBe("/api/live-streams/stream-own-9/ingest/segment");
+      expect(seen[0].seq).toBe("0");
+      expect(seen[0].ct).toContain("video/webm");
+      expect(t.state).toBe("failed");
+    } finally {
+      OwnServerTransport.api.getAccessToken = prevToken;
+    }
+  });
+});
+
+describe("pickIngestMimeType + factory", () => {
+  it("prefers MP4 when the browser offers it, falls down the candidate list, else empty", () => {
+    expect(pickIngestMimeType(() => true)).toBe(INGEST_MIME_CANDIDATES[0]);
+    expect(pickIngestMimeType((m) => m === "video/webm")).toBe("video/webm");
+    expect(pickIngestMimeType(() => false)).toBe("");
+  });
+
+  it("createStreamTransport returns the implementation the server selected", () => {
+    expect(createStreamTransport("own")).toBeInstanceOf(OwnServerTransport);
+    expect(createStreamTransport("cloudflare")).toBeInstanceOf(WhipTransport);
   });
 });

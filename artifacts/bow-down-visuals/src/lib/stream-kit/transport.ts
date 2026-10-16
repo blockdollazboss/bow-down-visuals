@@ -8,6 +8,13 @@
  *   exit 1 (this build): WhipTransport — WebRTC/WHIP to the site's
  *     streaming provider; viewers watch the broadcast on the creator's
  *     profile / watch page on the website.
+ *   exit 1b (this build): OwnServerTransport — the site's own service
+ *     carries the stream (the server's selected default): the browser
+ *     sends the feed as short MediaRecorder chunks over HTTPS, the API
+ *     remuxes them into live HLS, and the same chunk stream becomes the
+ *     replay server-side (so this transport reports serverRecording —
+ *     the studio must NOT also record locally). createStreamTransport
+ *     picks the implementation from the server's /status selection.
  *   exit 2 (later): a native companion app carrying the same studio as a
  *     system virtual camera + virtual mic into other apps. That will be a
  *     second StreamTransport implementation — the studio UI and the kit
@@ -113,6 +120,17 @@ export interface StreamTransport {
   readonly activeDestinations: StreamDestination[];
   /** Requested destinations this transport does not implement (yet). */
   readonly skippedDestinations: StreamDestination[];
+  /**
+   * True when the transport's server side keeps the recording itself
+   * (own-server: the published chunk stream IS the replay master). The
+   * studio skips its local broadcast recorder for these — recording the
+   * same feed twice would double the broadcaster's CPU for nothing.
+   */
+  readonly serverRecording?: boolean;
+  /** Publisher stats when the transport has any (WebRTC); else null/absent. */
+  getStats?: () => Promise<RTCStatsReport | null>;
+  /** The site session id once live (the studio links the replay to it). */
+  readonly streamId?: string | null;
 }
 
 export class TransportError extends Error {
@@ -351,6 +369,318 @@ export class WhipTransport implements StreamTransport {
     if (streamId) await this._endSession(streamId).catch(() => undefined);
     this._setState("idle");
   }
+}
+
+/* ── Own-server transport ─────────────────────────────────────────────────
+   The site's own service is the stage: the host gives the API exactly
+   one public HTTP port (no UDP), so the feed travels as media the port
+   can carry — a MediaRecorder emits a chunk every ~2s and each chunk is
+   POSTed over HTTPS to /api/live-streams/:id/ingest/segment. The server
+   remuxes the chunk stream into live HLS for the watch page, and the
+   same stream is the recording: on stop, the server uploads + registers
+   the replay itself (serverRecording = true).
+
+   Chunks upload strictly in order (a promise chain), each with its
+   sequence number; the server treats a re-sent sequence as a duplicate,
+   so a retry after a flaky moment is safe. A chunk that can't land
+   after retries fails the transport honestly rather than letting the
+   studio believe it's live over a dead pipe. */
+
+export const INGEST_MIME_CANDIDATES = [
+  "video/mp4;codecs=avc1.640028,mp4a.40.2",
+  "video/mp4",
+  "video/webm;codecs=vp9,opus",
+  "video/webm;codecs=vp8,opus",
+  "video/webm",
+] as const;
+
+export function pickIngestMimeType(
+  isTypeSupported: (mime: string) => boolean = (m) =>
+    typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m),
+): string {
+  for (const c of INGEST_MIME_CANDIDATES) {
+    try {
+      if (isTypeSupported(c)) return c;
+    } catch {
+      /* ignore */
+    }
+  }
+  return "";
+}
+
+export interface OwnServerDeps {
+  fetchImpl?: FetchImpl;
+  mediaRecorderImpl?: typeof MediaRecorder;
+  isTypeSupported?: (mime: string) => boolean;
+  /** Recorder chunk cadence (ms). ~2s balances latency vs request rate. */
+  timesliceMs?: number;
+  /** Creates the site-side broadcast session; returns its stream id. */
+  createSession?: (
+    title: string,
+    destinations?: StreamDestination[],
+  ) => Promise<{ streamId: string }>;
+  /** Ends the site-side session. Injected in tests. */
+  endSession?: (streamId: string) => Promise<void>;
+  /** Uploads one chunk. Injected in tests. */
+  postChunk?: (streamId: string, seq: number, body: ArrayBuffer, mimeType: string) => Promise<void>;
+}
+
+export class OwnServerTransport implements StreamTransport {
+  state: TransportState = "idle";
+  readonly serverRecording = true;
+  activeDestinations: StreamDestination[] = [];
+  skippedDestinations: StreamDestination[] = [];
+  private _listeners = new Set<(s: TransportState) => void>();
+  private _deps: OwnServerDeps;
+  private _streamId: string | null = null;
+  private _recorder: MediaRecorder | null = null;
+  private _mimeType = "";
+  private _seq = 0;
+  private _chain: Promise<void> = Promise.resolve();
+  private _failed = false;
+  private _resolveStopped: (() => void) | null = null;
+
+  /** API seam the studio uses (token provider + API origin). */
+  static api: {
+    getAccessToken: () => Promise<string | null>;
+    base: string;
+  } = { getAccessToken: async () => null, base: "" };
+
+  constructor(deps: OwnServerDeps = {}) {
+    this._deps = deps;
+  }
+
+  onStateChange = (cb: (state: TransportState) => void): (() => void) => {
+    this._listeners.add(cb);
+    return () => this._listeners.delete(cb);
+  };
+
+  private _setState(s: TransportState): void {
+    this.state = s;
+    this._listeners.forEach((cb) => cb(s));
+  }
+
+  get streamId(): string | null {
+    return this._streamId;
+  }
+
+  /** No RTC on this pipe — the health readout says "unavailable". */
+  async getStats(): Promise<RTCStatsReport | null> {
+    return null;
+  }
+
+  private async _createSession(
+    title: string,
+    destinations?: StreamDestination[],
+  ): Promise<{ streamId: string }> {
+    if (this._deps.createSession) return this._deps.createSession(title, destinations);
+    const doFetch = this._deps.fetchImpl ?? fetch;
+    const token = await OwnServerTransport.api.getAccessToken();
+    const res = await doFetch(`${OwnServerTransport.api.base}/api/live-streams`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ title, ...(destinations?.length ? { destinations } : {}) }),
+    });
+    const data = (await res.json().catch(() => null)) as {
+      stream?: { id?: string };
+      error?: string;
+      code?: string;
+    } | null;
+    if (!res.ok || !data?.stream?.id) {
+      throw new TransportError(
+        data?.code ?? (res.status === 503 ? "NOT_CONFIGURED" : "SESSION"),
+        data?.error ?? "Could not start your stream.",
+      );
+    }
+    return { streamId: data.stream.id };
+  }
+
+  private async _endSession(streamId: string): Promise<void> {
+    if (this._deps.endSession) return this._deps.endSession(streamId);
+    const doFetch = this._deps.fetchImpl ?? fetch;
+    const token = await OwnServerTransport.api.getAccessToken();
+    await doFetch(`${OwnServerTransport.api.base}/api/live-streams/${streamId}/end`, {
+      method: "POST",
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  }
+
+  private async _postChunk(seq: number, body: ArrayBuffer): Promise<void> {
+    if (this._deps.postChunk) {
+      return this._deps.postChunk(this._streamId!, seq, body, this._mimeType);
+    }
+    const doFetch = this._deps.fetchImpl ?? fetch;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const token = await OwnServerTransport.api.getAccessToken();
+        const res = await doFetch(
+          `${OwnServerTransport.api.base}/api/live-streams/${this._streamId}/ingest/segment`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": this._mimeType || "video/webm",
+              "X-Segment-Seq": String(seq),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body,
+          },
+        );
+        if (res.ok) return;
+        const data = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
+        // The server says the show is over (ended / capped / session
+        // gone) — retrying would just shout at a closed door.
+        if (res.status === 400 || res.status === 409 || res.status === 410 || res.status === 413) {
+          throw new TransportError(data?.code ?? "SESSION", data?.error ?? "The stream ended on the server.");
+        }
+        lastErr = new TransportError("NETWORK", data?.error ?? `Chunk upload failed (HTTP ${res.status}).`);
+      } catch (err) {
+        if (err instanceof TransportError && err.code !== "NETWORK") throw err;
+        lastErr = err;
+      }
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+    throw lastErr instanceof Error
+      ? lastErr
+      : new TransportError("NETWORK", "Chunk uploads stopped landing.");
+  }
+
+  private _enqueue(blob: Blob): void {
+    const seq = this._seq++;
+    const job = this._chain.then(async () => {
+      if (this._failed) return;
+      const buf = await blob.arrayBuffer();
+      await this._postChunk(seq, buf);
+    });
+    this._chain = job.catch((err) => {
+      void this._failIngest(err);
+    });
+  }
+
+  private async _failIngest(err: unknown): Promise<void> {
+    if (this._failed || this.state === "idle" || this.state === "stopping") return;
+    this._failed = true;
+    try {
+      if (this._recorder && this._recorder.state !== "inactive") this._recorder.stop();
+    } catch {
+      /* ignore */
+    }
+    this._recorder = null;
+    const streamId = this._streamId;
+    this._streamId = null;
+    this.activeDestinations = [];
+    this.skippedDestinations = [];
+    if (streamId) await this._endSession(streamId).catch(() => undefined);
+    this._setState("failed");
+    void err;
+  }
+
+  async start(
+    stream: MediaStream,
+    meta: { title: string; destinations?: StreamDestination[] },
+  ): Promise<void> {
+    if (this.state === "connecting" || this.state === "live") {
+      throw new TransportError("SESSION", "Already broadcasting.");
+    }
+    this._setState("connecting");
+    const requested = meta.destinations?.length ? meta.destinations : [{ ...SITE_DESTINATION }];
+    const siteRequested = requested.filter((d) => d.platform === "site");
+    this.activeDestinations = siteRequested.length ? siteRequested : [{ ...SITE_DESTINATION }];
+    this.skippedDestinations = requested.filter((d) => d.platform !== "site");
+    this._failed = false;
+    this._seq = 0;
+    this._chain = Promise.resolve();
+    try {
+      const session = await this._createSession(meta.title, requested);
+      this._streamId = session.streamId;
+
+      const MR =
+        this._deps.mediaRecorderImpl ??
+        (typeof MediaRecorder !== "undefined" ? MediaRecorder : undefined);
+      if (!MR) {
+        throw new TransportError(
+          "UNSUPPORTED",
+          "This browser can't record the feed the site's stage needs — try Chrome, Edge, or Safari.",
+        );
+      }
+      const mimeType = pickIngestMimeType(
+        this._deps.isTypeSupported ??
+          ((m) => {
+            try {
+              return MR.isTypeSupported(m);
+            } catch {
+              return false;
+            }
+          }),
+      );
+      const recorder = mimeType
+        ? new MR(stream, { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 })
+        : new MR(stream, { videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
+      this._mimeType = recorder.mimeType || mimeType || "video/webm";
+      recorder.ondataavailable = (ev: BlobEvent) => {
+        if (ev.data && ev.data.size > 0) this._enqueue(ev.data);
+      };
+      recorder.onstop = () => {
+        this._resolveStopped?.();
+        this._resolveStopped = null;
+      };
+      recorder.onerror = () => {
+        void this._failIngest(new TransportError("NETWORK", "The recorder hit a problem mid-stream."));
+      };
+      this._recorder = recorder;
+      recorder.start(this._deps.timesliceMs ?? 2000);
+      this._setState("live");
+    } catch (err) {
+      const streamId = this._streamId;
+      this._streamId = null;
+      this._recorder = null;
+      this.activeDestinations = [];
+      this.skippedDestinations = [];
+      if (streamId) await this._endSession(streamId).catch(() => undefined);
+      this._setState("failed");
+      throw err instanceof TransportError
+        ? err
+        : new TransportError("NETWORK", err instanceof Error ? err.message : "Could not start the broadcast.");
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.state === "idle") return;
+    this._setState("stopping");
+    const recorder = this._recorder;
+    this._recorder = null;
+    if (recorder && recorder.state !== "inactive") {
+      const stopped = new Promise<void>((resolve) => {
+        this._resolveStopped = resolve;
+      });
+      try {
+        recorder.stop();
+      } catch {
+        this._resolveStopped = null;
+        void stopped;
+      }
+      // The final dataavailable lands in the chain before onstop fires.
+      if (this._resolveStopped) await stopped;
+    }
+    await this._chain.catch(() => undefined);
+    const streamId = this._streamId;
+    this._streamId = null;
+    this.activeDestinations = [];
+    this.skippedDestinations = [];
+    if (streamId) await this._endSession(streamId).catch(() => undefined);
+    this._setState("idle");
+  }
+}
+
+/** Pick the publish transport from the server's /status selection. */
+export function createStreamTransport(
+  kind: "own" | "cloudflare",
+  deps: { whip?: WhipDeps; own?: OwnServerDeps } = {},
+): StreamTransport {
+  return kind === "cloudflare" ? new WhipTransport(deps.whip) : new OwnServerTransport(deps.own);
 }
 
 /* ── Stream health (RTC stats) ────────────────────────────────────────────
