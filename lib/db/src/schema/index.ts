@@ -85,6 +85,7 @@ export * from "./team-seats";
 export * from "./milestones";
 export * from "./presave";
 export * from "./creator-platform";
+export * from "./royal-court";
 export * from "./creator-subscriptions";
 export * from "./creator-payouts";
 export * from "./custom-domains";
