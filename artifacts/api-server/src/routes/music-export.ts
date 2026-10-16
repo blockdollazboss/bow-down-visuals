@@ -12,6 +12,8 @@ import {
   type AudioExportKind,
   type ExportStemInput,
   type ExportStemEffects,
+  type ExportFxStep,
+  type ExportAutomation,
   type MasterBusSettings,
 } from "../lib/audioExport";
 import { r2Upload, r2PublicUrl } from "../lib/r2-client";
@@ -77,6 +79,13 @@ interface RawStem {
   trimEnd?: unknown;
   durationSec?: unknown;
   effects?: unknown;
+  /* Stack 6 arrangement fields. */
+  startTime?: unknown;
+  fadeInSec?: unknown;
+  fadeOutSec?: unknown;
+  fxChain?: unknown;
+  automation?: unknown;
+  duck?: unknown;
 }
 
 interface RawStemEffects {
@@ -102,6 +111,116 @@ function parseStemEffects(raw: unknown): ExportStemEffects | undefined {
     saturation:    typeof r.saturation === "string"  ? r.saturation  : "off",
     deEsser:       r.deEsser === true,
     noiseReduction: r.noiseReduction === true,
+  };
+}
+
+/* ── Stack 6 arrangement payload parsing (clamped, defensive) ─────────── */
+const FX_STEP_TYPES = new Set(["eq", "compressor", "saturation", "reverb", "delay"]);
+
+function clampNum(v: unknown, lo: number, hi: number, dflt: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+}
+
+export function parseFxChain(raw: unknown): ExportFxStep[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const steps: ExportFxStep[] = [];
+  for (const item of raw.slice(0, 12)) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r["type"] !== "string" || !FX_STEP_TYPES.has(r["type"])) continue;
+    const step: ExportFxStep = {
+      type: r["type"] as ExportFxStep["type"],
+      enabled: r["enabled"] !== false,
+    };
+    if (Array.isArray(r["bands"])) {
+      step.bands = r["bands"].slice(0, 5).map((b) => {
+        const bb = (b ?? {}) as Record<string, unknown>;
+        return {
+          freq: clampNum(bb["freq"], 20, 20000, 1000),
+          gain: clampNum(bb["gain"], -24, 24, 0),
+          q: clampNum(bb["q"], 0.3, 12, 1),
+        };
+      });
+    }
+    if (r["thresholdDb"] !== undefined) step.thresholdDb = clampNum(r["thresholdDb"], -60, 0, -18);
+    if (r["ratio"] !== undefined) step.ratio = clampNum(r["ratio"], 1, 20, 3);
+    if (r["attackMs"] !== undefined) step.attackMs = clampNum(r["attackMs"], 0.1, 500, 10);
+    if (r["releaseMs"] !== undefined) step.releaseMs = clampNum(r["releaseMs"], 10, 1000, 150);
+    if (r["drive"] !== undefined) step.drive = clampNum(r["drive"], 1, 3, 1.5);
+    if (r["mix"] !== undefined) step.mix = clampNum(r["mix"], 0, 100, 20);
+    if (r["timeMs"] !== undefined) step.timeMs = clampNum(r["timeMs"], 10, 2000, 250);
+    if (r["feedback"] !== undefined) step.feedback = clampNum(r["feedback"], 0, 80, 30);
+    steps.push(step);
+  }
+  return steps.length > 0 ? steps : undefined;
+}
+
+function parseAutomationLane(raw: unknown, lo: number, hi: number) {
+  if (!Array.isArray(raw)) return undefined;
+  const pts = raw
+    .slice(0, 200)
+    .filter((p) => p && typeof p === "object")
+    .map((p) => {
+      const pp = p as Record<string, unknown>;
+      return { time: clampNum(pp["time"], 0, 86400, 0), value: clampNum(pp["value"], lo, hi, lo) };
+    });
+  return pts.length > 0 ? pts : undefined;
+}
+
+export function parseAutomation(raw: unknown): ExportAutomation | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: ExportAutomation = {};
+  const volume = parseAutomationLane(r["volume"], 0, 150);
+  const pan = parseAutomationLane(r["pan"], -100, 100);
+  const reverbMix = parseAutomationLane(r["reverbMix"], 0, 100);
+  if (volume) out.volume = volume;
+  if (pan) out.pan = pan;
+  if (reverbMix) out.reverbMix = reverbMix;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function parseDuck(raw: unknown): ExportStemInput["duck"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r["sourceStemIds"])) return undefined;
+  const sourceStemIds = r["sourceStemIds"]
+    .filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 128)
+    .slice(0, 64);
+  if (sourceStemIds.length === 0) return undefined;
+  return {
+    sourceStemIds,
+    amount: clampNum(r["amount"], 0, 100, 60),
+    sensitivity: clampNum(r["sensitivity"], 0, 100, 50),
+  };
+}
+
+/** Shared stem-payload → ExportStemInput mapping for /music/export and
+ *  /music/preview-render (previously two hand-kept copies). */
+export function parseStemInput(s: RawStem): ExportStemInput {
+  const fxChain = parseFxChain(s.fxChain);
+  const automation = parseAutomation(s.automation);
+  const duck = parseDuck(s.duck);
+  return {
+    id: String(s.id ?? ""),
+    name: String(s.name ?? "Stem"),
+    type: String(s.type ?? ""),
+    url: String(s.url),
+    volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
+    muted: !!s.muted,
+    solo: !!s.solo,
+    pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
+    trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
+    trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
+    ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
+    ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
+    ...(Number.isFinite(Number(s.startTime)) ? { startTime: Math.max(0, Number(s.startTime)) } : {}),
+    ...(Number.isFinite(Number(s.fadeInSec)) ? { fadeInSec: Math.max(0, Math.min(5, Number(s.fadeInSec))) } : {}),
+    ...(Number.isFinite(Number(s.fadeOutSec)) ? { fadeOutSec: Math.max(0, Math.min(5, Number(s.fadeOutSec))) } : {}),
+    ...(fxChain ? { fxChain } : {}),
+    ...(automation ? { automation } : {}),
+    ...(duck ? { duck } : {}),
   };
 }
 
@@ -153,20 +272,7 @@ router.post("/music/export", requireAuth, async (req, res) => {
 
   const cleanStems: ExportStemInput[] = stems
     .filter((s) => s && typeof s.url === "string" && s.url.startsWith("http"))
-    .map((s) => ({
-      id: String(s.id ?? ""),
-      name: String(s.name ?? "Stem"),
-      type: String(s.type ?? ""),
-      url: String(s.url),
-      volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
-      muted: !!s.muted,
-      solo: !!s.solo,
-      pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
-      trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
-      trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
-      ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
-      ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
-    }));
+    .map((s) => parseStemInput(s));
 
   if (cleanStems.length > MAX_STEMS) {
     res.status(400).json({ error: `Too many stems (max ${MAX_STEMS}).`, code: "too_many_stems" });
@@ -317,20 +423,7 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
 
   const cleanStems: ExportStemInput[] = stems
     .filter((s) => s && typeof s.url === "string" && s.url.startsWith("http"))
-    .map((s) => ({
-      id: String(s.id ?? ""),
-      name: String(s.name ?? "Stem"),
-      type: String(s.type ?? ""),
-      url: String(s.url),
-      volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
-      muted: !!s.muted,
-      solo: !!s.solo,
-      pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
-      trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
-      trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
-      ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
-      ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
-    }));
+    .map((s) => parseStemInput(s));
 
   if (cleanStems.length > MAX_STEMS) {
     res.status(400).json({ error: `Too many stems (max ${MAX_STEMS}).`, code: "too_many_stems" });
