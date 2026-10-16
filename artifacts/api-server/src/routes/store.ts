@@ -127,10 +127,37 @@ interface SellableItem {
   itemKind: string;
   title: string;
   priceCents: number;
+  /* Name-your-price (0132): creator opt-in per item + their minimum. */
+  pwywEnabled: boolean;
+  pwywMinCents: number;
   fileUrl: string;
   artworkUrl: string | null;
   artistName: string;
   artistSlug: string;
+}
+
+/** The amount a checkout may charge for an item. Fixed-price items charge
+    exactly the listed price — a client-supplied amount is refused so the
+    displayed price can never differ from the charged price. PWYW items
+    accept any amount at or above the creator's minimum. */
+export function resolveCheckoutAmountCents(
+  item: { priceCents: number; pwywEnabled: boolean; pwywMinCents: number },
+  requestedCents?: number
+): { ok: true; amountCents: number } | { ok: false; error: string } {
+  if (!item.pwywEnabled) {
+    if (requestedCents !== undefined && requestedCents !== item.priceCents) {
+      return { ok: false, error: "This item has a fixed price — the amount can't be changed." };
+    }
+    return { ok: true, amountCents: item.priceCents };
+  }
+  const amount = requestedCents ?? Math.max(item.priceCents, item.pwywMinCents);
+  if (!Number.isInteger(amount) || amount < item.pwywMinCents || amount <= 0) {
+    return {
+      ok: false,
+      error: `Name your price — it must be at least ${money(item.pwywMinCents)}.`,
+    };
+  }
+  return { ok: true, amountCents: amount };
 }
 
 async function resolveSellableItem(
@@ -144,6 +171,7 @@ async function resolveSellableItem(
     const artCol = kind === "track" ? "artwork_url" : "thumbnail_url";
     const result = await db.execute(sql`
       SELECT m.id, m.profile_id, m.title, m.download_price_cents, m.is_published,
+             m.pwyw_enabled, m.pwyw_min_cents,
              m.${sql.raw(fileCol)} AS file_url, m.${sql.raw(artCol)} AS artwork_url,
              p.display_name AS artist_name, p.slug AS artist_slug
       FROM ${sql.raw(table)} m
@@ -152,7 +180,17 @@ async function resolveSellableItem(
       LIMIT 1
     `);
     const row = result.rows[0] as Record<string, unknown> | undefined;
-    if (!row || !row["is_published"] || !Number(row["download_price_cents"]) || !row["file_url"]) {
+    if (!row || !row["is_published"] || !row["file_url"]) {
+      return { notForSale: true };
+    }
+    const pwywEnabled = row["pwyw_enabled"] === true;
+    const pwywMinCents = Number(row["pwyw_min_cents"] ?? 0) || 0;
+    /* Fixed-price items need a listed price; PWYW items need a minimum
+       (a fan can't name a price against nothing). */
+    if (!pwywEnabled && !Number(row["download_price_cents"])) {
+      return { notForSale: true };
+    }
+    if (pwywEnabled && pwywMinCents <= 0) {
       return { notForSale: true };
     }
     return {
@@ -160,6 +198,8 @@ async function resolveSellableItem(
       itemKind: kind,
       title: String(row["title"]),
       priceCents: Number(row["download_price_cents"]),
+      pwywEnabled,
+      pwywMinCents,
       fileUrl: String(row["file_url"]),
       artworkUrl: (row["artwork_url"] as string | null) ?? null,
       artistName: String(row["artist_name"]),
@@ -217,6 +257,13 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
         artistSlug: item.artistSlug,
         priceCents: item.priceCents,
         price: money(item.priceCents),
+        /* Name-your-price: when enabled the buy page asks the fan for an
+           amount and checkout enforces amount >= minCents. */
+        pwyw: {
+          enabled: item.pwywEnabled,
+          minCents: item.pwywMinCents,
+          minPrice: money(item.pwywMinCents),
+        },
       },
       feeSplit: {
         priceCents: item.priceCents,
@@ -239,6 +286,8 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
 const CheckoutSchema = z.object({
   kind: ItemKindSchema,
   id: z.string().regex(UUID_RE, "id must be a UUID"),
+  /* Name-your-price amount (PWYW items only; enforced server-side). */
+  amountCents: z.number().int().positive().max(100_000_00).optional(),
 });
 
 router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -247,7 +296,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
   }
-  const { kind, id } = parsed.data;
+  const { kind, id, amountCents: requestedCents } = parsed.data;
 
   let stripe: Stripe;
   try {
@@ -270,7 +319,15 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       });
       return;
     }
-    const { feeCents, creatorCents } = splitFee(item.priceCents);
+    /* Displayed = charged: fixed items charge the listed price; PWYW
+       items charge the fan's amount (>= the creator's minimum). */
+    const resolved = resolveCheckoutAmountCents(item, requestedCents);
+    if (!resolved.ok) {
+      res.status(400).json({ error: "INVALID_AMOUNT", message: resolved.error });
+      return;
+    }
+    const chargeCents = resolved.amountCents;
+    const { feeCents, creatorCents } = splitFee(chargeCents);
     const baseUrl = getBaseUrl(req);
     /* Same stored artwork value flows to Stripe as the checkout image:
        an r2:// / supabase:// ref is unfetchable by Stripe, so refresh
@@ -284,7 +341,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         {
           price_data: {
             currency: "usd",
-            unit_amount: item.priceCents,
+            unit_amount: chargeCents,
             product_data: {
               name: `${item.title} — ${item.artistName}`,
               description: `Digital download · ${kind}`,
@@ -307,10 +364,10 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     });
 
     logger.info(
-      { userId: req.userId, kind, id, priceCents: item.priceCents, sessionId: session.id },
+      { userId: req.userId, kind, id, priceCents: chargeCents, pwyw: item.pwywEnabled, sessionId: session.id },
       "[store] checkout session created"
     );
-    res.json({ url: session.url, sessionId: session.id });
+    res.json({ url: session.url, sessionId: session.id, amountCents: chargeCents, amount: money(chargeCents) });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg, kind, id }, "[store] checkout failed");
@@ -1135,12 +1192,12 @@ router.get("/store/products", requireAuth, async (req, res) => {
       return;
     }
     const tracks = await db.execute(sql`
-      SELECT id, title, download_price_cents, is_published, artwork_url
+      SELECT id, title, download_price_cents, is_published, artwork_url, pwyw_enabled, pwyw_min_cents
       FROM profile_tracks WHERE profile_id = ${profile.id}
       ORDER BY created_at DESC LIMIT 200
     `);
     const videos = await db.execute(sql`
-      SELECT id, title, download_price_cents, is_published, thumbnail_url AS artwork_url
+      SELECT id, title, download_price_cents, is_published, thumbnail_url AS artwork_url, pwyw_enabled, pwyw_min_cents
       FROM profile_videos WHERE profile_id = ${profile.id}
       ORDER BY created_at DESC LIMIT 200
     `);
@@ -1160,7 +1217,12 @@ router.get("/store/products", requireAuth, async (req, res) => {
           price: money(price),
           youKeep: money(creatorCents),
           isPublished: !!r["is_published"],
-          forSale: !!r["is_published"] && price > 0,
+          forSale: !!r["is_published"] && (price > 0 || (r["pwyw_enabled"] === true && Number(r["pwyw_min_cents"] ?? 0) > 0)),
+          pwyw: {
+            enabled: r["pwyw_enabled"] === true,
+            minCents: Number(r["pwyw_min_cents"] ?? 0),
+            minPrice: money(Number(r["pwyw_min_cents"] ?? 0)),
+          },
           artworkUrl: rawArtwork ? await refreshSupabaseStorageUrl(rawArtwork) : null,
           buyUrl: `/store/buy/${kind}/${String(r["id"])}`,
         };
@@ -1191,6 +1253,9 @@ const SetPriceSchema = z.object({
   kind: z.enum(["track", "video"]),
   id: z.string().regex(UUID_RE, "id must be a UUID"),
   priceCents: z.number().int().min(0).max(100_000_00),
+  /* Name-your-price (0132): creator opt-in + minimum, set with the price. */
+  pwywEnabled: z.boolean().optional(),
+  pwywMinCents: z.number().int().min(0).max(100_000_00).optional(),
 });
 
 router.patch("/store/price", requireAuth, async (req, res) => {
@@ -1199,7 +1264,14 @@ router.patch("/store/price", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
   }
-  const { kind, id, priceCents } = parsed.data;
+  const { kind, id, priceCents, pwywEnabled, pwywMinCents } = parsed.data;
+  if (pwywEnabled && !(pwywMinCents && pwywMinCents > 0)) {
+    res.status(400).json({
+      error: "PWYW_MIN_REQUIRED",
+      message: "Name-your-price needs a minimum above $0 — fans can pay more, never less.",
+    });
+    return;
+  }
   try {
     const profile = await callerProfile(req.userId!);
     if (!profile) {
@@ -1209,9 +1281,11 @@ router.patch("/store/price", requireAuth, async (req, res) => {
     const table = kind === "track" ? "profile_tracks" : "profile_videos";
     const updated = await db.execute(sql`
       UPDATE ${sql.raw(table)}
-      SET download_price_cents = ${priceCents}
+      SET download_price_cents = ${priceCents},
+          pwyw_enabled = COALESCE(${pwywEnabled ?? null}, pwyw_enabled),
+          pwyw_min_cents = COALESCE(${pwywMinCents ?? null}, pwyw_min_cents)
       WHERE id = ${id} AND profile_id = ${profile.id}
-      RETURNING id, title, download_price_cents, is_published
+      RETURNING id, title, download_price_cents, is_published, pwyw_enabled, pwyw_min_cents
     `);
     const row = updated.rows[0] as Record<string, unknown> | undefined;
     if (!row) {
@@ -1232,6 +1306,11 @@ router.patch("/store/price", requireAuth, async (req, res) => {
         platformFeePct: PLATFORM_FEE_PCT,
         isPublished: !!row["is_published"],
         forSale: !!row["is_published"] && priceCents > 0,
+        pwyw: {
+          enabled: row["pwyw_enabled"] === true,
+          minCents: Number(row["pwyw_min_cents"] ?? 0),
+          minPrice: money(Number(row["pwyw_min_cents"] ?? 0)),
+        },
         buyUrl: `/store/buy/${kind}/${id}`,
       },
     });
