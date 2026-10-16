@@ -27,11 +27,25 @@
  * carries it with the noise-cancelling stages bypassed).
  */
 
-const RNNOISE_PKG = "https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist";
-const RNNOISE_INDEX_URL = `${RNNOISE_PKG}/index.min.js`;
-const RNNOISE_WASM_URL = `${RNNOISE_PKG}/rnnoise.wasm`;
-const RNNOISE_WASM_SIMD_URL = `${RNNOISE_PKG}/rnnoise_simd.wasm`;
-const RNNOISE_WORKLET_URL = `${RNNOISE_PKG}/rnnoise/workletProcessor.js`;
+/* RNNoise assets are VENDORED same-origin (public/engines/rnnoise —
+   @sapphi-red/web-noise-suppressor 0.4.1 dist build), lazy-loaded only
+   when Noise Cancellation Max is switched on; the pinned CDN build is
+   the fallback if the local copy fails to serve. (The old loader asked
+   the CDN for index.min.js, a file that exists only through the CDN's
+   auto-minify — the vendored file is index.js.) */
+export const RNNOISE_LOCAL_BASE = "/engines/rnnoise";
+export const RNNOISE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist";
+const RNNOISE_BASES = [RNNOISE_LOCAL_BASE, RNNOISE_CDN_BASE] as const;
+
+/** Every asset URL for one base — module, WASM builds, worklet. */
+export function rnnoiseUrls(base: string) {
+  return {
+    index: `${base}/index.js`,
+    wasm: `${base}/rnnoise.wasm`,
+    wasmSimd: `${base}/rnnoise_simd.wasm`,
+    worklet: `${base}/rnnoise/workletProcessor.js`,
+  };
+}
 const RNNOISE_SAMPLE_RATE = 48000; // RNNoise only understands 48 kHz.
 
 export type NoiseCancellationLevel = "off" | "on" | "max";
@@ -876,7 +890,9 @@ export class VoiceIsolator {
     this._fxStageFor = effect;
   }
 
-  /** Load RNNoise (pinned CDN build) and splice it in ahead of the gate. */
+  /** Load RNNoise (vendored build first, CDN fallback) and splice it in
+   *  ahead of the gate. Any failure keeps the honest fallback: level
+   *  'on', mlState 'failed', the stream itself never fails. */
   private _ensureMl(): void {
     if (this._rnnoise || this.mlState === "active") return;
     if (this._mlPromise) return;
@@ -891,11 +907,23 @@ export class VoiceIsolator {
     const ctx = this.ctx;
     this._mlPromise = (async () => {
       try {
-        const mod = (await import(/* @vite-ignore */ RNNOISE_INDEX_URL)) as RnnoiseModule;
-        const wasmBinary = await mod.loadRnnoise({ url: RNNOISE_WASM_URL, simdUrl: RNNOISE_WASM_SIMD_URL });
-        await ctx.audioWorklet.addModule(RNNOISE_WORKLET_URL);
-        if (!this._running || !this.ctx) return; // stopped while loading
-        this._rnnoise = new mod.RnnoiseWorkletNode(ctx, { maxChannels: 2, wasmBinary });
+        let lastErr: unknown = null;
+        let loaded = false;
+        for (const base of RNNOISE_BASES) {
+          try {
+            const urls = rnnoiseUrls(base);
+            const mod = (await import(/* @vite-ignore */ urls.index)) as RnnoiseModule;
+            const wasmBinary = await mod.loadRnnoise({ url: urls.wasm, simdUrl: urls.wasmSimd });
+            await ctx.audioWorklet.addModule(urls.worklet);
+            if (!this._running || !this.ctx) return; // stopped while loading
+            this._rnnoise = new mod.RnnoiseWorkletNode(ctx, { maxChannels: 2, wasmBinary });
+            loaded = true;
+            break;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+        if (!loaded) throw lastErr ?? new Error("RNNoise failed to load.");
         this.mlState = "active";
         this.effectiveLevel = "max";
         this._rewireChain();

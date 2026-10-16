@@ -38,8 +38,16 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * DOCK: video-editor rail (Beat Sync / Edit Recipes / Voice Edits area).
  */
 
-const MEDIAPIPE_VERSION = "0.1.1672281042";
+/* The engine is vendored same-origin (public/engines/selfie-segmentation,
+   @mediapipe/selfie_segmentation 0.1.1675465747) — the previous pin named
+   a version that does not exist in the npm registry, so its CDN URL
+   failed everywhere. The CDN build is only a fallback now, and
+   locateFile follows whichever base served the script. */
+const MEDIAPIPE_VERSION = "0.1.1675465747";
+const MEDIAPIPE_LOCAL = "/engines/selfie-segmentation";
 const MEDIAPIPE_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@${MEDIAPIPE_VERSION}`;
+const MEDIAPIPE_BASES = [MEDIAPIPE_LOCAL, MEDIAPIPE_CDN];
+let mediapipeBase = MEDIAPIPE_LOCAL;
 
 declare global {
   interface Window {
@@ -53,16 +61,37 @@ declare global {
 }
 
 let selfieScriptPromise: Promise<void> | null = null;
+function loadScriptFrom(base: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = `${base}/selfie_segmentation.js`;
+    s.onload = () => (window.SelfieSegmentation ? resolve() : reject(new Error("mediapipe load failed")));
+    s.onerror = () => {
+      s.remove();
+      reject(new Error("mediapipe load failed"));
+    };
+    document.head.appendChild(s);
+  });
+}
 function loadSelfieSegmentation(): Promise<void> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
   if (window.SelfieSegmentation) return Promise.resolve();
   if (selfieScriptPromise) return selfieScriptPromise;
-  selfieScriptPromise = new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = `${MEDIAPIPE_CDN}/selfie_segmentation.js`;
-    s.onload = () => (window.SelfieSegmentation ? resolve() : reject(new Error("mediapipe load failed")));
-    s.onerror = () => reject(new Error("mediapipe load failed"));
-    document.head.appendChild(s);
+  selfieScriptPromise = (async () => {
+    let lastErr: unknown = null;
+    for (const base of MEDIAPIPE_BASES) {
+      try {
+        await loadScriptFrom(base);
+        mediapipeBase = base;
+        return;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("mediapipe load failed");
+  })();
+  selfieScriptPromise.catch(() => {
+    selfieScriptPromise = null;
   });
   return selfieScriptPromise;
 }
@@ -484,7 +513,7 @@ export function BackgroundReplaceSection({
     if (!ctx || !pctx) throw new Error(t(`${ns}.errorGeneric`));
 
     const segmenter = new SegCtor({
-      locateFile: (f: string) => `${MEDIAPIPE_CDN}/${f}`,
+      locateFile: (f: string) => `${mediapipeBase}/${f}`,
     });
     segmenter.setOptions({ modelSelection: 1 });
     segmenter.onResults((res) => {

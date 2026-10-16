@@ -18,8 +18,16 @@
 
 import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIsolatorStatus } from "./voice-isolator";
 
-/* Same pinned MediaPipe build the video editor's background replacer uses. */
-const MEDIAPIPE_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1672281042";
+/* The segmentation engine is VENDORED same-origin (public/engines/
+   selfie-segmentation — @mediapipe/selfie_segmentation 0.1.1675465747)
+   and lazy-loaded only when the studio starts a camera: a creator's
+   broadcast must never depend on a third-party CDN being reachable from
+   their browser. (The previous pin named a version that does not exist
+   in the npm registry, so its CDN URL failed everywhere.) The CDN copy
+   of the same build remains only as a last-resort fallback. */
+export const SEGMENTATION_LOCAL_BASE = "/engines/selfie-segmentation";
+export const SEGMENTATION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747";
+const SEGMENTATION_BASES = [SEGMENTATION_LOCAL_BASE, SEGMENTATION_CDN_BASE] as const;
 const GREEN = "#00FF00";
 
 /**
@@ -74,24 +82,50 @@ type MediaPipeSegmenter = InstanceType<NonNullable<Window["SelfieSegmentation"]>
 type MediaPipeResults = { image: HTMLVideoElement; segmentationMask: HTMLCanvasElement };
 
 let segmenterScriptPromise: Promise<void> | null = null;
+/** The base the engine script actually loaded from — locateFile follows it. */
+let segmenterBase: string | null = null;
 
-/** Lazily inject the MediaPipe Selfie Segmentation script from CDN (once). */
+function loadScriptFrom(base: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `${base}/selfie_segmentation.js`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      script.remove();
+      reject(new Error(`Segmentation script failed to load from ${base}`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Lazily inject the MediaPipe Selfie Segmentation script (once): the
+ * vendored same-origin copy first, the CDN build only if that fails.
+ */
 function loadSegmenterScript(): Promise<void> {
   if (window.SelfieSegmentation) return Promise.resolve();
   if (segmenterScriptPromise) return segmenterScriptPromise;
-  segmenterScriptPromise = new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `${MEDIAPIPE_CDN}/selfie_segmentation.js`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () =>
-      reject(
-        new BackgroundChangerError(
-          "CDN_LOAD_FAILED",
-          "Could not load the segmentation engine from the CDN. Check your connection and try again.",
-        ),
-      );
-    document.head.appendChild(script);
+  segmenterScriptPromise = (async () => {
+    let lastErr: unknown = null;
+    for (const base of SEGMENTATION_BASES) {
+      try {
+        await loadScriptFrom(base);
+        segmenterBase = base;
+        return;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw new BackgroundChangerError(
+      "CDN_LOAD_FAILED",
+      "Could not load the background-effects engine. Check your connection and try again.",
+      lastErr,
+    );
+  })();
+  // A failed load must not poison later attempts (e.g. after reconnecting).
+  segmenterScriptPromise.catch(() => {
+    segmenterScriptPromise = null;
   });
   return segmenterScriptPromise;
 }
@@ -128,6 +162,7 @@ export class BackgroundChanger {
   stream: MediaStream | null = null;
   outputStream: MediaStream | null = null;
   segmenter: MediaPipeSegmenter | null = null;
+  private _engineError: BackgroundChangerError | null = null;
   canvas: HTMLCanvasElement;
   private _ncLevel: NoiseCancellationLevel | null;
   private _fxName: string;
@@ -229,8 +264,23 @@ export class BackgroundChanger {
     }
     if (deviceId) this.deviceId = deviceId;
 
-    await loadSegmenterScript();
-    await this._initSegmenter();
+    // The engine must NEVER hold the camera hostage: if it can't load,
+    // the camera still starts and runs raw — scenes, mixer, recording,
+    // the chroma key and camera effects all stay live; only the AI
+    // backdrop modes (green/blur/image) disable. The studio reads
+    // segmentationAvailable / engineError after start() resolves and
+    // tells the creator plainly.
+    this._engineError = null;
+    try {
+      await loadSegmenterScript();
+      await this._initSegmenter();
+    } catch (err) {
+      this.segmenter = null;
+      this._engineError =
+        err instanceof BackgroundChangerError
+          ? err
+          : new BackgroundChangerError("CDN_LOAD_FAILED", "Could not load the background-effects engine.", err);
+    }
     await this._acquireCamera(this.deviceId);
     if (this.config.image) await this.setImage(this.config.image);
 
@@ -414,6 +464,17 @@ export class BackgroundChanger {
     return this._running;
   }
 
+  /** True when the AI segmentation engine loaded — backdrop modes live.
+   *  False means the camera is running raw (see engineError). */
+  get segmentationAvailable(): boolean {
+    return this.segmenter !== null;
+  }
+
+  /** Why the segmentation engine is unavailable, when it is. */
+  get engineError(): BackgroundChangerError | null {
+    return this._engineError;
+  }
+
   /** Stop everything: camera tracks, render loop, segmenter, voice isolator, object URLs. */
   async stop(): Promise<void> {
     this._running = false;
@@ -450,16 +511,19 @@ export class BackgroundChanger {
   private async _initSegmenter(): Promise<void> {
     if (this.segmenter) return;
     if (!window.SelfieSegmentation) {
-      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The segmentation engine failed to initialise.");
+      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The background-effects engine failed to initialise.");
     }
     let segmenter: MediaPipeSegmenter;
     try {
+      // Assets resolve against the base the script loaded from (the
+      // vendored copy normally; the CDN only when it served the script).
+      const base = segmenterBase ?? SEGMENTATION_LOCAL_BASE;
       segmenter = new window.SelfieSegmentation({
-        locateFile: (file: string) => `${MEDIAPIPE_CDN}/${file}`,
+        locateFile: (file: string) => `${base}/${file}`,
       });
       segmenter.setOptions({ modelSelection: this.config.modelSelection });
     } catch (err) {
-      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The segmentation engine failed to initialise.", err);
+      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The background-effects engine failed to initialise.", err);
     }
     segmenter.onResults((results) => this._composite(results));
     this.segmenter = segmenter;
@@ -588,16 +652,55 @@ export class BackgroundChanger {
   private _loop(): void {
     if (!this._running) return;
     this._rafId = requestAnimationFrame(() => this._loop());
-    if (this._sending || this._video.readyState < 2) return;
+    if (this._video.readyState < 2) return;
+    if (!this.segmenter) {
+      // Engine down: draw the raw frame (with the camera-effect finish)
+      // so the camera — and everything built on its canvas — stays live.
+      this._compositeRaw();
+      return;
+    }
+    if (this._sending) return;
     this._sending = true;
     this.segmenter
-      ?.send({ image: this._video })
+      .send({ image: this._video })
       .catch(() => {
         /* transient frame failure — the next frame retries */
       })
       .finally(() => {
         this._sending = false;
       });
+  }
+
+  /** Engine-down frame: the untouched camera picture, finished with the
+   *  same mirror handling + camera-effect grade/overlays as _composite. */
+  private _compositeRaw(): void {
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const ctx = this._ctx;
+    if (!W || !H) return;
+    ctx.save();
+    if (this.mirror) {
+      ctx.translate(W, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(this._video, 0, 0, W, H);
+    ctx.restore();
+    this._applyEffectFinish(ctx);
+  }
+
+  /** Camera-effect finish shared by both frame paths: the full-frame
+   *  grade, then the pre-rendered overlay presets. */
+  private _applyEffectFinish(ctx: CanvasRenderingContext2D): void {
+    const grade = CAMERA_EFFECT_FILTERS[this._camFx];
+    if (grade && "filter" in ctx) {
+      ctx.save();
+      ctx.filter = grade;
+      ctx.drawImage(this.canvas, 0, 0);
+      ctx.filter = "none";
+      ctx.restore();
+    }
+    if (this._camFx === "vignette" && this._ovVignette) ctx.drawImage(this._ovVignette, 0, 0);
+    if (this._camFx === "gold-frame" && this._ovFrame) ctx.drawImage(this._ovFrame, 0, 0);
   }
 
   /** MediaPipe results callback: background layer, then the person cutout. */
@@ -646,19 +749,8 @@ export class BackgroundChanger {
 
     ctx.restore();
 
-    // 3 — camera effect: a full-frame grade drawn over the composite
-    // (outside the mirror transform — grades are symmetric), then the
-    // overlay presets (pre-rendered per frame size in _buildOverlays).
-    const grade = CAMERA_EFFECT_FILTERS[this._camFx];
-    if (grade && "filter" in ctx) {
-      ctx.save();
-      ctx.filter = grade;
-      ctx.drawImage(this.canvas, 0, 0);
-      ctx.filter = "none";
-      ctx.restore();
-    }
-    if (this._camFx === "vignette" && this._ovVignette) ctx.drawImage(this._ovVignette, 0, 0);
-    if (this._camFx === "gold-frame" && this._ovFrame) ctx.drawImage(this._ovFrame, 0, 0);
+    // 3 — camera effect finish (shared with the engine-down raw path).
+    this._applyEffectFinish(ctx);
   }
 
   /**
