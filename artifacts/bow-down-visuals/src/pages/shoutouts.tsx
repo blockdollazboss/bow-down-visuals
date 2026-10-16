@@ -126,6 +126,15 @@ export default function Shoutouts() {
   const [saving, setSaving] = useState(false);
   const [requests, setRequests] = useState<ShoutoutRequest[]>([]);
   const [reqLoading, setReqLoading] = useState(false);
+  /* Creator-tab load failures are NOT empty requests / zero revenue —
+     settings+requests+revenue load together, so their failure gets one
+     error state with a retry, scoped to the creator tab's data area.
+     creatorLoadedRef guards the gate: once the tab has loaded
+     successfully, a later failed reload (status-filter change, the
+     refresh after responding to a request) must NOT blank the data
+     already on screen. */
+  const [creatorLoadError, setCreatorLoadError] = useState(false);
+  const creatorLoadedRef = useRef(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [revenue, setRevenue] = useState<Revenue | null>(null);
   const [deliveryUrls, setDeliveryUrls] = useState<Record<string, string>>({});
@@ -153,12 +162,18 @@ export default function Shoutouts() {
     if (!user) return;
     setSettingsLoading(true);
     setReqLoading(true);
+    setCreatorLoadError(false);
     try {
       const [sRes, rRes, vRes] = await Promise.all([
         fetch("/api/shoutouts/settings"),
         fetch(`/api/shoutouts/requests${statusFilter ? `?status=${statusFilter}` : ""}`),
         fetch("/api/shoutouts/revenue"),
       ]);
+      /* Any of the three failing — rejected or non-OK — is a load
+         failure, not empty data. Check and parse all three before
+         setting any state, so a partial failure never half-fills
+         the tab. */
+      if (!sRes.ok || !rRes.ok || !vRes.ok) throw new Error("load failed");
       const s = await sRes.json();
       const r = await rRes.json();
       const v = await vRes.json();
@@ -172,8 +187,9 @@ export default function Shoutouts() {
       }
       setRequests(r.requests ?? []);
       setRevenue(v);
+      creatorLoadedRef.current = true;
     } catch {
-      /* keep prior state */
+      if (!creatorLoadedRef.current) setCreatorLoadError(true);
     } finally {
       setSettingsLoading(false);
       setReqLoading(false);
@@ -482,6 +498,21 @@ export default function Shoutouts() {
               </div>
             ) : settingsLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
+            ) : creatorLoadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your creator tab.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your settings, requests and revenue are safe, this page just couldn't load them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchCreatorData()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className={`rounded-2xl border p-5 h-fit ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
