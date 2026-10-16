@@ -17,6 +17,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
+import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel } from "@/components/distribute/DistributionLegacyPanels";
 import { useHubProject } from "@/lib/hub-project";
 import {
   DISTRIBUTION_PLATFORMS,
@@ -2262,6 +2263,14 @@ function ReleaseDetail(props: {
         </div>
       </Section>
 
+      {/* ── Stack 11: lyrics step, landing content, requests, permanence ── */}
+      <div className="grid gap-6">
+        <LyricsPackagePanel releaseId={release.id} />
+        <LandingContentPanel releaseId={release.id} />
+        <ChangeRequestsPanel releaseId={release.id} />
+        <ReleasePermanencePanel releaseId={release.id} />
+      </div>
+
       {/* ── pre-save ── */}
       <Section
         title={t("distribute.pre_save_campaign")}
@@ -3254,6 +3263,14 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Stack 11: split statements + label roster (distribution surface) ── */}
+        {user && tab !== "plan" && (
+          <div className="mt-6 grid gap-6">
+            <SplitStatementsPanel />
+            <RosterPanel />
           </div>
         )}
 

@@ -6,7 +6,7 @@ import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { TeamSeats } from "@/components/TeamSeats";
-import { LegacySettings, CatalogExportPanel, ModConsolePanel } from "@/components/trust/TrustPanels";
+import { LegacySettings, PermanenceSettings, CatalogExportPanel, ModConsolePanel } from "@/components/trust/TrustPanels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
@@ -261,6 +261,8 @@ export default function Settings() {
         <CursorCard />
 
         <LegacySettings />
+
+        <PermanenceSettings />
 
         <CatalogExportPanel />
 

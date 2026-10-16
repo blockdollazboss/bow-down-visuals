@@ -101,6 +101,56 @@ export function LegacySettings() {
   );
 }
 
+/* ── Stack 11 #5 Permanence (same Settings area as succession) ─────── */
+export function PermanenceSettings() {
+  const { getAccessToken } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try { const t = await getAccessToken(); setData(await api(t, "GET", "/api/distribution/permanence")); }
+    catch { setErr("Could not load your permanence settings."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+  async function chooseCatalog(election: string) {
+    try { const t = await getAccessToken(); await api(t, "PUT", "/api/distribution/permanence/catalog", { election }); setMsg("Catalog permanence election saved."); void load(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  async function chooseRelease(releaseId: string, election: string) {
+    try { const t = await getAccessToken(); await api(t, "PUT", `/api/distribution/releases/${releaseId}/permanence`, { election }); void load(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Permanence — your catalog, forever</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Your succession designation (above) says <em>who</em> controls the catalog; permanence says <em>how long it
+        stays</em>. The guarantee is on-platform, and it&apos;s honest about its edges:
+      </p>
+      {data && <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">{(data.covers ?? []).map((c: string) => <li key={c}>{c}</li>)}</ul>}
+      {data && <p className="mt-1 text-sm text-muted-foreground">It does not cover: {(data.excludes ?? []).join(" ")}</p>}
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {data && (
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Whole catalog: <strong>{data.catalog?.election ?? "no election recorded"}</strong></span>
+            <button type="button" className={ghost} onClick={() => chooseCatalog("permanent")}>Keep permanently</button>
+            <button type="button" className={ghost} onClick={() => chooseCatalog("standard")}>Standard</button>
+          </div>
+          {(data.releases ?? []).map((r: any) => (
+            <div key={r.id} className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+              <span className="flex-1">{r.releaseTitle ?? "Release"}: <strong>{r.election}</strong></span>
+              <button type="button" className={ghost} onClick={() => chooseRelease(r.releaseId, r.election === "permanent" ? "standard" : "permanent")}>{r.election === "permanent" ? "Switch to standard" : "Keep permanently"}</button>
+            </div>
+          ))}
+          {(data.releases ?? []).length === 0 && <p className="text-muted-foreground">Per-release elections live on each release in Distribute — this page holds the catalog-wide election.</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ── #3 Catalog portability ────────────────────────────────────────── */
 export function CatalogExportPanel() {
   const { getAccessToken } = useAuth();
