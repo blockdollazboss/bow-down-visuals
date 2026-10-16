@@ -72,12 +72,24 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         res.status(200).json({ received: true, kind: "creator_tier" });
         return;
       }
+      if (s.metadata?.kind === "creator_hosting") {
+        const { handleHostingCheckoutCompleted } = await import("./creator-tier-sync");
+        await handleHostingCheckoutCompleted(s);
+        res.status(200).json({ received: true, kind: "creator_hosting" });
+        return;
+      }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.metadata?.kind === "creator_tier") {
         const { handleTierSubscriptionEvent } = await import("./creator-tier-sync");
         await handleTierSubscriptionEvent(sub);
         res.status(200).json({ received: true, kind: "creator_tier" });
+        return;
+      }
+      if (sub.metadata?.kind === "creator_hosting") {
+        const { handleHostingSubscriptionEvent } = await import("./creator-tier-sync");
+        await handleHostingSubscriptionEvent(sub);
+        res.status(200).json({ received: true, kind: "creator_hosting" });
         return;
       }
     } else if (event.type === "invoice.payment_failed") {

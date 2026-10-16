@@ -248,3 +248,50 @@ export function monthlySavingsUsd(tier: Exclude<CreatorTier, "free">, salesUsdPe
   const savedBps = TIER_FEE_BPS.free - plan.feeBps;
   return Math.round(salesUsdPerMonth * (savedBps / 10_000) * 100) / 100;
 }
+
+/* ── Hosting plan (Stack 3, item 8) ───────────────────────────────────────
+   ONE plan on the creator-tiers chassis: custom domain + clean branding
+   (the paid state of the free-tier branding rule) + the profile page as
+   the creator's website, hosted by us. Sold via Stripe subscription,
+   TEST mode only, exactly like the tiers.
+
+   PRICE LAW: never invent a price. The tiers above carry owner-approved
+   prices in code; the Hosting plan does NOT — its price is a named
+   server config value (HOSTING_PRICE_USD_PER_MONTH, with the Stripe
+   TEST price id in STRIPE_PRICE_HOSTING). Until the owner sets them,
+   the price reads null and the plan is honestly NOT available for
+   purchase — checkout refuses rather than faking a number. */
+
+export interface HostingPlanDef {
+  name: string;
+  tagline: string;
+  /** Env var holding the Stripe TEST price id. */
+  priceIdEnv: string;
+  features: TierFeature[];
+}
+
+export const HOSTING_PLAN: HostingPlanDef = {
+  name: "Hosting",
+  tagline: "Your page is your website — on your own domain, with clean branding, hosted by us.",
+  priceIdEnv: "STRIPE_PRICE_HOSTING",
+  features: [
+    { label: "Your own custom domain on your profile page", detailsUrl: "/creator-pricing#feature-site" },
+    { label: "Clean branding — no “Powered by” mark on your page", detailsUrl: "/creator-pricing#feature-site" },
+    { label: "Your profile page, hosted — fast, secure, always up", detailsUrl: "/creator-pricing#feature-site" },
+  ],
+};
+
+/** The configured monthly Hosting price in USD, or null when the owner
+    hasn't set one. Read live from env so a config change needs no deploy
+    of code — only the value the owner chose. */
+export function hostingPriceUsdPerMonth(): number | null {
+  const v = Number(process.env["HOSTING_PRICE_USD_PER_MONTH"]);
+  if (Number.isFinite(v) && v > 0 && v <= 10_000) return Math.round(v * 100) / 100;
+  return null;
+}
+
+/** True only when BOTH the price and its Stripe TEST price id exist —
+    the plan can then be sold at exactly the displayed price. */
+export function hostingPriceConfigured(): boolean {
+  return hostingPriceUsdPerMonth() !== null && !!process.env[HOSTING_PLAN.priceIdEnv];
+}

@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { db, creatorProfilesTable, creatorSubscriptionsTable } from "@workspace/db";
+import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
@@ -191,5 +191,109 @@ export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<
     .update(creatorSubscriptionsTable)
     .set({ status: "past_due", updatedAt: new Date() })
     .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId));
+  await db
+    .update(creatorHostingTable)
+    .set({ status: "past_due", updatedAt: new Date() })
+    .where(eq(creatorHostingTable.stripeCustomerId, customerId));
   logger.info({ customerId }, "creator tier marked past_due after failed invoice");
+}
+
+/* ── Hosting plan sync (Stack 3, item 8) ──────────────────────────────────
+   checkout.session.completed / customer.subscription.* with
+   metadata.kind === "creator_hosting" land in creator_hosting (one row
+   per profile, upserted) — the entitlement the branding rule reads.
+   Idempotent, same discipline as the tier sync above.                 */
+
+async function upsertHosting(values: {
+  profileId: string;
+  status: string;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
+  currentPeriodEnd?: Date | null;
+  cancelAtPeriodEnd?: Date | null;
+}): Promise<void> {
+  const now = new Date();
+  await db.execute(sql`
+      INSERT INTO creator_hosting
+        (profile_id, status, stripe_subscription_id, stripe_customer_id,
+         current_period_end, cancel_at_period_end, created_at, updated_at)
+      VALUES (${values.profileId}, ${values.status},
+              ${values.stripeSubscriptionId ?? null}, ${values.stripeCustomerId ?? null},
+              ${values.currentPeriodEnd ?? null}, ${values.cancelAtPeriodEnd ?? null},
+              ${now}, ${now})
+      ON CONFLICT (profile_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, creator_hosting.stripe_subscription_id),
+        stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, creator_hosting.stripe_customer_id),
+        current_period_end = COALESCE(EXCLUDED.current_period_end, creator_hosting.current_period_end),
+        cancel_at_period_end = EXCLUDED.cancel_at_period_end,
+        updated_at = EXCLUDED.updated_at
+    `);
+}
+
+async function profileIdForHostingCustomer(customerId: string | null): Promise<string | null> {
+  if (!customerId) return null;
+  const [h] = await db
+    .select({ profileId: creatorHostingTable.profileId })
+    .from(creatorHostingTable)
+    .where(eq(creatorHostingTable.stripeCustomerId, customerId))
+    .limit(1);
+  if (h) return h.profileId;
+  const [s] = await db
+    .select({ profileId: creatorSubscriptionsTable.profileId })
+    .from(creatorSubscriptionsTable)
+    .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId))
+    .limit(1);
+  return s?.profileId ?? null;
+}
+
+/** checkout.session.completed with metadata.kind === "creator_hosting". */
+export async function handleHostingCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  const stripe = getStripe();
+  const subId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  let currentPeriodEnd: Date | null = null;
+  let customerId: string | null = typeof session.customer === "string" ? session.customer : null;
+  if (subId) {
+    const sub = await stripe.subscriptions.retrieve(subId);
+    currentPeriodEnd = periodEndOf(sub);
+    if (!customerId && typeof sub.customer === "string") customerId = sub.customer;
+  }
+  const metaProfileId = session.metadata?.["profile_id"];
+  const profileId =
+    (typeof metaProfileId === "string" && metaProfileId ? metaProfileId : null) ??
+    (await profileIdForCustomer(stripe, { userId: session.metadata?.["user_id"], customerId }));
+  if (!profileId) {
+    logger.warn({ sessionId: session.id }, "hosting checkout: no creator profile for buyer — cannot attach entitlement");
+    return;
+  }
+  await upsertHosting({
+    profileId,
+    status: "active",
+    stripeSubscriptionId: subId ?? null,
+    stripeCustomerId: customerId,
+    currentPeriodEnd,
+  });
+  logger.info({ sessionId: session.id, profileId }, "hosting entitlement activated via webhook");
+}
+
+/** customer.subscription.updated / .deleted for a Hosting subscription. */
+export async function handleHostingSubscriptionEvent(subscription: Stripe.Subscription): Promise<void> {
+  const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+  const metaProfileId = subscription.metadata?.["profile_id"];
+  const profileId =
+    (typeof metaProfileId === "string" && metaProfileId ? metaProfileId : null) ??
+    (await profileIdForHostingCustomer(customerId));
+  if (!profileId) {
+    logger.warn({ subId: subscription.id }, "hosting subscription event: no creator profile for customer");
+    return;
+  }
+  await upsertHosting({
+    profileId,
+    status: subscription.status,
+    stripeSubscriptionId: subscription.id,
+    stripeCustomerId: customerId,
+    currentPeriodEnd: periodEndOf(subscription),
+    cancelAtPeriodEnd: cancelAtOf(subscription),
+  });
+  logger.info({ subId: subscription.id, profileId, status: subscription.status }, "hosting entitlement synced from subscription event");
 }
