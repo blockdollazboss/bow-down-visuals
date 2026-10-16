@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
   bgImageProviderConfigured,
@@ -67,10 +68,19 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
     return;
   }
 
-  const idempotencyKey = buildChargeIdempotencyKey(
-    "bg-generate", req.userId!, parsed.data.idempotencyKey,
-    { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
-  );
+  /* Idempotency (Lane V3 F1): the real client always sends a
+     per-attempt key, and that key dedupes retries of the SAME attempt.
+     A keyless caller used to get a prompt+style hash key — every
+     deliberate identical re-run then ran free forever while costing
+     provider money. Keyless calls now charge per run (no dedupe). */
+  const clientKey = parsed.data.idempotencyKey;
+  const hasClientKey = typeof clientKey === "string" && clientKey.trim().length >= 8;
+  const idempotencyKey = hasClientKey
+    ? buildChargeIdempotencyKey(
+        "bg-generate", req.userId!, clientKey,
+        { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
+      )
+    : null;
 
   let creditsAfter: number;
   try {
@@ -93,17 +103,33 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
     });
     res.json({ imageUrl: result.imageUrl, creditCost: BG_GENERATE_CREDIT_COST, creditsRemaining: creditsAfter });
   } catch (err) {
-    // Provider failed after the charge — refund in full, report honestly.
-    await refundCredits(req.userId!, BG_GENERATE_CREDIT_COST, {
-      action: "AI Background Plate — Refund",
-    }).catch(() => {});
+    /* Provider failed after the charge — refund in full, then VOID the
+       charge's idempotency key: without the void, the refunded attempt's
+       key still reads as "already charged", so the retry is suppressed
+       as a replay and generates FREE (Lane V3 F1 leak). The refund claim
+       in the response is only made when the refund actually landed. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, BG_GENERATE_CREDIT_COST, {
+        action: "AI Background Plate — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded && idempotencyKey) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
     if (err instanceof BgImageNotConfiguredError) {
       res.status(503).json({ error: err.code, message: err.message });
       return;
     }
     res.status(500).json({
       error: "BG_GENERATE_FAILED",
-      message: err instanceof Error ? err.message : "Background generation failed. Your Visual Bucs were refunded.",
+      message: err instanceof Error
+        ? err.message
+        : refunded
+          ? "Background generation failed. Your Visual Bucs were refunded."
+          : "Background generation failed, and the refund didn't go through — it's been flagged for reconciliation.",
     });
   }
 });

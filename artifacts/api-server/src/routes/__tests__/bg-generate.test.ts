@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   charges: [] as { amount: number; key: string }[],
   refunds: [] as number[],
   chargedKeys: new Set<string>(),
+  voids: [] as string[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -47,6 +48,10 @@ vi.mock("../../lib/credits", () => {
       state.refunds.push(amount);
       return state.balance;
     },
+    voidChargeIdempotencyKey: async (key: string) => {
+      state.voids.push(key);
+      return state.chargedKeys.delete(key);
+    },
   };
 });
 
@@ -70,7 +75,7 @@ afterAll(async () => {
   await new Promise((r) => server.close(r));
 });
 beforeEach(() => {
-  state.balance = 1000; state.charges = []; state.refunds = []; state.chargedKeys = new Set();
+  state.balance = 1000; state.charges = []; state.refunds = []; state.chargedKeys = new Set(); state.voids = [];
   __setBgImageDepsForTests({
     generate: async () => Buffer.from("fake-png-bytes"),
     upload: async (userId) => `https://cdn.example/bg-plates/${userId}/plate.png`,
@@ -133,5 +138,43 @@ describe("POST /bg-generate — wired provider", () => {
     const r = await post("/bg-generate", { prompt: "x" });
     expect(r.status).toBe(400);
     expect(state.charges).toEqual([]);
+  });
+});
+
+describe("POST /bg-generate — refund/retry leak (Lane V3 F1)", () => {
+  it("a refunded attempt's key is voided, so the retry CHARGES again (was: free generation)", async () => {
+    __setBgImageDepsForTests({ generate: async () => { throw new Error("provider exploded"); } });
+    const failed = await post("/bg-generate", { prompt: "underwater palace hall", idempotencyKey: "attempt-1001" });
+    expect(failed.status).toBe(500);
+    expect(state.refunds).toEqual([200]);
+    expect(state.voids).toEqual(["bg-generate:user-1:client:attempt-1001"]);
+    expect(state.balance).toBe(1000); // whole after refund
+
+    // Provider recovers; the SAME attempt key retries — and pays again.
+    __setBgImageDepsForTests({
+      generate: async () => Buffer.from("fake-png-bytes"),
+      upload: async (userId: string) => `https://cdn.example/bg-plates/${userId}/plate.png`,
+    });
+    const retry = await post("/bg-generate", { prompt: "underwater palace hall", idempotencyKey: "attempt-1001" });
+    expect(retry.status).toBe(200);
+    expect(state.charges).toHaveLength(2);
+    expect(state.balance).toBe(800); // second charge landed
+  });
+
+  it("keyless callers are charged per run — identical re-runs are not permanently free", async () => {
+    const a = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
+    const b = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(state.charges).toHaveLength(2);
+    expect(state.charges.every((c) => c.key === "")).toBe(true); // no dedupe key used
+    expect(state.balance).toBe(600);
+  });
+
+  it("a keyed success still dedupes (double-tap protection unchanged)", async () => {
+    await post("/bg-generate", { prompt: "golden dunes", idempotencyKey: "attempt-1002" });
+    await post("/bg-generate", { prompt: "golden dunes", idempotencyKey: "attempt-1002" });
+    expect(state.charges).toHaveLength(1);
+    expect(state.voids).toEqual([]);
   });
 });

@@ -410,6 +410,45 @@ export async function chargeCredits(
 }
 
 /**
+ * Void a charge's idempotency key (Lane V3 F1): after a charge is
+ * refunded, its ledger row keeps the key — so a retry with the same
+ * key is suppressed as a "replay" and runs FREE while costing real
+ * provider money. Voiding nulls the key on the charge row (the row
+ * itself stays for audit; the refund row carries the reversal), so
+ * the next attempt with that key charges again. Returns true when a
+ * row was voided. Never throws — a failed void is logged loudly and
+ * the caller still reports the refund honestly.
+ */
+export async function voidChargeIdempotencyKey(
+  idempotencyKey: string,
+): Promise<boolean> {
+  if (!idempotencyKey) return false;
+  try {
+    /* Raw SQL for the lookups: a literal LIMIT (some drivers reject a
+       bound LIMIT parameter). The void counts only when a row existed
+       AND the key no longer answers afterwards. */
+    const before = await db.execute(
+      sql`SELECT id FROM credit_usage WHERE idempotency_key = ${idempotencyKey} LIMIT 1`,
+    );
+    if (!before.rows.length) return false;
+    await db
+      .update(creditUsageTable)
+      .set({ idempotencyKey: null })
+      .where(eq(creditUsageTable.idempotencyKey, idempotencyKey));
+    const after = await db.execute(
+      sql`SELECT id FROM credit_usage WHERE idempotency_key = ${idempotencyKey} LIMIT 1`,
+    );
+    return after.rows.length === 0;
+  } catch (err) {
+    logger.error(
+      { idempotencyKey, err },
+      "[credits] CRITICAL: failed to void a refunded charge's idempotency key — a retry could run free; manual reconciliation required",
+    );
+    return false;
+  }
+}
+
+/**
  * Refund `amount` credits with a ledger trace.
  *
  * Writes the refund as a negative-amount credit_usage entry (the existing

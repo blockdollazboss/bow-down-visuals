@@ -356,6 +356,11 @@ export function BackgroundReplaceSection({
         }),
       });
     } catch (err) {
+      /* The attempt failed (the server refunds + voids the charge's
+         idempotency key on provider failure) — clear the attempt key so
+         the next Generate is a fresh, chargeable attempt instead of a
+         suppressed replay that would generate free (Lane V3 F1). */
+      aiAttemptKey.current = null;
       setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
     } finally {
       setAiGenerating(false);
