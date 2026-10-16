@@ -32,6 +32,9 @@ export const storiesTable = pgTable("stories", {
   mediaUrl:  text("media_url").notNull(),
   mediaKind: text("media_kind").notNull().default("image"),
   caption:   text("caption").notNull().default(""),
+  /* 'public' | 'followers' | 'close_friends' — enforced at READ time
+     on every surface that serves stories (migration 0137). */
+  audience:  text("audience").notNull().default("public"),
   viewCount: integer("view_count").notNull().default(0),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

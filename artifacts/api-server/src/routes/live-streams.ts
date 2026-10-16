@@ -22,6 +22,8 @@ import {
   StreamProviderError,
 } from "../lib/cloudflare-stream";
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
+import { stopAllRelays } from "../lib/multistream";
+import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
 import {
   initOwnServerLive,
@@ -141,10 +143,17 @@ export interface LiveCreatorDto {
    platform is stored "pending" (or "off" if it arrived off), never
    "active". When fan-out ships, the fan-out worker flips its entries
    live and the publisher (transport.ts) is where they plug in. */
+export type StreamDestinationStatus = "active" | "pending" | "off" | "live" | "error" | "ended";
 export interface StreamDestinationDto {
   platform: string;
   label: string;
-  status: "active" | "pending" | "off";
+  status: StreamDestinationStatus;
+  /** Why a destination is in 'error' (or why fan-out can't run) — the
+   *  honest reason the UI shows, written by the fan-out worker. */
+  error_reason?: string | null;
+  /** A stream key is saved for this destination (the key itself is
+   *  NEVER in any DTO — this boolean is all a client ever learns). */
+  has_key?: boolean;
   /** Save a recording of the stream on this destination (preference). */
   save_recording: boolean;
   /** Where this destination's recording lives after the stream (null until known). */
@@ -173,13 +182,24 @@ type RawDestination = {
   save_recording?: unknown;
   vod_url?: unknown;
   vod_state?: unknown;
+  error_reason?: unknown;
+  has_key?: unknown;
 };
 
-function destinationOutcome(e: RawDestination): Pick<StreamDestinationDto, "save_recording" | "vod_url" | "vod_state"> {
+const DESTINATION_STATUSES: StreamDestinationStatus[] = ["active", "pending", "off", "live", "error", "ended"];
+function readStatus(v: unknown): StreamDestinationStatus {
+  return typeof v === "string" && (DESTINATION_STATUSES as string[]).includes(v)
+    ? (v as StreamDestinationStatus)
+    : "pending";
+}
+
+function destinationOutcome(e: RawDestination): Pick<StreamDestinationDto, "save_recording" | "vod_url" | "vod_state" | "error_reason" | "has_key"> {
   return {
     save_recording: typeof e.save_recording === "boolean" ? e.save_recording : true,
     vod_url: typeof e.vod_url === "string" ? e.vod_url : null,
     vod_state: e.vod_state === "saved" || e.vod_state === "not_saved" ? e.vod_state : null,
+    error_reason: typeof e.error_reason === "string" ? e.error_reason : null,
+    has_key: typeof e.has_key === "boolean" ? e.has_key : undefined,
   };
 }
 
@@ -204,11 +224,55 @@ export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
     out.push({
       platform,
       label: typeof e.label === "string" && e.label.trim() ? e.label.trim() : platform,
-      status: e.status === "off" ? "off" : "pending",
+      status: readStatus(e.status),
       ...destinationOutcome(e),
     });
   }
   return out;
+}
+
+/**
+ * What a CLIENT may request at create time: the site entry plus
+ * pending/off wishes. A client can never mint "live"/"error"/"ended"
+ * — those are written only by the fan-out worker (setDestinationStatus).
+ */
+export function sanitizeRequestedDestinations(raw: unknown): StreamDestinationDto[] {
+  return normalizeDestinations(raw).map((d) =>
+    d.platform === "site" ? d : { ...d, status: d.status === "off" ? ("off" as const) : ("pending" as const), error_reason: null },
+  );
+}
+
+/** Server-side destination transition (fan-out worker, stream end). */
+export async function setDestinationStatus(
+  streamId: string,
+  platform: string,
+  patch: Partial<Pick<StreamDestinationDto, "status" | "error_reason" | "has_key">>,
+): Promise<void> {
+  const rows = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, streamId)).limit(1);
+  const row = rows[0];
+  if (!row) return;
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    d.platform === platform ? { ...d, ...patch } : d,
+  );
+  await db
+    .update(liveStreamsTable)
+    .set({ destinations, updated_at: new Date() })
+    .where(eq(liveStreamsTable.id, streamId));
+}
+
+/** At stream end: relays stop and any 'live' destination honestly ends. */
+export async function closeOutDestinations(streamId: string): Promise<void> {
+  stopAllRelays(streamId);
+  const rows = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, streamId)).limit(1);
+  const row = rows[0];
+  if (!row) return;
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    d.status === "live" ? { ...d, status: "ended" as const, error_reason: null } : d,
+  );
+  await db
+    .update(liveStreamsTable)
+    .set({ destinations, updated_at: new Date() })
+    .where(eq(liveStreamsTable.id, streamId));
 }
 
 export interface LiveStreamDto {
@@ -566,7 +630,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
             provider_input_id: null,
             playback_id: null,
             whip_url: null,
-            destinations: normalizeDestinations(parsed.data.destinations),
+            destinations: sanitizeRequestedDestinations(parsed.data.destinations),
           })
           .returning();
         const row = inserted[0]!;
@@ -630,7 +694,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           provider_input_id: input.providerInputId,
           playback_id: input.playbackId,
           whip_url: input.whipUrl,
-          destinations: normalizeDestinations(parsed.data.destinations),
+          destinations: sanitizeRequestedDestinations(parsed.data.destinations),
         })
         .returning();
       const row = inserted[0]!;
@@ -680,6 +744,7 @@ router.post("/live-streams/:id/end", requireAuth, async (req: Request, res: Resp
     const finalCount = countViewers(row.id);
     const ended = await endStreamRow(row, finalCount);
     clearViewers(row.id);
+    await closeOutDestinations(row.id).catch(() => undefined);
     if (row.provider === "own-server") {
       // The engine finishes the remux + uploads the recording in the
       // background; the replay registers on the row when it's ready.
@@ -795,6 +860,10 @@ router.post(
       }
       try {
         const out = await acceptChunk(row.id, seq, req.body, String(req.header("content-type") ?? ""));
+        // Multistream fan-out (Stack 9 #1): the first real chunk is
+        // when a relay can honestly start — fire-and-forget so a
+        // destination problem never breaks the ingest itself.
+        if (seq === 0 && !out.duplicate) void attemptFanOut(row.id);
         res.json({ ok: true, duplicate: out.duplicate, seq });
       } catch (err) {
         if (err instanceof LiveIngestError) {
