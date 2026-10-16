@@ -11,6 +11,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
 import ChannelModerators from "@/components/live/ChannelModerators";
+import StreamAlertOverlay from "@/components/live/StreamAlertOverlay";
 import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerStageClient,
@@ -1091,6 +1092,7 @@ export default function BroadcastStudio() {
                   </p>
                 </div>
               )}
+              {liveId && <StreamAlertOverlay streamId={liveId} />}
             </div>
           </div>
 

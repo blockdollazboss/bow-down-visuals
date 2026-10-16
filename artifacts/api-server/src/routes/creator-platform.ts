@@ -16,7 +16,9 @@ import {
   notificationsTable,
   dmcaReportsTable,
   shopsTable,
+  liveStreamsTable,
 } from "@workspace/db";
+import { liveChatHub } from "./live-chat";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { getRecruiterBadgeForUser } from "./referrals";
@@ -1029,9 +1031,45 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Following yourself? Bold. It doesn't work, but we respect the confidence." });
       return;
     }
+    const priorFollow = await db
+      .select({ profileId: followsTable.profileId })
+      .from(followsTable)
+      .where(and(eq(followsTable.followerUserId, userId), eq(followsTable.profileId, profile.id)))
+      .limit(1);
+    const isNewFollow = priorFollow.length === 0;
     await db.insert(followsTable)
       .values({ followerUserId: userId, profileId: profile.id })
       .onConflictDoNothing({ target: [followsTable.followerUserId, followsTable.profileId] });
+    if (isNewFollow) {
+      // A follow that lands while the creator is live surfaces as an
+      // on-screen alert in their studio Program feed (same WS room as
+      // chat). Best-effort only — a follow never fails over an alert.
+      try {
+        const liveRows = await db
+          .select()
+          .from(liveStreamsTable)
+          .where(and(eq(liveStreamsTable.user_id, profile.userId), eq(liveStreamsTable.status, "live")))
+          .limit(1);
+        const live = liveRows[0];
+        if (live) {
+          const followerProfile = await db
+            .select({ displayName: creatorProfilesTable.displayName })
+            .from(creatorProfilesTable)
+            .where(eq(creatorProfilesTable.userId, userId))
+            .limit(1);
+          liveChatHub.broadcast(live.id, {
+            type: "alert",
+            alert: {
+              kind: "follow",
+              title: `${followerProfile[0]?.displayName ?? "Someone"} just followed`,
+              body: "Say hello — they're watching the stream.",
+            },
+          });
+        }
+      } catch {
+        /* alert delivery is non-critical */
+      }
+    }
     await db.update(creatorProfilesTable)
       .set({ followerCount: sql`${creatorProfilesTable.followerCount} + 1`, updatedAt: new Date() })
       .where(eq(creatorProfilesTable.id, profile.id));
