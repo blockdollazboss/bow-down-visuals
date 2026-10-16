@@ -625,7 +625,7 @@ function AppShell() {
                 <Route path="/video-studio"><ProtectedRoute><VideoStudio /></ProtectedRoute></Route>
                 <Route path="/song-and-video"><CreateRedirect to="/create?panel=song-video" /></Route>
                 <Route path="/create"><ProtectedRoute><Create /></ProtectedRoute></Route>
-                <Route path="/promo-clip"><Redirect to="/video-editor?tab=promo-clips" /></Route>
+                <Route path="/promo-clip"><QueryPreservingRedirect to="/video-editor?tab=promo-clips" /></Route>
                 <Route path="/thumbnail"><QueryPreservingRedirect to="/thumbnail-studio?tab=generate" /></Route>
                 <Route path="/thumbnails"><QueryPreservingRedirect to="/thumbnail-studio?tab=library" /></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
@@ -641,7 +641,7 @@ function AppShell() {
                 <Route path="/library"><ProtectedRoute><Library /></ProtectedRoute></Route>
                 <Route path="/cartoon-studio"><Redirect to="/create?panel=cartoon" /></Route>
                 <Route path="/merch"><QueryPreservingRedirect to="/branding-kit?tab=shop&subtab=merch" /></Route>
-                <Route path="/playlist-pitch"><Redirect to="/label-pitch?mode=playlists" /></Route>
+                <Route path="/playlist-pitch"><QueryPreservingRedirect to="/label-pitch?mode=playlists" /></Route>
                 <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><Redirect to="/analytics-hub?tab=channel-audit" /></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
@@ -657,16 +657,16 @@ function AppShell() {
                 <Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>
                 <Route path="/gamers"><Redirect to="/go-live?tab=gamers" /></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
-                <Route path="/caption-styler"><Redirect to="/hooks?tab=styler" /></Route>
+                <Route path="/caption-styler"><QueryPreservingRedirect to="/hooks?tab=styler" /></Route>
                 <Route path="/cover-art"><QueryPreservingRedirect to="/create?panel=coverart" /></Route>
                 <Route path="/lyric-video"><Redirect to="/video-editor?tab=lyric-video" /></Route>
                 <Route path="/translate"><Redirect to="/video-editor?tab=translate" /></Route>
                 <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>
-                <Route path="/repurpose"><Redirect to="/video-editor?tab=repurpose" /></Route>
+                <Route path="/repurpose"><QueryPreservingRedirect to="/video-editor?tab=repurpose" /></Route>
                 <Route path="/trends"><Redirect to="/scheduler?tab=trends" /></Route>
                 {/* Discovery feed — new drops from followed creators (auth) */}
                 <Route path="/feed"><Redirect to="/home?view=drops" /></Route>
-                <Route path="/thumbnail-test"><Redirect to="/thumbnail-studio?tab=abtest" /></Route>
+                <Route path="/thumbnail-test"><QueryPreservingRedirect to="/thumbnail-studio?tab=abtest" /></Route>
                 <Route path="/audio-studio"><ProtectedRoute><AudioStudio /></ProtectedRoute></Route>
                 <Route path="/ai-audio"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
@@ -678,10 +678,10 @@ function AppShell() {
                 <Route path="/community"><CommunityManager /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
                 <Route path="/mix-master"><QueryPreservingRedirect to="/audio-studio?tab=master" /></Route>
-                <Route path="/stems"><Redirect to="/audio-studio?tab=stems" /></Route>
+                <Route path="/stems"><QueryPreservingRedirect to="/audio-studio?tab=stems" /></Route>
                 <Route path="/sfx"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=sfx" /></Route>
                 <Route path="/samples"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=samples" /></Route>
-                <Route path="/podcast"><Redirect to="/audio-studio?tab=podcast" /></Route>
+                <Route path="/podcast"><QueryPreservingRedirect to="/audio-studio?tab=podcast" /></Route>
                 <Route path="/beat-maker"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
