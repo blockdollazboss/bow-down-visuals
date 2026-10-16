@@ -7,7 +7,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { ArrowRight, Heart, Eye, Play, Music, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Heart, Eye, Play, Music, Image as ImageIcon, AlertTriangle, RotateCcw } from "lucide-react";
 
 /* ─── Public creator showcase ───
    Opt-in gallery of community creations. No login required to browse;
@@ -75,15 +75,24 @@ export default function Showcase() {
   const [type, setType] = useState<string>("");
   const [items, setItems] = useState<ShowcaseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  /* List-load failures are NOT an empty gallery — they get their own
+     error state with a retry. The empty state renders ONLY for a
+     successful load with no items. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setLoadError(false);
     fetch(`/api/showcase${type ? `?type=${type}` : ""}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("load failed");
+        return r.json();
+      })
       .then((d) => setItems(Array.isArray(d.items) ? d.items : []))
-      .catch(() => setItems([]))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [type]);
+  }, [type, retryNonce]);
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -138,6 +147,21 @@ export default function Showcase() {
 
         {loading ? (
           <p className={`text-center py-16 ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>Loading showcase…</p>
+        ) : loadError ? (
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load the showcase.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — the creations are safe, this page just couldn't reach them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
         ) : items.length === 0 ? (
           <div className={`text-center py-16 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className={`${isLight ? "text-[#6B5B36]" : "text-white/50"} mb-2`}>The showcase is just getting started.</p>
