@@ -10,11 +10,12 @@ import { logger } from "./logger";
      layout is an ordered list of blocks; the block-type registry below is
      derived from the sections the artist profile page ALREADY renders —
      the section switch in components/artist/profile-sections.tsx plus
-     the page-level sections in pages/artist-public.tsx (Royal Court,
-     Trophy Shelf, social links) plus the two new page-level blocks this
-     stack adds (spotlight pin, store catalog). No freeform code/HTML can
-     exist in a block: types come from this registry only, titles are
-     capped plain text, and config values are scalar primitives only.
+     the page-level sections in pages/artist-public.tsx (The Front Row,
+     Trophy Shelf, social links) plus the new page-level blocks this
+     stack adds (spotlight pin, store catalog, memberships). No freeform
+     code/HTML can exist in a block: types come from this registry only,
+     titles are capped plain text, and config values are scalar
+     primitives only.
    - Item 3 (DESIGN-GATED visuals): theme settings — colorway + font
      choices as validated KEYS resolved server-side from the registries
      below (mirroring the frontend THEME_PRESETS / SAFE_FONTS in
@@ -51,18 +52,19 @@ export const PROFILE_BLOCK_TYPES: ProfileBlockTypeDef[] = [
   { type: "bio", label: "About", source: "section" },
   { type: "shoutwall", label: "Shout Wall", source: "section" },
   { type: "stories", label: "Stories", source: "section" },
-  { type: "topcreators", label: "The Royal Court picks (Top Creators)", source: "section" },
+  { type: "topcreators", label: "Top Creators", source: "section" },
   /* Page-sourced — rendered by artist-public.tsx around the sections. */
   { type: "spotlight", label: "Spotlight Pin", source: "page" },
-  { type: "court", label: "The Royal Court", source: "page" },
+  { type: "court", label: "The Front Row", source: "page" },
   { type: "achievements", label: "Trophy Shelf", source: "page" },
   { type: "store", label: "Store", source: "page" },
+  { type: "memberships", label: "Memberships", source: "page" },
   { type: "links", label: "Social Links", source: "page" },
 ];
 
 export const PROFILE_BLOCK_TYPE_SET = new Set(PROFILE_BLOCK_TYPES.map((b) => b.type));
 
-/** Sane ceiling: the registry holds 18 types and each type may appear
+/** Sane ceiling: the registry holds 19 types and each type may appear
     at most once, so 24 leaves headroom without ever allowing bloat. */
 export const MAX_PROFILE_BLOCKS = 24;
 
@@ -154,13 +156,17 @@ export function validateLayout(raw: unknown): LayoutValidation {
 }
 
 /* ── Default layout ───────────────────────────────────────────────────────
-   The page's current section order, so an untouched profile's layout IS
-   today's page: the stored sections in their saved order (or the
-   vertical's starter order when none were ever saved — mirroring the
-   frontend STARTER_TEMPLATES), then the page-level blocks in the order
-   artist-public.tsx renders them (Court, Trophy Shelf, links). The
-   spotlight and store blocks are opt-in: they join a layout only when
-   the owner saves one that includes them. */
+   The Grand Stage composition — the owner's picked default (Oct 16):
+   the masthead (hero) leads, then The Stage → The Front Row → Music →
+   Videos → Store → Memberships in that exact order, then anything else
+   the profile has in its existing relative order (stored sections, or
+   the vertical's starter order when none were ever saved — mirroring
+   the frontend STARTER_TEMPLATES), closing with the Trophy Shelf and
+   Social Links. Blocks the profile already has as stored sections keep
+   their own title and visibility in their Grand Stage slots; the rest
+   are synthesized with the picked titles. An owner's SAVED layout
+   always wins over this default — the block editor re-arranges within
+   the same registry. */
 
 const STARTER_LAYOUTS: Record<string, Array<[string, string]>> = {
   music: [["hero", "Featured Track"], ["tracks", "Music"], ["videos", "Videos"], ["merch", "Merch Shelf"], ["events", "Tour Dates"], ["bio", "About"], ["shoutwall", "Shout Wall"], ["topcreators", "Top Creators"]],
@@ -174,8 +180,15 @@ const STARTER_LAYOUTS: Record<string, Array<[string, string]>> = {
   other: [["hero", "Featured"], ["videos", "Videos"], ["tracks", "Audio"], ["bio", "About"], ["merch", "Merch Shelf"], ["events", "Events"], ["shoutwall", "Shout Wall"], ["topcreators", "Top Creators"]],
 };
 
-const PAGE_BLOCK_DEFAULTS: Array<[string, string]> = [
-  ["court", "The Royal Court"],
+const GRAND_STAGE_SEQUENCE: Array<[string, string]> = [
+  ["spotlight", "The Stage"],
+  ["court", "The Front Row"],
+  ["tracks", "Music"],
+  ["videos", "Videos"],
+  ["store", "Store"],
+  ["memberships", "Memberships"],
+];
+const PAGE_BLOCK_TAIL: Array<[string, string]> = [
   ["achievements", "Trophy Shelf"],
   ["links", "Social Links"],
 ];
@@ -204,28 +217,47 @@ export function effectiveLayout(profile: ProfileLayoutSource): { blocks: Profile
     const def = PROFILE_BLOCK_TYPES.find((b) => b.type === type)!;
     blocks.push({ type, title: title || def.label, visible, config: {} });
   };
+  /* The section source: the profile's stored sections when it has any,
+   * else the vertical's starter order. Titles + visibility come from
+   * the source; the Grand Stage slots pull from it first. */
   const stored = Array.isArray(profile.sections) ? profile.sections : [];
+  const source: Array<{ type: string; title: string; visible: boolean }> = [];
   if (stored.length > 0) {
     for (const s of stored) {
       if (!s || typeof s !== "object") continue;
       const type = typeof s["type"] === "string" ? s["type"] : "";
       const title = typeof s["title"] === "string" ? s["title"] : "";
-      push(type, title, s["visible"] !== false);
+      source.push({ type, title, visible: s["visible"] !== false });
     }
   } else {
     for (const [type, title] of STARTER_LAYOUTS[profile.vertical] ?? STARTER_LAYOUTS["other"]!) {
-      push(type, title, true);
+      source.push({ type, title, visible: true });
     }
   }
-  for (const [type, title] of PAGE_BLOCK_DEFAULTS) push(type, title, true);
+  const fromSource = (type: string) => source.find((s) => s.type === type);
+  /* 1 — the masthead leads (its own stored title when the profile has
+   * one, else the starter's, else the registry label). */
+  const hero = fromSource("hero");
+  push("hero", hero?.title ?? "", hero?.visible ?? true);
+  /* 2 — the Grand Stage sequence, in the owner's picked order. */
+  for (const [type, pickedTitle] of GRAND_STAGE_SEQUENCE) {
+    const s = fromSource(type);
+    push(type, s?.title || pickedTitle, s?.visible ?? true);
+  }
+  /* 3 — everything else the profile has, in its existing order. */
+  for (const s of source) push(s.type, s.title, s.visible);
+  /* 4 — the closing page blocks. */
+  for (const [type, title] of PAGE_BLOCK_TAIL) push(type, title, true);
   return { blocks, isDefault: true };
 }
 
 /* ── Theme settings registry (item 3 plumbing) ────────────────────────────
-   Colorways mirror the frontend THEME_PRESETS (lib/artist-profiles.ts) —
-   the same six gold-house presets, resolved server-side from the chosen
-   KEY. Fonts mirror SAFE_FONTS. A creator picks keys; the server writes
-   the resolved values into theme_config. Never raw CSS. */
+   Colorways mirror the frontend THEME_PRESETS (lib/artist-profiles.ts),
+   resolved server-side from the chosen KEY. Royal Gold leads the list —
+   it is the house theme (the owner's pick, Oct 16): golden black marble
+   with bronze-gold light. Fonts mirror SAFE_FONTS. A creator picks keys;
+   the server writes the resolved values into theme_config. Never raw
+   CSS. */
 
 export interface ProfileColorway {
   id: string;
@@ -237,6 +269,7 @@ export interface ProfileColorway {
 }
 
 export const PROFILE_COLORWAYS: ProfileColorway[] = [
+  { id: "royal-gold", name: "Royal Gold", colors: { background: "#0d0a04", surface: "#14100a", primary: "#c9a84c", accent: "#f0d488", text: "#f7ecd2", mutedText: "#a08c5f", cardBg: "#171208", border: "#3d2e12" } },
   { id: "midnight-gold", name: "Midnight Gold", colors: { background: "#0a0a0b", surface: "#121214", primary: "#d4af37", accent: "#f5d67b", text: "#f5f1e6", mutedText: "#a8a29e", cardBg: "#161618", border: "#2a2416" } },
   { id: "royal-noir", name: "Royal Noir", colors: { background: "#0d0c10", surface: "#141218", primary: "#c9a227", accent: "#e8c874", text: "#f2ede3", mutedText: "#9c948a", cardBg: "#17141c", border: "#2e2718" } },
   { id: "stage-lights", name: "Stage Lights", colors: { background: "#08080a", surface: "#101012", primary: "#eab308", accent: "#fde047", text: "#ffffff", mutedText: "#b8b4ad", cardBg: "#121215", border: "#332f1a" } },

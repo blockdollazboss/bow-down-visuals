@@ -342,23 +342,52 @@ async function call(method: string, path: string, opts: { user?: string; body?: 
 }
 
 describe("#2 layout model", () => {
-  it("an untouched profile's default layout is today's page order", async () => {
+  it("an untouched profile's default layout is the Grand Stage order", async () => {
     const { status, json } = await call("GET", "/creator-profiles/me/layout", { user: OWNER_USER });
     expect(status).toBe(200);
     expect(json.isDefault).toBe(true);
+    /* The owner's picked order (Oct 16): the masthead leads, then
+     * The Stage → The Front Row → Music → Videos → Store → Memberships,
+     * then the profile's remaining sections (bio, still hidden), then
+     * the Trophy Shelf and Social Links. */
     expect(json.layout.map((b: any) => b.type)).toEqual([
-      "hero", "tracks", "bio", "court", "achievements", "links",
+      "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
+      "bio", "achievements", "links",
     ]);
+    expect(json.layout.find((b: any) => b.type === "spotlight").title).toBe("The Stage");
+    expect(json.layout.find((b: any) => b.type === "court").title).toBe("The Front Row");
+    expect(json.layout.find((b: any) => b.type === "tracks").title).toBe("Music");
     expect(json.layout.find((b: any) => b.type === "bio").visible).toBe(false);
     expect(json.maxBlocks).toBeGreaterThanOrEqual(json.blockTypes.length);
   });
 
-  it("a profile with no saved sections gets the vertical starter order", async () => {
+  it("a profile with no saved sections gets the Grand Stage order over its starter sections", async () => {
     const { json } = await call("GET", "/creator-profiles/me/layout", { user: FAN_USER });
     expect(json.layout.map((b: any) => b.type)).toEqual([
-      "hero", "tracks", "videos", "merch", "events", "bio", "shoutwall", "topcreators",
-      "court", "achievements", "links",
+      "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
+      "merch", "events", "bio", "shoutwall", "topcreators",
+      "achievements", "links",
     ]);
+  });
+
+  it("the registry carries The Front Row and the memberships block — and no Royal Court name", async () => {
+    const { json } = await call("GET", "/creator-profiles/me/layout", { user: OWNER_USER });
+    const court = json.blockTypes.find((b: any) => b.type === "court");
+    expect(court.label).toBe("The Front Row");
+    expect(json.blockTypes.map((b: any) => b.type)).toContain("memberships");
+    expect(JSON.stringify(json.blockTypes)).not.toContain("Royal Court");
+    expect(JSON.stringify(json.layout)).not.toContain("Royal Court");
+  });
+
+  it("a saved layout can carry the memberships block", async () => {
+    const layout = [
+      { type: "hero", title: "Featured", visible: true },
+      { type: "memberships", title: "Memberships", visible: true },
+      { type: "court", title: "The Front Row", visible: true },
+    ];
+    const put = await call("PUT", "/creator-profiles/me/layout", { user: OWNER_USER, body: { layout } });
+    expect(put.status).toBe(200);
+    expect(put.json.layout.map((b: any) => b.type)).toEqual(["hero", "memberships", "court"]);
   });
 
   it("saves a valid layout and reads it back (public view hides hidden blocks)", async () => {
@@ -417,6 +446,17 @@ describe("#3 theme settings", () => {
     expect(json.headingFont).toBe("Cinzel");
     expect(json.colorways.map((c: any) => c.id)).toContain("velvet-lounge");
     expect(json.fonts).toContain("Bebas Neue");
+  });
+
+  it("Royal Gold — the house theme — leads the colorway registry", async () => {
+    const { json } = await call("GET", "/creator-profiles/me/theme-settings", { user: OWNER_USER });
+    expect(json.colorways[0].id).toBe("royal-gold");
+    expect(json.colorways[0].name).toBe("Royal Gold");
+    const put = await call("PUT", "/creator-profiles/me/theme-settings", {
+      user: OWNER_USER, body: { colorway: "royal-gold" },
+    });
+    expect(put.status).toBe(200);
+    expect(put.json.colorway).toBe("royal-gold");
   });
 
   it("resolves a colorway key server-side into theme_config colors", async () => {

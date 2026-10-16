@@ -120,14 +120,14 @@ router.get("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (r
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
-      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can crown your Court." });
+      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can set your Front Row." });
       return;
     }
     const court = await loadCourt(own.id, false);
     res.json(await refreshSupabaseStorageUrlsDeep({ court, maxMembers: ROYAL_COURT_MAX_MEMBERS }));
   } catch (err) {
     req.log.error({ err }, "royal-court GET (me) error");
-    res.status(500).json({ error: "Couldn't load your Court. Try again." });
+    res.status(500).json({ error: "Couldn't load your Front Row. Try again." });
   }
 });
 
@@ -139,7 +139,7 @@ router.get("/creator-profiles/me/court-candidates", publicApiLimiter, requireAut
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
-      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can crown your Court." });
+      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can set your Front Row." });
       return;
     }
     const q = String(req.query["q"] ?? "").trim().slice(0, 80);
@@ -181,7 +181,7 @@ router.get("/creator-profiles/me/court-candidates", publicApiLimiter, requireAut
     res.json(await refreshSupabaseStorageUrlsDeep({ candidates }));
   } catch (err) {
     req.log.error({ err }, "royal-court candidates error");
-    res.status(500).json({ error: "Couldn't load creators for your Court. Try again." });
+    res.status(500).json({ error: "Couldn't load creators for your Front Row. Try again." });
   }
 });
 
@@ -197,12 +197,12 @@ router.put("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (r
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
-      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can crown your Court." });
+      res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — then you can set your Front Row." });
       return;
     }
     const parsed = saveCourtSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: "Send your Court as a list of creator profile ids." });
+      res.status(400).json({ error: "Send your Front Row as a list of creator profile ids." });
       return;
     }
     const ids = parsed.data.memberProfileIds;
@@ -210,20 +210,20 @@ router.put("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (r
     if (ids.length > ROYAL_COURT_MAX_MEMBERS) {
       res.status(400).json({
         error: "COURT_FULL",
-        message: `The Royal Court holds at most ${ROYAL_COURT_MAX_MEMBERS} creators — pick your top ${ROYAL_COURT_MAX_MEMBERS}.`,
+        message: `The Front Row holds at most ${ROYAL_COURT_MAX_MEMBERS} creators — pick your top ${ROYAL_COURT_MAX_MEMBERS}.`,
       });
       return;
     }
     if (ids.some((id) => !UUID_SHAPE.test(id))) {
-      res.status(400).json({ error: "INVALID_MEMBER", message: "Every Court member must be a creator profile id." });
+      res.status(400).json({ error: "INVALID_MEMBER", message: "Every Front Row member must be a creator profile id." });
       return;
     }
     if (new Set(ids).size !== ids.length) {
-      res.status(400).json({ error: "DUPLICATE_MEMBER", message: "Each creator can hold only one seat in your Court." });
+      res.status(400).json({ error: "DUPLICATE_MEMBER", message: "Each creator can hold only one seat in your Front Row." });
       return;
     }
     if (ids.includes(own.id)) {
-      res.status(400).json({ error: "SELF_CROWN", message: "You can't crown yourself — the Court is for your people." });
+      res.status(400).json({ error: "SELF_CROWN", message: "You can't take a seat yourself — the Front Row is for your people." });
       return;
     }
     if (ids.length > 0) {
@@ -252,7 +252,7 @@ router.put("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (r
     res.json({ saved: true, court, maxMembers: ROYAL_COURT_MAX_MEMBERS });
   } catch (err) {
     req.log.error({ err }, "royal-court PUT error");
-    res.status(500).json({ error: "Couldn't save your Court. Try again." });
+    res.status(500).json({ error: "Couldn't save your Front Row. Try again." });
   }
 });
 
@@ -275,7 +275,7 @@ router.get("/creator-profiles/:slug/court", publicApiLimiter, async (req, res) =
     res.json(await refreshSupabaseStorageUrlsDeep({ court, maxMembers: ROYAL_COURT_MAX_MEMBERS }));
   } catch (err) {
     req.log.error({ err }, "royal-court GET (public) error");
-    res.status(500).json({ error: "Couldn't load the Court. Try again." });
+    res.status(500).json({ error: "Couldn't load the Front Row. Try again." });
   }
 });
 

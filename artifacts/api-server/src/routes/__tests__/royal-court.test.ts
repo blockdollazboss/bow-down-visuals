@@ -344,13 +344,15 @@ describe("PUT /api/creator-profiles/me/court (save)", () => {
     expect(json.court).toEqual([]);
   });
 
-  it("rejects a 9th seat — the Court holds at most 8", async () => {
+  it("rejects a 9th seat — the Front Row holds at most 8", async () => {
     const { status, json } = await call("PUT", "/creator-profiles/me/court", {
       user: OWNER_USER,
       body: { memberProfileIds: EXTRA_IDS },
     });
     expect(status).toBe(400);
     expect(json.error).toBe("COURT_FULL");
+    expect(json.message).toContain("The Front Row holds at most 8");
+    expect(json.message).not.toContain("Royal Court");
   });
 
   it("rejects duplicates, self-crowning, unknown and malformed members", async () => {
