@@ -116,7 +116,8 @@ function buildFakeDb() {
 
 vi.mock("../../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
-    req.userId = h.userId;
+    // Per-request override so concurrent two-buyer tests can race.
+    req.userId = req.headers["x-test-user"] ?? h.userId;
     next();
   },
 }));
@@ -228,10 +229,10 @@ beforeEach(() => {
   h.userId = BUYER;
 });
 
-async function call(method: string, path: string, body?: unknown) {
+async function call(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
   const res = await realFetch(`${baseUrl}${path}`, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   return { status: res.status, data: (await res.json().catch(() => ({}))) as any };
@@ -304,6 +305,43 @@ describe("beat license purchase flow", () => {
 
     const second = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
     expect(second.status).toBe(409);
+  });
+
+  it("F5: two concurrent exclusive verifies — exactly one completes, the loser gets 409", async () => {
+    const beat = seedBeat();
+    const BUYER2 = randomUUID();
+    // Both buyers open exclusive checkouts before either pays (the
+    // creation-side guard cannot see this race; verify must not).
+    const startA = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(startA.status).toBe(201);
+    h.userId = BUYER2;
+    const startB = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(startB.status).toBe(201);
+    h.userId = BUYER;
+
+    const sessions = new Map<string, any>([
+      [startA.data.sessionId, {
+        id: startA.data.sessionId, payment_status: "paid", amount_total: 49999,
+        metadata: { purchase_kind: "beat_license", license_id: startA.data.license.id, beat_id: beat.id, buyer_user_id: BUYER, tier: "exclusive" },
+      }],
+      [startB.data.sessionId, {
+        id: startB.data.sessionId, payment_status: "paid", amount_total: 49999,
+        metadata: { purchase_kind: "beat_license", license_id: startB.data.license.id, beat_id: beat.id, buyer_user_id: BUYER2, tier: "exclusive" },
+      }],
+    ]);
+    const sc = await import("../../../lib/stripe-checkout");
+    vi.mocked(sc.retrieveCheckoutSession).mockImplementation(async (id: string) => sessions.get(id));
+
+    const [va, vb] = await Promise.all([
+      call("POST", "/beats/licenses/verify", { sessionId: startA.data.sessionId }, { "x-test-user": BUYER }),
+      call("POST", "/beats/licenses/verify", { sessionId: startB.data.sessionId }, { "x-test-user": BUYER2 }),
+    ]);
+    expect([va.status, vb.status].sort()).toEqual([200, 409]);
+    const loser = va.status === 409 ? va : vb;
+    expect(loser.data.error).toContain("sold to someone else first");
+    const licenses = h.stores.get("beat_licenses")!;
+    expect(licenses.filter((l) => l.status === "completed")).toHaveLength(1);
+    expect(h.stores.get("beats")![0]!.exclusive_sold).toBe(true);
   });
 
   it("producers cannot license their own beat", async () => {

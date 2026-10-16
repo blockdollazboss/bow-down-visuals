@@ -446,20 +446,70 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
       });
       return;
     }
-    if (license.tier === "exclusive" && beat.exclusive_sold) {
-      res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
-      return;
-    }
-    const [updated] = await db
-      .update(beatLicensesTable)
-      .set({ status: "completed" })
-      .where(eq(beatLicensesTable.id, license.id))
-      .returning();
+    /* Exclusive completion is an ATOMIC CLAIM, not check-then-set
+       (Lane V3 F5): the old flow read exclusive_sold, completed the
+       license, then set the flag — two verifies racing in the awaits
+       between check and set could both pass and sell one exclusive
+       twice. Now the beat row itself is claimed with a conditional
+       UPDATE ... WHERE exclusive_sold = false; exactly one racer's
+       claim lands. */
+    let claimedExclusive = false;
     if (license.tier === "exclusive") {
-      await db
-        .update(beatsTable)
-        .set({ exclusive_sold: true, updated_at: new Date() })
-        .where(eq(beatsTable.id, beat.id));
+      const claim = async (): Promise<boolean> => {
+        const rows = await db
+          .update(beatsTable)
+          .set({ exclusive_sold: true, updated_at: new Date() })
+          .where(and(eq(beatsTable.id, beat.id), eq(beatsTable.exclusive_sold, false)))
+          .returning();
+        return rows.length > 0;
+      };
+      if (beat.exclusive_sold) {
+        /* Already flagged sold. Another COMPLETED exclusive means the
+           race is truly lost. A dangling flag with no completed sale
+           is a crashed attempt: it may only be released when this
+           license is the beat's only pending exclusive (its own
+           earlier attempt) — a rival still pending keeps the 409. */
+        const others = await db
+          .select()
+          .from(beatLicensesTable)
+          .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
+        const rivalCompleted = others.some((l) => l.id !== license.id && l.status === "completed");
+        const rivalPending = others.some((l) => l.id !== license.id && l.status !== "completed");
+        if (rivalCompleted || rivalPending) {
+          res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
+          return;
+        }
+        await db
+          .update(beatsTable)
+          .set({ exclusive_sold: false, updated_at: new Date() })
+          .where(eq(beatsTable.id, beat.id));
+        claimedExclusive = await claim();
+      } else {
+        claimedExclusive = await claim();
+      }
+      if (!claimedExclusive) {
+        res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
+        return;
+      }
+    }
+    let updated: typeof license | undefined;
+    try {
+      [updated] = await db
+        .update(beatLicensesTable)
+        .set({ status: "completed" })
+        .where(eq(beatLicensesTable.id, license.id))
+        .returning();
+    } catch (err) {
+      /* Completion failed after the claim: free the beat so the paid
+         buyer's retry (or the next buyer) is not locked out forever. */
+      if (claimedExclusive) {
+        await db
+          .update(beatsTable)
+          .set({ exclusive_sold: false, updated_at: new Date() })
+          .where(eq(beatsTable.id, beat.id))
+          .catch(() => {});
+      }
+      throw err;
     }
     res.json({
       success: true,
