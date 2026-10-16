@@ -70,6 +70,10 @@ export const profileTracksTable = pgTable("profile_tracks", {
   durationSec:       integer("duration_sec").notNull().default(0),
   /** 0 = stream-only, >0 = paid download (Stripe, see digital_sales). */
   downloadPriceCents: integer("download_price_cents").notNull().default(0),
+  /** Name-your-price (migration 0132): when enabled, buyers may pay any
+      amount >= pwywMinCents instead of the fixed download price. */
+  pwywEnabled:       boolean("pwyw_enabled").notNull().default(false),
+  pwywMinCents:      integer("pwyw_min_cents").notNull().default(0),
   playCount:         integer("play_count").notNull().default(0),
   likeCount:         integer("like_count").notNull().default(0),
   repostCount:       integer("repost_count").notNull().default(0),
@@ -99,6 +103,10 @@ export const profileVideosTable = pgTable("profile_videos", {
   soundTrackId:      uuid("sound_track_id").references(() => profileTracksTable.id, { onDelete: "set null" }),
   /** 0 = stream-only, >0 = paid download (Stripe, see digital_sales). */
   downloadPriceCents: integer("download_price_cents").notNull().default(0),
+  /** Name-your-price (migration 0132): when enabled, buyers may pay any
+      amount >= pwywMinCents instead of the fixed download price. */
+  pwywEnabled:       boolean("pwyw_enabled").notNull().default(false),
+  pwywMinCents:      integer("pwyw_min_cents").notNull().default(0),
   viewCount:         integer("view_count").notNull().default(0),
   likeCount:         integer("like_count").notNull().default(0),
   repostCount:       integer("repost_count").notNull().default(0),

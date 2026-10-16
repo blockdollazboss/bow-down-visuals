@@ -1,18 +1,20 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-/* Live Shopping (v1).
+/* Live Shopping.
    Creators sell products during live streams: a per-user product catalog,
    selling-session records with an optionally pinned overlay product,
    recorded sales (5% platform fee snapshot), and a purchase-alert feed the
    overlay polls for popups.
 
-   Honest v1 boundaries:
-   - Platform checkout is NOT processed here — `external_url` is the
-     creator's own checkout link; overlay "buy" buttons link out.
-   - Sales recorded via the API are test/demo sales until platform checkout
-     ships; the dashboard labels them as such. */
+   Checkout (migration 0132): the default buy path is an on-platform
+   Stripe TEST-mode checkout; a sale row with status='paid' is written only
+   after the checkout session verifies as paid. Sales recorded manually
+   through the demo endpoint keep status='test' and the dashboard labels
+   them as test sales forever — the two are never blended.
+   `external_url` remains available as the creator's own off-platform
+   link (their setting, shown as a secondary option only). */
 
 /** Platform fee on sales made through the platform: 5% (stored as bps). */
 export const LIVE_SHOPPING_FEE_BPS = 500;
@@ -70,11 +72,19 @@ export const liveShopSalesTable = pgTable(
     quantity: integer("quantity").notNull().default(1),
     price_cents: integer("price_cents").notNull(),
     platform_fee_cents: integer("platform_fee_cents").notNull(),
+    /* Who bought it (real checkouts only; null on legacy test rows). */
+    buyer_user_id: uuid("buyer_user_id"),
+    /* Checkout session that paid for this sale — idempotency key. */
+    stripe_session_id: text("stripe_session_id"),
+    /* 'paid' = verified checkout payment; 'test' = manually recorded
+       demo sale (no money moved). Never upgraded retroactively. */
+    status: text("status").notNull().default("test"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("live_shop_sales_user_id_idx").on(t.user_id),
     index("live_shop_sales_stream_id_idx").on(t.stream_id),
+    uniqueIndex("live_shop_sales_stripe_session_ux").on(t.stripe_session_id),
   ],
 );
 

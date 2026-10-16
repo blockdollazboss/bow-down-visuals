@@ -1,11 +1,13 @@
-import { pgTable, uuid, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 /* ── Beat Marketplace ──────────────────────────────────────────────────────
    Producers list beats; artists browse, preview, and license them.
    Listing is free. The site takes a 15% commission on sales (BEAT_SALE_COMMISSION_PCT).
-   v1 honesty: license "purchase" records intent only — payment processing is
-   coming soon, so no money actually moves yet. */
+   Payment processing (migration 0132): licenses are bought through a
+   Stripe TEST-mode checkout; a license is 'completed' only after the
+   checkout session verifies as paid — until then it stays
+   'pending_payment' and grants no entitlement. */
 
 /** License tiers available on every beat. Prices in integer cents. */
 export const BEAT_LICENSE_TIERS = ["basic", "premium", "exclusive"] as const;
@@ -57,10 +59,10 @@ export type Beat = typeof beatsTable.$inferSelect;
 export type NewBeat = typeof beatsTable.$inferInsert;
 
 /* ── Beat license purchases ────────────────────────────────────────────────
-   Records an artist's license acquisition. v1: payment is "coming soon",
-   so every row starts as status='pending_payment' — never 'completed'.
-   The honesty contract is enforced by tests: no code path may write
-   status='completed' until real payment processing ships. */
+   Records an artist's license acquisition. Every row starts as
+   status='pending_payment'; the ONLY path to 'completed' is a verified
+   paid checkout session (POST /api/beats/license/verify). The honesty
+   contract is enforced by tests. */
 
 export const BEAT_LICENSE_STATUSES = ["pending_payment", "completed", "refunded"] as const;
 export type BeatLicenseStatus = (typeof BEAT_LICENSE_STATUSES)[number];
@@ -78,8 +80,13 @@ export const beatLicensesTable = pgTable("beat_licenses", {
   /** Site commission in integer cents. */
   commission_cents: integer("commission_cents").notNull().default(0),
   status: text("status").notNull().default("pending_payment"),
+  /* Checkout session that pays for this license — the idempotency key:
+     one session can complete at most one license row. */
+  stripe_session_id: text("stripe_session_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("beat_licenses_stripe_session_ux").on(t.stripe_session_id),
+]);
 
 export const insertBeatLicenseSchema = createInsertSchema(beatLicensesTable).omit({
   id: true,
