@@ -332,7 +332,16 @@ describe("POST /api/live-streams (create)", () => {
   it("stores the site destination by default (multistream model — v1 is site only)", async () => {
     const { status, json } = await goLive();
     expect(status).toBe(201);
-    const siteOnly = [{ platform: "site", label: "Your profile", status: "active" }];
+    const siteOnly = [
+      {
+        platform: "site",
+        label: "Your profile",
+        status: "active",
+        save_recording: true,
+        vod_url: null,
+        vod_state: null,
+      },
+    ];
     expect(json.stream.destinations).toEqual(siteOnly);
     const row = [...h.state.streams.values()][0]!;
     expect(row["destinations"]).toEqual(siteOnly);
@@ -347,14 +356,17 @@ describe("POST /api/live-streams (create)", () => {
         { platform: "site", label: "Your profile", status: "active" },
         { platform: "youtube", label: "Duplicate entry" },
         { platform: "tiktok", label: "TikTok", status: "off" },
+        { platform: "facebook", label: "Facebook", save_recording: false },
       ],
     });
     expect(status).toBe(201);
+    const base = { save_recording: true, vod_url: null, vod_state: null };
     expect(json.stream.destinations).toEqual([
-      { platform: "site", label: "Your profile", status: "active" },
-      { platform: "youtube", label: "YouTube", status: "pending" },
-      { platform: "twitch", label: "Twitch", status: "pending" },
-      { platform: "tiktok", label: "TikTok", status: "off" },
+      { platform: "site", label: "Your profile", status: "active", ...base },
+      { platform: "youtube", label: "YouTube", status: "pending", ...base },
+      { platform: "twitch", label: "Twitch", status: "pending", ...base },
+      { platform: "tiktok", label: "TikTok", status: "off", ...base },
+      { platform: "facebook", label: "Facebook", status: "pending", ...base, save_recording: false },
     ]);
   });
 
@@ -506,6 +518,9 @@ describe("POST /api/live-streams/:id/vod", () => {
     expect(status).toBe(200);
     expect(json.stream.vod_url).toBe(vodUrl);
     expect(json.clip_id).toBeTruthy();
+    // The site destination records the outcome: saved, at this URL.
+    const site = (json.stream.destinations as Array<Record<string, unknown>>).find((d) => d["platform"] === "site");
+    expect(site).toMatchObject({ vod_url: vodUrl, vod_state: "saved", save_recording: true });
     expect(h.state.clips).toHaveLength(1);
     expect(h.state.clips[0]).toMatchObject({
       user_id: AUTH_USER,

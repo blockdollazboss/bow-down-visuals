@@ -39,10 +39,14 @@ CREATE INDEX IF NOT EXISTS live_streams_profile_id_idx ON live_streams (profile_
 -- One live broadcast per creator at a time, enforced by the database.
 CREATE UNIQUE INDEX IF NOT EXISTS live_streams_one_live_per_user_idx
   ON live_streams (user_id) WHERE status = 'live';
--- Multistream readiness: every broadcast carries its destinations list
--- (platform + label + status). V1 only ever activates the site itself
--- ("Your profile"); fan-out destinations slot in here later without a
--- model change. The API normalizes the list on write and on read.
+-- Multistream readiness: every broadcast carries its destinations list —
+-- {platform, label, status, save_recording, vod_url, vod_state} per
+-- destination (owner requirement: "the stream should be saved on
+-- whatever streaming platform they choose"). V1 only ever activates the
+-- site itself ("Your profile"); fan-out destinations slot in here later
+-- without a model change. The API normalizes the list on write and on
+-- read. Per-platform recording semantics are real and differ — encoded
+-- in the app (transport.ts DESTINATION_PLATFORMS), never faked here.
 ALTER TABLE live_streams
   ADD COLUMN IF NOT EXISTS destinations JSONB NOT NULL
-  DEFAULT '[{"platform":"site","label":"Your profile","status":"active"}]'::jsonb;
+  DEFAULT '[{"platform":"site","label":"Your profile","status":"active","save_recording":true,"vod_url":null,"vod_state":null}]'::jsonb;

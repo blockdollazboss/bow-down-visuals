@@ -20,6 +20,7 @@ import {
   resolveSessionUrl,
   waitForIceGathering,
   summarizeRtcStats,
+  SITE_DESTINATION,
 } from "./transport";
 
 // Node test env has no MediaStream constructor (WhepPlayer builds one).
@@ -251,8 +252,8 @@ describe("WhipTransport destinations (multistream seam)", () => {
     await transport.start(fakeStream(), {
       title: "T",
       destinations: [
-        { platform: "site", label: "Your profile", status: "active" },
-        { platform: "youtube", label: "YouTube", status: "pending" },
+        { platform: "site", label: "Your profile", status: "active", saveRecording: true, vodUrl: null, vodState: null },
+        { platform: "youtube", label: "YouTube", status: "pending", saveRecording: true, vodUrl: null, vodState: null },
       ],
     });
     expect(seen).toHaveLength(2);
@@ -267,9 +268,7 @@ describe("WhipTransport destinations (multistream seam)", () => {
     const fetchImpl = vi.fn(async () => sdpResponse(201, "v=0 answer-sdp", "/session/abc"));
     const transport = makeTransport(fetchImpl);
     await transport.start(fakeStream(), { title: "T" });
-    expect(transport.activeDestinations).toEqual([
-      { platform: "site", label: "Your profile", status: "active" },
-    ]);
+    expect(transport.activeDestinations).toEqual([SITE_DESTINATION]);
     expect(transport.skippedDestinations).toEqual([]);
   });
 });

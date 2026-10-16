@@ -31,11 +31,23 @@ export const liveStreamsTable = pgTable(
     playback_id: text("playback_id"),
     /* Broadcaster-only WHIP publish URL. Never exposed in public DTOs. */
     whip_url: text("whip_url"),
-    /* Multistream destinations: [{ platform, label, status }]. V1 only
-       ever activates the site destination; fan-out platforms land here
-       later without a model change. The API normalizes on write/read. */
+    /* Multistream destinations: [{ platform, label, status,
+       save_recording, vod_url, vod_state }] — each destination carries
+       its save-a-recording preference and, after the stream, where its
+       recording ended up. V1 only ever activates the site destination;
+       fan-out platforms land here later without a model change. The API
+       normalizes on write/read. */
     destinations: jsonb("destinations")
-      .$type<Array<{ platform: string; label: string; status: string }>>()
+      .$type<
+        Array<{
+          platform: string;
+          label: string;
+          status: string;
+          save_recording?: boolean;
+          vod_url?: string | null;
+          vod_state?: string | null;
+        }>
+      >()
       .notNull()
       .default(sql`'[{"platform":"site","label":"Your profile","status":"active"}]'::jsonb`),
     viewer_count: integer("viewer_count").notNull().default(0),

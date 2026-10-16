@@ -37,13 +37,69 @@ export interface StreamDestination {
   platform: string;
   label: string;
   status: "active" | "pending" | "off";
+  /** Save a recording of the stream on this destination (default on for the site). */
+  saveRecording: boolean;
+  /** Where this destination's recording lives after the stream (null until known). */
+  vodUrl: string | null;
+  /** Recording outcome once actually known; null = not known — never guessed. */
+  vodState: "saved" | "not_saved" | null;
 }
 
 export const SITE_DESTINATION: StreamDestination = {
   platform: "site",
   label: "Your profile",
   status: "active",
+  saveRecording: true,
+  vodUrl: null,
+  vodState: null,
 };
+
+/**
+ * The platforms multistreaming will fan out to, with their REAL
+ * recording semantics — the studio's destinations surface renders these
+ * notes verbatim, and the save preference means different things per
+ * platform because the platforms genuinely differ:
+ *  - YouTube saves finished streams as videos automatically.
+ *  - Twitch saves only when the channel's own "store past broadcasts"
+ *    setting is on — that switch lives on Twitch, outside our control.
+ *  - Facebook keeps live videos on the page after the stream.
+ *  - TikTok keeps no public archive; the replay in the creator's own
+ *    library here is the record of the stream.
+ */
+export interface DestinationPlatformInfo {
+  platform: string;
+  label: string;
+  recordingNote: string;
+}
+
+export const DESTINATION_PLATFORMS: DestinationPlatformInfo[] = [
+  {
+    platform: "site",
+    label: "Your profile",
+    recordingNote: "Streams save as a replay in your clips library here.",
+  },
+  {
+    platform: "youtube",
+    label: "YouTube",
+    recordingNote: "YouTube saves finished streams as videos automatically.",
+  },
+  {
+    platform: "twitch",
+    label: "Twitch",
+    recordingNote:
+      "Twitch only saves a stream when “store past broadcasts” is on in your Twitch channel settings — that switch lives on Twitch.",
+  },
+  {
+    platform: "facebook",
+    label: "Facebook",
+    recordingNote: "Facebook keeps live videos on your page after the stream ends.",
+  },
+  {
+    platform: "tiktok",
+    label: "TikTok",
+    recordingNote: "TikTok keeps no public archive of live streams — the replay saved here is the record.",
+  },
+];
 
 export interface StreamTransport {
   readonly state: TransportState;

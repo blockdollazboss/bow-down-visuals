@@ -112,21 +112,58 @@ export interface StreamDestinationDto {
   platform: string;
   label: string;
   status: "active" | "pending" | "off";
+  /** Save a recording of the stream on this destination (preference). */
+  save_recording: boolean;
+  /** Where this destination's recording lives after the stream (null until known). */
+  vod_url: string | null;
+  /**
+   * The recording outcome once it's actually known: "saved" is written
+   * by the flow that saved it (for the site, the /vod registration);
+   * null means not known — never guessed at read time.
+   */
+  vod_state: "saved" | "not_saved" | null;
 }
 
 export const SITE_DESTINATION: StreamDestinationDto = {
   platform: "site",
   label: "Your profile",
   status: "active",
+  save_recording: true,
+  vod_url: null,
+  vod_state: null,
 };
 
+type RawDestination = {
+  platform?: unknown;
+  label?: unknown;
+  status?: unknown;
+  save_recording?: unknown;
+  vod_url?: unknown;
+  vod_state?: unknown;
+};
+
+function destinationOutcome(e: RawDestination): Pick<StreamDestinationDto, "save_recording" | "vod_url" | "vod_state"> {
+  return {
+    save_recording: typeof e.save_recording === "boolean" ? e.save_recording : true,
+    vod_url: typeof e.vod_url === "string" ? e.vod_url : null,
+    vod_state: e.vod_state === "saved" || e.vod_state === "not_saved" ? e.vod_state : null,
+  };
+}
+
 export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
-  const out: StreamDestinationDto[] = [{ ...SITE_DESTINATION }];
-  if (!Array.isArray(raw)) return out;
+  const entries: RawDestination[] = Array.isArray(raw)
+    ? raw.filter((e): e is RawDestination => !!e && typeof e === "object")
+    : [];
+  // The site entry leads, always active; a stored site entry contributes
+  // its recording preference + outcome (label stays our canonical name).
+  const rawSite = entries.find(
+    (e) => typeof e.platform === "string" && e.platform.trim().toLowerCase() === "site",
+  );
+  const out: StreamDestinationDto[] = [
+    { ...SITE_DESTINATION, ...(rawSite ? destinationOutcome(rawSite) : {}) },
+  ];
   const seen = new Set<string>(["site"]);
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") continue;
-    const e = entry as { platform?: unknown; label?: unknown; status?: unknown };
+  for (const e of entries) {
     if (typeof e.platform !== "string" || !e.platform.trim()) continue;
     const platform = e.platform.trim().toLowerCase();
     if (seen.has(platform)) continue;
@@ -135,6 +172,7 @@ export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
       platform,
       label: typeof e.label === "string" && e.label.trim() ? e.label.trim() : platform,
       status: e.status === "off" ? "off" : "pending",
+      ...destinationOutcome(e),
     });
   }
   return out;
@@ -306,6 +344,7 @@ const createSchema = z.object({
         platform: z.string().trim().min(1).max(40),
         label: z.string().trim().min(1).max(80),
         status: z.enum(["active", "pending", "off"]).optional(),
+        save_recording: z.boolean().optional(),
       }),
     )
     .max(8)
@@ -504,9 +543,13 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
       .returning();
     const clipId = clip[0]?.id ?? null;
     const now = new Date();
+    // The site destination's recording outcome is now a fact: saved, here.
+    const destinations = normalizeDestinations(row.destinations).map((d) =>
+      d.platform === "site" ? { ...d, vod_url: vodUrl, vod_state: "saved" as const } : d,
+    );
     const updated = await db
       .update(liveStreamsTable)
-      .set({ vod_url: vodUrl, vod_clip_id: clipId, updated_at: now })
+      .set({ vod_url: vodUrl, vod_clip_id: clipId, destinations, updated_at: now })
       .where(eq(liveStreamsTable.id, row.id))
       .returning();
     res.json({ stream: toStreamDto(updated[0] ?? row, profile), clip_id: clipId });
