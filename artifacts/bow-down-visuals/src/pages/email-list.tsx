@@ -1,10 +1,10 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
  Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
- Inbox, Send, FileText,
+ Inbox, Send, FileText, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -85,6 +85,14 @@ export default function EmailListBuilder() {
  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
  const [stats, setStats] = useState<ListStats | null>(null);
  const [loading, setLoading] = useState(true);
+ /* Lists-load failures are NOT "no lists yet" — the lists load gates
+  every tab (dashboard, my lists, forms), so its failure gets its own
+  error state with a retry instead of rendering the genuine empty
+  states. listsLoadedRef guards the gate: once lists have loaded
+  successfully, a later failed reload must NOT blank them. */
+ const [loadError, setLoadError] = useState(false);
+ const [retryNonce, setRetryNonce] = useState(0);
+ const listsLoadedRef = useRef(false);
 
  /* list creation */
  const [showNewList, setShowNewList] = useState(false);
@@ -132,14 +140,18 @@ export default function EmailListBuilder() {
  const loadLists = useCallback(async () => {
  setLoading(true);
  setError(null);
+ setLoadError(false);
  try {
  const res = await authedFetch("/api/email-list/lists");
  const data = await res.json();
  if (!res.ok) throw new Error(data.error ?? "Couldn't load your lists.");
  setLists(data.lists ?? []);
+ listsLoadedRef.current = true;
  if (data.lists?.length && !activeListId) setActiveListId(data.lists[0].id);
- } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't load your lists.");
+ } catch {
+ /* List-load failure gets the scoped error state, not the shared
+  mutation error banner — and never the fake-empty states. */
+ if (!listsLoadedRef.current) setLoadError(true);
  } finally {
  setLoading(false);
  }
@@ -161,7 +173,7 @@ export default function EmailListBuilder() {
 
  useEffect(() => {
  if (user) loadLists();
- }, [user, loadLists]);
+ }, [user, loadLists, retryNonce]);
 
  useEffect(() => {
  if (activeListId) loadSubscribers(activeListId);
@@ -257,6 +269,23 @@ export default function EmailListBuilder() {
  ? `<!-- ${activeList.name} — email signup (Bow Down Visuals) -->\n<form action="https://bowdownvisuals.com/api/email-list/subscribe" method="POST" style="display:flex;gap:8px;max-width:420px">\n <input type="hidden" name="handle" value="${activeList.handle}" />\n <input type="email" name="email" required placeholder="you@example.com" style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid #3a2f12;background:#0a0a0a;color:#fff" />\n <button type="submit" style="padding:10px 18px;border-radius:10px;border:none;background:linear-gradient(135deg,#d4af37,#8a6d1b);color:#000;font-weight:700;cursor:pointer">Join</button>\n</form>`
  : "";
 
+ const loadErrorBox = (
+ <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+ <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+ <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your lists.</p>
+ <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+ Something went wrong on our end — your lists and subscribers are safe, this page just couldn't load them.
+ </p>
+ <button
+ type="button"
+ onClick={() => setRetryNonce((n) => n + 1)}
+ className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+ >
+ <RotateCcw className="h-4 w-4" /> Try again
+ </button>
+ </div>
+ );
+
  return (
  <div className="min-h-screen bg-black text-white">
 
@@ -300,6 +329,8 @@ export default function EmailListBuilder() {
  <div className="mt-8">
  {loading ? (
  <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+ ) : loadError ? (
+ loadErrorBox
  ) : !activeList ? (
  <div className={`${cardClass} text-center`}>
  <Inbox className="mx-auto h-10 w-10 text-white/25" />
@@ -406,6 +437,8 @@ export default function EmailListBuilder() {
  </div>
  )}
 
+ {loadError && <div className="mt-4">{loadErrorBox}</div>}
+
  <div className="mt-4 grid gap-4 md:grid-cols-2">
  {lists.map((l) => (
  <div key={l.id} className={cardClass}>
@@ -428,7 +461,7 @@ export default function EmailListBuilder() {
  </div>
  ))}
  </div>
- {lists.length === 0 && !showNewList && (
+ {lists.length === 0 && !showNewList && !loadError && (
  <p className="mt-6 text-center text-sm text-white/45">{t("email-list.no_lists_yet_hit_new_list_to_cre")}</p>
  )}
  </div>
@@ -494,9 +527,11 @@ export default function EmailListBuilder() {
  {tab === "forms" && (
  <div className="mt-8 mx-auto max-w-3xl">
  {!activeList ? (
+ loadError ? loadErrorBox : (
  <div className={`${cardClass} text-center`}>
  <p className="text-sm text-white/50">{t("email-list.create_a_list_first_then_grab_yo")}</p>
  </div>
+ )
  ) : (
  <>
  <div className="mb-4 flex items-center gap-3">
