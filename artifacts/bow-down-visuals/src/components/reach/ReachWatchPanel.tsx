@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Coins, Gift, Swords, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { reachApi, type RaidDto, type WatchProgress, type LoyaltyState } from "@/lib/reach-api";
+import { normalizeLoyaltyState, normalizeWatchProgress } from "@/lib/reach-watch";
 import { apiFetch } from "@/lib/social-api";
 
 /* ── Watch-page Reach panel (Stack 9 #3/#5/#6) ──────────────────────────
@@ -86,13 +87,17 @@ export default function ReachWatchPanel({
     let cancelled = false;
     const beat = async () => {
       try {
-        const p = await reachApi.watchHeartbeat(getAccessToken, streamId, sessionRef.current);
+        const raw = await reachApi.watchHeartbeat(getAccessToken, streamId, sessionRef.current);
+        /* Guard (DTO batch #2): a malformed success is a load failure,
+           never a fake budget — normalize or throw into the catch. */
+        const p = normalizeWatchProgress(raw);
+        if (!p) throw new Error("malformed watch progress");
         if (!cancelled) {
           setProgress(p);
           setProgressError(false);
           if (p.justAwarded?.length) {
             // refresh loyalty too — watch blocks may have landed
-            if (profileId) reachApi.loyalty(getAccessToken, profileId).then(setLoyalty).catch(() => undefined);
+            if (profileId) reachApi.loyalty(getAccessToken, profileId).then((s) => setLoyalty(normalizeLoyaltyState(s))).catch(() => undefined);
           }
         }
       } catch {
@@ -109,7 +114,7 @@ export default function ReachWatchPanel({
 
   useEffect(() => {
     if (!profileId || !user) return;
-    reachApi.loyalty(getAccessToken, profileId).then(setLoyalty).catch(() => undefined);
+    reachApi.loyalty(getAccessToken, profileId).then((s) => setLoyalty(normalizeLoyaltyState(s))).catch(() => undefined);
   }, [profileId, user, getAccessToken]);
 
   /* Raid polling: outgoing (banner + carry) and incoming (alert). */

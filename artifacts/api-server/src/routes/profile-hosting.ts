@@ -79,7 +79,7 @@ router.get("/creator-hosting/plan", publicApiLimiter, (_req, res) => {
   res.json({
     plan,
     note: plan.available
-      ? "Stripe TEST mode only."
+      ? "Test mode only — no real charge."
       : "The Hosting plan's price hasn't been set yet — it isn't available for purchase until it is.",
   });
 });
@@ -163,7 +163,9 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     stripe = getTestStripe();
   } catch (err) {
     logger.error({ err }, "creator-hosting checkout: Stripe unavailable");
-    res.status(500).json({ error: (err as Error).message });
+    /* The raw message is an internal config error (it names the provider
+       and key modes) — the client gets house copy instead. */
+    res.status(500).json({ error: "Checkout isn't available right now." });
     return;
   }
 
@@ -184,7 +186,9 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
   } catch (err) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg }, "creator-hosting checkout: Stripe session failed");
-    res.status(502).json({ error: `Stripe couldn't start checkout: ${msg}` });
+    /* House copy law: the client never sees the payment provider's name
+       (or its raw error text — that stays in the log line above). */
+    res.status(502).json({ error: "Checkout couldn't start — try again in a moment." });
   }
 });
 

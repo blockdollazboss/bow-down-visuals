@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { reachApi, type LoyaltyState } from "@/lib/reach-api";
+import { pendingRedemptionsFromPayload } from "@/lib/reach-watch";
 import { apiJson } from "@/lib/social-api";
 
 /* ── Loyalty settings + redemption queue (Stack 9 #6, creator side) ────
@@ -38,7 +39,9 @@ export default function LoyaltySettingsPanel() {
         customLabel: s.customRewardLabel ?? "",
         customCost: s.customRewardCost ?? 1000,
       });
-      setQueue(q.redemptions.filter((r) => r.status === "pending"));
+      /* Guard (DTO batch #2): a success payload missing the list is the
+         honest empty queue — the raw .filter used to throw inside load(). */
+      setQueue(pendingRedemptionsFromPayload(q));
     },
     [getAccessToken],
   );

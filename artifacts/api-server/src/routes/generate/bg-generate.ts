@@ -6,7 +6,6 @@ import {
 } from "../../lib/credits";
 import {
   bgImageProviderConfigured,
-  bgImageProviderName,
   BgImageNotConfiguredError,
   generateBackgroundImage,
 } from "../../lib/bg-image-client";
@@ -36,7 +35,10 @@ const bgGenerateSchema = z.object({
 router.get("/bg-generate/status", requireAuth, async (_req: Request, res: Response) => {
   res.json({
     configured: bgImageProviderConfigured(),
-    provider: bgImageProviderName(),
+    /* House copy law: the wire never carries the image provider's name.
+       Clients read `configured` / `creditCost` only; the provider field
+       stays as a house token so the shape doesn't change under them. */
+    provider: bgImageProviderConfigured() ? "house" : null,
     styles: BG_GENERATE_STYLES,
     creditCost: BG_GENERATE_CREDIT_COST,
     pricePlaceholder: false,

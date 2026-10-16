@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { statementFromPayload } from "@/lib/earnings-statement";
 
 /* Stack 10 trust surfaces. Every panel renders recorded data only:
    a failed load says so, an empty state says it's empty — nothing is
@@ -202,7 +203,14 @@ export function EarningsDocuments() {
   const usd = (c: number | null) => (c == null ? "couldn't load" : `$${(c / 100).toFixed(2)}`);
   async function load() {
     setErr(null);
-    try { const t = await getAccessToken(); const s = await api(t, "GET", `/api/earnings/statements/${year}`); setStmt(s.statement); }
+    try {
+      const t = await getAccessToken(); const s = await api(t, "GET", `/api/earnings/statements/${year}`);
+      /* Guard (DTO batch #2): a statement without a real sources map is
+         malformed — the honest load error, not a render throw. */
+      const normalized = statementFromPayload(s);
+      if (!normalized) throw new Error("Could not load that statement.");
+      setStmt(normalized);
+    }
     catch (e) { setErr(e instanceof Error ? e.message : "Could not load that statement."); }
   }
   async function pdf() {

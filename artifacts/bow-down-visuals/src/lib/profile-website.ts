@@ -129,6 +129,57 @@ export interface FanCollection {
   items: CollectionItem[];
 }
 
+/* ── DTO guard batch #2 (same pattern as lib/destination-keys.ts) ──────
+ * The collection fetchers used to return raw casts: a 200 payload
+ * missing `items` or `fan` crashed the collection page (items.length,
+ * fan.displayName) instead of reaching its designed error state.
+ * A malformed payload normalizes to null → the fetcher throws → the
+ * page's honest error state. Missing `items` alone is the designed
+ * EMPTY collection, not an error. */
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+const finiteNum = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) ? v : null;
+
+export function normalizeFanCollection(payload: unknown): FanCollection | null {
+  if (!isRecord(payload) || !isRecord(payload.fan)) return null;
+  const fan = payload.fan;
+  if (typeof fan.slug !== "string" || !fan.slug) return null;
+  if (typeof fan.displayName !== "string" || !fan.displayName) return null;
+  const items: CollectionItem[] = [];
+  if (Array.isArray(payload.items)) {
+    for (const raw of payload.items) {
+      if (!isRecord(raw)) continue;
+      const amountCents = finiteNum(raw.amountCents);
+      if (amountCents === null) continue; // a purchase row without its real price doesn't render
+      const kind = raw.kind === "track" || raw.kind === "video" || raw.kind === "product" ? raw.kind : null;
+      if (!kind) continue; // the page has no icon/render for an unknown kind
+      items.push({
+        kind,
+        itemId: typeof raw.itemId === "string" ? raw.itemId : "",
+        title: typeof raw.title === "string" ? raw.title : "",
+        artworkUrl: typeof raw.artworkUrl === "string" ? raw.artworkUrl : null,
+        creatorName: typeof raw.creatorName === "string" ? raw.creatorName : "",
+        creatorSlug: typeof raw.creatorSlug === "string" ? raw.creatorSlug : "",
+        creatorUrl: typeof raw.creatorUrl === "string" ? raw.creatorUrl : "",
+        amountCents,
+        purchasedAt: typeof raw.purchasedAt === "string" ? raw.purchasedAt : "",
+      });
+    }
+  }
+  return {
+    fan: {
+      slug: fan.slug,
+      displayName: fan.displayName,
+      avatarUrl: typeof fan.avatarUrl === "string" ? fan.avatarUrl : null,
+      profileUrl: typeof fan.profileUrl === "string" ? fan.profileUrl : "",
+    },
+    visibility: payload.visibility === "private" ? "private" : "public",
+    isPrivate: payload.isPrivate === true,
+    items,
+  };
+}
+
 export type CollectionLoadStatus = "loading" | "ready" | "error" | "not-found";
 export type CollectionView = "loading" | "error" | "not-found" | "private" | "empty" | "items";
 
@@ -147,12 +198,16 @@ export function collectionViewState(args: {
 
 export async function fetchPublicCollection(slug: string): Promise<FanCollection> {
   const res = await fetch(`/api/collections/${encodeURIComponent(slug)}`);
-  return json<FanCollection>(res);
+  const collection = normalizeFanCollection(await json<unknown>(res));
+  if (!collection) throw new Error("That collection came back incomplete — try again.");
+  return collection;
 }
 
 export async function fetchMyCollection(): Promise<FanCollection> {
   const res = await fetch("/api/collections/me");
-  return json<FanCollection>(res);
+  const collection = normalizeFanCollection(await json<unknown>(res));
+  if (!collection) throw new Error("Your collection came back incomplete — try again.");
+  return collection;
 }
 
 export async function saveMyCollectionVisibility(
@@ -368,6 +423,62 @@ export interface StoreCatalogDto {
   counts: { tracks: number; videos: number; products: number; total: number };
 }
 
+/* DTO guard batch #2: the catalog fetcher was a raw cast and the section
+ * reads catalog.items.length / catalog.items.map — a payload missing
+ * `items` crashed the profile's Store block. Malformed → null → the
+ * fetcher throws → the section's honest error view. An item without a
+ * real price or a buy link is dropped (it could only render as a fake
+ * or dead buy button); missing counts are derived from the items. */
+export function normalizeStoreCatalog(payload: unknown): StoreCatalogDto | null {
+  if (!isRecord(payload)) return null;
+  const items: StoreCatalogItemDto[] = [];
+  if (Array.isArray(payload.items)) {
+    for (const raw of payload.items) {
+      if (!isRecord(raw)) continue;
+      const kind = raw.kind === "track" || raw.kind === "video" || raw.kind === "product" ? raw.kind : null;
+      const priceCents = finiteNum(raw.priceCents);
+      if (!kind || priceCents === null) continue;
+      if (typeof raw.buyUrl !== "string" || !raw.buyUrl) continue;
+      items.push({
+        kind,
+        productKind: typeof raw.productKind === "string" ? raw.productKind : null,
+        id: typeof raw.id === "string" ? raw.id : "",
+        title: typeof raw.title === "string" ? raw.title : "",
+        artworkUrl: typeof raw.artworkUrl === "string" ? raw.artworkUrl : null,
+        priceCents,
+        price: typeof raw.price === "string" ? raw.price : "",
+        compareAtCents: finiteNum(raw.compareAtCents),
+        pwyw: isRecord(raw.pwyw) && finiteNum(raw.pwyw.minCents) !== null
+          ? { enabled: raw.pwyw.enabled === true, minCents: finiteNum(raw.pwyw.minCents)! }
+          : null,
+        buyUrl: raw.buyUrl,
+      });
+    }
+  }
+  const profile = isRecord(payload.profile) ? payload.profile : {};
+  const counts = isRecord(payload.counts) ? payload.counts : {};
+  const derived = {
+    tracks: items.filter((i) => i.kind === "track").length,
+    videos: items.filter((i) => i.kind === "video").length,
+    products: items.filter((i) => i.kind === "product").length,
+    total: items.length,
+  };
+  return {
+    profile: {
+      slug: typeof profile.slug === "string" ? profile.slug : "",
+      displayName: typeof profile.displayName === "string" ? profile.displayName : "",
+      profileUrl: typeof profile.profileUrl === "string" ? profile.profileUrl : "",
+    },
+    items,
+    counts: {
+      tracks: finiteNum(counts.tracks) ?? derived.tracks,
+      videos: finiteNum(counts.videos) ?? derived.videos,
+      products: finiteNum(counts.products) ?? derived.products,
+      total: finiteNum(counts.total) ?? derived.total,
+    },
+  };
+}
+
 export type StoreLoadStatus = "loading" | "ready" | "error";
 export type StoreView = "loading" | "error" | "hidden" | "owner-empty" | "items";
 
@@ -387,7 +498,9 @@ export function storeViewState(args: {
 
 export async function fetchStoreCatalog(slug: string): Promise<StoreCatalogDto> {
   const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/store-catalog`);
-  return json<StoreCatalogDto>(res);
+  const catalog = normalizeStoreCatalog(await json<unknown>(res));
+  if (!catalog) throw new Error("That store came back incomplete — try again.");
+  return catalog;
 }
 
 /* ── Memberships ─────────────────────────────────────────────────────────

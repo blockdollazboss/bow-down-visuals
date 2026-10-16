@@ -11,27 +11,16 @@ import { useAuth } from "@/contexts/AuthContext";
  * never folded into the USD total.
  */
 
-interface SourceOk { status: "ok"; totalCents: number; count: number }
-interface SourceErr { status: "error"; totalCents: null; count: null }
-interface EarningsResponse {
-  currency: string;
-  totalCents: number;
-  totalTipsVb: number | null;
-  partial: boolean;
-  sources: {
-    storeSales: (SourceOk & { breakdown: { profileStoreCents: number; shopSalesCents: number } | null }) | (SourceErr & { breakdown: null });
-    memberships: SourceOk | SourceErr;
-    brandDeals: SourceOk | SourceErr;
-    tips: {
-      status: "ok" | "error";
-      streamTipsVb: number | null;
-      streamTipCount: number | null;
-      tipJarPendingCents: number | null;
-      tipJarPendingCount: number | null;
-      tipJarStatus: string;
-    };
-  };
-}
+/* Response types + the partial-payload guard live in
+   lib/earnings-data.ts (DTO guard batch #2) — a partial 200 must reach
+   this page's honest failure / per-source error states, never render
+   $NaN totals. */
+import {
+  normalizeEarningsResponse,
+  type EarningsResponse,
+  type SourceErr,
+  type SourceOk,
+} from "@/lib/earnings-data";
 
 const usd = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -67,7 +56,9 @@ export default function Earnings() {
           headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         });
         if (!res.ok) throw new Error("earnings failed");
-        setData((await res.json()) as EarningsResponse);
+        const normalized = normalizeEarningsResponse(await res.json());
+        if (!normalized) throw new Error("earnings payload incomplete");
+        setData(normalized);
       } catch {
         setFailed(true);
       }
