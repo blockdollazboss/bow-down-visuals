@@ -134,6 +134,16 @@ export class WhipTransport implements StreamTransport {
     return this._streamId;
   }
 
+  /** Raw RTC stats for the health readout (null when not broadcasting). */
+  async getStats(): Promise<RTCStatsReport | null> {
+    if (!this._pc) return null;
+    try {
+      return await this._pc.getStats();
+    } catch {
+      return null;
+    }
+  }
+
   private async _createSession(title: string): Promise<{ streamId: string; whipUrl: string }> {
     if (this._deps.createSession) return this._deps.createSession(title);
     const doFetch = this._deps.fetchImpl ?? fetch;
@@ -235,6 +245,59 @@ export class WhipTransport implements StreamTransport {
     if (streamId) await this._endSession(streamId).catch(() => undefined);
     this._setState("idle");
   }
+}
+
+/* ── Stream health (RTC stats) ────────────────────────────────────────────
+   The studio's health readout reads the publisher's outbound-rtp stats.
+   Browsers expose different subsets — every field here is nullable and
+   the UI says "unavailable" for what a browser doesn't give up, rather
+   than inventing numbers. */
+
+export interface RtcStatSample {
+  bytesSent: number;
+  timestamp: number;
+}
+
+export interface RtcSummary {
+  bitrateKbps: number | null;
+  fps: number | null;
+  droppedFrames: number | null;
+  framesSent: number | null;
+}
+
+/**
+ * Summarize one getStats() snapshot (an iterable of stat records) for the
+ * video outbound-rtp entries, deriving bitrate from the previous sample.
+ * Pure — unit-tested with synthetic stat records.
+ */
+export function summarizeRtcStats(
+  stats: Iterable<Record<string, unknown>>,
+  prev: RtcStatSample | null,
+): { summary: RtcSummary; sample: RtcStatSample } {
+  let bytesSent = 0;
+  let timestamp = 0;
+  let fps: number | null = null;
+  let dropped: number | null = null;
+  let sent: number | null = null;
+  let seen = false;
+  for (const s of stats) {
+    if (!s || s["type"] !== "outbound-rtp") continue;
+    const kind = (s["kind"] ?? s["mediaType"]) as string | undefined;
+    if (kind && kind !== "video") continue;
+    seen = true;
+    bytesSent += typeof s["bytesSent"] === "number" ? (s["bytesSent"] as number) : 0;
+    timestamp = Math.max(timestamp, typeof s["timestamp"] === "number" ? (s["timestamp"] as number) : 0);
+    if (typeof s["framesPerSecond"] === "number") fps = s["framesPerSecond"] as number;
+    if (typeof s["framesDropped"] === "number") dropped = (dropped ?? 0) + (s["framesDropped"] as number);
+    if (typeof s["framesSent"] === "number") sent = (sent ?? 0) + (s["framesSent"] as number);
+  }
+  const sample: RtcStatSample = { bytesSent, timestamp: timestamp || Date.now() };
+  let bitrateKbps: number | null = null;
+  if (seen && prev && sample.timestamp > prev.timestamp && sample.bytesSent >= prev.bytesSent) {
+    const seconds = (sample.timestamp - prev.timestamp) / 1000;
+    if (seconds > 0) bitrateKbps = Math.round(((sample.bytesSent - prev.bytesSent) * 8) / seconds / 1000);
+  }
+  return { summary: { bitrateKbps, fps, droppedFrames: dropped, framesSent: sent }, sample };
 }
 
 /* ── WHEP playback (the watch side) ───────────────────────────────────────

@@ -400,6 +400,15 @@ export class BackgroundChanger {
     return this.outputStream;
   }
 
+  /**
+   * The raw camera video element behind the kit (null before start).
+   * The stage's chroma-key camera mode keys this directly; everything
+   * else should use the processed output (canvas / stream).
+   */
+  getSourceVideo(): HTMLVideoElement | null {
+    return this.stream ? this._video : null;
+  }
+
   /** Whether the pipeline is running. */
   get running(): boolean {
     return this._running;

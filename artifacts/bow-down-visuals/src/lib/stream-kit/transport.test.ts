@@ -19,6 +19,7 @@ import {
   TransportError,
   resolveSessionUrl,
   waitForIceGathering,
+  summarizeRtcStats,
 } from "./transport";
 
 // Node test env has no MediaStream constructor (WhepPlayer builds one).
@@ -267,5 +268,44 @@ describe("WhepPlayer", () => {
       code: "PROVIDER_ERROR",
     });
     expect(FakePeerConnection.instances[0]!.closed).toBe(true);
+  });
+});
+
+describe("summarizeRtcStats (stream health)", () => {
+  const videoOut = (over: Record<string, unknown>) => ({
+    type: "outbound-rtp",
+    kind: "video",
+    bytesSent: 0,
+    timestamp: 0,
+    ...over,
+  });
+
+  it("first sample: bitrate unknown, fps/dropped/sent pass through", () => {
+    const { summary, sample } = summarizeRtcStats(
+      [videoOut({ bytesSent: 5000, timestamp: 1000, framesPerSecond: 30, framesDropped: 2, framesSent: 60 })],
+      null,
+    );
+    expect(summary.bitrateKbps).toBeNull();
+    expect(summary.fps).toBe(30);
+    expect(summary.droppedFrames).toBe(2);
+    expect(summary.framesSent).toBe(60);
+    expect(sample).toEqual({ bytesSent: 5000, timestamp: 1000 });
+  });
+
+  it("derives bitrate from the previous sample and ignores audio entries", () => {
+    const stats = [
+      videoOut({ bytesSent: 3000, timestamp: 3000, framesPerSecond: 29 }),
+      { type: "outbound-rtp", kind: "audio", bytesSent: 999999, timestamp: 3000 },
+      { type: "inbound-rtp", kind: "video", bytesSent: 123, timestamp: 3000 },
+    ];
+    const { summary } = summarizeRtcStats(stats, { bytesSent: 1000, timestamp: 1000 });
+    // (3000-1000) bytes over 2s = 8000 bps = 8 kbps
+    expect(summary.bitrateKbps).toBe(8);
+    expect(summary.droppedFrames).toBeNull(); // absent field stays honestly null
+  });
+
+  it("no video stats at all → everything null except the sample", () => {
+    const { summary } = summarizeRtcStats([{ type: "candidate-pair", timestamp: 5 }], null);
+    expect(summary).toEqual({ bitrateKbps: null, fps: null, droppedFrames: null, framesSent: null });
   });
 });
