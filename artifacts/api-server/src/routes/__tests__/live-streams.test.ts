@@ -329,6 +329,35 @@ describe("POST /api/live-streams (create)", () => {
     expect(row["user_id"]).toBe(AUTH_USER);
   });
 
+  it("stores the site destination by default (multistream model — v1 is site only)", async () => {
+    const { status, json } = await goLive();
+    expect(status).toBe(201);
+    const siteOnly = [{ platform: "site", label: "Your profile", status: "active" }];
+    expect(json.stream.destinations).toEqual(siteOnly);
+    const row = [...h.state.streams.values()][0]!;
+    expect(row["destinations"]).toEqual(siteOnly);
+  });
+
+  it("normalizes requested destinations: site first + active, others pending — never faked live", async () => {
+    const { status, json } = await call("POST", "/live-streams", {
+      title: "Multi",
+      destinations: [
+        { platform: "youtube", label: "YouTube", status: "active" },
+        { platform: "twitch", label: "Twitch" },
+        { platform: "site", label: "Your profile", status: "active" },
+        { platform: "youtube", label: "Duplicate entry" },
+        { platform: "tiktok", label: "TikTok", status: "off" },
+      ],
+    });
+    expect(status).toBe(201);
+    expect(json.stream.destinations).toEqual([
+      { platform: "site", label: "Your profile", status: "active" },
+      { platform: "youtube", label: "YouTube", status: "pending" },
+      { platform: "twitch", label: "Twitch", status: "pending" },
+      { platform: "tiktok", label: "TikTok", status: "off" },
+    ]);
+  });
+
   it("409s with the existing stream when the creator is already live", async () => {
     const first = await goLive();
     expect(first.status).toBe(201);

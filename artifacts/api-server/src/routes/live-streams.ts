@@ -100,6 +100,46 @@ export interface LiveCreatorDto {
   avatar_url: string | null;
 }
 
+/* ── Multistream destinations ─────────────────────────────────────────────
+   Every broadcast carries where it's headed: a list of { platform, label,
+   status }. V1 implements exactly one destination — the site itself —
+   and the normalizer enforces that honestly: whatever a client sends,
+   the site entry comes first with status "active", and any other
+   platform is stored "pending" (or "off" if it arrived off), never
+   "active". When fan-out ships, the fan-out worker flips its entries
+   live and the publisher (transport.ts) is where they plug in. */
+export interface StreamDestinationDto {
+  platform: string;
+  label: string;
+  status: "active" | "pending" | "off";
+}
+
+export const SITE_DESTINATION: StreamDestinationDto = {
+  platform: "site",
+  label: "Your profile",
+  status: "active",
+};
+
+export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
+  const out: StreamDestinationDto[] = [{ ...SITE_DESTINATION }];
+  if (!Array.isArray(raw)) return out;
+  const seen = new Set<string>(["site"]);
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as { platform?: unknown; label?: unknown; status?: unknown };
+    if (typeof e.platform !== "string" || !e.platform.trim()) continue;
+    const platform = e.platform.trim().toLowerCase();
+    if (seen.has(platform)) continue;
+    seen.add(platform);
+    out.push({
+      platform,
+      label: typeof e.label === "string" && e.label.trim() ? e.label.trim() : platform,
+      status: e.status === "off" ? "off" : "pending",
+    });
+  }
+  return out;
+}
+
 export interface LiveStreamDto {
   id: string;
   title: string;
@@ -109,6 +149,7 @@ export interface LiveStreamDto {
   viewer_count: number;
   peak_viewers: number;
   vod_url: string | null;
+  destinations: StreamDestinationDto[];
   creator: LiveCreatorDto | null;
   playback: { whep_url: string | null; hls_url: string | null } | null;
 }
@@ -149,6 +190,7 @@ export function toStreamDto(
     viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
     peak_viewers: row.peak_viewers ?? 0,
     vod_url: row.vod_url ?? null,
+    destinations: normalizeDestinations(row.destinations),
     creator: toCreatorDto(profile),
     playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
   };
@@ -256,6 +298,18 @@ async function sweepStaleLive(): Promise<void> {
 
 const createSchema = z.object({
   title: z.string().trim().min(1, "Give your stream a title").max(200),
+  /* Optional multistream destinations — stored normalized (site always
+     first + active in v1; everything else pending/off, never faked live). */
+  destinations: z
+    .array(
+      z.object({
+        platform: z.string().trim().min(1).max(40),
+        label: z.string().trim().min(1).max(80),
+        status: z.enum(["active", "pending", "off"]).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
 });
 
 const vodSchema = z.object({
@@ -349,6 +403,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           provider_input_id: input.providerInputId,
           playback_id: input.playbackId,
           whip_url: input.whipUrl,
+          destinations: normalizeDestinations(parsed.data.destinations),
         })
         .returning();
       const row = inserted[0]!;

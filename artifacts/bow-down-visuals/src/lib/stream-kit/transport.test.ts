@@ -227,6 +227,53 @@ describe("WhipTransport", () => {
   });
 });
 
+describe("WhipTransport destinations (multistream seam)", () => {
+  function makeTransport(fetchImpl: ReturnType<typeof vi.fn>, extra: object = {}) {
+    return new WhipTransport({
+      fetchImpl: fetchImpl as never,
+      peerConnectionImpl: FakePeerConnection as never,
+      createSession: async () => ({ streamId: "stream-1", whipUrl: WHIP_URL }),
+      endSession: async () => undefined,
+      iceGatherTimeoutMs: 10,
+      ...extra,
+    });
+  }
+
+  it("passes destinations to the session and splits active (site) vs skipped", async () => {
+    const fetchImpl = vi.fn(async () => sdpResponse(201, "v=0 answer-sdp", "/session/abc"));
+    let seen: unknown = null;
+    const transport = makeTransport(fetchImpl, {
+      createSession: async (_title: string, destinations?: unknown) => {
+        seen = destinations;
+        return { streamId: "stream-1", whipUrl: WHIP_URL };
+      },
+    });
+    await transport.start(fakeStream(), {
+      title: "T",
+      destinations: [
+        { platform: "site", label: "Your profile", status: "active" },
+        { platform: "youtube", label: "YouTube", status: "pending" },
+      ],
+    });
+    expect(seen).toHaveLength(2);
+    expect(transport.activeDestinations.map((d) => d.platform)).toEqual(["site"]);
+    expect(transport.skippedDestinations.map((d) => d.platform)).toEqual(["youtube"]);
+    await transport.stop();
+    expect(transport.activeDestinations).toEqual([]);
+    expect(transport.skippedDestinations).toEqual([]);
+  });
+
+  it("no destinations requested → the site destination is the active one", async () => {
+    const fetchImpl = vi.fn(async () => sdpResponse(201, "v=0 answer-sdp", "/session/abc"));
+    const transport = makeTransport(fetchImpl);
+    await transport.start(fakeStream(), { title: "T" });
+    expect(transport.activeDestinations).toEqual([
+      { platform: "site", label: "Your profile", status: "active" },
+    ]);
+    expect(transport.skippedDestinations).toEqual([]);
+  });
+});
+
 describe("WhepPlayer", () => {
   it("play(): recvonly transceivers, offer posted, remote stream lands on the video element", async () => {
     const fetchImpl = vi.fn(async () => sdpResponse(201, "v=0 whep-answer"));

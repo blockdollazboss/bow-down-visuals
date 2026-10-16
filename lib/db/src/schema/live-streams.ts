@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -31,6 +31,13 @@ export const liveStreamsTable = pgTable(
     playback_id: text("playback_id"),
     /* Broadcaster-only WHIP publish URL. Never exposed in public DTOs. */
     whip_url: text("whip_url"),
+    /* Multistream destinations: [{ platform, label, status }]. V1 only
+       ever activates the site destination; fan-out platforms land here
+       later without a model change. The API normalizes on write/read. */
+    destinations: jsonb("destinations")
+      .$type<Array<{ platform: string; label: string; status: string }>>()
+      .notNull()
+      .default(sql`'[{"platform":"site","label":"Your profile","status":"active"}]'::jsonb`),
     viewer_count: integer("viewer_count").notNull().default(0),
     peak_viewers: integer("peak_viewers").notNull().default(0),
     vod_url: text("vod_url"),

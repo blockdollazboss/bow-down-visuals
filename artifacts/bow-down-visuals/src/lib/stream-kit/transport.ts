@@ -23,14 +23,40 @@
 
 export type TransportState = "idle" | "connecting" | "live" | "stopping" | "failed";
 
+/* ── Multistream destinations ─────────────────────────────────────────────
+   A broadcast names where it's headed. V1 implements exactly one
+   destination — the site itself — and the transports say so honestly:
+   start() takes the requested destinations into account, publishes to
+   the ones it implements, and reports the split on the transport
+   (activeDestinations vs skippedDestinations) so the UI can show
+   "Broadcasting to: Your profile" and mark the rest as coming — never
+   a fake toggle. Fan-out (RTMP relays to other platforms) slots in as
+   additional destination handlers behind this same interface; the
+   studio UI and the kit modules won't change when it lands. */
+export interface StreamDestination {
+  platform: string;
+  label: string;
+  status: "active" | "pending" | "off";
+}
+
+export const SITE_DESTINATION: StreamDestination = {
+  platform: "site",
+  label: "Your profile",
+  status: "active",
+};
+
 export interface StreamTransport {
   readonly state: TransportState;
   /** Subscribe to state changes; returns an unsubscribe function. */
   onStateChange: (cb: (state: TransportState) => void) => () => void;
   /** Take the processed stream live. Resolves once media is flowing. */
-  start: (stream: MediaStream, meta: { title: string }) => Promise<void>;
+  start: (stream: MediaStream, meta: { title: string; destinations?: StreamDestination[] }) => Promise<void>;
   /** End the broadcast and release the session. Never throws. */
   stop: () => Promise<void>;
+  /** Destinations the transport actually published to (v1: site only). */
+  readonly activeDestinations: StreamDestination[];
+  /** Requested destinations this transport does not implement (yet). */
+  readonly skippedDestinations: StreamDestination[];
 }
 
 export class TransportError extends Error {
@@ -52,7 +78,10 @@ export interface WhipDeps {
   iceGatherTimeoutMs?: number;
   /** Creates the site-side broadcast session; returns its whip_url.
    *  Injected in tests; the default calls POST /api/live-streams. */
-  createSession?: (title: string) => Promise<{ streamId: string; whipUrl: string }>;
+  createSession?: (
+    title: string,
+    destinations?: StreamDestination[],
+  ) => Promise<{ streamId: string; whipUrl: string }>;
   /** Ends the site-side session. Injected in tests. */
   endSession?: (streamId: string) => Promise<void>;
 }
@@ -102,6 +131,10 @@ export function waitForIceGathering(
  */
 export class WhipTransport implements StreamTransport {
   state: TransportState = "idle";
+  /** Destinations this broadcast actually went to (v1: the site only). */
+  activeDestinations: StreamDestination[] = [];
+  /** Requested destinations v1 doesn't implement — surfaced, never faked. */
+  skippedDestinations: StreamDestination[] = [];
   private _listeners = new Set<(s: TransportState) => void>();
   private _pc: RTCPeerConnection | null = null;
   private _sessionUrl: string | null = null;
@@ -144,8 +177,11 @@ export class WhipTransport implements StreamTransport {
     }
   }
 
-  private async _createSession(title: string): Promise<{ streamId: string; whipUrl: string }> {
-    if (this._deps.createSession) return this._deps.createSession(title);
+  private async _createSession(
+    title: string,
+    destinations?: StreamDestination[],
+  ): Promise<{ streamId: string; whipUrl: string }> {
+    if (this._deps.createSession) return this._deps.createSession(title, destinations);
     const doFetch = this._deps.fetchImpl ?? fetch;
     const token = await WhipTransport.api.getAccessToken();
     const res = await doFetch(`${WhipTransport.api.base}/api/live-streams`, {
@@ -154,7 +190,7 @@ export class WhipTransport implements StreamTransport {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, ...(destinations?.length ? { destinations } : {}) }),
     });
     const data = (await res.json().catch(() => null)) as {
       stream?: { id?: string; whip_url?: string };
@@ -180,13 +216,23 @@ export class WhipTransport implements StreamTransport {
     });
   }
 
-  async start(stream: MediaStream, meta: { title: string }): Promise<void> {
+  async start(
+    stream: MediaStream,
+    meta: { title: string; destinations?: StreamDestination[] },
+  ): Promise<void> {
     if (this.state === "connecting" || this.state === "live") {
       throw new TransportError("SESSION", "Already broadcasting.");
     }
     this._setState("connecting");
+    /* Destinations: v1 publishes to the site destination and only the
+       site destination. Anything else requested is recorded as skipped
+       so the studio can say plainly where the broadcast did NOT go. */
+    const requested = meta.destinations?.length ? meta.destinations : [{ ...SITE_DESTINATION }];
+    const siteRequested = requested.filter((d) => d.platform === "site");
+    this.activeDestinations = siteRequested.length ? siteRequested : [{ ...SITE_DESTINATION }];
+    this.skippedDestinations = requested.filter((d) => d.platform !== "site");
     try {
-      const session = await this._createSession(meta.title);
+      const session = await this._createSession(meta.title, requested);
       this._streamId = session.streamId;
       this._whipUrl = session.whipUrl;
 
@@ -222,6 +268,8 @@ export class WhipTransport implements StreamTransport {
       this._streamId = null;
       this._pc?.close();
       this._pc = null;
+      this.activeDestinations = [];
+      this.skippedDestinations = [];
       if (streamId) await this._endSession(streamId).catch(() => undefined);
       this._setState("failed");
       throw err instanceof TransportError
@@ -242,6 +290,8 @@ export class WhipTransport implements StreamTransport {
     this._pc = null;
     const streamId = this._streamId;
     this._streamId = null;
+    this.activeDestinations = [];
+    this.skippedDestinations = [];
     if (streamId) await this._endSession(streamId).catch(() => undefined);
     this._setState("idle");
   }
