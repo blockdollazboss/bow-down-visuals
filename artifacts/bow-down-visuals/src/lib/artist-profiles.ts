@@ -553,20 +553,42 @@ export async function unfollowProfile(slug: string): Promise<{ follower_count: n
   return json(res);
 }
 
+/* The light-site palette for profile panels (the house light standard:
+   ivory ground, ivory panel, bronze ink). Applied over a creator
+   colorway's PANEL tokens only when the site itself is in light theme —
+   the creator's gold identity (primary/accent), fonts, and banner art
+   are untouched, and dark site theme keeps the colorway exactly as
+   the creator picked it. */
+export const PROFILE_LIGHT_PANEL = {
+  background: "#FBF6E9",
+  surface: "#F4E7C3",
+  cardBg: "#FCF7EA",
+  text: "#2A1E07",
+  mutedText: "#6B5B36",
+  border: "rgba(201, 168, 76, 0.45)",
+} as const;
+
 /* ─── Theme → inline style bridge (safe tokens only) ─── */
-export function themeVars(theme: ThemeConfig): React.CSSProperties {
+export function themeVars(theme: ThemeConfig, light = false): React.CSSProperties {
   const f = (id: FontId) => SAFE_FONTS.find((x) => x.id === id)?.stack ?? "'Inter', system-ui, sans-serif";
   const radius = theme.cornerRadius === "pill" ? "999px" : theme.cornerRadius === "rounded" ? "12px" : "2px";
   const pad = theme.spacing === "compact" ? "0.75rem" : theme.spacing === "roomy" ? "2rem" : "1.25rem";
+  const panel = light ? PROFILE_LIGHT_PANEL : null;
   return {
-    "--ap-bg": theme.colors.background,
-    "--ap-surface": theme.colors.surface,
+    "--ap-bg": panel?.background ?? theme.colors.background,
+    "--ap-surface": panel?.surface ?? theme.colors.surface,
     "--ap-primary": theme.colors.primary,
     "--ap-accent": theme.colors.accent,
-    "--ap-text": theme.colors.text,
-    "--ap-muted": theme.colors.mutedText,
-    "--ap-card": theme.colors.cardBg,
-    "--ap-border": theme.colors.border,
+    "--ap-text": panel?.text ?? theme.colors.text,
+    "--ap-muted": panel?.mutedText ?? theme.colors.mutedText,
+    "--ap-card": panel?.cardBg ?? theme.colors.cardBg,
+    "--ap-border": panel?.border ?? theme.colors.border,
+    /* On-art ink: words that sit directly on the creator's banner art
+       (the hero name + bio) keep the colorway's own colors in BOTH
+       site themes — the art and its scrim never change with the site
+       theme, so the text over them must not either. */
+    "--ap-onart-text": theme.colors.text,
+    "--ap-onart-muted": theme.colors.mutedText,
     "--ap-heading-font": f(theme.fonts.heading),
     "--ap-body-font": f(theme.fonts.body),
     "--ap-radius": radius,

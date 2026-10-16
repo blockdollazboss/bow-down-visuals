@@ -254,6 +254,31 @@ html, body {
    body text ≥ 7:1, muted text ≥ 4.5:1, large display gold ≥ 3:1.
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── 0. Dark-locked surfaces whose panels DO follow the site theme ──
+   The public creator profile keeps its banner art in both themes but
+   its panels take the light palette (see themeVars' light panel). The
+   generic Embed button used under the profile blocks is styled for
+   dark cinema surfaces (white/70 ink); on the profile's ivory ground
+   it re-inks to deep bronze. Scoped to the profile's own button via
+   its marker class so the cinema usages keep their dark styling.
+   The profile root also drops the site-wide throne backdrop image in
+   light theme: that backdrop (base [class*="min-h-screen"] paint) is
+   the site's scenery, not the creator's art — over the ivory ground
+   it left the sections floating on a black-scrimmed photo and made
+   the hero's fade-to-ground band read as a glitch stripe. The
+   creator's own banner inside the hero is untouched. */
+.light [data-dark-lock] button.ap-embed-btn {
+  border-color: rgba(122, 90, 18, 0.45);
+  color: #7A5A12;
+}
+.light [data-dark-lock] button.ap-embed-btn:hover {
+  border-color: rgba(122, 90, 18, 0.75);
+  color: #5D450D;
+}
+.light [data-dark-lock].ap-profile-root {
+  background-image: none;
+}
+
 /* ── 1. Palace backdrop: sunlit golden hall behind every subpage ── */
 .light body,
 .light html {

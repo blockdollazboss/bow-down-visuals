@@ -172,12 +172,12 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
         )}
         <h1
           className="text-3xl font-black tracking-tight sm:text-5xl"
-          style={{ fontFamily: "var(--ap-heading-font)", color: "var(--ap-text)" }}
+          style={{ fontFamily: "var(--ap-heading-font)", color: "var(--ap-onart-text)" }}
         >
           {profile.display_name}
         </h1>
         {profile.bio && (
-          <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base" style={{ color: "var(--ap-muted)" }}>
+          <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base" style={{ color: "var(--ap-onart-muted)" }}>
             {profile.bio.split("\n")[0]}
           </p>
         )}

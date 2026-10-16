@@ -87,14 +87,14 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
           <Trophy className="h-5 w-5 text-primary" />
         </span>
         <div>
-          <h2 className="text-xl font-black text-white">{t("milestones.trophyShelf")}</h2>
-          <p className="text-xs text-white/50">{t("milestones.trophyShelfSub")}</p>
+          <h2 className={`text-xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{t("milestones.trophyShelf")}</h2>
+          <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("milestones.trophyShelfSub")}</p>
         </div>
       </div>
 
       {groups.map(({ vertical, items }) => (
         <div key={vertical} className="mt-6">
-          <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/45">
+          <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
             <span aria-hidden="true">{VERTICAL_META[vertical].emoji}</span>
             {VERTICAL_META[vertical].label}
           </h3>
@@ -123,7 +123,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
                       onClick={() => setBrag(a)}
                       title={t("milestones.bragButton")}
                       aria-label={t("milestones.bragButtonWith", { headline: a.headline })}
-                      className="rounded-full border border-white/10 p-2 text-white/50 opacity-0 transition group-hover:opacity-100 hover:border-primary/50 hover:text-primary focus:opacity-100"
+                      className={`rounded-full border p-2 opacity-0 transition group-hover:opacity-100 hover:border-primary/50 hover:text-primary focus:opacity-100 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/10 text-white/50"}`}
                     >
                       <Share2 className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -131,10 +131,10 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
                   <p className="mt-4 text-4xl font-black" style={{ color }}>
                     {a.displayValue}
                   </p>
-                  <p className="mt-1 text-sm font-bold uppercase tracking-widest text-white/70">
+                  <p className={`mt-1 text-sm font-bold uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/70"}`}>
                     {VERTICAL_META[vertical].unit}
                   </p>
-                  <p className="mt-2 truncate text-xs text-white/45" title={a.context}>
+                  <p className={`mt-2 truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"}`} title={a.context}>
                     {a.context}
                   </p>
                 </div>
@@ -156,7 +156,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
       {/* Challenge engine 2.0: winners' circle badges on the same shelf */}
       {wins && wins.length > 0 && (
         <div className="mt-6">
-          <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/45">
+          <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
             <span aria-hidden="true">🏆</span>
             Challenge Champion{wins.length > 1 ? "s" : ""} · {wins.length} {wins.length === 1 ? "crown" : "crowns"}
           </h3>
@@ -174,7 +174,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
                   </span>
                   <Crown className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
-                <p className="mt-4 truncate text-lg font-black text-white" title={w.challenge_title}>
+                <p className={`mt-4 truncate text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`} title={w.challenge_title}>
                   {w.challenge_title}
                 </p>
                 {w.prize_credits > 0 && (
@@ -182,7 +182,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
                     {w.prize_credits.toLocaleString("en-US")} Visual Bucs won
                   </p>
                 )}
-                <p className="mt-2 text-xs text-white/45 group-hover:text-primary">
+                <p className={`mt-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"} group-hover:text-primary`}>
                   See the winners' circle →
                 </p>
               </Link>

@@ -3,6 +3,7 @@ import { useRoute, Link } from "wouter";
 import { Loader2, Link2Off, Crown, BadgeCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import type { CreatorProfile, ProfileSection } from "@/lib/artist-profiles";
 import { fetchPublicProfile, themeVars } from "@/lib/artist-profiles";
 import {
@@ -23,16 +24,21 @@ import { EmbedButton } from "@/components/player/EmbedButton";
 /* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
    rendered on their public profile so visitors see proof of their pull. */
 function RecruiterBadge({ badge }: { badge: NonNullable<CreatorProfile["recruiter_badge"]> }) {
+  const isLight = useIsLightTheme();
   return (
     <div className="flex justify-center px-4 pb-4">
       <a
         href="/referrals"
-        className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-400/20"
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold transition ${
+          isLight
+            ? "border-[#7A5A12]/45 bg-[#C9A84C]/15 text-[#7A5A12] hover:bg-[#C9A84C]/25"
+            : "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+        }`}
         title={`${badge.signups} creators recruited · ${badge.ratePct}% referral cut`}
       >
         <Crown className="h-3.5 w-3.5" />
         {badge.title} Recruiter · {"★".repeat(badge.stars)}
-        <span className="text-amber-300/60 font-semibold">{badge.signups} recruited</span>
+        <span className={`${isLight ? "text-[#7A5A12]/70" : "text-amber-300/60"} font-semibold`}>{badge.signups} recruited</span>
       </a>
     </div>
   );
@@ -41,10 +47,15 @@ function RecruiterBadge({ badge }: { badge: NonNullable<CreatorProfile["recruite
 /* ─── Official badge — house/company accounts (migration 0125). Today this
    is Thy Cheat Code: the site's host and everybody's first friend. ── */
 function OfficialBadge() {
+  const isLight = useIsLightTheme();
   return (
     <div className="flex justify-center px-4 pb-4">
       <span
-        className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-4 py-1.5 text-xs font-bold text-[#e8c86a]"
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold ${
+          isLight
+            ? "border-[#7A5A12]/45 bg-[#C9A84C]/15 text-[#7A5A12]"
+            : "border-[#d4af37]/50 bg-[#d4af37]/10 text-[#e8c86a]"
+        }`}
         title="The official Bow Down Visuals account — Thy Cheat Code is everybody's first friend 🦈"
       >
         <BadgeCheck className="h-3.5 w-3.5" />
@@ -112,6 +123,7 @@ const SOCIAL_ICONS: Record<string, string> = {
 
 export default function ArtistPublic() {
   const [, params] = useRoute("/artist/:slug");
+  const isLight = useIsLightTheme();
   const slug = params?.slug ?? "";
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [blocks, setBlocks] = useState<ProfileBlockDto[] | null>(null);
@@ -292,14 +304,16 @@ export default function ArtistPublic() {
       {/* The profile is a self-themed surface (the creator's own
           colorway, resolved into --ap-* tokens): data-dark-lock keeps
           the site light theme's palace backdrop repaint off it, the
-          same exemption the players and cinema surfaces carry — the
-          creator's stage keeps its own lighting in both site themes,
-          and its cream-on-marble text stays readable in each. */}
+          same exemption the players and cinema surfaces carry. Panel
+          tokens follow the SITE theme (themeVars' light palette:
+          ivory + bronze in light, the creator's walnut + gold in
+          dark); the banner art and the ink that sits on it
+          (--ap-onart-*) keep the creator's colorway in both. */}
       <div
-        className="min-h-screen"
+        className="min-h-screen ap-profile-root"
         data-dark-lock
         style={{
-          ...themeVars(profile.theme_config),
+          ...themeVars(profile.theme_config, isLight),
           backgroundColor: "var(--ap-bg)",
           color: "var(--ap-text)",
           fontFamily: "var(--ap-body-font)",
@@ -326,6 +340,7 @@ export default function ArtistPublic() {
             id={profile.slug}
             refCode={profile.referral_code ?? undefined}
             title={profile.display_name}
+            className="ap-embed-btn"
           />
         </div>
         {/* Free-tier branding rule (Stack 3, item 7): profiles whose

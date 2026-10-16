@@ -133,9 +133,9 @@ export default function SpotlightPinSection({
   };
 
   const picker = pickerOpen && (
-    <div className="mt-3 w-full rounded-xl border border-[#d4af37]/40 bg-black/30 p-3 text-left">
+    <div className="mt-3 w-full rounded-xl border border-[#d4af37]/40 p-3 text-left" style={{ backgroundColor: "var(--ap-surface)" }}>
       {pickerError && (
-        <p className="px-1 py-2 text-xs text-red-300">That didn't save — try again.</p>
+        <p className="px-1 py-2 text-xs" style={{ color: "#d63c2a" }}>That didn't save — try again.</p>
       )}
       {pickerItems === null && !pickerError && (
         <p className="px-1 py-2 text-xs" style={{ color: "var(--ap-muted)" }}>Loading your catalog…</p>
@@ -189,7 +189,7 @@ export default function SpotlightPinSection({
       </div>
 
       {view === "error" && (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-[#d4af37]/40 bg-black/30 px-4 py-6 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-[#d4af37]/40 px-4 py-6 text-center" style={{ backgroundColor: "var(--ap-surface)" }}>
           <AlertTriangle className="h-6 w-6 text-[#d4af37]" />
           <p className="text-sm" style={{ color: "var(--ap-text)" }}>
             {title} couldn't load right now.
@@ -205,7 +205,7 @@ export default function SpotlightPinSection({
       )}
 
       {view === "owner-empty" && (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 bg-black/20 px-4 py-6 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 px-4 py-6 text-center" style={{ backgroundColor: "var(--ap-surface)" }}>
           <Pin className="h-6 w-6 text-[#d4af37]" />
           <p className="text-sm font-semibold" style={{ color: "var(--ap-text)" }}>
             Pin a track or video
@@ -281,7 +281,8 @@ export default function SpotlightPinSection({
                     type="button"
                     disabled={saving}
                     onClick={() => void clearPin()}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 text-[11px] font-bold text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-50"
+                    style={{ borderColor: "var(--ap-border)", color: "var(--ap-muted)" }}
                   >
                     <X className="h-3 w-3" /> Unpin
                   </button>
