@@ -10,6 +10,7 @@ import {
 } from "@/components/artist/profile-sections";
 import TrophyShelf from "@/components/artist/TrophyShelf";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
+import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import { EmbedButton } from "@/components/player/EmbedButton";
 
 /* ─── Recruiter badge (virality wave) — the creator's Kingpin referral rank,
@@ -204,6 +205,7 @@ export default function ArtistPublic() {
       >
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
+        <SpotlightPinSection slug={slug} />
         <RoyalCourtSection slug={slug} />
         <LiveNowBadge slug={slug} />
         {profile.is_official && <OfficialBadge />}
@@ -236,7 +238,10 @@ export default function ArtistPublic() {
             title={profile.display_name}
           />
         </div>
-        <MadeWithBadge referralCode={profile.referral_code} />
+        {/* Free-tier branding rule (Stack 3, item 7): profiles whose
+            owner is NOT on a paid plan carry the "Powered by Bow Down
+            Visuals" mark in the footer; paid-plan profiles are clean. */}
+        {profile.paid_plan !== true && <MadeWithBadge referralCode={profile.referral_code} />}
       </div>
     </>
   );

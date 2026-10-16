@@ -397,6 +397,10 @@ export interface CreatorProfile {
   is_public: boolean;
   /* Official house/company account (migration 0125) — e.g. Thy Cheat Code. */
   is_official?: boolean;
+  /* Stack 3, item 7: paid-plan state (server-resolved). Free profiles
+     carry the "Powered by Bow Down Visuals" footer mark; paid profiles
+     are clean. Absent (older payload) reads as NOT paid. */
+  paid_plan?: boolean;
   follower_count: number;
   total_plays: number;
   referral_code?: string | null;

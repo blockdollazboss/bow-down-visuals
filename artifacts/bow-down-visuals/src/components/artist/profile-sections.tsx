@@ -873,7 +873,7 @@ export function MadeWithBadge({ referralCode }: { referralCode?: string | null }
         style={{ borderColor: "var(--ap-border)", color: "var(--ap-muted)" }}
       >
         <BadgeCheck className="h-4 w-4" style={{ color: "var(--ap-primary)" }} />
-        Made with Bow Down Visuals — the cheat code
+        Powered by Bow Down Visuals
       </Link>
     </div>
   );
