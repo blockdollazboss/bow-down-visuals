@@ -32,6 +32,7 @@ const h = vi.hoisted(() => ({
   checkoutCalls: [] as Array<Record<string, any>>,
   refundCalls: [] as Array<unknown>,
   session: null as any,
+  failTables: new Set<string>(),
 }));
 
 function storeFor(table: unknown): Array<Record<string, any>> {
@@ -41,6 +42,9 @@ function storeFor(table: unknown): Array<Record<string, any>> {
 }
 
 function matchRows(table: unknown, cond: unknown): Array<Record<string, any>> {
+  if (h.failTables.has(getTableName(table as never))) {
+    throw new Error(`fake db failure reading ${getTableName(table as never)}`);
+  }
   const rows = storeFor(table);
   if (!cond) return [...rows];
   const sqlText = renderSql(cond);
@@ -246,6 +250,7 @@ beforeEach(() => {
   h.checkoutCalls = [];
   h.refundCalls = [];
   h.session = null;
+  h.failTables = new Set();
   h.userId = FAN;
   h.userEmail = "fan@example.com";
 });
@@ -523,5 +528,42 @@ describe("gifted memberships", () => {
     const theirs = await call("GET", "/memberships/mine");
     expect(theirs.data.memberships).toHaveLength(1);
     expect(theirs.data.giftsReceived).toHaveLength(1);
+  });
+});
+
+describe("GET /memberships/public/:creatorUserId — the profile Memberships block's read", () => {
+  it("serves only the creator's ACTIVE tiers in the public DTO shape", async () => {
+    const live = seedTier({ name: "Gold Club" });
+    seedTier({ name: "Retired Club", is_active: "false" });
+    seedTier({ user_id: FRIEND, name: "Someone Else's Club" });
+
+    const r = await call("GET", `/memberships/public/${CREATOR}`);
+
+    expect(r.status).toBe(200);
+    expect(r.data.creatorUserId).toBe(CREATOR);
+    expect(r.data.testMode).toBe(true);
+    expect(r.data.tiers).toHaveLength(1);
+    expect(r.data.tiers[0].id).toBe(live.id);
+    expect(r.data.tiers[0].creatorUserId).toBe(CREATOR);
+    expect(r.data.tiers[0].name).toBe("Gold Club");
+    expect(r.data.tiers[0].priceCents).toBe(1000);
+    expect(r.data.tiers[0].isActive).toBe(true);
+  });
+
+  it("400s a non-UUID creator id at the gate (the profile page's old 'undefined')", async () => {
+    const r = await call("GET", "/memberships/public/undefined");
+
+    expect(r.status).toBe(400);
+    expect(r.data.error).toBe("Invalid creator.");
+  });
+
+  it("answers a shaped JSON 500 — never the framework HTML page — when the tiers read fails", async () => {
+    h.failTables.add("fan_tiers");
+
+    const r = await call("GET", `/memberships/public/${CREATOR}`);
+
+    expect(r.status).toBe(500);
+    expect(typeof r.data.error).toBe("string");
+    expect(r.data.error.length).toBeGreaterThan(0);
   });
 });
