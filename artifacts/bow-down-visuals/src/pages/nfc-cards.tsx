@@ -1,10 +1,10 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Nfc, QrCode, Zap, Pencil, Truck, CheckCircle2, Loader2,
   ChevronRight, ChevronLeft, Plus, Trash2, Download, BarChart3,
-  ShieldCheck, Sparkles, CreditCard,
+  ShieldCheck, Sparkles, CreditCard, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -101,6 +101,13 @@ export default function NfcCards() {
   const [profiles, setProfiles] = useState<NfcProfile[]>([]);
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loadingMine, setLoadingMine] = useState(false);
+  /* "My cards" load failures are NOT "no cards yet" — they get their
+     own error state with a retry, scoped to the mine list. mineLoadedRef
+     guards the gate: once the list has loaded successfully, a later
+     failed reload (e.g. the refresh after placing an order) must NOT
+     blank the cards already on screen into the error state. */
+  const [loadError, setLoadError] = useState(false);
+  const mineLoadedRef = useRef(false);
   const [editing, setEditing] = useState<NfcProfile | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -110,19 +117,24 @@ export default function NfcCards() {
   const loadMine = async () => {
     if (!user) return;
     setLoadingMine(true);
+    setLoadError(false);
     try {
       const [pRes, oRes] = await Promise.all([
         confirmedFetch("/api/nfc-cards/my-profiles", { skipConfirm: true }),
         confirmedFetch("/api/nfc-cards/orders", { skipConfirm: true }),
       ]);
-      if (pRes) {
-        const j = await pRes.json();
-        if (j.ok) setProfiles(j.profiles);
-      }
-      if (oRes) {
-        const j = await oRes.json();
-        if (j.ok) setOrders(j.orders);
-      }
+      /* Either fetch failing — rejected, non-OK, or an ok:false body —
+         is a load failure, not an empty list. Parse both before setting
+         either, so a partial failure never half-fills the list. */
+      if (!pRes || !oRes) throw new Error("load failed");
+      const pj = await pRes.json();
+      const oj = await oRes.json();
+      if (!pRes.ok || !pj.ok || !oRes.ok || !oj.ok) throw new Error("load failed");
+      setProfiles(pj.profiles ?? []);
+      setOrders(oj.orders ?? []);
+      mineLoadedRef.current = true;
+    } catch {
+      if (!mineLoadedRef.current) setLoadError(true);
     } finally {
       setLoadingMine(false);
     }
@@ -441,6 +453,21 @@ export default function NfcCards() {
             </h2>
             {loadingMine ? (
               <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+            ) : loadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your cards.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your cards and orders are safe, this page just couldn't load them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadMine()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : profiles.length === 0 && orders.length === 0 ? (
               <p className={`${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{t("nfcCards.noCardsYet")}</p>
             ) : (
