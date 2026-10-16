@@ -7,6 +7,11 @@ import {
 } from "@/lib/community-ui";
 import { usePageTitle } from "@/hooks/use-page-title";
 import LiveNowRail from "@/components/live/LiveNowRail";
+import {
+  exploreSectionOrEmpty,
+  normalizeExploreData,
+  type ExploreData as ExploreDataShape,
+} from "@/lib/explore-data";
 
 /* ─── /explore — the best of everything ───────────────────────────────────
    Blended grid: trending shorts, rising creators, hot posts, upcoming
@@ -19,7 +24,7 @@ interface HotPost { id: string; body: string; like_count: number; created_at: st
 interface Evt { id: string; title: string; kind: string; starts_at: string; cover_url: string | null; rsvp_count: number; host: { slug: string; display_name: string; avatar_url: string | null } }
 interface Grp { id: string; slug: string; name: string; description: string; cover_url: string | null; member_count: number }
 
-interface ExploreData { shorts: Short[]; creators: Creator[]; posts: HotPost[]; events: Evt[]; groups: Grp[] }
+type ExploreData = ExploreDataShape<Short, Creator, HotPost, Evt, Grp>;
 
 function Section({ icon: Icon, title, blurb, children, link, linkLabel }: {
   icon: typeof Flame; title: string; blurb: string; children: React.ReactNode; link: string; linkLabel: string;
@@ -48,7 +53,9 @@ export default function Explore() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const d = (await api.get("/api/explore")) as unknown as ExploreData;
+      const d = normalizeExploreData<Short, Creator, HotPost, Evt, Grp>(
+        await api.get("/api/explore"),
+      );
       setData(d);
     } catch (e) {
       setError(friendlyLoadError(e, "Explore"));
@@ -58,6 +65,12 @@ export default function Explore() {
 
   if (loading) return <div className="min-h-screen bg-black text-white"><Loading label="Scouting the scene" /></div>;
   if (error || !data) return <div className="min-h-screen bg-black px-6 py-16 text-white"><ErrorBox message={error ?? "Explore failed."} onRetry={load} /></div>;
+
+  const shorts = exploreSectionOrEmpty(data.shorts);
+  const creators = exploreSectionOrEmpty(data.creators);
+  const posts = exploreSectionOrEmpty(data.posts);
+  const events = exploreSectionOrEmpty(data.events);
+  const groups = exploreSectionOrEmpty(data.groups);
 
   const card = "rounded-xl border border-white/10 bg-[#0d0a02] p-4 transition hover:border-[#e8c86a]/40";
 
@@ -82,7 +95,7 @@ export default function Explore() {
 
         <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/shorts" linkLabel="All shorts">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.shorts.slice(0, 6).map((s) => (
+            {shorts.slice(0, 6).map((s) => (
               <div key={s.id} className={card}>
                 {s.thumbnail_url && <img src={s.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-36 w-full rounded-lg object-cover" />}
                 <Link href={profileLink(s.creator.slug)} className="font-bold hover:text-[#e8c86a]">{s.title}</Link>
@@ -93,13 +106,13 @@ export default function Explore() {
                 <div className="mt-3"><ShareButton path={profileLink(s.creator.slug)} label="Share" /></div>
               </div>
             ))}
-            {data.shorts.length === 0 && <p className="text-white/40">No shorts trending yet.</p>}
+            {shorts.length === 0 && <p className="text-white/40">No shorts trending yet.</p>}
           </div>
         </Section>
 
         <Section icon={TrendingUp} title="Rising creators" blurb="Creators climbing the fastest — follow before they blow." link="/charts" linkLabel="Creator charts">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {data.creators.slice(0, 8).map((c) => (
+            {creators.slice(0, 8).map((c) => (
               <div key={c.id} className={`${card} text-center`}>
                 {c.avatar_url
                   ? <img src={c.avatar_url} alt="" className="mx-auto h-16 w-16 rounded-full object-cover" />
@@ -112,13 +125,13 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {data.creators.length === 0 && <p className="text-white/40">No creators yet.</p>}
+            {creators.length === 0 && <p className="text-white/40">No creators yet.</p>}
           </div>
         </Section>
 
         <Section icon={MessageSquare} title="Hot posts" blurb="The loudest takes from group feeds." link="/groups" linkLabel="All groups">
           <div className="grid gap-4 sm:grid-cols-2">
-            {data.posts.slice(0, 4).map((p) => (
+            {posts.slice(0, 4).map((p) => (
               <div key={p.id} className={card}>
                 <p className="whitespace-pre-wrap text-sm text-white/85">{p.body}</p>
                 <p className="mt-2 text-xs text-white/50">
@@ -128,13 +141,13 @@ export default function Explore() {
                 <div className="mt-3"><ShareButton path={`/groups/${p.group.slug}`} label="Share" /></div>
               </div>
             ))}
-            {data.posts.length === 0 && <p className="text-white/40">No posts heating up yet.</p>}
+            {posts.length === 0 && <p className="text-white/40">No posts heating up yet.</p>}
           </div>
         </Section>
 
         <Section icon={CalendarPlus} title="Upcoming events" blurb="Streams, drops, premieres — RSVP free." link="/events" linkLabel="All events">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.events.slice(0, 6).map((e) => (
+            {events.slice(0, 6).map((e) => (
               <div key={e.id} className={card}>
                 {e.cover_url && <img src={e.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
                 <span className="inline-block rounded-full bg-[#e8c86a]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e8c86a]">{e.kind}</span>
@@ -149,13 +162,13 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {data.events.length === 0 && <p className="text-white/40">Nothing scheduled yet.</p>}
+            {events.length === 0 && <p className="text-white/40">Nothing scheduled yet.</p>}
           </div>
         </Section>
 
         <Section icon={Users} title="Active groups" blurb="The liveliest crews on the platform." link="/groups" linkLabel="All groups">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.groups.slice(0, 6).map((g) => (
+            {groups.slice(0, 6).map((g) => (
               <div key={g.id} className={card}>
                 {g.cover_url && <img src={g.cover_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-28 w-full rounded-lg object-cover" />}
                 <Link href={`/groups/${g.slug}`} className="font-bold hover:text-[#e8c86a]">{g.name}</Link>
@@ -167,7 +180,7 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {data.groups.length === 0 && <p className="text-white/40">No groups yet.</p>}
+            {groups.length === 0 && <p className="text-white/40">No groups yet.</p>}
           </div>
         </Section>
 
