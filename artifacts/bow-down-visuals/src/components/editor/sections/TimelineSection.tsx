@@ -5,6 +5,7 @@ import type { SharedPreviewState } from "@/components/TimelinePreviewPlayer";
 import { EditorCard } from "@/components/editor/controls";
 import { FormatSection } from "@/components/editor/sections/FormatSection";
 import { AutoChaptersCard } from "@/components/editor/sections/AutoChaptersCard";
+import { LanesPanel } from "@/components/editor/sections/LanesPanel";
 
 interface TimelineSectionProps {
   scenes: SceneData[];
@@ -314,6 +315,11 @@ export function TimelineSection({
           </div>
         )}
       </EditorCard>
+
+      {/* Multi-track lanes — overlay/caption/adjustment tracks (Stack 5 #1/#6) */}
+      <div className="mt-4">
+        <LanesPanel settings={settings} setSettings={setSettings} />
+      </div>
 
       {/* Auto Chapters — generate → edit → copy for YouTube, saved with the project */}
       <div className="mt-4">

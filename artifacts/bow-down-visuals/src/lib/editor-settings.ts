@@ -1,4 +1,6 @@
 import type { SceneData } from "@/lib/scene-parser";
+import { sanitizeLanes, type TimelineLanes } from "@/lib/timeline-lanes";
+export type { TimelineLanes } from "@/lib/timeline-lanes";
 import { DEFAULT_CAPTION_FONT_ID } from "@/lib/fonts";
 
 /* ─────────────────────────────────────────────────────────────
@@ -1515,6 +1517,11 @@ export interface EditorSettings {
   soloPreviewOverlay: string | null;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
+  /** True multi-track lanes (Stack 5 #1). null = not migrated yet — the
+   *  editor derives lanes from overlayItems + captions.lines on first open
+   *  (migrateLegacyToLanes) and from then on lanes are the source the
+   *  export payload is projected from. */
+  lanes: TimelineLanes | null;
   /** Structured transition data (fromSceneId → toSceneId). */
   transitions: TransitionItem[];
   audio: AudioSettings;
@@ -1727,6 +1734,7 @@ export function defaultEditorSettings(): EditorSettings {
     overlayProtectFace: true,
     soloPreviewOverlay: null,
     overlayItems: [],
+    lanes: null,
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 }, fitMode: "fill" as FitMode },
@@ -2043,6 +2051,7 @@ export function normalizeEditorSettings(
     overlayProtectFace: typeof stored.overlayProtectFace === "boolean" ? stored.overlayProtectFace : true,
     soloPreviewOverlay: typeof stored.soloPreviewOverlay === "string" ? stored.soloPreviewOverlay : null,
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
+    lanes: sanitizeLanes((stored as Partial<EditorSettings>).lanes),
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },
