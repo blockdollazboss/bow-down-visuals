@@ -2215,8 +2215,8 @@ export default function AiAudio() {
       return "beats";
     }
   });
-  usePageTitle(t("aiAudio.title", { defaultValue: "AI Audio" }),
-               t("aiAudio.subtitle", { defaultValue: "Make beats, build sample packs, and generate sound effects — the AI audio toolkit." }));
+  usePageTitle(t("aiAudio.title", { defaultValue: "Generate Audio" }),
+               t("aiAudio.subtitle", { defaultValue: "Make beats, build sample packs, and generate sound effects — the audio toolkit." }));
 
   function switchTab(next: AiAudioTab) {
     setTab(next);
