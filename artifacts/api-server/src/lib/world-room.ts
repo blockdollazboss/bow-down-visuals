@@ -188,7 +188,9 @@ export class WorldRoom {
       x: (slot - 4.5) * 1.1,
       y: 0,
       z: 9.5,
-      rotY: Math.PI, // facing the stage (front of the hall)
+      /* Heading convention (shared with the client): rotY 0 faces the
+       * stage/screen at the front of the hall (-Z). */
+      rotY: 0,
       lastMoveAt: 0,
       lastSayAt: 0,
     };
