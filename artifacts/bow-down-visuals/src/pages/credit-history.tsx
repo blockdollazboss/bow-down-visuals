@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2, Coins } from "lucide-react";
+import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2, Coins, RotateCcw } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -70,10 +70,13 @@ export default function CreditHistory() {
   const [usage, setUsage] = useState<Usage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      setLoading(true);
+      setError(null);
       try {
         const token = await getAccessToken();
         const headers: Record<string, string> = {};
@@ -98,7 +101,7 @@ export default function CreditHistory() {
     }
     load();
     return () => { cancelled = true; };
-  }, [getAccessToken]);
+  }, [getAccessToken, retryNonce]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -142,7 +145,17 @@ export default function CreditHistory() {
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-400 text-sm">{error}</div>
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-400 text-sm">
+            {error}
+            <div>
+              <button
+                onClick={() => setRetryNonce((n) => n + 1)}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+              >
+                <RotateCcw className="h-4 w-4" /> Try again
+              </button>
+            </div>
+          </div>
         )}
 
         {!loading && payments && usage && (
