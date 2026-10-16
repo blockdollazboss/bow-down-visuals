@@ -121,6 +121,14 @@ export default function Beats() {
   const [myBeats, setMyBeats] = useState<Beat[]>([]);
   const [sales, setSales] = useState<License[]>([]);
   const [stats, setStats] = useState<{ beatCount: number; saleCount: number; grossCents: number; netCents: number } | null>(null);
+  /* Dashboard-load failures are NOT zero sales / no beats — they get
+     their own error state with a retry, scoped to the dashboard tab.
+     dashLoadedRef guards the gate: once the dashboard has loaded
+     successfully, a later failed reload (e.g. the BeatRow refresh after
+     applying AI tags) must NOT blank the dashboard already on screen. */
+  const [dashLoadError, setDashLoadError] = useState(false);
+  const [dashLoading, setDashLoading] = useState(false);
+  const dashLoadedRef = useRef(false);
 
   const fetchBeats = async () => {
     setLoading(true);
@@ -146,15 +154,23 @@ export default function Beats() {
   useEffect(() => { fetchBeats(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDashboard = async () => {
+    /* Spinner gates only until the first successful load — a later
+       refresh keeps the shown dashboard on screen while it runs. */
+    if (!dashLoadedRef.current) setDashLoading(true);
+    setDashLoadError(false);
     try {
       const res = await fetch("/api/beats/mine/dashboard");
-      if (res.ok) {
-        const data = await res.json() as { beats?: Beat[]; sales?: License[]; stats?: typeof stats };
-        setMyBeats(data.beats ?? []);
-        setSales(data.sales ?? []);
-        setStats(data.stats ?? null);
-      }
-    } catch { /* ignore */ }
+      if (!res.ok) throw new Error("load failed");
+      const data = await res.json() as { beats?: Beat[]; sales?: License[]; stats?: typeof stats };
+      setMyBeats(data.beats ?? []);
+      setSales(data.sales ?? []);
+      setStats(data.stats ?? null);
+      dashLoadedRef.current = true;
+    } catch {
+      if (!dashLoadedRef.current) setDashLoadError(true);
+    } finally {
+      setDashLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -495,6 +511,23 @@ export default function Beats() {
           <div className="max-w-4xl mx-auto">
             {!user ? (
               <p className="text-center text-white/40 py-12">{t("beats.signInDashboard")}</p>
+            ) : dashLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
+            ) : dashLoadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your beats and sales are safe, this page just couldn't load them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchDashboard()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : (
               <>
                 {stats && (
