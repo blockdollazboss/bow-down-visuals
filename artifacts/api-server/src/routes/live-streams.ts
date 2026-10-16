@@ -5,6 +5,7 @@ import { eq, and, desc, lt, inArray } from "drizzle-orm";
 import {
   db,
   liveStreamsTable,
+  liveViewerSamplesTable,
   creatorProfilesTable,
   generatedClipsTable,
   type LiveStream,
@@ -90,6 +91,10 @@ const VIEWER_TTL_MS = 45_000;
    are real presence, pruned lazily on read; the peak is persisted to the
    row when it grows. Exported for tests. */
 const viewersByStream = new Map<string, Map<string, number>>();
+
+/* Throttle for persisted viewer samples (summary averages). */
+const VIEWER_SAMPLE_MS = 20_000;
+const lastViewerSampleAt = new Map<string, number>();
 
 export function touchViewer(streamId: string, sessionId: string, now: number = Date.now()): number {
   let sessions = viewersByStream.get(streamId);
@@ -916,6 +921,20 @@ router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request
       return;
     }
     const count = touchViewer(row.id, parsed.data.session_id);
+    // Viewer samples for the post-stream summary's average: one row
+    // per stream per SAMPLE_MS window (not one per heartbeat), written
+    // off the response path — a sample failure never fails a view.
+    const lastSample = lastViewerSampleAt.get(row.id) ?? 0;
+    if (Date.now() - lastSample >= VIEWER_SAMPLE_MS) {
+      lastViewerSampleAt.set(row.id, Date.now());
+      void (async () => {
+        try {
+          await db.insert(liveViewerSamplesTable).values({ stream_id: row.id, viewer_count: count });
+        } catch (err) {
+          logger.warn({ err }, "live-streams heartbeat: viewer sample write failed");
+        }
+      })();
+    }
     if (count > (row.peak_viewers ?? 0)) {
       try {
         await db
