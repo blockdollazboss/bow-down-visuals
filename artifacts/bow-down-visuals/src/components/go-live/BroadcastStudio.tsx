@@ -13,7 +13,9 @@ import {
   BackgroundChanger,
   BackgroundChangerError,
   CAMERA_EFFECTS,
+  type BackgroundEngineKind,
   type BackgroundMode,
+  type BackgroundQuality,
 } from "@/lib/stream-kit/background-changer";
 import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
 import { BACKDROPS, BACKDROP_URIS } from "@/lib/stream-kit/backdrops";
@@ -146,9 +148,14 @@ export default function BroadcastStudio() {
   const [cameraId, setCameraId] = useState("");
   const [micId, setMicId] = useState("");
   const [mode, setMode] = useState<BackgroundMode>("green");
-  /* True when the segmentation engine couldn't load: the camera runs
+  /* True when no background engine could load: the camera runs
      plain and only the AI backdrop modes disable (one inline notice). */
   const [engineDown, setEngineDown] = useState(false);
+  /* Background engine quality the creator picked, and which engine
+     is actually live — the status line reports the LIVE one, so an
+     auto fallback is never dressed up as the better engine. */
+  const [quality, setQualityState] = useState<BackgroundQuality>("auto");
+  const [engineKind, setEngineKind] = useState<BackgroundEngineKind>("off");
   const [backdropId, setBackdropId] = useState("stage");
   const [camFx, setCamFx] = useState("none");
   const [nc, setNc] = useState<NoiseCancellationLevel>("on");
@@ -358,12 +365,17 @@ export default function BroadcastStudio() {
       if (!changerRef.current) {
         changerRef.current = new BackgroundChanger({
           mode,
+          quality,
           audio: true,
           noiseCancellation: nc,
           voiceEffect: fx,
           cameraEffect: camFx,
           mirror,
           onNoiseStatus: (s) => setNcMsg(s.message),
+          onEngineStatus: (kind) => {
+            setEngineKind(kind);
+            setEngineDown(kind === "off");
+          },
         });
       }
       const changer = changerRef.current;
@@ -372,6 +384,7 @@ export default function BroadcastStudio() {
          leaves the camera running plain with the AI backdrop modes off. */
       const engineOk = changer.segmentationAvailable;
       setEngineDown(!engineOk);
+      setEngineKind(changer.getEngineKind());
       if (engineOk && mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
@@ -1338,6 +1351,40 @@ export default function BroadcastStudio() {
         {engineDown && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`} data-testid="engine-down-note">
             Background effects couldn&rsquo;t load — camera is running plain.
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Background quality">
+          <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Quality</span>
+          {(
+            [
+              ["auto", "Auto"],
+              ["pro", "Pro"],
+              ["standard", "Standard"],
+            ] as Array<[BackgroundQuality, string]>
+          ).map(([q, label]) => (
+            <button
+              key={q}
+              type="button"
+              className={pillBtn(quality === q)}
+              onClick={async () => {
+                setQualityState(q);
+                // Live switch when the camera is running; before the
+                // first start it simply rides into the kit's config.
+                await changerRef.current?.setQuality(q).catch(() => undefined);
+              }}
+              data-testid={`btn-quality-${q}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+          Auto picks the sharpest cutout your device can hold and steps down on its own if it can&rsquo;t. Pro holds the
+          sharpest cutout. Standard is the lighter cutout for slower devices.
+        </p>
+        {phase !== "off" && (
+          <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="engine-status">
+            Background engine: {engineKind === "pro" ? "Pro" : engineKind === "standard" ? "Standard" : "Off"}
           </p>
         )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">
