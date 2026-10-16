@@ -20,6 +20,7 @@ import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
   createPaymentCheckout,
   retrieveCheckoutSession,
+  refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
 } from "../lib/stripe-checkout";
@@ -605,6 +606,10 @@ router.post(
           buyer_user_id: req.userId!,
           quantity: String(parsed.data.quantity),
           stream_id: parsed.data.stream_id ?? "",
+          /* Checkout-LOCKED pricing (Lane V3 F4): verify compares
+             against these, never the product's current price. */
+          unit_price_cents: String(row.price_cents),
+          total_cents: String(totalCents),
         },
       });
       res.json({
@@ -667,11 +672,29 @@ router.post(
         .limit(1);
       const row = product[0];
       if (!row) {
-        res.status(400).json({ error: "The product for this purchase no longer exists." });
+        /* Paid, but the product was deleted after payment — the sale
+           can NEVER be recorded (Lane V3 F3). Refund automatically;
+           the claim is made only when the refund landed. */
+        const refunded = await refundCheckoutSessionPayment(session);
+        logger.error({ sessionId, refunded }, "[live-shopping] verify: product deleted after payment");
+        res.status(400).json({
+          error: refunded
+            ? "The product for this purchase no longer exists — your payment has been refunded in full."
+            : "The product for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+          refunded,
+        });
         return;
       }
       const quantity = Math.max(1, Number(meta["quantity"] ?? "1") || 1);
-      const totalCents = row.price_cents * quantity;
+      /* Verify + record against the CHECKOUT-LOCKED amounts (Lane V3
+         F4) so a price change after purchase never rejects — or
+         reprices — a correctly paid session. Sessions predating the
+         lock fall back to the current price (the old behavior). */
+      const lockedTotal = Number(meta["total_cents"]);
+      const lockedUnit = Number(meta["unit_price_cents"]);
+      const hasLock = Number.isFinite(lockedTotal) && lockedTotal > 0 && Number.isFinite(lockedUnit) && lockedUnit > 0;
+      const totalCents = hasLock ? lockedTotal : row.price_cents * quantity;
+      const unitPriceCents = hasLock ? lockedUnit : row.price_cents;
       if ((session.amount_total ?? 0) !== totalCents) {
         res.status(400).json({ error: "The paid amount doesn't match the product price." });
         return;
@@ -698,7 +721,7 @@ router.post(
           stream_id: meta["stream_id"] || null,
           product_id: row.id,
           quantity,
-          price_cents: row.price_cents,
+          price_cents: unitPriceCents,
           platform_fee_cents: feeCents,
           buyer_user_id: req.userId!,
           stripe_session_id: sessionId,

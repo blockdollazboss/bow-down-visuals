@@ -25,6 +25,7 @@ const h = vi.hoisted(() => ({
   userId: "",
   stores: new Map<string, Array<Record<string, any>>>(),
   checkoutCalls: [] as Array<Record<string, any>>,
+  refundCalls: [] as Array<unknown>,
   session: null as any,
 }));
 
@@ -156,6 +157,10 @@ vi.mock("../../lib/stripe-checkout", () => ({
     return { sessionId: "cs_test_ls_1", url: "https://checkout.example.com/pay" };
   }),
   retrieveCheckoutSession: vi.fn(async () => h.session),
+  refundCheckoutSessionPayment: vi.fn(async (session: unknown) => {
+    h.refundCalls.push(session);
+    return true;
+  }),
   checkoutBaseUrl: () => "https://example.com",
   isCheckoutTestMode: () => true,
 }));
@@ -220,6 +225,7 @@ beforeEach(() => {
     ["live_shop_alerts", []],
   ]);
   h.checkoutCalls = [];
+  h.refundCalls = [];
   h.session = null;
   h.userId = BUYER;
 });
@@ -270,6 +276,48 @@ describe("live-shopping native checkout", () => {
     const v2 = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
     expect(v2.data.duplicate).toBe(true);
     expect(h.stores.get("live_shop_sales")).toHaveLength(1);
+  });
+
+  it("F4: checkout locks the price; a later price rise does not reject or reprice the paid session", async () => {
+    const product = seedProduct();
+    const co = await call("POST", "/live-shopping/checkout", { product_id: product.id, quantity: 2 });
+    expect(co.status).toBe(200);
+    /* The lock rides the checkout metadata. */
+    expect(h.checkoutCalls[0]!.metadata.total_cents).toBe("9998");
+    expect(h.checkoutCalls[0]!.metadata.unit_price_cents).toBe("4999");
+
+    h.session = {
+      id: "cs_test_ls_1",
+      payment_status: "paid",
+      amount_total: 9998,
+      metadata: { ...h.checkoutCalls[0]!.metadata },
+    };
+    /* Seller raises the price after the buyer paid. */
+    h.stores.get("live_shop_products")![0]!.price_cents = 7999;
+    const v = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v.status).toBe(200);
+    expect(v.data.sale.totalCents).toBe(9998);
+    const row = h.stores.get("live_shop_sales")![0]!;
+    expect(row.price_cents).toBe(4999); // locked unit price recorded, not the new one
+  });
+
+  it("F3: a product deleted after payment auto-refunds instead of stranding the buyer", async () => {
+    const product = seedProduct();
+    const co = await call("POST", "/live-shopping/checkout", { product_id: product.id, quantity: 1 });
+    expect(co.status).toBe(200);
+    h.session = {
+      id: "cs_test_ls_1",
+      payment_status: "paid",
+      amount_total: 4999,
+      metadata: { ...h.checkoutCalls[0]!.metadata },
+    };
+    h.stores.set("live_shop_products", []);
+    const v = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v.status).toBe(400);
+    expect(v.data.refunded).toBe(true);
+    expect(v.data.error).toContain("refunded in full");
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(0);
   });
 
   it("unpaid sessions record nothing; sellers cannot buy their own product", async () => {

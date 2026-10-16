@@ -28,6 +28,7 @@ const h = vi.hoisted(() => ({
   checkoutCalls: [] as Array<Record<string, any>>,
   session: null as any,
   sessionSeq: 0,
+  refundCalls: [] as Array<unknown>,
 }));
 
 function storeFor(table: unknown): Array<Record<string, any>> {
@@ -154,6 +155,10 @@ vi.mock("../../../lib/stripe-checkout", () => ({
     return { sessionId: `cs_test_${h.sessionSeq}`, url: "https://checkout.example.com/pay" };
   }),
   retrieveCheckoutSession: vi.fn(async () => h.session),
+  refundCheckoutSessionPayment: vi.fn(async (session: unknown) => {
+    h.refundCalls.push(session);
+    return true;
+  }),
   checkoutBaseUrl: () => "https://example.com",
   isCheckoutTestMode: () => true,
 }));
@@ -226,6 +231,7 @@ beforeEach(() => {
   h.checkoutCalls = [];
   h.session = null;
   h.sessionSeq = 0;
+  h.refundCalls = [];
   h.userId = BUYER;
 });
 
@@ -342,6 +348,29 @@ describe("beat license purchase flow", () => {
     const licenses = h.stores.get("beat_licenses")!;
     expect(licenses.filter((l) => l.status === "completed")).toHaveLength(1);
     expect(h.stores.get("beats")![0]!.exclusive_sold).toBe(true);
+  });
+
+  it("F3: a beat deleted after payment auto-refunds instead of stranding the buyer", async () => {
+    /* The F5 test replaced the session mock with a per-id map; restore
+       the hoisted-session behavior for this test. */
+    const sc = await import("../../../lib/stripe-checkout");
+    vi.mocked(sc.retrieveCheckoutSession).mockImplementation(async () => h.session);
+    const beat = seedBeat();
+    const start = await call("POST", `/beats/${beat.id}/license`, { tier: "premium" });
+    expect(start.status).toBe(201);
+    h.session = {
+      id: start.data.sessionId,
+      payment_status: "paid",
+      amount_total: 9999,
+      metadata: { purchase_kind: "beat_license", license_id: start.data.license.id, beat_id: beat.id, buyer_user_id: BUYER, tier: "premium" },
+    };
+    h.stores.set("beats", []);
+    const v = await call("POST", "/beats/licenses/verify", { sessionId: start.data.sessionId });
+    expect(v.status).toBe(400);
+    expect(v.data.refunded).toBe(true);
+    expect(v.data.error).toContain("refunded in full");
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.stores.get("beat_licenses")![0]!.status).toBe("pending_payment");
   });
 
   it("producers cannot license their own beat", async () => {

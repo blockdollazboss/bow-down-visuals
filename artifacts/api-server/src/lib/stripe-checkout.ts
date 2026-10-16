@@ -85,3 +85,31 @@ export async function retrieveCheckoutSession(sessionId: string): Promise<Stripe
   const stripe = getCheckoutStripe();
   return stripe.checkout.sessions.retrieve(sessionId);
 }
+
+/**
+ * Automatic refund for a paid checkout session (Lane V3 F3) — used
+ * ONLY where fulfillment has become impossible (the purchased item
+ * was deleted after payment), never for transient recording failures
+ * (verify is idempotent and retry-safe there; refunding would let a
+ * retry deliver the goods free). Idempotent per session via the
+ * refund idempotency key, so a repeated verify can't double-refund.
+ * Returns whether the refund landed; callers must phrase their
+ * response from this, never claim a refund that didn't happen.
+ */
+export async function refundCheckoutSessionPayment(
+  session: Stripe.Checkout.Session,
+): Promise<boolean> {
+  const pi = session.payment_intent;
+  const paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? null);
+  if (!paymentIntentId) return false;
+  try {
+    const stripe = getCheckoutStripe();
+    await stripe.refunds.create(
+      { payment_intent: paymentIntentId },
+      { idempotencyKey: `refund:${session.id}` },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -45,6 +45,10 @@ const h = vi.hoisted(() => ({
   state: {
     stripeCreateParams: null as any,
     stripeSession: null as any,
+    itemGone: false,
+    refundCalls: [] as Array<any>,
+    downloadLinkInserts: 0,
+    storedLink: null as { token: string; expires_at: string } | null,
   },
 }));
 
@@ -127,6 +131,12 @@ vi.mock("stripe", () => {
         retrieve: async () => h.state.stripeSession,
       },
     };
+    refunds = {
+      create: async (params: any) => {
+        h.state.refundCalls.push(params);
+        return { id: "re_test_123", status: "succeeded" };
+      },
+    };
   }
   return { default: FakeStripe };
 });
@@ -150,14 +160,24 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
   const fakeDb: any = {
     execute: async (q: unknown) => {
-      const { sql: text } = dialect.sqlToQuery(q as never);
+      const { sql: text, params } = dialect.sqlToQuery(q as never);
       // resolveSellableItem (item / checkout / verify / suggest-price) —
       // keyed on its unique `AS file_url` projection (the purchases query
       // also selects artist_slug, so that column alone cannot dispatch).
-      if (text.includes("AS file_url")) return { rows: [sellableRow()] };
+      if (text.includes("AS file_url")) {
+        return { rows: [h.state.itemGone ? { ...sellableRow(), is_published: false } : sellableRow()] };
+      }
+      // F9: reusable-link lookup (verify) — returns the stored link if any
+      if (text.includes("SELECT token, expires_at FROM download_links")) {
+        return { rows: h.state.storedLink ? [h.state.storedLink] : [] };
+      }
       // verify: record the sale + mint the download link
       if (text.includes("INSERT INTO digital_sales")) return { rows: [{ id: SALE_ID }] };
-      if (text.includes("INSERT INTO download_links")) return { rows: [] };
+      if (text.includes("INSERT INTO download_links")) {
+        h.state.downloadLinkInserts += 1;
+        h.state.storedLink = { token: String(params[0]), expires_at: String(params[3]) };
+        return { rows: [] };
+      }
       if (text.includes("SELECT id FROM digital_sales")) return { rows: [{ id: SALE_ID }] };
       // verify: creator lookup for the sale notification (same user → skipped)
       if (text.includes("SELECT user_id, display_name FROM creator_profiles")) {
@@ -297,7 +317,13 @@ function expectNoRawRefs(text: string) {
 
 beforeEach(() => {
   h.state.stripeCreateParams = null;
+  h.state.itemGone = false;
+  h.state.refundCalls = [];
+  h.state.downloadLinkInserts = 0;
+  h.state.storedLink = null;
   h.state.stripeSession = {
+    id: "cs_test_123",
+    payment_intent: "pi_test_123",
     payment_status: "paid",
     amount_total: 199,
     metadata: {
@@ -382,5 +408,32 @@ describe("GET /store/checklist — profile href + profileUrl namespace", () => {
     expect(json.profileUrl).toBe(`/artist/${ARTIST_SLUG}`);
     const listStep = json.steps.find((s: any) => s.id === "list");
     expect(listStep.cta.href).toBe(`/artist/${ARTIST_SLUG}`);
+  });
+});
+
+describe("POST /store/verify — money fixes F9 + F3", () => {
+  it("F9: a duplicate verify returns the SAME download token instead of minting a fresh one", async () => {
+    const first = await req("POST", "/store/verify", { sessionId: "cs_test_123" });
+    expect(first.status).toBe(200);
+    const token1 = first.json.download.token;
+    expect(token1).toBeTruthy();
+
+    const second = await req("POST", "/store/verify", { sessionId: "cs_test_123" });
+    expect(second.status).toBe(200);
+    /* (This harness's sale-insert fake always reports a fresh row, so
+       the duplicate flag itself is covered by the pg-mem suites; F9's
+       claim here is the token: same link back, exactly one mint.) */
+    expect(second.json.download.token).toBe(token1);
+    expect(h.state.downloadLinkInserts).toBe(1);
+  });
+
+  it("F3: content withdrawn after payment auto-refunds instead of stranding the buyer", async () => {
+    h.state.itemGone = true;
+    const r = await req("POST", "/store/verify", { sessionId: "cs_test_123" });
+    expect(r.status).toBe(400);
+    expect(r.json.refunded).toBe(true);
+    expect(r.json.error).toContain("refunded in full");
+    expect(h.state.refundCalls).toHaveLength(1);
+    expect(h.state.refundCalls[0].payment_intent).toBe("pi_test_123");
   });
 });

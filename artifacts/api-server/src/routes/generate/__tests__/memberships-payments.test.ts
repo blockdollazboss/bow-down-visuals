@@ -30,6 +30,7 @@ const h = vi.hoisted(() => ({
   userEmail: "fan@example.com",
   stores: new Map<string, Array<Record<string, any>>>(),
   checkoutCalls: [] as Array<Record<string, any>>,
+  refundCalls: [] as Array<unknown>,
   session: null as any,
 }));
 
@@ -167,6 +168,10 @@ vi.mock("../../../lib/stripe-checkout", () => ({
     return { sessionId: `cs_test_${h.checkoutCalls.length}`, url: "https://checkout.example.com/pay" };
   }),
   retrieveCheckoutSession: vi.fn(async () => h.session),
+  refundCheckoutSessionPayment: vi.fn(async (session: unknown) => {
+    h.refundCalls.push(session);
+    return true;
+  }),
   checkoutBaseUrl: () => "https://example.com",
   isCheckoutTestMode: () => true,
 }));
@@ -239,6 +244,7 @@ beforeEach(() => {
     ["fan_membership_gifts", []],
   ]);
   h.checkoutCalls = [];
+  h.refundCalls = [];
   h.session = null;
   h.userId = FAN;
   h.userEmail = "fan@example.com";
@@ -343,6 +349,57 @@ describe("POST /memberships/checkout + verify", () => {
     const co = await call("POST", "/memberships/checkout", { tierId: tier.id, billingPeriod: "annual" });
     expect(co.data.amountCents).toBe(9000);
     expect(h.checkoutCalls[0]!.amountCents).toBe(9000);
+  });
+
+  it("F4: a tier price change after checkout does not reject the correctly paid session (locked amount wins)", async () => {
+    const tier = seedTier();
+    const co = await call("POST", "/memberships/checkout", { tierId: tier.id });
+    expect(co.status).toBe(200);
+    /* The creator raises the price AFTER the fan paid 1000. */
+    h.stores.get("fan_tiers")![0]!.price_cents = 2000;
+    h.session = paidSession(
+      {
+        purchase_kind: "membership",
+        tier_id: tier.id,
+        creator_user_id: CREATOR,
+        fan_user_id: FAN,
+        purchaser_user_id: FAN,
+        billing_period: "monthly",
+        amount_cents: "1000",
+        is_gift: "false",
+      },
+      1000,
+    );
+    const v = await call("POST", "/memberships/verify", { sessionId: "cs_test_1" });
+    expect(v.status).toBe(200);
+    expect(v.data.membership.status).toBe("active");
+    expect(v.data.membership.priceCents).toBe(1000);
+  });
+
+  it("F3: a tier deleted after payment auto-refunds instead of stranding the fan", async () => {
+    const tier = seedTier();
+    const co = await call("POST", "/memberships/checkout", { tierId: tier.id });
+    expect(co.status).toBe(200);
+    h.stores.set("fan_tiers", []);
+    h.session = paidSession(
+      {
+        purchase_kind: "membership",
+        tier_id: tier.id,
+        creator_user_id: CREATOR,
+        fan_user_id: FAN,
+        purchaser_user_id: FAN,
+        billing_period: "monthly",
+        amount_cents: "1000",
+        is_gift: "false",
+      },
+      1000,
+    );
+    const v = await call("POST", "/memberships/verify", { sessionId: "cs_test_1" });
+    expect(v.status).toBe(400);
+    expect(v.data.refunded).toBe(true);
+    expect(v.data.error).toContain("refunded in full");
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.stores.get("fan_members") ?? []).toHaveLength(0);
   });
 
   it("verify refuses unpaid, mismatched, and foreign sessions", async () => {

@@ -7,6 +7,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import {
   createPaymentCheckout,
   retrieveCheckoutSession,
+  refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
 } from "../../lib/stripe-checkout";
@@ -630,11 +631,29 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
 
   const tier = await findTierById(tierId);
   if (!tier) {
-    res.status(400).json({ error: "The tier for this purchase no longer exists." });
+    /* Paid, but the tier was deleted after payment — the membership
+       can NEVER be recorded (Lane V3 F3). Refund automatically and
+       say exactly what happened; the refund is claimed only when it
+       landed. */
+    const refunded = await refundCheckoutSessionPayment(session);
+    logger.error({ sessionId, refunded }, "[memberships] verify: tier deleted after payment");
+    res.status(400).json({
+      error: refunded
+        ? "The tier for this purchase no longer exists — your payment has been refunded in full."
+        : "The tier for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+      refunded,
+    });
     return;
   }
   const amountCents = session.amount_total ?? 0;
-  const expectedCents = checkoutChargeCents(tier, billingPeriod);
+  /* Verify against the CHECKOUT-LOCKED amount (Lane V3 F4): the
+     checkout wrote the charged amount into the session metadata, so
+     a tier price change after purchase no longer rejects a correctly
+     paid session. Sessions predating the lock fall back to the
+     current price (the old behavior). */
+  const lockedCents = Number(meta["amount_cents"]);
+  const expectedCents =
+    Number.isFinite(lockedCents) && lockedCents > 0 ? lockedCents : checkoutChargeCents(tier, billingPeriod);
   if (amountCents !== expectedCents) {
     logger.error({ sessionId, amountCents, expectedCents }, "[memberships] verify: amount mismatch");
     res.status(400).json({ error: "The paid amount doesn't match this tier's price." });

@@ -226,6 +226,22 @@ async function mintDownloadLink(saleId: string, fileUrl: string) {
   return { token, expiresAt };
 }
 
+/* Lane V3 F9: a duplicate verify used to mint a FRESH token every
+   time (the old one stayed valid too — links multiplied silently).
+   Reuse the sale's still-valid link for the same file instead; only
+   mint when none is live. */
+async function findReusableDownloadLink(saleId: string, fileUrl: string) {
+  const rows = await db.execute(sql`
+    SELECT token, expires_at FROM download_links
+    WHERE sale_id = ${saleId} AND file_url = ${fileUrl}
+      AND expires_at > now() AND used_count < ${DOWNLOAD_MAX_USES}
+    ORDER BY expires_at DESC LIMIT 1
+  `);
+  const row = rows.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return { token: String(row["token"]), expiresAt: new Date(String(row["expires_at"])) };
+}
+
 /* ── GET /api/store/item/:kind/:id — public buy-page data ─────────────── */
 router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
   const kind = String(req.params.kind ?? "");
@@ -436,7 +452,26 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
   try {
     const item = await resolveSellableItem(kind, itemId);
     if ("notForSale" in item || "notWired" in item) {
-      res.status(400).json({ error: "This content is no longer for sale." });
+      /* Paid, but the content can no longer be delivered (Lane V3
+         F3). Refund automatically against the session's payment
+         intent (idempotent per session); claim it only if it landed. */
+      let refunded = false;
+      const pi = typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent?.id ?? null);
+      if (pi) {
+        try {
+          await stripe.refunds.create({ payment_intent: pi }, { idempotencyKey: `refund:${sessionId}` });
+          refunded = true;
+        } catch {
+          refunded = false;
+        }
+      }
+      logger.error({ sessionId, refunded }, "[store] verify: item no longer deliverable after payment");
+      res.status(400).json({
+        error: refunded
+          ? "This content is no longer for sale — your payment has been refunded in full."
+          : "This content is no longer for sale. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+        refunded,
+      });
       return;
     }
     fileUrl = item.fileUrl;
@@ -482,7 +517,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
     }
 
-    const link = await mintDownloadLink(saleId, fileUrl);
+    const link = (await findReusableDownloadLink(saleId, fileUrl)) ?? (await mintDownloadLink(saleId, fileUrl));
 
     /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
        already recorded; a notification failure must never fail the purchase.

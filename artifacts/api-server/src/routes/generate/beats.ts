@@ -19,6 +19,7 @@ import { refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage
 import {
   createPaymentCheckout,
   retrieveCheckoutSession,
+  refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
 } from "../../lib/stripe-checkout";
@@ -433,7 +434,16 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
     const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, license.beat_id)).limit(1);
     const beat = beatRows[0];
     if (!beat) {
-      res.status(400).json({ error: "The beat for this license no longer exists." });
+      /* Paid, but the beat was deleted after payment — the license
+         can NEVER be recorded (Lane V3 F3). Refund automatically;
+         the claim is made only when the refund landed. */
+      const refunded = await refundCheckoutSessionPayment(session);
+      res.status(400).json({
+        error: refunded
+          ? "The beat for this license no longer exists — your payment has been refunded in full."
+          : "The beat for this license no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+        refunded,
+      });
       return;
     }
     const presented = await presentBeat(beat);
