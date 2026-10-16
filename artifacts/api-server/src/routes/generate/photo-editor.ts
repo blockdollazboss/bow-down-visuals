@@ -197,7 +197,7 @@ router.get("/photo-presets", requireAuth, async (req, res) => {
 /* Public preset page data — only is_public rows, by slug. */
 router.get("/photo-presets/public/:slug", async (req, res) => {
   const [row] = await db.select().from(photoPresetsTable)
-    .where(and(eq(photoPresetsTable.share_slug, req.params.slug), eq(photoPresetsTable.is_public, true)));
+    .where(and(eq(photoPresetsTable.share_slug, (req.params as { slug: string }).slug), eq(photoPresetsTable.is_public, true)));
   if (!row) {
     res.status(404).json({ error: "PRESET_NOT_FOUND", message: "That preset is not public or does not exist." });
     return;
@@ -206,9 +206,10 @@ router.get("/photo-presets/public/:slug", async (req, res) => {
 });
 
 router.delete("/photo-presets/:id", requireAuth, async (req, res) => {
+  const { id } = req.params as { id: string };
   const deleted = await db.delete(photoPresetsTable)
-    .where(and(eq(photoPresetsTable.id, req.params.id), eq(photoPresetsTable.user_id, req.userId!)))
-    .returning({ id: photoPresetsTable.id });
+    .where(and(eq(photoPresetsTable.id, id), eq(photoPresetsTable.user_id, req.userId!)))
+    .returning();
   if (!deleted.length) {
     res.status(404).json({ error: "PRESET_NOT_FOUND", message: "Preset not found." });
     return;
