@@ -20,16 +20,26 @@ import {
   type VoiceSignalData,
 } from "@/lib/world/voice";
 import type { KingsHallScene, HallScreenSource } from "@/lib/world/hall-scene";
+import { normalizeHallTheme, type HallTheme } from "@/lib/world/hall-looks";
 
 /* ─── The World — the King's Hall (/world) ──────────────────────────────────
-   One shared VR room: a golden black-marble hall with a stage and a
-   big screen (the featured reel, or a live stream's picture while one
-   is truly live). Creators and fans walk it together as named avatars;
-   guests visit look-only. Voice is proximity — walk up to someone to
-   talk. The 3D scene (three.js) loads ONLY on this route, behind a
-   dynamic import in the init effect.
-   The hall is a dark-marble space by design in both themes — the page
-   chrome is dark-locked. */
+   One shared VR room: a palace hall with a stage and a big screen
+   (the featured reel, or a live stream's picture while one is truly
+   live). Creators and fans walk it together as named avatars; guests
+   visit look-only. Voice is proximity — walk up to someone to talk.
+   The 3D scene (three.js) loads ONLY on this route, behind a dynamic
+   import in the init effect.
+   The hall wears the visitor's site theme (owner's pick, 2026-10-16):
+   light theme → the sunlit Golden Hour Palace; dark theme → the
+   candlelit Midnight Throne Room. Flip the theme and the room —
+   chrome included — re-skins to match. */
+
+/** The app shell's theme, the same way the toggles read it: the
+ *  `light`/`dark` class main.tsx and the theme toggles keep on
+ *  <html>. Anything that isn't light is the dark hall. */
+function currentHallTheme(): HallTheme {
+  return normalizeHallTheme(document.documentElement.classList.contains("light") ? "light" : "dark");
+}
 
 interface ScreenInfo {
   mode: "live" | "featured";
@@ -65,6 +75,22 @@ export default function WorldPage() {
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
   const [xrNote, setXrNote] = useState<string | null>(null);
+  const [siteTheme, setSiteTheme] = useState<HallTheme>(() => currentHallTheme());
+
+  /* Follow the site theme live — the floating toggle (and every other
+     theme control) flips the <html> class; watch it the same way the
+     toggles themselves do, and re-skin the hall when it changes. */
+  useEffect(() => {
+    const sync = () => setSiteTheme(currentHallTheme());
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    sceneRef.current?.setTheme(siteTheme);
+  }, [siteTheme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +109,7 @@ export default function WorldPage() {
       if (!canvas) return;
       const { KingsHallScene } = await import("@/lib/world/hall-scene");
       if (cancelled) return;
-      const scene = new KingsHallScene(canvas);
+      const scene = new KingsHallScene(canvas, currentHallTheme());
       sceneRef.current = scene;
       void scene.isVrSupported().then((ok) => {
         if (!cancelled) setXrSupported(ok);
@@ -246,17 +272,21 @@ export default function WorldPage() {
   };
 
   const overlay = worldOverlay(status);
+  const isLight = siteTheme === "light";
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-white" data-dark-lock>
+    <div
+      className={`flex min-h-screen flex-col ${isLight ? "bg-[#f3ead3] text-[#2a1e07]" : "bg-black text-white"}`}
+      {...(isLight ? {} : { "data-dark-lock": true })}
+    >
       {/* ── Chrome ── */}
-      <header className="relative z-20 flex flex-wrap items-center gap-3 border-b border-[#d4af37]/25 bg-[#070605] px-4 py-3">
-        <Link href="/go-live" className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white">
+      <header className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+        <Link href="/go-live" className={`inline-flex items-center gap-1.5 text-sm transition ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/50 hover:text-white"}`}>
           <ArrowLeft className="h-4 w-4" /> Go Live
         </Link>
         <h1 className="flex items-center gap-2 text-base font-black tracking-wide sm:text-lg">
           <Crown className="h-5 w-5 text-[#d4af37]" />
-          The World <span className="font-semibold text-white/40">· The King's Hall</span>
+          The World <span className={`font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>· The King's Hall</span>
         </h1>
         {screen?.mode === "live" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
@@ -265,39 +295,39 @@ export default function WorldPage() {
             {screen.creatorName ? <span className="text-red-300/60">· {screen.creatorName}</span> : null}
           </span>
         ) : (
-          <span className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/50 sm:inline-flex">
+          <span className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#6B5B36]" : "border-white/10 bg-white/5 text-white/50"}`}>
             On the big screen: The King's Reel
           </span>
         )}
-        <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-white/60">
+        <span className={`ml-auto inline-flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
           <Users className="h-4 w-4 text-[#d4af37]" />
           {status === "inside" ? `${peopleCount} in the hall` : "—"}
         </span>
       </header>
 
       {/* ── The room ── */}
-      <div className="relative flex-1" style={{ minHeight: "62vh" }}>
+      <div className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
         <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" data-testid="world-canvas" />
 
         {overlay === "connecting" && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-center">
+          <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/70"}`}>
             <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
-            <p className="text-sm font-semibold text-white/80">Entering the King's Hall…</p>
+            <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>Entering the King's Hall…</p>
           </div>
         )}
         {overlay === "room-full" && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 px-4">
-            <div className="max-w-sm rounded-2xl border border-[#d4af37]/40 bg-[#0a0908] p-6 text-center">
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
               <Users className="mx-auto h-8 w-8 text-[#d4af37]" />
               <h2 className="mt-3 text-lg font-black">The hall is full</h2>
-              <p className="mt-1 text-sm text-white/55">
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                 30 people are inside right now — that's everyone the hall holds at once. Give it a moment and try the door again.
               </p>
               <div className="mt-4 flex justify-center gap-2">
                 <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                   <RotateCcw className="h-4 w-4" /> Try again
                 </button>
-                <Link href="/go-live" className="rounded-full border border-white/15 px-5 py-2 text-sm font-bold text-white/80 transition hover:text-white">
+                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
                   Back to Go Live
                 </Link>
               </div>
@@ -305,11 +335,11 @@ export default function WorldPage() {
           </div>
         )}
         {overlay === "error" && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 px-4">
-            <div className="max-w-sm rounded-2xl border border-[#d4af37]/40 bg-[#0a0908] p-6 text-center">
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
               <AlertTriangle className="mx-auto h-8 w-8 text-[#d4af37]" />
               <h2 className="mt-3 text-lg font-black">The hall wouldn't open</h2>
-              <p className="mt-1 text-sm text-white/55">The connection dropped or never landed. Your place in line isn't saved — just walk back in.</p>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>The connection dropped or never landed. Your place in line isn't saved — just walk back in.</p>
               <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 <RotateCcw className="h-4 w-4" /> Re-enter the hall
               </button>
@@ -338,11 +368,11 @@ export default function WorldPage() {
       </div>
 
       {/* ── Bottom bar: say + voice + VR ── */}
-      <footer className="relative z-20 border-t border-[#d4af37]/25 bg-[#070605] px-4 py-3">
+      <footer className={`relative z-20 border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
-          <p className="mb-2 text-xs text-white/50">
-            You're visiting as a <span className="font-bold text-white/75">guest</span> — look around all you like.{" "}
-            <Link href="/login" className="font-bold text-[#e8c86a] underline underline-offset-2">Sign in</Link>{" "}
+          <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}
+            <Link href="/login" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>{" "}
             to walk in with your name, talk, and be heard.
           </p>
         ) : null}
@@ -360,7 +390,7 @@ export default function WorldPage() {
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={300}
                 placeholder={myName ? `Say something, ${myName.split(" ")[0]}…` : "Say something…"}
-                className="min-w-0 flex-1 rounded-full border border-white/12 bg-black/50 px-4 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d4af37]/60"
+                className={`min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/70 focus:border-[#7A5A12]" : "border-white/12 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"}`}
                 data-testid="world-say-input"
               />
               <button type="submit" className="rounded-full bg-[#d4af37] p-2.5 text-black transition hover:scale-105" aria-label="Send to the hall">
@@ -370,7 +400,7 @@ export default function WorldPage() {
           )}
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {voiceNote && <span className="max-w-xs text-xs font-semibold text-amber-300">{voiceNote}</span>}
+            {voiceNote && <span className={`max-w-xs text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{voiceNote}</span>}
             {!isGuest && status === "inside" && !voiceOn && (
               <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
                 {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
@@ -379,14 +409,14 @@ export default function WorldPage() {
             )}
             {voiceOn && (
               <>
-                <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : "bg-white/10 text-white border border-white/15"}`}>
+                <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
                   {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                   {muted ? "Muted" : "Mic live"}
                 </button>
-                <button type="button" onClick={leaveVoice} className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/75 transition hover:text-white">
+                <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
                   <PhoneOff className="h-4 w-4" /> Leave voice
                 </button>
-                <span className="hidden text-[11px] text-white/40 lg:inline">Voice is by distance — walk up to talk.</span>
+                <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>Voice is by distance — walk up to talk.</span>
               </>
             )}
             {xrSupported ? (
@@ -394,7 +424,7 @@ export default function WorldPage() {
                 <Glasses className="h-4 w-4" /> Enter VR
               </button>
             ) : xrSupported === false ? (
-              <span className="text-[11px] text-white/40">
+              <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                 {xrNote ?? "No VR headset detected — you can still walk the room on this screen."}
               </span>
             ) : null}
