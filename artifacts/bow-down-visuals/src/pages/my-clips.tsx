@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Video, ArrowLeft, Loader2, Trash2, Copy, Check,
   Calendar, Film, AlertCircle, X, Layers, ChevronRight,
-  CheckCircle2, Link2, Target, Gauge,
+  CheckCircle2, Link2, Target, Gauge, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -88,50 +88,58 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  /* Project-load failures get an in-modal error state with a retry —
+     they must never render as the genuine "no projects" empty state. */
+  const [loadError, setLoadError] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(null);
   const [selectedScene, setSelectedScene] = useState<SceneItem | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [attachedInfo, setAttachedInfo] = useState<{ section: string | null; index: number } | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/projects", {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-        if (!res.ok) throw new Error("Failed to load projects");
-        const data = await res.json() as { projects: ProjectOption[] };
-        /* Show ALL projects — the server now handles scenes-missing gracefully */
-        const allProjects = data.projects ?? [];
-        setProjects(allProjects);
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    setLoadError(false);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/projects", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load projects");
+      const data = await res.json() as { projects: ProjectOption[] };
+      /* Show ALL projects — the server now handles scenes-missing gracefully */
+      const allProjects = data.projects ?? [];
+      setProjects(allProjects);
 
-        /* Pre-select project if clip has project_id */
-        if (clip.project_id) {
-          const match = allProjects.find((p) => p.id === clip.project_id);
-          if (match) {
-            setSelectedProject(match);
-            /* Pre-select scene if clip has scene_id — fall back to first scene */
-            const scenes = match.output_data?.scenes ?? [];
-            if (clip.scene_id) {
-              const sceneMatch = scenes.find((s) => s.id === clip.scene_id);
-              if (sceneMatch) {
-                setSelectedScene(sceneMatch);
-              } else if (scenes.length > 0) {
-                /* scene_id stale (scenes were rebuilt) — pick by index guess */
-                setSelectedScene(scenes[scenes.length - 1] ?? null);
-              }
+      /* Pre-select project if clip has project_id */
+      if (clip.project_id) {
+        const match = allProjects.find((p) => p.id === clip.project_id);
+        if (match) {
+          setSelectedProject(match);
+          /* Pre-select scene if clip has scene_id — fall back to first scene */
+          const scenes = match.output_data?.scenes ?? [];
+          if (clip.scene_id) {
+            const sceneMatch = scenes.find((s) => s.id === clip.scene_id);
+            if (sceneMatch) {
+              setSelectedScene(sceneMatch);
+            } else if (scenes.length > 0) {
+              /* scene_id stale (scenes were rebuilt) — pick by index guess */
+              setSelectedScene(scenes[scenes.length - 1] ?? null);
             }
           }
         }
-      } catch {
-        toast({ title: t("myClips.errorLoadProjects"), variant: "destructive" });
-      } finally {
-        setLoadingProjects(false);
       }
-    })();
-  }, [clip.project_id, clip.scene_id, getAccessToken, toast]);
+    } catch {
+      setLoadError(true);
+      toast({ title: t("myClips.errorLoadProjects"), variant: "destructive" });
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [clip.project_id, clip.scene_id, getAccessToken, toast, t]);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   async function handleAttach() {
     if (!selectedProject || !selectedScene) return;
@@ -223,6 +231,21 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
           {loadingProjects ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : loadError ? (
+            <div className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+              <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+              <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your projects.</p>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                Something went wrong on our end — your projects are safe, this list just couldn't reach them.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadProjects()}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+              >
+                <RotateCcw className="h-4 w-4" /> Try again
+              </button>
             </div>
           ) : projects.length === 0 ? (
             <div className="text-center py-6">
