@@ -52,85 +52,11 @@ function getPromoterTier(referralCount: number): { tier: PromoterTier | null; ne
   return { tier, next };
 }
 
-/* Boot-time self-heal: create tables if they don't exist (idempotent). */
-let tablesEnsured = false;
-async function ensureReferralTables(): Promise<void> {
-  if (tablesEnsured) return;
-  tablesEnsured = true;
-  await db.execute(sql.raw(`
-    CREATE TABLE IF NOT EXISTS referral_codes (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL UNIQUE,
-      code TEXT NOT NULL UNIQUE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS referral_codes_user_id_idx ON referral_codes (user_id);
-    CREATE INDEX IF NOT EXISTS referral_codes_code_idx ON referral_codes (code);
-    CREATE TABLE IF NOT EXISTS referrals (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      referrer_user_id UUID NOT NULL,
-      referee_user_id UUID NOT NULL UNIQUE,
-      referrer_credits_awarded INTEGER NOT NULL DEFAULT 0,
-      referee_credits_awarded INTEGER NOT NULL DEFAULT 10,
-      revenue_share_pct INTEGER NOT NULL DEFAULT 25,
-      share_expires_at TIMESTAMPTZ,
-      total_referrer_earned INTEGER NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS referrals_referrer_idx ON referrals (referrer_user_id);
-    CREATE INDEX IF NOT EXISTS referrals_referee_idx ON referrals (referee_user_id);
-    ALTER TABLE referrals
-      ADD COLUMN IF NOT EXISTS revenue_share_pct INTEGER NOT NULL DEFAULT 25,
-      ADD COLUMN IF NOT EXISTS share_expires_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS total_referrer_earned INTEGER NOT NULL DEFAULT 0;
-    UPDATE referrals
-    SET share_expires_at = created_at + INTERVAL '90 days'
-    WHERE share_expires_at IS NULL;
-    CREATE TABLE IF NOT EXISTS referral_payouts (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      referral_id UUID NOT NULL REFERENCES referrals(id) ON DELETE CASCADE,
-      stripe_session_id TEXT NOT NULL UNIQUE,
-      referee_credits_purchased INTEGER NOT NULL,
-      referrer_credits_awarded INTEGER NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS referral_payouts_referral_idx ON referral_payouts (referral_id);
-    CREATE TABLE IF NOT EXISTS referral_milestones (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      referrer_user_id UUID NOT NULL,
-      stars INTEGER NOT NULL,
-      bonus_credits INTEGER NOT NULL,
-      awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      UNIQUE(referrer_user_id, stars)
-    );
-    CREATE INDEX IF NOT EXISTS referral_milestones_referrer_idx ON referral_milestones (referrer_user_id);
-    CREATE TABLE IF NOT EXISTS referral_contests (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      period TEXT NOT NULL UNIQUE,
-      starts_at TIMESTAMPTZ NOT NULL,
-      ends_at TIMESTAMPTZ NOT NULL,
-      prizes JSONB NOT NULL DEFAULT '[]',
-      min_signups_to_qualify INTEGER NOT NULL DEFAULT 5,
-      status TEXT NOT NULL DEFAULT 'open',
-      settled_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS referral_contests_period_idx ON referral_contests (period);
-    CREATE TABLE IF NOT EXISTS referral_contest_prizes (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      contest_id UUID NOT NULL REFERENCES referral_contests(id) ON DELETE CASCADE,
-      rank INTEGER NOT NULL,
-      referrer_user_id UUID NOT NULL,
-      signups INTEGER NOT NULL DEFAULT 0,
-      revenue_earned INTEGER NOT NULL DEFAULT 0,
-      prize_credits INTEGER NOT NULL DEFAULT 0,
-      awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      UNIQUE (contest_id, referrer_user_id)
-    );
-    CREATE INDEX IF NOT EXISTS referral_contest_prizes_contest_idx ON referral_contest_prizes (contest_id);
-    CREATE INDEX IF NOT EXISTS referral_contest_prizes_referrer_idx ON referral_contest_prizes (referrer_user_id);
-  `));
-}
+/* Stack 8 #6: the referral tables are defined ONCE — in
+   lib/db/src/schema/referrals.ts (+ referral-contest.ts) and
+   migrations 0042/0045/0101/0136. The former request-time
+   CREATE TABLE IF NOT EXISTS self-heal was removed; the
+   boot migration runner owns table creation now. */
 
 function generateCode(): string {
   // 8-char alphanumeric, easy to share (no confusing 0/O, 1/I/l)
@@ -146,7 +72,6 @@ function generateCode(): string {
 /* GET /api/referrals/me — get (or create) the caller's referral code + stats. */
 router.get("/referrals/me", requireAuth, async (req, res) => {
   try {
-    await ensureReferralTables();
     const userId = req.userId!;
     const supabase = getSupabaseAdmin();
 
@@ -324,7 +249,6 @@ async function awardMilestoneBonuses(referrerUserId: string): Promise<PromoterTi
    Body: { code: string } */
 router.post("/referrals/apply", requireAuth, async (req, res) => {
   try {
-    await ensureReferralTables();
     const userId = req.userId!;
     const { code } = req.body as { code?: string };
 
@@ -420,7 +344,6 @@ export async function awardReferralPayout(
   stripeSessionId: string,
 ): Promise<number> {
   try {
-    await ensureReferralTables();
     const supabase = getSupabaseAdmin();
 
     // Find an active referral for this buyer
@@ -554,7 +477,6 @@ interface StandingRow {
 }
 
 async function getStandings(window: LeaderboardWindow): Promise<StandingRow[]> {
-  await ensureReferralTables();
   const { start, end } = windowBounds(window);
   const result = await db.execute(sql`
     SELECT r.referrer_user_id AS "referrerUserId",
@@ -591,7 +513,6 @@ export async function getRecruiterBadgeForUser(userId: string): Promise<
   { stars: number; title: string; signups: number; ratePct: number } | null
 > {
   try {
-    await ensureReferralTables();
     const supabase = getSupabaseAdmin();
     const { count } = await supabase
       .from("referrals")
@@ -766,8 +687,7 @@ export async function settleReferralContests(): Promise<void> {
   if (settleInFlight) return settleInFlight;
   settleInFlight = (async () => {
     try {
-      await ensureReferralTables();
-      const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseAdmin();
       // Ensure a row exists for the current month (so the frontend always
       // has a contest to render), then settle every ended-but-open month.
       const now = new Date();
@@ -806,7 +726,6 @@ export async function settleReferralContests(): Promise<void> {
    prizes, live standings, and the last settled month's winners (shareable). */
 router.get("/referrals/contest", async (req, res) => {
   try {
-    await ensureReferralTables();
     // Lazy settlement: ended months pay out on the next hit after month-end.
     settleReferralContests().catch(() => {});
     const supabase = getSupabaseAdmin();

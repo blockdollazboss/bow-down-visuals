@@ -99,6 +99,7 @@ export * from "./community";
 export * from "./digital-sales";
 export * from "./storefront";
 export * from "./referral-contest";
+export * from "./referrals";
 export * from "./wave8";
 export * from "./wave9";
 export * from "./wave9a";
