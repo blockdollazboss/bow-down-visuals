@@ -539,6 +539,9 @@ export interface FillerAnalyzeJob {
   minSilenceDuration: number;
   cuts: FillerCut[];
   transcript: string | null;
+  /** Word-level timings (Stack 6 #5: the podcast transcript editor edits
+   *  these directly; the filler UI ignores the field). */
+  words: WordTs[];
   durationSec: number | null;
   timeSavedSec: number;
   error: string | null;
@@ -638,6 +641,7 @@ export async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> 
     const timeSaved = cuts.reduce((sum, c) => sum + (c.end - c.start), 0);
 
     job.cuts = cuts;
+    job.words = words;
     job.transcript = transcription.text ?? null;
     job.durationSec = duration ?? null;
     job.timeSavedSec = Math.round(timeSaved * 10) / 10;
@@ -768,6 +772,7 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
     minSilenceDuration: d.minSilenceDuration,
     cuts: [],
     transcript: null,
+    words: [],
     durationSec: null,
     timeSavedSec: 0,
     error: null,
@@ -799,6 +804,7 @@ router.get("/remove-fillers/analyze/:jobId", requireAuth, (req: Request, res: Re
     jobId: job.id,
     status: job.status,
     cuts: job.cuts,
+    words: job.words,
     transcript: job.transcript,
     durationSec: job.durationSec,
     timeSavedSec: job.timeSavedSec,
