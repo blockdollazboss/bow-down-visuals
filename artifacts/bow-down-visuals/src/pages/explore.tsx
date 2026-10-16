@@ -6,6 +6,7 @@ import {
   friendlyLoadError,
 } from "@/lib/community-ui";
 import { usePageTitle } from "@/hooks/use-page-title";
+import LiveNowRail from "@/components/live/LiveNowRail";
 
 /* ─── /explore — the best of everything ───────────────────────────────────
    Blended grid: trending shorts, rising creators, hot posts, upcoming
@@ -76,6 +77,8 @@ export default function Explore() {
             <Link href="/search" className="text-white/60 transition hover:text-[#e8c86a]">Search</Link>
           </div>
         </div>
+
+        <LiveNowRail />
 
         <Section icon={Flame} title="Trending shorts" blurb="Short clips pulling the most views right now." link="/shorts" linkLabel="All shorts">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

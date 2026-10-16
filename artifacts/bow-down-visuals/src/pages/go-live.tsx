@@ -44,8 +44,9 @@ import ShowFinder from "@/pages/shows";
 import DiscordBotSetup from "@/pages/discord-bot";
 import GamersHub from "@/pages/gamers";
 import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
+import BroadcastStudio from "@/components/go-live/BroadcastStudio";
 
-type LiveTab = "golive" | "shows" | "discord" | "gamers" | "copilot";
+type LiveTab = "broadcast" | "golive" | "shows" | "discord" | "gamers" | "copilot";
 
 function GoLiveMain() {
   const isLight = useIsLightTheme();
@@ -432,12 +433,13 @@ export default function GoLive() {
   const [tab, setTab] = useState<LiveTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "shows" || q === "discord" || q === "gamers" || q === "copilot") return q;
+      if (q === "golive" || q === "shows" || q === "discord" || q === "gamers" || q === "copilot") return q;
     } catch { /* non-browser — ignore */ }
-    return "golive";
+    return "broadcast";
   });
 
   const TABS: Array<{ key: LiveTab; label: string }> = [
+    { key: "broadcast", label: t("goLive.tabBroadcast", { defaultValue: "Broadcast" }) },
     { key: "golive", label: t("goLive.tabGoLive", { defaultValue: "Go Live" }) },
     { key: "shows", label: t("goLive.tabShows", { defaultValue: "Shows" }) },
     { key: "discord", label: t("goLive.tabDiscord", { defaultValue: "Discord" }) },
@@ -465,7 +467,7 @@ export default function GoLive() {
           ))}
         </div>
       </div>
-      {tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      {tab === "broadcast" ? <BroadcastStudio /> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
     </div>
   );
 }

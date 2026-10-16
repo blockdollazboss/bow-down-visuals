@@ -45,6 +45,45 @@ function OfficialBadge() {
   );
 }
 
+/* ─── Live now badge — the creator is broadcasting natively on the site
+   (GET /api/live-streams/profile/:slug). Links straight to the watch page. */
+function LiveNowBadge({ slug }: { slug: string }) {
+  const [live, setLive] = useState<{ id: string; title: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/live-streams/profile/${encodeURIComponent(slug)}`);
+        if (!res.ok) return;
+        const d = (await res.json()) as { stream: { id: string; title: string } | null };
+        if (!cancelled) setLive(d.stream);
+      } catch {
+        /* badge just stays hidden — the profile itself already loaded */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+  if (!live) return null;
+  return (
+    <div className="flex justify-center px-4 pb-4">
+      <Link
+        href={`/live/${live.id}`}
+        className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(220,38,38,0.45)] transition hover:bg-red-500"
+        title={live.title}
+        data-testid="profile-live-badge"
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+        </span>
+        Live now — watch
+      </Link>
+    </div>
+  );
+}
+
 /* ─── Public creator profile — /artist/:slug (coordinator wires the route) ──
    Renders the creator's theme_config + sections. Themed head-to-toe via
    safe CSS tokens. Featured media is CLICK-TO-PLAY (never autoplay with
@@ -164,6 +203,7 @@ export default function ArtistPublic() {
       >
         {/* Hero is rendered first by the sections renderer (hero is always first) */}
         <ProfileSections profile={profile} mode="public" />
+        <LiveNowBadge slug={slug} />
         {profile.is_official && <OfficialBadge />}
         {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
         <TrophyShelf slug={slug} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
