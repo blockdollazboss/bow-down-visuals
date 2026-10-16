@@ -276,6 +276,7 @@ const SECTIONS: NavSection[] = [
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW" },
       { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
     ],
   },

@@ -188,6 +188,7 @@ const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
 const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
+const ArcadePage = lazyWithRetry(() => import("@/pages/arcade"));
 const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const Earnings = lazyWithRetry(() => import("@/pages/earnings"));
@@ -564,6 +565,7 @@ function AppShell() {
           <Route path="/email-list"><EmailList /></Route>
           <Route path="/collabs"><Collabs /></Route>
           <Route path="/contests"><Contests /></Route>
+          <Route path="/arcade"><ProtectedRoute><ArcadePage /></ProtectedRoute></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/my-shop"><MyShop /></Route>
           <Route path="/earnings"><Earnings /></Route>
