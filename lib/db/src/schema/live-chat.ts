@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, primaryKey } from "drizzle-orm/pg-core";
 import { liveStreamsTable } from "./live-streams";
 
 /* Live stream chat — migration 0130. Messages posted by signed-in
@@ -22,6 +22,9 @@ export const liveChatMessagesTable = pgTable(
     /* Supabase auth user id of the author (matches live_streams.user_id). */
     user_id: uuid("user_id").notNull(),
     body: text("body").notNull(),
+    /* 'chat' | 'tip' — tip rows carry their Visual Bucs amount (0133). */
+    kind: text("kind").notNull().default("chat"),
+    tip_amount_vb: integer("tip_amount_vb"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp("deleted_at", { withTimezone: true }),
   },

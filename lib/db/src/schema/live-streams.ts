@@ -50,6 +50,9 @@ export const liveStreamsTable = pgTable(
       >()
       .notNull()
       .default(sql`'[{"platform":"site","label":"Your profile","status":"active"}]'::jsonb`),
+    /* The creator's Visual Bucs tip goal for this stream (0133);
+       null = no goal set. Drives the overlay goal bar. */
+    tip_goal_vb: integer("tip_goal_vb"),
     viewer_count: integer("viewer_count").notNull().default(0),
     peak_viewers: integer("peak_viewers").notNull().default(0),
     vod_url: text("vod_url"),
