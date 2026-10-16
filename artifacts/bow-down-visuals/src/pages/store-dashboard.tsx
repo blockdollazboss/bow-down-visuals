@@ -366,9 +366,21 @@ function ConnectPayoutCard() {
       )}
 
       {err && (
-        <p className="mt-3 flex items-start gap-2 text-xs font-bold text-red-300">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {err}
-        </p>
+        <>
+          <p className="mt-3 flex items-start gap-2 text-xs font-bold text-red-300">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {err}
+          </p>
+          {/* The error text alone was a dead end — the only recovery was
+              a silent timer on the Stripe-return path. Give every error
+              here a visible retry that re-runs the payout-status load. */}
+          <button
+            type="button"
+            onClick={() => { setErr(""); load().catch((e: Error) => setErr(e.message)); }}
+            className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </>
       )}
       {note && (
         <p className="mt-3 flex items-start gap-2 text-xs font-bold text-green-300">
