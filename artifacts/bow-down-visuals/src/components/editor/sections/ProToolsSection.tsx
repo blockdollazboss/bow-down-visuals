@@ -31,6 +31,7 @@ import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { MotionTrackCard } from "./MotionTrackCard";
 import { ColorCurvesPanel } from "./ColorCurvesPanel";
+import { SpeedSegmentsPanel } from "./SpeedSegmentsPanel";
 import { MaskCard } from "./MaskCard";
 import { FillerRemoverCard } from "./FillerRemoverCard";
 import { useToast } from "@/hooks/use-toast";
@@ -498,7 +499,7 @@ export function ProToolsSection({
           <div className="flex flex-wrap gap-1.5">
             {SPEED_PRESETS.map((p) => (
               <Chip key={p.value} active={pt.speed === p.value && !pt.speedCurve}
-                onClick={() => patchProTools({ speed: p.value, speedCurve: null })}>
+                onClick={() => patchProTools({ speed: p.value, speedCurve: null, speedSegments: null })}>
                 {p.label}
               </Chip>
             ))}
@@ -515,6 +516,7 @@ export function ProToolsSection({
                     onClick={() => patchProTools({
                       speedCurve: active ? null : [...c.points],
                       speed: 1,
+                      speedSegments: null,
                     })}
                     title={c.blurb}>
                     {c.label}
@@ -528,6 +530,7 @@ export function ProToolsSection({
               </p>
             )}
           </div>
+          <SpeedSegmentsPanel pt={pt} patchProTools={patchProTools} />
           <Collapsible title={`Advanced — precise speed & reverse${pt.speed !== 1 || pt.reverse ? " ●" : ""}`}>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
