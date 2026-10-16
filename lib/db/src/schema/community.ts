@@ -15,7 +15,10 @@ import { creatorProfilesTable } from "./creator-platform";
  *   event reminder notifications carry link=/events/:id
  */
 
-export const GROUP_ROLES = ["owner", "mod", "member"] as const;
+/* Stack 10: the ladder is owner > admin > moderator > member.
+   "mod" is the legacy stored value for moderator and is normalized
+   by group-roles.ts (normalizeGroupRole) wherever it is read. */
+export const GROUP_ROLES = ["owner", "admin", "moderator", "member"] as const;
 export type GroupRole = (typeof GROUP_ROLES)[number];
 
 export const EVENT_KINDS = ["stream", "drop", "premiere", "other"] as const;
