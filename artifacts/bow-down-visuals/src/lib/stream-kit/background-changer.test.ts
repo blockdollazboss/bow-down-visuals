@@ -45,6 +45,16 @@ class FakeCtx {
   drawImage(): void {
     this.calls.push("drawImage");
   }
+  getImageData(_x: number, _y: number, w: number, h: number): { data: Uint8ClampedArray; width: number; height: number } {
+    this.calls.push("getImageData");
+    return { data: new Uint8ClampedArray(w * h * 4), width: w, height: h };
+  }
+  putImageData(): void {
+    this.calls.push("putImageData");
+  }
+  createImageData(w: number, h: number): { data: Uint8ClampedArray; width: number; height: number } {
+    return { data: new Uint8ClampedArray(w * h * 4), width: w, height: h };
+  }
   createRadialGradient(): { addColorStop: () => void } {
     return { addColorStop: () => undefined };
   }
@@ -114,14 +124,61 @@ class FakeScript {
 class FakeSegmenter {
   static instances: FakeSegmenter[] = [];
   locateFile: (f: string) => string;
+  resultsCb: ((results: unknown) => void) | null = null;
+  sendCount = 0;
   constructor(opts: { locateFile: (f: string) => string }) {
     this.locateFile = opts.locateFile;
     FakeSegmenter.instances.push(this);
   }
   setOptions(): void {}
-  onResults(): void {}
-  async send(): Promise<void> {}
+  onResults(cb: (results: unknown) => void): void {
+    this.resultsCb = cb;
+  }
+  async send(): Promise<void> {
+    this.sendCount++;
+  }
   async close(): Promise<void> {}
+}
+
+/* A minimal fake ONNX Runtime Web global: enough for RvmEngine to
+   build a session and run frames. `failCreate` simulates the Pro
+   engine being unloadable; run() echoes the recurrent states back
+   and returns a mostly-opaque matte sized from the src feed. */
+class FakeTensor {
+  type: string;
+  data: Float32Array;
+  dims: number[];
+  constructor(type: string, data: Float32Array, dims: number[]) {
+    this.type = type;
+    this.data = data;
+    this.dims = dims;
+  }
+}
+function makeFakeOrt(opts: { failCreate?: boolean } = {}) {
+  return {
+    env: { wasm: {} as Record<string, unknown>, logLevel: "" },
+    Tensor: FakeTensor,
+    InferenceSession: {
+      create: async () => {
+        if (opts.failCreate) throw new Error("no session for you");
+        return {
+          run: async (feeds: Record<string, FakeTensor>) => {
+            const h = feeds.src.dims[2];
+            const w = feeds.src.dims[3];
+            return {
+              fgr: new FakeTensor("float32", new Float32Array(3 * w * h), [1, 3, h, w]),
+              pha: new FakeTensor("float32", new Float32Array(w * h).fill(0.9), [1, 1, h, w]),
+              r1o: feeds.r1i,
+              r2o: feeds.r2i,
+              r3o: feeds.r3i,
+              r4o: feeds.r4i,
+            };
+          },
+          release: async () => undefined,
+        };
+      },
+    },
+  };
 }
 
 /* ------------------------------------------------------------- test rig */
@@ -179,7 +236,9 @@ afterEach(() => {
 describe("segmentation engine loading", () => {
   it("loads the vendored same-origin copy first and resolves assets locally", async () => {
     const BackgroundChanger = await loadChanger();
-    const changer = new BackgroundChanger({});
+    // quality:'standard' isolates the MediaPipe path (the default
+    // 'auto' tries the Pro engine first — covered separately below).
+    const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
     expect(scripts).toHaveLength(1);
     expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
@@ -198,7 +257,7 @@ describe("segmentation engine loading", () => {
 
   it("falls back to the CDN build when the local copy fails", async () => {
     const BackgroundChanger = await loadChanger();
-    const changer = new BackgroundChanger({});
+    const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
     expect(scripts[0].src).toContain(SEGMENTATION_LOCAL_BASE);
     scripts[0].onerror?.();
@@ -218,7 +277,7 @@ describe("segmentation engine loading", () => {
 
   it("NEVER holds the camera hostage: total engine failure still starts, running raw", async () => {
     const BackgroundChanger = await loadChanger();
-    const changer = new BackgroundChanger({});
+    const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
     scripts[0].onerror?.();
     await flush();
@@ -236,6 +295,153 @@ describe("segmentation engine loading", () => {
     const after = canvas.ctx.calls.filter((c) => c === "drawImage").length;
     expect(after).toBeGreaterThan(before);
     await changer.stop();
+  });
+});
+
+describe("pro engine + quality ladder", () => {
+  it("auto quality runs the Pro engine when it loads, and says so", async () => {
+    const BackgroundChanger = await loadChanger();
+    win.ort = makeFakeOrt();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
+    const { stream } = await changer.start();
+    expect(stream).toBeTruthy();
+    expect(changer.getEngineKind()).toBe("pro");
+    expect(changer.segmentationAvailable).toBe(true);
+    expect(changer.engineError).toBeNull();
+    expect(statuses).toEqual(["pro"]);
+    // No MediaPipe script was ever requested — Pro carried it alone.
+    expect(scripts).toHaveLength(0);
+    // A stepped frame runs an inference and composites a cutout.
+    const canvas = changer.canvas as unknown as FakeCanvas;
+    await flush();
+    const drew = canvas.ctx.calls.filter((c) => c === "drawImage").length;
+    expect(drew).toBeGreaterThan(0);
+    await changer.stop();
+    delete win.ort;
+  });
+
+  it("auto quality falls back to the Standard engine when Pro cannot load", async () => {
+    const BackgroundChanger = await loadChanger();
+    win.ort = makeFakeOrt({ failCreate: true });
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
+    const started = changer.start();
+    await flush();
+    // Pro failed inside start(); the ladder moved on to the
+    // vendored MediaPipe script.
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.segmentationAvailable).toBe(true);
+    expect(statuses).toEqual(["standard"]);
+    await changer.stop();
+    delete win.ort;
+  });
+
+  it("forced Pro NEVER silently downgrades: load failure means raw + honest error", async () => {
+    const BackgroundChanger = await loadChanger();
+    win.ort = makeFakeOrt({ failCreate: true });
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ quality: "pro", onEngineStatus: (k) => statuses.push(k) });
+    const { stream } = await changer.start(); // still resolves — camera runs raw
+    expect(stream).toBeTruthy();
+    expect(changer.getEngineKind()).toBe("off");
+    expect(changer.segmentationAvailable).toBe(false);
+    expect(changer.engineError?.code).toBe("CDN_LOAD_FAILED");
+    expect(statuses).toEqual(["off"]);
+    // The Standard engine was never even attempted.
+    expect(scripts).toHaveLength(0);
+    await changer.stop();
+    delete win.ort;
+  });
+
+  it("the Standard engine pairs send→results and composites the matte", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ quality: "standard" });
+    const started = changer.start();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    expect(changer.getEngineKind()).toBe("standard");
+    // Step the loop: one send goes out and pends on results.
+    rafCallbacks[rafCallbacks.length - 1]?.();
+    await flush();
+    const seg = FakeSegmenter.instances[0];
+    expect(seg.sendCount).toBe(1);
+    // Deliver results with a small mask canvas; the matte path runs.
+    const mask = new FakeCanvas();
+    mask.width = 256;
+    mask.height = 144;
+    const canvas = changer.canvas as unknown as FakeCanvas;
+    const before = canvas.ctx.calls.filter((c) => c === "drawImage").length;
+    seg.resultsCb?.({ image: null, segmentationMask: mask });
+    await flush();
+    const after = canvas.ctx.calls.filter((c) => c === "drawImage").length;
+    expect(after).toBeGreaterThan(before);
+    await changer.stop();
+  });
+
+  it("a too-slow Pro engine degrades to Standard in auto mode", async () => {
+    const BackgroundChanger = await loadChanger();
+    win.ort = makeFakeOrt();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
+    // Every performance.now() call jumps 100ms, so each measured
+    // inference reads as 100ms — far over the ladder's slow line.
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    try {
+      await changer.start();
+      expect(changer.getEngineKind()).toBe("pro");
+      // Step frames until the ladder gives up on Pro and the
+      // Standard engine's script load begins (or we run out of road).
+      for (let i = 0; i < 400 && changer.getEngineKind() === "pro" && scripts.length === 0; i++) {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+      }
+      expect(scripts).toHaveLength(1);
+      expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
+      win.SelfieSegmentation = FakeSegmenter;
+      scripts[0].onload?.();
+      await flush();
+      await flush();
+      expect(changer.getEngineKind()).toBe("standard");
+      expect(statuses).toEqual(["pro", "standard"]);
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+      delete win.ort;
+    }
+  }, 30000);
+
+  it("setQuality re-runs selection live (standard → pro)", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ quality: "standard" });
+    const started = changer.start();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    expect(changer.getEngineKind()).toBe("standard");
+    win.ort = makeFakeOrt();
+    await changer.setQuality("pro");
+    expect(changer.getEngineKind()).toBe("pro");
+    expect(changer.getQuality()).toBe("pro");
+    await changer.stop();
+    delete win.ort;
+  });
+});
+
+describe("rvm asset urls", () => {
+  it("are vendored-first for both the runtime and the model", async () => {
+    const { ortScriptUrls, rvmModelUrls, ORT_LOCAL_BASE, RVM_LOCAL_BASE } = await import("./rvm-engine");
+    expect(ortScriptUrls()[0]).toBe(`${ORT_LOCAL_BASE}/ort.all.min.js`);
+    expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp32.onnx`);
+    expect(ortScriptUrls()).toHaveLength(2);
+    expect(rvmModelUrls()).toHaveLength(2);
   });
 });
 
