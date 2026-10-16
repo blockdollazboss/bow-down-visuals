@@ -93,6 +93,17 @@ export default function EmailListBuilder() {
  const [loadError, setLoadError] = useState(false);
  const [retryNonce, setRetryNonce] = useState(0);
  const listsLoadedRef = useRef(false);
+ /* Subscriber-load failures are NOT "no subscribers yet" — a failed
+  subscribers load leaves stats null, so the dashboard would render
+  fake zeros (0 active, 0 signups, 0 opens) and the nobody-here
+  empty state as if they were real. The subscribers section gets its
+  own error state with a retry, scoped to the dashboard.
+  subsLoadedForRef guards it the way listsLoadedRef guards the lists
+  gate: once a list's subscribers have loaded, a later failed reload
+  must NOT blank the data already on screen. */
+ const [subsLoadError, setSubsLoadError] = useState(false);
+ const [subsRetryNonce, setSubsRetryNonce] = useState(0);
+ const subsLoadedForRef = useRef<string | null>(null);
 
  /* list creation */
  const [showNewList, setShowNewList] = useState(false);
@@ -160,14 +171,19 @@ export default function EmailListBuilder() {
 
  const loadSubscribers = useCallback(async (listId: string) => {
  if (!listId) return;
+ setSubsLoadError(false);
  try {
  const res = await authedFetch(`/api/email-list/lists/${listId}/subscribers`);
  const data = await res.json();
  if (!res.ok) throw new Error(data.error ?? "Couldn't load subscribers.");
  setSubscribers(data.subscribers ?? []);
  setStats(data.stats ?? null);
- } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't load subscribers.");
+ subsLoadedForRef.current = listId;
+ } catch {
+ /* Scoped error state for the subscribers section — NOT the shared
+  mutation banner, and never the fake-zero stats: the dashboard shows
+  the error + retry unless this list's subscribers already loaded. */
+ if (subsLoadedForRef.current !== listId) setSubsLoadError(true);
  }
  }, []);
 
@@ -177,7 +193,7 @@ export default function EmailListBuilder() {
 
  useEffect(() => {
  if (activeListId) loadSubscribers(activeListId);
- }, [activeListId, loadSubscribers]);
+ }, [activeListId, loadSubscribers, subsRetryNonce]);
 
  const activeList = lists.find((l) => l.id === activeListId);
 
@@ -286,6 +302,23 @@ export default function EmailListBuilder() {
  </div>
  );
 
+ const subsErrorBox = (
+ <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+ <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+ <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your subscribers.</p>
+ <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+ Something went wrong on our end — your subscribers are safe, this page just couldn't load them.
+ </p>
+ <button
+ type="button"
+ onClick={() => setSubsRetryNonce((n) => n + 1)}
+ className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+ >
+ <RotateCcw className="h-4 w-4" /> Try again
+ </button>
+ </div>
+ );
+
  return (
  <div className="min-h-screen bg-black text-white">
 
@@ -354,6 +387,10 @@ export default function EmailListBuilder() {
  </select>
  </div>
 
+ {subsLoadError ? (
+ subsErrorBox
+ ) : (
+ <>
  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
  <div className={cardClass}>
  <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Users className="h-3.5 w-3.5" />{t("email-list.active_subscribers")}</p>
@@ -403,6 +440,8 @@ export default function EmailListBuilder() {
  </div>
  )}
  </div>
+ </>
+ )}
  </>
  )}
  </div>
