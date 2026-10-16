@@ -1,0 +1,18 @@
+Robust Video Matting (RVM) — MobileNetV3 model, FP32 ONNX
+==========================================================
+
+File    : rvm_mobilenetv3_fp32.onnx (14,975,696 bytes)
+          Official v1.0.0 release asset of the upstream project.
+Project : Robust Video Matting — Lin et al., WACV 2022
+          Copyright (c) 2021 PeterL1n (Shuhong Lin) and contributors
+License : GNU General Public License v3.0 (GPL-3.0)
+          The upstream repository states: "Code is re-released under
+          GPL-3.0 license" (Sep 16, 2021), with the pretrained models
+          published from the same repository. Full license text:
+          https://www.gnu.org/licenses/gpl-3.0.txt
+Source  : https://github.com/PeterL1n/RobustVideoMatting
+          https://github.com/PeterL1n/RobustVideoMatting/releases/tag/v1.0.0
+
+The model runs entirely client-side (inference in the visitor's
+browser via ONNX Runtime Web); it is lazy-loaded only when the
+stream studio starts a camera with the Pro background engine.

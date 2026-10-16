@@ -1,0 +1,17 @@
+ONNX Runtime Web — vendored runtime for the Pro background engine
+================================================================
+
+Package : onnxruntime-web 1.20.1 (npm)
+Files   : ort.all.min.js
+          ort-wasm-simd-threaded.wasm / ort-wasm-simd-threaded.mjs
+          ort-wasm-simd-threaded.jsep.wasm / ort-wasm-simd-threaded.jsep.mjs
+License : MIT License
+          Copyright (c) Microsoft Corporation. All rights reserved.
+Source  : https://www.npmjs.com/package/onnxruntime-web/v/1.20.1
+          https://github.com/microsoft/onnxruntime
+
+These files are served same-origin (never from a third-party CDN) and
+are lazy-loaded only when the stream studio starts a camera with the
+Pro background engine. The .wasm binary matching the selected
+execution provider (WebGPU -> jsep build, otherwise the plain build)
+is the only one a browser downloads.
