@@ -167,6 +167,23 @@ describe("Stage operations", () => {
     expect(stage.sceneById(sceneId)!.sources.find((s) => s.id === text!.id)).toBeUndefined();
   });
 
+  it("duplicateSourceById inserts a deep copy in front of the original", () => {
+    const stage = newStage();
+    const sceneId = stage.scenes[0]!.id;
+    const text = stage.addSource(sceneId, "text")!;
+    const copy = stage.duplicateSourceById(sceneId, text.id);
+    expect(copy).toBeTruthy();
+    expect(copy!.id).not.toBe(text.id);
+    expect(copy!.name).toBe(`${text.name} copy`);
+    const sources = stage.sceneById(sceneId)!.sources;
+    const idx = sources.findIndex((s) => s.id === text.id);
+    expect(sources[idx + 1]!.id).toBe(copy!.id); // directly in front
+    copy!.text!.content = "COPY ONLY";
+    expect(sources[idx]!.text!.content).not.toBe("COPY ONLY"); // nested settings not shared
+    expect(stage.duplicateSourceById(sceneId, "no-such-source")).toBeNull();
+    expect(stage.duplicateSourceById("no-such-scene", text.id)).toBeNull();
+  });
+
   it("cut switches Program immediately; fade arms then lands on Preview", () => {
     const stage = newStage();
     const second = stage.addScene("Two");

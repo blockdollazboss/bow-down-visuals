@@ -17,6 +17,7 @@ import {
   createSource,
   createDefaultScene,
   duplicateScene,
+  duplicateSource,
   moveSource,
   fitRects,
   applyChromaKey,
@@ -578,6 +579,20 @@ export class Stage {
     this.scenes = [...this.scenes];
     this._emit();
     return source;
+  }
+
+  /** Duplicate a source in place: the copy lands directly in front of
+      the original (one step toward the front of the stack). */
+  duplicateSourceById(sceneId: string, sourceId: string): SceneSource | null {
+    const scene = this.sceneById(sceneId);
+    if (!scene) return null;
+    const idx = scene.sources.findIndex((s) => s.id === sourceId);
+    if (idx < 0) return null;
+    const copy = duplicateSource(scene.sources[idx]!);
+    scene.sources = [...scene.sources.slice(0, idx + 1), copy, ...scene.sources.slice(idx + 1)];
+    this.scenes = [...this.scenes];
+    this._emit();
+    return copy;
   }
 
   updateSource(sceneId: string, sourceId: string, patch: Partial<SceneSource>): void {

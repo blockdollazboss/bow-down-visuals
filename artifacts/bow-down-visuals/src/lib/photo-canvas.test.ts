@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   createPhotoCanvasDoc, makeImageLayer, makeTextLayer, makeShapeLayer,
-  addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer,
+  addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer, layerAtPoint,
   buildFlattenPlan, drawFlattenPlan, clampDevelop, developIsIdentity,
   recipeFromDevelop, parseDoc, serializeDoc, type CanvasCtxLike,
 } from "./photo-canvas";
@@ -76,6 +76,41 @@ class FakeCtx implements CanvasCtxLike {
   strokeText(t: string, x: number, y: number) { this.calls.push(`strokeText ${t} ${x},${y}`); }
   fillText(t: string, x: number, y: number) { this.calls.push(`fillText ${t} ${x},${y} font=${this.font}`); }
 }
+
+describe("layerAtPoint — canvas hit testing", () => {
+  it("returns the topmost visible layer, skipping invisible ones", () => {
+    const doc = doc3(); // image (full frame) < shape bar < text (top)
+    const text = doc.layers[2]!;
+    // a point inside the text layer's rect hits the text (topmost)
+    expect(layerAtPoint(doc, text.transform.x + 10, text.transform.y + 10)?.id).toBe(text.id);
+    // hiding the text layer lets the hit fall through to what's under it
+    const hidden = updateLayer(doc, text.id, { visible: false });
+    expect(layerAtPoint(hidden, text.transform.x + 10, text.transform.y + 10)?.id).not.toBe(text.id);
+    // outside every layer → null (the canvas leaves the browser menu alone)
+    expect(layerAtPoint(doc, -50, -50)).toBeNull();
+    expect(layerAtPoint(createPhotoCanvasDoc(100, 100), 50, 50)).toBeNull();
+  });
+
+  it("honors rotation: a 90°-rotated layer hits along its rotated bounds", () => {
+    let doc = createPhotoCanvasDoc(1000, 1000);
+    const shape = { ...makeShapeLayer(doc, "Plate"), shape: "rect" as const };
+    shape.transform = { x: 400, y: 450, width: 200, height: 100, rotationDeg: 90, opacity: 1 };
+    doc = addLayer(doc, shape);
+    // center is (500,500); unrotated the layer spans y 450..550, x 400..600.
+    // Rotated 90° it spans x 450..550, y 400..600 — (500, 580) only hits rotated.
+    expect(layerAtPoint(doc, 500, 580)?.id).toBe(shape.id);
+    expect(layerAtPoint(doc, 420, 500)).toBeNull();
+  });
+
+  it("ellipse shapes miss their corners and hit their center", () => {
+    let doc = createPhotoCanvasDoc(1000, 1000);
+    const dot = { ...makeShapeLayer(doc, "Dot"), shape: "ellipse" as const };
+    dot.transform = { x: 400, y: 400, width: 200, height: 200, rotationDeg: 0, opacity: 1 };
+    doc = addLayer(doc, dot);
+    expect(layerAtPoint(doc, 500, 500)?.id).toBe(dot.id);
+    expect(layerAtPoint(doc, 410, 410)).toBeNull(); // inside the rect, outside the ellipse
+  });
+});
 
 describe("flatten fidelity — canvas draw matches the layer model", () => {
   it("draws background, image, then text with layer transforms/opacity, in plan order", () => {

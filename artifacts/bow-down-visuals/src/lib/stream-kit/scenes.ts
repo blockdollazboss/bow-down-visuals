@@ -213,6 +213,21 @@ export function duplicateScene(scene: Scene, name?: string): Scene {
   };
 }
 
+/** Deep-copy one source with a fresh id (same discipline as
+    duplicateScene: nested settings objects are copied, never shared). */
+export function duplicateSource(source: SceneSource, name?: string): SceneSource {
+  return {
+    ...source,
+    id: uid("src"),
+    name: name ?? `${source.name} copy`,
+    chroma: source.chroma ? { ...source.chroma } : undefined,
+    text: source.text ? { ...source.text } : undefined,
+    fill: source.fill ? { ...source.fill } : undefined,
+    widget: source.widget ? { ...source.widget } : undefined,
+    avatar: source.avatar ? { ...source.avatar } : undefined,
+  };
+}
+
 /** Move a source one step in render order (dir +1 = toward the front). */
 export function moveSource(scene: Scene, sourceId: string, dir: 1 | -1): Scene {
   const idx = scene.sources.findIndex((s) => s.id === sourceId);

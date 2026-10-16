@@ -202,6 +202,39 @@ export function reorderLayer(doc: PhotoCanvasDoc, id: string, delta: 1 | -1): Ph
   return { ...doc, layers };
 }
 
+/**
+ * Hit test in document coordinates: the topmost VISIBLE layer under
+ * (x, y), or null. Geometry matches drawFlattenPlan — the point is
+ * un-rotated around the layer's center, rectangles test their bounds,
+ * ellipse shapes test the ellipse equation (their corners miss).
+ */
+export function layerAtPoint(doc: PhotoCanvasDoc, x: number, y: number): PhotoLayer | null {
+  for (let i = doc.layers.length - 1; i >= 0; i--) {
+    const layer = doc.layers[i]!;
+    if (!layer.visible) continue;
+    const t = layer.transform;
+    if (!(t.width > 0) || !(t.height > 0)) continue;
+    const cx = t.x + t.width / 2;
+    const cy = t.y + t.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const rot = Number.isFinite(t.rotationDeg) ? t.rotationDeg : 0;
+    const rad = (-rot * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const lx = dx * cos - dy * sin;
+    const ly = dx * sin + dy * cos;
+    if (layer.kind === "shape" && layer.shape === "ellipse") {
+      const ex = lx / (t.width / 2);
+      const ey = ly / (t.height / 2);
+      if (ex * ex + ey * ey <= 1) return layer;
+    } else if (Math.abs(lx) <= t.width / 2 && Math.abs(ly) <= t.height / 2) {
+      return layer;
+    }
+  }
+  return null;
+}
+
 export function fontStackFor(fontId: string): string {
   return SAFE_FONTS.find((f) => f.id === fontId)?.stack ?? "'Inter', system-ui, sans-serif";
 }
