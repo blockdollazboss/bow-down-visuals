@@ -1,0 +1,21 @@
+Vendored copy of @mediapipe/tasks-vision 1.1.1 (MediaPipe Tasks Vision
+— JS bundle + WASM binaries) and the Face Landmarker model
+(face_landmarker.task, float16 v1). Copyright Google LLC. Licensed
+under the Apache License, Version 2.0.
+Served same-origin and lazy-loaded only by the Go Live studio's Avatar
+source so a creator's broadcast never depends on a third-party CDN.
+The version was verified against the npm registry before pinning
+(tasks-vision 1.1.1 is the latest stable release; 1.2.0 exists only
+as release candidates).
+
+Files
+  vision_bundle.mjs                       156,139 bytes
+  wasm/vision_wasm_internal.js            334,128 bytes
+  wasm/vision_wasm_internal.wasm       13,519,922 bytes
+  wasm/vision_wasm_module_internal.js     334,166 bytes
+  wasm/vision_wasm_module_internal.wasm 13,519,940 bytes
+  wasm/vision_wasm_nosimd_internal.js     333,931 bytes
+  wasm/vision_wasm_nosimd_internal.wasm 12,627,509 bytes
+  face_landmarker.task                  3,758,596 bytes
+    (https://storage.googleapis.com/mediapipe-models/face_landmarker/
+     face_landmarker/float16/1/face_landmarker.task)
