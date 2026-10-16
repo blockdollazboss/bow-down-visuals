@@ -1,9 +1,10 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Video, Loader2, Sparkles, Settings2, Inbox, BarChart3, CheckCircle2,
   X, Clock, BadgeDollarSign, AlertTriangle, Megaphone, Send, Wand2, Upload,
+  RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -94,6 +95,13 @@ export default function Shoutouts() {
   /* ── Fan side ── */
   const [creators, setCreators] = useState<Creator[]>([]);
   const [creatorsLoading, setCreatorsLoading] = useState(true);
+  /* Creator-browse load failures are NOT "no creators yet" — they get
+     their own error state with a retry, scoped to the browse list.
+     creatorsLoadedRef guards the gate: once creators have loaded
+     successfully, a later failed reload (e.g. the refresh after saving
+     settings) must NOT blank the creators already on screen. */
+  const [creatorsLoadError, setCreatorsLoadError] = useState(false);
+  const creatorsLoadedRef = useRef(false);
   const [selected, setSelected] = useState<Creator | null>(null);
   const [fanName, setFanName] = useState("");
   const [fanEmail, setFanEmail] = useState("");
@@ -127,12 +135,15 @@ export default function Shoutouts() {
 
   async function fetchCreators() {
     setCreatorsLoading(true);
+    setCreatorsLoadError(false);
     try {
       const res = await fetch("/api/shoutouts/creators");
+      if (!res.ok) throw new Error("load failed");
       const j = await res.json();
       setCreators(j.creators ?? []);
+      creatorsLoadedRef.current = true;
     } catch {
-      setCreators([]);
+      if (!creatorsLoadedRef.current) setCreatorsLoadError(true);
     } finally {
       setCreatorsLoading(false);
     }
@@ -360,6 +371,21 @@ export default function Shoutouts() {
           <>
             {creatorsLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
+            ) : creatorsLoadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load creators.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — the creators are out there, this page just couldn't reach them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchCreators()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : creators.length === 0 ? (
               <div className="text-center py-16 text-white/40">
                 <Megaphone className="w-10 h-10 mx-auto mb-3 opacity-40" />
