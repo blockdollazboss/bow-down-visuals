@@ -131,6 +131,14 @@ export default function CollabFinder() {
   const [received, setReceived] = useState<InboxRequest[]>([]);
   const [sent, setSent] = useState<InboxRequest[]>([]);
   const [inboxLoading, setInboxLoading] = useState(false);
+  /* Inbox-load failures are NOT "no requests yet" — a failed requests
+     load silently left received/sent empty, rendering the genuine
+     empty states. The inbox gets its own error state with a retry,
+     mirroring browse. inboxLoadedRef guards it: once the inbox has
+     loaded successfully, a later failed refresh (post-respond reload)
+     must NOT blank the requests already on screen. */
+  const [inboxLoadError, setInboxLoadError] = useState(false);
+  const inboxLoadedRef = useRef(false);
   const [proposalTo, setProposalTo] = useState<CreatorProfile | null>(null);
   const [proposalText, setProposalText] = useState("");
   const [proposalSending, setProposalSending] = useState(false);
@@ -191,12 +199,15 @@ export default function CollabFinder() {
 
   async function loadInbox() {
     setInboxLoading(true);
+    setInboxLoadError(false);
     try {
       const { res, data } = await authed("/api/collabs/requests");
-      if (res.ok) {
-        setReceived((data.received as InboxRequest[]) ?? []);
-        setSent((data.sent as InboxRequest[]) ?? []);
-      }
+      if (!res.ok) throw new Error("inbox load failed");
+      setReceived((data.received as InboxRequest[]) ?? []);
+      setSent((data.sent as InboxRequest[]) ?? []);
+      inboxLoadedRef.current = true;
+    } catch {
+      if (!inboxLoadedRef.current) setInboxLoadError(true);
     } finally {
       setInboxLoading(false);
     }
@@ -569,6 +580,21 @@ export default function CollabFinder() {
           <section className="mx-auto max-w-3xl">
             {inboxLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-amber-400" /></div>
+            ) : inboxLoadError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your inbox.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your collab requests are safe, this page just couldn't reach them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadInbox()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
