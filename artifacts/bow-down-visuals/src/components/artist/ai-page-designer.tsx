@@ -388,7 +388,7 @@ export default function AiPageDesigner({
       <div className="grid gap-4 border-t border-white/10 pt-6 sm:grid-cols-2">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <h4 className="mb-1 flex items-center gap-2 text-sm font-bold text-white">
-            <Sparkles className="h-4 w-4 text-amber-400" /> AI bio writer — 100 Visual Bucs
+            <Sparkles className="h-4 w-4 text-amber-400" /> Bio writer — 100 Visual Bucs
           </h4>
           <p className="mb-2 text-xs text-white/50">A few facts in, a {verticalMeta.label.toLowerCase()}-ready bio out.</p>
           <textarea

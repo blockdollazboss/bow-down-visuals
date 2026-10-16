@@ -928,7 +928,7 @@ export function ProfileSectionByType({
         <Shell title={s.title}>
           <RichText source={profile.bio} className="ap-bio max-w-3xl text-sm leading-relaxed sm:text-base" />
         </Shell>
-      ) : preview ? <Shell title={s.title}><EmptyHint text="No story yet — fans buy from creators they feel. The AI bio writer drafts it in one click." /></Shell> : null;
+      ) : preview ? <Shell title={s.title}><EmptyHint text="No story yet — fans buy from creators they feel. The bio writer drafts it in one click." /></Shell> : null;
     case "shoutwall":
       return <ShoutWallSection title={s.title} slug={profile.slug} preview={preview} />;
     case "stories":
