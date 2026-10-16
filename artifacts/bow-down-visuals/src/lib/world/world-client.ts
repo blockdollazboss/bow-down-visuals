@@ -5,14 +5,25 @@
  *
  * Protocol mirrors lib/world-room.ts on the server:
  *   out: move (throttled to ~10/s here AND on the server), say,
+ *        character (walk in as a Creative Vault character — id only,
+ *        the server verifies ownership and resolves the portrait),
  *        voice.join / voice.leave, voice.signal
  *   in:  welcome (self + snapshot), peer.join / peer.move / peer.leave,
- *        peer.say, voice.joined / voice.left / voice.state /
- *        voice.signal / voice.full / voice.denied, room_full
+ *        peer.say, peer.character, voice.joined / voice.left /
+ *        voice.state / voice.signal / voice.full / voice.denied,
+ *        room_full
  * Guests (no session token, or a stale one the server couldn't verify)
  * arrive as guest peers: present and visible, no voice, no say — the
  * client hides those controls off `self.guest`, the server enforces it.
  */
+
+/** A Creative Vault character standing in the hall — resolved and
+ *  ownership-verified by the server; clients never invent these. */
+export interface WorldCharacterRef {
+  id: string;
+  name: string;
+  portraitUrl: string;
+}
 
 export interface WorldPeer {
   peerId: string;
@@ -22,6 +33,7 @@ export interface WorldPeer {
   tint: string;
   guest: boolean;
   voice: boolean;
+  character: WorldCharacterRef | null;
   x: number;
   y: number;
   z: number;
@@ -92,6 +104,7 @@ export class WorldClient {
   onStatus: ((status: WorldStatus) => void) | null = null;
   onPeerJoin: ((peer: WorldPeer) => void) | null = null;
   onPeerLeave: ((peerId: string) => void) | null = null;
+  onPeerCharacter: ((peerId: string, character: WorldCharacterRef | null) => void) | null = null;
   onSay: ((ev: WorldSayEvent) => void) | null = null;
   onSignal: ((from: string, data: unknown) => void) | null = null;
   onVoiceState: ((voicePeerIds: string[]) => void) | null = null;
@@ -101,6 +114,10 @@ export class WorldClient {
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
+  /** The vault character this client wants to stand as. `undefined` =
+   *  never chosen this session (send nothing); a string id or null
+   *  (house avatar) is (re)sent the moment we're inside. */
+  private characterWanted: string | null | undefined = undefined;
   private readonly now: () => number;
 
   constructor(private deps: WorldClientDeps) {
@@ -170,6 +187,18 @@ export class WorldClient {
     return true;
   }
 
+  /** Walk in as a Creative Vault character (or back to the house
+   *  avatar with null). Only the id crosses the wire — the server
+   *  verifies ownership and resolves the portrait, then broadcasts
+   *  the ref the whole hall renders. Safe to call before the welcome
+   *  lands: the want is remembered and sent on entry. Guests' picks
+   *  are never sent (the server would refuse them anyway). */
+  setCharacter(characterId: string | null): void {
+    this.characterWanted = characterId;
+    if (this.status !== "inside" || !this.self || this.self.guest) return;
+    this.send({ type: "character", characterId });
+  }
+
   joinVoice(): void {
     if (this.status !== "inside" || this.isGuest) return;
     this.send({ type: "voice.join" });
@@ -223,6 +252,24 @@ export class WorldClient {
           if (peer.voice) this.voicePeerIds.add(peer.peerId);
         }
         this.setStatus("inside");
+        // A pick made before the door opened applies on entry.
+        if (this.characterWanted !== undefined && !you.guest) {
+          this.send({ type: "character", characterId: this.characterWanted });
+        }
+        return;
+      }
+      case "peer.character": {
+        const peerId = String(frame["peerId"]);
+        const raw = frame["character"];
+        const character =
+          raw && typeof raw === "object" &&
+          typeof (raw as WorldCharacterRef).id === "string" &&
+          typeof (raw as WorldCharacterRef).portraitUrl === "string"
+            ? (raw as WorldCharacterRef)
+            : null;
+        const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+        if (target) target.character = character;
+        this.onPeerCharacter?.(peerId, character);
         return;
       }
       case "peer.join": {

@@ -10,6 +10,10 @@
  *   client → server
  *     { type: "move", x, y, z, rotY }        position sync (throttled)
  *     { type: "say", body }                  room text (signed-in only)
+ *     { type: "character", characterId }     walk in as a Creative Vault
+ *                                            character (id only — the
+ *                                            server resolves + verifies
+ *                                            ownership; null clears)
  *     { type: "voice.join" } / { type: "voice.leave" }
  *     { type: "voice.signal", to, data }     WebRTC offer/answer/ice
  *                                            relay (voice members only)
@@ -18,6 +22,8 @@
  *     { type: "peer.join", peer } / { type: "peer.leave", peerId }
  *     { type: "peer.move", peerId, x, y, z, rotY }
  *     { type: "peer.say", peerId, body }
+ *     { type: "peer.character", peerId, character }   a peer's vault
+ *                                            character (or null) changed
  *     { type: "voice.joined", peerId } / { type: "voice.left", peerId }
  *     { type: "voice.state", voicePeerIds }     answer to voice.join
  *     { type: "voice.signal", from, data }      relayed signaling
@@ -73,6 +79,24 @@ export interface WorldIdentity {
   profileSlug: string | null;
 }
 
+/** A Creative Vault character a member walks in as. Resolved
+ *  server-side from the vault row the member owns — the client only
+ *  ever sends the character's id, never a name or image URL, so a
+ *  modified client can't dress itself in someone else's character. */
+export interface WorldCharacterRef {
+  id: string;
+  name: string;
+  portraitUrl: string;
+}
+
+/** Injected by the route layer (which owns the DB): verify the
+ *  character belongs to this user (or their active team) and carry a
+ *  portrait; return the ref to broadcast, or null to refuse the pick. */
+export type WorldCharacterResolver = (
+  userId: string,
+  characterId: string,
+) => Promise<WorldCharacterRef | null>;
+
 export interface WorldPeerDto {
   peerId: string;
   displayName: string;
@@ -81,6 +105,7 @@ export interface WorldPeerDto {
   tint: string;
   guest: boolean;
   voice: boolean;
+  character: WorldCharacterRef | null;
   x: number;
   y: number;
   z: number;
@@ -93,6 +118,10 @@ interface WorldPeer extends WorldIdentity {
   tint: string;
   guest: boolean;
   voice: boolean;
+  character: WorldCharacterRef | null;
+  /** Bumped on every character pick/clear so a slow resolution can't
+   *  land after a newer pick and resurrect a stale character. */
+  characterSeq: number;
   x: number;
   y: number;
   z: number;
@@ -114,7 +143,10 @@ export class WorldRoom {
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
 
-  constructor(private hub: RoomHub) {}
+  constructor(
+    private hub: RoomHub,
+    private deps: { resolveCharacter?: WorldCharacterResolver } = {},
+  ) {}
 
   size(): number {
     return this.peers.size;
@@ -140,6 +172,7 @@ export class WorldRoom {
       tint: peer.tint,
       guest: peer.guest,
       voice: peer.voice,
+      character: peer.character,
       x: peer.x,
       y: peer.y,
       z: peer.z,
@@ -185,6 +218,8 @@ export class WorldRoom {
       tint: tintForKey(identity.profileSlug ?? identity.userId ?? peerId),
       guest: identity.userId === null,
       voice: false,
+      character: null,
+      characterSeq: 0,
       x: (slot - 4.5) * 1.1,
       y: 0,
       z: 9.5,
@@ -262,6 +297,47 @@ export class WorldRoom {
         if (!body) return;
         peer.lastSayAt = now;
         this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.say", peerId: peer.peerId, body });
+        return;
+      }
+      case "character": {
+        /* Walk in as a Creative Vault character. Members only (guests
+         * have no vault). The client sends ONLY an id; the injected
+         * resolver verifies ownership against the vault and returns
+         * the name + portrait to broadcast — a refused pick (not
+         * theirs, no portrait, vault row gone) changes nothing, so a
+         * stale pick never strips a figure already standing. */
+        if (peer.guest || !peer.userId) return;
+        const raw = frame["characterId"];
+        if (raw === null) {
+          peer.characterSeq++;
+          if (peer.character) {
+            peer.character = null;
+            this.hub.broadcast(WORLD_ROOM_ID, {
+              type: "peer.character",
+              peerId: peer.peerId,
+              character: null,
+            });
+          }
+          return;
+        }
+        if (typeof raw !== "string" || !raw || raw.length > 64) return;
+        if (peer.character?.id === raw) return;
+        const resolve = this.deps.resolveCharacter;
+        if (!resolve) return;
+        const seq = ++peer.characterSeq;
+        void resolve(peer.userId, raw)
+          .then((ref) => {
+            if (!ref) return; // refused — keep whatever stands
+            if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
+            if (peer.characterSeq !== seq) return; // a newer pick won
+            peer.character = ref;
+            this.hub.broadcast(WORLD_ROOM_ID, {
+              type: "peer.character",
+              peerId: peer.peerId,
+              character: ref,
+            });
+          })
+          .catch(() => undefined);
         return;
       }
       case "voice.join": {

@@ -21,6 +21,14 @@ import {
 } from "@/lib/world/voice";
 import type { KingsHallScene, HallScreenSource } from "@/lib/world/hall-scene";
 import { normalizeHallTheme, type HallTheme } from "@/lib/world/hall-looks";
+import {
+  fetchVaultCharacters,
+  loadStoredCharacterId,
+  storeCharacterId,
+  reconcileStoredPick,
+  type VaultCharacter,
+} from "@/lib/world/characters";
+import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 
 /* ─── The World — the King's Hall (/world) ──────────────────────────────────
    One shared VR room: a palace hall with a stage and a big screen
@@ -32,7 +40,11 @@ import { normalizeHallTheme, type HallTheme } from "@/lib/world/hall-looks";
    The hall wears the visitor's site theme (owner's pick, 2026-10-16):
    light theme → the sunlit Golden Hour Palace; dark theme → the
    candlelit Midnight Throne Room. Flip the theme and the room —
-   chrome included — re-skins to match. */
+   chrome included — re-skins to match.
+   Members can walk in as one of their Creative Vault characters
+   (the "Walk in as" row): the character's portrait stands in the
+   hall on a gold-framed panel, and its lips move with the speaker's
+   live voice. Guests keep the classic visit, unchanged. */
 
 /** The app shell's theme, the same way the toggles read it: the
  *  `light`/`dark` class main.tsx and the theme toggles keep on
@@ -52,7 +64,7 @@ interface ScreenInfo {
 
 export default function WorldPage() {
   usePageTitle("The World — The King's Hall", "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.");
-  const { getAccessToken } = useAuth();
+  const { user, getAccessToken } = useAuth();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const clientRef = useRef<WorldClient | null>(null);
@@ -75,6 +87,13 @@ export default function WorldPage() {
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
   const [xrNote, setXrNote] = useState<string | null>(null);
+  /* "Walk in as": the member's Creative Vault characters and the
+     pick (remembered on this device; null = the house avatar). */
+  const [vaultChars, setVaultChars] = useState<VaultCharacter[] | null>(null);
+  const [vaultLoadFailed, setVaultLoadFailed] = useState(false);
+  const [walkInAs, setWalkInAs] = useState<string | null>(() => loadStoredCharacterId());
+  const walkInAsRef = useRef<string | null>(walkInAs);
+  walkInAsRef.current = walkInAs;
   const [siteTheme, setSiteTheme] = useState<HallTheme>(() => currentHallTheme());
 
   /* Follow the site theme live — the floating toggle (and every other
@@ -92,11 +111,44 @@ export default function WorldPage() {
     sceneRef.current?.setTheme(siteTheme);
   }, [siteTheme]);
 
+  /* Load the member's vault characters for the picker (signed-in
+     only — guests never see the row). A remembered pick whose
+     character is gone (or lost its portrait) falls back to the house
+     avatar instead of being sent off to be refused. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchVaultCharacters(getAccessToken)
+      .then((chars) => {
+        if (cancelled) return;
+        setVaultChars(chars);
+        setVaultLoadFailed(false);
+        const reconciled = reconcileStoredPick(chars, walkInAsRef.current);
+        if (reconciled !== walkInAsRef.current) setWalkInAs(reconciled);
+      })
+      .catch(() => {
+        if (!cancelled) setVaultLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  /* The pick: remembered on the device, and handed to the hall
+     connection whenever it changes (the client also applies it on
+     entry when it was chosen before the door opened). */
+  useEffect(() => {
+    storeCharacterId(walkInAs);
+    clientRef.current?.setCharacter(walkInAs);
+  }, [walkInAs]);
+
   useEffect(() => {
     let cancelled = false;
     let peerSync: ReturnType<typeof setInterval> | null = null;
     let screenPoll: ReturnType<typeof setInterval> | null = null;
     let volumeTick: ReturnType<typeof setInterval> | null = null;
+    let lipTick: ReturnType<typeof setInterval> | null = null;
 
     (async () => {
       /* Boot failures BEFORE the socket exists (the scene chunk fails
@@ -121,6 +173,9 @@ export default function WorldPage() {
         openSocket: (url) => new WebSocket(url) as unknown as import("@/lib/world/world-client").WorldSocketLike,
       });
       clientRef.current = client;
+      // A remembered pick walks in with us (the client holds the
+      // want and sends it the moment the welcome lands).
+      if (walkInAsRef.current) client.setCharacter(walkInAsRef.current);
       scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
 
       client.onStatus = (s) => {
@@ -193,6 +248,19 @@ export default function WorldPage() {
         mesh.updateVolumes({ x: pose.x, z: pose.z }, positions);
       }, 250);
 
+      /* Character lips: each character figure's mouth follows its
+         speaker's live voice level, measured off the very stream
+         this client receives from them. (Your own figure is driven
+         the same way — on everyone else's screen, from the stream
+         they receive from you.) */
+      lipTick = setInterval(() => {
+        const mesh = meshRef.current;
+        if (!mesh) return;
+        for (const peer of client.peers.values()) {
+          if (peer.character) scene.setSpeechLevel(peer.peerId, mesh.levelFor(peer.peerId));
+        }
+      }, 66);
+
       await client.connect();
       } catch {
         if (!cancelled) setStatus("error");
@@ -204,6 +272,7 @@ export default function WorldPage() {
       if (peerSync) clearInterval(peerSync);
       if (screenPoll) clearInterval(screenPoll);
       if (volumeTick) clearInterval(volumeTick);
+      if (lipTick) clearInterval(lipTick);
       meshRef.current?.leave();
       meshRef.current = null;
       micStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -304,6 +373,19 @@ export default function WorldPage() {
           {status === "inside" ? `${peopleCount} in the hall` : "—"}
         </span>
       </header>
+
+      {/* Walk in as — members pick a Creative Vault character (or the
+          house avatar) as who they stand in the hall as. Guests and
+          signed-out visitors never see the row. */}
+      {user ? (
+        <WalkInAsPicker
+          characters={vaultChars}
+          loadFailed={vaultLoadFailed}
+          selectedId={walkInAs}
+          onSelect={setWalkInAs}
+          isLight={isLight}
+        />
+      ) : null}
 
       {/* ── The room ── */}
       <div className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
