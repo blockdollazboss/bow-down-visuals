@@ -116,13 +116,19 @@ function buildFakeDb() {
     }),
     update: (table: unknown) => ({
       set: (v: Record<string, any>) => ({
-        where: (cond: unknown) => ({
-          returning: async () => {
-            const matched = matchRows(table, cond);
-            for (const r of matched) Object.assign(r, v);
-            return matched.map((r) => ({ ...r }));
-          },
-        }),
+        where: (cond: unknown) => {
+          let done: Array<Record<string, any>> | null = null;
+          const apply = () => {
+            if (done) return done;
+            done = matchRows(table, cond);
+            for (const r of done) Object.assign(r, v);
+            return done;
+          };
+          return {
+            returning: async () => apply().map((r) => ({ ...r })),
+            then: (resolve: (v: unknown) => void) => resolve(apply()),
+          };
+        },
       }),
     }),
     delete: (_table: unknown) => ({
