@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -14,6 +14,10 @@ import {
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildAssetContextItems, downloadAsset } from "@/lib/asset-context-menu";
+import { sendAssetToDesk } from "@/lib/asset-handoff";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { BeatMakerModule } from "./ai-audio";
 import { ThumbnailMakerModule } from "./thumbnail-studio";
@@ -34,16 +38,64 @@ import { ThumbnailMakerModule } from "./thumbnail-studio";
 
 function AssetCard({ asset }: { asset: HubAsset }) {
   const { t } = useTranslation();
-  const { removeAsset } = useHubProject();
+  const { project, removeAsset, renameAsset } = useHubProject();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState("");
   const next = NEXT_STEPS[asset.kind] ?? [];
+
+  /* "Send to desk": the real handoff — stash (ownership-validated
+     against this project) and navigate to the receiving desk. */
+  const sendToDesk = (a: HubAsset, intentId: string) => {
+    try {
+      const route = sendAssetToDesk({
+        intentId,
+        asset: { hubAssetId: a.id, kind: a.kind, url: a.url, label: a.label, detail: a.detail, meta: a.meta },
+        projectAssets: project.assets,
+      });
+      setLocation(route);
+    } catch (err) {
+      toast({ title: "Couldn't send that asset", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const commitRename = () => {
+    renameAsset(asset.id, draft);
+    setRenaming(false);
+  };
+
   return (
-    <div className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3">
+    <div
+      className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3"
+      onContextMenu={(e) => {
+        if (renaming) return; // the rename field keeps its own menu
+        e.preventDefault();
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary mb-1.5">
             {KIND_LABEL[asset.kind]}
           </span>
-          <p className="text-white text-sm font-medium truncate">{asset.label}</p>
+          {renaming ? (
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename();
+                if (e.key === "Escape") setRenaming(false);
+              }}
+              onBlur={commitRename}
+              aria-label="Rename asset"
+              className="w-full rounded-md border border-primary/60 bg-black/60 px-2 py-1 text-sm text-white focus:outline-none"
+            />
+          ) : (
+            <p className="text-white text-sm font-medium truncate">{asset.label}</p>
+          )}
           {asset.detail && <p className="text-white/40 text-xs mt-0.5 truncate">{asset.detail}</p>}
         </div>
         <button
@@ -86,6 +138,21 @@ function AssetCard({ asset }: { asset: HubAsset }) {
           </Link>
         ))}
       </div>
+      {menu && (
+        <ClipContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          testId="hub-asset-context-menu"
+          items={buildAssetContextItems(asset, {
+            onNavigate: (href) => setLocation(href),
+            onSendIntent: sendToDesk,
+            onDownload: downloadAsset,
+            onRename: (a) => { setDraft(a.label); setRenaming(true); },
+            onRemove: (a) => removeAsset(a.id),
+          })}
+        />
+      )}
     </div>
   );
 }

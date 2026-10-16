@@ -50,6 +50,8 @@ import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
 import type { SceneSource } from "@/lib/stream-kit/scenes";
 import ScenesPanel from "./studio/ScenesPanel";
 import SourcesPanel from "./studio/SourcesPanel";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildSourceContextItems } from "@/lib/studio-context-menu";
 import MixerPanel from "./studio/MixerPanel";
 
 /* ─── Broadcast Studio — the "Broadcast" tab of the /go-live hub ──────────
@@ -194,6 +196,7 @@ export default function BroadcastStudio() {
   const [, setUiTick] = useState(0);
   const bump = useCallback(() => setUiTick((t) => t + 1), []);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [previewMenu, setPreviewMenu] = useState<{ x: number; y: number; sourceId: string } | null>(null);
   const [screenSharing, setScreenSharing] = useState(false);
   const [screenHasAudio, setScreenHasAudio] = useState(false);
   const [hotkeysOn, setHotkeysOn] = useState(true);
@@ -956,6 +959,42 @@ export default function BroadcastStudio() {
     window.addEventListener("pointerup", up);
   };
 
+  /* ── Preview right-click: same frontmost-visible hit test as the
+        drag. A hit selects the source and opens its context menu; a
+        miss leaves the browser's own menu alone. */
+  const openPreviewContextMenu = (e: React.MouseEvent) => {
+    const st = stageRef.current;
+    const wrap = previewWrapRef.current;
+    if (!st || !wrap) return;
+    const scene = st.previewScene();
+    const rect = wrap.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+    const source = [...scene.sources]
+      .reverse()
+      .find((s) => s.visible && nx >= s.x && nx <= s.x + s.w && ny >= s.y && ny <= s.y + s.h);
+    if (!source) return;
+    e.preventDefault();
+    setSelectedSourceId(source.id);
+    setPreviewMenu({ x: e.clientX, y: e.clientY, sourceId: source.id });
+  };
+
+  const renamePreviewSource = (source: SceneSource) => {
+    const st = stageRef.current;
+    if (!st) return;
+    const next = window.prompt("Rename source", source.name);
+    if (next && next.trim()) {
+      st.updateSource(st.previewScene().id, source.id, { name: next.trim().slice(0, 80) });
+    }
+  };
+
+  const removePreviewSource = (source: SceneSource) => {
+    const st = stageRef.current;
+    if (!st) return;
+    st.removeSource(st.previewScene().id, source.id);
+    setSelectedSourceId((cur) => (cur === source.id ? null : cur));
+  };
+
   const stage = stageRef.current;
   const previewScene = stage?.previewScene() ?? null;
   const selectedSource = previewScene?.sources.find((s) => s.id === selectedSourceId) ?? null;
@@ -1115,6 +1154,7 @@ export default function BroadcastStudio() {
               ref={previewWrapRef}
               className="relative aspect-video w-full touch-none overflow-hidden rounded-xl border border-emerald-500/30 bg-black"
               onPointerDown={(e) => beginDrag(e, "move")}
+              onContextMenu={openPreviewContextMenu}
             >
               <canvas ref={previewCanvasRef} width={640} height={360} className="block h-full w-full" data-testid="broadcast-preview" />
               {selectedSource && (
@@ -1160,6 +1200,23 @@ export default function BroadcastStudio() {
               Drag a source on Preview to move it; drag its gold corner to resize. Program only changes when you
               Cut or Transition.
             </p>
+            {previewMenu && stage && previewScene && (() => {
+              const source = previewScene.sources.find((s) => s.id === previewMenu.sourceId);
+              if (!source) return null;
+              return (
+                <ClipContextMenu
+                  x={previewMenu.x}
+                  y={previewMenu.y}
+                  onClose={() => setPreviewMenu(null)}
+                  testId="preview-source-context-menu"
+                  items={buildSourceContextItems(stage, previewScene, source, {
+                    onSelect: setSelectedSourceId,
+                    onRename: renamePreviewSource,
+                    onRemove: removePreviewSource,
+                  })}
+                />
+              );
+            })()}
           </div>
         </div>
 

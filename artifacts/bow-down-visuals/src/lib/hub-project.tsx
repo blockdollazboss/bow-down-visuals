@@ -53,6 +53,7 @@ interface HubProjectContextValue {
   setAttribution: (on: boolean) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
   removeAsset: (id: string) => void;
+  renameAsset: (id: string, label: string) => void;
   newProject: () => void;
   hasKind: (kind: HubAssetKind) => boolean;
   latestOfKind: (kind: HubAssetKind) => HubAsset | undefined;
@@ -315,6 +316,16 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject((p) => ({ ...p, assets: p.assets.filter((a) => a.id !== id), updatedAt: Date.now() }));
   }, []);
 
+  const renameAsset = useCallback((id: string, label: string) => {
+    const trimmed = label.trim().slice(0, 120);
+    if (!trimmed) return;
+    setProject((p) => ({
+      ...p,
+      assets: p.assets.map((a) => (a.id === id ? { ...a, label: trimmed } : a)),
+      updatedAt: Date.now(),
+    }));
+  }, []);
+
   const newProject = useCallback(() => {
     setProject(freshProject());
   }, []);
@@ -349,6 +360,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       setAttribution,
       addAsset,
       removeAsset,
+      renameAsset,
       newProject,
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
@@ -358,7 +370,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       referralCode,
       getShareLink,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
+  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, renameAsset, newProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -380,6 +392,7 @@ export function useHubProject(): HubProjectContextValue {
       setAttribution: () => {},
       addAsset: noopAsset,
       removeAsset: () => {},
+      renameAsset: () => {},
       newProject: () => {},
       hasKind: () => false,
       latestOfKind: () => undefined,
