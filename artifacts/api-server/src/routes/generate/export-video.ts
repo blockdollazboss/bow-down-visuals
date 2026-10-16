@@ -15,7 +15,9 @@ import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
-import { buildProToolsFilterChain, buildSpeedCurveFilter, buildKeyframeFilter, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
+import { buildAdjustmentGraph, type AdjustmentExportItem } from "./lane-export";
+import { buildDuckingMixFilter, duckingParamsFromSimple } from "./ducking-filter";
+import { buildProToolsFilterChain, buildSpeedCurveFilter, buildSpeedSegmentsFilter, buildKeyframeFilter, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
@@ -937,6 +939,10 @@ const exportFinalVideoSchema = z.object({
   fitMode: z.string().nullish(),
   /** Structured overlay items to burn into the video. */
   overlayItems: z.any().optional(),
+  /** Adjustment-lane clips (Stack 5 #6): windowed global grade/effects. */
+  adjustmentItems: z.any().optional(),
+  /** Audio ducking (Stack 5 #5): duck the song under a voice track at export. */
+  ducking: z.any().optional(),
   /** Export quality controls (resolution / quality slider / fps / container).
    *  Optional — defaults match the legacy hardcoded encode exactly. */
   quality: qualityOptionsSchema.nullish(),
@@ -1010,6 +1016,12 @@ export interface ExportRequestBody {
      *  "fill" = crop to fill (default), "fit" = letterbox with black bars,
      *  "blur" = blurred zoomed-in background behind letterboxed foreground. */
     fitMode?: string | null;
+    /** Adjustment-lane clips (Stack 5 #6) — windowed grade over the cut. */
+    adjustmentItems?: AdjustmentExportItem[] | null;
+    /** Audio ducking (Stack 5 #5). voiceUrl is REQUIRED when enabled —
+     *  export fails loudly without a voice source rather than silently
+     *  rendering unducked audio the editor promised would duck. */
+    ducking?: { enabled?: boolean; amount?: number; sensitivity?: number; voiceUrl?: string | null } | null;
     /** Structured overlay items to burn into the video. */
     overlayItems?: {
       type: string;
@@ -1078,6 +1090,8 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     clipTransitions,
     clipProTools,
     overlayItems,
+    adjustmentItems,
+    ducking,
     manualGapsBeforeSec,
     effects,
     overlayEffects,
@@ -1469,6 +1483,43 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       //    Runs BEFORE the regular pro-tools chain so other filters see the
       //    time-remapped clip. Skipped when no curve is set.
       const speedCurve = (proToolsInput as { speedCurve?: { t: number; speed: number }[] | null } | null)?.speedCurve;
+      // ── 1c-g: Custom speed segments (Stack 5 #4) take precedence over the
+      //    preset curve — same split/trim/setpts/concat machinery, per-segment
+      //    windows instead of sampled curve points.
+      const speedSegments = (proToolsInput as { speedSegments?: { startT: number; endT: number; speed: number }[] | null } | null)?.speedSegments;
+      if (speedSegments && speedSegments.length >= 1 && !speedCurve) {
+        try {
+          const probeOut = await execFileAsync("ffprobe", [
+            "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", srcPath,
+          ], { timeout: 30_000 });
+          const durationSec = parseFloat(probeOut.stdout.trim());
+          if (Number.isFinite(durationSec) && durationSec > 0) {
+            const segFilter = buildSpeedSegmentsFilter(speedSegments, durationSec);
+            if (segFilter) {
+              const segPath = path.join(tmpDir, `bdv-speedseg-${exportId}-${origIdx}.mp4`);
+              tmpFiles.push(segPath);
+              exportStatus.ffmpegStage = `speed segments clip ${j + 1}/${selectedClipOrigIndices.length}`;
+              ctx.log.info({ scene: origIdx + 1, segments: speedSegments.length }, "[export] applying custom speed segments");
+              await execFileAsync("ffmpeg", [
+                "-threads", "2", "-i", srcPath,
+                "-filter_complex", segFilter, "-map", "[ptout]",
+                "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+                "-an", "-movflags", "+faststart", "-y", segPath,
+              ], { timeout: 300_000 });
+              if (existsSync(segPath) && statSync(segPath).size >= 1024) {
+                ptSrcPath = segPath;
+                if (proToolsInput) (proToolsInput as { speed?: number }).speed = 1;
+              }
+            }
+          }
+        } catch (e: unknown) {
+          const err = e as { stderr?: string };
+          ctx.log.error({ stderr: err.stderr ?? String(e) }, "[export] speed segments pass failed — continuing with flat speed");
+        }
+      }
+
       if (speedCurve && speedCurve.length >= 2) {
         try {
           const probeOut = await execFileAsync("ffprobe", [
@@ -1670,6 +1721,43 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       await downloadToFile(audioUrl!, audioPath);
       const audioSize = statSync(audioPath).size;
       ctx.log.info({ audioSize, audioSource }, "[export] audio downloaded");
+    }
+
+    /* ── 2a: Audio ducking pre-pass (Stack 5 #5) ──
+     * The music lane's ducking control: mix the song under the voice track
+     * with sidechaincompress BEFORE the main encode, replacing audioPath
+     * with the ducked mix. HONEST FAILURE: ducking was promised in the
+     * editor, so a missing voice source or missing song fails the export
+     * loudly instead of silently shipping unducked audio. */
+    if (ducking?.enabled) {
+      const voiceUrl = typeof ducking.voiceUrl === "string" ? ducking.voiceUrl : "";
+      if (!audioPath) {
+        throw new Error("Audio ducking is on but this export has no song/music track to duck. Add music or turn ducking off in the Timeline lanes.");
+      }
+      if (!voiceUrl.startsWith("http")) {
+        throw new Error("Audio ducking is on but no voice track is set. Pick a voice track in the Timeline lanes (a vocal stem or your uploaded voice) or turn ducking off.");
+      }
+      const voiceExt = voiceUrl.includes(".mp3") ? ".mp3" : voiceUrl.includes(".wav") ? ".wav" : voiceUrl.includes(".ogg") ? ".ogg" : ".aac";
+      const voicePath = path.join(tmpDir, `bdv-duck-voice-${exportId}${voiceExt}`);
+      const duckedPath = path.join(tmpDir, `bdv-ducked-${exportId}.mp3`);
+      tmpFiles.push(voicePath, duckedPath);
+      exportStatus.ffmpegStage = "audio ducking";
+      await downloadToFile(voiceUrl, voicePath);
+      const params = duckingParamsFromSimple(
+        typeof ducking.amount === "number" ? ducking.amount : 60,
+        typeof ducking.sensitivity === "number" ? ducking.sensitivity : 50,
+      );
+      await execFileAsync("ffmpeg", [
+        "-y", "-i", audioPath, "-i", voicePath,
+        "-filter_complex", buildDuckingMixFilter(params),
+        "-map", "[aout]", "-c:a", "libmp3lame", "-b:a", "192k",
+        duckedPath,
+      ], { timeout: 300_000 });
+      if (!existsSync(duckedPath) || statSync(duckedPath).size < 1024) {
+        throw new Error("Audio ducking failed — the ducked mix came out empty. The export was stopped rather than shipping unducked audio.");
+      }
+      audioPath = duckedPath;
+      ctx.log.info({ amount: ducking.amount }, "[export] audio ducking applied (music lane)");
     }
 
     /* ── 2b: Resolve watermark image path ── */
@@ -1920,6 +2008,17 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           unsupported: effectStack.unsupported,
           conflict: effectStack.conflict,
         }, "[export] effects filter chain applied");
+      }
+    }
+
+    // ── Adjustment lane (Stack 5 #6): windowed grade/effects over the cut,
+    //    applied right after the global effects stack (see lane-export.ts).
+    if (Array.isArray(adjustmentItems) && adjustmentItems.length > 0) {
+      const adj = buildAdjustmentGraph(adjustmentItems, workLabel, effectiveDuration);
+      for (const frag of adj.fragments) filterParts.push(frag);
+      if (adj.applied > 0) {
+        workLabel = adj.outLabel;
+        ctx.log.info({ adjustmentClips: adj.applied }, "[export] adjustment lane applied");
       }
     }
 
