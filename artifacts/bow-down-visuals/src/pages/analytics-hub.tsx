@@ -12,6 +12,7 @@ import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntellig
 import RetentionDoctor from "@/components/analytics-hub/RetentionDoctor";
 import MilestoneTracker from "@/components/analytics-hub/MilestoneTracker";
 import ContentIdMonitor from "@/components/analytics-hub/ContentIdMonitor";
+import { ClaimsPanel, RetentionPanel } from "@/components/trust/TrustPanels";
 import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
 import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
 import FanDecoderSection from "@/components/analytics-hub/FanDecoderSection";
@@ -2389,7 +2390,10 @@ export default function AnalyticsHub() {
             component states that up front and never fakes a claim.
             No new page, no new sidebar item — this tab is its only home. */}
         {hubTab === "contentid" && (
-          <ContentIdMonitor />
+          <div className="grid gap-4">
+            <ContentIdMonitor />
+            <ClaimsPanel />
+          </div>
         )}
 
         {/* ── MILESTONE TRACKER ────────────────────────────────────────────
@@ -2400,7 +2404,10 @@ export default function AnalyticsHub() {
             numbers. No new page, no new sidebar item — this tab is its
             only home. */}
         {hubTab === "milestones" && (
-          <MilestoneTracker />
+          <div className="grid gap-4">
+            <MilestoneTracker />
+            <RetentionPanel />
+          </div>
         )}
 
         {/* ── CONNECTED ACCOUNTS ─────────────────────────────────────────

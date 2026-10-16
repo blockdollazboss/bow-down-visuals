@@ -9,6 +9,7 @@ import {
   friendlyLoadError,
 } from "@/lib/community-ui";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { GroupOnboarding } from "@/components/trust/GroupOnboarding";
 
 /* ─── /groups/:slug — group detail ─────────────────────────────────────────
    About / feed / members. Join & chat never gated (1 star). Moderation tools
@@ -111,7 +112,7 @@ export default function GroupDetail() {
   );
 
   const isOwner = viewerRole === "owner";
-  const isMod = viewerRole === "owner" || viewerRole === "mod";
+  const isMod = viewerRole === "owner" || viewerRole === "admin" || viewerRole === "mod" || viewerRole === "moderator";
   const isMember = !!viewerRole;
 
   return (
@@ -154,6 +155,10 @@ export default function GroupDetail() {
             <Link href="/memberships" className="mt-2 inline-block text-[#e8c86a] hover:underline">Set up paid tiers →</Link>
           </div>
         )}
+
+        <div className="mt-6">
+          <GroupOnboarding slug={slug} members={members} />
+        </div>
 
         <div className="mt-6 flex gap-2 border-b border-white/10">
           {(["about", "feed", "members"] as const).map((t) => (

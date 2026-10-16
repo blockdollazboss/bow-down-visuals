@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { StageRooms } from "@/components/trust/StageRooms";
 
 /* ─── Go Live — Discord stream dashboard ──────────────────────────────────
    The user's community hub is their Discord server (they stream via Go Live).
@@ -495,6 +496,7 @@ export default function GoLive() {
         </Link>
       </div>
       {tab === "broadcast" ? <><BroadcastStudio /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      <div className="mt-6"><StageRooms /></div>
     </div>
   );
 }

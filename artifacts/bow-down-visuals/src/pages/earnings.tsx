@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -134,6 +135,7 @@ export default function Earnings() {
           )}
         </div>
       </div>
+      <div className="mt-4"><EarningsDocuments /></div>
     </div>
   );
 }

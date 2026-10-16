@@ -50,6 +50,34 @@ export default function PremierePage() {
     };
   }, [fetchPremiere]);
 
+  /* Retention heartbeat (Stack 10 #8): real playback positions only,
+     every 5s while playing plus on pause/end, signed-in viewers only.
+     This is the collection the analytics retention curves are built
+     from — videos nobody plays this way honestly read "no data". */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !premiere?.clipId) return;
+    let last = -1;
+    const beat = async () => {
+      if (video.paused && last >= 0 && Math.abs(video.currentTime - last) < 0.1) return;
+      last = video.currentTime;
+      try {
+        const t = await getAccessToken();
+        if (!t) return;
+        await fetch("/api/analytics/retention/heartbeat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ videoId: premiere.clipId, positionSeconds: Math.round(video.currentTime), durationSeconds: Math.max(1, Math.round(video.duration || premiere.durationSeconds || 0)) }),
+        });
+      } catch { /* a missed heartbeat is just a missed heartbeat */ }
+    };
+    const iv = setInterval(() => { if (!video.paused) void beat(); }, 5000);
+    const onPause = () => void beat();
+    video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onPause);
+    return () => { clearInterval(iv); video.removeEventListener("pause", onPause); video.removeEventListener("ended", onPause); };
+  }, [premiere?.clipId, premiere?.durationSeconds, getAccessToken]);
+
   /* Watch-together sync: when the premiere is live, the player starts
      at the server's position and re-syncs if it drifts > 3s. */
   useEffect(() => {
