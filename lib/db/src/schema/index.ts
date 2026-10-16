@@ -108,3 +108,4 @@ export * from "./thy-books";
 export * from "./reach";
 export * from "./trust";
 export * from "./distribution-legacy";
+export * from "./arcade";
