@@ -18,6 +18,9 @@ import {
   notificationsTable,
   profileTracksTable,
   profileVideosTable,
+  likesTable,
+  playEventsTable,
+  closeFriendsTable,
   conversationsTable,
   messagesTable,
   type Attachment,
@@ -87,6 +90,9 @@ import {
   type TikTokOAuthConfig,
 } from "../lib/social-tiktok";
 import { logger } from "../lib/logger";
+import { audienceVisible, circleAuthorIdsFor, type AudienceContext } from "../lib/close-friends";
+import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
+import { verifyAccessToken } from "../lib/live-ws";
 
 /* ── Instagram auto-post MVP ─────────────────────────────────────────────
    GET  /social/instagram/auth-url   (authed)  → Meta OAuth authorize URL
@@ -1179,6 +1185,59 @@ const w8WriteLimiter = rateLimit({
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Optional auth for public read surfaces: sets req.userId when a
+ *  valid Bearer token rides along, never 401s. Close-friends content
+ *  (Stack 9 #7) is enforced at READ time — a public surface can only
+ *  serve it to a viewer it can actually identify as in the circle. */
+async function optionalAuth(req: Request): Promise<void> {
+  if ((req as Request & { userId?: string }).userId) return;
+  const h = req.headers["authorization"];
+  if (!h?.startsWith("Bearer ")) return;
+  try {
+    const v = await verifyAccessToken(h.slice(7));
+    if (v) (req as Request & { userId?: string }).userId = v.userId;
+  } catch { /* viewer stays anonymous — scoped content stays hidden */ }
+}
+
+/** Build the read-time audience context for a viewer (Stack 9 #7). */
+async function audienceContext(viewerUserId: string | null): Promise<AudienceContext> {
+  if (!viewerUserId) {
+    return { viewerUserId: null, viewerProfileId: null, followedProfileIds: new Set(), circleAuthorUserIds: new Set() };
+  }
+  const [me, followed, circle] = await Promise.all([
+    myProfile(viewerUserId),
+    db.select({ profileId: followsTable.profileId }).from(followsTable).where(eq(followsTable.followerUserId, viewerUserId)),
+    circleAuthorIdsFor(viewerUserId),
+  ]);
+  return {
+    viewerUserId,
+    viewerProfileId: me?.id ?? null,
+    followedProfileIds: new Set(followed.map((f) => f.profileId)),
+    circleAuthorUserIds: circle,
+  };
+}
+
+/** Filter post rows through read-time audience enforcement. Author
+ *  user ids resolve from the profiles table (posts carry profileId). */
+async function filterVisiblePosts<T extends { profileId: string; audience: string }>(
+  rows: T[],
+  ctx: AudienceContext,
+  profilesById?: Map<string, { userId: string }>,
+): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  let byId = profilesById;
+  if (!byId) {
+    const ids = [...new Set(rows.map((r) => r.profileId))];
+    const profiles = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, ids));
+    byId = new Map(profiles.map((pr) => [pr.id, pr]));
+  }
+  return rows.filter((r) => {
+    const author = byId!.get(r.profileId);
+    if (!author) return r.audience !== "close_friends" && r.audience !== "followers" ? true : false;
+    return audienceVisible(r.audience, { userId: author.userId, profileId: r.profileId }, ctx);
+  });
+}
+
 async function myProfile(userId: string) {
   const [p] = await db
     .select()
@@ -1199,6 +1258,18 @@ function pickProfile(p: typeof creatorProfilesTable.$inferSelect | undefined) {
   };
 }
 
+/** One post's read-time visibility for a viewer (Stack 9 #7). */
+async function postVisibleTo(
+  post: { profileId: string; audience: string },
+  viewerUserId: string | null,
+): Promise<boolean> {
+  if (post.audience === "public") return true;
+  const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
+  if (!author) return false;
+  const ctx = await audienceContext(viewerUserId);
+  return audienceVisible(post.audience, { userId: author.userId, profileId: post.profileId }, ctx);
+}
+
 /* Story DTO, field-by-field: the frontend Story contract
    (lib/social-api.ts) is snake_case — StoryViewer reads expires_at /
    media_kind / media_url. A raw row spread shipped camelCase table
@@ -1214,6 +1285,7 @@ function toStoryDto(
     media_url: s.mediaUrl,
     media_kind: s.mediaKind,
     caption: s.caption,
+    audience: s.audience ?? "public",
     view_count: s.viewCount,
     expires_at: s.expiresAt,
     created_at: s.createdAt,
@@ -1301,7 +1373,7 @@ const createPostSchema = z.object({
   quote_of: z.string().uuid().optional().nullable(),
   group_id: z.string().uuid().optional().nullable(),
   scheduled_for: z.string().datetime().optional().nullable(),
-  audience: z.enum(["public", "followers"]).optional().default("public"),
+  audience: z.enum(["public", "followers", "close_friends"]).optional().default("public"),
   poll: z.array(z.string().trim().min(1).max(80)).min(2).max(4).optional(),
 });
 
@@ -1341,6 +1413,25 @@ async function enrichPosts(
     db.select().from(pollOptionsTable).where(inArray(pollOptionsTable.postId, postIds)).orderBy(pollOptionsTable.position),
   ]);
 
+  /* Quoted-post enforcement (Stack 9 #7): a quote EMBEDS another
+     post — if the viewer can't see the quoted post, it renders as
+     null, exactly like a deleted quote. */
+  const invisibleQuoteIds = new Set<string>();
+  if (viewerUserId) {
+    const scopedQuotes = quotes.filter((q) => (q as { audience?: string }).audience && (q as { audience?: string }).audience !== "public");
+    if (scopedQuotes.length) {
+      const ctx = await audienceContext(viewerUserId);
+      const qProfileIds = [...new Set(scopedQuotes.map((q) => String((q as { profile_id?: string }).profile_id)))];
+      const qProfiles = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, qProfileIds));
+      const qById = new Map(qProfiles.map((pr) => [pr.id, pr]));
+      for (const q of scopedQuotes) {
+        const author = qById.get(String((q as { profile_id?: string }).profile_id));
+        if (!author || !audienceVisible(String((q as { audience?: string }).audience), { userId: author.userId, profileId: author.id }, ctx)) {
+          invisibleQuoteIds.add(String(q.id));
+        }
+      }
+    }
+  }
   const pmap = new Map(profiles.map((p) => [p.id, p]));
   const qmap = new Map(quotes.map((q) => [String(q.id), q]));
   const countMap = new Map<string, Record<string, number>>();
@@ -1403,7 +1494,7 @@ async function enrichPosts(
         viewer_emoji: viewerEmoji.get(p.id) ?? null,
         viewer_saved: savedSet.has(p.id),
         reaction_counts: countMap.get(p.id) ?? {},
-        quoted: p.quoteOf ? (qmap.get(p.quoteOf) ?? null) : null,
+        quoted: p.quoteOf ? (invisibleQuoteIds.has(p.quoteOf) ? null : (qmap.get(p.quoteOf) ?? null)) : null,
         poll: pollMap.has(p.id)
           ? {
               options: (pollMap.get(p.id) ?? []).map((o) => ({ id: o.id, option_text: o.optionText, vote_count: o.voteCount })),
@@ -1425,6 +1516,7 @@ const createStorySchema = z.object({
   media_url: z.string().url().max(2000),
   media_kind: z.enum(["image", "video"]).optional().default("image"),
   caption: z.string().max(280).optional().default(""),
+  audience: z.enum(["public", "followers", "close_friends"]).optional().default("public"),
 });
 
 router.post("/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
@@ -1442,6 +1534,7 @@ router.post("/stories", requireAuth, w8WriteLimiter, async (req: Request, res: R
         })) ?? parsed.data.media_url,
       mediaKind: parsed.data.media_kind,
       caption: parsed.data.caption,
+      audience: parsed.data.audience,
       expiresAt: new Date(Date.now() + 24 * 3600_000),
     }).returning();
     return res.status(201).json({ story: await refreshSupabaseStorageUrlsDeep(story) });
@@ -1457,6 +1550,11 @@ router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => 
       .from(followsTable).where(eq(followsTable.followerUserId, req.userId!));
     const ids = new Set(followed.map((f) => f.profileId));
     if (me) ids.add(me.id);
+    /* Circle authors (Stack 9 #7): their close-friends stories are
+       for the viewer even when the viewer doesn't follow them. */
+    const circleRows = await db.select({ profileId: closeFriendsTable.owner_profile_id })
+      .from(closeFriendsTable).where(eq(closeFriendsTable.friend_user_id, req.userId!));
+    for (const c of circleRows) ids.add(c.profileId);
     if (ids.size === 0) return res.json({ stories: [] });
     /* Opportunistic corpse purge — expiry itself needs no cron. */
     db.delete(storiesTable).where(lt(storiesTable.expiresAt, new Date(Date.now() - 7 * 86400_000))).catch(() => {});
@@ -1468,8 +1566,19 @@ router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => 
       db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, idArr)),
     ]);
     const pmap = new Map(profiles.map((p) => [p.id, p]));
+    /* Read-time audience enforcement (Stack 9 #7): the feed query is
+       follow-scoped, but close-friends stories need the circle check
+       too — a follower who isn't in the circle must not receive them.
+       Authors outside the follow set (circle members the viewer
+       doesn't follow) are added when they scoped to the circle. */
+    const ctx = await audienceContext(req.userId!);
+    const visible = rows.filter((st) => {
+      const author = pmap.get(st.profileId);
+      if (!author) return false;
+      return audienceVisible(st.audience ?? "public", { userId: author.userId, profileId: st.profileId }, ctx);
+    });
     return res.json(await refreshSupabaseStorageUrlsDeep({
-      stories: rows.map((s) => toStoryDto(s, pickProfile(pmap.get(s.profileId)))),
+      stories: visible.map((s) => toStoryDto(s, pickProfile(pmap.get(s.profileId)))),
     }));
   } catch (err) {
     return res.status(500).json({ error: "stories_feed_failed" });
@@ -1480,6 +1589,15 @@ router.post("/stories/:id/view", requireAuth, async (req: Request, res: Response
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [storyRow] = await db.select().from(storiesTable).where(eq(storiesTable.id, id)).limit(1);
+    if (!storyRow) return res.status(404).json({ error: "not_found" });
+    if ((storyRow.audience ?? "public") !== "public") {
+      const [authorProfile] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, storyRow.profileId)).limit(1);
+      const ctx = await audienceContext(req.userId!);
+      if (!authorProfile || !audienceVisible(storyRow.audience, { userId: authorProfile.userId, profileId: storyRow.profileId }, ctx)) {
+        return res.status(404).json({ error: "not_found" });
+      }
+    }
     await db.update(storiesTable)
       .set({ viewCount: sql`${storiesTable.viewCount} + 1` })
       .where(eq(storiesTable.id, id));
@@ -1502,6 +1620,12 @@ router.post("/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Reque
     const [story] = await db.select().from(storiesTable).where(eq(storiesTable.id, id)).limit(1);
     if (!story) return res.status(404).json({ error: "not_found" });
     const [owner] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, story.profileId)).limit(1);
+    if ((story.audience ?? "public") !== "public") {
+      const ctx = await audienceContext(req.userId!);
+      if (!owner || !audienceVisible(story.audience, { userId: owner.userId, profileId: story.profileId }, ctx)) {
+        return res.status(404).json({ error: "not_found" });
+      }
+    }
     if (!owner) return res.status(404).json({ error: "not_found" });
     if (owner.userId === req.userId) return res.status(400).json({ error: "own_story", message: "That's your own story — no need to DM yourself. 🦈" });
     const [a, b] = [req.userId!, owner.userId].sort();
@@ -1532,11 +1656,20 @@ router.post("/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Reque
    profile page stories section (Worker 4 mount). */
 router.get("/stories/by-profile/:profileId", async (req: Request, res: Response) => {
   try {
+    await optionalAuth(req);
     const profileId = String(req.params["profileId"]);
     if (!UUID_RE.test(profileId)) return res.status(400).json({ error: "invalid_id" });
-    const rows = await db.select().from(storiesTable)
+    const allRows = await db.select().from(storiesTable)
       .where(and(eq(storiesTable.profileId, profileId), gt(storiesTable.expiresAt, new Date())))
       .orderBy(desc(storiesTable.createdAt)).limit(50);
+    /* Read-time audience enforcement (Stack 9 #7): anonymous and
+       non-circle viewers never receive close-friends stories here. */
+    const [authorProfile] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, profileId)).limit(1);
+    const viewerId = (req as Request & { userId?: string }).userId ?? null;
+    const ctx = await audienceContext(viewerId);
+    const rows = authorProfile
+      ? allRows.filter((st) => audienceVisible(st.audience ?? "public", { userId: authorProfile.userId, profileId }, ctx))
+      : [];
     /* Same Story[] contract as the feed — the profile page's stories
        section consumes this payload as snake_case Story objects. */
     return res.json({ stories: rows.map((s) => toStoryDto(s, null)) });
@@ -1664,14 +1797,16 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
 
     let kind: string = d.kind;
     if (d.reply_to) {
-      const [parent] = await db.select({ id: postsTable.id }).from(postsTable).where(eq(postsTable.id, d.reply_to)).limit(1);
+      const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, d.reply_to)).limit(1);
       if (!parent) return res.status(404).json({ error: "reply_target_missing" });
+      if (!(await postVisibleTo(parent, req.userId!))) return res.status(404).json({ error: "reply_target_missing" });
       kind = "thread_reply";
     }
     let quoteTarget: typeof postsTable.$inferSelect | null = null;
     if (d.quote_of) {
       const [q] = await db.select().from(postsTable).where(eq(postsTable.id, d.quote_of)).limit(1);
       if (!q) return res.status(404).json({ error: "quote_target_missing" });
+      if (!(await postVisibleTo(q, req.userId!))) return res.status(404).json({ error: "quote_target_missing" });
       quoteTarget = q;
       kind = "quote";
     }
@@ -1737,6 +1872,54 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
   }
 });
 
+/**
+ * Per-creator affinity for a viewer, from behavior already recorded:
+ * reactions on the creator's posts, likes on their tracks/videos,
+ * plays of their tracks/videos, and follows. Weighted per
+ * lib/for-you.ts AFFINITY_WEIGHTS. Bounded reads (latest 500 each).
+ */
+async function computeAffinity(viewerUserId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, { reactions: number; likes: number; plays: number; follows: number }>();
+  const bump = (profileId: string, key: "reactions" | "likes" | "plays" | "follows") => {
+    const c = counts.get(profileId) ?? { reactions: 0, likes: 0, plays: 0, follows: 0 };
+    c[key] += 1;
+    counts.set(profileId, c);
+  };
+  const [reactions, likes, plays, follows] = await Promise.all([
+    db.select().from(reactionsTable).where(and(eq(reactionsTable.userId, viewerUserId), eq(reactionsTable.targetKind, "post"))).limit(500),
+    db.select().from(likesTable).where(eq(likesTable.userId, viewerUserId)).limit(500),
+    db.select().from(playEventsTable).where(eq(playEventsTable.userId, viewerUserId)).limit(500),
+    db.select().from(followsTable).where(eq(followsTable.followerUserId, viewerUserId)).limit(500),
+  ]);
+  for (const f of follows) bump(f.profileId, "follows");
+  const postIds = [...new Set(reactions.map((r) => r.targetId))];
+  if (postIds.length) {
+    const ps = await db.select({ id: postsTable.id, profileId: postsTable.profileId }).from(postsTable).where(inArray(postsTable.id, postIds));
+    const byId = new Map(ps.map((x) => [x.id, x.profileId]));
+    for (const r of reactions) {
+      const pid = byId.get(r.targetId);
+      if (pid) bump(pid, "reactions");
+    }
+  }
+  const trackIds = [...new Set([...likes.filter((l) => l.kind === "track").map((l) => l.targetId), ...plays.filter((e) => e.kind === "track").map((e) => e.mediaId)])];
+  if (trackIds.length) {
+    const ts = await db.select({ id: profileTracksTable.id, profileId: profileTracksTable.profileId }).from(profileTracksTable).where(inArray(profileTracksTable.id, trackIds));
+    const byId = new Map(ts.map((x) => [x.id, x.profileId]));
+    for (const l of likes) if (l.kind === "track" && byId.get(l.targetId)) bump(byId.get(l.targetId)!, "likes");
+    for (const e of plays) if (e.kind === "track" && byId.get(e.mediaId)) bump(byId.get(e.mediaId)!, "plays");
+  }
+  const videoIds = [...new Set([...likes.filter((l) => l.kind === "video").map((l) => l.targetId), ...plays.filter((e) => e.kind === "video").map((e) => e.mediaId)])];
+  if (videoIds.length) {
+    const vs = await db.select({ id: profileVideosTable.id, profileId: profileVideosTable.profileId }).from(profileVideosTable).where(inArray(profileVideosTable.id, videoIds));
+    const byId = new Map(vs.map((x) => [x.id, x.profileId]));
+    for (const l of likes) if (l.kind === "video" && byId.get(l.targetId)) bump(byId.get(l.targetId)!, "likes");
+    for (const e of plays) if (e.kind === "video" && byId.get(e.mediaId)) bump(byId.get(e.mediaId)!, "plays");
+  }
+  const out = new Map<string, number>();
+  for (const [pid, c] of counts) out.set(pid, affinityScore(c));
+  return out;
+}
+
 /* Feed: ?mode=chrono (default — your timeline, no algorithm overlords 🦈)
    |foryou (followed + high-engagement + your own creators get a boost).
    ?before=ISO for pagination, ?limit. */
@@ -1754,39 +1937,54 @@ router.get("/feed", requireAuth, async (req: Request, res: Response) => {
     const conds = [publishedOnly(), sql`${postsTable.kind} != 'thread_reply'`];
     if (before && !isNaN(before.getTime())) conds.push(lt(postsTable.createdAt, before));
 
+    /* Read-time audience enforcement (Stack 9 #7) applies to BOTH
+       modes before any ranking: close-friends posts reach only the
+       author's circle, followers posts only followers. */
+    const actx = await audienceContext(req.userId!);
+
     if (mode === "chrono") {
       const rows = await db.select().from(postsTable)
         .where(and(...conds))
         .orderBy(desc(postsTable.createdAt)).limit(limit);
-      const visible = rows.filter((p) =>
-        p.audience !== "followers" || (me && (p.profileId === me.id || followedIds.has(p.profileId))),
-      );
+      const visible = await filterVisiblePosts(rows, actx);
       const enriched = await enrichPosts(visible, req.userId!);
       return res.json({ mode, posts: enriched });
     }
 
-    /* for-you: score = follow boost + own-creator boost + engagement − age decay. */
+    /* For-You v1 (Stack 9 #4): charts-and-recency blended with real
+       interest signals — follows, plus per-creator affinity built
+       from the viewer's recorded reactions / likes / plays. The
+       factors are named in lib/for-you.ts; every item carries its
+       honest `why` (the strongest true signal). NO paid boosting
+       exists or is read here. */
     const rows = await db.select().from(postsTable)
       .where(and(...conds))
       .orderBy(desc(postsTable.createdAt)).limit(150);
+    const visibleRows = await filterVisiblePosts(rows, actx);
+    const affinityByProfile = await computeAffinity(req.userId!);
     const now = Date.now();
-    const scored = rows
-      .filter((p) => p.audience !== "followers" || (me && (p.profileId === me.id || followedIds.has(p.profileId))))
+    const scored = visibleRows
       .map((p) => {
-        const ageH = Math.max(0, (now - new Date(p.createdAt).getTime()) / 3600_000);
-        const engagement = (p.likeCount ?? 0) + (p.repostCount ?? 0) * 3 + (p.replyCount ?? 0) * 2;
-        const score =
-          (followedIds.has(p.profileId) ? 100 : 0) +
-          (me && p.profileId === me.id ? 60 : 0) +
-          engagement * 0.4 -
-          ageH * 1.5 +
-          (((p.mediaUrls as unknown[]) ?? []).length > 0 ? 8 : 0);
-        return { p, score };
+        const signals = {
+          isFollowed: followedIds.has(p.profileId),
+          isOwn: !!me && p.profileId === me.id,
+          affinity: affinityByProfile.get(p.profileId) ?? 0,
+          likeCount: p.likeCount ?? 0,
+          repostCount: p.repostCount ?? 0,
+          replyCount: p.replyCount ?? 0,
+          hasMedia: (((p.mediaUrls as unknown[]) ?? []).length > 0),
+          createdAtMs: new Date(p.createdAt).getTime(),
+        };
+        return { p, score: forYouScore(signals, now), why: whyReason(signals, now) };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map((s) => s.p);
-    const enriched = await enrichPosts(scored, req.userId!);
+      .slice(0, limit);
+    const enriched = await enrichPosts(scored.map((x) => x.p), req.userId!);
+    const whyById = new Map(scored.map((x) => [x.p.id, x.why]));
+    for (const e of enriched) {
+      const w = whyById.get(String(e.id));
+      if (w) (e as Record<string, unknown>).why = w;
+    }
     return res.json({ mode, posts: enriched });
   } catch (err) {
     return res.status(500).json({ error: "feed_failed" });
@@ -1799,7 +1997,12 @@ router.get("/posts/:id", async (req: Request, res: Response) => {
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
     const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
     if (!post) return res.status(404).json({ error: "not_found" });
+    await optionalAuth(req);
     const viewer = (req as Request & { userId?: string }).userId ?? null;
+    /* Read-time audience enforcement (Stack 9 #7): a scoped post is
+       a 404 to anyone outside its audience — its existence doesn't
+       leak either. */
+    if (!(await postVisibleTo(post, viewer))) return res.status(404).json({ error: "not_found" });
     const [enriched] = await enrichPosts([post], viewer);
     return res.json({ post: enriched });
   } catch {
@@ -1811,11 +2014,17 @@ router.get("/posts/:id/replies", async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"]);
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!parent) return res.status(404).json({ error: "not_found" });
+    await optionalAuth(req);
+    const viewer = (req as Request & { userId?: string }).userId ?? null;
+    if (!(await postVisibleTo(parent, viewer))) return res.status(404).json({ error: "not_found" });
     const rows = await db.select().from(postsTable)
       .where(and(eq(postsTable.replyTo, id), publishedOnly()))
       .orderBy(postsTable.createdAt).limit(100);
-    const viewer = (req as Request & { userId?: string }).userId ?? null;
-    return res.json({ replies: await enrichPosts(rows, viewer) });
+    const ctx = await audienceContext(viewer);
+    const visible = await filterVisiblePosts(rows, ctx);
+    return res.json({ replies: await enrichPosts(visible, viewer) });
   } catch {
     return res.status(500).json({ error: "replies_failed" });
   }
@@ -1833,6 +2042,7 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
     const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
     if (!parent) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(parent, req.userId!))) return res.status(404).json({ error: "not_found" });
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: parsed.data.body,
@@ -1863,6 +2073,8 @@ router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Reques
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
     const [orig] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
     if (!orig) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(orig, req.userId!))) return res.status(404).json({ error: "not_found" });
+    if (orig.audience === "close_friends") return res.status(400).json({ error: "circle_only", message: "Close-friends posts stay in the circle — they can't be reposted or quoted." });
     const [existing] = await db.select({ id: postsTable.id }).from(postsTable)
       .where(and(eq(postsTable.profileId, me.id), eq(postsTable.repostOf, id))).limit(1);
     if (existing) return res.status(409).json({ error: "already_reposted", post_id: existing.id });
@@ -1906,6 +2118,8 @@ router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request
     }
     const [orig] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
     if (!orig) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(orig, req.userId!))) return res.status(404).json({ error: "not_found" });
+    if (orig.audience === "close_friends") return res.status(400).json({ error: "circle_only", message: "Close-friends posts stay in the circle — they can't be reposted or quoted." });
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: parsed.data.body,
@@ -2172,9 +2386,12 @@ router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
       arr.push(r.targetId);
       byKind.set(r.kind, arr);
     }
-    const postRows = byKind.has("post")
+    const savedPostRows = byKind.has("post")
       ? await db.select().from(postsTable).where(inArray(postsTable.id, byKind.get("post")!))
       : [];
+    /* A saved close-friends post leaves the saver's surfaces the
+       moment they're out of the circle (Stack 9 #7, read-time). */
+    const postRows = await filterVisiblePosts(savedPostRows, await audienceContext(req.userId!));
     const posts: EnrichedPost[] = await enrichPosts(postRows, req.userId!);
     const profiles: Array<typeof creatorProfilesTable.$inferSelect> = byKind.has("profile")
       ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, byKind.get("profile")!))
@@ -2223,7 +2440,7 @@ router.get("/trending/topics", async (_req: Request, res: Response) => {
     const since = new Date(Date.now() - 24 * 3600_000);
     const [posts, videos] = await Promise.all([
       db.select({ body: postsTable.body }).from(postsTable)
-        .where(and(gt(postsTable.createdAt, since), publishedOnly())).limit(2000),
+        .where(and(gt(postsTable.createdAt, since), publishedOnly(), eq(postsTable.audience, "public"))).limit(2000),
       db.select({ tags: profileVideosTable.tags }).from(profileVideosTable)
         .where(gt(profileVideosTable.createdAt, since)).limit(2000),
     ]);
@@ -2266,8 +2483,12 @@ router.get("/hashtag/:tag/posts", async (req: Request, res: Response) => {
       .orderBy(desc(postsTable.createdAt)).limit(50);
     const boundary = new RegExp(`(^|[\\s(])#${tag}([\\s).,!?;:]|$)`, "i");
     const matched = rows.filter((p) => boundary.test(p.body));
+    await optionalAuth(req);
     const viewer = (req as Request & { userId?: string }).userId ?? null;
-    return res.json({ tag, posts: await enrichPosts(matched, viewer) });
+    /* Read-time audience enforcement (Stack 9 #7) on the hashtag surface too. */
+    const ctx = await audienceContext(viewer);
+    const visible = await filterVisiblePosts(matched, ctx);
+    return res.json({ tag, posts: await enrichPosts(visible, viewer) });
   } catch {
     return res.status(500).json({ error: "hashtag_failed" });
   }
