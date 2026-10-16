@@ -31,6 +31,13 @@ const WHIP = "https://customer-f33z.cloudflarestream.com/cf-input-1/webRTC/publi
 const WHEP = "https://customer-f33z.cloudflarestream.com/cf-input-1/webRTC/play";
 const HLS = "https://customer-f33z.cloudflarestream.com/cf-input-1/manifest/video.m3u8";
 
+/* This suite's subject is the Cloudflare transport. The server default
+   is now the own-server transport (LIVE_TRANSPORT unset = "own"), so pin
+   the selection here, before the router module reads it per-request. */
+vi.hoisted(() => {
+  process.env.LIVE_TRANSPORT = "cloudflare";
+});
+
 const h = vi.hoisted(() => ({
   state: {
     configured: true,
@@ -561,7 +568,7 @@ describe("POST /api/live-streams/:id/vod", () => {
 describe("GET /api/live-streams/status", () => {
   it("reports the configured flag and the caller's live stream (owner DTO)", async () => {
     const idle = await call("GET", "/live-streams/status");
-    expect(idle.json).toEqual({ configured: true, live_stream: null });
+    expect(idle.json).toEqual({ configured: true, transport: "cloudflare", live_stream: null });
 
     const { json: created } = await goLive();
     const live = await call("GET", "/live-streams/status");
