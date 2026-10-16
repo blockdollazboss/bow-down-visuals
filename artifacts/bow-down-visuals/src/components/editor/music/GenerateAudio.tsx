@@ -1189,7 +1189,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
 
   /* ── Remaster: one-tap express mastering of the working song ──
      The same endpoint, preset default and charge as Audio Studio's Quick
-     Master panel: POST /api/mastering (credit registry: "AI Mastering",
+     Master panel: POST /api/mastering (credit registry: "Mastering",
      400 Visual Bucs — the confirmedFetch dialog shows the cost before any
      charge). The working song is a URL, so it is fetched and re-uploaded
      as the audio file, exactly like handleStems does for /api/stems.

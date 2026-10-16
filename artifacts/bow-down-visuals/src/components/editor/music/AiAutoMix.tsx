@@ -47,14 +47,14 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
 
   function handleApplyMix() {
     if (ms.stems.length === 0) {
-      toast({ title: "No stems to mix", description: "Upload stems in Manual Studio first, then apply the AI mix.", variant: "destructive" });
+      toast({ title: "No stems to mix", description: "Upload stems in Manual Studio first, then apply the mix.", variant: "destructive" });
       return;
     }
     const nextStems = applyAiMixToStems(ms.stems, opts);
     onChange({ ...settings, musicStudio: { ...ms, mode: "manual", stems: nextStems } });
     const locked = ms.stems.filter((s) => s.locked).length;
     toast({
-      title: "AI mix settings applied",
+      title: "Mix settings applied",
       description: locked > 0
         ? `Preview volumes & pan set on your stems (${locked} locked stem${locked > 1 ? "s" : ""} kept). Switched to Manual Studio to preview.`
         : "Preview volumes & pan set on your stems. Switched to Manual Studio so you can preview the mix.",
@@ -154,7 +154,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
       const generatedPlan = (await res.json()) as AiMixPlan;
       onChange({ ...settings, musicStudio: { ...ms, aiMix: opts, aiMixPlan: generatedPlan } });
       toast({
-        title: "AI Mix Plan ready",
+        title: "Mix Plan ready",
         description: generatedPlan.fallback
           ? "Generated an offline plan — AI was unavailable."
           : `Mix & master plan built for ${presetName}.`,
@@ -244,7 +244,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         className="w-full h-12 text-sm font-black bg-primary text-black hover:bg-primary/90"
         data-testid="btn-create-mix-plan"
       >
-        {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Building mix plan…</> : <><Sparkles className="h-4 w-4 mr-2" /> Create AI Mix Plan</>}
+        {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Building mix plan…</> : <><Sparkles className="h-4 w-4 mr-2" /> Create Mix Plan</>}
       </Button>
 
       {plan && (
@@ -286,7 +286,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
             {rendering && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.06] border border-primary/20">
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                <p className="text-xs font-bold text-primary">Rendering your AI mix…</p>
+                <p className="text-xs font-bold text-primary">Rendering your mix…</p>
               </div>
             )}
 
@@ -301,7 +301,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
               <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <p className="text-xs font-black text-emerald-300">AI Mix Rendered</p>
+                  <p className="text-xs font-black text-emerald-300">Mix Rendered</p>
                   <span className="text-[10px] text-white/40 ml-auto">Full MP3 · {new Date(renderResult.createdAt).toLocaleTimeString()}</span>
                 </div>
                 <audio controls src={renderResult.url} className="w-full" />
