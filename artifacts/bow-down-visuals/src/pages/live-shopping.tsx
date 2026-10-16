@@ -24,11 +24,12 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    description writer (1 credit, charged before the call, refunded on
    provider failure).
 
-   Honest v1 boundaries (shown in the UI, never hidden):
-   - Platform checkout is "coming soon": buy buttons open the creator's
-     own checkout URL in a new tab.
-   - Sales and purchase alerts recorded here are TEST sales until
-     platform checkout ships — every response and the dashboard say so. */
+   Checkout (0132, shown in the UI, never hidden):
+   - The default buy path is on-platform secure checkout (test mode):
+     the sale records only when the payment verifies on return.
+   - The creator's own external link stays as a secondary option.
+   - Sales and purchase alerts recorded manually here are TEST sales —
+     the dashboard labels them separately from paid sales. */
 
 interface Product {
   id: string;
@@ -61,12 +62,17 @@ interface ShopAlert {
 interface DashboardData {
   totals: {
     sales: number;
+    paid_sales: number;
+    test_sales: number;
+    paid_revenue: string;
+    paid_revenue_cents: number;
     revenue: string;
     revenue_cents: number;
     platform_fees: string;
     creator_payout: string;
     fee_bps: number;
   };
+  test_data: boolean;
   per_stream: Array<{
     stream_id: string;
     title: string;
@@ -367,6 +373,58 @@ export default function LiveShopping() {
 
   const pinned = products.find((p) => p.id === activeStream?.pinned_product_id) ?? null;
 
+  /* Native checkout (default buy path): start the on-platform checkout
+     and send the viewer to it. The sale only exists once the payment
+     verifies on return (see the session_id effect below). */
+  const [buying, setBuying] = useState(false);
+  const [buyMsg, setBuyMsg] = useState<string | null>(null);
+  const buyPinned = async () => {
+    if (!pinned) return;
+    setBuying(true);
+    setBuyMsg(null);
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/live-shopping/checkout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ product_id: pinned.id, stream_id: activeStream?.id, quantity: 1 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed.");
+      window.location.href = data.url as string;
+    } catch (e) {
+      setBuyMsg(e instanceof Error ? e.message : "Checkout failed.");
+      setBuying(false);
+    }
+  };
+
+  /* Returning from checkout: verify server-side before calling it a sale. */
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get("session_id");
+    if (!sid || !user) return;
+    window.history.replaceState(null, "", "/live-shopping");
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const res = await fetch("/api/live-shopping/verify", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ sessionId: sid }),
+        });
+        const data = await res.json().catch(() => ({}));
+        setBuyMsg(
+          res.ok && data.success
+            ? "Payment confirmed — your purchase is complete."
+            : (data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+        );
+        if (res.ok) await loadAll();
+      } catch {
+        setBuyMsg("We couldn't confirm that payment. If you were charged, contact support.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-6xl px-5 md:px-8 pb-24">
@@ -428,6 +486,16 @@ export default function LiveShopping() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" aria-hidden="true" />
                 <p className="text-xs text-red-100/80">{error}</p>
                 <button onClick={() => setError(null)} className="ml-auto text-white/40 hover:text-white" aria-label={t("liveShopping.dismissAria")}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {buyMsg && (
+              <div className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-xl border border-green-400/30 bg-green-400/[0.06] px-4 py-3">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-300" aria-hidden="true" />
+                <p className="text-xs text-green-100/85">{buyMsg}</p>
+                <button onClick={() => setBuyMsg(null)} className="ml-auto text-white/40 hover:text-white" aria-label={t("liveShopping.dismissAria")}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -550,13 +618,17 @@ export default function LiveShopping() {
                                   <p className="truncate text-xs font-bold">{pinned.name}</p>
                                   <p className="text-sm font-black text-primary">{pinned.price}</p>
                                 </div>
-                                {pinned.external_url ? (
-                                  <a href={pinned.external_url} target="_blank" rel="noreferrer" className={`${goldBtn} !px-4 !py-2 text-xs`}>
-                                    Buy <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-white/40">{t("liveShopping.linkComingSoon")}</span>
-                                )}
+                                <div className="flex flex-col items-end gap-1">
+                                  <button onClick={buyPinned} disabled={buying} className={`${goldBtn} !px-4 !py-2 text-xs`}>
+                                    {buying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                                    Buy {pinned.price}
+                                  </button>
+                                  {pinned.external_url && (
+                                    <a href={pinned.external_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/80">
+                                      Creator's own shop <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                             )}
                             {/* purchase alerts */}
@@ -628,13 +700,17 @@ export default function LiveShopping() {
                   <section className="mt-8">
                     <div className="flex items-center gap-2">
                       <h2 className="text-xl font-bold">{t("liveShopping.dashboardTitle")}</h2>
-                      <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">{t("liveShopping.testDataBadge")}</span>
+                      {dashboard.test_data && (
+                        <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">{t("liveShopping.testDataBadge")}</span>
+                      )}
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                       <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex items-center gap-2 text-white/45"><DollarSign className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.revenueLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black text-primary">{dashboard.totals.revenue}</p>
-                        <p className="mt-1 text-xs text-white/40">{t("liveShopping.testSalesCount", { count: dashboard.totals.sales })}</p>
+                        <p className="mt-1 text-xs text-white/40">
+                          {dashboard.totals.paid_sales} paid · {t("liveShopping.testSalesCount", { count: dashboard.totals.test_sales })}
+                        </p>
                       </div>
                       <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <div className="flex items-center gap-2 text-white/45"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.platformFeesLabel")}</span></div>

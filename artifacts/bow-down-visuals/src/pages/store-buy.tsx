@@ -31,6 +31,7 @@ interface ItemData {
     artistSlug: string;
     priceCents: number;
     price: string;
+    pwyw?: { enabled: boolean; minCents: number; minPrice: string };
   };
   feeSplit: {
     price: string;
@@ -52,6 +53,9 @@ export default function StoreBuy() {
   const [buying, setBuying] = useState(false);
   const [notWired, setNotWired] = useState(false);
   const [shared, setShared] = useState(false);
+  /* Name-your-price: the fan's amount in dollars (PWYW items only). */
+  const [pwywDollars, setPwywDollars] = useState("");
+  const [pwywError, setPwywError] = useState<string | null>(null);
 
   async function onShare() {
     if (!data) return;
@@ -79,6 +83,10 @@ export default function StoreBuy() {
           return;
         }
         setData(body);
+        if (body.item.pwyw?.enabled) {
+          const startCents = Math.max(body.item.priceCents, body.item.pwyw.minCents);
+          setPwywDollars((startCents / 100).toFixed(2));
+        }
       } catch {
         if (alive) setError("Couldn't load this drop. Check your connection.");
       }
@@ -93,6 +101,19 @@ export default function StoreBuy() {
       navigate("/login");
       return;
     }
+    /* Name-your-price: the amount the fan typed is the amount charged —
+       validated here for speed and again on the server (the server's
+       minimum check is the one that counts). */
+    let amountCents: number | undefined;
+    if (data?.item.pwyw?.enabled) {
+      const cents = Math.round(Number.parseFloat(pwywDollars || "0") * 100);
+      if (!Number.isFinite(cents) || cents < data.item.pwyw.minCents) {
+        setPwywError(`Name your price — at least ${data.item.pwyw.minPrice}.`);
+        return;
+      }
+      setPwywError(null);
+      amountCents = cents;
+    }
     setBuying(true);
     try {
       const token = await getAccessToken();
@@ -102,7 +123,7 @@ export default function StoreBuy() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ kind: params.kind, id: params.id }),
+        body: JSON.stringify({ kind: params.kind, id: params.id, ...(amountCents !== undefined ? { amountCents } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
@@ -162,10 +183,31 @@ export default function StoreBuy() {
               </p>
 
               <div className="mt-6 rounded-xl border border-amber-500/20 bg-black/40 p-5">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-amber-100/60">Your price</span>
-                  <span className="text-3xl font-bold text-amber-300">{data.item.price}</span>
-                </div>
+                {data.item.pwyw?.enabled ? (
+                  <div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-sm text-amber-100/60">Name your price</span>
+                      <span className="text-xs text-amber-100/50">minimum {data.item.pwyw.minPrice}</span>
+                    </div>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-200/60">$</span>
+                      <input
+                        value={pwywDollars}
+                        onChange={(e) => setPwywDollars(e.target.value)}
+                        inputMode="decimal"
+                        aria-label="Your price in dollars"
+                        className="w-full rounded-lg border border-amber-500/30 bg-black/60 py-2.5 pl-7 pr-3 text-xl font-bold text-amber-200 outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    {pwywError && <p className="mt-2 text-xs font-bold text-red-300">{pwywError}</p>}
+                    <p className="mt-2 text-xs text-amber-100/50">Pay what it's worth to you — the amount you enter is the amount you're charged.</p>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-amber-100/60">Your price</span>
+                    <span className="text-3xl font-bold text-amber-300">{data.item.price}</span>
+                  </div>
+                )}
                 <div className="mt-3 space-y-1.5 border-t border-amber-500/10 pt-3 text-sm">
                   <div className="flex justify-between text-amber-100/70">
                     <span className="inline-flex items-center gap-1.5">

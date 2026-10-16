@@ -12,18 +12,26 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Fan Memberships ───────────────────────────────────────────────────
    /memberships — creators launch fan clubs with paid tiers. Tier setup +
-   member tracking are free. The site takes a 10% platform fee once payment
-   processing ships (honest "coming soon" — never faked). The AI perk
-   suggester costs 1 credit per suggestion (charge-before-generate). */
+   member tracking are free. The site takes a 10% platform fee out of the
+   creator's cut. Fans join through secure checkout (test mode) — a
+   membership activates only when the payment verifies on return. Tiers
+   can offer a 7-day free trial and a creator-set annual discount, and
+   memberships can be gifted. The AI perk suggester costs 1 credit per
+   suggestion (charge-before-generate). */
 
 interface Tier {
   id: string;
+  creatorUserId?: string;
   name: string;
   priceDollars: number;
   priceCents: number;
   description: string;
   perks: string[];
   isActive: boolean;
+  trialEnabled: boolean;
+  annualDiscountPct: number;
+  annualPriceCents: number;
+  annualPriceDollars: number;
   createdAt: string;
 }
 
@@ -51,9 +59,37 @@ interface Member {
   tierId: string;
   tierName: string;
   fanLabel: string;
-  status: "active" | "past_due" | "canceled";
+  fanUserId: string | null;
+  status: "trialing" | "active" | "past_due" | "canceled" | "expired";
   priceDollars: number;
+  billingPeriod: string;
+  currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
+  isGift: boolean;
   joinedAt: string;
+}
+
+interface MyMembership {
+  id: string;
+  tierName: string | null;
+  creatorUserId: string;
+  status: string;
+  priceDollars: number;
+  billingPeriod: string;
+  currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
+  isGift: boolean;
+}
+
+interface MyGift {
+  id: string;
+  tierId: string;
+  recipientUserId: string;
+  purchaserUserId: string;
+  amountDollars: number;
+  billingPeriod: string;
+  status: string;
+  createdAt: string;
 }
 
 interface SuggestedTier {
@@ -85,6 +121,172 @@ async function api(path: string, token: string | null, init?: RequestInit) {
   return { res, data };
 }
 
+/* ─── Fan join view (deep link: /memberships?creator=<creatorUserId>) ───
+   Fans pick monthly or annual (the annual price shown is the exact
+   amount checkout charges — both come from the same server math), start
+   a free trial when the tier offers one, or gift the tier to another
+   fan by user id. Payment completes at secure checkout; the membership
+   activates when the return visit verifies it. */
+function FanClubJoin({
+  creatorUserId,
+  getAccessToken,
+  signedIn,
+}: {
+  creatorUserId: string;
+  getAccessToken: () => Promise<string | null>;
+  signedIn: boolean;
+}) {
+  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
+  const [giftFor, setGiftFor] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/memberships/public/${creatorUserId}`);
+        const data = (await res.json().catch(() => ({}))) as { tiers?: Tier[] };
+        if (!alive) return;
+        if (!res.ok || !Array.isArray(data.tiers)) { setLoadErr(true); return; }
+        setTiers(data.tiers);
+      } catch {
+        if (alive) setLoadErr(true);
+      }
+    })();
+    return () => { alive = false; };
+  }, [creatorUserId]);
+
+  const fmt$ = (n: number) =>
+    n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
+
+  async function join(tier: Tier, mode: "checkout" | "trial") {
+    if (!signedIn) { window.location.href = "/login"; return; }
+    setBusy(tier.id + mode);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      if (mode === "trial") {
+        const res = await fetch("/api/memberships/join-trial", {
+          method: "POST", headers, body: JSON.stringify({ tierId: tier.id }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+        if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start the trial.");
+        setMsg("Your 7-day free trial is on — no charge today. Join with a paid plan before it ends to keep your seat.");
+        return;
+      }
+      const recipient = giftFor.trim();
+      const res = await fetch("/api/memberships/checkout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          tierId: tier.id,
+          billingPeriod: period,
+          ...(recipient ? { recipientUserId: recipient } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; free?: boolean; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start checkout.");
+      if (data.free) {
+        setMsg(recipient ? "Gift sent — they're a member now." : "You're in — your membership is active.");
+        return;
+      }
+      if (data.url) { window.location.href = data.url; return; }
+      throw new Error("Couldn't start checkout.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Something went wrong. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loadErr) {
+    return (
+      <div className="mb-10 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        Couldn't load this fan club. Check the link and try again.
+      </div>
+    );
+  }
+  if (tiers.length === 0) return null;
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
+        <Crown className="h-6 w-6 text-primary" /> Join this fan club
+        <span className="text-[10px] font-bold uppercase tracking-wider rounded-full border border-white/20 px-2 py-0.5 text-white/50">Test mode</span>
+      </h2>
+      <div className="mb-4 flex items-center gap-2">
+        {(["monthly", "annual"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold capitalize transition ${
+              period === p ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-white/50 hover:border-white/25"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+        <input
+          className="ml-auto w-64 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
+          placeholder="Gift it: recipient's user ID (optional)"
+          value={giftFor}
+          onChange={(e) => setGiftFor(e.target.value)}
+        />
+      </div>
+      {msg && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">{msg}</div>
+      )}
+      <div className="grid md:grid-cols-3 gap-4">
+        {tiers.map((tier) => {
+          const price = period === "annual" ? tier.annualPriceDollars : tier.priceDollars;
+          return (
+            <div key={tier.id} className="rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5">
+              <div className="font-black text-lg">{tier.name}</div>
+              <div className="text-primary font-bold">
+                {tier.priceCents === 0 ? "Free" : `${fmt$(price)}`}
+                {tier.priceCents > 0 && <span className="text-white/40 text-sm font-normal">/{period === "annual" ? "yr" : "mo"}</span>}
+              </div>
+              {period === "annual" && tier.annualDiscountPct > 0 && (
+                <div className="text-xs text-emerald-300/80">Save {tier.annualDiscountPct}% vs monthly</div>
+              )}
+              {tier.description && <p className="text-sm text-white/50 mt-2">{tier.description}</p>}
+              <ul className="mt-3 space-y-1.5">
+                {tier.perks.map((p, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                    <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />{p}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={() => void join(tier, "checkout")}
+                  disabled={busy === tier.id + "checkout"}
+                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-black hover:brightness-110 disabled:opacity-50"
+                >
+                  {busy === tier.id + "checkout" ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : giftFor.trim() ? "Gift this tier" : "Join now"}
+                </button>
+                {tier.trialEnabled && !giftFor.trim() && (
+                  <button
+                    onClick={() => void join(tier, "trial")}
+                    disabled={busy === tier.id + "trial"}
+                    className="w-full rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    Start 7-day free trial
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function Memberships() {
   usePageTitle("Memberships", "Launch your fan club with paid membership tiers, member perks, and tracking.");
   const isLight = useIsLightTheme();
@@ -107,6 +309,15 @@ export default function Memberships() {
   const [description, setDescription] = useState("");
   const [perkInput, setPerkInput] = useState("");
   const [perks, setPerks] = useState<string[]>([]);
+  const [trialEnabled, setTrialEnabled] = useState(false);
+  const [annualDiscount, setAnnualDiscount] = useState("0");
+
+  /* Fan-side state: my memberships + gifts, checkout-return message. */
+  const [mine, setMine] = useState<{ memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] } | null>(null);
+  const [fanMsg, setFanMsg] = useState<string | null>(null);
+  const creatorParam = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("creator")
+    : null;
   const [saving, setSaving] = useState(false);
 
   /* Member form state */
@@ -160,6 +371,44 @@ export default function Memberships() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  /* Fan side: load my memberships/gifts; if we just returned from a
+     membership checkout, verify the payment first — the membership is
+     only real once the server confirms it. */
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const token = await getAccessToken();
+      const sid = new URLSearchParams(window.location.search).get("session_id");
+      if (sid) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search.replace(/[?&]session_id=[^&]+/, "").replace(/^&/, "?"));
+        try {
+          const { res, data } = await api("/memberships/verify", token, {
+            method: "POST",
+            body: JSON.stringify({ sessionId: sid }),
+          });
+          if (alive) {
+            setFanMsg(
+              res.ok && data.success
+                ? "Payment confirmed — your membership is active."
+                : String(data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+            );
+          }
+        } catch {
+          if (alive) setFanMsg("We couldn't confirm that payment. If you were charged, contact support.");
+        }
+      }
+      try {
+        const { res, data } = await api("/memberships/mine", token);
+        if (alive && res.ok && Array.isArray(data.memberships)) {
+          setMine(data as unknown as { memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] });
+        }
+      } catch { /* fan section is additive — creator load errors rule the page */ }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   function resetForm() {
     setEditingId(null);
     setName("");
@@ -167,6 +416,8 @@ export default function Memberships() {
     setDescription("");
     setPerks([]);
     setPerkInput("");
+    setTrialEnabled(false);
+    setAnnualDiscount("0");
   }
 
   function startEdit(t: Tier) {
@@ -176,6 +427,8 @@ export default function Memberships() {
     setDescription(t.description);
     setPerks(t.perks);
     setPerkInput("");
+    setTrialEnabled(!!t.trialEnabled);
+    setAnnualDiscount(String(t.annualDiscountPct ?? 0));
   }
 
   async function saveTier() {
@@ -188,6 +441,8 @@ export default function Memberships() {
         priceDollars: Math.max(0, Math.min(999.99, parseFloat(price) || 0)),
         description: description.trim(),
         perks,
+        trialEnabled,
+        annualDiscountPct: Math.max(0, Math.min(90, Math.round(parseFloat(annualDiscount) || 0))),
       };
       const { res } = editingId
         ? await api(`/memberships/tiers/${editingId}`, token, { method: "PUT", body: JSON.stringify(body) })
@@ -317,6 +572,17 @@ export default function Memberships() {
           </div>
         </div>
 
+        {creatorParam && creatorParam !== user?.id && (
+          <FanClubJoin creatorUserId={creatorParam} getAccessToken={getAccessToken} signedIn={!!user} />
+        )}
+
+        {fanMsg && (
+          <div className="mb-8 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary flex items-center justify-between">
+            {fanMsg}
+            <button onClick={() => setFanMsg(null)} aria-label={t("memberships.dismiss")}><X className="h-4 w-4" /></button>
+          </div>
+        )}
+
         {!user ? (
           <div className={CARD + " text-center"}>
             <p className="text-white/70 mb-4">{t("memberships.signInPrompt")}</p>
@@ -346,6 +612,51 @@ export default function Memberships() {
                   <RotateCcw className="h-3.5 w-3.5" /> {t("memberships.retry")}
                 </button>
               </div>
+            )}
+
+            {/* ── Your memberships (fan side) ── */}
+            {mine && (mine.memberships.length > 0 || mine.giftsSent.length > 0 || mine.giftsReceived.length > 0) && (
+              <section>
+                <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
+                  <Crown className="h-6 w-6 text-primary" /> Your memberships
+                </h2>
+                <div className={CARD + " space-y-3"}>
+                  {mine.memberships.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-3 py-1">
+                      <div>
+                        <div className="font-bold text-sm">{m.tierName ?? "Membership"}{m.isGift && <span className="ml-2 text-xs text-primary">gifted to you</span>}</div>
+                        <div className="text-xs text-white/40">
+                          {fmt$(m.priceDollars)} · {m.billingPeriod}
+                          {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
+                          {m.status !== "trialing" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
+                        m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
+                        : m.status === "trialing" ? "bg-primary/15 text-primary"
+                        : "bg-white/10 text-white/50"
+                      }`}>{m.status.replace("_", " ")}</span>
+                    </div>
+                  ))}
+                  {mine.giftsSent.map((g) => (
+                    <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
+                      <div className="text-sm text-white/60">Gift sent · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
+                    </div>
+                  ))}
+                  {mine.giftsReceived.map((g) => (
+                    <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
+                      <div className="text-sm text-white/60">Gift received · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
+                    </div>
+                  ))}
+                </div>
+                {user && (
+                  <p className="mt-3 text-xs text-white/40">
+                    Fans join your club at <span className="text-primary/80">/memberships?creator={user.id}</span> — share that link anywhere.
+                  </p>
+                )}
+              </section>
             )}
 
             {/* ── Dashboard ── */}
@@ -407,6 +718,28 @@ export default function Memberships() {
                   </div>
                 </div>
                 <textarea className={INPUT} placeholder={t("memberships.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={trialEnabled}
+                      onChange={(e) => setTrialEnabled(e.target.checked)}
+                      className="h-4 w-4 accent-[#C9A84C]"
+                    />
+                    Offer a 7-day free trial
+                    <span className="text-xs text-white/40">No charge during the trial</span>
+                  </label>
+                  <div className="relative">
+                    <BadgePercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                    <input
+                      className={INPUT + " pl-9"}
+                      placeholder="Annual discount % (fans pay yearly)"
+                      value={annualDiscount}
+                      onChange={(e) => setAnnualDiscount(e.target.value)}
+                      inputMode="numeric"
+                    />
+                  </div>
+                </div>
                 <div>
                   <div className="flex gap-2">
                     <input
@@ -467,6 +800,12 @@ export default function Memberships() {
                         <div>
                           <div className="font-black text-lg">{tier.name}</div>
                           <div className="text-primary font-bold">{fmt$(tier.priceDollars)}<span className="text-white/40 text-sm font-normal">{t("memberships.perMonth")}</span></div>
+                          {tier.annualDiscountPct > 0 && (
+                            <div className="text-xs text-white/50">{fmt$(tier.annualPriceDollars)}/yr — save {tier.annualDiscountPct}%</div>
+                          )}
+                          {tier.trialEnabled && (
+                            <div className="text-xs text-emerald-300/80">7-day free trial</div>
+                          )}
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => startEdit(tier)} aria-label={t("memberships.editTierAria")} className="p-1.5 rounded-lg hover:bg-white/10">
@@ -593,6 +932,14 @@ export default function Memberships() {
                           <div className="font-bold text-sm">{m.fanLabel}</div>
                           <div className="text-xs text-white/40">
                             {t("memberships.memberMeta", { tier: m.tierName, price: fmt$(m.priceDollars), date: new Date(m.joinedAt).toLocaleDateString() })}
+                            {m.isGift && <span className="ml-1 text-primary/80">· gifted</span>}
+                            {m.status === "trialing" && m.trialEndsAt && (
+                              <span className="ml-1 text-emerald-300/80">· trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</span>
+                            )}
+                            {(m.status === "active" || m.status === "expired") && m.currentPeriodEnd && (
+                              <span className="ml-1">· {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</span>
+                            )}
+                            {m.billingPeriod === "annual" && <span className="ml-1">· annual</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -602,8 +949,10 @@ export default function Memberships() {
                             onChange={(e) => setMemberStatus(m.id, e.target.value as Member["status"])}
                           >
                             <option value="active">{t("memberships.statusActive")}</option>
+                            <option value="trialing">Trialing</option>
                             <option value="past_due">{t("memberships.statusPastDue")}</option>
                             <option value="canceled">{t("memberships.statusCanceled")}</option>
+                            <option value="expired">Expired</option>
                           </select>
                           <button onClick={() => removeMember(m.id)} aria-label={t("memberships.removeMemberAria")} className="p-1.5 rounded-lg hover:bg-white/10">
                             <Trash2 className="h-4 w-4 text-red-400/70" />

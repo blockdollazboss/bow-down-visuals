@@ -15,8 +15,9 @@ import { useHubProject } from "@/lib/hub-project";
 /* ─── Beat Marketplace ──────────────────────────────────────────────────────
    Producers list beats (free), artists browse / preview / license them.
    License tiers: Basic / Premium / Exclusive. Site takes 15% commission.
-   v1 honesty: license "purchase" records intent only — payment processing
-   is coming soon, so no money moves yet. The UI says so plainly.
+   Payments (0132): licensing runs through secure checkout (test mode) at
+   the listed tier price; the license activates only when the payment
+   confirms on return (POST /api/beats/licenses/verify).
    AI tag suggester: 1 credit, analyzes metadata, suggests genre + mood tags. */
 
 interface Beat {
@@ -153,6 +154,32 @@ export default function Beats() {
 
   useEffect(() => { fetchBeats(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* Returning from checkout: verify the payment server-side — the
+     license is only real once this confirms it. */
+  const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get("session_id");
+    if (!sid) return;
+    window.history.replaceState(null, "", "/beats");
+    (async () => {
+      try {
+        const res = await fetch("/api/beats/licenses/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        setVerifyMsg(
+          res.ok && data.success
+            ? "Payment confirmed — your license is active. Find it in your dashboard."
+            : (data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+        );
+      } catch {
+        setVerifyMsg("We couldn't confirm that payment. If you were charged, contact support.");
+      }
+    })();
+  }, []);
+
   const fetchDashboard = async () => {
     /* Spinner gates only until the first successful load — a later
        refresh keeps the shown dashboard on screen while it runs. */
@@ -268,22 +295,27 @@ export default function Beats() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier: licenseTier }),
       });
-      const data = await res.json() as { message?: string; error?: string };
+      const data = await res.json() as { message?: string; error?: string; checkoutUrl?: string };
       if (!res.ok) {
         setLicenseMsg(data.error ?? t("beats.errorLicenseFailed"));
-      } else {
-        setLicenseMsg(data.message ?? t("beats.licenseReserved"));
-        /* The licensed beat flows into the hub project + straight into song-making. */
-        try {
-          addAsset({
-            kind: "beat",
-            url: licenseBeat.audio_url || licenseBeat.preview_url || "",
-            label: licenseBeat.title,
-            detail: `${licenseBeat.genre || ""} · ${licenseBeat.bpm || "?"} BPM`.trim(),
-            meta: { beatId: licenseBeat.id, tier: licenseTier },
-          });
-        } catch { /* hub unavailable — non-fatal */ }
+        setLicensing(false);
+        return;
       }
+      /* The licensed beat flows into the hub project + straight into song-making. */
+      try {
+        addAsset({
+          kind: "beat",
+          url: licenseBeat.audio_url || licenseBeat.preview_url || "",
+          label: licenseBeat.title,
+          detail: `${licenseBeat.genre || ""} · ${licenseBeat.bpm || "?"} BPM`.trim(),
+          meta: { beatId: licenseBeat.id, tier: licenseTier },
+        });
+      } catch { /* hub unavailable — non-fatal */ }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      setLicenseMsg(data.message ?? t("beats.licenseReserved"));
     } catch {
       setLicenseMsg(t("beats.errorLicenseRetry"));
     }
@@ -336,6 +368,14 @@ export default function Beats() {
             </button>
           ))}
         </div>
+
+        {verifyMsg && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {verifyMsg}
+            <button onClick={() => setVerifyMsg(null)} aria-label="Dismiss" className="ml-auto"><X className="h-4 w-4" /></button>
+          </div>
+        )}
 
         {tab === "browse" && (
           <>
