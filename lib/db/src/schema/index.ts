@@ -24,6 +24,7 @@ export * from "./artist-vaults";
 export * from "./artist-character-links";
 export * from "./generated-clips";
 export * from "./project-drafts";
+export * from "./photo-presets";
 export * from "./generation-history";
 export * from "./generations";
 export * from "./hub-projects";
