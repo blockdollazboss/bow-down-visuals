@@ -1379,7 +1379,7 @@ function SceneClipCard({
           {scene.aiVideoPrompt && (
             <details className="group">
               <summary className="text-[10px] text-white/35 hover:text-white/60 cursor-pointer font-bold list-none flex items-center gap-1.5">
-                <Eye className="h-3 w-3" /> AI Video Prompt
+                <Eye className="h-3 w-3" /> Video Prompt
               </summary>
               <pre className="mt-1.5 text-[10px] text-white/50 leading-relaxed whitespace-pre-wrap bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 font-mono max-h-28 overflow-y-auto">
                 {scene.aiVideoPrompt}

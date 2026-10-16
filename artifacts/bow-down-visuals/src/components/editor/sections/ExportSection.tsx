@@ -383,7 +383,7 @@ export function ExportSection({
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-black text-white group-hover:text-primary transition-colors">
-              Turbo AI Edit Whole Video {settings.aiEdit?.applied ? "✓ Applied" : "→ Effects Tab"}
+              Turbo Edit Whole Video {settings.aiEdit?.applied ? "✓ Applied" : "→ Effects Tab"}
             </p>
             <p className="text-[10px] text-white/35 mt-0.5">
               {settings.aiEdit?.applied

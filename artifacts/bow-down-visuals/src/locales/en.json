@@ -1084,8 +1084,8 @@
     "daysAgo": "{{n}}d ago",
     "errorLoadStats": "Couldn't load your stats.",
     "errorNoPlatforms": "Connect at least one platform and refresh stats before asking the AI.",
-    "errorInsightsFailed": "AI insights failed — try again.",
-    "errorSuggestionsFailed": "AI suggestions failed — try again.",
+    "errorInsightsFailed": "Insights failed — try again.",
+    "errorSuggestionsFailed": "Suggestions failed — try again.",
     "heroEyebrow": "Command center",
     "heroTitleStart": "Thy Receipts,",
     "heroTitleAccent": "decoded",
@@ -4124,7 +4124,7 @@
     "edit": "Edit",
     "editProduct": "Edit product",
     "endStream": "End stream",
-    "errAiDescription": "AI description failed.",
+    "errAiDescription": "Description failed.",
     "errDeleteProduct": "Failed to delete product.",
     "errEndStream": "Failed to end stream.",
     "errFireAlert": "Failed to fire alert.",
@@ -5037,7 +5037,7 @@
     "domainConnected": "{{domain}} is connected to your shop.",
     "domainPlaceholder": "shop.yourname.com",
     "domainVerified": "Domain verified!",
-    "errorAiDescription": "AI description failed.",
+    "errorAiDescription": "Description failed.",
     "errorAttachDomain": "Couldn't attach that domain.",
     "errorCreateShop": "Couldn't create your shop.",
     "errorDomainAttachFailed": "Domain attach failed.",
@@ -8260,7 +8260,7 @@
       "p2": "in the chat bubble to turn it into a full plan."
     },
     "error": {
-      "aiRollFailed": "AI roll failed — try again."
+      "aiRollFailed": "Roll failed — try again."
     }
   },
   "samples": {
@@ -8580,7 +8580,7 @@
       "signInPrompt": "to produce episodes."
     },
     "hero": {
-      "badge": "AI Podcast Studio",
+      "badge": "Podcast Studio",
       "subtitle": "Script, topic, or video in — finished episode out. AI hosts, intro/outro music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.",
       "titleAccent": "produced by AI",
       "titleStart": "Your show,"
@@ -9625,7 +9625,7 @@
       "videoUploaded": "Video uploaded",
       "readyToSchedule": "Ready to schedule.",
       "noCaption": "The AI didn't return a caption.",
-      "aiCaptionFailed": "AI caption failed.",
+      "aiCaptionFailed": "Caption failed.",
       "scheduled": "Scheduled",
       "scheduledCost": "Scheduled · 100 Visual Bucs",
       "scheduledDesc": "{{datetime}} — cancel anytime for a refund.",
@@ -12918,7 +12918,7 @@
     "pause": "Pause",
     "play": "Play",
     "progressNote": "Server-side job — safe to switch tabs or close this page while it runs.",
-    "statusProcessing": "AI de-reverb is removing the room echo…",
+    "statusProcessing": "De-reverb is removing the room echo…",
     "statusQueued": "Queued — your de-reverb job is waiting its turn",
     "statusUploading": "Uploading…",
     "subtitle": "Strip room echo from dialogue and vocals · {cost} VB per job",
