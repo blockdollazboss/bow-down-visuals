@@ -44,6 +44,52 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/* ── Web push (Stack 2 go-live alerts) ──────────────────────────────────
+ * The server sends { title, body, link, kind } as JSON. A payload that
+ * doesn't parse still shows an honest generic alert — never a fake
+ * stream title. Clicking focuses an open tab on the link or opens it. */
+self.addEventListener("push", (event) => {
+  let data = { title: "Bow Down Visuals", body: "Someone you follow is live.", link: "/", kind: "live" };
+  try {
+    const parsed = event.data ? event.data.json() : null;
+    if (parsed && typeof parsed === "object") {
+      data = {
+        title: typeof parsed.title === "string" && parsed.title ? parsed.title : data.title,
+        body: typeof parsed.body === "string" ? parsed.body : data.body,
+        link: typeof parsed.link === "string" && parsed.link.startsWith("/") ? parsed.link : "/",
+        kind: typeof parsed.kind === "string" ? parsed.kind : "live",
+      };
+    }
+  } catch {
+    /* keep the honest generic alert */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: `bdv-${data.kind}`,
+      data: { link: data.link },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(link).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(link);
+    })
+  );
+});
+
 function isApiRequest(url) {
   return url.pathname.startsWith("/api/");
 }

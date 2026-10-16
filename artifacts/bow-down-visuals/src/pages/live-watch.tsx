@@ -4,6 +4,7 @@ import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff } fr
 import { usePageTitle } from "@/hooks/use-page-title";
 import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
+import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
@@ -311,6 +312,7 @@ export default function LiveWatch() {
                 </span>
               </Link>
               <FollowButton profileId={creator.id} initialFollowing={followStates[creator.id]} />
+              <PushAlertsToggle />
             </div>
           )}
         </div>
