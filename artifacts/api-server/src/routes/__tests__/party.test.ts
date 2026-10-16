@@ -225,9 +225,9 @@ describe("party records", () => {
 describe("party question bank", () => {
   it("is well-formed: counts, categories, choices, answers", () => {
     expect(validateQuestionBank()).toEqual([]);
-    expect(PARTY_QUESTIONS.length).toBeGreaterThanOrEqual(30);
+    expect(PARTY_QUESTIONS.length).toBeGreaterThanOrEqual(150);
     for (const cat of ["music", "creator", "general"] as const) {
-      expect(questionsForCategory(cat).length).toBeGreaterThanOrEqual(10);
+      expect(questionsForCategory(cat).length).toBeGreaterThanOrEqual(50);
     }
   });
 
