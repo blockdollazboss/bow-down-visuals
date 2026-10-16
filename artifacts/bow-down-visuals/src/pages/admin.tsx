@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Loader2, ShieldCheck, Trophy, Delete, RotateCcw,
+  Loader2, ShieldCheck, Trophy, Delete, RotateCcw, AlertTriangle,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown, Users, Star, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,20 +59,30 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Load failures (500s, network) are NOT "no events" — they get their
+     own error state with a retry. The empty state renders ONLY for a
+     successful load with zero events. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const res = await fetch("/api/cheat-code/admin/events", { headers: await authHeaders() });
       const data = (await res.json()) as { events?: JackpotEvent[] };
-      if (res.ok) setEvents(data.events ?? []);
+      if (!res.ok) {
+        setLoadError(true);
+        return;
+      }
+      setEvents(data.events ?? []);
     } catch {
-      /* leave list empty */
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   }, [authHeaders]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, retryNonce]);
 
   function pushDir(d: Direction) {
     setSequence((s) => (s.length >= 10 ? s : [...s, d]));
@@ -271,6 +281,21 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       <p className="text-sm font-semibold text-white mb-2">{t("admin.jackpot.eventsTitle")}</p>
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-white/40" /></div>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load jackpot events.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — the events are safe, this panel just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setLoading(true); setRetryNonce((n) => n + 1); }}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
       ) : events.length === 0 ? (
         <p className="text-sm text-white/40 py-4 text-center">{t("admin.jackpot.noEvents")}</p>
       ) : (
