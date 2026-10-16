@@ -40,6 +40,7 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
+import type { HallViewMode } from "./view-mode";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import {
   coverTransform,
@@ -61,6 +62,11 @@ const BOUNDS = { minX: -13.1, maxX: 13.1, minZ: -11.6, maxZ: 11.1 };
 const EYE_HEIGHT = 1.7;
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6;
+/* Third-person camera: behind and above your figure, clamped inside
+   the walls so the follow cam never leaves the room. */
+const THIRD_CAM_DISTANCE = 4.1;
+const THIRD_CAM_HEIGHT = 2.45;
+const CAM_CLAMP = { minX: -13.7, maxX: 13.7, minZ: -17.7, maxZ: 11.75 };
 
 const GOLD = 0xd4af37;
 const GOLD_DEEP = 0x8a6a1c;
@@ -517,6 +523,13 @@ export class KingsHallScene {
   private rig = new THREE.Group();
   private clock = new THREE.Clock();
   private avatars = new Map<string, AvatarRig>();
+  /** Your own figure — built like any peer's (capsule or portrait
+   *  character) but glued to the walk rig and shown only to the
+   *  third-person camera. First person and XR hide it: in a headset
+   *  the XR camera rules stand, and a body at the camera's own spot
+   *  would fill the view. */
+  private selfRig: AvatarRig | null = null;
+  private viewMode: HallViewMode = "first";
   private keys = new Set<string>();
   private yaw = 0;
   private pitch = 0;
@@ -1470,6 +1483,51 @@ export class KingsHallScene {
     this.rig.position.set(clamp(x, BOUNDS.minX, BOUNDS.maxX), 0, clamp(z, BOUNDS.minZ, BOUNDS.maxZ));
   }
 
+  /* ── Your own figure + camera ── */
+
+  /** First person (you are the camera) or third (the camera follows
+   *  behind your figure). Flat-screen only: while XR is presenting
+   *  the headset owns the camera whatever this says. */
+  setViewMode(mode: HallViewMode): void {
+    this.viewMode = mode;
+  }
+
+  get currentViewMode(): HallViewMode {
+    return this.viewMode;
+  }
+
+  /** Stand (or re-dress) your own figure from your presence peer —
+   *  the same reconcile every peer gets, so a character pick swaps
+   *  your figure the moment the room confirms it. Null = no figure
+   *  (not inside yet). */
+  setSelfFigure(peer: WorldPeer | null): void {
+    if (!peer) {
+      if (this.selfRig) {
+        this.scene.remove(this.selfRig.group);
+        if (this.selfRig.portrait) this.selfRig.portrait.texture.dispose();
+        disposeObjectTree(this.selfRig.group);
+        this.selfRig = null;
+      }
+      return;
+    }
+    if (!this.selfRig) {
+      const rig = buildAvatar(peer);
+      this.selfRig = rig;
+      this.scene.add(rig.group);
+      this.reconcileFigure(rig, peer);
+      return;
+    }
+    this.reconcileFigure(this.selfRig, peer);
+    this.reconcilePlate(this.selfRig, peer);
+  }
+
+  /** Your own voice level for your figure's lips — fed from your
+   *  mic the same way peers' levels are fed from their streams. */
+  setSelfSpeechLevel(level: number): void {
+    if (!this.selfRig || !this.selfRig.portrait) return;
+    this.selfRig.speechTarget = mouthOpennessForLevel(level);
+  }
+
   localPose(): { x: number; z: number; rotY: number } {
     return { x: this.rig.position.x, z: this.rig.position.z, rotY: this.yaw };
   }
@@ -1573,12 +1631,23 @@ export class KingsHallScene {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
 
-    if (this.renderer.xr.isPresenting) {
+    const presenting = this.renderer.xr.isPresenting;
+    if (presenting) {
       this.tickXrMove(dt);
     } else {
       this.tickFlatMove(dt);
       this.rig.rotation.y = this.yaw;
-      this.camera.rotation.x = this.pitch;
+      this.applyFlatCamera();
+    }
+
+    // Your own figure stands where you stand. Only the flat
+    // third-person camera ever sees it — first person is the camera,
+    // and in XR the headset's own camera rules stand (a body parked
+    // at the eye point would fill the view), so it steps aside.
+    if (this.selfRig) {
+      this.selfRig.group.position.set(this.rig.position.x, 0, this.rig.position.z);
+      this.selfRig.group.rotation.y = this.yaw;
+      this.selfRig.group.visible = !presenting && this.viewMode === "third";
     }
     // The planar mirror rests while presenting — Reflector and XR
     // don't mix; the polished overlay carries the floor in a headset.
@@ -1595,26 +1664,15 @@ export class KingsHallScene {
     // Character figures: the portrait panel billboards toward the
     // viewer (a portrait is a face — it should meet your eye, not the
     // walker's heading), and its lips track the speaker's voice.
-    if (this.avatars.size) {
+    // Your own figure gets the same treatment in third person.
+    if (this.avatars.size || this.selfRig?.portrait) {
       this.camera.getWorldPosition(SCRATCH_VEC);
       const nowMs = performance.now();
       for (const rig of this.avatars.values()) {
-        if (!rig.portrait) continue;
-        const faceYaw =
-          Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
-          rig.group.rotation.y;
-        rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
-
-        const opennessDiff = rig.speechTarget - rig.speechShown;
-        if (Math.abs(opennessDiff) > 0.002) {
-          rig.speechShown += opennessDiff * Math.min(1, dt * 20);
-          if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
-          // ~15 fps texture updates while the mouth is actually moving.
-          if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
-            rig.lastMouthDrawAt = nowMs;
-            drawPortraitCanvas(rig.portrait, rig.speechShown);
-          }
-        }
+        if (rig.portrait) this.updateFigure(rig, dt, nowMs);
+      }
+      if (this.selfRig?.portrait && this.selfRig.group.visible) {
+        this.updateFigure(this.selfRig, dt, nowMs);
       }
     }
 
@@ -1649,6 +1707,50 @@ export class KingsHallScene {
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** One figure's per-frame life: billboard the portrait toward the
+   *  camera (SCRATCH_VEC holds the camera's world position) and run
+   *  its lips toward the speaker's level. */
+  private updateFigure(rig: AvatarRig, dt: number, nowMs: number): void {
+    if (!rig.portrait) return;
+    const faceYaw =
+      Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
+      rig.group.rotation.y;
+    rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
+
+    const opennessDiff = rig.speechTarget - rig.speechShown;
+    if (Math.abs(opennessDiff) > 0.002) {
+      rig.speechShown += opennessDiff * Math.min(1, dt * 20);
+      if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
+      // ~15 fps texture updates while the mouth is actually moving.
+      if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
+        rig.lastMouthDrawAt = nowMs;
+        drawPortraitCanvas(rig.portrait, rig.speechShown);
+      }
+    }
+  }
+
+  /** The flat-screen camera. First person: at the rig's eye, pitch
+   *  is the look. Third person: pulled behind and above your figure
+   *  (which the tick makes visible), the pitch gentled so the figure
+   *  stays framed; the world spot is clamped inside the walls so
+   *  backing into a corner never pushes the camera out of the room.
+   *  Never called while XR presents — the headset owns the camera. */
+  private applyFlatCamera(): void {
+    if (this.viewMode === "third") {
+      this.rig.updateMatrixWorld();
+      SCRATCH_VEC.set(0, THIRD_CAM_HEIGHT, THIRD_CAM_DISTANCE);
+      this.rig.localToWorld(SCRATCH_VEC);
+      SCRATCH_VEC.x = clamp(SCRATCH_VEC.x, CAM_CLAMP.minX, CAM_CLAMP.maxX);
+      SCRATCH_VEC.z = clamp(SCRATCH_VEC.z, CAM_CLAMP.minZ, CAM_CLAMP.maxZ);
+      this.rig.worldToLocal(SCRATCH_VEC);
+      this.camera.position.copy(SCRATCH_VEC);
+      this.camera.rotation.x = this.pitch * 0.5 - 0.14;
+    } else {
+      this.camera.position.set(0, EYE_HEIGHT, 0);
+      this.camera.rotation.x = this.pitch;
+    }
   }
 
   private moveRig(fwd: number, strafe: number, dt: number, speed: number, headingYaw: number): void {
@@ -1717,6 +1819,7 @@ export class KingsHallScene {
       this.video.load();
     }
     for (const peerId of [...this.avatars.keys()]) this.removePeer(peerId);
+    this.setSelfFigure(null);
     if (this.lookGroup) {
       this.scene.remove(this.lookGroup);
       this.disposeLookGroup(this.lookGroup);

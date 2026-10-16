@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
-  RotateCcw, Glasses, Send, Crown,
+  RotateCcw, Glasses, Send, Crown, Eye, Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -17,8 +17,15 @@ import {
   VoiceMesh,
   createBrowserPeerConnection,
   createBrowserVoiceSink,
+  createLocalLevelTap,
   type VoiceSignalData,
 } from "@/lib/world/voice";
+import {
+  loadViewMode,
+  storeViewMode,
+  toggledViewMode,
+  type HallViewMode,
+} from "@/lib/world/view-mode";
 import {
   initialVoiceToggle,
   reduceVoiceToggle,
@@ -80,6 +87,7 @@ export default function WorldPage() {
   const sceneRef = useRef<KingsHallScene | null>(null);
   const meshRef = useRef<VoiceMesh | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const localTapRef = useRef<{ getLevel: () => number; dispose: () => void } | null>(null);
   const spawnedRef = useRef(false);
 
   const [attempt, setAttempt] = useState(0);
@@ -100,6 +108,12 @@ export default function WorldPage() {
   const voiceSwitchRef = useRef(voiceSwitch);
   voiceSwitchRef.current = voiceSwitch;
   const [voiceBusy, setVoiceBusy] = useState(false);
+  /* Camera: first person, or third — pulled behind your figure so
+     you can see who you're standing as. Remembered on the device. */
+  const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
+  /* The in-hall character panel (the entry picker, reachable from
+     inside — the owner couldn't find character choice from within). */
+  const [charPanelOpen, setCharPanelOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
@@ -127,6 +141,13 @@ export default function WorldPage() {
   useEffect(() => {
     sceneRef.current?.setTheme(siteTheme);
   }, [siteTheme]);
+
+  useEffect(() => {
+    storeViewMode(viewMode);
+    sceneRef.current?.setViewMode(viewMode);
+  }, [viewMode]);
+
+  const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
 
   /* Load the member's vault characters for the picker (signed-in
      only — guests never see the row). A remembered pick whose
@@ -167,6 +188,8 @@ export default function WorldPage() {
   const teardownVoiceSession = () => {
     meshRef.current?.leave();
     meshRef.current = null;
+    localTapRef.current?.dispose();
+    localTapRef.current = null;
     micStreamRef.current?.getTracks().forEach((t) => t.stop());
     micStreamRef.current = null;
     clientRef.current?.leaveVoice();
@@ -213,6 +236,7 @@ export default function WorldPage() {
       if (cancelled) return;
       const scene = new KingsHallScene(canvas, currentHallTheme());
       sceneRef.current = scene;
+      scene.setViewMode(loadViewMode());
       void scene.isVrSupported().then((ok) => {
         if (!cancelled) setXrSupported(ok);
       });
@@ -237,6 +261,8 @@ export default function WorldPage() {
         if (s === "inside" && client.self) {
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
+          // Your own figure (seen in third person) stands as you.
+          scene.setSelfFigure(client.self);
           if (!spawnedRef.current) {
             spawnedRef.current = true;
             scene.setSpawn(client.self.x, client.self.z);
@@ -244,6 +270,10 @@ export default function WorldPage() {
         }
       };
       client.onPeerJoin = (peer) => scene.upsertPeer(peer);
+      client.onPeerCharacter = (peerId) => {
+        // Your own pick confirmed by the room: re-dress your figure.
+        if (client.self && peerId === client.self.peerId) scene.setSelfFigure(client.self);
+      };
       client.onPeerLeave = (peerId) => scene.removePeer(peerId);
       client.onSay = (ev) => {
         if (!cancelled) setSayLog((log) => [...log.slice(-7), ev]);
@@ -268,6 +298,7 @@ export default function WorldPage() {
          and the headcount honest. */
       peerSync = setInterval(() => {
         for (const peer of client.peers.values()) scene.upsertPeer(peer);
+        if (client.self && client.status === "inside") scene.setSelfFigure(client.self);
         if (!cancelled) setPeopleCount(client.status === "inside" ? client.peers.size + 1 : 0);
       }, 120);
 
@@ -308,9 +339,14 @@ export default function WorldPage() {
          they receive from you.) */
       lipTick = setInterval(() => {
         const mesh = meshRef.current;
-        if (!mesh) return;
-        for (const peer of client.peers.values()) {
-          if (peer.character) scene.setSpeechLevel(peer.peerId, mesh.levelFor(peer.peerId));
+        if (mesh) {
+          for (const peer of client.peers.values()) {
+            if (peer.character) scene.setSpeechLevel(peer.peerId, mesh.levelFor(peer.peerId));
+          }
+        }
+        // Your own lips follow your own mic (third person shows them).
+        if (client.self?.character) {
+          scene.setSelfSpeechLevel(localTapRef.current?.getLevel() ?? 0);
         }
       }, 66);
 
@@ -328,6 +364,8 @@ export default function WorldPage() {
       if (lipTick) clearInterval(lipTick);
       meshRef.current?.leave();
       meshRef.current = null;
+      localTapRef.current?.dispose();
+      localTapRef.current = null;
       micStreamRef.current?.getTracks().forEach((t) => t.stop());
       micStreamRef.current = null;
       clientRef.current?.disconnect();
@@ -354,6 +392,7 @@ export default function WorldPage() {
       });
       meshRef.current = mesh;
       mesh.start(stream);
+      localTapRef.current = createLocalLevelTap(stream);
       setMuted(false);
       client.joinVoice();
       dispatchVoice({ type: "voice-joined" });
@@ -497,6 +536,21 @@ export default function WorldPage() {
         )}
       </div>
 
+      {/* In-hall character panel — the same picker as the door,
+          opened from inside (the pick rides the same verified
+          presence frame; the figure swaps when the room confirms). */}
+      {charPanelOpen && user && status === "inside" && (
+        <div className={`relative z-20 border-t ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}>
+          <WalkInAsPicker
+            characters={vaultChars}
+            loadFailed={vaultLoadFailed}
+            selectedId={walkInAs}
+            onSelect={setWalkInAs}
+            isLight={isLight}
+          />
+        </div>
+      )}
+
       {/* ── Bottom bar: say + voice + VR ── */}
       <footer className={`relative z-20 border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
@@ -531,6 +585,30 @@ export default function WorldPage() {
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {voiceNote && <span className={`max-w-xs text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{voiceNote}</span>}
+            {status === "inside" && (
+              <button
+                type="button"
+                onClick={toggleViewMode}
+                data-testid="world-view-toggle"
+                aria-pressed={viewMode === "third"}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+              >
+                <Eye className="h-4 w-4" />
+                {viewMode === "third" ? "Third person" : "First person"}
+              </button>
+            )}
+            {!isGuest && user && status === "inside" && (
+              <button
+                type="button"
+                onClick={() => setCharPanelOpen((o) => !o)}
+                data-testid="world-change-character"
+                aria-expanded={charPanelOpen}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${charPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+              >
+                <Sparkles className="h-4 w-4" />
+                Change character
+              </button>
+            )}
             {!isGuest && status === "inside" && (
               <>
                 {/* The voice switch — proximity chat on/off, in words,
