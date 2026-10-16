@@ -11,7 +11,7 @@ import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { stagingGate } from "./lib/staging-gate";
 import { ogPreviewMiddleware } from "./lib/og-preview";
-import { cacheControlForFile } from "./lib/cache-policy";
+import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
 
 const app: Express = express();
@@ -222,53 +222,21 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
       },
     })
   );
-  /* Known client-side routes (mirrors the route map in
-     artifacts/bow-down-visuals/src — the SPA's router). These serve
-     index.html with 200 so crawlers, link unfurlers, and uptime monitors
-     see real pages. Anything else falls through to the 404 handler below,
-     where the client router renders the app's own 404 page. */
-  const CLIENT_ROUTES = new Set([
-    "/",
-    "/pricing",
-    "/waitlist",
-    "/beta-access",
-    "/contact",
-    "/terms",
-    "/privacy",
-    "/refund-policy",
-    "/randomizer",
-    "/hooks",
-    "/coach",
-    "/dashboard",
-    "/choose-artist",
-    "/my-projects",
-    "/artist-vault",
-    "/make-song",
-    "/make-video",
-    "/song-and-video",
-    "/create",
-    "/promo-clip",
-    "/thumbnail",
-    "/video-editor",
-    "/credit-history",
-    "/my-clips",
-    "/admin",
-    "/songs",
-    "/login",
-    "/signup",
-    "/live-shopping",
-  ]);
+  /* SPA fallback status (lib/cache-policy.ts spaFallbackStatus): every
+     page path — literal or parameterized (/artist/:slug, /live/:id,
+     /invite/…, and any page added later) — serves index.html with 200
+     so crawlers, link unfurlers, and uptime monitors see real pages.
+     Only file-looking paths (a known asset extension in the last
+     segment) are 404: those are genuinely missing assets. The previous
+     hardcoded literal allowlist 404'd most of the app's pages
+     (Lane V5 F-2). The client router renders the app (or its own 404
+     page) either way; /api misses never reach this fallback. */
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {
       return next();
     }
-    const normalized = req.path.endsWith("/") && req.path.length > 1
-      ? req.path.slice(0, -1)
-      : req.path;
-    const status = CLIENT_ROUTES.has(normalized) || normalized.startsWith("/invite/") ? 200 : 404;
-    /* Serve index.html with 200 for known pages, 404 for unknown routes —
-       the client router renders the app (or its 404 page) in both cases.
-       Never cache it: it points at the hashed asset filenames. */
+    const status = spaFallbackStatus(req.path);
+    /* Never cache index.html: it points at the hashed asset filenames. */
     res.set("Cache-Control", "no-cache");
     res.status(status).sendFile(path.join(frontendDist, "index.html"), (err) => {
       if (err) {

@@ -1466,10 +1466,15 @@ router.post("/distribution/releases/:id/splits/share-link", requireAuth, async (
    No auth: this page is meant to be shared with collaborators. Shows only
    the agreement (names, roles, shares) — never emails, invite tokens, or
    the creator's account info. */
-router.get("/distribution/splits/:slug", async (req, res) => {
+router.get("/distribution/splits/:slug", async (req, res, next) => {
   const slug = (req.params.slug ?? "").trim();
   if (!/^[a-f0-9]{10}$/.test(slug)) {
-    res.status(404).json({ error: "Split agreement not found." });
+    /* Not a split-share slug — fall through instead of 404ing: a
+       literal sibling route mounted after this router owns that path
+       (GET /distribution/splits/statements in distribution-legacy).
+       Only a well-formed slug that matches no release earns the
+       "not found" below. */
+    next();
     return;
   }
   try {

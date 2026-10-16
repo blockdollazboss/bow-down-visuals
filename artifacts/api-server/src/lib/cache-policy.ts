@@ -21,3 +21,32 @@ export function cacheControlForFile(filePath: string): string | null {
   if (/[.-][0-9a-f]{8,}\.[^.]+$/.test(normalized)) return "public, max-age=31536000, immutable";
   return null;
 }
+
+/* SPA fallback status (Lane V5 F-2): the fallback serves index.html for
+   every non-API GET, but it used to hardcode an allowlist of literal
+   page paths for the 200 — every parameterized page (/artist/:slug,
+   /live/:id, /unlock/:slug, …) and every page added after the list was
+   written got a 404 status with a perfectly good page body, so smoke
+   checks and uptime monitors read live pages as missing.
+   Rule now: a path is a PAGE (200) unless its last segment names a
+   static-asset file (a known asset extension) — a file-looking path
+   that reached the fallback is a genuinely missing asset (404).
+   Genuine /api misses never reach this helper (handled upstream). */
+const ASSET_EXTENSIONS = new Set([
+  "js", "mjs", "cjs", "css", "map", "json", "txt", "xml", "webmanifest",
+  "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "avif",
+  "woff", "woff2", "ttf", "otf", "eot",
+  "mp3", "wav", "ogg", "mp4", "webm", "mov",
+  "wasm", "pdf", "zip", "onnx", "task", "bin",
+]);
+
+export function spaFallbackStatus(path: string): 200 | 404 {
+  const clean = path.split("?")[0] ?? path;
+  const last = clean.slice(clean.lastIndexOf("/") + 1);
+  const dot = last.lastIndexOf(".");
+  if (dot > 0) {
+    const ext = last.slice(dot + 1).toLowerCase();
+    if (ASSET_EXTENSIONS.has(ext)) return 404;
+  }
+  return 200;
+}

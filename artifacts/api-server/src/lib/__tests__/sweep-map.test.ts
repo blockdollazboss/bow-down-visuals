@@ -1,6 +1,6 @@
 /** Flag S-4 (Lane F perf audit): TTL sweep for process-local timestamp maps. */
 import { describe, it, expect } from "vitest";
-import { cacheControlForFile } from "../cache-policy";
+import { cacheControlForFile, spaFallbackStatus } from "../cache-policy";
 import { sweepIfLarge, sweepStaleEntries } from "../sweep-map";
 
 describe("sweepStaleEntries", () => {
@@ -41,5 +41,27 @@ describe("cacheControlForFile (engines cache fix)", () => {
     );
     expect(cacheControlForFile("/srv/dist/public/llms.txt")).toBeNull();
     expect(cacheControlForFile("/srv/dist/public/opengraph.jpg")).toBeNull();
+  });
+});
+
+describe("spaFallbackStatus (Lane V5 F-2: SPA pages 200, missing assets 404)", () => {
+  it("literal and parameterized page paths are 200", () => {
+    for (const p of [
+      "/", "/shorts", "/pricing", "/go-live", "/go-live/controller",
+      "/artist/thy-cheat-code", "/live/9f2c1d", "/unlock/goldwater1",
+      "/invite/abc123", "/presave/goldwater1", "/splits/abcdef0123",
+      "/video-editor", "/some/future/page",
+    ]) expect(spaFallbackStatus(p)).toBe(200);
+  });
+  it("file-looking paths are 404 (genuinely missing assets)", () => {
+    for (const p of [
+      "/assets/index-a1b2c3d4.js", "/assets/app.css", "/engines/rvm/model.onnx",
+      "/favicon.ico", "/missing.png", "/fonts/inter.woff2", "/media/clip.mp4",
+      "/models/face_landmarker.task", "/data.json",
+    ]) expect(spaFallbackStatus(p)).toBe(404);
+  });
+  it("a dotted slug that is not an asset extension still reads as a page", () => {
+    expect(spaFallbackStatus("/artist/dr.dre")).toBe(200);
+    expect(spaFallbackStatus("/files/my.song")).toBe(200);
   });
 });
