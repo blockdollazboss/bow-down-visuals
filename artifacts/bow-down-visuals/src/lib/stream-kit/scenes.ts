@@ -15,7 +15,7 @@
  * so the model operations and the chroma keyer are unit-testable.
  */
 
-export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media" | "widget";
+export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media" | "widget" | "avatar";
 export type FitMode = "cover" | "contain" | "stretch";
 
 /** Overlay widget kinds (Stack 2): all three render from real stream
@@ -47,6 +47,24 @@ export interface TextSettings {
   outlineColor: string | null;
 }
 
+/**
+ * Avatar source settings (stream-kit/avatar-*): a character the
+ * creator goes live AS. The camera is used only to drive it (face
+ * tracking) and is never composited. Settings live on the source
+ * like every other source's — scenes carry them, no schema needed.
+ */
+export interface AvatarSettings {
+  /** Starter rig id, or 'upload' for the creator's own picture. */
+  character: "shark" | "mask" | "mic" | "upload";
+  /** The uploaded picture (upload character only): URL or object URL. */
+  imageUrl?: string;
+  /** Requested drive: face tracking, voice-only, or idle. The ladder
+   *  (avatar-drive.ts) falls back honestly when a rung is missing. */
+  drive: "face" | "voice" | "idle";
+  /** Expression scale, 0.5 (calm) – 1.5 (big). */
+  sensitivity: number;
+}
+
 export interface SceneSource {
   id: string;
   type: SourceType;
@@ -74,6 +92,8 @@ export interface SceneSource {
   fill?: { from: string; to: string };
   /* widget: which overlay widget this source renders */
   widget?: { kind: WidgetKind };
+  /* avatar: character + drive settings */
+  avatar?: AvatarSettings;
 }
 
 export interface Scene {
@@ -96,6 +116,7 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   color: "Color / Gradient",
   media: "Media URL",
   widget: "Stream Widget",
+  avatar: "Avatar",
 };
 
 export function createSource(type: SourceType, name?: string): SceneSource {
@@ -151,6 +172,17 @@ export function createSource(type: SourceType, name?: string): SceneSource {
         fit: "contain",
         widget: { kind: "latest-follower" },
       };
+    case "avatar":
+      return {
+        ...base,
+        name: "Avatar",
+        x: 0.3,
+        y: 0.08,
+        w: 0.4,
+        h: 0.84,
+        fit: "contain",
+        avatar: { character: "shark", drive: "face", sensitivity: 1 },
+      };
     default:
       return base;
   }
@@ -176,6 +208,7 @@ export function duplicateScene(scene: Scene, name?: string): Scene {
       text: s.text ? { ...s.text } : undefined,
       fill: s.fill ? { ...s.fill } : undefined,
       widget: s.widget ? { ...s.widget } : undefined,
+      avatar: s.avatar ? { ...s.avatar } : undefined,
     })),
   };
 }

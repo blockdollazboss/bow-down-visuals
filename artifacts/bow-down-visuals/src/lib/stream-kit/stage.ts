@@ -22,6 +22,7 @@ import {
   applyChromaKey,
 } from "./scenes";
 import { getWidgetData, widgetLines, goalProgress } from "./widget-data";
+import { AvatarDirector, type AvatarStatus } from "./avatar-runtime";
 
 type MediaState = "loading" | "ready" | "error";
 
@@ -46,6 +47,28 @@ export class SourcePool {
   cameraCanvas: () => HTMLCanvasElement | null = () => null;
   /** The raw camera video (for chroma keying). */
   rawCameraVideo: () => HTMLVideoElement | null = () => null;
+
+  /* Avatar sources: the director reads the raw camera for TRACKING
+     ONLY (numbers out — the camera picture is never composited) and
+     the mic analyser for voice drive. Providers are wired by the
+     studio next to cameraCanvas; defaults keep avatars idling. */
+  avatarVideo: () => HTMLVideoElement | null = () => null;
+  avatarAnalyser: () => AnalyserNode | null = () => null;
+  readonly avatarDirector: AvatarDirector = new AvatarDirector({
+    video: () => this.avatarVideo(),
+    analyser: () => this.avatarAnalyser(),
+  });
+
+  /** The rendered character canvas for an avatar source. */
+  avatarCanvasFor(source: SceneSource): HTMLCanvasElement | null {
+    return this.avatarDirector.canvasFor(source);
+  }
+  avatarNoteFor(source: SceneSource): string {
+    return this.avatarDirector.noteFor(source);
+  }
+  avatarStatusFor(source: SceneSource): AvatarStatus {
+    return this.avatarDirector.statusFor(source);
+  }
 
   screenVideo: HTMLVideoElement | null = null;
   screenStream: MediaStream | null = null;
@@ -161,6 +184,7 @@ export class SourcePool {
   forget(sourceId: string): void {
     this._images.delete(sourceId);
     this._media.delete(sourceId);
+    this.avatarDirector.forget(sourceId);
   }
 
   /**
@@ -286,6 +310,15 @@ function drawSource(
       const canvas = pool.cameraCanvas();
       if (!canvas || !canvas.width) {
         placeholder(ctx, dest, source.name, "Camera is off — start it above");
+        return;
+      }
+      drawFit(ctx, canvas, canvas.width, canvas.height, dest, source.fit);
+      return;
+    }
+    case "avatar": {
+      const canvas = pool.avatarCanvasFor(source);
+      if (!canvas || !canvas.width) {
+        placeholder(ctx, dest, source.name, pool.avatarNoteFor(source));
         return;
       }
       drawFit(ctx, canvas, canvas.width, canvas.height, dest, source.fit);

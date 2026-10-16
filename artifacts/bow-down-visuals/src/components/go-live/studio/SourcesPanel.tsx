@@ -24,11 +24,13 @@ import type { Stage } from "@/lib/stream-kit/stage";
 import {
   SOURCE_TYPE_LABELS,
   WIDGET_KIND_LABELS,
+  type AvatarSettings,
   type FitMode,
   type SceneSource,
   type SourceType,
   type WidgetKind,
 } from "@/lib/stream-kit/scenes";
+import { AVATAR_CHARACTERS, type AvatarCharacterId } from "@/lib/stream-kit/avatar-rigs";
 
 const FONT_OPTIONS = [
   "Georgia, serif",
@@ -61,6 +63,7 @@ export default function SourcesPanel({
   const scene = stage.previewScene();
   const [addType, setAddType] = useState<SourceType>("text");
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const avatarFileRef = useRef<HTMLInputElement | null>(null);
   const label = isLight ? "text-[#6B5B36]" : "text-zinc-400";
   const inputCls = `w-full rounded-md border px-2 py-1.5 text-sm outline-none focus:border-[#C9A84C] ${
     isLight
@@ -315,6 +318,130 @@ export default function SourcesPanel({
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {selected.type === "avatar" && selected.avatar && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                {AVATAR_CHARACTERS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() =>
+                      update(selected, { avatar: { ...selected.avatar!, character: c.id as AvatarCharacterId } })
+                    }
+                    className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
+                      selected.avatar!.character === c.id
+                        ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#8a6d1f] dark:text-[#e8cf8a]"
+                        : isLight
+                          ? "border-[#C9A84C]/30 text-[#6B5B36]"
+                          : "border-white/15 text-zinc-400"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+
+              {selected.avatar.character === "upload" && (
+                <div className="space-y-1.5">
+                  <input
+                    value={selected.avatar.imageUrl ?? ""}
+                    onChange={(e) =>
+                      update(selected, { avatar: { ...selected.avatar!, imageUrl: e.target.value } })
+                    }
+                    placeholder="Picture URL — or upload below (PNG with transparency reads best)"
+                    className={inputCls}
+                  />
+                  <input
+                    ref={avatarFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        update(selected, {
+                          avatar: { ...selected.avatar!, imageUrl: URL.createObjectURL(file) },
+                        });
+                        onNotify("Your picture is the character now.");
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-[#C9A84C]/50 px-2 py-1.5 text-[11px] font-semibold text-[#8a6d1f] transition hover:bg-[#C9A84C]/10 dark:text-[#e8cf8a]"
+                  >
+                    <Upload className="h-3.5 w-3.5" /> Upload your character picture
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <p className={`mb-1 text-[10px] font-semibold uppercase ${label}`}>How it moves</p>
+                <div className="flex gap-1.5">
+                  {(
+                    [
+                      ["face", "Face"],
+                      ["voice", "Voice"],
+                      ["idle", "Idle"],
+                    ] as Array<[AvatarSettings["drive"], string]>
+                  ).map(([mode, text]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => update(selected, { avatar: { ...selected.avatar!, drive: mode } })}
+                      className={`flex-1 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
+                        selected.avatar!.drive === mode
+                          ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#8a6d1f] dark:text-[#e8cf8a]"
+                          : isLight
+                            ? "border-[#C9A84C]/30 text-[#6B5B36]"
+                            : "border-white/15 text-zinc-400"
+                      }`}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className={`block text-[10px] font-semibold uppercase ${label}`}>
+                Expression {Math.round(selected.avatar.sensitivity * 100)}%
+                <input
+                  type="range"
+                  min={50}
+                  max={150}
+                  value={Math.round(selected.avatar.sensitivity * 100)}
+                  onChange={(e) =>
+                    update(selected, {
+                      avatar: { ...selected.avatar!, sensitivity: Number(e.target.value) / 100 },
+                    })
+                  }
+                  className="mt-1 w-full accent-[#C9A84C]"
+                />
+              </label>
+
+              {(() => {
+                const st = stage.pool.avatarStatusFor(selected);
+                const modeText =
+                  st.mode === "face" ? "Face tracking" : st.mode === "voice" ? "Voice drive" : "Idling";
+                return (
+                  <p className={`text-[11px] leading-snug ${label}`} data-testid="avatar-status">
+                    Moving by: <span className="font-semibold">{modeText}</span>
+                    {st.engine === "loading" && st.requested === "face" ? " · face tracking is loading…" : ""}
+                    {st.fellBack && st.reason ? ` — ${st.reason}` : ""}
+                  </p>
+                );
+              })()}
+
+              <p className={`text-[11px] leading-snug ${label}`}>
+                Your camera is only used to move the character — it's never shown on the stream. Face mode
+                needs the camera started; with no camera, your voice moves the character, and with neither it
+                breathes and blinks on its own.
+              </p>
             </div>
           )}
 

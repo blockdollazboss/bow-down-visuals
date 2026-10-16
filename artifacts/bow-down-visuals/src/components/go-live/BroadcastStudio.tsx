@@ -355,6 +355,11 @@ export default function BroadcastStudio() {
       return changer && changer.running ? changer.canvas : null;
     };
     stage.pool.rawCameraVideo = () => changerRef.current?.getSourceVideo() ?? null;
+    /* Avatar sources: tracking reads the raw camera (never composited)
+       and the mic channel's analyser for voice drive. */
+    stage.pool.avatarVideo = () => changerRef.current?.getSourceVideo() ?? null;
+    stage.pool.avatarAnalyser = () =>
+      mixerRef.current?.getAnalyser("mic") ?? changerRef.current?.getAnalyser() ?? null;
     stage.onChange = bump;
     stageRef.current = stage;
     const preview = new PreviewStage(previewCanvas, stage);
