@@ -125,6 +125,7 @@ import liveTipsRouter from "./live-tips";
 import liveModeratorsRouter from "./live-moderators";
 import liveWidgetsRouter from "./live-widgets";
 import liveSummaryRouter from "./live-summary";
+import reachRouter from "./reach";
 import membershipsRouter from "./generate/memberships";
 import podcastRouter from "./generate/podcast";
 import podcastDialogueRouter from "./generate/podcast-dialogue";
@@ -446,6 +447,7 @@ router.use(liveTipsRouter);                  // /api/live/:id/tips (stream tips 
 router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role
 router.use(liveWidgetsRouter);               // /api/live/:id/widgets + /api/live/:id/tip-goal
 router.use(liveSummaryRouter);               // /api/live/:id/summary (post-stream, owner)
+router.use(reachRouter);                     // /api/reach/* (Stack 9: fan-out, premieres, raids, drops, loyalty, close-friends, broadcast)
 router.use(membershipsRouter);
 router.use(podcastRouter);
 router.use(podcastDialogueRouter);

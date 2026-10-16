@@ -16,6 +16,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
+import { awardChatPoints } from "../lib/loyalty";
 
 /* ── Live stream chat ────────────────────────────────────────────────────
    Chat for native broadcasts (live_streams, migration 0129; chat rows
@@ -296,6 +297,9 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
 
     const dto = (await toDtos([row]))[0];
     liveChatHub.broadcast(stream.id, { type: "message", message: dto });
+    // Loyalty (Stack 9 #6): chatting earns the channel's points —
+    // fire-and-forget, it can never fail the message itself.
+    void awardChatPoints(userId, stream.profile_id, stream.user_id);
     res.status(201).json({ message: dto });
   } catch (err) {
     logger.error({ err }, "live chat post failed");

@@ -32,6 +32,7 @@ import {
   LIVE_TIP_PIN_DURATION_MS,
 } from "../lib/live-config";
 import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos } from "./live-chat";
+import { awardTipPoints } from "../lib/loyalty";
 
 /* ── Stream tips + paid pinned messages ──────────────────────────────────
    POST /live/:id/tips   (auth) tip the stream's creator in Visual Bucs
@@ -316,6 +317,8 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
       if (updated[0]) tip = updated[0];
     }
 
+    // Loyalty (Stack 9 #6): tipping earns the channel's points.
+    void awardTipPoints(tipperUserId, stream.profile_id, stream.user_id, amountVb);
     const dto = await toTipDto(tip, body);
     // The chat message body for a resumed tip comes from the row.
     if (isRetry && tip.message_id) {
