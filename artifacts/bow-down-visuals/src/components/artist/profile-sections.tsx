@@ -514,7 +514,6 @@ export function MerchSection({ title, profile }: { title: string; profile: Creat
         </div>
       ) : (
         <LinkCardSection
-          title={title}
           cta="Visit the shop"
           blurb="Official merch, made for the community."
           href={shopHref}
@@ -574,7 +573,6 @@ export function EventsSection({ title, profile }: { title: string; profile: Crea
         </div>
       ) : (
         <LinkCardSection
-          title={title}
           cta={`See ${verticalWord}`}
           blurb="Catch it live — don't just watch it happen."
           href="/tour"
@@ -629,24 +627,26 @@ export function PostsSection({ title, posts }: { title: string; posts: SocialPos
   );
 }
 
-/* ─── Simple link sections: merch, events ─── */
+/* ─── Simple link cards: merch, events ───
+   The empty-state card for a section that already renders its own
+   Shell header (MerchSection / EventsSection). It must NOT render a
+   second Shell of its own — nested, it duplicated the section title
+   as two stacked <h2>s ("My Picks" twice on the public profile). */
 export function LinkCardSection({
-  title, blurb, cta, href, icon,
-}: { title: string; blurb: string; cta: string; href: string; icon: React.ReactNode }) {
+  blurb, cta, href, icon,
+}: { blurb: string; cta: string; href: string; icon: React.ReactNode }) {
   return (
-    <Shell title={title}>
-      <Link
-        href={href}
-        className="flex items-center gap-4 rounded-lg border p-4 transition hover:-translate-y-0.5"
-        style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
-      >
-        <span style={{ color: "var(--ap-primary)" }}>{icon}</span>
-        <span className="flex-1">
-          <span className="block font-semibold" style={{ color: "var(--ap-text)" }}>{cta}</span>
-          <span className="text-sm" style={{ color: "var(--ap-muted)" }}>{blurb}</span>
-        </span>
-      </Link>
-    </Shell>
+    <Link
+      href={href}
+      className="flex items-center gap-4 rounded-lg border p-4 transition hover:-translate-y-0.5"
+      style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
+    >
+      <span style={{ color: "var(--ap-primary)" }}>{icon}</span>
+      <span className="flex-1">
+        <span className="block font-semibold" style={{ color: "var(--ap-text)" }}>{cta}</span>
+        <span className="text-sm" style={{ color: "var(--ap-muted)" }}>{blurb}</span>
+      </span>
+    </Link>
   );
 }
 
