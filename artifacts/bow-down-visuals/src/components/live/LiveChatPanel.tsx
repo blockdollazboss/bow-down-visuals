@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { AlertTriangle, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Trash2, VolumeX, Volume2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/social-api";
+import { formatBucs } from "@/lib/visual-bucs";
 import {
   LiveChatClient,
   composerState,
@@ -26,6 +27,9 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
   const [, setTick] = useState(0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [tipAmount, setTipAmount] = useState("500");
+  const [tipping, setTipping] = useState(false);
+  const [tipNote, setTipNote] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const clientRef = useRef<LiveChatClient | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -54,6 +58,11 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
   const client = clientRef.current;
 
   useEffect(() => {
+    // Alert events (tips / follows) ride the room socket — bridge
+    // them to the studio's Program overlay, which listens on window.
+    client.onAlert = (alert) => {
+      window.dispatchEvent(new CustomEvent("bdv:live-alert", { detail: { ...alert, streamId } }));
+    };
     void client.start();
     return () => client.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,6 +124,20 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
 
       {!collapsed && (
         <>
+          {client.pinned && new Date(client.pinned.pinnedUntil).getTime() > Date.now() && (
+            <div
+              className="border-b border-[#C9A84C]/40 bg-[#C9A84C]/15 px-4 py-2.5"
+              data-testid="chat-pin"
+            >
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#e8c86a]">
+                Pinned · {formatBucs(client.pinned.message.tipAmountVb ?? 0)} tip
+              </p>
+              <p className="mt-0.5 break-words text-sm font-semibold text-white">
+                <span className="text-[#fbbf24]">{client.pinned.message.author.displayName}:</span>{" "}
+                {client.pinned.message.body || "—"}
+              </p>
+            </div>
+          )}
           <div
             ref={listRef}
             onScroll={(e) => {
@@ -183,6 +206,65 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 </Link>
               </div>
             ) : composer.enabled ? (
+              <>
+              {!isOwner && (
+                <div className="mb-2.5 rounded-xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 px-3 py-2.5" data-testid="tip-box">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#e8c86a]">Tip</span>
+                    {[100, 500, 1000].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setTipAmount(String(n))}
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                          tipAmount === String(n)
+                            ? "bg-amber-400 text-black"
+                            : "border border-white/15 text-white/70 hover:border-[#C9A84C]/60 hover:text-white"
+                        }`}
+                      >
+                        {n.toLocaleString("en-US")}
+                      </button>
+                    ))}
+                    <input
+                      value={tipAmount}
+                      onChange={(e) => setTipAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                      inputMode="numeric"
+                      aria-label="Tip amount in Visual Bucs"
+                      className="w-20 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-bold text-white focus:border-[#C9A84C]/70 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-white/40">Visual Bucs · 500+ pins your message</span>
+                    <button
+                      type="button"
+                      disabled={tipping || !Number(tipAmount)}
+                      onClick={async () => {
+                        const amount = Number(tipAmount);
+                        if (!amount) return;
+                        setTipping(true);
+                        setTipNote(null);
+                        const key =
+                          typeof crypto !== "undefined" && "randomUUID" in crypto
+                            ? crypto.randomUUID()
+                            : `tip-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                        const result = await client.sendTip(amount, draft.trim(), key);
+                        setTipping(false);
+                        if (result.ok) {
+                          setDraft("");
+                          setTipNote(result.pinned ? "Tipped — your message is pinned to the top of chat." : "Tipped — thank you for backing the stream.");
+                        }
+                      }}
+                      className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#fbbf24] to-[#d4a017] px-3.5 py-1.5 text-[11px] font-black text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      data-testid="tip-send"
+                    >
+                      {tipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Tip
+                    </button>
+                  </div>
+                  {tipNote && (
+                    <p className="mt-1.5 text-[11px] font-semibold text-amber-200/90" data-testid="tip-note">
+                      {tipNote}
+                    </p>
+                  )}
+                </div>
+              )}
               <form onSubmit={onSend} className="flex items-center gap-2">
                 <input
                   value={draft}
@@ -202,6 +284,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
                 </button>
               </form>
+              </>
             ) : (
               <p className="text-sm text-white/55" data-testid="chat-composer-note">
                 {composer.note}
@@ -235,9 +318,13 @@ function ChatRow({
 }) {
   const canDelete = mine || isOwner;
   const canMute = isOwner && !mine && !authorIsOwner;
+  const isTip = message.kind === "tip";
   const time = new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return (
-    <div className="group flex gap-2.5" data-testid="chat-message">
+    <div
+      className={`group flex gap-2.5 ${isTip ? "rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-2.5 py-2" : ""}`}
+      data-testid={isTip ? "chat-tip-message" : "chat-message"}
+    >
       {message.author.avatarUrl ? (
         <img
           src={message.author.avatarUrl}
@@ -260,6 +347,11 @@ function ChatRow({
           {authorIsOwner && (
             <span className="rounded-full bg-[#C9A84C]/20 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
               Host
+            </span>
+          )}
+          {isTip && (
+            <span className="rounded-full bg-amber-400 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-black">
+              {formatBucs(message.tipAmountVb ?? 0)} tip
             </span>
           )}
           <span className="text-white/30">{time}</span>

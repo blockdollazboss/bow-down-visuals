@@ -62,6 +62,9 @@ export const liveStreamTipsTable = pgTable(
        pinned message. A newer qualifying tip replaces the pin by
        expiring the older rows. */
     pinned_until: timestamp("pinned_until", { withTimezone: true }),
+    /* Set once the creator's balance has actually been credited; a
+       retried tip resumes at the credit step instead of double-paying. */
+    creator_credited_at: timestamp("creator_credited_at", { withTimezone: true }),
     idempotency_key: text("idempotency_key").notNull().unique(),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -267,6 +267,57 @@ describe("LiveChatClient", () => {
   });
 });
 
+describe("tips, pins and alerts (Stack 2)", () => {
+  it("sendTip posts amount/body/key and reports the pin honestly", async () => {
+    const rig = makeRig();
+    rig.setFetch(async (path) => {
+      if (path.endsWith("/tips")) {
+        return { status: 201, json: { tip: { id: "t1" }, pinnedUntil: "2026-10-16T10:02:00.000Z" } };
+      }
+      return { status: 200, json: page([]) };
+    });
+    await rig.client.start();
+    const result = await rig.client.sendTip(500, "pin this", "tip-key-1234");
+    expect(result).toEqual({ ok: true, pinned: true, error: null });
+    const call = rig.fetchCalls.find((c) => c.path.endsWith("/tips"));
+    expect(JSON.parse(String(call?.init?.body))).toEqual({ amountVb: 500, body: "pin this", idempotencyKey: "tip-key-1234" });
+    rig.client.stop();
+  });
+
+  it("sendTip surfaces an insufficient-balance error instead of pretending", async () => {
+    const rig = makeRig();
+    rig.setFetch(async (path) => {
+      if (path.endsWith("/tips")) return { status: 402, json: { error: "Not enough Visual Bucs for that tip." } };
+      return { status: 200, json: page([]) };
+    });
+    await rig.client.start();
+    const result = await rig.client.sendTip(5000, "", "tip-key-5678");
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/Not enough Visual Bucs/);
+    expect(rig.client.notice).toMatch(/Not enough Visual Bucs/);
+    rig.client.stop();
+  });
+
+  it("pin state comes from the page, pin_updated replaces it, and alerts reach onAlert", async () => {
+    const rig = makeRig();
+    const pinMessage = { ...msg("m9", OTHER, "pinned!", "2026-10-16T10:01:00.000Z"), kind: "tip" as const, tipAmountVb: 500 };
+    rig.setFetch(async () => ({
+      status: 200,
+      json: { ...page([pinMessage]), pinned: { message: pinMessage, pinnedUntil: "2026-10-16T10:03:00.000Z" } },
+    }));
+    const alerts: unknown[] = [];
+    rig.client.onAlert = (a) => alerts.push(a);
+    await rig.client.start();
+    expect(rig.client.pinned?.message.id).toBe("m9");
+    rig.sockets[0].open();
+    rig.sockets[0].emit({ type: "pin_updated", pinned: null });
+    expect(rig.client.pinned).toBeNull();
+    rig.sockets[0].emit({ type: "alert", alert: { kind: "tip", title: "Fan tipped 500 Visual Bucs", body: "yo", amountVb: 500 } });
+    expect(alerts).toEqual([{ kind: "tip", title: "Fan tipped 500 Visual Bucs", body: "yo", amountVb: 500 }]);
+    rig.client.stop();
+  });
+});
+
 describe("defaultSocketUrl", () => {
   it("follows the page scheme and encodes the token", () => {
     expect(defaultSocketUrl({ protocol: "https:", host: "x.tv" }, STREAM, "a b")).toBe(

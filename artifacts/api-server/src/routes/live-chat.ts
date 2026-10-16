@@ -6,6 +6,7 @@ import {
   liveStreamsTable,
   liveChatMessagesTable,
   liveChatMutesTable,
+  liveStreamTipsTable,
   creatorProfilesTable,
   type LiveStream,
   type LiveChatMessage,
@@ -71,7 +72,7 @@ async function getStreamRow(id: string): Promise<LiveStream | null> {
 /** The status the chat acts on — a "live" row older than the stream
  *  lifetime cap is over, whatever the row still says (the streams
  *  router reconciles the row itself on its own reads). */
-function effectiveStatus(stream: LiveStream): "live" | "ended" {
+export function effectiveStatus(stream: LiveStream): "live" | "ended" {
   if (stream.status !== "live") return "ended";
   const started = stream.started_at ? new Date(stream.started_at).getTime() : 0;
   if (started && Date.now() - started > MAX_LIVE_MS) return "ended";
@@ -113,6 +114,9 @@ export interface LiveChatMessageDto {
   body: string;
   createdAt: string;
   author: AuthorCard;
+  /** 'chat' | 'tip' — tip messages carry their Visual Bucs amount. */
+  kind: "chat" | "tip";
+  tipAmountVb: number | null;
 }
 
 function toDto(row: LiveChatMessage, cards: Map<string, AuthorCard>): LiveChatMessageDto {
@@ -123,12 +127,46 @@ function toDto(row: LiveChatMessage, cards: Map<string, AuthorCard>): LiveChatMe
     body: row.body,
     createdAt: new Date(row.created_at).toISOString(),
     author: cards.get(row.user_id) ?? { displayName: "Someone", avatarUrl: null, slug: null },
+    kind: row.kind === "tip" ? "tip" : "chat",
+    tipAmountVb: row.tip_amount_vb ?? null,
   };
+}
+
+export interface LiveChatPinDto {
+  message: LiveChatMessageDto;
+  pinnedUntil: string;
+}
+
+/** The stream's currently-active paid pin, straight from the tips
+ *  table — clients render exactly this, never a pin they invented. */
+export async function getActivePin(streamId: string): Promise<LiveChatPinDto | null> {
+  const pins = await db
+    .select()
+    .from(liveStreamTipsTable)
+    .where(and(eq(liveStreamTipsTable.stream_id, streamId), gt(liveStreamTipsTable.pinned_until, new Date())))
+    .orderBy(desc(liveStreamTipsTable.pinned_until))
+    .limit(1);
+  const pin = pins[0];
+  if (!pin?.message_id || !pin.pinned_until) return null;
+  const rows = await db
+    .select()
+    .from(liveChatMessagesTable)
+    .where(and(eq(liveChatMessagesTable.id, pin.message_id), isNull(liveChatMessagesTable.deleted_at)))
+    .limit(1);
+  const message = rows[0];
+  if (!message) return null;
+  const dto = (await toDtos([message]))[0];
+  return dto ? { message: dto, pinnedUntil: new Date(pin.pinned_until).toISOString() } : null;
 }
 
 async function toDtos(rows: LiveChatMessage[]): Promise<LiveChatMessageDto[]> {
   const cards = await authorCards(rows.map((r) => r.user_id));
   return rows.map((r) => toDto(r, cards));
+}
+
+/** Shared with live-tips: a tip's chat row broadcasts as a message. */
+export async function chatMessageDtos(rows: LiveChatMessage[]): Promise<LiveChatMessageDto[]> {
+  return toDtos(rows);
 }
 
 /* ------------------------------------------------------------ routes */
@@ -185,6 +223,7 @@ router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Respons
       ownerId: stream.user_id,
       messages: await toDtos(rows),
       hasMore,
+      pinned: await getActivePin(stream.id).catch(() => null),
     });
   } catch (err) {
     logger.error({ err }, "live chat history failed");

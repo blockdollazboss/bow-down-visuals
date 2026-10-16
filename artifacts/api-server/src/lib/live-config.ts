@@ -24,6 +24,18 @@ export function selectedLiveTransport(env: NodeJS.ProcessEnv = process.env): Liv
   return env["LIVE_TRANSPORT"]?.trim().toLowerCase() === "cloudflare" ? "cloudflare" : "own";
 }
 
+/* ── Stream tips + pinned messages (Stack 2) ──────────────────────────────
+   Amounts are Visual Bucs — the site's credit unit, displayed as-is
+   (the x100 convention: never single-digit money figures). The pin
+   minimum is a single named constant so the owner can rule on it in
+   one place: a tip at or above it pins its message to the top of
+   chat for LIVE_TIP_PIN_DURATION_MS. The pin rides the tip — there
+   is no separate pin charge. */
+export const LIVE_TIP_MINIMUM_VB = 100;
+export const LIVE_TIP_MAXIMUM_VB = 1_000_000;
+export const LIVE_TIP_PIN_MINIMUM_VB = 500;
+export const LIVE_TIP_PIN_DURATION_MS = 2 * 60 * 1000;
+
 export function isLiveTransportReady(
   kind: LiveTransportKind,
   env: NodeJS.ProcessEnv = process.env,

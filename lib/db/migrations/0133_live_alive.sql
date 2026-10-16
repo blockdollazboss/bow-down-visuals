@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS live_stream_tips (
   amount_vb INTEGER NOT NULL,
   message_id UUID REFERENCES live_chat_messages(id) ON DELETE SET NULL,
   pinned_until TIMESTAMPTZ,
+  -- Set once the creator's balance has actually been credited; a
+  -- retried tip resumes at the credit step instead of double-paying.
+  creator_credited_at TIMESTAMPTZ,
   idempotency_key TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
