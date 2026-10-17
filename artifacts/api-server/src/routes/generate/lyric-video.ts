@@ -16,8 +16,8 @@
  * Whisper hears no speech or the lyrics don't match the audio, alignment
  * fails loudly and the charge is refunded.
  *
- * Pricing: 2 credits per alignment (Whisper spend on every run), 5 credits
- * per render (CPU encode + storage). Both env-overridable.
+ * Pricing: 200 Visual Bucs per alignment (Whisper spend on every run),
+ * 500 per render (CPU encode + storage). Both env-overridable.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "crypto";
@@ -1028,8 +1028,8 @@ const renderBodySchema = z.object({
  * POST /api/lyric-video/align
  *
  * Body (multipart): `lyrics` (text) + one of: `audio` file, `songId`,
- * `audioUrl`. Charges 2 credits up front; refunds when Whisper hears no
- * speech, the lyrics don't match the audio, or the provider fails.
+ * `audioUrl`. Charges 200 Visual Bucs up front; refunds when Whisper
+ * hears no speech, the lyrics don't match the audio, or the provider fails.
  */
 router.post(
   "/lyric-video/align",
