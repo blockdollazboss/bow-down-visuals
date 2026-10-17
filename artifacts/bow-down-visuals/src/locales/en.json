@@ -2057,6 +2057,7 @@
       "gold": "Gold",
       "white": "White"
     },
+    "contactForQuote": "Contact for quote",
     "decreaseAria": "Decrease",
     "decreaseQtyAria": "Decrease quantity",
     "demoFulfillmentText": "no Printful API key is configured, so order statuses are simulated. Connect PRINTFUL_API_KEY to ship real products.",
