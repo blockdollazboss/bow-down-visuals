@@ -3,7 +3,8 @@ import {
   Send, Check, X, Ban, Plus, Pin, MessageCircle, Star, BarChart3, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ReactionSticker } from "@/components/social/KingEmoji";
+import { EmojiTray, KingTokenText, ReactionSticker } from "@/components/social/KingEmoji";
+import { insertAtCursor } from "@/lib/king-emoji";
 import {
   NativeCard, NativeLoadingState, NativeEmptyState, NativeErrorState,
 } from "@/components/world/native";
@@ -97,6 +98,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
   const [starting, setStarting] = useState(false);
   const threadReqRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const dmDraftRef = useRef<HTMLInputElement>(null);
 
   const loadConvs = useCallback(async () => {
     try {
@@ -387,7 +389,9 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                                 : "bg-white/10 text-white"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap text-sm">{m.body}</p>
+                          <p className="whitespace-pre-wrap text-sm">
+                            <KingTokenText body={m.body} theme={isLight ? "light" : "dark"} />
+                          </p>
                         </div>
                       </div>
                     );
@@ -397,8 +401,23 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
               </div>
 
               {canChat ? (
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex items-center gap-2">
+                  <EmojiTray
+                    tone={isLight ? "light" : "dark"}
+                    onPickToken={(token) => {
+                      const el = dmDraftRef.current;
+                      const next = insertAtCursor(draft, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, DM_DRAFT_MAX);
+                      setDraft(next.value);
+                      requestAnimationFrame(() => {
+                        if (el) {
+                          el.focus();
+                          el.setSelectionRange(next.caret, next.caret);
+                        }
+                      });
+                    }}
+                  />
                   <input
+                    ref={dmDraftRef}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void send()}
@@ -496,7 +515,7 @@ function NoticePostCard({
         </p>
         {post.body && (
           <p className={`mt-1 whitespace-pre-wrap text-sm ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-            {post.body}
+            <KingTokenText body={post.body} theme={isLight ? "light" : "dark"} />
           </p>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -529,7 +548,8 @@ function NoticePostCard({
                   key={r.id}
                   className={`rounded-lg px-2.5 py-1.5 text-xs ${isLight ? "bg-[#C9A84C]/10 text-[#2a1e07]" : "bg-white/5 text-white/75"}`}
                 >
-                  <span className="font-bold">{r.author?.display_name ?? "Creator"}:</span> {r.body}
+                  <span className="font-bold">{r.author?.display_name ?? "Creator"}:</span>{" "}
+                  <KingTokenText body={r.body} theme={isLight ? "light" : "dark"} />
                 </p>
               ))
             )}

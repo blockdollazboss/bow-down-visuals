@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
+import { EmojiTray, useKingArtTheme } from "./KingEmoji";
+import { gifImageAttachment, insertAtCursor, type KingGifDef } from "@/lib/king-emoji";
 
 /* The composer — difficulty ladder via data-min-stars (never gates posting):
    1★  simple box + AI "write it for me"
@@ -23,6 +25,8 @@ export function Composer({
   placeholder?: string;
 }) {
   const { getAccessToken } = useAuth();
+  const kingTheme = useKingArtTheme();
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [threadExtras, setThreadExtras] = useState<string[]>([]);
@@ -48,6 +52,30 @@ export function Composer({
 
   function addAttachment(a: Attachment) {
     setAttachments((prev) => (prev.length >= 10 ? prev : [...prev, a]));
+  }
+
+  /* King tray: stickers insert their :shortcode: at the caret (stored
+     as text, rendered by RichText everywhere the post travels). GIFs
+     ride the image-attachment path on posts; replies carry no
+     attachments, so there the GIF falls back to its :gif-…: token. */
+  function insertBodyToken(token: string) {
+    const el = bodyRef.current;
+    const next = insertAtCursor(body, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, 500);
+    setBody(next.value);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(next.caret, next.caret);
+      }
+    });
+  }
+
+  function pickGif(gif: KingGifDef): boolean {
+    if (replyTo) return false;
+    const att = gifImageAttachment(gif.code, kingTheme);
+    if (!att) return false;
+    addAttachment(att);
+    return true;
   }
 
   function attachUrl() {
@@ -166,6 +194,7 @@ export function Composer({
       )}
 
       <textarea
+        ref={bodyRef}
         value={body}
         onChange={(e) => setBody(e.target.value.slice(0, 500))}
         placeholder={placeholder ?? "What's moving in your world? 🦈"}
@@ -351,7 +380,10 @@ export function Composer({
 
       {/* action row — posting is never gated */}
       <div className="mt-3 flex items-center justify-between border-t border-[#1f1f1f] pt-3">
-        {!replyTo && <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1">
+          {/* the King's tray — stickers + GIFs, on posts AND replies */}
+          <EmojiTray onPickToken={insertBodyToken} onPickGif={pickGif} />
+        {!replyTo && <>
           <button data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <ImagePlus className="h-5 w-5" />
           </button>
@@ -376,7 +408,8 @@ export function Composer({
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>
-        </div>}
+        </>}
+        </div>
         <div className="flex items-center gap-3">
           <span className={`text-xs ${body.length >= 500 ? "text-red-400" : "text-neutral-500"}`}>{body.length}/500</span>
           <button

@@ -4,6 +4,8 @@ import { AlertTriangle, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Trash2
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/social-api";
 import { formatBucs } from "@/lib/visual-bucs";
+import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
+import { insertAtCursor } from "@/lib/king-emoji";
 import {
   LiveChatClient,
   composerState,
@@ -17,10 +19,12 @@ import {
    moderation. The brain lives in lib/live-chat-client.ts (history,
    socket delivery with polling fallback, dedupe, honest composer
    states); this component is its shell. Message bodies render as
-   plain text — React escapes them; links stay text, nothing is ever
-   injected as HTML. The panel is dark-styled by design (it sits on
+   React nodes — text is escaped, nothing is ever injected as HTML —
+   with the King's shortcodes (:king-laugh:, :gif-king-bow:) lit up as
+   his sticker/GIF art. Bodies still travel as plain text, so no
+   protocol change. The panel is dark-styled by design (it sits on
    streaming surfaces) and carries data-dark-lock so the light theme
-   never repaints it. */
+   never repaints it — its King art is pinned to the dark set. */
 
 export default function LiveChatPanel({ streamId, className = "" }: { streamId: string; className?: string }) {
   const { user, getAccessToken } = useAuth();
@@ -32,6 +36,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
   const [tipNote, setTipNote] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const clientRef = useRef<LiveChatClient | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
 
@@ -95,6 +100,20 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
     if (ok) setDraft("");
   }
 
+  /* King tray: the token lands in the draft as text at the caret and
+     rides the normal send path — the far side renders the art. */
+  function insertDraftToken(token: string) {
+    const el = inputRef.current;
+    const next = insertAtCursor(draft, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, 500);
+    setDraft(next.value);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(next.caret, next.caret);
+      }
+    });
+  }
+
   return (
     <section
       data-dark-lock
@@ -136,7 +155,11 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
               </p>
               <p className="mt-0.5 break-words text-sm font-semibold text-white">
                 <span className="text-[#fbbf24]">{client.pinned.message.author.displayName}:</span>{" "}
-                {client.pinned.message.body || "—"}
+                {client.pinned.message.body ? (
+                  <KingTokenText body={client.pinned.message.body} theme="dark" />
+                ) : (
+                  "—"
+                )}
               </p>
             </div>
           )}
@@ -271,7 +294,9 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 </div>
               )}
               <form onSubmit={onSend} className="flex items-center gap-2">
+                <EmojiTray tone="dark" onPickToken={insertDraftToken} />
                 <input
+                  ref={inputRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   maxLength={500}
@@ -413,7 +438,9 @@ function ChatRow({
             </span>
           )}
         </p>
-        <p className="mt-0.5 break-words text-sm leading-snug text-white/90">{message.body}</p>
+        <p className="mt-0.5 break-words text-sm leading-snug text-white/90">
+          <KingTokenText body={message.body} theme="dark" />
+        </p>
       </div>
     </div>
   );
