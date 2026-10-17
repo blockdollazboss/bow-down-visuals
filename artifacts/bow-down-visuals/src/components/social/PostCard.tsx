@@ -7,14 +7,13 @@ import { Avatar } from "./Avatar";
 import { RichText } from "./RichText";
 import { AttachmentView } from "./AttachmentView";
 import { Composer } from "./Composer";
+import { ReactionSticker } from "./KingEmoji";
+import { REACTION_ART, REACTION_KEYS } from "@/lib/king-emoji";
 
-const REACTIONS = [
-  { emoji: "like", icon: "❤️", label: "Like" },
-  { emoji: "love", icon: "😍", label: "Love" },
-  { emoji: "fire", icon: "🔥", label: "Fire" },
-  { emoji: "clap", icon: "👏", label: "Clap" },
-  { emoji: "mindblown", icon: "🤯", label: "Mindblown" },
-] as const;
+/* Reactions: the five keys are the server's contract (routes/social.ts
+   validates + stores the key) — unchanged. What renders is the King's
+   own art now: REACTION_ART in lib/king-emoji maps each key to a
+   sticker from the owner's set, theme-aware. */
 
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -256,20 +255,24 @@ export function PostCard({
                 <button
                   onClick={() => react("like")}
                   aria-label="Like"
-                  className={`flex items-center gap-1 rounded-full px-2 py-1.5 text-sm ${emoji === "like" ? "text-red-400" : "text-neutral-400 hover:text-red-400"}`}
+                  className="flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-400 transition hover:text-[#d4af37]"
                 >
-                  <span className="text-base">{emoji === "like" ? "❤️" : "🤍"}</span>
+                  <ReactionSticker
+                    reaction="like"
+                    className={`h-6 w-6 object-contain transition ${emoji === "like" ? "" : "opacity-50 grayscale hover:opacity-80 hover:grayscale-0"}`}
+                  />
                   {(counts["like"] ?? 0) > 0 && <span className="text-xs">{counts["like"]}</span>}
                 </button>
                 <div className="absolute bottom-full left-0 z-10 mb-1 hidden gap-1 rounded-full border border-[#2a2a2a] bg-[#1a1a1a] p-1.5 shadow-xl group-hover:flex">
-                  {REACTIONS.map((r) => (
+                  {REACTION_KEYS.map((key) => (
                     <button
-                      key={r.emoji}
-                      onClick={() => react(r.emoji)}
-                      title={r.label}
-                      className={`rounded-full p-1.5 text-lg transition hover:scale-125 ${emoji === r.emoji ? "bg-[#d4af37]/20" : ""}`}
+                      key={key}
+                      onClick={() => react(key)}
+                      title={REACTION_ART[key].label}
+                      aria-label={REACTION_ART[key].label}
+                      className={`rounded-full p-1 transition hover:scale-110 ${emoji === key ? "bg-[#d4af37]/20" : ""}`}
                     >
-                      {r.icon}
+                      <ReactionSticker reaction={key} className="h-7 w-7 object-contain" />
                     </button>
                   ))}
                 </div>

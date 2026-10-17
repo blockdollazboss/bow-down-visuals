@@ -40,6 +40,8 @@ import {
 import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
 import { MUSIC_HALL_ID } from "@/lib/world/palace-layout";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
+import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
 import {
   VoiceMesh,
@@ -220,6 +222,7 @@ export default function WorldPage() {
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
   const [sayLog, setSayLog] = useState<WorldSayEvent[]>([]);
   const [draft, setDraft] = useState("");
+  const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
      Off, Proximity, Lobby, Deafen — remembered on this device.
      `inVoice` inside it is the live mesh session; the mode gates
@@ -1206,6 +1209,20 @@ export default function WorldPage() {
     if (client.say(draft)) setDraft("");
   };
 
+  /* King tray in the say box: the token joins the draft as text and
+     rides the say relay unchanged — the log renders the King's art. */
+  const insertSayToken = (token: string) => {
+    const el = sayInputRef.current;
+    const next = insertAtCursor(draft, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, 300);
+    setDraft(next.value);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(next.caret, next.caret);
+      }
+    });
+  };
+
   const overlay = worldOverlay(status);
   const isLight = siteTheme === "light";
   /* The stage, from the room's own broadcasts: one holder, one hand
@@ -1433,7 +1450,9 @@ export default function WorldPage() {
             {sayLog.map((ev, i) => (
               <p key={`${ev.peerId}-${i}`} className="rounded-lg bg-black/55 px-2.5 py-1 text-xs text-white/85 backdrop-blur-sm">
                 <span className="font-bold text-[#e8c86a]">{ev.displayName}</span>{" "}
-                <span className="text-white/70">{ev.body}</span>
+                <span className="text-white/70">
+                  <KingTokenText body={ev.body} />
+                </span>
               </p>
             ))}
           </div>
@@ -1853,7 +1872,13 @@ export default function WorldPage() {
                 sendSay();
               }}
             >
+              <EmojiTray
+                tone={isLight ? "light" : "dark"}
+                onPickToken={insertSayToken}
+                buttonClassName={`rounded-full border p-2 transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 bg-white/60" : "border-white/12 bg-black/50"}`}
+              />
               <input
+                ref={sayInputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={300}
