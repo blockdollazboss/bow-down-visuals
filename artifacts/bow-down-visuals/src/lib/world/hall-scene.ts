@@ -53,9 +53,13 @@ import {
 import { locatePortraitMouth } from "./portrait-mouth";
 
 export interface HallScreenSource {
-  mode: "live" | "featured";
+  mode: "live" | "featured" | "video";
   videoUrl: string | null;
   hlsUrl: string | null;
+  /** Watch-party videos: the shared playback state from the room's
+   *  server stamp — start near positionSec, playing or paused. */
+  playing?: boolean;
+  startAtSec?: number;
 }
 
 const BOUNDS = { minX: -13.1, maxX: 13.1, minZ: -11.6, maxZ: 11.1 };
@@ -191,12 +195,13 @@ function hazeTexture(): THREE.CanvasTexture {
 
 /** Everything the name plate shows — when any of it changes the
  *  plate is redrawn (see upsertPeer's plate reconcile). */
-function namePlateKey(peer: WorldPeer): string {
+function namePlateKey(peer: WorldPeer, frontRow = false): string {
   return [
     peer.displayName,
     peer.guest ? "guest" : "",
     peer.profileSlug ?? "",
     peer.voiceOff ? "off" : "",
+    frontRow ? "front-row" : "",
   ].join("|");
 }
 
@@ -240,7 +245,7 @@ function drawVoiceOffBadge(g: CanvasRenderingContext2D, cx: number, cy: number):
   g.restore();
 }
 
-function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
+function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 144;
@@ -255,14 +260,16 @@ function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
   g.fillText(name, 256, 58);
   g.font = "600 34px system-ui, sans-serif";
   /* Voice-off outranks the slug on the sub-line: "this person can't
-   *  hear you" is the fact the hall needs at a glance. */
+   *  hear you" is the fact the hall needs at a glance. A Front Row
+   *  member (of the performer on stage) is named on the plate too —
+   *  the honor is visible, not just a brighter ring. */
   const sub = peer.voiceOff
     ? "voice off"
     : peer.guest
       ? "guest"
-      : peer.profileSlug
-        ? `@${peer.profileSlug}`
-        : "";
+      : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
+          .filter(Boolean)
+          .join(" · ");
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
   g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.guest ? "#b8b0a0" : "#e8c86a";
@@ -296,6 +303,10 @@ interface AvatarRig {
   group: THREE.Group;
   body: THREE.Group;
   sprite: THREE.Sprite;
+  /** The floor ring (brightened + widened for Front Row members). */
+  ring: THREE.Mesh;
+  /** Whether the Front Row treatment is currently applied. */
+  frontRow: boolean;
   /** Signature of what the name plate currently shows. */
   plateKey: string;
   tint: string;
@@ -466,6 +477,8 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     group,
     body,
     sprite,
+    ring,
+    frontRow: false,
     plateKey: namePlateKey(peer),
     tint: peer.tint,
     target: { x: peer.x, z: peer.z, rotY: peer.rotY },
@@ -541,6 +554,11 @@ export class KingsHallScene {
   private screenMaterial: THREE.MeshBasicMaterial;
   private hls: { destroy(): void } | null = null;
   private screenKey = "";
+  /** The performer's Front Row (profile slugs) while a show is on —
+   *  their figures wear the brighter ring + plate line. */
+  private frontRowSlugs = new Set<string>();
+  /** The honored seat arc before the stage, shown while a show runs. */
+  private stageSeats: THREE.Group | null = null;
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
@@ -1375,7 +1393,79 @@ export class KingsHallScene {
       this.screenMaterial.map = this.videoTexture;
       this.screenMaterial.needsUpdate = true;
     }
-    void video.play().catch(() => undefined);
+    if (source.mode === "video") {
+      /* A watch party lands where the room already is: seek once the
+       * metadata lands, then honor the shared play/pause state. The
+       * position is approximate by design (the server stamps it). */
+      const startAt = source.startAtSec ?? 0;
+      const applyStart = () => this.setScreenPlayback(source.playing !== false, startAt);
+      if (video.readyState >= 1) applyStart();
+      else video.addEventListener("loadedmetadata", applyStart, { once: true });
+    } else {
+      void video.play().catch(() => undefined);
+    }
+  }
+
+  /** Shared play/pause for the screen's video, from the room's
+   *  server-stamped state. A drift beyond a couple of seconds snaps
+   *  to the stamped position; inside it, local playback just runs —
+   *  approximate sync is the v1 bar, honestly. */
+  setScreenPlayback(playing: boolean, positionSec: number): void {
+    const video = this.video;
+    if (!video) return;
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      if (Math.abs(video.currentTime - positionSec) > 2.5) {
+        try {
+          video.currentTime = Math.min(positionSec, Math.max(0, video.duration - 0.25));
+        } catch {
+          /* a seek racing metadata is harmless — the next stamp lands */
+        }
+      }
+    }
+    if (playing) void video.play().catch(() => undefined);
+    else video.pause();
+  }
+
+  /** The screen video's own position — the holder's pause action
+   *  stamps from here, so the anchor starts from what's on screen. */
+  screenPositionSec(): number {
+    return this.video?.currentTime ?? 0;
+  }
+
+  /** The performer's Front Row, by profile slug. Empty = no show. */
+  setFrontRowSlugs(slugs: ReadonlySet<string>): void {
+    this.frontRowSlugs = new Set(slugs);
+  }
+
+  /** The honored seat arc before the stage: flat gold rings on the
+   *  floor in a shallow arc facing the screen. Shown while a show
+   *  runs — a visual honor marking where the Front Row sits; nobody
+   *  is teleported, v1 keeps its promises light and true. Lives on
+   *  the scene root (not a look group) so a theme flip keeps it. */
+  setStageSeatsVisible(visible: boolean): void {
+    if (!this.stageSeats) {
+      const group = new THREE.Group();
+      for (let i = 0; i < 7; i++) {
+        const x = -6 + i * 2;
+        const seat = new THREE.Mesh(
+          new THREE.RingGeometry(0.36, 0.48, 40),
+          new THREE.MeshBasicMaterial({
+            color: GOLD,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        );
+        seat.rotation.x = -Math.PI / 2;
+        seat.position.set(x, 0.02, -9.6 + (Math.abs(x) / 6) * 1.1);
+        seat.renderOrder = 2;
+        group.add(seat);
+      }
+      this.stageSeats = group;
+      this.scene.add(group);
+    }
+    this.stageSeats.visible = visible;
   }
 
   /* ── Peers ── */
@@ -1395,14 +1485,24 @@ export class KingsHallScene {
 
   /** Keep the name plate matched to the peer: when what it shows
    *  changes (a name settles, the voice switch flips), redraw the
-   *  sprite's texture in place — the sprite itself never moves. */
+   *  sprite's texture in place — the sprite itself never moves. The
+   *  Front Row treatment (brighter, wider ring + plate line) rides
+   *  the same reconcile: it lands on the next 120 ms cadence after
+   *  setFrontRowSlugs, no special path. */
   private reconcilePlate(rig: AvatarRig, peer: WorldPeer): void {
-    const key = namePlateKey(peer);
+    const frontRow = !!peer.profileSlug && this.frontRowSlugs.has(peer.profileSlug);
+    if (frontRow !== rig.frontRow) {
+      rig.frontRow = frontRow;
+      const mat = rig.ring.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = frontRow ? 1.6 : 0.5;
+      rig.ring.scale.setScalar(frontRow ? 1.3 : 1);
+    }
+    const key = namePlateKey(peer, frontRow);
     if (key === rig.plateKey) return;
     rig.plateKey = key;
     const mat = rig.sprite.material as THREE.SpriteMaterial;
     const old = mat.map;
-    mat.map = nameSpriteTexture(peer);
+    mat.map = nameSpriteTexture(peer, frontRow);
     mat.needsUpdate = true;
     old?.dispose();
   }

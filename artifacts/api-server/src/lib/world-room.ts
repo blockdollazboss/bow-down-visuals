@@ -24,6 +24,25 @@
  *                                            can say "voice off"
  *     { type: "voice.signal", to, data }     WebRTC offer/answer/ice
  *                                            relay (voice members only)
+ *     { type: "stage.live", streamId }       take the stage with my
+ *                                            live stream (verified
+ *                                            mine + live server-side)
+ *     { type: "stage.video", videoId }        take the stage with a
+ *                                            catalog video (watch
+ *                                            party; id only, resolved
+ *                                            + verified server-side)
+ *     { type: "screen.reel" }                 holder: screen back to
+ *                                            the King's Reel (stage
+ *                                            stays held)
+ *     { type: "screen.playpause", playing, positionSec }
+ *                                            holder: shared play/pause
+ *                                            for a stage video
+ *     { type: "stage.end" }                   holder: release the
+ *                                            stage + screen to idle
+ *     { type: "admin.mute", peerId, muted }   host only: mute/unmute a
+ *                                            member's voice server-side
+ *     { type: "admin.remove", peerId }        host only: remove a
+ *                                            person from the hall
  *   server → client
  *     { type: "welcome", peerId, you, peers }   on join (full snapshot)
  *     { type: "peer.join", peer } / { type: "peer.leave", peerId }
@@ -38,6 +57,19 @@
  *     { type: "voice.state", voicePeerIds }     answer to voice.join
  *     { type: "voice.signal", from, data }      relayed signaling
  *     { type: "voice.full" } / { type: "voice.denied", reason }
+ *     { type: "screen.state", screen }         the stage + screen now
+ *                                            (also inside `welcome`):
+ *                                            who holds the stage and
+ *                                            what's playing, with the
+ *                                            video's position stamped
+ *     { type: "screen.denied", holderName }   someone else holds the
+ *                                            stage — one hand only
+ *     { type: "peer.hostmute", peerId, muted }  the host muted/unmuted
+ *                                            a member's voice
+ *     { type: "admin.denied" }                a host action attempted
+ *                                            by a non-host
+ *     { type: "removed", reason } then close 4413 — the host removed
+ *                                            this peer from the hall
  *     { type: "room_full", cap } then close 4429 when at presence cap
  *
  * House rules baked in: presence cap 30 with an honest full state,
@@ -45,6 +77,15 @@
  * look-only (present and visible, labeled guests — no voice, no say),
  * move sync throttled to ~10/s per peer server-side so a runaway
  * client can't flood the room.
+ *
+ * The stage + the big screen are one authority: whoever holds the
+ * stage holds the screen — one hand, no fighting. A stage holder is
+ * a member whose live stream or catalog video the room verified;
+ * when they leave, the stage releases and the screen falls back to
+ * the King's Reel. The host (an admin identity, resolved server-
+ * side at the door — never a client claim) outranks the holder at
+ * all times: instant takeover, screen override, ending a show,
+ * muting a voice, removing a person.
  */
 import { RoomHub, WS_OPEN, type WsClientSocket } from "./live-ws";
 
@@ -87,6 +128,10 @@ export interface WorldIdentity {
   displayName: string;
   avatarUrl: string | null;
   profileSlug: string | null;
+  /** Host authority, resolved by the route layer from the site's
+   *  admin identity (ADMIN_EMAILS) at the handshake — a client can
+   *  never claim it, and a guest is never an admin. */
+  admin?: boolean;
 }
 
 /** A Creative Vault character a member walks in as. Resolved
@@ -107,6 +152,80 @@ export type WorldCharacterResolver = (
   characterId: string,
 ) => Promise<WorldCharacterRef | null>;
 
+/** A member's own live stream, verified at stage-claim time: the row
+ *  is theirs and truly live. Title/name/slug title the screen. */
+export interface WorldStageLiveRef {
+  streamId: string;
+  title: string;
+  performerName: string;
+  performerSlug: string | null;
+}
+
+/** Injected by the route layer: verify a stage claim names the
+ *  member's OWN live stream; return its ref, or null to refuse. */
+export type WorldStageStreamResolver = (
+  userId: string,
+  streamId: string,
+) => Promise<WorldStageLiveRef | null>;
+
+/** A catalog video the big screen can play: a platform video or a
+ *  stream replay, resolved from an id the client picked from the
+ *  catalog — never a URL the client supplied. */
+export interface WorldScreenVideoRef {
+  id: string;
+  title: string;
+  url: string;
+  mediaKind: "file" | "hls";
+  creatorName: string | null;
+}
+
+/** Injected by the route layer: verify a screen-video pick is a real
+ *  playable platform video (the member's own, or public); return the
+ *  ref to broadcast, or null to refuse. */
+export type WorldScreenVideoResolver = (
+  userId: string,
+  videoId: string,
+) => Promise<WorldScreenVideoRef | null>;
+
+/** What's on the big screen while a stage is held. ("reel" with a
+ *  holder = the holder parked the screen on the King's Reel without
+ *  giving the stage up.) */
+export type WorldScreenContent =
+  | { kind: "reel" }
+  | { kind: "live"; streamId: string; title: string }
+  | {
+      kind: "video";
+      video: WorldScreenVideoRef;
+      /** Server-stamped playback anchor: the position (seconds) at
+       *  anchorAtMs; while playing, everyone derives the current
+       *  position from the same stamp — approximate sync by design. */
+      playback: { playing: boolean; anchorPosSec: number; anchorAtMs: number };
+    };
+
+/** The screen state every client renders from — sent in `welcome`
+ *  and broadcast as `screen.state` on every change. */
+export interface WorldScreenBroadcast {
+  mode: "reel" | "live" | "video";
+  holder: { peerId: string; name: string; slug: string | null } | null;
+  title: string | null;
+  streamId: string | null;
+  video: WorldScreenVideoRef | null;
+  /** For video mode: playing + the position right now (computed
+   *  from the anchor at broadcast time). */
+  playback: { playing: boolean; positionSec: number } | null;
+  /** A one-off honest note riding this one broadcast (a takeover,
+   *  a show ending) — null on plain state syncs. */
+  notice: string | null;
+}
+
+/** Where a stage video is right now, from its server anchor. */
+export function screenPositionAt(content: WorldScreenContent, nowMs: number): number {
+  if (content.kind !== "video") return 0;
+  const pb = content.playback;
+  if (!pb.playing) return pb.anchorPosSec;
+  return Math.max(0, pb.anchorPosSec + (nowMs - pb.anchorAtMs) / 1000);
+}
+
 export interface WorldPeerDto {
   peerId: string;
   displayName: string;
@@ -120,6 +239,11 @@ export interface WorldPeerDto {
    *  joined voice yet. Name plates mark it so nobody talks to
    *  someone who can't hear them. */
   voiceOff: boolean;
+  /** Host authority (resolved at the door; guests never). */
+  admin: boolean;
+  /** The host muted this member's voice server-side: out of the
+   *  mesh, and voice.join is refused until the host unmutes. */
+  hostMuted: boolean;
   character: WorldCharacterRef | null;
   x: number;
   y: number;
@@ -134,6 +258,8 @@ interface WorldPeer extends WorldIdentity {
   guest: boolean;
   voice: boolean;
   voiceOff: boolean;
+  admin: boolean;
+  hostMuted: boolean;
   character: WorldCharacterRef | null;
   /** Bumped on every character pick/clear so a slow resolution can't
    *  land after a newer pick and resurrect a stale character. */
@@ -154,14 +280,37 @@ function finiteOr(v: unknown, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
 }
 
+/** Close code when the host removes a peer (private-use range, the
+ *  same family as room_full's 4429): the client shows its honest
+ *  "removed by the host" card for it. */
+export const WORLD_REMOVED_CLOSE_CODE = 4413;
+
+interface StageHolder {
+  peerId: string;
+  userId: string;
+  name: string;
+  slug: string | null;
+}
+
 export class WorldRoom {
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
+  /** The stage: one holder, and the screen is theirs. Null = the
+   *  stage is free and the screen runs its ambient programming. */
+  private stageHolder: StageHolder | null = null;
+  private screenContent: WorldScreenContent = { kind: "reel" };
+  /** Bumped on every stage claim so a slow verification can't land
+   *  after a newer claim (or a release) and resurrect a dead show. */
+  private stageSeq = 0;
 
   constructor(
     private hub: RoomHub,
-    private deps: { resolveCharacter?: WorldCharacterResolver } = {},
+    private deps: {
+      resolveCharacter?: WorldCharacterResolver;
+      resolveStageStream?: WorldStageStreamResolver;
+      resolveScreenVideo?: WorldScreenVideoResolver;
+    } = {},
   ) {}
 
   size(): number {
@@ -189,6 +338,8 @@ export class WorldRoom {
       guest: peer.guest,
       voice: peer.voice,
       voiceOff: peer.voiceOff,
+      admin: peer.admin,
+      hostMuted: peer.hostMuted,
       character: peer.character,
       x: peer.x,
       y: peer.y,
@@ -236,6 +387,8 @@ export class WorldRoom {
       guest: identity.userId === null,
       voice: false,
       voiceOff: false,
+      admin: identity.userId !== null && identity.admin === true,
+      hostMuted: false,
       character: null,
       characterSeq: 0,
       x: (slot - 4.5) * 1.1,
@@ -254,7 +407,14 @@ export class WorldRoom {
     const snapshot = [...this.peers.values()]
       .filter((p) => p !== peer)
       .map((p) => this.dto(p));
-    this.send(peer, { type: "welcome", peerId, you: this.dto(peer), peers: snapshot });
+    this.send(peer, {
+      type: "welcome",
+      peerId,
+      you: this.dto(peer),
+      peers: snapshot,
+      // Late joiners land on the right screen: the stage as it stands.
+      screen: this.screenBroadcast(),
+    });
     // The joiner never hears its own join — `welcome` already told it
     // everything about itself; peer.join is strictly for the room.
     this.broadcastExcept(peer, { type: "peer.join", peer: this.dto(peer) });
@@ -272,7 +432,82 @@ export class WorldRoom {
     if (peer.voice) {
       this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
     }
+    /* No orphaned stage: the holder leaving ends the show and the
+     * screen falls back to the Reel for everyone still inside. */
+    if (this.stageHolder?.peerId === peer.peerId) {
+      this.stageHolder = null;
+      this.screenContent = { kind: "reel" };
+      this.stageSeq++;
+      this.hub.broadcast(WORLD_ROOM_ID, {
+        type: "screen.state",
+        screen: this.screenBroadcast(`${peer.displayName}'s show has ended.`),
+      });
+    }
     this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.leave", peerId: peer.peerId });
+  }
+
+  /* ── The stage + screen ─────────────────────────────────────────── */
+
+  /** The screen state as every client renders it, right now. */
+  screenBroadcast(notice: string | null = null, now = Date.now()): WorldScreenBroadcast {
+    const holder = this.stageHolder
+      ? { peerId: this.stageHolder.peerId, name: this.stageHolder.name, slug: this.stageHolder.slug }
+      : null;
+    const content = this.screenContent;
+    if (!holder || content.kind === "reel") {
+      return { mode: "reel", holder, title: null, streamId: null, video: null, playback: null, notice };
+    }
+    if (content.kind === "live") {
+      return {
+        mode: "live",
+        holder,
+        title: content.title,
+        streamId: content.streamId,
+        video: null,
+        playback: null,
+        notice,
+      };
+    }
+    return {
+      mode: "video",
+      holder,
+      title: content.video.title,
+      streamId: null,
+      video: content.video,
+      playback: { playing: content.playback.playing, positionSec: screenPositionAt(content, now) },
+      notice,
+    };
+  }
+
+  /** The stream the screen should prefer, when the stage is live. */
+  stageStreamId(): string | null {
+    return this.stageHolder && this.screenContent.kind === "live" ? this.screenContent.streamId : null;
+  }
+
+  /** The stage's video content, when a watch party is on the screen. */
+  stageVideo(): { video: WorldScreenVideoRef; positionSec: number; playing: boolean } | null {
+    if (!this.stageHolder || this.screenContent.kind !== "video") return null;
+    return {
+      video: this.screenContent.video,
+      positionSec: screenPositionAt(this.screenContent, Date.now()),
+      playing: this.screenContent.playback.playing,
+    };
+  }
+
+  private broadcastScreen(notice: string | null = null): void {
+    this.hub.broadcast(WORLD_ROOM_ID, { type: "screen.state", screen: this.screenBroadcast(notice) });
+  }
+
+  /** Who may drive the screen: its holder — or the host, always. */
+  private canControlScreen(peer: WorldPeer): boolean {
+    return peer.admin || (this.stageHolder !== null && this.stageHolder.peerId === peer.peerId);
+  }
+
+  private denyScreen(peer: WorldPeer): void {
+    this.send(peer, {
+      type: "screen.denied",
+      holderName: this.stageHolder?.name ?? null,
+    });
   }
 
   handleFrame(socket: WsClientSocket, raw: string, now = Date.now()): void {
@@ -363,6 +598,12 @@ export class WorldRoom {
           this.send(peer, { type: "voice.denied", reason: "guests" });
           return;
         }
+        if (peer.hostMuted) {
+          /* The host's mute is server-side: no client setting can
+           * talk its way back into the mesh. */
+          this.send(peer, { type: "voice.denied", reason: "host" });
+          return;
+        }
         if (peer.voice) {
           this.send(peer, { type: "voice.state", voicePeerIds: this.voicePeerIds(peer) });
           return;
@@ -400,6 +641,146 @@ export class WorldRoom {
         this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voiceoff", peerId: peer.peerId, off });
         return;
       }
+      case "stage.live": {
+        /* Take the stage with my live stream. The id is all the
+         * client sends — the injected resolver verifies the stream
+         * is mine and truly live before anything reaches a screen. */
+        if (peer.guest || !peer.userId) return;
+        const streamId = typeof frame["streamId"] === "string" ? frame["streamId"] : "";
+        if (!streamId || streamId.length > 64) return;
+        const resolveStream = this.deps.resolveStageStream;
+        if (!resolveStream) return;
+        const userId = peer.userId;
+        this.claimStage(peer, () =>
+          resolveStream(userId, streamId).then((ref) =>
+            ref
+              ? {
+                  content: { kind: "live", streamId: ref.streamId, title: ref.title } as WorldScreenContent,
+                  name: ref.performerName,
+                  slug: ref.performerSlug,
+                }
+              : null,
+          ),
+        );
+        return;
+      }
+      case "stage.video": {
+        /* Take the stage with a catalog video — a watch party. Same
+         * id-only rule: the resolver verifies the pick is a real,
+         * playable platform video (mine, or public). */
+        if (peer.guest || !peer.userId) return;
+        const videoId = typeof frame["videoId"] === "string" ? frame["videoId"] : "";
+        if (!videoId || videoId.length > 96) return;
+        const resolveVideo = this.deps.resolveScreenVideo;
+        if (!resolveVideo) return;
+        const userId = peer.userId;
+        this.claimStage(peer, () =>
+          resolveVideo(userId, videoId).then((ref) =>
+            ref
+              ? {
+                  content: {
+                    kind: "video",
+                    video: ref,
+                    playback: { playing: true, anchorPosSec: 0, anchorAtMs: now },
+                  } as WorldScreenContent,
+                  name: peer.displayName,
+                  slug: peer.profileSlug,
+                }
+              : null,
+          ),
+        );
+        return;
+      }
+      case "screen.reel": {
+        /* The holder parks the screen on the King's Reel (the stage
+         * itself stays held); the host can always do it too. */
+        if (!this.canControlScreen(peer)) {
+          this.denyScreen(peer);
+          return;
+        }
+        if (this.screenContent.kind !== "reel") {
+          this.screenContent = { kind: "reel" };
+          this.broadcastScreen();
+        }
+        return;
+      }
+      case "screen.playpause": {
+        /* Shared play/pause for a stage video: the holder (or host)
+         * re-anchors the server stamp and everyone re-derives their
+         * position from it — approximate sync, honestly labeled. */
+        if (!this.canControlScreen(peer)) {
+          this.denyScreen(peer);
+          return;
+        }
+        if (this.screenContent.kind !== "video") return;
+        const playing = frame["playing"] === true;
+        const pos = finiteOr(frame["positionSec"], screenPositionAt(this.screenContent, now));
+        this.screenContent = {
+          ...this.screenContent,
+          playback: {
+            playing,
+            anchorPosSec: clamp(pos, 0, 86400),
+            anchorAtMs: now,
+          },
+        };
+        this.broadcastScreen();
+        return;
+      }
+      case "stage.end": {
+        /* Release: the show is over, the screen falls back to the
+         * Reel, the stage is free for the next creator. */
+        if (!this.stageHolder) return;
+        if (!this.canControlScreen(peer)) {
+          this.denyScreen(peer);
+          return;
+        }
+        const wasMine = this.stageHolder.peerId === peer.peerId;
+        this.stageHolder = null;
+        this.screenContent = { kind: "reel" };
+        this.stageSeq++;
+        this.broadcastScreen(wasMine ? null : "The host ended the show.");
+        return;
+      }
+      case "admin.mute": {
+        /* Host-only room mute. Server-side state: the member is out
+         * of the mesh now and voice.join refuses them until the
+         * host lifts it. Everyone is told (plates + their client). */
+        if (!peer.admin) {
+          this.send(peer, { type: "admin.denied" });
+          return;
+        }
+        const target = this.byPeerId.get(typeof frame["peerId"] === "string" ? frame["peerId"] : "");
+        if (!target || target === peer) return;
+        const muted = frame["muted"] === true;
+        if (target.hostMuted === muted) return;
+        target.hostMuted = muted;
+        if (muted && target.voice) {
+          target.voice = false;
+          this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: target.peerId });
+        }
+        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.hostmute", peerId: target.peerId, muted });
+        return;
+      }
+      case "admin.remove": {
+        /* Host-only removal: the honest card first (`removed`),
+         * then the despawn, then the close — the same pattern as
+         * room_full, with its own close code. */
+        if (!peer.admin) {
+          this.send(peer, { type: "admin.denied" });
+          return;
+        }
+        const target = this.byPeerId.get(typeof frame["peerId"] === "string" ? frame["peerId"] : "");
+        if (!target || target === peer) return;
+        this.send(target, { type: "removed", reason: "host" });
+        const socket = target.socket;
+        this.detach(socket);
+        try {
+          socket.close(WORLD_REMOVED_CLOSE_CODE, "removed_by_host");
+        } catch {
+          /* already gone */
+        }
+        return;
+      }
       case "voice.signal": {
         /* WebRTC signaling relay: only between two voice members —
          * signaling is meaningless (and unaddressable) outside the mesh. */
@@ -415,6 +796,41 @@ export class WorldRoom {
       default:
         return;
     }
+  }
+
+  /** Verify-then-set for stage claims. Authority is checked before
+   *  the async verification runs and again when it lands — the stage
+   *  must still be free, the claimant's, or host-takeable at that
+   *  moment, and the claimant must still be in the room. A refused
+   *  verification changes nothing: whatever is playing keeps
+   *  playing. */
+  private claimStage(
+    peer: WorldPeer,
+    resolve: () => Promise<{ content: WorldScreenContent; name: string; slug: string | null } | null>,
+  ): void {
+    if (this.stageHolder && this.stageHolder.peerId !== peer.peerId && !peer.admin) {
+      this.denyScreen(peer);
+      return;
+    }
+    const seq = ++this.stageSeq;
+    void resolve()
+      .then((resolved) => {
+        if (!resolved) return;
+        if (this.byPeerId.get(peer.peerId) !== peer) return;
+        if (this.stageSeq !== seq) return;
+        if (this.stageHolder && this.stageHolder.peerId !== peer.peerId && !peer.admin) return;
+        const takeover =
+          this.stageHolder !== null && this.stageHolder.peerId !== peer.peerId;
+        this.stageHolder = {
+          peerId: peer.peerId,
+          userId: peer.userId!,
+          name: resolved.name,
+          slug: resolved.slug,
+        };
+        this.screenContent = resolved.content;
+        this.broadcastScreen(takeover ? "The host took the stage." : null);
+      })
+      .catch(() => undefined);
   }
 
   private voicePeerIds(except?: WorldPeer): string[] {

@@ -495,6 +495,241 @@ describe("the voice switch (voice.off)", () => {
   });
 });
 
+describe("the stage + screen", () => {
+  const flush = () => new Promise<void>((r) => setImmediate(r));
+  const videoRef = {
+    id: "video:v1",
+    title: "Big Video",
+    url: "https://cdn.example/v.mp4",
+    mediaKind: "file" as const,
+    creatorName: "Alpha",
+  };
+  const stageRoom = () =>
+    new WorldRoom(new RoomHub(), {
+      resolveStageStream: async (userId, streamId) =>
+        streamId === "stream-1"
+          ? {
+              streamId,
+              title: "Friday Set",
+              performerName: userId.replace("user-", ""),
+              performerSlug: userId.replace("user-", "").toLowerCase(),
+            }
+          : null,
+      resolveScreenVideo: async (_userId, videoId) => (videoId === "video:v1" ? videoRef : null),
+    });
+  const king = (): WorldIdentity => ({ ...member("King"), admin: true });
+  const lastScreen = (s: FakeSocket) => [...s.sent].reverse().find((m) => m.type === "screen.state")?.screen;
+
+  it("a verified live claim takes the stage and every screen follows; a late joiner's welcome carries it", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    a.sent.length = 0;
+    b.sent.length = 0;
+
+    frame(a, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    expect(lastScreen(b)?.mode).toBe("live");
+    expect(lastScreen(b)?.holder?.name).toBe("Alpha");
+    expect(lastScreen(b)?.streamId).toBe("stream-1");
+    expect(room.stageStreamId()).toBe("stream-1");
+
+    const late = fakeSocket();
+    room.attach(late, member("Late"));
+    const welcome = late.sent.find((m) => m.type === "welcome");
+    expect(welcome?.screen?.mode).toBe("live");
+    expect(welcome?.screen?.holder?.name).toBe("Alpha");
+  });
+
+  it("a refused verification changes nothing — no claim, no broadcast", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    b.sent.length = 0;
+    frame(a, room, { type: "stage.live", streamId: "someone-elses" });
+    await flush();
+    expect(types(b)).toEqual([]);
+    expect(room.screenBroadcast().holder).toBeNull();
+    expect(room.screenBroadcast().mode).toBe("reel");
+  });
+
+  it("one hand on the screen: a non-holder is denied, the holder drives play/pause off the server stamp", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    frame(a, room, { type: "stage.video", videoId: "video:v1" }, 1_000);
+    await flush();
+    expect(room.screenBroadcast(null, 11_000).playback).toEqual({ playing: true, positionSec: 10 });
+
+    b.sent.length = 0;
+    frame(b, room, { type: "screen.playpause", playing: false, positionSec: 3 }, 12_000);
+    frame(b, room, { type: "stage.end" }, 12_000);
+    frame(b, room, { type: "stage.video", videoId: "video:v1" }, 12_000);
+    await flush();
+    expect(types(b)).toEqual(["screen.denied", "screen.denied", "screen.denied"]);
+    expect(room.screenBroadcast().holder?.name).toBe("Alpha");
+
+    frame(a, room, { type: "screen.playpause", playing: false, positionSec: 42 }, 13_000);
+    expect(room.screenBroadcast(null, 99_000).playback).toEqual({ playing: false, positionSec: 42 });
+  });
+
+  it("the holder can park the screen on the Reel without giving up the stage, then end the show", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    frame(a, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    frame(a, room, { type: "screen.reel" });
+    expect(lastScreen(b)?.mode).toBe("reel");
+    expect(lastScreen(b)?.holder?.name).toBe("Alpha");
+    frame(a, room, { type: "stage.end" });
+    expect(lastScreen(b)?.holder).toBeNull();
+    expect(room.screenBroadcast().holder).toBeNull();
+  });
+
+  it("the holder leaving releases the stage — no orphaned show", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    frame(a, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    b.sent.length = 0;
+    room.detach(a);
+    expect(lastScreen(b)?.mode).toBe("reel");
+    expect(lastScreen(b)?.holder).toBeNull();
+    expect(lastScreen(b)?.notice).toContain("Alpha");
+    expect(room.screenBroadcast().holder).toBeNull();
+  });
+
+  it("guests never take the stage", async () => {
+    const room = stageRoom();
+    const g = fakeSocket();
+    const b = fakeSocket();
+    room.attach(g, guest());
+    room.attach(b, member("Bravo"));
+    b.sent.length = 0;
+    frame(g, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    expect(types(b)).toEqual([]);
+    expect(room.screenBroadcast().holder).toBeNull();
+  });
+});
+
+describe("host authority", () => {
+  const flush = () => new Promise<void>((r) => setImmediate(r));
+  const king = (): WorldIdentity => ({ ...member("King"), admin: true });
+  const stageRoom = () =>
+    new WorldRoom(new RoomHub(), {
+      resolveStageStream: async (userId, streamId) =>
+        streamId === "stream-1"
+          ? {
+              streamId,
+              title: "Friday Set",
+              performerName: userId.replace("user-", ""),
+              performerSlug: userId.replace("user-", "").toLowerCase(),
+            }
+          : null,
+    });
+  const lastScreen = (s: FakeSocket) => [...s.sent].reverse().find((m) => m.type === "screen.state")?.screen;
+
+  it("the host takes the stage instantly, announced honestly", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const k = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(k, king());
+    frame(a, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    expect(room.screenBroadcast().holder?.name).toBe("Alpha");
+    frame(k, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    expect(lastScreen(a)?.holder?.name).toBe("King");
+    expect(lastScreen(a)?.notice).toBe("The host took the stage.");
+  });
+
+  it("the host can end someone else's show", async () => {
+    const room = stageRoom();
+    const a = fakeSocket();
+    const k = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(k, king());
+    frame(a, room, { type: "stage.live", streamId: "stream-1" });
+    await flush();
+    frame(k, room, { type: "stage.end" });
+    expect(room.screenBroadcast().holder).toBeNull();
+    expect(lastScreen(a)?.notice).toBe("The host ended the show.");
+  });
+
+  it("host mute drops the member from the mesh and voice.join refuses them until lifted", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const k = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(k, king());
+    const alphaId = room.peerFor(a)!.peerId;
+    frame(a, room, { type: "voice.join" });
+    expect(room.peerFor(a)?.voice).toBe(true);
+
+    a.sent.length = 0;
+    frame(k, room, { type: "admin.mute", peerId: alphaId, muted: true });
+    expect(room.peerFor(a)?.voice).toBe(false);
+    expect(room.peerFor(a)?.hostMuted).toBe(true);
+    expect(types(a)).toContain("voice.left");
+    expect(types(a)).toContain("peer.hostmute");
+
+    a.sent.length = 0;
+    frame(a, room, { type: "voice.join" });
+    expect(a.sent).toEqual([{ type: "voice.denied", reason: "host" }]);
+
+    frame(k, room, { type: "admin.mute", peerId: alphaId, muted: false });
+    frame(a, room, { type: "voice.join" });
+    expect(room.peerFor(a)?.voice).toBe(true);
+  });
+
+  it("host removal: the honest frame, the despawn, the 4413 close", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const k = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(k, king());
+    room.attach(b, member("Bravo"));
+    const alphaId = room.peerFor(a)!.peerId;
+    a.sent.length = 0;
+    b.sent.length = 0;
+    frame(k, room, { type: "admin.remove", peerId: alphaId });
+    expect(a.sent[0]).toEqual({ type: "removed", reason: "host" });
+    expect(a.closedWith).toEqual({ code: 4413, reason: "removed_by_host" });
+    expect(room.peerFor(a)).toBeNull();
+    expect(types(b)).toContain("peer.leave");
+  });
+
+  it("non-hosts are refused host actions — and told so", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Bravo"));
+    const bravoId = room.peerFor(b)!.peerId;
+    a.sent.length = 0;
+    frame(a, room, { type: "admin.mute", peerId: bravoId, muted: true });
+    frame(a, room, { type: "admin.remove", peerId: bravoId });
+    expect(a.sent).toEqual([{ type: "admin.denied" }, { type: "admin.denied" }]);
+    expect(room.peerFor(b)?.hostMuted).toBe(false);
+    expect(b.closedWith).toBeNull();
+  });
+});
+
 describe("tints", () => {
   it("are stable per key and always from the house palette", () => {
     expect(tintForKey("hall-member")).toBe(tintForKey("hall-member"));

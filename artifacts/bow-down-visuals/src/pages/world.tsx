@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
-  RotateCcw, Glasses, Send, Crown, Eye, Sparkles,
+  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -12,7 +12,10 @@ import {
   defaultWorldSocketUrl,
   type WorldStatus,
   type WorldSayEvent,
+  type WorldPeer,
+  type WorldScreenState,
 } from "@/lib/world/world-client";
+import { fetchPublicCourt } from "@/lib/royal-court";
 import {
   VoiceMesh,
   createBrowserPeerConnection,
@@ -70,12 +73,25 @@ function currentHallTheme(): HallTheme {
 }
 
 interface ScreenInfo {
-  mode: "live" | "featured";
+  mode: "live" | "featured" | "video";
   title: string;
   creatorName: string | null;
   streamId: string | null;
   hlsUrl: string | null;
   videoUrl: string | null;
+  stage: { name: string; slug: string | null } | null;
+  playback: { playing: boolean; positionSec: number } | null;
+  videoId: string | null;
+}
+
+/** One pick in the screen remote's catalog (ids only ever identify
+ *  content — the server re-verifies and re-derives the URL). */
+interface ScreenCatalogItem {
+  id: string;
+  title: string;
+  creatorName: string | null;
+  mediaKind: "file" | "hls";
+  durationSec: number;
 }
 
 export default function WorldPage() {
@@ -114,6 +130,24 @@ export default function WorldPage() {
   /* The in-hall character panel (the entry picker, reachable from
      inside — the owner couldn't find character choice from within). */
   const [charPanelOpen, setCharPanelOpen] = useState(false);
+  /* The stage + screen remote: the room's own statement of who holds
+     the stage and what's playing (broadcasts), the panel, and the
+     holder's tools (my live stream, the video catalog). */
+  const [stageScreen, setStageScreen] = useState<WorldScreenState | null>(null);
+  const [screenPanelOpen, setScreenPanelOpen] = useState(false);
+  const [myStream, setMyStream] = useState<{ id: string; title: string } | null>(null);
+  const [catalog, setCatalog] = useState<{ mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } | null>(null);
+  const [screenNote, setScreenNote] = useState<string | null>(null);
+  /* Host (admin) state: the roster for the host panel, whether the
+     host muted ME, and the two-tap remove arm. */
+  const [hostPanelOpen, setHostPanelOpen] = useState(false);
+  const [roster, setRoster] = useState<WorldPeer[]>([]);
+  const [hostMuted, setHostMuted] = useState(false);
+  const hostMutedRef = useRef(false);
+  const rosterSigRef = useRef("");
+  const [removeArm, setRemoveArm] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [myPeerId, setMyPeerId] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
@@ -148,6 +182,63 @@ export default function WorldPage() {
   }, [viewMode]);
 
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
+
+  /* Front Row honors: while a show runs, the seat arc shows before
+     the stage, and the performer's Front Row members (their public
+     court) wear the brighter ring + plate line. Visual honor only —
+     nobody is moved. */
+  const stageSlug = stageScreen?.holder?.slug ?? null;
+  const stageHeld = !!stageScreen?.holder;
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (!stageHeld) {
+      scene.setStageSeatsVisible(false);
+      scene.setFrontRowSlugs(new Set());
+      return;
+    }
+    scene.setStageSeatsVisible(true);
+    if (!stageSlug) return;
+    let cancelled = false;
+    fetchPublicCourt(stageSlug)
+      .then((members) => {
+        if (!cancelled) sceneRef.current?.setFrontRowSlugs(new Set(members.map((m) => m.slug)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [stageSlug, stageHeld, status]);
+
+  /* The screen remote's data: my live stream (the existing status
+     endpoint — the same one the Go Live studio reads) and the video
+     catalog, loaded when the panel opens. */
+  const loadStageTools = async () => {
+    if (!user) return;
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const [statusRes, catalogRes] = await Promise.all([
+        fetch("/api/live-streams/status", { headers }),
+        fetch("/api/world/screen-catalog", { headers }),
+      ]);
+      if (statusRes.ok) {
+        const data = (await statusRes.json()) as { live_stream: { id: string; title: string } | null };
+        setMyStream(data.live_stream ? { id: data.live_stream.id, title: data.live_stream.title } : null);
+      }
+      if (catalogRes.ok) {
+        const data = (await catalogRes.json()) as { catalog: { mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } };
+        setCatalog(data.catalog);
+      }
+    } catch {
+      /* the panel keeps its honest empty states */
+    }
+  };
+
+  useEffect(() => {
+    if (screenPanelOpen && status === "inside") void loadStageTools();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenPanelOpen, status]);
 
   /* Load the member's vault characters for the picker (signed-in
      only — guests never see the row). A remembered pick whose
@@ -247,6 +338,9 @@ export default function WorldPage() {
         openSocket: (url) => new WebSocket(url) as unknown as import("@/lib/world/world-client").WorldSocketLike,
       });
       clientRef.current = client;
+      /* The screen loader is defined below (it needs the scene);
+         broadcasts reach it through this indirection. */
+      const screenApi: { reload: () => Promise<void> } = { reload: async () => undefined };
       // A remembered pick walks in with us (the client holds the
       // want and sends it the moment the welcome lands).
       if (walkInAsRef.current) client.setCharacter(walkInAsRef.current);
@@ -261,6 +355,11 @@ export default function WorldPage() {
         if (s === "inside" && client.self) {
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
+          setStageScreen(client.screen);
+          setHostMuted(client.self.hostMuted);
+          hostMutedRef.current = client.self.hostMuted;
+          setIsAdmin(client.self.admin);
+          setMyPeerId(client.self.peerId);
           // Your own figure (seen in third person) stands as you.
           scene.setSelfFigure(client.self);
           if (!spawnedRef.current) {
@@ -292,6 +391,49 @@ export default function WorldPage() {
           dispatchVoice({ type: "voice-left" });
           setVoiceBusy(false);
         }
+        if (notice === "denied-host") {
+          setVoiceNote("The host muted your voice in this hall — you can listen and use text; voice opens again when the host lifts it.");
+          dispatchVoice({ type: "voice-left" });
+          setVoiceBusy(false);
+        }
+      };
+      /* The stage: every room statement updates the remote's picture
+         and re-reads the screen endpoint (the playback truth), and a
+         notice (a takeover, a show ending) is said out loud in the
+         hall's log — announced honestly, never silent. */
+      client.onScreen = (s) => {
+        if (cancelled) return;
+        setStageScreen(s);
+        if (s.notice) {
+          setScreenNote(s.notice);
+          setSayLog((log) => [
+            ...log.slice(-7),
+            { peerId: "hall", displayName: "The Hall", body: s.notice! },
+          ]);
+        }
+        void screenApi.reload();
+      };
+      client.onScreenDenied = (holderName) => {
+        if (cancelled) return;
+        setScreenNote(
+          holderName
+            ? `The stage is held by ${holderName} — one hand on the screen at a time.`
+            : "The screen didn't change — the stage isn't yours to drive right now.",
+        );
+      };
+      client.onHostMuted = (mutedNow) => {
+        if (cancelled) return;
+        setHostMuted(mutedNow);
+        hostMutedRef.current = mutedNow;
+        if (mutedNow) {
+          /* The room already dropped me from the mesh; the local
+             side follows — mic released, session torn down. */
+          teardownVoiceSession();
+          dispatchVoice({ type: "voice-left" });
+          setScreenNote("The host muted your voice in the hall.");
+        } else {
+          setScreenNote("The host lifted your mute — you can join voice again.");
+        }
       };
 
       /* Keep the scene's avatar targets glued to the client's roster,
@@ -300,6 +442,18 @@ export default function WorldPage() {
         for (const peer of client.peers.values()) scene.upsertPeer(peer);
         if (client.self && client.status === "inside") scene.setSelfFigure(client.self);
         if (!cancelled) setPeopleCount(client.status === "inside" ? client.peers.size + 1 : 0);
+        /* The host panel's roster, refreshed only when it actually
+           changes (the signature keeps this off the render path). */
+        if (client.self) {
+          const all = [client.self, ...client.peers.values()];
+          const sig = all
+            .map((p) => `${p.peerId}:${p.voice ? 1 : 0}:${p.voiceOff ? 1 : 0}:${p.hostMuted ? 1 : 0}:${p.admin ? 1 : 0}:${p.displayName}`)
+            .join(";");
+          if (sig !== rosterSigRef.current) {
+            rosterSigRef.current = sig;
+            if (!cancelled) setRoster(all);
+          }
+        }
       }, 120);
 
       /* The big screen: featured reel, or the live picture while a
@@ -312,11 +466,24 @@ export default function WorldPage() {
           const data = (await res.json()) as { screen: ScreenInfo };
           if (cancelled) return;
           setScreen(data.screen);
-          await scene.setScreenSource(data.screen as HallScreenSource);
+          await scene.setScreenSource({
+            mode: data.screen.mode,
+            videoUrl: data.screen.videoUrl,
+            hlsUrl: data.screen.hlsUrl,
+            playing: data.screen.playback?.playing,
+            startAtSec: data.screen.playback?.positionSec,
+          });
+          /* A watch party already rolling: if the source didn't
+             change, setScreenSource is a no-op — the play/pause +
+             position still need applying. */
+          if (data.screen.mode === "video" && data.screen.playback) {
+            scene.setScreenPlayback(data.screen.playback.playing, data.screen.playback.positionSec);
+          }
         } catch {
           /* the screen keeps its idle card — the room still works */
         }
       };
+      screenApi.reload = loadScreen;
       await loadScreen();
       screenPoll = setInterval(loadScreen, 45_000);
 
@@ -380,6 +547,10 @@ export default function WorldPage() {
   const joinVoice = async () => {
     const client = clientRef.current;
     if (!client || voiceBusy || !canJoinVoice(voiceSwitchRef.current)) return;
+    if (hostMutedRef.current) {
+      setVoiceNote("The host muted your voice in this hall — voice opens again when the host lifts it.");
+      return;
+    }
     setVoiceBusy(true);
     setVoiceNote(null);
     try {
@@ -429,6 +600,20 @@ export default function WorldPage() {
 
   const overlay = worldOverlay(status);
   const isLight = siteTheme === "light";
+  /* The stage, from the room's own broadcasts: one holder, one hand
+     on the screen — the host outranks the holder, always. */
+  const stageHolder = stageScreen?.holder ?? null;
+  const iHoldStage = !!stageHolder && stageHolder.peerId === myPeerId;
+  const canDriveScreen = !stageHolder || iHoldStage || isAdmin;
+  const stageVideoPlaying = stageScreen?.playback?.playing ?? false;
+  const panelBtnCls = (active: boolean) =>
+    `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+      active
+        ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
+        : isLight
+          ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+          : "border-white/15 text-white/75 hover:text-white"
+    }`;
 
   return (
     <div
@@ -447,8 +632,19 @@ export default function WorldPage() {
         {screen?.mode === "live" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
             <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-            LIVE on the big screen: {screen.title}
-            {screen.creatorName ? <span className="text-red-300/60">· {screen.creatorName}</span> : null}
+            {screen.stage ? (
+              <>LIVE — {screen.stage.name} · {screen.title}</>
+            ) : (
+              <>
+                LIVE on the big screen: {screen.title}
+                {screen.creatorName ? <span className="text-red-300/60">· {screen.creatorName}</span> : null}
+              </>
+            )}
+          </span>
+        ) : screen?.mode === "video" ? (
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#6B5B36]" : "border-[#d4af37]/30 bg-[#d4af37]/10 text-[#e8c86a]"}`}>
+            On the big screen: {screen.title}
+            {screen.stage ? <span className="opacity-70">· {screen.stage.name}&rsquo;s pick</span> : null}
           </span>
         ) : (
           <span className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#6B5B36]" : "border-white/10 bg-white/5 text-white/50"}`}>
@@ -516,6 +712,21 @@ export default function WorldPage() {
           </div>
         )}
 
+        {overlay === "removed" && (
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
+              <Shield className="mx-auto h-8 w-8 text-[#d4af37]" />
+              <h2 className="mt-3 text-lg font-black">Removed from the hall</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                The host removed you from the hall. The rest of the site is still yours — the shows, your page, your people.
+              </p>
+              <Link href="/go-live" className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                Back to Go Live
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Say log */}
         {status === "inside" && sayLog.length > 0 && (
           <div className="pointer-events-none absolute bottom-24 left-3 z-10 max-w-xs space-y-1 sm:bottom-20">
@@ -525,6 +736,25 @@ export default function WorldPage() {
                 <span className="text-white/70">{ev.body}</span>
               </p>
             ))}
+          </div>
+        )}
+
+        {/* The stage plate, over the room by the big screen: who is
+            on stage, in words, the moment a show is on. */}
+        {status === "inside" && stageScreen?.holder && (
+          <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2" data-testid="world-stage-plate">
+            {stageScreen.mode === "live" ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-red-500/50 bg-black/70 px-4 py-1.5 text-sm font-black tracking-wide text-red-300 backdrop-blur-sm">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                LIVE — {stageScreen.holder.name}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-black/70 px-4 py-1.5 text-sm font-bold text-[#e8c86a] backdrop-blur-sm">
+                {stageScreen.mode === "video"
+                  ? `Now showing: ${stageScreen.title ?? "Watch party"} · ${stageScreen.holder.name}'s pick`
+                  : `On stage: ${stageScreen.holder.name}`}
+              </span>
+            )}
           </div>
         )}
 
@@ -548,6 +778,221 @@ export default function WorldPage() {
             onSelect={setWalkInAs}
             isLight={isLight}
           />
+        </div>
+      )}
+
+      {/* The Screen remote — the stage holder's hand on the big
+          screen (the host's too, at any moment). One panel, in the
+          hall: take the stage live, play a video for everyone,
+          park it on the Reel, or end the show. */}
+      {screenPanelOpen && !isGuest && status === "inside" && (
+        <div
+          className={`relative z-20 max-h-[46vh] overflow-y-auto border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
+          data-testid="world-screen-panel"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+              <Tv className="h-4 w-4 text-[#d4af37]" /> The Screen
+            </span>
+            <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              {stageScreen?.mode === "live" && stageHolder
+                ? `LIVE — ${stageHolder.name} is on stage`
+                : stageScreen?.mode === "video" && stageHolder
+                  ? `Watch party — ${stageScreen.title ?? "a video"}, picked by ${stageHolder.name} (${stageVideoPlaying ? "playing" : "paused"})`
+                  : stageHolder
+                    ? `${stageHolder.name} holds the stage — the screen is on the King's Reel`
+                    : "The King's Reel is playing — the stage is free"}
+            </span>
+            {isAdmin && stageHolder && !iHoldStage && (
+              <span className="rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#e8c86a]">
+                You&rsquo;re the host — the screen answers to you too
+              </span>
+            )}
+          </div>
+
+          {screenNote && (
+            <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{screenNote}</p>
+          )}
+
+          {stageHolder && !canDriveScreen ? (
+            <p className={`mt-2 max-w-xl text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+              One hand on the screen at a time — {stageHolder.name} is driving it. When the show ends, the stage opens up and anyone signed in can take it.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {myStream ? (
+                  stageScreen?.mode === "live" && stageScreen.streamId === myStream.id ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-300">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Your stream is on the screen
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="world-stage-live"
+                      onClick={() => clientRef.current?.takeStageLive(myStream.id)}
+                      className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:scale-105"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-white" /> Take the stage — put my stream on the screen
+                    </button>
+                  )
+                ) : (
+                  <span className={`inline-flex flex-wrap items-center gap-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                    To perform live, start your stream first —{" "}
+                    <Link href="/go-live" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                      open the Go Live studio
+                    </Link>{" "}
+                    — then come back and take the stage.
+                  </span>
+                )}
+                {stageScreen?.mode === "video" && (
+                  <button
+                    type="button"
+                    data-testid="world-screen-playpause"
+                    onClick={() =>
+                      clientRef.current?.screenPlayPause(
+                        !stageVideoPlaying,
+                        sceneRef.current?.screenPositionSec() ?? stageScreen.playback?.positionSec ?? 0,
+                      )
+                    }
+                    className={panelBtnCls(false)}
+                  >
+                    {stageVideoPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    {stageVideoPlaying ? "Pause for everyone" : "Play for everyone"}
+                  </button>
+                )}
+                {stageScreen?.mode !== "reel" && stageHolder && (
+                  <button type="button" onClick={() => clientRef.current?.screenReel()} className={panelBtnCls(false)}>
+                    King&rsquo;s Reel
+                  </button>
+                )}
+                {stageHolder && (
+                  <button
+                    type="button"
+                    data-testid="world-stage-end"
+                    onClick={() => clientRef.current?.endStage()}
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-red-800/30 text-red-900/80 hover:text-red-900" : "border-red-400/40 text-red-300 hover:text-red-200"}`}
+                  >
+                    {iHoldStage ? "End my show" : "End the show"}
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                  Play a video — a watch party for the whole hall
+                </p>
+                {catalog === null ? (
+                  <p className={`mt-1.5 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Loading the catalog…</p>
+                ) : catalog.mine.length + catalog.public.length === 0 ? (
+                  <p className={`mt-1.5 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                    Nothing playable yet — publish a video on your profile or finish a stream with a replay, and it can play here.
+                  </p>
+                ) : (
+                  <div className="mt-1.5 space-y-2">
+                    {(
+                      [
+                        ["Yours", catalog.mine],
+                        ["From the hall", catalog.public],
+                      ] as const
+                    ).map(([label, items]) =>
+                      items.length === 0 ? null : (
+                        <div key={label}>
+                          <p className={`text-[11px] font-bold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>{label}</p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {items.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                data-testid="world-screen-video"
+                                onClick={() => clientRef.current?.playStageVideo(item.id)}
+                                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                              >
+                                <Play className="h-3.5 w-3.5 shrink-0 text-[#d4af37]" />
+                                <span className="truncate">{item.title}</span>
+                                {item.creatorName ? <span className="opacity-60">· {item.creatorName}</span> : null}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+                <p className={`mt-1.5 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                  Everyone&rsquo;s screen switches together, and play/pause is shared — the room keeps you roughly in step.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Host controls — the King's own panel. Admins only (the
+          server resolved it at the door and re-checks every action):
+          the screen and stage above, plus voice and the door here. */}
+      {hostPanelOpen && isAdmin && status === "inside" && (
+        <div
+          className={`relative z-20 max-h-[40vh] overflow-y-auto border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
+          data-testid="world-host-panel"
+        >
+          <p className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+            <Shield className="h-4 w-4 text-[#d4af37]" /> Host controls
+            <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              — the screen and stage answer to you in the Screen panel; here is voice and the door
+            </span>
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {roster.map((p) => (
+              <div
+                key={p.peerId}
+                className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+              >
+                <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.displayName}</span>
+                {p.peerId === myPeerId && <span className={`text-[11px] font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>you</span>}
+                {p.admin && <span className="rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">Host</span>}
+                {p.guest && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>guest</span>}
+                {p.voice && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>in voice</span>}
+                {p.voiceOff && <span className="text-[11px] font-semibold text-[#e08a6d]">voice off</span>}
+                {p.hostMuted && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-300">Muted by host</span>}
+                {p.peerId !== myPeerId && (
+                  <span className="ml-auto inline-flex gap-1.5">
+                    {!p.guest && (
+                      <button
+                        type="button"
+                        data-testid="world-host-mute"
+                        onClick={() => clientRef.current?.adminMute(p.peerId, !p.hostMuted)}
+                        className={`rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                      >
+                        {p.hostMuted ? "Unmute voice" : "Mute voice"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="world-host-remove"
+                      onClick={() => {
+                        if (removeArm === p.peerId) {
+                          clientRef.current?.adminRemove(p.peerId);
+                          setRemoveArm(null);
+                        } else {
+                          setRemoveArm(p.peerId);
+                        }
+                      }}
+                      className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+                        removeArm === p.peerId
+                          ? "border-red-500 bg-red-500 text-white"
+                          : isLight
+                            ? "border-red-800/30 text-red-900/80 hover:text-red-900"
+                            : "border-red-400/40 text-red-300 hover:text-red-200"
+                      }`}
+                    >
+                      {removeArm === p.peerId ? "Tap again to remove" : "Remove"}
+                    </button>
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -610,6 +1055,31 @@ export default function WorldPage() {
               </button>
             )}
             {!isGuest && status === "inside" && (
+              <button
+                type="button"
+                onClick={() => setScreenPanelOpen((o) => !o)}
+                data-testid="world-screen-button"
+                aria-expanded={screenPanelOpen}
+                className={panelBtnCls(screenPanelOpen)}
+              >
+                <Tv className="h-4 w-4" />
+                Screen
+                {stageHolder ? <span className="opacity-70">· {iHoldStage ? "your stage" : stageHolder.name}</span> : null}
+              </button>
+            )}
+            {isAdmin && status === "inside" && (
+              <button
+                type="button"
+                onClick={() => setHostPanelOpen((o) => !o)}
+                data-testid="world-host-button"
+                aria-expanded={hostPanelOpen}
+                className={panelBtnCls(hostPanelOpen)}
+              >
+                <Shield className="h-4 w-4" />
+                Host controls
+              </button>
+            )}
+            {!isGuest && status === "inside" && (
               <>
                 {/* The voice switch — proximity chat on/off, in words,
                     no menu. Off releases the mic and marks your name
@@ -640,7 +1110,12 @@ export default function WorldPage() {
                     You can't hear or be heard here — your name plate shows it. Text still works.
                   </span>
                 )}
-                {voiceSwitch.enabled && !voiceSwitch.inVoice && (
+                {hostMuted && !voiceSwitch.inVoice && (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-300" data-testid="world-host-muted-badge">
+                    <MicOff className="h-4 w-4" /> Muted by the host
+                  </span>
+                )}
+                {voiceSwitch.enabled && !voiceSwitch.inVoice && !hostMuted && (
                   <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
                     {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                     Join voice
