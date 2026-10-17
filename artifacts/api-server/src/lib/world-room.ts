@@ -69,6 +69,10 @@
  *                                            host): shared play/pause
  *     { type: "jukebox.skip" }                adder/host: next song
  *     { type: "jukebox.remove", entryId }     pull your queued song
+ *     { type: "drop.claim" }                  claim the drop spectacle
+ *                                            that landed in THIS room
+ *                                            (members only, first-come;
+ *                                            World Events, item 3.4)
  *     { type: "admin.mute", peerId, muted }   host only: mute/unmute a
  *                                            member's voice server-side
  *     { type: "admin.remove", peerId }        host only: remove a
@@ -112,7 +116,29 @@
  *     { type: "jukebox.denied", reason }      a jukebox action was
  *                                            refused (guests /
  *                                            unplayable / queue-full /
- *                                            not-yours)
+ *                                            not-yours /
+ *                                            listening-party)
+ *     { type: "jukebox.nowplaying", moment }  a song just STARTED on
+ *                                            the jukebox (THE-GAME
+ *                                            §5(a)'s "first play"
+ *                                            moment): the track's
+ *                                            title + its creator, from
+ *                                            server data — the room
+ *                                            hears whose song this is
+ *     { type: "drop.landed", drop }           a drop spectacle landed
+ *                                            in this room (herald
+ *                                            moment, room-scoped)
+ *     { type: "drop.state", drop }            the room's drop now
+ *                                            (also inside `welcome`);
+ *                                            null = no drop stands
+ *     { type: "drop.claimed", drop, claim }   a claim landed, witnessed
+ *                                            by the room: claim.name
+ *                                            + claim.amountVb are
+ *                                            server truth
+ *     { type: "drop.denied", reason }         a claim was refused
+ *                                            (guests / no-drop /
+ *                                            already-claimed /
+ *                                            claimed-out / budget)
  *     { type: "peer.hostmute", peerId, muted }  the host muted/unmuted
  *                                            a member's voice
  *     { type: "admin.denied" }                a host action attempted
@@ -317,6 +343,12 @@ export interface WorldScreenBroadcast {
   /** A one-off honest note riding this one broadcast (a takeover,
    *  a show ending) — null on plain state syncs. */
   notice: string | null;
+  /** The booked World Event on the screen right now, when a
+   *  scheduled stage show (item 3.1) holds the stage — late joiners
+   *  read "LIVE: <title> by <hostName>" from this + the holder.
+   *  Present only while a scheduled show holds; absent otherwise,
+   *  so the walk-in shape is byte-identical to before. */
+  event?: { id: string; title: string; hostName: string } | null;
 }
 
 /** Where a stage video is right now, from its server anchor. */
@@ -369,6 +401,12 @@ export interface WorldJukeboxEntry {
   track: WorldJukeboxTrackRef;
   addedByPeerId: string;
   addedByName: string;
+  /** The adder's account id, when the entry was placed by the room
+   *  itself for a booked listening party (its host may not be
+   *  standing in the room under the same peerId the entry carries).
+   *  Transport authority checks it alongside addedByPeerId. Absent
+   *  on ordinary in-room adds — their shape is unchanged. */
+  addedByUserId?: string;
 }
 
 /** The jukebox state every client in the Music Hall renders from —
@@ -382,7 +420,44 @@ export interface WorldJukeboxBroadcast {
   } | null;
   /** Up next, in order. */
   queue: WorldJukeboxEntry[];
+  /** The booked listening party (item 3.2) whose queue this is, while
+   *  one runs — present only then, so the open-queueing shape is
+   *  byte-identical to before. */
+  party?: { eventId: string; title: string; hostName: string } | null;
 }
+
+/* ── Drop spectacles (World Events, item 3.4) ──────────────────────
+ * A booked drop lands IN a room at its hour. The room-scoped herald
+ * frame (`drop.landed`) is deliberately shaped like a palace
+ * announcement — { kind, title, roomId, roomName } plus the drop —
+ * so the Ring 3 palace-wide announce channel (§5(b) of THE-GAME)
+ * can adopt the same payload and carry it past the room's walls;
+ * until then the herald speaks to the room the drop fell in, and
+ * only that room can claim it: you had to BE there. Claims ride the
+ * existing drop rails via the injected claimer (route layer owns
+ * the DB + the weekly drop budget); the room owns the spectacle:
+ * who is standing here, who already claimed, how many claims stand. */
+
+/** The room's standing drop, as every client in the room renders it. */
+export interface WorldDropBroadcast {
+  eventId: string;
+  title: string;
+  roomId: string;
+  roomName: string;
+  amountVb: number;
+  claimCap: number;
+  claimsLeft: number;
+}
+
+/** Injected by the route layer: pay one claim through the existing
+ *  drop rails (combined weekly drop budget + credit grant + drop
+ *  ledger). The room calls it only for a member standing in the room
+ *  who hasn't claimed and while claims stand. */
+export type WorldDropClaimer = (
+  userId: string,
+  amountVb: number,
+  eventId: string,
+) => Promise<{ ok: true } | { ok: false; reason: "budget" | "error" }>;
 
 /** The queue never grows past this — a runaway adder can't bury the
  *  room's evening under one person's catalog. */
@@ -548,6 +623,11 @@ export class WorldRoom {
    *  (membership, stage holder). The palace registry wires it to
    *  rebroadcast the directory; a standalone room leaves it unset. */
   onChange: (() => void) | null = null;
+  /** Fired when the host of a SCHEDULED stage show ends it early
+   *  through the existing stage controls (or walks out mid-live) —
+   *  the events scheduler wires it to close the event row. Never
+   *  fired for walk-in shows. */
+  onScheduledShowEnded: ((eventId: string) => void) | null = null;
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
@@ -571,6 +651,42 @@ export class WorldRoom {
   } | null = null;
   private jukeboxQueue: WorldJukeboxEntry[] = [];
   private jukeboxEntryCounter = 0;
+  /** The entry the room was last told is playing — the now-playing
+   *  moment (§5(a)) fires exactly once per song start, when this
+   *  changes to a new entry. */
+  private lastNowPlayingEntryId: string | null = null;
+  /** The booked stage show (World Events 3.1) currently holding the
+   *  stage, when one is. The holder may be a pseudo-peer (the host
+   *  isn't in the room — a booked video plays anyway); the host's
+   *  account id is the authority key for their stage controls. */
+  private scheduledShow: {
+    eventId: string;
+    hostUserId: string;
+    title: string;
+    hostName: string;
+  } | null = null;
+  /** The booked listening party (3.2) whose queue the jukebox is
+   *  running, when one is. While it stands, the queue is the
+   *  party's — open adds are refused (see jukebox.add). */
+  private listeningParty: {
+    eventId: string;
+    hostUserId: string;
+    title: string;
+    hostName: string;
+  } | null = null;
+  /** The drop spectacle (3.4) standing in this room, when one has
+   *  landed and not yet been swept. Claims are reserved
+   *  synchronously (claimedUserIds + claimsLeft move BEFORE the
+   *  async payout runs) so two fast claims can't both take the
+   *  last spot; a failed payout rolls its reservation back. */
+  private activeDrop: {
+    eventId: string;
+    title: string;
+    amountVb: number;
+    claimCap: number;
+    claimsLeft: number;
+    claimedUserIds: Set<string>;
+  } | null = null;
 
   constructor(
     private hub: RoomHub,
@@ -579,6 +695,7 @@ export class WorldRoom {
       resolveStageStream?: WorldStageStreamResolver;
       resolveScreenVideo?: WorldScreenVideoResolver;
       resolveJukeboxTrack?: WorldJukeboxTrackResolver;
+      claimWorldDrop?: WorldDropClaimer;
     } = {},
     opts: WorldRoomOptions = {},
   ) {
@@ -746,6 +863,9 @@ export class WorldRoom {
       // Same rule for the jukebox: only the Music Hall carries it,
       // and a late joiner lands mid-song at the room's position.
       ...(this.jukeboxEnabled ? { jukebox: this.jukeboxBroadcast() } : {}),
+      // A drop standing in the room greets a late joiner too — the
+      // chest is part of the room's state, not a one-off frame.
+      ...(this.activeDrop ? { drop: this.dropBroadcast() } : {}),
     });
     // The joiner never hears its own join — `welcome` already told it
     // everything about itself; peer.join is strictly for the room.
@@ -794,6 +914,15 @@ export class WorldRoom {
       this.stageHolder = null;
       this.screenContent = { kind: "reel" };
       this.stageSeq++;
+      /* A scheduled host walking out mid-show ends the booked show
+       * too (the scheduler closes the row). A booked VIDEO show
+       * whose holder is the event pseudo-peer is untouched by the
+       * host's comings and goings — the room keeps watching. */
+      if (this.scheduledShow && this.scheduledShow.hostUserId === peer.userId) {
+        const eventId = this.scheduledShow.eventId;
+        this.scheduledShow = null;
+        this.onScheduledShowEnded?.(eventId);
+      }
       this.hub.broadcast(this.roomId, {
         type: "screen.state",
         screen: this.screenBroadcast(`${peer.displayName}'s show has ended.`),
@@ -807,6 +936,11 @@ export class WorldRoom {
     if (this.jukeboxEnabled && this.peers.size === 0) {
       this.jukeboxCurrent = null;
       this.jukeboxQueue = [];
+      /* A party whose room emptied is no longer running here — the
+       * events scheduler sees the room not carrying it and re-drives
+       * the start while its slot lasts. */
+      this.listeningParty = null;
+      this.lastNowPlayingEntryId = null;
     }
     this.hub.broadcast(this.roomId, { type: "peer.leave", peerId: peer.peerId });
     this.onChange?.();
@@ -820,8 +954,17 @@ export class WorldRoom {
       ? { peerId: this.stageHolder.peerId, name: this.stageHolder.name, slug: this.stageHolder.slug }
       : null;
     const content = this.screenContent;
+    /* The booked event rides only while its show holds the stage. */
+    const event = this.scheduledShow
+      ? {
+          id: this.scheduledShow.eventId,
+          title: this.scheduledShow.title,
+          hostName: this.scheduledShow.hostName,
+        }
+      : null;
+    const withEvent = event ? { event } : {};
     if (!holder || content.kind === "reel") {
-      return { mode: "reel", holder, title: null, streamId: null, video: null, playback: null, notice };
+      return { mode: "reel", holder, title: null, streamId: null, video: null, playback: null, notice, ...withEvent };
     }
     if (content.kind === "live") {
       return {
@@ -832,6 +975,7 @@ export class WorldRoom {
         video: null,
         playback: null,
         notice,
+        ...withEvent,
       };
     }
     return {
@@ -842,6 +986,7 @@ export class WorldRoom {
       video: content.video,
       playback: { playing: content.playback.playing, positionSec: screenPositionAt(content, now) },
       notice,
+      ...withEvent,
     };
   }
 
@@ -858,6 +1003,200 @@ export class WorldRoom {
       positionSec: screenPositionAt(this.screenContent, Date.now()),
       playing: this.screenContent.playback.playing,
     };
+  }
+
+  /* ── World Events drivers (the scheduler's hands) ─────────────────
+   * The events scheduler (lib/world-events) drives booked moments
+   * through these methods; the room stays the only authority over
+   * its stage, jukebox and floor. Every method is idempotent from
+   * the scheduler's side: starting what's already running is a
+   * refusal, ending what isn't running is a no-op. */
+
+  /** The peer standing in this room for an account, if any. */
+  private peerForUserId(userId: string): WorldPeer | null {
+    for (const p of this.peers.values()) if (p.userId === userId) return p;
+    return null;
+  }
+
+  /** Is this peer the booked host of the scheduled show on stage? */
+  private isScheduledHost(peer: WorldPeer): boolean {
+    return this.scheduledShow !== null && peer.userId === this.scheduledShow.hostUserId;
+  }
+
+  /** The booked stage show currently holding the stage, if any. */
+  scheduledShowEventId(): string | null {
+    return this.scheduledShow?.eventId ?? null;
+  }
+
+  /**
+   * Start a booked stage show (item 3.1): the screen takes the
+   * booked content under the host's name. Refuses (false) when a
+   * DIFFERENT show — walk-in or booked — holds the stage: a booking
+   * never hijacks a live hand; the scheduler retries until the slot
+   * ends. The holder is the host's own peer when they're standing
+   * in the hall, else an event pseudo-peer the host's account still
+   * controls (their stage controls match by account).
+   */
+  beginScheduledShow(input: {
+    eventId: string;
+    hostUserId: string;
+    hostName: string;
+    hostSlug: string | null;
+    title: string;
+    content: WorldScreenContent;
+  }): boolean {
+    if (!this.stageEnabled) return false;
+    if (this.scheduledShow?.eventId === input.eventId) return true;
+    if (this.stageHolder) return false;
+    const hostPeer = this.peerForUserId(input.hostUserId);
+    this.stageHolder = {
+      peerId: hostPeer?.peerId ?? `event:${input.eventId}`,
+      userId: input.hostUserId,
+      name: input.hostName,
+      slug: input.hostSlug,
+    };
+    this.scheduledShow = {
+      eventId: input.eventId,
+      hostUserId: input.hostUserId,
+      title: input.title,
+      hostName: input.hostName,
+    };
+    this.screenContent = input.content;
+    this.stageSeq++;
+    this.broadcastScreen(`LIVE: ${input.title} by ${input.hostName}`);
+    this.onChange?.();
+    return true;
+  }
+
+  /** End a booked stage show (its slot ran out, or it was
+   *  cancelled): the stage releases and the screen returns to the
+   *  King's Reel — an overrun show ends here too, whoever is mid-
+   *  performance. No-op when this event isn't the one on stage. */
+  endScheduledShow(eventId: string, notice: string | null = null): boolean {
+    if (!this.scheduledShow || this.scheduledShow.eventId !== eventId) return false;
+    this.scheduledShow = null;
+    this.stageHolder = null;
+    this.screenContent = { kind: "reel" };
+    this.stageSeq++;
+    this.broadcastScreen(notice);
+    this.onChange?.();
+    return true;
+  }
+
+  /** The booked listening party the jukebox is running, if any. */
+  listeningPartyEventId(): string | null {
+    return this.listeningParty?.eventId ?? null;
+  }
+
+  /**
+   * Start a booked listening party (item 3.2): the jukebox takes the
+   * party's queue, in order, under the host's name — replacing
+   * whatever open queueing had lined up (the party IS the room's
+   * programming for its slot). The room hears it in sync off the
+   * same anchor as any jukebox song.
+   */
+  beginListeningParty(input: {
+    eventId: string;
+    hostUserId: string;
+    hostName: string;
+    title: string;
+    tracks: WorldJukeboxTrackRef[];
+    now: number;
+  }): boolean {
+    if (!this.jukeboxEnabled) return false;
+    if (this.listeningParty?.eventId === input.eventId) return true;
+    if (input.tracks.length === 0) return false;
+    const hostPeer = this.peerForUserId(input.hostUserId);
+    const entries: WorldJukeboxEntry[] = input.tracks.map((track) => ({
+      entryId: `j${++this.jukeboxEntryCounter}`,
+      track,
+      addedByPeerId: hostPeer?.peerId ?? `event:${input.eventId}`,
+      addedByName: input.hostName,
+      addedByUserId: input.hostUserId,
+    }));
+    this.listeningParty = {
+      eventId: input.eventId,
+      hostUserId: input.hostUserId,
+      title: input.title,
+      hostName: input.hostName,
+    };
+    const [first, ...rest] = entries;
+    this.jukeboxCurrent = {
+      entry: first!,
+      playback: { playing: true, anchorPosSec: 0, anchorAtMs: input.now },
+    };
+    this.jukeboxQueue = rest;
+    this.broadcastJukebox(input.now);
+    return true;
+  }
+
+  /** End a booked listening party: the jukebox returns to open
+   *  queueing — honestly idle until the room queues something. */
+  endListeningParty(eventId: string): boolean {
+    if (!this.listeningParty || this.listeningParty.eventId !== eventId) return false;
+    this.listeningParty = null;
+    this.jukeboxCurrent = null;
+    this.jukeboxQueue = [];
+    this.broadcastJukebox(Date.now());
+    return true;
+  }
+
+  /** The drop spectacle standing in this room, if any. */
+  activeDropEventId(): string | null {
+    return this.activeDrop?.eventId ?? null;
+  }
+
+  /** The room's standing drop as clients render it. */
+  dropBroadcast(): WorldDropBroadcast | null {
+    if (!this.activeDrop) return null;
+    return {
+      eventId: this.activeDrop.eventId,
+      title: this.activeDrop.title,
+      roomId: this.roomId,
+      roomName: this.roomName,
+      amountVb: this.activeDrop.amountVb,
+      claimCap: this.activeDrop.claimCap,
+      claimsLeft: this.activeDrop.claimsLeft,
+    };
+  }
+
+  /**
+   * Land a booked drop in this room (item 3.4): the chest appears
+   * and the room gets its herald moment. `drop.landed` is ROOM-
+   * scoped on purpose — this lane builds no palace-wide announce
+   * channel (that's Ring 3 §5(b)) — but its payload is announcement-
+   * shaped ({kind, title, roomId, roomName, drop}) so that channel
+   * can adopt it verbatim later.
+   */
+  landDrop(input: { eventId: string; title: string; amountVb: number; claimCap: number }): boolean {
+    if (this.activeDrop?.eventId === input.eventId) return true;
+    if (this.activeDrop) return false; // one chest at a time in a room
+    this.activeDrop = {
+      eventId: input.eventId,
+      title: input.title,
+      amountVb: input.amountVb,
+      claimCap: input.claimCap,
+      claimsLeft: input.claimCap,
+      claimedUserIds: new Set(),
+    };
+    this.hub.broadcast(this.roomId, {
+      type: "drop.landed",
+      kind: "drop",
+      title: input.title,
+      roomId: this.roomId,
+      roomName: this.roomName,
+      drop: this.dropBroadcast(),
+    });
+    return true;
+  }
+
+  /** Sweep a landed drop (slot over or cancelled). Late claims after
+   *  this find no chest — drop.denied "no-drop". */
+  endDrop(eventId: string): boolean {
+    if (!this.activeDrop || this.activeDrop.eventId !== eventId) return false;
+    this.activeDrop = null;
+    this.hub.broadcast(this.roomId, { type: "drop.state", drop: null });
+    return true;
   }
 
   /* ── The jukebox (Music Hall) ───────────────────────────────────── */
@@ -884,11 +1223,44 @@ export class WorldRoom {
           }
         : null,
       queue: [...this.jukeboxQueue],
+      ...(this.listeningParty
+        ? {
+            party: {
+              eventId: this.listeningParty.eventId,
+              title: this.listeningParty.title,
+              hostName: this.listeningParty.hostName,
+            },
+          }
+        : {}),
     };
   }
 
   private broadcastJukebox(now: number): void {
-    this.hub.broadcast(this.roomId, { type: "jukebox.state", jukebox: this.jukeboxBroadcast(now) });
+    const jukebox = this.jukeboxBroadcast(now);
+    this.hub.broadcast(this.roomId, { type: "jukebox.state", jukebox });
+    /* §5(a) first-play moment: a NEW song just started — the room is
+     * told whose it is (title + creator, both server-resolved when
+     * the track was verified). Fires once per entry start: adds,
+     * skips, lazy advances folded into a change broadcast, and party
+     * starts all pass through here; plain state re-reads (welcome)
+     * never re-announce a song already playing. */
+    const currentEntryId = jukebox.current?.entry.entryId ?? null;
+    if (currentEntryId !== this.lastNowPlayingEntryId) {
+      this.lastNowPlayingEntryId = currentEntryId;
+      if (jukebox.current) {
+        const { entry } = jukebox.current;
+        this.hub.broadcast(this.roomId, {
+          type: "jukebox.nowplaying",
+          moment: {
+            entryId: entry.entryId,
+            trackId: entry.track.id,
+            title: entry.track.title,
+            creatorName: entry.track.creatorName,
+            addedByName: entry.addedByName,
+          },
+        });
+      }
+    }
   }
 
   /** Lazy advance — no timers. A PLAYING song whose position has run
@@ -916,11 +1288,17 @@ export class WorldRoom {
   }
 
   /** Who may work the transport for the song on now: the member who
-   *  added it — or the host, always. */
+   *  added it — or the host, always. A listening-party entry's adder
+   *  is its booked host, matched by account as well as by peer (the
+   *  host may have walked in after the party started). */
   private canDriveJukebox(peer: WorldPeer): boolean {
     const cur = this.jukeboxCurrent;
     if (!cur) return peer.admin;
-    return peer.admin || cur.entry.addedByPeerId === peer.peerId;
+    return (
+      peer.admin ||
+      cur.entry.addedByPeerId === peer.peerId ||
+      (cur.entry.addedByUserId != null && peer.userId === cur.entry.addedByUserId)
+    );
   }
 
   /** Start the queue's head (or go idle when it's empty). The
@@ -937,9 +1315,16 @@ export class WorldRoom {
     this.hub.broadcast(this.roomId, { type: "screen.state", screen: this.screenBroadcast(notice) });
   }
 
-  /** Who may drive the screen: its holder — or the host, always. */
+  /** Who may drive the screen: its holder — or the host, always.
+   *  A booked show's host drives it by ACCOUNT too: their holder
+   *  record may be the event pseudo-peer (they booked it and the
+   *  video started before they walked in). */
   private canControlScreen(peer: WorldPeer): boolean {
-    return peer.admin || (this.stageHolder !== null && this.stageHolder.peerId === peer.peerId);
+    return (
+      peer.admin ||
+      (this.stageHolder !== null && this.stageHolder.peerId === peer.peerId) ||
+      this.isScheduledHost(peer)
+    );
   }
 
   private denyScreen(peer: WorldPeer): void {
@@ -1234,6 +1619,17 @@ export class WorldRoom {
           this.send(peer, { type: "jukebox.denied", reason: "guests" });
           return;
         }
+        /* A listening party owns the queue for its slot: open adds
+         * wait for the party to end. The party's host (and the house
+         * host) may still extend their own party's queue. */
+        if (
+          this.listeningParty &&
+          !peer.admin &&
+          peer.userId !== this.listeningParty.hostUserId
+        ) {
+          this.send(peer, { type: "jukebox.denied", reason: "listening-party" });
+          return;
+        }
         const trackId = typeof frame["trackId"] === "string" ? frame["trackId"] : "";
         if (!trackId || trackId.length > 96) return;
         const resolveTrack = this.deps.resolveJukeboxTrack;
@@ -1320,12 +1716,79 @@ export class WorldRoom {
         const idx = this.jukeboxQueue.findIndex((e) => e.entryId === entryId);
         if (idx < 0) return;
         const entry = this.jukeboxQueue[idx]!;
-        if (!peer.admin && entry.addedByPeerId !== peer.peerId) {
+        if (
+          !peer.admin &&
+          entry.addedByPeerId !== peer.peerId &&
+          !(entry.addedByUserId != null && peer.userId === entry.addedByUserId)
+        ) {
           this.send(peer, { type: "jukebox.denied", reason: "not-yours" });
           return;
         }
         this.jukeboxQueue.splice(idx, 1);
         this.broadcastJukebox(now);
+        return;
+      }
+      case "drop.claim": {
+        /* Claim the drop that landed in THIS room. Members only —
+         * guests watch spectacles, they don't hold a hand (the
+         * access law + THE-GAME §5 Q5). First-come: the reservation
+         * (claimsLeft + claimedUserIds) moves synchronously, before
+         * the async payout, so two fast claims can't both take the
+         * last spot; a failed payout rolls the reservation back and
+         * the chest keeps its claim. A landed claim is WITNESSED:
+         * the room sees who took it and how much — name + amount
+         * from server truth, never a client claim. */
+        if (peer.guest || !peer.userId) {
+          this.send(peer, { type: "drop.denied", reason: "guests" });
+          return;
+        }
+        const drop = this.activeDrop;
+        if (!drop) {
+          this.send(peer, { type: "drop.denied", reason: "no-drop" });
+          return;
+        }
+        if (drop.claimedUserIds.has(peer.userId)) {
+          this.send(peer, { type: "drop.denied", reason: "already-claimed" });
+          return;
+        }
+        if (drop.claimsLeft <= 0) {
+          this.send(peer, { type: "drop.denied", reason: "claimed-out" });
+          return;
+        }
+        const claimer = this.deps.claimWorldDrop;
+        if (!claimer) {
+          this.send(peer, { type: "drop.denied", reason: "error" });
+          return;
+        }
+        drop.claimedUserIds.add(peer.userId);
+        drop.claimsLeft--;
+        const userId = peer.userId;
+        const claimName = peer.displayName;
+        void claimer(userId, drop.amountVb, drop.eventId)
+          .then((result) => {
+            if (this.activeDrop !== drop) return; // swept mid-payout — the grant stands, the room has moved on
+            if (!result.ok) {
+              drop.claimedUserIds.delete(userId);
+              drop.claimsLeft++;
+              const claimant = this.peerForUserId(userId);
+              if (claimant) {
+                this.send(claimant, { type: "drop.denied", reason: result.reason });
+              }
+              return;
+            }
+            this.hub.broadcast(this.roomId, {
+              type: "drop.claimed",
+              drop: this.dropBroadcast(),
+              claim: { name: claimName, amountVb: drop.amountVb },
+            });
+          })
+          .catch(() => {
+            if (this.activeDrop !== drop) return;
+            drop.claimedUserIds.delete(userId);
+            drop.claimsLeft++;
+            const claimant = this.peerForUserId(userId);
+            if (claimant) this.send(claimant, { type: "drop.denied", reason: "error" });
+          });
         return;
       }
       case "screen.reel": {
@@ -1384,6 +1847,14 @@ export class WorldRoom {
         this.stageHolder = null;
         this.screenContent = { kind: "reel" };
         this.stageSeq++;
+        /* Ending a BOOKED show early closes the event too — the
+         * scheduler hears it and marks the row done, so the slot
+         * doesn't resurrect on the next tick. */
+        if (this.scheduledShow) {
+          const eventId = this.scheduledShow.eventId;
+          this.scheduledShow = null;
+          this.onScheduledShowEnded?.(eventId);
+        }
         this.broadcastScreen(wasMine ? null : "The host ended the show.");
         this.onChange?.();
         return;
@@ -1455,7 +1926,12 @@ export class WorldRoom {
     peer: WorldPeer,
     resolve: () => Promise<{ content: WorldScreenContent; name: string; slug: string | null } | null>,
   ): void {
-    if (this.stageHolder && this.stageHolder.peerId !== peer.peerId && !peer.admin) {
+    /* A booked show's host claims over their own event pseudo-peer
+     *  holder — that's the "live" stage_show opening for its host:
+     *  their stream takes the screen their booking opened. */
+    const mineOrScheduled =
+      this.stageHolder?.peerId === peer.peerId || this.isScheduledHost(peer);
+    if (this.stageHolder && !mineOrScheduled && !peer.admin) {
       this.denyScreen(peer);
       return;
     }
@@ -1465,9 +1941,25 @@ export class WorldRoom {
         if (!resolved) return;
         if (this.byPeerId.get(peer.peerId) !== peer) return;
         if (this.stageSeq !== seq) return;
-        if (this.stageHolder && this.stageHolder.peerId !== peer.peerId && !peer.admin) return;
+        if (
+          this.stageHolder &&
+          this.stageHolder.peerId !== peer.peerId &&
+          !this.isScheduledHost(peer) &&
+          !peer.admin
+        )
+          return;
         const takeover =
           this.stageHolder !== null && this.stageHolder.peerId !== peer.peerId;
+        /* A host takeover displaces a booked show (the stage is the
+         * host's, always): the event closes rather than lingering
+         * as a label over someone else's show. The scheduled host
+         * claiming over their own pseudo-peer is NOT a displacement
+         * — it's their show going live. */
+        if (this.scheduledShow && this.scheduledShow.hostUserId !== peer.userId) {
+          const eventId = this.scheduledShow.eventId;
+          this.scheduledShow = null;
+          this.onScheduledShowEnded?.(eventId);
+        }
         this.stageHolder = {
           peerId: peer.peerId,
           userId: peer.userId!,
