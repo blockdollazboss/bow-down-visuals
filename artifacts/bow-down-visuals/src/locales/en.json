@@ -9478,6 +9478,7 @@
     "newPost": "New scheduled post",
     "loading": "Loading your schedule…",
     "noCaption": "No caption",
+    "fromRelease": "From release",
     "tabs": {
       "calendar": "Calendar",
       "queue": "Queue ({{num}})",

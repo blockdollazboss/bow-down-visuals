@@ -38,6 +38,7 @@ import {
   monthGridDays,
   movePostToDate,
   normalizeHashtags,
+  postReleaseId,
   prettyDateTime,
   timeLocal,
   todayLocal,
@@ -778,6 +779,7 @@ function QueueTab(props: {
                   <Loader2 className="h-3 w-3 animate-spin" /> {t("scheduler.queue.postingNow")}
                 </span>
               )}
+              <FromReleaseChip post={p} />
             </div>
             <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
             <p className="mt-1 flex items-center gap-1.5 text-[13px] text-white/45">
@@ -837,12 +839,13 @@ function DraftsTab(props: {
         <div key={p.id} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <MediaThumb post={p} large />
           <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {p.platforms.map((pl) => (
               <span key={pl} className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/60">
                 {t(`scheduler.platforms.${pl}.label`)}
               </span>
             ))}
+            <FromReleaseChip post={p} />
           </div>
           <div className="mt-4 flex gap-2">
             <Button size="sm" className="flex-1 bg-primary font-bold text-black hover:bg-primary/90" onClick={() => props.onSchedule(p)}>
@@ -882,6 +885,7 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={p.status} />
+              <FromReleaseChip post={p} />
               {p.results.map((r) => (
                 <span
                   key={r.platform}
@@ -912,6 +916,27 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
 }
 
 /* ─── Shared bits ──────────────────────────────────────────────────────── */
+
+/* Release attribution chip (0143): shown on any post the
+   scheduler-from-release flow stamped with a releaseId. The chip
+   links to /distribute — the release's home — since the post list has
+   no per-release lookup of its own. Renders nothing for the far more
+   common unstamped post (postReleaseId reads the DTO field
+   tolerantly: absent pre-0143, null when scheduled any other way). */
+function FromReleaseChip({ post }: { post: ScheduledPostShape }) {
+  const { t } = useTranslation();
+  if (!postReleaseId(post)) return null;
+  return (
+    <Link
+      href="/distribute"
+      className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary transition hover:bg-primary/25"
+      title={t("scheduler.fromRelease")}
+    >
+      <Megaphone className="h-3 w-3" />
+      {t("scheduler.fromRelease")}
+    </Link>
+  );
+}
 
 function StatusBadge({ status }: { status: ScheduledPostShape["status"] }) {
   const { t } = useTranslation();
