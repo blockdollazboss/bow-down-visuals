@@ -693,10 +693,21 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     resolveJukeboxTrack,
   });
   activePalace = palace;
+  /* Presence truth: reap frame-silent peers on a tick — a dead
+   * browser's close cannot be trusted to arrive through the
+   * hosting router (see WORLD_PEER_STALE_MS in lib/world-room). */
+  palace.startPresenceSweeper();
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
     const token = query.get("token");
     const auth = token ? await verify(token).catch(() => null) : null;
+    /* A guest's per-tab session id: sanitized to a tame charset —
+     * anything else is treated as no id (the guest still enters;
+     * their rejoins just can't replace a ghost until it goes
+     * stale). Members never use it; their account is the key. */
+    const guestRaw = query.get("guest");
+    const guestSessionId =
+      guestRaw && /^[A-Za-z0-9_-]{8,64}$/.test(guestRaw) ? guestRaw : null;
 
     let identity: WorldIdentity;
     if (auth) {
@@ -709,7 +720,13 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
           }))
         : await defaultResolveIdentity(auth.userId, auth.email);
     } else {
-      identity = { userId: null, displayName: "Guest", avatarUrl: null, profileSlug: null };
+      identity = {
+        userId: null,
+        displayName: "Guest",
+        avatarUrl: null,
+        profileSlug: null,
+        guestSessionId,
+      };
     }
     /* Host authority rides the verified token's email — resolved
      * here, server-side, the same way the admin routes resolve it. */

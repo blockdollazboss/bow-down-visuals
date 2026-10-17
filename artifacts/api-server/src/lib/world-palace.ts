@@ -38,9 +38,15 @@ import {
   WorldRoom,
   WORLD_PRESENCE_CAP,
   WORLD_ROOM_ID,
+  worldIdentityKey,
   type WorldIdentity,
   type WorldRoomOptions,
 } from "./world-room";
+
+/** How often the palace sweeps every room for frame-silent peers
+ *  (see WorldRoom.sweepStalePeers / WORLD_PEER_STALE_MS). A ghost's
+ *  total linger is the stale window plus at most one sweep tick. */
+export const WORLD_PRESENCE_SWEEP_MS = 15_000;
 
 export interface PalaceRoomDef extends WorldRoomOptions {
   roomId: string;
@@ -127,6 +133,7 @@ export class WorldPalace {
   private rooms = new Map<string, WorldRoom>();
   /** The hall — the palace's front door and its one stage. */
   readonly hallRoom: WorldRoom;
+  private sweeper: NodeJS.Timeout | null = null;
 
   constructor(
     private hub: RoomHub,
@@ -163,9 +170,41 @@ export class WorldPalace {
     return null;
   }
 
-  /** Admission: everyone enters through the hall. */
+  /** Admission: everyone enters through the hall. A rejoining
+   *  identity first replaces its own ghost — wherever in the
+   *  palace the corpse is standing — so a reload or a reconnect
+   *  never stacks a second presence beside the first, and the
+   *  freed slot is back before the hall's cap check runs. */
   enterHall(socket: WsClientSocket, identity: WorldIdentity): boolean {
+    const key = worldIdentityKey(identity);
+    if (key) {
+      for (const room of this.rooms.values()) room.evictIdentity(key, socket);
+    }
     return this.hallRoom.attach(socket, identity);
+  }
+
+  /** Start the presence sweeper (production wiring does this at
+   *  registration; tests drive sweepStalePeers directly against
+   *  their injected clocks instead). Unref'd — it must never be
+   *  the thing keeping a process alive. */
+  startPresenceSweeper(): void {
+    if (this.sweeper) return;
+    this.sweeper = setInterval(() => this.sweepStalePeers(), WORLD_PRESENCE_SWEEP_MS);
+    this.sweeper.unref?.();
+  }
+
+  /** Stop the sweeper (tests / shutdown). */
+  dispose(): void {
+    if (this.sweeper) clearInterval(this.sweeper);
+    this.sweeper = null;
+  }
+
+  /** One sweep of every room: reap each room's frame-silent
+   *  peers. Returns the palace-wide reap count. */
+  sweepStalePeers(now = Date.now()): number {
+    let n = 0;
+    for (const room of this.rooms.values()) n += room.sweepStalePeers(now);
+    return n;
   }
 
   /** Disconnect/error: despawn from whichever room holds the socket. */
