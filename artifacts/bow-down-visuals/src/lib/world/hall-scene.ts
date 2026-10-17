@@ -50,6 +50,7 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
+import { nameplateSub, nameplateTitle, starsMark } from "./nameplate";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
 import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
@@ -327,6 +328,10 @@ function doorPlateTexture(text: string): THREE.CanvasTexture {
 function namePlateKey(peer: WorldPeer, frontRow = false): string {
   return [
     peer.displayName,
+    /* The stars are part of the plate's identity: a witnessed
+     * level-up restars the peer record, the key changes, and the
+     * plate is redrawn with the new rank (nameplate.ts). */
+    starsMark(peer.stars),
     peer.guest ? "guest" : "",
     peer.profileSlug ?? "",
     peer.voiceOff ? "off" : "",
@@ -416,25 +421,37 @@ function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTextu
   g.font = "700 54px system-ui, sans-serif";
   g.lineWidth = 10;
   g.strokeStyle = "rgba(0,0,0,0.85)";
-  const name = peer.displayName.slice(0, 24);
+  /* The name line carries the creator's stars beside the name —
+   * the nameplate is the ONLY place stars render (THE-GAME §5 Q1);
+   * the label itself is built in nameplate.ts. The star marks are
+   * drawn in gold so rank reads at a glance. */
+  const name = nameplateTitle(peer);
   g.strokeText(name, 256, 58);
   g.fillStyle = "#ffffff";
   g.fillText(name, 256, 58);
+  const mark = starsMark(peer.stars);
+  if (mark) {
+    /* Repaint just the star run in house gold over the white name:
+     * measure the plain name to find where the marks begin. */
+    const nameOnly = peer.displayName.slice(0, 24);
+    const totalW = g.measureText(name).width;
+    const markW = g.measureText(` ${mark}`).width;
+    const markStart = 256 - totalW / 2 + (totalW - markW);
+    g.save();
+    g.textAlign = "left";
+    g.fillStyle = "#e8c86a";
+    g.fillText(` ${mark}`, markStart, 58);
+    g.restore();
+    g.textAlign = "center";
+  }
   g.font = "600 34px system-ui, sans-serif";
   /* Voice-off outranks the slug on the sub-line: "this person can't
    *  hear you" is the fact the hall needs at a glance. Deafened is
    *  next — same family of fact, different state (in voice, hearing
    *  nobody). A Front Row member (of the performer on stage) is named
-   *  on the plate too — the honor is visible, not just a brighter ring. */
-  const sub = peer.voiceOff
-    ? "voice off"
-    : peer.voiceDeaf
-      ? "deafened"
-      : peer.guest
-        ? "guest"
-        : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
-            .filter(Boolean)
-            .join(" · ");
+   *  on the plate too — the honor is visible, not just a brighter ring.
+   *  (The wording lives in nameplate.ts — nameplateSub.) */
+  const sub = nameplateSub(peer, frontRow);
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
   g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.voiceDeaf ? "#a9c3d9" : peer.guest ? "#b8b0a0" : "#e8c86a";

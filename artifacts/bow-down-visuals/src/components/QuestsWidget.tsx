@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { questDestination, claimableVb } from "@/lib/world/treasury-quests";
+import { dispatchQuestClaimed } from "@/lib/world/moments";
 
 interface Quest {
   key: string;
@@ -108,6 +109,12 @@ export default function QuestsWidget({
       if (res.ok && typeof body.reward === "number") {
         setToast(t("retention.claim_success", { reward: body.reward }));
         onBalanceChange?.();
+        /* The witnessed-moment trigger (THE-GAME §5(a)): a claim
+           just landed — announce it to anyone listening. The World
+           page turns this into the room's celebrate intent (the
+           server verifies the claim against its own records before
+           the room hears anything); the 2D site ignores it. */
+        dispatchQuestClaimed({ questKey, reward: body.reward });
         await load();
       } else {
         setToast(body.error ?? t("retention.claim_failed"));

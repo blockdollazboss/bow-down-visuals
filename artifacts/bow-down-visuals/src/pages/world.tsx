@@ -14,7 +14,14 @@ import {
 } from "@/lib/world/actions";
 import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
+import {
+  evaluateLevel,
+  readSeenLevel,
+  writeSeenLevel,
+} from "@/lib/world/level-watch";
+import { formatMomentLine, QUEST_CLAIMED_EVENT } from "@/lib/world/moments";
 import {
   WorldClient,
   worldOverlay,
@@ -194,6 +201,10 @@ function ActionButton({
 export default function WorldPage() {
   usePageTitle("The World — The King's Hall", "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.");
   const { user, getAccessToken } = useAuth();
+  /* My Creator Level, as this device knows it — the input to the
+     level-up detection below (the server keeps the record that
+     actually gets witnessed; see runLevelCheck). */
+  const { stars } = useUserMode();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const roomRef = useRef<HTMLDivElement | null>(null);
@@ -228,6 +239,17 @@ export default function WorldPage() {
   const [myName, setMyName] = useState("");
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
   const [sayLog, setSayLog] = useState<WorldSayEvent[]>([]);
+  /* A witnessed moment (THE-GAME §5(a)): a win the room just saw —
+   * the banner line it reads as in the world chrome, fading on its
+   * own timer. The line is built from the server's broadcast
+   * (formatMomentLine) — never from anything the achiever claimed. */
+  const [momentLine, setMomentLine] = useState<string | null>(null);
+  const momentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showMomentLine = useCallback((line: string) => {
+    setMomentLine(line);
+    if (momentTimerRef.current) clearTimeout(momentTimerRef.current);
+    momentTimerRef.current = setTimeout(() => setMomentLine(null), 7_000);
+  }, []);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -393,6 +415,66 @@ export default function WorldPage() {
   const [inviteResolved, setInviteResolved] = useState(false);
   const [inviteDismissed, setInviteDismissed] = useState(false);
   const invitePanelPendingRef = useRef(false);
+
+  /* ── Level-up detection (THE-GAME §5(a)) ───────────────────────
+   * On World entry, and again after each quest claim, the existing
+   * level-check rail is consulted and the current level compared
+   * against the last level this device has seen for this user
+   * (lib/world/level-watch). A RISE is recorded on the celebrate
+   * rail first — that POST is what puts the new level into the
+   * server's own record — and only then does the bare levelup
+   * intent go to the room, which verifies it against that record
+   * before witnessing anything. The first-ever sighting sets the
+   * baseline silently: no moment for a level you already had
+   * before the game could see it. */
+  const runLevelCheck = useCallback(async () => {
+    if (!user) return;
+    const current = stars;
+    try {
+      const token = await getAccessToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      await fetch(`/api/retention/level-check?currentLevel=${current}`, { headers }).catch(
+        () => undefined,
+      );
+      const verdict = evaluateLevel(readSeenLevel(window.localStorage, user.id), current);
+      if (verdict.kind === "baseline") {
+        writeSeenLevel(window.localStorage, user.id, verdict.level);
+        return;
+      }
+      if (verdict.kind !== "rise") return;
+      await fetch("/api/retention/level-check/celebrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ level: verdict.level }),
+      }).catch(() => undefined);
+      writeSeenLevel(window.localStorage, user.id, verdict.level);
+      clientRef.current?.celebrateLevelup();
+    } catch {
+      /* Detection is a courtesy: a failed check announces nothing. */
+    }
+  }, [user, stars, getAccessToken]);
+  const runLevelCheckRef = useRef(runLevelCheck);
+  runLevelCheckRef.current = runLevelCheck;
+
+  /* Entry runs the check (and a mid-visit level change re-runs it —
+   * evaluateLevel makes repeats harmless: equal is "none"). */
+  useEffect(() => {
+    if (status !== "inside" || !user) return;
+    void runLevelCheckRef.current();
+  }, [status, user, stars]);
+
+  /* A quest claimed anywhere on this page (the Treasury board's
+   * QuestsWidget fires bdv:quest-claimed on claim success): the
+   * room gets its celebrate intent, and the level is re-checked —
+   * a claim is exactly when a level tends to have moved. */
+  useEffect(() => {
+    const onQuestClaimed = () => {
+      clientRef.current?.celebrateQuest();
+      void runLevelCheckRef.current();
+    };
+    window.addEventListener(QUEST_CLAIMED_EVENT, onQuestClaimed);
+    return () => window.removeEventListener(QUEST_CLAIMED_EVENT, onQuestClaimed);
+  }, []);
 
   useEffect(() => {
     if (!partyInviteCode || status !== "inside" || isGuest) {
@@ -1033,6 +1115,21 @@ export default function WorldPage() {
       client.onJukeboxDenied = (reason) => {
         if (!cancelled) setJukeboxDenied(reason);
       };
+      /* A witnessed moment (THE-GAME §5(a)): a win landed in this
+         room — a quest completed, a level rose — verified and
+         broadcast by the server. The chrome shows the moment
+         banner, the room log keeps a line of it, and the
+         achiever's nameplate already restarred inside the client
+         (the peerSync below repaints it off the record). */
+      client.onMoment = (moment) => {
+        if (cancelled) return;
+        const line = formatMomentLine(moment);
+        showMomentLine(line);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
+      };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
         setHostMuted(mutedNow);
@@ -1649,6 +1746,22 @@ export default function WorldPage() {
                   : `On stage: ${stageScreen.holder.name}`}
               </span>
             )}
+          </div>
+        )}
+
+        {/* The witnessed-moment banner (§5(a)): a win just landed
+            in this room — a quest completed, a level rose — stated
+            once, in the palace's voice, then gone. Wins are public;
+            the line carries no balance and no progress detail. */}
+        {status === "inside" && momentLine && (
+          <div
+            className="pointer-events-none absolute left-1/2 top-16 z-10 -translate-x-1/2"
+            data-testid="world-moment-banner"
+            role="status"
+          >
+            <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-black tracking-wide backdrop-blur-sm ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/90 text-[#7A5A12]" : "border-[#d4af37]/60 bg-black/75 text-[#e8c86a]"}`}>
+              {momentLine}
+            </span>
           </div>
         )}
 
