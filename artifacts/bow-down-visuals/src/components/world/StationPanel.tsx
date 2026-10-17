@@ -23,6 +23,7 @@ import {
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import {
+  CreateDeskPanel,
   NativePlaceholder,
   TransferFooter,
   ListeningBooth,
@@ -87,6 +88,12 @@ export interface StationPanelProps {
    *  editor's location with ?project=<id> so it opens where they
    *  left off. Null (or still loading) → the editor opens fresh. */
   editorProjectId?: string | null;
+  /** The Create desks' Send-to-the-editor chip: step through to the
+   *  Visual Vibes editor station (the page swaps the panel target;
+   *  the step-through's newest-project seed resolves on open, and
+   *  the desk has just saved its result as that project). Optional —
+   *  hosts without an editor door simply don't offer the chip. */
+  onOpenEditorStation?: () => void;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -1197,7 +1204,14 @@ export default function StationPanel(props: StationPanelProps) {
         }
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            {resolution.pattern === "shop" ? (
+            {resolution.pattern === "create" ? (
+              <CreateDeskPanel
+                station={station}
+                isLight={isLight}
+                onJukeboxAdd={props.onJukeboxAdd}
+                onOpenEditor={props.onOpenEditorStation}
+              />
+            ) : resolution.pattern === "shop" ? (
               <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
               <ChartsBoard

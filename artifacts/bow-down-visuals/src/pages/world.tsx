@@ -30,6 +30,7 @@ import {
 } from "@/lib/world/world-client";
 import {
   nearestStation,
+  STATION_BY_ID,
   type PalaceStation,
 } from "@/lib/world/stations";
 import {
@@ -1787,6 +1788,10 @@ export default function WorldPage() {
           myPeerId={myPeerId}
           isAdmin={isAdmin}
           editorProjectId={editorProjectId}
+          onOpenEditorStation={() => {
+            const editorStation = STATION_BY_ID.get("visual-vibes-editor");
+            if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
+          }}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}

@@ -26,3 +26,18 @@ export {
 } from "./ShelfPlayer";
 export { ListeningBooth, type ListeningBoothProps } from "./ListeningBooth";
 export { ShopStand, type ShopStandProps } from "./ShopStands";
+export { CreateDeskPanel, type CreateDeskPanelProps } from "./CreateDeskPanel";
+export {
+  SongDesk,
+  VideoDesk,
+  SongVideoDesk,
+  CoverArtDesk,
+  ThumbnailDesk,
+  type CreateDeskProps,
+} from "./CreateDesks";
+export { AudioDesk } from "./AudioDesk";
+export {
+  AdvancedExpander,
+  ResultChips,
+  type ResultChipsProps,
+} from "./CreateDeskShared";
