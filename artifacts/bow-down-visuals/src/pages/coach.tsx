@@ -16,6 +16,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
+import { primaryActionFor, creatorStateSummary, type CoachNextAction, type CoachCreatorState } from "@/lib/coach-next-action";
 
 /* ── Money-hub pages de-hosted in Phase 2: they are real routes now
    (see MORE_COACH_TOOLS directory below). ─────────────────────────── */
@@ -57,6 +58,9 @@ interface CoachResponse {
  eligibility?: EligibilityItem[];
  earnings?: Earnings;
  moneyMoves?: string[];
+ /* DE-19: the state-derived next move + the catalog state behind it. */
+ nextAction?: CoachNextAction;
+ creatorState?: CoachCreatorState;
  note?: string;
  creditsUsed?: number;
  creditsRemaining?: number;
@@ -541,6 +545,13 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  {/* ── RESULTS ────────────────────────────────────────────────── */}
  {plan && plan.eligibility && plan.eligibility.length > 0 && (
  <div id="coach-results" className="relative mt-8">
+ {/* DE-19: the state the coach actually read — the plan is grounded
+     in this creator's catalog, and says so. */}
+ {creatorStateSummary(plan.creatorState) && (
+ <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-center text-xs font-semibold text-white/60">
+ {t("coach.stateReadout", { defaultValue: "Your coach read your catalog" })}: {creatorStateSummary(plan.creatorState)}
+ </p>
+ )}
  <div className="mb-4 flex items-center justify-between">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
  <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.eligibilityTitle")}
@@ -647,29 +658,40 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  </>
  )}
 
- {/* action buttons — the plan is a starting line, not a display */}
+ {/* action buttons — the plan is a starting line, not a display.
+     DE-19: ONE primary move, derived from the creator's real state
+     (server-side nextAction); the old static trio stays as
+     secondaries, minus whichever the primary already covers. */}
  <div className="mt-6 flex flex-wrap justify-center gap-3">
+ {(() => {
+ const primary = primaryActionFor(plan);
+ const secondaries = [
+ { href: "/distribute", label: t("coach.planActDistribute", { defaultValue: "Distribute music" }), Icon: Rocket },
+ { href: "/brand-deals", label: t("coach.planActDeals", { defaultValue: "Find brand deals" }), Icon: Handshake },
+ { href: "/referrals", label: t("coach.planActReferrals", { defaultValue: "Grow referrals" }), Icon: Gift },
+ ].filter((s) => s.href !== primary.href);
+ return (
+ <>
  <Link
- href="/distribute"
+ href={primary.href}
  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
  >
- <Rocket className="h-4 w-4" aria-hidden="true" />
- {t("coach.planActDistribute", { defaultValue: "Distribute music" })}
+ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+ {primary.label}
  </Link>
+ {secondaries.map((s) => (
  <Link
- href="/brand-deals"
+ key={s.href}
+ href={s.href}
  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
  >
- <Handshake className="h-4 w-4" aria-hidden="true" />
- {t("coach.planActDeals", { defaultValue: "Find brand deals" })}
+ <s.Icon className="h-4 w-4" aria-hidden="true" />
+ {s.label}
  </Link>
- <Link
- href="/referrals"
- className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
- >
- <Gift className="h-4 w-4" aria-hidden="true" />
- {t("coach.planActReferrals", { defaultValue: "Grow referrals" })}
- </Link>
+ ))}
+ </>
+ );
+ })()}
  </div>
 
  <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/50">
