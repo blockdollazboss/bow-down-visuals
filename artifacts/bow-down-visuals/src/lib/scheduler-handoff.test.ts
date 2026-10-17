@@ -12,6 +12,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 const schedulerSource = read("../pages/scheduler.tsx");
 const distributeSource = read("../pages/distribute.tsx");
 const songsSource = read("../pages/songs.tsx");
+const exportSectionSource = read("../components/editor/sections/ExportSection.tsx");
 
 describe("buildSchedulerHref — the ?schedule=1 protocol", () => {
   it("a caption-only handoff opens the composer prefilled", () => {
@@ -57,15 +58,20 @@ describe("buildSchedulerHref — the ?schedule=1 protocol", () => {
     expect(q.get("caption")).toBeNull();
   });
 
-  it("the project rides along when a handoff carries one (editor post-export), and only then", () => {
-    const withProject = new URLSearchParams(
-      buildSchedulerHref({ caption: "c", media: "https://cdn/v.mp4", project: "proj-9" }).split("?")[1],
-    );
-    expect(withProject.get("project")).toBe("proj-9");
-    const without = new URLSearchParams(
+  /* Stack-30 resolution 30: the editor's post-export handoff used to
+     carry a `project` param the scheduler never read — no project
+     column on scheduled_posts, no param read in the scheduler page,
+     and the composer's hub-project context isn't addressable by an
+     editor project id. Stripped at the sender; the protocol has no
+     project field, so the dead param cannot be re-sent by accident. */
+  it("no project param exists in the protocol — the one the scheduler never read was stripped at the sender", () => {
+    const q = new URLSearchParams(
       buildSchedulerHref({ caption: "c", media: "https://cdn/v.mp4" }).split("?")[1],
     );
-    expect(without.get("project")).toBeNull();
+    expect(q.get("project")).toBeNull();
+    expect(exportSectionSource).toContain("buildSchedulerHref");
+    expect(exportSectionSource).not.toContain("project: projectId");
+    expect(schedulerSource).not.toContain('params.get("project")');
   });
 
   it("platform keys pass through verbatim — the composer keeps the ones it knows (carousel's linkedin rides, then is filtered there)", () => {

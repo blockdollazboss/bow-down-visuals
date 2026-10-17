@@ -13,7 +13,15 @@
  * release link DOES ride along: when the handoff comes from a release,
  * its id travels as `release` and the composer stamps it onto the
  * created row's release_id column (migration 0143) so release-driven
- * posts stay attributable to the release that spawned them. */
+ * posts stay attributable to the release that spawned them.
+ *
+ * There is deliberately no project field either: the editor's
+ * post-export handoff once carried a `project` param, but the
+ * scheduler never read it — scheduled posts have no project column
+ * and the composer's hub-project context is not addressable by an
+ * editor project id. A param nobody reads is a lie about what the
+ * link does, so it was stripped at the sender (Stack-30 resolution
+ * 30) rather than carried as decoration. */
 
 export type SchedulerMediaType = "video" | "image";
 export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
@@ -30,9 +38,6 @@ export interface SchedulerHandoff {
    *  them against the keys it knows (instagram / tiktok / facebook)
    *  and ignores the rest, exactly as it always has. */
   platforms?: string[];
-  /** Carried for project-scoped views (the editor's post-export
-   *  handoff has always sent it); the composer itself doesn't read it. */
-  project?: string | null;
   /** Distribution release id — present ONLY for release handoffs; the
    *  created scheduled post is stamped with it (release_id, 0143). */
   releaseId?: string | null;
@@ -50,7 +55,6 @@ export function buildSchedulerHref(h: SchedulerHandoff): string {
     q.set("mediaType", h.mediaType ?? "video");
   }
   if (h.platforms?.length) q.set("platform", h.platforms.join(","));
-  if (h.project) q.set("project", h.project);
   if (h.releaseId) q.set("release", h.releaseId);
   return `/scheduler?${q.toString()}`;
 }

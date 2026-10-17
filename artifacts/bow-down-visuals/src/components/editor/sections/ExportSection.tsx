@@ -1062,11 +1062,10 @@ export function ExportSection({
       {/* ── Post-export handoffs: carry the project into Promote + Money ── */}
       {finalVideoUrl && (() => {
         // Scheduler deep-link protocol (lib/scheduler-handoff): opens the
-        // composer prefilled. project= is carried for project-scoped views.
+        // composer prefilled with this video + caption.
         const schedulerHref = buildSchedulerHref({
           caption: topic || "My video",
           media: finalVideoUrl,
-          project: projectId,
         });
         const coverUrl = scenes.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? "";
         const distributeHref = `/distribute?title=${encodeURIComponent(topic || "My video")}${coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : ""}`;
