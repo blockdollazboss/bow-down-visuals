@@ -18,7 +18,7 @@ export const brandingOrdersTable = pgTable("branding_orders", {
   zip:       text("zip").notNull(),
   status:    text("status").notNull().default("received"),
   /* Fulfillment (Printful integration): */
-  provider:        text("provider").notNull().default("mock"), // 'printful' | 'mock'
+  provider:        text("provider").notNull().default("mock"), // 'printful' | 'printkk' | 'mixed' (split order) | 'mock'
   providerOrderId: text("provider_order_id"),
   trackingNumber:  text("tracking_number"),
   trackingUrl:     text("tracking_url"),
