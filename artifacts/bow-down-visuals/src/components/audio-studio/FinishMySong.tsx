@@ -5,6 +5,7 @@ import { Music2, Loader2, Sparkles, Upload, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
 
 /* ── Finish My Song ───────────────────────────────────────────────────────
    Audio Studio tab. Upload an unfinished demo / voice memo — AI analyzes
@@ -31,6 +32,9 @@ export function FinishMySong() {
   const { confirmedFetch } = useConfirmedApi();
 
   const [file, setFile] = useState<File | null>(null);
+  /* Library song the demo was picked from (DE-6) — the finished song
+     chains back to it in the library via sourceSongId. */
+  const [sourceSongId, setSourceSongId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,19 @@ export function FinishMySong() {
     }
     setError(null);
     setFile(f);
+    setSourceSongId(null);
+  }
+
+  /* DE-6: pick the unfinished song from the library instead of
+     re-uploading it — same size rule as a manual pick. */
+  function pickFromLibrary(song: { id: string }, pickedFile: File) {
+    if (pickedFile.size > 25 * 1024 * 1024) {
+      setError("That demo is over 25 MB — pick a smaller file.");
+      return;
+    }
+    setError(null);
+    setFile(pickedFile);
+    setSourceSongId(song.id);
   }
 
   async function finish() {
@@ -58,6 +75,7 @@ export function FinishMySong() {
       const form = new FormData();
       form.append("demo", file);
       form.append("notes", notes.trim());
+      if (sourceSongId) form.append("sourceSongId", sourceSongId);
       const res = await confirmedFetch("/api/finish-my-song/complete", {
         method: "POST",
         headers: {
@@ -109,6 +127,10 @@ export function FinishMySong() {
             </div>
             <input type="file" accept="audio/*" className="hidden" onChange={handleFile} />
           </label>
+          {/* DE-6: or pick the unfinished song from your library. */}
+          <div className="mt-3">
+            <LibrarySongPicker getAccessToken={getAccessToken} onPick={pickFromLibrary} testId="finish-library-picker" />
+          </div>
         </div>
 
         <div className="mb-2">

@@ -273,13 +273,20 @@ router.post("/finish-my-song/complete", publicApiLimiter, requireAuth, upload.si
        it shows up in the caller's song library (distribute, remix, the
        editor) instead of living only in this response. The output lives
        on R2 behind a public URL, so there is no storage ref to store.
+       When the demo was picked from the library, the client sends its
+       id as sourceSongId and the finished song chains back to it.
        A library-write failure never fails a delivered song. */
+    const sourceSongId =
+      typeof req.body?.sourceSongId === "string" && req.body.sourceSongId.length <= 64
+        ? req.body.sourceSongId
+        : null;
     const librarySongId = await recordLibrarySong({
       userId: req.userId!,
       title: librarySongTitle(req.file.originalname, "Finished"),
       audioUrl: songUrl,
       audioPath: null,
       source: "finish",
+      parentSongId: sourceSongId,
       durationSec: analysis.durationSec,
     });
 

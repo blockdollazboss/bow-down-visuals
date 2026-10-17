@@ -21,6 +21,7 @@ import PodcastStudio from "@/pages/podcast";
 import ViralSoundFinder from "@/pages/sounds";
 import { HumToSong } from "@/components/HumToSong";
 import { FinishMySong } from "@/components/audio-studio/FinishMySong";
+import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
 import { RateMyMix } from "@/components/audio-studio/RateMyMix";
 import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
 import { PodcastTranscriptEditor } from "@/components/audio-studio/PodcastTranscriptEditor";
@@ -120,9 +121,13 @@ function CleanupPanel() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
+  /* Library song the current file was picked from (DE-6): sent as
+     sourceSongId so the cleaned output chains back to it in the library.
+     Any manual pick clears it — the file is no longer that song. */
+  const [sourceSongId, setSourceSongId] = useState<string | null>(null);
   const [mode, setMode] = useState<CleanupModeKey>("voice");
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<CleanupJobStatus>("idle");
@@ -250,6 +255,14 @@ function CleanupPanel() {
     setStatus("idle");
     setAb("cleaned");
     setNoiseReductionDb(null);
+    setSourceSongId(null);
+  }
+
+  /* DE-6: a library pick flows through the same intake as an upload,
+     plus the song id so the output chains back to it in the library. */
+  function pickFromLibrary(song: { id: string }, pickedFile: File) {
+    pickFile(pickedFile);
+    if (pickedFile.size <= CLEANUP_MAX_BYTES) setSourceSongId(song.id);
   }
 
   async function startCleanup() {
@@ -261,6 +274,7 @@ function CleanupPanel() {
       const form = new FormData();
       form.append("audio", file);
       form.append("mode", mode);
+      if (sourceSongId) form.append("sourceSongId", sourceSongId);
       const res = await confirmedFetch("/api/audio-cleanup", { method: "POST", body: form });
       if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: CleanupJobResponse = await res.json();
@@ -365,6 +379,11 @@ function CleanupPanel() {
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
             </div>
+
+            {/* DE-6: or pick a song you already own — no re-upload. */}
+            {user && (
+              <LibrarySongPicker getAccessToken={getAccessToken} onPick={pickFromLibrary} testId="cleanup-library-picker" />
+            )}
 
             {/* Mode picker */}
             <div data-min-stars="2">
@@ -2402,9 +2421,12 @@ interface AdLibHandoff {
 
 function MasterPanel() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
+  /* Library song the master input was picked from (DE-6) — the finished
+     master chains back to it in the library via sourceSongId. */
+  const [sourceSongId, setSourceSongId] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [reference, setReference] = useState<File | null>(null);
   const [genre, setGenre] = useState<MasterGenreKey>("hip-hop");
@@ -2491,6 +2513,14 @@ function MasterPanel() {
     setResult(null);
     setJobId(null);
     setStatus("idle");
+    setSourceSongId(null);
+  }
+
+  /* DE-6: a library pick flows through the same intake as an upload,
+     plus the song id so the master chains back to it in the library. */
+  function pickFromLibrary(song: { id: string }, pickedFile: File) {
+    pickFile(pickedFile);
+    if (pickedFile.size <= MASTER_MAX_FILE_BYTES) setSourceSongId(song.id);
   }
 
   async function start() {
@@ -2504,6 +2534,7 @@ function MasterPanel() {
       form.append("genre", genre);
       form.append("intensity", intensity);
       form.append("loudness", loudness);
+      if (sourceSongId) form.append("sourceSongId", sourceSongId);
       if (reference) form.append("reference", reference);
       const res = await confirmedFetch("/api/mix-master/master", { method: "POST", body: form });
       if (!res) { setStatus("idle"); return; }
@@ -2527,7 +2558,7 @@ function MasterPanel() {
     if (beforeUrl) URL.revokeObjectURL(beforeUrl);
     setFile(null); setBeforeUrl(null); setReference(null);
     setJobId(null); setStatus("idle"); setResult(null);
-    setError(null); setOutOfCredits(false);
+    setError(null); setOutOfCredits(false); setSourceSongId(null);
   }
 
   const busy = status === "uploading" || status === "queued" || status === "processing";
@@ -2631,6 +2662,11 @@ function MasterPanel() {
               onChange={(e) => pickFile(e.target.files?.[0])} />
           </div>
 
+          {/* DE-6: or pick a song you already own — no re-upload. */}
+          {user && (
+            <LibrarySongPicker getAccessToken={getAccessToken} onPick={pickFromLibrary} testId="master-library-picker" />
+          )}
+
           <GenreGrid value={genre} onChange={setGenre} />
           <IntensityPicker value={intensity} onChange={setIntensity} />
           <LoudnessPicker value={loudness} onChange={setLoudness} />
@@ -2676,7 +2712,7 @@ function MasterPanel() {
 function MixPanel() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [stems, setStems] = useState<File[]>([]);
   const [reference, setReference] = useState<File | null>(null);
@@ -2840,6 +2876,16 @@ function MixPanel() {
             )}
           </div>
 
+          {/* DE-6: a library song can join the mix as a stem — no re-upload. */}
+          {user && (
+            <LibrarySongPicker
+              getAccessToken={getAccessToken}
+              onPick={(_song, pickedFile) => addFiles([pickedFile])}
+              buttonLabel={t("audioStudio.library.addStem", { defaultValue: "Add a stem from my song library" })}
+              testId="mix-library-picker"
+            />
+          )}
+
           <GenreGrid value={genre} onChange={setGenre} />
           <IntensityPicker value={intensity} onChange={setIntensity} />
 
@@ -2952,10 +2998,13 @@ interface QuickMasterJobResponse {
 function QuickMasterPanel() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
+  /* Library song the input was picked from (DE-6) — the mastered output
+     chains back to it in the library via sourceSongId. */
+  const [sourceSongId, setSourceSongId] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [preset, setPreset] = useState<QuickPresetKey>("streaming");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -3040,6 +3089,14 @@ function QuickMasterPanel() {
     setJobId(null);
     setStatus("idle");
     setAbSide("after");
+    setSourceSongId(null);
+  }
+
+  /* DE-6: a library pick flows through the same intake as an upload,
+     plus the song id so the master chains back to it in the library. */
+  function pickFromLibrary(song: { id: string }, pickedFile: File) {
+    pickFile(pickedFile);
+    if (pickedFile.size <= MASTER_MAX_FILE_BYTES) setSourceSongId(song.id);
   }
 
   async function startMastering() {
@@ -3051,6 +3108,7 @@ function QuickMasterPanel() {
       const form = new FormData();
       form.append("audio", file);
       form.append("preset", preset);
+      if (sourceSongId) form.append("sourceSongId", sourceSongId);
       const res = await confirmedFetch("/api/mastering", { method: "POST", body: form });
       if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: QuickMasterJobResponse = await res.json();
@@ -3135,6 +3193,13 @@ function QuickMasterPanel() {
               onChange={(e) => pickFile(e.target.files?.[0])}
             />
           </div>
+
+          {/* DE-6: or pick a song you already own — no re-upload. */}
+          {user && (
+            <div className="mt-4">
+              <LibrarySongPicker getAccessToken={getAccessToken} onPick={pickFromLibrary} testId="quick-master-library-picker" />
+            </div>
+          )}
 
           {/* Preset picker */}
           <div data-min-stars="2">
