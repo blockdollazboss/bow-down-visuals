@@ -80,6 +80,11 @@ export interface StationPanelProps {
    *  editor's location with ?project=<id> so it opens where they
    *  left off. Null (or still loading) → the editor opens fresh. */
   editorProjectId?: string | null;
+  /** A party summons (program 2.23): the walker landed on a
+   *  /world?party=CODE invite; the page verified the table against
+   *  the server and threads the result here for the Marble Table.
+   *  Null when this visit carries no invite. */
+  partyInvite?: { code: string; room: import("@/lib/world/games-lobby").PartyOpenRoom | null } | null;
   /** The Create desks' Send-to-the-editor chip: step through to the
    *  Visual Vibes editor station (the page swaps the panel target;
    *  the step-through's newest-project seed resolves on open, and
@@ -1083,7 +1088,7 @@ export default function StationPanel(props: StationPanelProps) {
         if (resolution.pattern === "games") {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
-              <GamesPanel stationId={station.id} isLight={isLight} />
+              <GamesPanel stationId={station.id} isLight={isLight} partyInvite={props.partyInvite ?? null} />
             </PanelBoundary>
           );
         }

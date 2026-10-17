@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
@@ -38,7 +38,14 @@ import {
   jukeboxNeedsSeek,
 } from "@/lib/world/jukebox-sync";
 import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
-import { MUSIC_HALL_ID } from "@/lib/world/palace-layout";
+import { GAME_ROOMS_ID, MUSIC_HALL_ID } from "@/lib/world/palace-layout";
+import {
+  parsePartyInvite,
+  parsePartyRoomSnapshot,
+  partySummonsHeadline,
+  PARTY_GAME_META,
+  type PartyOpenRoom,
+} from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
@@ -371,6 +378,72 @@ export default function WorldPage() {
   const walkInAsRef = useRef<string | null>(walkInAs);
   walkInAsRef.current = walkInAs;
   const [siteTheme, setSiteTheme] = useState<HallTheme>(() => currentHallTheme());
+  /* A party summons (program 2.23): this visit landed on a
+     /world?party=CODE invite link. The code is parsed once on
+     entry; the TABLE is verified against the server (never trusted
+     from the link alone) once we're inside; the summons card below
+     walks the member to the Game Rooms and the Marble Table panel
+     opens with the join pre-filled. Guests get the honest pitch:
+     party tables are members-only — sign in and the same link
+     brings them back to the table. */
+  const [partyInviteCode] = useState<string | null>(() =>
+    parsePartyInvite(window.location.search),
+  );
+  const [inviteRoom, setInviteRoom] = useState<PartyOpenRoom | null>(null);
+  const [inviteResolved, setInviteResolved] = useState(false);
+  const [inviteDismissed, setInviteDismissed] = useState(false);
+  const invitePanelPendingRef = useRef(false);
+
+  useEffect(() => {
+    if (!partyInviteCode || status !== "inside" || isGuest) {
+      if (partyInviteCode && status === "inside" && isGuest) setInviteResolved(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(
+          `/api/party/rooms/${encodeURIComponent(partyInviteCode)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        if (!cancelled) {
+          setInviteRoom(res.ok ? parsePartyRoomSnapshot(await res.json()) : null);
+          setInviteResolved(true);
+        }
+      } catch {
+        if (!cancelled) setInviteResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyInviteCode, status, isGuest]);
+
+  /* The summons walk: cross into the Game Rooms if we're not there
+     (the transfer's own room-changed handler closes whatever panel
+     was open, so the Marble Table opens only once we STAND there —
+     the pending flag below), then open the table's panel with the
+     invite threaded through. */
+  const goToInvitedTable = useCallback(() => {
+    const station = STATION_BY_ID.get("marble-table");
+    if (!station) return;
+    setInviteDismissed(true);
+    if (roomId === GAME_ROOMS_ID) {
+      setPanelTarget({ kind: "station", station });
+    } else {
+      invitePanelPendingRef.current = true;
+      clientRef.current?.enterRoom(GAME_ROOMS_ID);
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (roomId !== GAME_ROOMS_ID || !invitePanelPendingRef.current) return;
+    invitePanelPendingRef.current = false;
+    const station = STATION_BY_ID.get("marble-table");
+    if (station) setPanelTarget({ kind: "station", station });
+  }, [roomId]);
 
   /* Follow the site theme live — the floating toggle (and every other
      theme control) flips the <html> class; watch it the same way the
@@ -1382,6 +1455,92 @@ export default function WorldPage() {
         </div>
       )}
 
+      {/* The party summons (2.23): a /world?party=CODE landing. The
+          table named here is the SERVER's room snapshot, not the
+          link's claim — a closed table says so, a guest gets the
+          members-only pitch, and nobody is auto-seated: the walk
+          and the seat are the walker's own taps. */}
+      {partyInviteCode && status === "inside" && !inviteDismissed && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#f6ead0]"
+              : "border-[#d4af37]/40 bg-[#171106]"
+          }`}
+          data-testid="world-party-summons-banner"
+        >
+          <PartyPopper className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          {isGuest ? (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                A friend summoned you to their party table — but the tables are
+                members-only. Sign in, then open this same link and your seat will be
+                waiting.
+              </p>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Sign in to join the table
+              </Link>
+            </>
+          ) : !inviteResolved ? (
+            <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+              You&rsquo;ve been summoned to a party table — checking that it&rsquo;s
+              still open…
+            </p>
+          ) : inviteRoom ? (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                {partySummonsHeadline(inviteRoom)} — {inviteRoom.players}/
+                {PARTY_GAME_META[inviteRoom.game].seats} seated
+                {inviteRoom.profileSlug
+                  ? `, playing at @${inviteRoom.profileSlug}`
+                  : inviteRoom.streamId
+                    ? ", on a live stream"
+                    : ""}
+                . Join your party?
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-go"
+                onClick={goToInvitedTable}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Take me to the table
+              </button>
+            </>
+          ) : (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                That party table has closed — but the Game Rooms are open, and the
+                Marble Table keeps the code filled in if it reopens.
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-go"
+                onClick={goToInvitedTable}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Go to the Game Rooms
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            aria-label="Dismiss the summons"
+            onClick={() => setInviteDismissed(true)}
+            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                : "border-white/15 text-white/70"
+            }`}
+          >
+            Not now
+          </button>
+        </div>
+      )}
+
       {/* ── The room ── */}
       <div ref={roomRef} className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
         <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" data-testid="world-canvas" />
@@ -1821,6 +1980,11 @@ export default function WorldPage() {
           myPeerId={myPeerId}
           isAdmin={isAdmin}
           editorProjectId={editorProjectId}
+          partyInvite={
+            partyInviteCode
+              ? { code: partyInviteCode, room: inviteRoom }
+              : null
+          }
           onOpenEditorStation={() => {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
