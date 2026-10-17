@@ -14,6 +14,14 @@
  * them; cross the hall, they fade out. Mute is local-track mute (the
  * mic track disables; peers hear silence, the mesh stays up).
  *
+ * The mesh is ROOM-WIDE, not proximity-gated: connections are held
+ * with every in-voice peer (server cap 12) whatever the distance —
+ * proximity lives purely in the receive gains. That's what makes the
+ * voice modes (owner's order, 2026-10-16) honest: Lobby (hear the
+ * whole hall) is a gain policy, not a connection trick — the streams
+ * are already here. Deafen is the same policy at zero, plus the mic
+ * mute the toggle machine orders alongside it.
+ *
  * NAT note: connections use a public STUN server for candidate
  * gathering. There is no TURN relay configured in v1 — on the small
  * share of networks where peer-to-peer is fully blocked, a pair simply
@@ -39,6 +47,21 @@ export function gainForDistance(distanceM: number): number {
   if (distanceM >= VOICE_MAX_DISTANCE) return 0;
   const t = (VOICE_MAX_DISTANCE - distanceM) / (VOICE_MAX_DISTANCE - VOICE_FULL_HEAR_DISTANCE);
   return t * t * (3 - 2 * t); // smoothstep — no volume cliff at the edge
+}
+
+/** How this client hears the mesh — the voice modes' ears:
+ *   proximity — the distance curve, exactly as it always was
+ *   lobby     — everyone in voice at full volume, near or far
+ *   silent    — deafened: nobody is heard at all
+ *  Pure, so the policy math is unit-tested without a mesh. (Deafen's
+ *  other half — your own mic muted — is the toggle machine's job,
+ *  not the gain's.) */
+export type VoiceGainPolicy = "proximity" | "lobby" | "silent";
+
+export function gainForPolicy(policy: VoiceGainPolicy, distanceM: number): number {
+  if (policy === "lobby") return 1;
+  if (policy === "silent") return 0;
+  return gainForDistance(distanceM);
 }
 
 export interface VoiceSignalData {
@@ -97,6 +120,7 @@ export class VoiceMesh {
   private peers = new Map<string, MeshPeer>();
   private localStream: { getAudioTracks(): Array<{ enabled: boolean }> } | null = null;
   private muted = false;
+  private gainPolicy: VoiceGainPolicy = "proximity";
 
   constructor(private deps: VoiceMeshDeps) {}
 
@@ -106,6 +130,18 @@ export class VoiceMesh {
 
   get isMuted(): boolean {
     return this.muted;
+  }
+
+  get policy(): VoiceGainPolicy {
+    return this.gainPolicy;
+  }
+
+  /** How I hear the room (the voice mode's gain policy). Applies on
+   *  the page's next proximity pass — a quarter second at most — so
+   *  a mode flip never needs the mesh rebuilt: the connections were
+   *  always room-wide, only the gains change. */
+  setGainPolicy(policy: VoiceGainPolicy): void {
+    this.gainPolicy = policy;
   }
 
   /** Begin: stash the mic stream. Pairing starts when the server's
@@ -189,20 +225,24 @@ export class VoiceMesh {
     this.applyMute();
   }
 
-  /** Proximity pass: the page calls this as avatars move. `positions`
-   *  holds every voice peer's current spot; a peer missing from the
-   *  map is treated as out of range (silence, never a blast). */
+  /** Volume pass: the page calls this as avatars move. `positions`
+   *  holds every voice peer's current spot. How a peer's gain is
+   *  decided is the current policy's business:
+   *   - proximity: distance curve; a peer missing from the map is
+   *     out of range (silence, never a blast)
+   *   - lobby: full volume whether placed or not — the whole hall
+   *   - silent (deafened): zero, placed or not */
   updateVolumes(self: { x: number; z: number }, positions: Map<string, { x: number; z: number }>): void {
     for (const [peerId, peer] of this.peers) {
       if (!peer.sink) continue;
       const pos = positions.get(peerId);
       if (!pos) {
-        peer.sink.setGain(0);
+        peer.sink.setGain(this.gainPolicy === "lobby" ? 1 : 0);
         continue;
       }
       const dx = pos.x - self.x;
       const dz = pos.z - self.z;
-      peer.sink.setGain(gainForDistance(Math.hypot(dx, dz)));
+      peer.sink.setGain(gainForPolicy(this.gainPolicy, Math.hypot(dx, dz)));
     }
   }
 

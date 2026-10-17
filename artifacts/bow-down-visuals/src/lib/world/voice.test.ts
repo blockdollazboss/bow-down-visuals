@@ -17,6 +17,7 @@ import { describe, it, expect } from "vitest";
 import {
   VoiceMesh,
   gainForDistance,
+  gainForPolicy,
   VOICE_MAX_DISTANCE,
   type RtcPeerConnectionLike,
   type RtcDescriptionLike,
@@ -250,5 +251,91 @@ describe("mute, proximity, teardown", () => {
     expect(mesh.levelFor("peer-a")).toBeCloseTo(0.42);
     mesh.dropPeer("peer-a");
     expect(mesh.levelFor("peer-a")).toBe(0);
+  });
+});
+
+describe("gainForPolicy — the voice modes' ears", () => {
+  it("proximity IS the distance curve, unchanged", () => {
+    for (const d of [0, 2, 6, 9, 12, 16, 30]) {
+      expect(gainForPolicy("proximity", d)).toBe(gainForDistance(d));
+    }
+  });
+
+  it("lobby is full volume at every distance — even unmeasurable ones", () => {
+    expect(gainForPolicy("lobby", 0)).toBe(1);
+    expect(gainForPolicy("lobby", VOICE_MAX_DISTANCE + 40)).toBe(1);
+    expect(gainForPolicy("lobby", Number.NaN)).toBe(1);
+  });
+
+  it("silent is zero at every distance, even arm's length", () => {
+    expect(gainForPolicy("silent", 0)).toBe(0);
+    expect(gainForPolicy("silent", 1)).toBe(0);
+    expect(gainForPolicy("silent", 100)).toBe(0);
+  });
+});
+
+describe("the mesh under a gain policy", () => {
+  async function twoPeers() {
+    const ctx = makeMesh();
+    ctx.mesh.start(ctx.localStream as never);
+    await ctx.mesh.handleVoiceState(["peer-a", "peer-b"]);
+    const [pcA, pcB] = [...ctx.pcs.values()] as [FakePc, FakePc];
+    pcA.emitTrack({ id: "stream-a" });
+    pcB.emitTrack({ id: "stream-b" });
+    return ctx;
+  }
+  const nearFar = new Map([
+    ["peer-a", { x: 1, z: 0 }], // right next to me
+    ["peer-b", { x: 15, z: 0 }], // nearly across the hall
+  ]);
+
+  it("defaults to proximity", async () => {
+    const { mesh, sinks } = await twoPeers();
+    expect(mesh.policy).toBe("proximity");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(sinks.get("peer-a")!.last).toBe(1);
+    expect(sinks.get("peer-b")!.last).toBeLessThan(0.05);
+  });
+
+  it("lobby hears the far end of the hall at full volume — and an unplaced peer too", async () => {
+    const { mesh, sinks } = await twoPeers();
+    mesh.setGainPolicy("lobby");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(sinks.get("peer-a")!.last).toBe(1);
+    expect(sinks.get("peer-b")!.last).toBe(1);
+    // A voice peer whose position hasn't landed yet is still heard —
+    // that's the point of the lobby: nobody is out of earshot.
+    mesh.updateVolumes({ x: 0, z: 0 }, new Map());
+    expect(sinks.get("peer-a")!.last).toBe(1);
+  });
+
+  it("silent (deafened) zeroes everyone, near or far, placed or not", async () => {
+    const { mesh, sinks } = await twoPeers();
+    mesh.setGainPolicy("silent");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(sinks.get("peer-a")!.last).toBe(0);
+    expect(sinks.get("peer-b")!.last).toBe(0);
+    mesh.updateVolumes({ x: 0, z: 0 }, new Map());
+    expect(sinks.get("peer-a")!.last).toBe(0);
+  });
+
+  it("flipping back to proximity restores the exact curve — no residue", async () => {
+    const { mesh, sinks } = await twoPeers();
+    mesh.setGainPolicy("lobby");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(sinks.get("peer-b")!.last).toBe(1);
+    mesh.setGainPolicy("proximity");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(sinks.get("peer-a")!.last).toBe(1);
+    expect(sinks.get("peer-b")!.last).toBeLessThan(0.05);
+  });
+
+  it("the policy never tears down connections — ears only", async () => {
+    const { mesh } = await twoPeers();
+    mesh.setGainPolicy("silent");
+    mesh.updateVolumes({ x: 0, z: 0 }, nearFar);
+    expect(mesh.peerCount).toBe(2);
+    mesh.setGainPolicy("lobby");
+    expect(mesh.peerCount).toBe(2);
   });
 });
