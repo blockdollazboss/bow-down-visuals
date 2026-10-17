@@ -22,6 +22,7 @@ import {
   type PlatformDeliveryStatus,
 } from "../../lib/distribution-aggregator";
 import { parseSpotifyItem } from "../../lib/distribution-legacy";
+import { fanOutToFollowers } from "../../lib/notify-fanout";
 
 const router = Router();
 
@@ -1152,6 +1153,88 @@ router.post("/distribution/releases/:id/generate-barcode", requireAuth, async (r
   }
 });
 
+/* ─── Release announcement (linkage) ─────────────────────────────────────
+   A submitted release announces itself — before this, submit touched
+   only distribution_releases: the release never appeared on the
+   creator's profile and no follower ever heard about it, even though
+   POST /notify's release fan-out existed for exactly this.
+
+   On the draft → packaged transition (the ONLY way this runs — submit
+   409s on a non-draft, so the announcement is exactly-once by
+   construction):
+   1. The released work appears on the creator's public profile as a
+      published profile track — the profile catalog row the public
+      page's top_tracks reads and /publish/track writes. It is
+      projected FROM the release record, whose song_id already points
+      at the one library song (release creation verifies the songs
+      row and pre-fills audio from it): no parallel song record is
+      invented. Keyed on (profile, audio_url) — a row that already
+      carries this audio is refreshed + published, never duplicated.
+      Release-level audio only: tracks[] carry titles, not audio, so
+      an EP/album announces with its lead audio, like the release
+      itself presents it.
+   2. Every follower gets the release notification through the
+      POST /notify fan-out contract (lib/notify-fanout), linking to
+      the track's own page.
+
+   Awaited but NON-FATAL: credits are charged and the release is
+   packaged before this runs, so an announcement failure is logged —
+   never a failed (or worse, rolled-back) submission. */
+async function announceRelease(row: ReleaseRow, ownerUserId: string): Promise<void> {
+  try {
+    const profileRes = await db.execute(sql`
+      SELECT id, slug FROM creator_profiles WHERE user_id = ${ownerUserId} LIMIT 1
+    `);
+    const profile = profileRes.rows[0] as { id: string; slug: string } | undefined;
+    if (!profile) return; // No creator profile yet — nowhere to announce.
+
+    let trackId: string | null = null;
+    if (row.audio_url) {
+      const existingRes = await db.execute(sql`
+        SELECT id FROM profile_tracks
+        WHERE profile_id = ${profile.id} AND audio_url = ${row.audio_url}
+        LIMIT 1
+      `);
+      const existingTrack = existingRes.rows[0] as { id: string } | undefined;
+      if (existingTrack) {
+        trackId = existingTrack.id;
+        await db.execute(sql`
+          UPDATE profile_tracks
+          SET title = ${row.title},
+              artwork_url = ${row.artwork_url},
+              genre = ${row.genre},
+              isrc = ${row.isrc},
+              is_published = true
+          WHERE id = ${trackId}
+        `);
+      } else {
+        const inserted = await db.execute(sql`
+          INSERT INTO profile_tracks
+            (profile_id, title, audio_url, artwork_url, genre, isrc, is_published)
+          VALUES (${profile.id}, ${row.title}, ${row.audio_url}, ${row.artwork_url},
+                  ${row.genre}, ${row.isrc}, true)
+          RETURNING id
+        `);
+        trackId = (inserted.rows[0] as { id: string } | undefined)?.id ?? null;
+      }
+    }
+
+    await fanOutToFollowers({
+      profileId: profile.id,
+      ownerUserId,
+      kind: "release",
+      title: `${row.artist_name} — new release: ${row.title}`.slice(0, 140),
+      body: `"${row.title}" is out now. Tap to listen on their page.`.slice(0, 500),
+      link: trackId ? `/track/${trackId}` : `/artist/${profile.slug}`,
+    });
+  } catch (err) {
+    logger.error(
+      { err, releaseId: row.id },
+      "[distribution] release announcement failed — release stays packaged",
+    );
+  }
+}
+
 /* ─── Submit for distribution (paid) ───────────────────────────────────────
    POST /api/distribution/releases/:id/submit
    1. Validates the server-side release checklist (400 + checklist when incomplete).
@@ -1258,6 +1341,12 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
 
     activeDeliveries.set(row.id, { aggregatorReleaseId });
     ensureDeliveryPoller();
+
+    /* Announce: profile presence + follower fan-out. Awaited so the
+       announcement is real before we answer, non-fatal by design
+       (announceRelease never throws — the release is already paid
+       and packaged at this point). */
+    await announceRelease(row, req.userId!);
 
     res.json({
       release: rowToRelease(row),
