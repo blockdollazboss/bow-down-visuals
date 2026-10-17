@@ -1,9 +1,10 @@
 /**
  * WalkInAsPicker — "Walk in as": choose who you are in the King's
- * Hall. The house avatar (the classic tinted figure) or one of your
- * Creative Vault characters — its portrait stands in the hall on a
- * gold-framed panel, and its lips move when you talk. Signed-in
- * members only; the world page renders this for them alone.
+ * Hall. The house default (the palace guard — a King Shark of the
+ * hall, never the King's own character) or one of your Creative
+ * Vault characters — its portrait stands in the hall on a gold-framed
+ * panel, and its lips move when you talk. Signed-in members only;
+ * the world page renders this for them alone.
  *
  * Honest states, no dead ends: characters without a portrait can't
  * stand in the hall yet and say so; an empty vault links straight to
@@ -51,7 +52,8 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
           Walk in as
         </span>
         <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-0.5">
-          {/* The house avatar — who you are with no pick. */}
+          {/* The house default — who you are with no pick: the
+              palace guard, standing life-size in the hall. */}
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -64,10 +66,10 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             </span>
             <span className="min-w-0">
               <span className={`flex items-center gap-1 text-sm font-bold ${nameCls}`}>
-                House avatar
+                Palace Guard
                 {selectedId === null ? <Check className="h-4 w-4 text-[#d4af37]" /> : null}
               </span>
-              <span className={`block truncate text-[11px] ${subCls}`}>The classic look</span>
+              <span className={`block truncate text-[11px] ${subCls}`}>The house default</span>
             </span>
           </button>
 
@@ -77,7 +79,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
 
           {loadFailed ? (
             <span className={`px-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-              Your characters couldn't load — the house avatar has you covered.
+              Your characters couldn't load — the palace guard has you covered.
             </span>
           ) : null}
 

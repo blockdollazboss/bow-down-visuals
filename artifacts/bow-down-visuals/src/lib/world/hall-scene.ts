@@ -57,6 +57,14 @@ import {
   IDLE_GAMEPAD_EDGES,
   type GamepadEdges,
 } from "./gamepad";
+import {
+  figureKindFor,
+  figureWidthForHeight,
+  defaultFigureCanvasSize,
+  defaultCharacterUrl,
+  DEFAULT_FIGURE_HEIGHT,
+  type DefaultArtState,
+} from "./figure";
 
 export interface HallScreenSource {
   mode: "live" | "featured" | "video";
@@ -309,6 +317,11 @@ interface AvatarRig {
   group: THREE.Group;
   body: THREE.Group;
   sprite: THREE.Sprite;
+  /** Standing as the house default figure (the palace guard) —
+   *  drives the idle sway and the art-landing trade-up. */
+  defaultFigure: boolean;
+  /** Per-figure phase so the hall doesn't sway in lockstep. */
+  swayPhase: number;
   /** The floor ring (brightened + widened for Front Row members). */
   ring: THREE.Mesh;
   /** Whether the Front Row treatment is currently applied. */
@@ -338,6 +351,7 @@ const PORTRAIT_PANEL_H = PORTRAIT_PANEL_W * (PORTRAIT_CANVAS_H / PORTRAIT_CANVAS
 const PORTRAIT_BASE_Y = 0.5; // easel height — the panel's bottom edge
 const PORTRAIT_SPRITE_Y = 2.18;
 const CAPSULE_SPRITE_Y = 2.3;
+const DEFAULT_SPRITE_Y = 2.12;
 
 function buildCapsuleBody(tintHex: string): THREE.Group {
   const body = new THREE.Group();
@@ -456,6 +470,77 @@ function buildPortraitFigure(image: HTMLImageElement, mouth: MouthBox | null): B
   return { body, portrait };
 }
 
+let shadowTex: THREE.CanvasTexture | null = null;
+function shadowTexture(): THREE.CanvasTexture {
+  if (!shadowTex) {
+    shadowTex = glowTexture([
+      [0, "rgba(0,0,0,0.44)"],
+      [0.55, "rgba(0,0,0,0.22)"],
+      [1, "rgba(0,0,0,0)"],
+    ]);
+  }
+  return shadowTex;
+}
+
+/** The house default figure: the King Shark palace guard, life-size,
+ *  standing on a soft floor shadow. Built on the portrait pipeline —
+ *  its own canvas per figure (lips are per-speaker), the art's aspect
+ *  preserved edge-to-edge (the canvas is sized to the art), and the
+ *  landmarked mouth driving lips exactly like a vault portrait. The
+ *  art is a full-body cut-out (transparent ground): the plane is
+ *  transparent so the guard himself stands in the hall, not a card. */
+function buildDefaultFigure(image: HTMLImageElement, mouth: MouthBox | null): BuiltFigure {
+  const srcW = image.naturalWidth || image.width;
+  const srcH = image.naturalHeight || image.height;
+  const aspect = srcW / srcH;
+  const size = defaultFigureCanvasSize(aspect);
+  const canvas = document.createElement("canvas");
+  canvas.width = size.w;
+  canvas.height = size.h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("default figure canvas has no 2d context");
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const portrait: PortraitState = {
+    canvas,
+    ctx,
+    texture,
+    image,
+    srcW,
+    srcH,
+    cover: coverTransform(srcW, srcH, size.w, size.h),
+    mouth,
+  };
+
+  const body = new THREE.Group();
+  const width = figureWidthForHeight(DEFAULT_FIGURE_HEIGHT, aspect);
+  const figure = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, DEFAULT_FIGURE_HEIGHT),
+    new THREE.MeshStandardMaterial({
+      map: texture,
+      transparent: true,
+      roughness: 0.6,
+      metalness: 0.05,
+      alphaTest: 0.02,
+    }),
+  );
+  figure.position.y = DEFAULT_FIGURE_HEIGHT / 2;
+  body.add(figure);
+  // The soft floor shadow — grounds the figure on the marble.
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 1.15),
+    new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.015;
+  shadow.renderOrder = 1;
+  body.add(shadow);
+
+  drawPortraitCanvas(portrait, 0);
+  return { body, portrait };
+}
+
 function buildAvatar(peer: WorldPeer): AvatarRig {
   const group = new THREE.Group();
 
@@ -483,6 +568,8 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     group,
     body,
     sprite,
+    defaultFigure: false,
+    swayPhase: Math.random() * Math.PI * 2,
     ring,
     frontRow: false,
     plateKey: namePlateKey(peer),
@@ -572,6 +659,14 @@ export class KingsHallScene {
   private frontRowSlugs = new Set<string>();
   /** The honored seat arc before the stage, shown while a show runs. */
   private stageSeats: THREE.Group | null = null;
+  /** The house default figure's art (the palace-guard slot): loaded
+   *  once per scene; "ready" trades every default presence up from
+   *  the capsule, "failed" leaves the capsule as the fallback. */
+  private defaultArt: { status: DefaultArtState; image: HTMLImageElement | null; mouth: MouthBox | null } = {
+    status: "pending",
+    image: null,
+    mouth: null,
+  };
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
@@ -610,6 +705,7 @@ export class KingsHallScene {
 
     this.screenMaterial = new THREE.MeshBasicMaterial({ map: screenIdleTexture() });
     this.applyLook(theme);
+    this.loadDefaultArt();
     this.bindControls();
     this.resize();
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -1521,18 +1617,30 @@ export class KingsHallScene {
   }
 
   /** Keep the standing figure matched to the peer's character: a new
-   *  pick starts the portrait load (the capsule keeps standing until
-   *  it lands), clearing the pick restores the capsule at once, and a
-   *  failed load leaves the capsule — requestedId stays set so the
-   *  120 ms upsert cadence never turns into a retry storm. */
+   *  pick starts the portrait load (the current figure keeps standing
+   *  until it lands), clearing the pick restores the house default at
+   *  once, and a failed load leaves what's standing — requestedId
+   *  stays set so the 120 ms upsert cadence never turns into a retry
+   *  storm. */
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
     const want = peer.character && peer.character.portraitUrl ? peer.character : null;
     const wantId = want?.id ?? null;
-    if (wantId === rig.requestedId) return;
+    if (wantId === rig.requestedId) {
+      /* No character change — the one drift left is the default art
+       * landing after this rig settled as a capsule: trade up. */
+      if (
+        wantId === null &&
+        !rig.portrait &&
+        figureKindFor(false, this.defaultArt.status) === "default"
+      ) {
+        this.swapToDefaultOrCapsule(rig);
+      }
+      return;
+    }
     rig.requestedId = wantId;
     const seq = ++rig.swapSeq;
     if (!want) {
-      this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
+      this.swapToDefaultOrCapsule(rig);
       return;
     }
     const img = new Image();
@@ -1543,20 +1651,76 @@ export class KingsHallScene {
         if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
         try {
           const built = buildPortraitFigure(img, mouth);
+          rig.defaultFigure = false;
           this.swapFigure(rig, built.body, built.portrait, wantId);
         } catch {
-          /* canvas unavailable — the capsule keeps standing */
+          /* canvas unavailable — the standing figure keeps standing */
         }
       });
     };
     img.onerror = () => {
       /* portrait unreachable (or not CORS-clean for WebGL): the
-         capsule keeps standing; no retry until the pick changes */
+         standing figure keeps standing; no retry until the pick
+         changes */
     };
     img.src = want.portraitUrl;
   }
 
-  private swapFigure(rig: AvatarRig, body: THREE.Group, portrait: PortraitState | null, characterId: string | null): void {
+  /** Stand the house default: the palace-guard figure once its art
+   *  has landed, the capsule until then (and forever, if the slot
+   *  file can't load — the documented fallback, same as a failed
+   *  portrait load). Every default figure builds its own canvas off
+   *  the one shared image, so lips stay per-speaker. */
+  private swapToDefaultOrCapsule(rig: AvatarRig): void {
+    if (this.defaultArt.status === "ready" && this.defaultArt.image) {
+      try {
+        const built = buildDefaultFigure(this.defaultArt.image, this.defaultArt.mouth);
+        rig.defaultFigure = true;
+        this.swapFigure(rig, built.body, built.portrait, null, DEFAULT_SPRITE_Y);
+        return;
+      } catch {
+        /* canvas unavailable — fall through to the capsule */
+      }
+    }
+    rig.defaultFigure = false;
+    this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
+  }
+
+  /** Load the default figure's art once for the whole scene (the
+   *  slot at public/world/default-character.png — approved art drops
+   *  in there, no code change) and landmark its mouth: the guard's
+   *  face is frontal, so his lips work like any portrait's. When it
+   *  lands, every capsule-by-default presence trades up. A missing
+   *  or unreadable slot leaves the capsule standing — the fallback,
+   *  never a broken figure. */
+  private loadDefaultArt(): void {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      void locatePortraitMouth(img).then((mouth) => {
+        if (this.disposed) return;
+        this.defaultArt = { status: "ready", image: img, mouth };
+        for (const rig of this.avatars.values()) {
+          if (rig.requestedId === null && !rig.portrait) this.swapToDefaultOrCapsule(rig);
+        }
+        if (this.selfRig && this.selfRig.requestedId === null && !this.selfRig.portrait) {
+          this.swapToDefaultOrCapsule(this.selfRig);
+        }
+      });
+    };
+    img.onerror = () => {
+      this.defaultArt = { status: "failed", image: null, mouth: null };
+    };
+    img.src = defaultCharacterUrl(import.meta.env.BASE_URL);
+  }
+
+  private swapFigure(
+    rig: AvatarRig,
+    body: THREE.Group,
+    portrait: PortraitState | null,
+    characterId: string | null,
+    spriteY?: number,
+  ): void {
     rig.group.remove(rig.body);
     if (rig.portrait) rig.portrait.texture.dispose();
     disposeObjectTree(rig.body);
@@ -1565,7 +1729,7 @@ export class KingsHallScene {
     rig.characterId = characterId;
     rig.speechTarget = 0;
     rig.speechShown = 0;
-    rig.sprite.position.y = portrait ? PORTRAIT_SPRITE_Y : CAPSULE_SPRITE_Y;
+    rig.sprite.position.y = spriteY ?? (portrait ? PORTRAIT_SPRITE_Y : CAPSULE_SPRITE_Y);
     rig.group.add(body);
   }
 
@@ -1831,6 +1995,11 @@ export class KingsHallScene {
       Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
       rig.group.rotation.y;
     rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
+    /* The default figure breathes: a barely-there idle sway, phased
+     * per figure so the hall never moves in lockstep. */
+    if (rig.defaultFigure) {
+      rig.body.rotation.z = Math.sin(nowMs / 1500 + rig.swayPhase) * 0.018;
+    }
 
     const opennessDiff = rig.speechTarget - rig.speechShown;
     if (Math.abs(opennessDiff) > 0.002) {

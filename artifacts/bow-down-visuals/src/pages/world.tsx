@@ -560,11 +560,14 @@ export default function WorldPage() {
         const mesh = meshRef.current;
         if (mesh) {
           for (const peer of client.peers.values()) {
-            if (peer.character) scene.setSpeechLevel(peer.peerId, mesh.levelFor(peer.peerId));
+            /* Character portraits and the default guard figure both
+               carry landmarked lips; the scene ignores figures
+               without a mouth (capsules) on its own. */
+            scene.setSpeechLevel(peer.peerId, mesh.levelFor(peer.peerId));
           }
         }
         // Your own lips follow your own mic (third person shows them).
-        if (client.self?.character) {
+        if (client.self) {
           scene.setSelfSpeechLevel(localTapRef.current?.getLevel() ?? 0);
         }
       }, 66);
