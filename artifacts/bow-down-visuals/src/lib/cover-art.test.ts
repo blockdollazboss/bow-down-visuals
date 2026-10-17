@@ -49,9 +49,9 @@ describe("cover art aspect ratios", () => {
 });
 
 describe("cover art pricing tiers", () => {
-  it("standard costs 2 credits, premium costs 3", () => {
-    expect(COVER_ART_TIERS.find((t) => t.key === "standard")?.credits).toBe(2);
-    expect(COVER_ART_TIERS.find((t) => t.key === "premium")?.credits).toBe(3);
+  it("standard costs 200 credits, premium costs 300", () => {
+    expect(COVER_ART_TIERS.find((t) => t.key === "standard")?.credits).toBe(200);
+    expect(COVER_ART_TIERS.find((t) => t.key === "premium")?.credits).toBe(300);
   });
 
   it("falls back to standard for unknown keys", () => {

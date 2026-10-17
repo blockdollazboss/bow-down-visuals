@@ -37,7 +37,7 @@ describe("estimateVoiceoverCost", () => {
   });
 
   it("scales linearly for long scripts", () => {
-    // 1500 words = 10 minutes → 20 credits
+    // 1500 words = 10 minutes → 2000 credits (200/minute)
     const words = new Array(1500).fill("word").join(" ");
     const est = estimateVoiceoverCost(words);
     expect(est.billableMinutes).toBe(10);
@@ -46,7 +46,7 @@ describe("estimateVoiceoverCost", () => {
 
   it("keeps pricing constants in sync with the backend", () => {
     expect(WORDS_PER_MINUTE).toBe(150);
-    expect(VOICEOVER_CREDITS_PER_MINUTE).toBe(2);
+    expect(VOICEOVER_CREDITS_PER_MINUTE).toBe(200);
   });
 });
 
