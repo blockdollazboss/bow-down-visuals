@@ -24,7 +24,6 @@
  * 30) rather than carried as decoration. */
 
 export type SchedulerMediaType = "video" | "image";
-export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
 
 export function parseSchedulerMediaType(v: string | null | undefined): SchedulerMediaType {
   return v === "image" ? "image" : "video";
