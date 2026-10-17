@@ -27,8 +27,10 @@
  *
  * The directory is the palace's front-door signal: every room with
  * its headcount and who's inside, plus a LIVE flag on the hall when
- * a show holds the stage. It's inside every welcome, pushed as
- * `palace.directory` on every change, and served over HTTP at
+ * a show holds the stage. One `palace.directory` frame follows every
+ * welcome and every room change (the room's onChange broadcast —
+ * a joiner is already inside when it fires, so entry carries
+ * exactly one copy), and it's served over HTTP at
  * GET /world/directory for surfaces that haven't stepped in yet.
  */
 import type { RoomHub, WsClientSocket } from "./live-ws";
@@ -198,17 +200,6 @@ export class WorldPalace {
     }
   }
 
-  /** The directory rides every welcome — a fresh snapshot the moment
-   *  you step in, wherever you stepped in from. Call AFTER the
-   *  room's own welcome went out. */
-  sendDirectory(socket: WsClientSocket): void {
-    try {
-      socket.send(JSON.stringify({ type: "palace.directory", rooms: this.directory() }));
-    } catch {
-      /* the close handler reaps it */
-    }
-  }
-
   /**
    * Route one frame. `room.enter` is the registry's own; everything
    * else belongs to the room the socket stands in. A room.enter for
@@ -288,6 +279,9 @@ export class WorldPalace {
       voiceDeaf: state.voiceDeaf,
       at,
     });
-    this.sendDirectory(socket);
+    /* No explicit directory send to the walker: attach's onChange
+     * broadcast IS their copy — the welcome went out first, then
+     * the room change carries the fresh directory to everyone in
+     * the room, the walker included. Exactly one frame. */
   }
 }

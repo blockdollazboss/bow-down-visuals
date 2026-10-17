@@ -716,9 +716,11 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     identity = { ...identity, admin: auth ? isWorldAdminEmail(auth.email) : false };
 
     const client = socket as unknown as WsClientSocket;
-    /* Everyone enters through the hall; doorways move them after. */
+    /* Everyone enters through the hall; doorways move them after.
+     * The directory rides the attach's change broadcast — the
+     * joiner is inside when it fires, so entry carries exactly one
+     * palace.directory frame, right after the welcome. */
     if (!palace.enterHall(client, identity)) return; // room_full already sent
-    palace.sendDirectory(client);
     socket.on("message", (data) => {
       try {
         palace.handleFrame(client, data.toString());
