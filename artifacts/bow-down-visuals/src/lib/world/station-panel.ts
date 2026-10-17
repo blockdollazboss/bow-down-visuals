@@ -1,9 +1,18 @@
 /**
  * station-panel.ts — the pure seam between a door-station
- * (lib/world/stations) and its panel: how a panel path splits for
- * the in-panel router, and who may actually open a door.
+ * (lib/world/stations) and its panel: who may actually open a
+ * door, and what opening it resolves to under registry v2.
+ *
+ * Registry v2 (NATIVE-PLAN §3.0): a station NEVER resolves to a
+ * website page component. `resolveStationPanel` below is the one
+ * resolution the panel host renders from, and its union has no
+ * page variant — that absence is the law, pinned by the tests.
+ * The in-panel router table further down now serves ONLY the
+ * bare-page target a custom panel can still point at (a Front Row
+ * portrait → a creator profile); it is unreachable from the
+ * station-open path and is deleted at the plan's Step 8.
  */
-import type { PalaceStation } from "./stations";
+import type { NativePattern, PalaceStation } from "./stations";
 
 /** Split a station's panel path into the pathname the in-panel
  *  router matches and the search its pages read (the Create house's
@@ -21,15 +30,66 @@ export function stationGuestBlocked(station: PalaceStation, isGuest: boolean): b
   return station.membersOnly && isGuest;
 }
 
-/* ─── The in-panel router's reach ───────────────────────────────────
-   The paths the palace's panels can open WITHOUT leaving the
-   palace: every station's page target, the profile door the Court
-   portraits open, and the deeper hub destinations the panels'
-   pages link to most — a post, a track, a watch page, a creator's
-   shop (the Marketplace's whole point), the coach, the project
-   list, the credit ledger, the release desk, the scheduler.
-   StationPanel builds its Switch from this table; anything not
-   matched here lands on the honest miss card. Deliberately NOT
+/* ─── Registry v2 resolution ────────────────────────────────────────
+   What opening a station yields. There is deliberately NO page
+   variant: a station can never resolve to a mounted website page
+   component again. Native stations resolve to their pattern —
+   until that pattern's surface ships, the host renders the honest
+   "being rebuilt" placeholder for the pattern (the placeholder IS
+   the native resolution's rendered form in this framework step). */
+
+/** The transfer footer's exact label — one quiet button, learned
+ *  once, trusted everywhere (NATIVE-PLAN §3.0, owner ruling Q3). */
+export const TRANSFER_BUTTON_LABEL = "Open on the website ↗";
+
+export type StationPanelResolution =
+  | { type: "guest-pitch"; station: PalaceStation }
+  | {
+      type: "native";
+      station: PalaceStation;
+      pattern: NativePattern;
+      /** The transfer footer's href: the station's exact former
+       *  website path. Registry tests pin a non-null websitePath
+       *  for every native station, so the "/" fallback is
+       *  unreachable in practice. */
+      websitePath: string;
+    }
+  | { type: "custom"; station: PalaceStation; id: string }
+  | { type: "stepthrough"; station: PalaceStation; path: string };
+
+/** Resolve a station open for this walker. Guests at members-only
+ *  doors resolve to the guest pitch for EVERY kind — the pitch is
+ *  checked before the kind, exactly as the host has always done. */
+export function resolveStationPanel(
+  station: PalaceStation,
+  isGuest: boolean,
+): StationPanelResolution {
+  if (stationGuestBlocked(station, isGuest)) {
+    return { type: "guest-pitch", station };
+  }
+  switch (station.panel.kind) {
+    case "native":
+      return {
+        type: "native",
+        station,
+        pattern: station.panel.pattern,
+        websitePath: station.websitePath ?? "/",
+      };
+    case "custom":
+      return { type: "custom", station, id: station.panel.id };
+    case "stepthrough":
+      return { type: "stepthrough", station, path: station.panel.path };
+  }
+}
+
+/* ─── The in-panel router's reach (LEGACY — Step 8 deletes this) ────
+   Registry v2 note: NO station routes through this table anymore —
+   stations resolve natively (above). This table remains ONLY for
+   the bare-page target a custom panel can still point at (the
+   Court portraits' profile door) and the deeper links inside such
+   a page. StationPanel builds its page-target Switch from it;
+   anything not matched here lands on the honest miss card.
+   Deliberately NOT
    here: /video-editor (a working surface, not a panel page — the
    palace's way in is the Create Wing's step-through door),
    /shorts (a full-viewport snap feed a panel frame breaks),
