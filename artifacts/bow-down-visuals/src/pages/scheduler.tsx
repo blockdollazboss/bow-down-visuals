@@ -252,6 +252,10 @@ export default function Scheduler() {
   const [mediaPrefill, setMediaPrefill] = useState<string | null>(null);
   const [mediaTypePrefill, setMediaTypePrefill] = useState<SchedulerMediaType | null>(null);
   const [platformPrefill, setPlatformPrefill] = useState<SchedulerPlatformKey[] | null>(null);
+  /* Release attribution (0143): set only when the composer was opened
+     from a release handoff (?schedule=1&release=<id>); the created post
+     is stamped with it. Every other entry point leaves it null. */
+  const [releasePrefill, setReleasePrefill] = useState<string | null>(null);
 
   /* Deep-link protocol (used by Multi-Ratio Export handoffs):
      /scheduler?schedule=1&caption=…&media=…&platform=tiktok
@@ -277,10 +281,17 @@ export default function Scheduler() {
       /* mediaType rides the protocol for non-video media — a release
          announcement hands over its cover art as an image post. */
       const mediaType = media ? parseSchedulerMediaType(params.get("mediaType")) : undefined;
+      /* Release handoffs carry the release's id so the post they create
+         can be stamped with it (release_id). Only a uuid is honored —
+         anything else is treated as no attribution. */
+      const releaseParam = params.get("release");
+      const releaseId = releaseParam && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(releaseParam)
+        ? releaseParam
+        : undefined;
       const rawPlatforms = (params.get("platform") ?? "").split(",").map((p) => p.trim().toLowerCase());
       const valid: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"]
         .filter((p) => rawPlatforms.includes(p)) as SchedulerPlatformKey[];
-      openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined, mediaType);
+      openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined, mediaType, releaseId);
       // Consume the params so a refresh doesn't reopen the composer.
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
@@ -358,13 +369,16 @@ export default function Scheduler() {
     [monthCursor],
   );
 
-  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string, mediaUrl?: string, platforms?: SchedulerPlatformKey[], mediaType?: SchedulerMediaType) {
+  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string, mediaUrl?: string, platforms?: SchedulerPlatformKey[], mediaType?: SchedulerMediaType, releaseId?: string) {
     setEditingPost(post ?? null);
     setPrefill(date ? { date, time: time ?? "18:00" } : null);
     setCaptionPrefill(caption ?? null);
     setMediaPrefill(mediaUrl ?? null);
     setMediaTypePrefill(mediaType ?? null);
     setPlatformPrefill(platforms ?? null);
+    /* Editing an existing post keeps ITS attribution; a fresh composer
+       takes the handoff's (release flow only — otherwise null). */
+    setReleasePrefill(post ? (post.releaseId ?? null) : (releaseId ?? null));
     setComposerOpen(true);
   }
 
@@ -615,10 +629,11 @@ export default function Scheduler() {
           mediaPrefill={mediaPrefill}
           mediaTypePrefill={mediaTypePrefill}
           platformPrefill={platformPrefill}
+          releaseIdPrefill={releasePrefill}
           accounts={accounts}
           timezone={timezone}
-          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); }}
-          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); await refresh(); }}
+          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); setReleasePrefill(null); }}
+          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); setReleasePrefill(null); await refresh(); }}
           onOutOfCredits={() => setOutOfCredits(true)}
         />
       )}
@@ -1728,6 +1743,10 @@ function ComposerModal(props: {
   mediaPrefill: string | null;
   mediaTypePrefill: SchedulerMediaType | null;
   platformPrefill: SchedulerPlatformKey[] | null;
+  /* Release attribution (0143): the release this composer session was
+     opened from, or null. Stamped on CREATE only — edits never move a
+     post's attribution. */
+  releaseIdPrefill: string | null;
   accounts: SocialAccountInfo[];
   timezone: string;
   onClose: () => void;
@@ -1875,6 +1894,9 @@ function ComposerModal(props: {
         platforms,
         accountIds,
         scheduledAt,
+        /* Release attribution rides CREATE only, and only when this
+           composer was opened from a release handoff. */
+        ...(isEdit ? {} : props.releaseIdPrefill ? { releaseId: props.releaseIdPrefill } : {}),
       };
       if (isEdit) {
         await api(`/api/scheduler/posts/${post!.id}`, token, { method: "PATCH", body: JSON.stringify(payload) });

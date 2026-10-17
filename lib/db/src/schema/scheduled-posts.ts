@@ -105,6 +105,13 @@ export const scheduledPostsTable = pgTable(
     credits_charged: integer("credits_charged").notNull().default(0),
     /* True once the reservation was refunded — prevents double refunds. */
     credits_refunded: boolean("credits_refunded").notNull().default(false),
+    /* Release attribution (migration 0143): the distribution release this
+       post announces, when it was scheduled FROM the release (the DE-4
+       scheduler-from-release flow carries the id through the composer).
+       Nullable — posts scheduled any other way have no release. No FK:
+       attribution only; deleting a release must never block on or cascade
+       into already-scheduled posts. */
+    release_id: uuid("release_id"),
     ai_best_time: jsonb("ai_best_time").$type<AiBestTimeSuggestion | null>(),
     results: jsonb("results")
       .notNull()

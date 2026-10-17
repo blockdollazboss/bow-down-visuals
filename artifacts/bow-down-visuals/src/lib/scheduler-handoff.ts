@@ -8,9 +8,12 @@
  * EXISTING mediaUrl/mediaType fields (mediaType has supported "image"
  * since the schema was written; the composer just never sent it).
  *
- * There is deliberately no release/song field here — scheduled_posts
- * has none. A real release_id link is a 0142 candidate, not something
- * to invent inside a handoff. */
+ * There is deliberately no song field here — a scheduled post for a song
+ * announces the track page, but the post belongs to no release. A real
+ * release link DOES ride along: when the handoff comes from a release,
+ * its id travels as `release` and the composer stamps it onto the
+ * created row's release_id column (migration 0143) so release-driven
+ * posts stay attributable to the release that spawned them. */
 
 export type SchedulerMediaType = "video" | "image";
 export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
@@ -24,6 +27,9 @@ export interface SchedulerHandoff {
   media?: string | null;
   mediaType?: SchedulerMediaType;
   platforms?: SchedulerPlatformKey[];
+  /** Distribution release id — present ONLY for release handoffs; the
+   *  created scheduled post is stamped with it (release_id, 0143). */
+  releaseId?: string | null;
 }
 
 export function buildSchedulerHref(h: SchedulerHandoff): string {
@@ -35,6 +41,7 @@ export function buildSchedulerHref(h: SchedulerHandoff): string {
     q.set("mediaType", h.mediaType ?? "video");
   }
   if (h.platforms?.length) q.set("platform", h.platforms.join(","));
+  if (h.releaseId) q.set("release", h.releaseId);
   return `/scheduler?${q.toString()}`;
 }
 

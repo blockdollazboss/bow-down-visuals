@@ -66,6 +66,10 @@ export const scheduledPostSchema = z.object({
   accountIds: z.partialRecord(z.enum(PLATFORMS), z.string().uuid()).default({}),
   /* ISO datetime. Omitted (or in the past) → saved as a free draft. */
   scheduledAt: z.string().datetime({ offset: true }).optional(),
+  /* Release attribution (0143): set only by the scheduler-from-release
+     flow, which carries the release's id through the composer. Anything
+     else leaves it null — this is a stamp, not a user-editable field. */
+  releaseId: z.string().uuid().optional().nullable(),
 });
 
 export const updateScheduledPostSchema = z.object({
@@ -103,6 +107,7 @@ function toPublicPost(p: ScheduledPost) {
     attempts: p.attempts,
     lastError: p.last_error,
     creditsCharged: p.credits_charged,
+    releaseId: p.release_id ?? null,
     aiBestTime: p.ai_best_time,
     results: p.results,
     createdAt: p.created_at.toISOString(),
@@ -169,7 +174,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     });
     return;
   }
-  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt } = parsed.data;
+  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt, releaseId } = parsed.data;
 
   const missingAccounts = platforms.filter((p) => !accountIds[p]);
   if (missingAccounts.length > 0) {
@@ -227,6 +232,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
         account_ids: { ...accountIds },
         scheduled_at: wantsSchedule ? fireAt : null,
         credits_charged: cost,
+        release_id: releaseId ?? null,
       })
       .returning();
     if (wantsSchedule) requestPollerTick(); // wake the worker for near-term posts

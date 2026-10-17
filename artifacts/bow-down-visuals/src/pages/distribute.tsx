@@ -1494,6 +1494,7 @@ function PresaveManager(props: {
     caption: announceCaption,
     media: release.artworkUrl,
     mediaType: release.artworkUrl ? "image" : undefined,
+    releaseId: release.id,
   });
 
   return (
