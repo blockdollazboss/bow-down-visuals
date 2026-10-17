@@ -16,12 +16,15 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  chartTrackPlayInput,
+  chartVideoPlayInput,
   followRequest,
   followStateFromResponse,
   followUrl,
   jukeboxTrackId,
   normalizeChartCreators,
   normalizeChartTracks,
+  normalizeChartVideos,
   normalizeFollowStates,
 } from "./charts-board";
 
@@ -62,6 +65,9 @@ describe("normalizeChartTracks", () => {
       artworkUrl: "https://x/art.png",
       plays: 42,
       durationSec: 187,
+      likeCount: 0,
+      mediaUrl: null,
+      profileId: "p1",
     });
     expect(rows[1]!.plays).toBe(5); // no window count → the counter
     expect(rows[1]!.creatorName).toBeNull();
@@ -140,6 +146,93 @@ describe("the follow contract", () => {
   it("the batched follow-state payload keeps only real booleans", () => {
     expect(normalizeFollowStates({ a: true, b: false, c: "yes" })).toEqual({ a: true, b: false });
     expect(normalizeFollowStates(null)).toEqual({});
+  });
+});
+
+describe("Ring 2 (2.27) — likes, videos, and the Shelf-player seam", () => {
+  it("track rows carry their like count, stream URL and profile id", () => {
+    const rows = normalizeChartTracks({
+      tracks: [
+        {
+          id: "t1",
+          title: "Chart Topper",
+          like_count: 17,
+          audio_url: "https://cdn.example.com/t1.mp3",
+          profile_id: "prof-9",
+          play_count: 5,
+        },
+      ],
+    });
+    expect(rows[0]).toMatchObject({ likeCount: 17, mediaUrl: "https://cdn.example.com/t1.mp3", profileId: "prof-9" });
+  });
+
+  it("video rows shape from the payload's videos key, view counts as plays", () => {
+    const rows = normalizeChartVideos({
+      videos: [
+        {
+          id: "v1",
+          title: "The Coronation",
+          thumbnail_url: "https://cdn.example.com/v1.jpg",
+          video_url: "https://cdn.example.com/v1.mp4",
+          view_count: 99,
+          like_count: 7,
+          duration_sec: 240,
+          display_name: "Thy Cheat Code",
+        },
+        { id: "v2", title: "No URL row", view_count: 1 },
+        { title: "no id — skipped" },
+      ],
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      id: "v1",
+      plays: 99,
+      likeCount: 7,
+      mediaUrl: "https://cdn.example.com/v1.mp4",
+      artworkUrl: "https://cdn.example.com/v1.jpg",
+    });
+    expect(rows[1]!.mediaUrl).toBeNull();
+    expect(normalizeChartVideos(null)).toEqual([]);
+    expect(normalizeChartVideos({ tracks: [] })).toEqual([]);
+  });
+
+  it("play inputs build for the Shelf player only when the row carries a playable URL", () => {
+    const trackRow = normalizeChartTracks({
+      tracks: [{ id: "t1", title: "T", audio_url: "https://cdn.example.com/t1.mp3", like_count: 3 }],
+    })[0]!;
+    expect(chartTrackPlayInput(trackRow)).toMatchObject({
+      kind: "track",
+      id: "t1",
+      src: "https://cdn.example.com/t1.mp3",
+      pagePath: "/track/t1",
+      likeCount: 3,
+    });
+    const bareTrack = normalizeChartTracks({ tracks: [{ id: "t2", title: "T2" }] })[0]!;
+    expect(chartTrackPlayInput(bareTrack)).toBeNull();
+
+    const videoRow = normalizeChartVideos({
+      videos: [{ id: "v1", title: "V", video_url: "https://cdn.example.com/v1.mp4" }],
+    })[0]!;
+    expect(chartVideoPlayInput(videoRow)).toMatchObject({
+      kind: "video",
+      id: "v1",
+      src: "https://cdn.example.com/v1.mp4",
+      pagePath: "/watch/v1",
+    });
+    const bareVideo = normalizeChartVideos({ videos: [{ id: "v2", title: "V2" }] })[0]!;
+    expect(chartVideoPlayInput(bareVideo)).toBeNull();
+  });
+
+  it("the board source: Like rides the media rails, videos play on the Shelf player, tracks keep the jukebox Play", () => {
+    expect(boardSrc).toContain("toggleLike");
+    expect(boardSrc).toContain("normalizeChartVideos");
+    expect(boardSrc).toContain("chartVideoPlayInput");
+    expect(boardSrc).toContain("shelfPlayer");
+    expect(boardSrc).toContain('data-testid="world-charts-like"');
+    expect(boardSrc).toContain('data-testid="world-charts-video-play"');
+    // Still no media element and no page pull-up in the board itself.
+    expect(boardSrc).not.toContain("<audio");
+    expect(boardSrc).not.toContain("<video");
   });
 });
 

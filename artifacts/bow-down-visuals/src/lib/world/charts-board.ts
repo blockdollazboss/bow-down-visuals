@@ -21,6 +21,9 @@
  * No new back-end (plan §3.0).
  */
 
+import { resolveMedia } from "@/lib/streaming";
+import type { ShelfPlayInput } from "./shelf";
+
 /* ─── Row shapes the board renders ────────────────────────────────── */
 
 export interface ChartTrackRow {
@@ -34,6 +37,32 @@ export interface ChartTrackRow {
    *  all-time counter. */
   plays: number;
   durationSec: number | null;
+  /** The row's like counter (the Charts Like button's starting
+   *  count; the media like rails return the authoritative count). */
+  likeCount: number;
+  /** The streamable audio URL the discovery SQL already selects
+   *  (audio_url, storage-refreshed server-side) — the Shelf player's
+   *  Play-here source. Null when the row doesn't carry one. */
+  mediaUrl: string | null;
+  /** The owning creator profile's id, when the row carries it. */
+  profileId: string | null;
+}
+
+/** A charting video row (the /charts payload's `videos` key — the
+ *  same SQL family as tracks, video fields). Its Play hands it to
+ *  the Shelf player in-world (2.27); the jukebox is audio-only, so
+ *  videos never take the catalog-id seam. */
+export interface ChartVideoRow {
+  id: string;
+  title: string;
+  creatorName: string | null;
+  genre: string | null;
+  artworkUrl: string | null;
+  plays: number;
+  durationSec: number | null;
+  likeCount: number;
+  mediaUrl: string | null;
+  profileId: string | null;
 }
 
 export interface ChartCreatorRow {
@@ -86,6 +115,34 @@ export function normalizeChartTracks(payload: unknown): ChartTrackRow[] {
       artworkUrl: str(r["artwork_url"] ?? r["artworkUrl"]),
       plays: num(r["window_plays"] ?? r["windowPlays"]) ?? num(r["play_count"] ?? r["playCount"]) ?? 0,
       durationSec: num(r["duration_sec"] ?? r["durationSec"]),
+      likeCount: num(r["like_count"] ?? r["likeCount"]) ?? 0,
+      mediaUrl: str(r["audio_url"] ?? r["audioUrl"]),
+      profileId: str(r["profile_id"] ?? r["profileId"]),
+    });
+  }
+  return out;
+}
+
+/** Shape a /discovery/charts payload's `videos` key into board rows.
+ *  Same defensive discipline as tracks: unusable rows are skipped,
+ *  server rank order is preserved, view counters read as plays. */
+export function normalizeChartVideos(payload: unknown): ChartVideoRow[] {
+  const out: ChartVideoRow[] = [];
+  for (const r of rowsOf(payload, "videos")) {
+    const id = str(r["id"]);
+    const title = str(r["title"]);
+    if (!id || !title) continue;
+    out.push({
+      id,
+      title,
+      creatorName: str(r["display_name"] ?? r["displayName"]),
+      genre: str(r["genre"]),
+      artworkUrl: str(r["thumbnail_url"] ?? r["thumbnailUrl"] ?? r["artwork_url"] ?? r["artworkUrl"]),
+      plays: num(r["window_plays"] ?? r["windowPlays"]) ?? num(r["view_count"] ?? r["viewCount"]) ?? 0,
+      durationSec: num(r["duration_sec"] ?? r["durationSec"]),
+      likeCount: num(r["like_count"] ?? r["likeCount"]) ?? 0,
+      mediaUrl: str(r["video_url"] ?? r["videoUrl"]),
+      profileId: str(r["profile_id"] ?? r["profileId"]),
     });
   }
   return out;
@@ -128,6 +185,50 @@ export function normalizeChartCreators(
 export function jukeboxTrackId(trackId: string): string {
   return trackId.startsWith("track:") ? trackId : `track:${trackId}`;
 }
+
+/* ─── The Shelf-player seam (2.27) ────────────────────────────────────
+   A chart row's second Play: play it HERE, on the one in-world
+   personal player (lib/world/shelf.ts ShelfPlayInput), from the
+   streamable URL the chart row already carries. Null when the row
+   carries no playable URL — the board then offers only the jukebox
+   Play (tracks) or no Play at all (videos), never a dead button. */
+
+export function chartTrackPlayInput(row: ChartTrackRow): ShelfPlayInput | null {
+  if (!row.mediaUrl) return null;
+  const src = resolveMedia(row.mediaUrl);
+  if (!src) return null;
+  return {
+    kind: "track",
+    id: row.id,
+    title: row.title,
+    artistName: row.creatorName,
+    artworkUrl: row.artworkUrl,
+    src,
+    pagePath: `/track/${encodeURIComponent(row.id)}`,
+    likeCount: row.likeCount,
+    commentCount: 0,
+    profileId: row.profileId,
+  };
+}
+
+export function chartVideoPlayInput(row: ChartVideoRow): ShelfPlayInput | null {
+  if (!row.mediaUrl) return null;
+  const src = resolveMedia(row.mediaUrl);
+  if (!src) return null;
+  return {
+    kind: "video",
+    id: row.id,
+    title: row.title,
+    artistName: row.creatorName,
+    artworkUrl: row.artworkUrl,
+    src,
+    pagePath: `/watch/${encodeURIComponent(row.id)}`,
+    likeCount: row.likeCount,
+    commentCount: 0,
+    profileId: row.profileId,
+  };
+}
+
 
 /* ─── The Follow contract ─────────────────────────────────────────────
    POST …/follow joins, DELETE …/unfollow leaves (the server's

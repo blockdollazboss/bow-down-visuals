@@ -20,7 +20,7 @@
  * playback rides the media detail endpoints instead. Flagged as a
  * follow-on in the lane report.
  */
-import type { MediaComment, MediaKind, StreamTrack, StreamVideo } from "@/lib/streaming";
+import type { MediaComment, MediaKind, StreamPlaylist, StreamTrack, StreamVideo } from "@/lib/streaming";
 import { resolveMedia } from "@/lib/streaming";
 
 /* ─── Purchases (GET /api/store/purchases) ────────────────────────── */
@@ -158,6 +158,20 @@ export interface ShelfPlayInput {
   pagePath: string;
   likeCount: number;
   commentCount: number;
+  /** The owning creator profile's id (media DTOs carry profile_id) —
+   *  the More-from-this-artist rail keys off it. Null when unknown. */
+  profileId?: string | null;
+  /** The artist's profile slug, when the caller holds it — share and
+   *  more-from links prefer it, never guess it. */
+  artistSlug?: string | null;
+  /** Reposts ride the track rails only (POST /api/tracks/:id/repost);
+   *  the card offers Repost for tracks and never for videos. */
+  repostCount?: number;
+  /** True for the owner's own unpublished track (GET
+   *  /api/world/my-music): badged in the Booth and on the card, and
+   *  the card hides its website transfer — the public /track page
+   *  404s unpublished music by design, so the link would dead-end. */
+  unpublished?: boolean;
 }
 
 /** Build the play input for a purchased track from its media
@@ -168,6 +182,7 @@ export function playInputFromTrack(
   p: ShelfPurchase,
   track: StreamTrack,
   artistName: string | null,
+  artistSlug: string | null = null,
 ): ShelfPlayInput | null {
   const src = resolveMedia(track.audio_url);
   if (!src) return null;
@@ -181,6 +196,9 @@ export function playInputFromTrack(
     pagePath: `/track/${encodeURIComponent(String(track.id))}`,
     likeCount: track.like_count ?? 0,
     commentCount: track.comment_count ?? 0,
+    profileId: track.profile_id ?? null,
+    artistSlug: artistSlug ?? p.artistSlug ?? null,
+    repostCount: track.repost_count ?? 0,
   };
 }
 
@@ -192,6 +210,7 @@ export function playInputFromVideo(
   p: ShelfPurchase,
   video: StreamVideo,
   artistName: string | null,
+  artistSlug: string | null = null,
 ): ShelfPlayInput | null {
   const src = resolveMedia(video.video_url);
   if (!src) return null;
@@ -205,6 +224,8 @@ export function playInputFromVideo(
     pagePath: `/watch/${encodeURIComponent(String(video.id))}`,
     likeCount: video.like_count ?? 0,
     commentCount: video.comment_count ?? 0,
+    profileId: video.profile_id ?? null,
+    artistSlug: artistSlug ?? p.artistSlug ?? null,
   };
 }
 
@@ -221,6 +242,259 @@ export function isSameShelfItem(
   b: Pick<ShelfPlayInput, "kind" | "id"> | null,
 ): boolean {
   return !!a && !!b && a.kind === b.kind && a.id === b.id;
+}
+
+/* ─── The queue (2.12 — queue what's next) ───────────────────────────
+   The player's up-next list, as pure list maths the hook composes:
+   queue-next puts an item at the FRONT (it is what's next, not what's
+   last); a duplicate of the same kind+id is never queued twice —
+   queueing it again just moves it to the front. When the current
+   item ends, the card takes the head and the rest shift up. */
+
+export function queueUpNext(queue: readonly ShelfPlayInput[], item: ShelfPlayInput): ShelfPlayInput[] {
+  const rest = queue.filter((q) => !isSameShelfItem(q, item));
+  return [item, ...rest];
+}
+
+export function takeQueueNext(queue: readonly ShelfPlayInput[]): {
+  next: ShelfPlayInput | null;
+  rest: ShelfPlayInput[];
+} {
+  if (queue.length === 0) return { next: null, rest: [] };
+  return { next: queue[0]!, rest: queue.slice(1) };
+}
+
+export function removeFromQueue(
+  queue: readonly ShelfPlayInput[],
+  item: Pick<ShelfPlayInput, "kind" | "id">,
+): ShelfPlayInput[] {
+  return queue.filter((q) => !isSameShelfItem(q, item));
+}
+
+/* ─── My music (2.14 — GET /api/world/my-music) ──────────────────────
+   The endpoint's DTO is camelCase (the world catalogs' shape), but
+   the boundary normalizer still reads defensively — both casings —
+   because DTO drift is this repo's #1 bug family. Rows without an id
+   or a playable audio URL are dropped: a row that cannot play is
+   never shown as playable. */
+
+export interface MyMusicTrack {
+  id: string;
+  title: string;
+  artistName: string | null;
+  artworkUrl: string | null;
+  audioUrl: string;
+  genre: string | null;
+  durationSec: number;
+  isPublished: boolean;
+  likeCount: number;
+  commentCount: number;
+}
+
+export function parseMyMusic(payload: unknown): MyMusicTrack[] {
+  const list =
+    payload && typeof payload === "object" && Array.isArray((payload as { tracks?: unknown }).tracks)
+      ? ((payload as { tracks: unknown[] }).tracks as unknown[])
+      : [];
+  const out: MyMusicTrack[] = [];
+  for (const raw of list) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const id = str(r["id"]);
+    const audioUrl = str(r["audioUrl"] ?? r["audio_url"]);
+    if (!id || !audioUrl) continue;
+    const numOr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+    out.push({
+      id,
+      title: str(r["title"], "Untitled"),
+      artistName: typeof r["artistName"] === "string" ? (r["artistName"] as string) : null,
+      artworkUrl: typeof r["artworkUrl"] === "string" ? (r["artworkUrl"] as string) : null,
+      audioUrl,
+      genre: typeof r["genre"] === "string" ? (r["genre"] as string) : null,
+      durationSec: numOr(r["durationSec"] ?? r["duration_sec"]),
+      isPublished: (r["isPublished"] ?? r["is_published"]) === true,
+      likeCount: numOr(r["likeCount"] ?? r["like_count"]),
+      commentCount: numOr(r["commentCount"] ?? r["comment_count"]),
+    });
+  }
+  return out;
+}
+
+/** A my-music row as a play input: the audio URL already rides the
+ *  row (the endpoint refreshed it), resolved through the same
+ *  resolveMedia the other rails use. Unpublished rows are flagged so
+ *  the card can badge them and skip the dead-end website transfer. */
+export function playInputFromMyMusic(row: MyMusicTrack): ShelfPlayInput | null {
+  const src = resolveMedia(row.audioUrl);
+  if (!src) return null;
+  return {
+    kind: "track",
+    id: row.id,
+    title: row.title,
+    artistName: row.artistName,
+    artworkUrl: row.artworkUrl,
+    src,
+    pagePath: `/track/${encodeURIComponent(row.id)}`,
+    likeCount: row.likeCount,
+    commentCount: row.commentCount,
+    unpublished: !row.isPublished,
+  };
+}
+
+/* ─── Playlists (2.12 — the site's playlist rails, in-world) ────────
+   The rails EXIST on the server (routes/creator-platform.ts):
+     GET  /api/playlists/mine        → { playlists: [StreamPlaylist] }
+     POST /api/playlists             → create (auth, own profile)
+     POST /api/playlists/:id/items   → add item (auth, owner only)
+     GET  /api/playlists/:id         → playlist + resolved_items
+   lib/streaming.ts already speaks them (fetchMyPlaylists /
+   createPlaylist / addItemToPlaylist / fetchPlaylist); this module
+   owns only the world-side shaping: the summary normalizer and the
+   resolved-items → play-inputs fold. */
+
+export interface ShelfPlaylistSummary {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  itemCount: number;
+}
+
+/** Normalize the /playlists/mine payload (snake_case StreamPlaylist
+ *  rows ride inside { playlists }) into shelf summaries. The count
+ *  prefers an explicit item_count and falls back to items.length. */
+export function parseShelfPlaylists(payload: unknown): ShelfPlaylistSummary[] {
+  const list =
+    payload && typeof payload === "object" && Array.isArray((payload as { playlists?: unknown }).playlists)
+      ? ((payload as { playlists: unknown[] }).playlists as unknown[])
+      : Array.isArray(payload)
+        ? (payload as unknown[])
+        : [];
+  const out: ShelfPlaylistSummary[] = [];
+  for (const raw of list) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const id = str(r["id"]);
+    if (!id) continue;
+    const items = Array.isArray(r["items"]) ? (r["items"] as unknown[]) : [];
+    const counted = r["item_count"] ?? r["itemCount"];
+    out.push({
+      id,
+      title: str(r["title"], "Untitled playlist"),
+      coverUrl: typeof (r["cover_url"] ?? r["coverUrl"]) === "string" ? ((r["cover_url"] ?? r["coverUrl"]) as string) : null,
+      itemCount: typeof counted === "number" && Number.isFinite(counted) ? counted : items.length,
+    });
+  }
+  return out;
+}
+
+/** Fold a fetched playlist's resolved items into play inputs, in
+ *  playlist order — the first plays now, the rest become the queue.
+ *  Items whose media carries no playable source are skipped, never
+ *  queued as silence. */
+export function playInputsFromPlaylist(playlist: StreamPlaylist): ShelfPlayInput[] {
+  const out: ShelfPlayInput[] = [];
+  for (const entry of playlist.resolved_items ?? []) {
+    if (entry.kind === "track") {
+      const t = entry.item;
+      const src = resolveMedia(t.audio_url);
+      if (!src) continue;
+      out.push({
+        kind: "track",
+        id: String(t.id),
+        title: t.title,
+        artistName: null,
+        artworkUrl: t.artwork_url ?? null,
+        src,
+        pagePath: `/track/${encodeURIComponent(String(t.id))}`,
+        likeCount: t.like_count ?? 0,
+        commentCount: t.comment_count ?? 0,
+        profileId: t.profile_id ?? null,
+        repostCount: t.repost_count ?? 0,
+      });
+    } else {
+      const v = entry.item;
+      const src = resolveMedia(v.video_url);
+      if (!src) continue;
+      out.push({
+        kind: "video",
+        id: String(v.id),
+        title: v.title,
+        artistName: null,
+        artworkUrl: v.thumbnail_url ?? null,
+        src,
+        pagePath: `/watch/${encodeURIComponent(String(v.id))}`,
+        likeCount: v.like_count ?? 0,
+        commentCount: v.comment_count ?? 0,
+        profileId: v.profile_id ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+/* ─── Embed code (2.15 — the card's copy-the-player action) ──────────
+   The same iframe the website's EmbedButton builds (components/
+   player/EmbedButton.tsx): /embed/<kind>/<id>, track 420×200, video
+   560×360. The card holds no artist slug, so no ?ref= code rides it —
+   an honest plain embed, never an invented referral code. */
+
+export function shelfEmbedCode(
+  input: Pick<ShelfPlayInput, "kind" | "id" | "title">,
+  origin: string,
+): string {
+  const w = input.kind === "video" ? 560 : 420;
+  const h = input.kind === "video" ? 360 : 200;
+  const src = `${origin}/embed/${input.kind}/${encodeURIComponent(input.id)}`;
+  const label = `${input.title} — Bow Down Visuals`.replace(/"/g, "&quot;");
+  return `<iframe src="${src}" width="${w}" height="${h}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" loading="lazy" title="${label}"></iframe>`;
+}
+
+/* ─── Download links + receipts (2.16 — the token's honest use) ─────
+   POST /api/store/token is a DELIVERY mint, not a stream: it returns
+   { token, url, expiresAt, maxUses } where url is the download page.
+   Opening that page burns one of the link's uses — the Booth says so
+   in plain words before the member taps, and the copy below is the
+   one place that wording lives so it can't drift soft. */
+
+export interface ShelfDownloadMint {
+  url: string;
+  expiresAt: string | null;
+  maxUses: number | null;
+}
+
+export function parseDownloadMint(payload: unknown): ShelfDownloadMint | null {
+  if (!payload || typeof payload !== "object") return null;
+  const r = payload as Record<string, unknown>;
+  const url = str(r["url"]);
+  if (!url) return null;
+  return {
+    url,
+    expiresAt: typeof r["expiresAt"] === "string" ? (r["expiresAt"] as string) : null,
+    maxUses: typeof r["maxUses"] === "number" && Number.isFinite(r["maxUses"]) ? (r["maxUses"] as number) : null,
+  };
+}
+
+/** The honest burn-a-use wording for a minted link. */
+export function downloadMintCopy(mint: ShelfDownloadMint): string {
+  const uses = mint.maxUses !== null ? ` It works ${mint.maxUses} times` : " It works a limited number of times";
+  const expiry = mint.expiresAt
+    ? ` and expires ${new Date(mint.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    : "";
+  return `This is a download link for the file you bought.${uses}${expiry} — every time the link is opened, one use is spent, so send it only where you mean it to land.`;
+}
+
+/** A purchase's receipt line: receipt id + what was paid + when.
+ *  The purchases payload already carries all three (receiptId is the
+ *  checkout session id, falling back to the sale id server-side). */
+export function shelfReceiptLine(p: ShelfPurchase): string {
+  const parts: string[] = [];
+  if (p.receiptId) parts.push(`Receipt ${p.receiptId}`);
+  if (p.amount) parts.push(p.amount);
+  const when = Date.parse(p.purchasedAt);
+  if (Number.isFinite(when)) {
+    parts.push(new Date(when).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
+  }
+  return parts.join(" · ");
 }
 
 /* ─── Transport maths (the Now Playing card's simple transport) ──── */
@@ -244,10 +518,18 @@ export function shelfProgress(positionSec: number, durationSec: number): number 
   return Math.min(1, Math.max(0, positionSec / durationSec));
 }
 
-/* ─── Comments preview (the card's short readable list) ──────────── */
+/* ─── Comments (the card's thread) ───────────────────────────────────
+   Ring 1 showed a 3-comment preview and sent the reader to the
+   website for the rest. Ring 2 (2.13) reads the FULL thread in-world:
+   the card fetches with SHELF_COMMENT_FULL_LIMIT (the media comments
+   endpoint accepts ?limit= up to 100) and posts/replies through the
+   same rails (lib/streaming postComment). The preview maths stays
+   for any surface that still wants a short list. */
 
-/** How many comments the Now Playing card reads in-world; the rest
- *  of the thread is the card transfer's job (follow-on log). */
+/** The full-thread fetch size for the Now Playing card. */
+export const SHELF_COMMENT_FULL_LIMIT = 100;
+
+/** How many comments a short preview list shows. */
 export const SHELF_COMMENT_PREVIEW_COUNT = 3;
 
 export function shelfPreviewComments<T extends MediaComment>(comments: readonly T[]): {
