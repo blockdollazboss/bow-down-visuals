@@ -3217,6 +3217,8 @@
     "total_signups": "Total signups",
     "avg_opens_subscriber": "Avg. opens / subscriber",
     "best_effort_pixel_tracking": "best-effort pixel tracking",
+    "opens_not_tracked": "Not tracked",
+    "opens_not_tracked_note": "open tracking isn't wired up yet — no fake numbers",
     "export": "Export",
     "csv_free": "CSV — free",
     "your_data_yours_to_keep": "Your data, yours to keep",

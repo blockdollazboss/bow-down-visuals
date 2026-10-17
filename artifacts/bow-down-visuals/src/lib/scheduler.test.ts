@@ -30,6 +30,7 @@ function post(overrides: Partial<ScheduledPostShape> = {}): ScheduledPostShape {
     attempts: 1,
     lastError: null,
     creditsCharged: 1,
+    releaseId: null,
     results: [],
     createdAt: "2026-09-25T00:00:00.000Z",
     updatedAt: "2026-09-25T00:00:00.000Z",

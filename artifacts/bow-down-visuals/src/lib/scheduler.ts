@@ -17,6 +17,9 @@ export interface ScheduledPostShape {
   attempts: number;
   lastError: string | null;
   creditsCharged: number;
+  /** Distribution release this post announces (0143 attribution), or
+   *  null when it wasn't scheduled from a release. */
+  releaseId: string | null;
   results: Array<{ platform: SchedulerPlatformKey; status: string; error?: string | null }>;
   createdAt: string;
   updatedAt: string;

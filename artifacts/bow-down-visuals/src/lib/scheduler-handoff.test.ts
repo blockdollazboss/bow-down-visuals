@@ -74,6 +74,22 @@ describe("buildSchedulerHref — the ?schedule=1 protocol", () => {
     );
     expect(q.get("platform")).toBe("instagram,tiktok,linkedin");
   });
+
+  it("a release handoff carries the release id for attribution (0143)", () => {
+    const q = new URLSearchParams(
+      buildSchedulerHref({ caption: "c", releaseId: "rel-123" }).split("?")[1],
+    );
+    expect(q.get("release")).toBe("rel-123");
+  });
+
+  it("non-release handoffs (song, hand-typed) carry NO release param — their posts stay unattributed", () => {
+    const song = new URLSearchParams(buildSchedulerHref({ caption: "c" }).split("?")[1]);
+    expect(song.get("release")).toBeNull();
+    const nulled = new URLSearchParams(
+      buildSchedulerHref({ caption: "c", releaseId: null }).split("?")[1],
+    );
+    expect(nulled.get("release")).toBeNull();
+  });
 });
 
 describe("parseSchedulerMediaType", () => {
@@ -178,5 +194,15 @@ describe("surface wiring (source)", () => {
         /\/scheduler\?schedule=1|schedule: "1"/,
       );
     }
+  });
+
+  it("release attribution (0143) is wired end to end: distribute stamps its id, the composer consumes + forwards it", () => {
+    expect(distributeSource).toContain("releaseId: release.id");
+    expect(schedulerSource).toContain('params.get("release")');
+    expect(schedulerSource).toContain("releaseIdPrefill={releasePrefill}");
+    expect(schedulerSource).toContain("releaseId: props.releaseIdPrefill");
+    /* The song Announce action must NOT stamp a release — a song is not
+       a release, and its posts stay release_id NULL. */
+    expect(songsSource).not.toContain("releaseId");
   });
 });

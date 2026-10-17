@@ -119,6 +119,9 @@ export default function Publish() {
   /* Shorts linkage: ?short=1 (every "post a short" surface) routes a
      fresh video save through POST /api/shorts so it lands as a short. */
   const [shortIntent, setShortIntent] = useState(false);
+  /* The sound a "use this sound" surface handed over (?soundId/…): a
+     fresh short created here is stamped with it (sound_id, 0091). */
+  const [shortSound, setShortSound] = useState<{ id?: string | null; title?: string | null; url?: string | null } | null>(null);
   const [challengeTitle, setChallengeTitle] = useState<string>("");
   const [liveChallenges, setLiveChallenges] = useState<Array<{ slug: string; title: string; prize_pool_credits: number }>>([]);
   const [enterSlug, setEnterSlug] = useState<string>("");
@@ -187,6 +190,14 @@ export default function Publish() {
       if (params.get("short") === "1") {
         setShortIntent(true);
         setContentType("video");
+      }
+      /* A sound reference handed over by a "use this sound" surface:
+         the fresh short is stamped with the sound it was made from. */
+      const pSoundId = params.get("soundId");
+      const pSoundTitle = params.get("soundTitle");
+      const pSoundUrl = params.get("soundUrl");
+      if (pSoundId || pSoundTitle || pSoundUrl) {
+        setShortSound({ id: pSoundId, title: pSoundTitle, url: pSoundUrl });
       }
       if ([...params.keys()].length) {
         window.history.replaceState(null, "", window.location.pathname);
@@ -515,6 +526,7 @@ export default function Publish() {
             profileId: profile.id, title, videoUrl: saveMediaUrl ?? "",
             thumbnailUrl: saveArtworkUrl, description, tags,
             durationSec, publish,
+            soundId: shortSound?.id, soundTitle: shortSound?.title, soundUrl: shortSound?.url,
           })
         : contentType === "audio"
           ? {

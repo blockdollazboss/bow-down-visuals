@@ -16,9 +16,21 @@
 export const SHORT_MAX_DURATION_SEC = 180;
 export const SHORTS_API_PATH = "/api/shorts";
 
-/** The publish-page deep link every "post a short" surface points at. */
-export function postShortPublishHref(): string {
-  return "/publish?type=video&category=video&short=1";
+/** The publish-page deep link every "post a short" surface points at.
+ *  A sound reference (from a "use this sound" surface) rides along so
+ *  the short it creates is stamped with the sound it was made from —
+ *  the publish page consumes ?soundId/soundTitle/soundUrl in its
+ *  prefill protocol and buildShortPostBody forwards them. */
+export function postShortPublishHref(sound?: {
+  soundId?: string | null;
+  soundTitle?: string | null;
+  soundUrl?: string | null;
+}): string {
+  const q = new URLSearchParams({ type: "video", category: "video", short: "1" });
+  if (sound?.soundId) q.set("soundId", sound.soundId);
+  if (sound?.soundTitle) q.set("soundTitle", sound.soundTitle);
+  if (sound?.soundUrl) q.set("soundUrl", sound.soundUrl);
+  return `/publish?${q.toString()}`;
 }
 
 /** Editor deep link: duet the given profile video (a short). */
@@ -45,6 +57,14 @@ export interface ShortPostInput {
   tags?: string[];
   durationSec?: number | null;
   publish: boolean;
+  /* The sound this short was made from ("use this sound" flows), when
+     the client holds a reference. The server stamps it onto the row's
+     sound_id/sound_title/sound_url columns (migration 0091) — until
+     this contract carried it, product-created shorts landed with the
+     sound unrecorded even when the creator picked it deliberately. */
+  soundId?: string | null;
+  soundTitle?: string | null;
+  soundUrl?: string | null;
 }
 
 /** Body for POST /api/shorts (postShortSchema server-side). Clamps to
@@ -59,7 +79,7 @@ export function buildShortPostBody(input: ShortPostInput): Record<string, unknow
     .map((t) => t.trim().slice(0, 40))
     .filter(Boolean)
     .slice(0, 30);
-  return {
+  const body: Record<string, unknown> = {
     profile_id: input.profileId,
     title: input.title.trim().slice(0, 120),
     video_url: input.videoUrl,
@@ -69,4 +89,15 @@ export function buildShortPostBody(input: ShortPostInput): Record<string, unknow
     duration_sec: duration,
     is_published: input.publish,
   };
+  /* Sound reference: forwarded only when the client actually holds one,
+     clamped to the endpoint's caps (id 80 / title 120 / url 2048) so a
+     sound-carrying save never 400s on a fat reference either. The
+     server derives the id from the title when only a title is given. */
+  const soundId = input.soundId?.trim().slice(0, 80);
+  const soundTitle = input.soundTitle?.trim().slice(0, 120);
+  const soundUrl = input.soundUrl?.trim().slice(0, 2048);
+  if (soundId) body.sound_id = soundId;
+  if (soundTitle) body.sound_title = soundTitle;
+  if (soundUrl) body.sound_url = soundUrl;
+  return body;
 }
