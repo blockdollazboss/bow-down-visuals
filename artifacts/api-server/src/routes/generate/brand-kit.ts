@@ -1,7 +1,5 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
@@ -121,22 +119,6 @@ router.post("/brand-kit", requireAuth, async (req, res) => {
       throw new Error("Brand kit came back malformed. Please try again.");
     }
 
-    /* Persist the kit (0142, DE-5): until now it lived only in this
-       response, so every apply/import surface had nothing durable to
-       read. One kit per creator — a regeneration replaces it.
-       Best-effort: the creator paid and has the kit in hand; a storage
-       hiccup must not turn a successful generation into an error. */
-    try {
-      await db.execute(sql`
-        INSERT INTO brand_kits (user_id, kit)
-        VALUES (${req.userId!}::uuid, ${JSON.stringify({ brandName, ...kit })}::jsonb)
-        ON CONFLICT (user_id) DO UPDATE
-          SET kit = EXCLUDED.kit, updated_at = now()
-      `);
-    } catch (err) {
-      req.log.error({ err }, "[brand-kit] failed to persist kit");
-    }
-
     res.json({
       brandName,
       kit,
@@ -150,17 +132,6 @@ router.post("/brand-kit", requireAuth, async (req, res) => {
     }).catch(() => {});
     res.status(500).json({ error: message });
   }
-});
-
-/* GET /api/brand-kit/mine — the caller's stored kit (0142, DE-5), or
-   { kit: null } when they have never generated one. This is the
-   durable read the brand-linkage apply/import steps build on. */
-router.get("/brand-kit/mine", requireAuth, async (req, res) => {
-  const result = await db.execute(sql`
-    SELECT kit, updated_at FROM brand_kits WHERE user_id = ${req.userId!}::uuid LIMIT 1
-  `);
-  const row = (result.rows as Array<{ kit: unknown; updated_at: unknown }>)[0];
-  res.json({ kit: row?.kit ?? null, updatedAt: row?.updated_at ?? null });
 });
 
 export default router;

@@ -1,4 +1,4 @@
--- 0142: Linkage schema bundle (site-linkage audit DE-5/DE-9/DE-14/DE-20 +
+-- 0142: Linkage schema bundle (site-linkage audit DE-9/DE-14/DE-20 +
 -- character audit G4/G8). One migration carries every column the linkage
 -- fixes need so the wiring lands against a single schema step:
 --   1. songs release metadata (lyrics / genre / ISRC / cover art) — the
@@ -16,11 +16,10 @@
 --      sponsor_payouts / fan_members / shop_events so pendingPayoutCents
 --      can cover released brand deals, memberships and shop sales.
 --   7. shoutout_requests checkout columns (stripe_session_id / paid_at).
---   8. brand_kits — durable per-user brand kit storage (DE-5).
---   9. tip_jar_tips — durable USD tip-jar checkout rows (DE-14): the jar
+--   8. tip_jar_tips — durable USD tip-jar checkout rows (DE-14): the jar
 --      was in-memory intents at pending_payment forever; paid tips land
 --      here exactly once (stripe_session_id UNIQUE).
---  10. projects.hub_project_id (guarded: the editor's saved-projects
+--   9. projects.hub_project_id (guarded: the editor's saved-projects
 --      table is Supabase-owned and may not exist in this database).
 -- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
 
@@ -88,16 +87,7 @@ ALTER TABLE shoutout_requests ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS shoutout_requests_stripe_session_ux
   ON shoutout_requests (stripe_session_id);
 
--- ── 8. Brand kits ──────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS brand_kits (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE,
-  kit JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- ── 9. Tip jar paid tips ───────────────────────────────────────────────
+-- ── 8. Tip jar paid tips ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tip_jar_tips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_user_id UUID NOT NULL,
@@ -113,7 +103,7 @@ CREATE TABLE IF NOT EXISTS tip_jar_tips (
 );
 CREATE INDEX IF NOT EXISTS tip_jar_tips_page_user_idx ON tip_jar_tips (page_user_id);
 
--- ── 10. Editor saved projects ↔ hub project link (guarded) ─────────────
+-- ── 9. Editor saved projects ↔ hub project link (guarded) ─────────────
 DO $$
 BEGIN
   IF EXISTS (
