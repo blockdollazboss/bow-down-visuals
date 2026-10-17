@@ -139,6 +139,175 @@ describe("Quest Board — track and claim ride the widget's rails, in-world", ()
   });
 });
 
+/* ─── Ring 2 (2.20–2.22) ─────────────────────────────────────────────
+   The Quest Board's depth: completable quests, the trophy ledger,
+   the full catalog. The mapping and shaping are unit-tested
+   against the real functions; the wiring is pinned as source
+   contracts in this file's established style. */
+import {
+  IN_WORLD_QUEST_KEYS,
+  claimableVb,
+  historyTotalVb,
+  ledgerEntryKindLabel,
+  normalizeLeaderboard,
+  normalizeTreasuryHistory,
+  questDestination,
+  questObjective,
+} from "./treasury-quests";
+import { STATION_BY_ID } from "./stations";
+
+const depthsPanel = read("../../components/world/native/TreasuryQuestDepths.tsx");
+const worldPage = read("../../pages/world.tsx");
+
+describe("2.20 — every quest's 'go do it' resolves somewhere honest", () => {
+  it("the creation quests open their in-world desks", () => {
+    expect(questDestination("make-thumbnail")).toMatchObject({ kind: "station", stationId: "thumbnail-desk", stationName: "Thumbnail Desk" });
+    expect(questDestination("generate-song")).toMatchObject({ kind: "station", stationId: "song-desk", stationName: "Song Desk" });
+    expect(questDestination("export-video")).toMatchObject({ kind: "station", stationId: "visual-vibes-editor", stationName: "Visual Vibes Editor" });
+  });
+
+  it("every station destination is a real registry door in the Create Wing", () => {
+    for (const key of IN_WORLD_QUEST_KEYS) {
+      const dest = questDestination(key);
+      expect(dest?.kind).toBe("station");
+      if (dest?.kind === "station") {
+        expect(STATION_BY_ID.get(dest.stationId)?.roomId).toBe("world:create-wing");
+        expect(dest.roomName).toBe("the Create Wing");
+      }
+    }
+  });
+
+  it("viral-sharer has no in-world performer — it takes the honest transfer", () => {
+    expect(questDestination("viral-sharer")).toEqual({ kind: "transfer", href: "/my-projects" });
+  });
+
+  it("an unknown quest key resolves to null (the board falls back to the quest's own transfer — never a dead button)", () => {
+    expect(questDestination("some-future-quest")).toBeNull();
+    expect(questDestination("")).toBeNull();
+  });
+
+  it("the widget wires station quests to the host opener and keeps the transfer for the rest", () => {
+    expect(questsWidget).toContain("onGoToStation");
+    expect(questsWidget).toContain("questDestination(q.key)");
+    expect(questsWidget).toContain("world-quest-go-${q.key}");
+    expect(questsWidget).toContain('dest?.kind === "station" && onGoToStation');
+    // The transfer path survives for transfer quests and handler-less renders.
+    expect(questsWidget).toContain('dest?.kind === "transfer" ? dest.href : meta.href');
+  });
+
+  it("the host and the page carry the generalized station opener", () => {
+    expect(stationPanel).toContain("onOpenStation?: (stationId: string) => void");
+    expect(questsBody).toContain("onGoToStation={onOpenStation}");
+    expect(questsBody).toContain("<TreasuryQuestDepths");
+    expect(worldPage).toContain("onOpenStation={(stationId) => {");
+    expect(worldPage).toContain('STATION_BY_ID.get(stationId)');
+  });
+});
+
+describe("Ring 2 addendum — objectives read as a game, completion is a moment", () => {
+  it("questObjective derives fraction, percent and state from server progress only", () => {
+    expect(questObjective({ key: "viral-sharer", progress: 2, target: 3, completed: false, claimed: false }))
+      .toEqual({ key: "viral-sharer", progress: 2, target: 3, percent: 67, state: "active" });
+    expect(questObjective({ key: "generate-song", progress: 1, target: 1, completed: true, claimed: false }).state).toBe("claimable");
+    expect(questObjective({ key: "generate-song", progress: 1, target: 1, completed: true, claimed: true }).state).toBe("claimed");
+    expect(questObjective({ key: "x", progress: 0, target: 0, completed: false, claimed: false }).percent).toBe(0);
+  });
+
+  it("claimableVb sums only completed, unclaimed, payable rewards", () => {
+    expect(claimableVb([
+      { reward: 80, completed: true, claimed: false },
+      { reward: 40, completed: true, claimed: true },
+      { reward: 120, completed: false, claimed: false },
+      { reward: 0, completed: true, claimed: false },
+    ])).toBe(80);
+  });
+
+  it("the in-world board announces a claimable objective with its VB total", () => {
+    expect(questsWidget).toContain("world-quest-claimable-banner");
+    expect(questsWidget).toContain("claimableVb(data.quests)");
+    expect(questsWidget).toContain("retention.quest_objective_complete");
+  });
+});
+
+describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only", () => {
+  const payload = {
+    catalog: [
+      { key: "generate-song", target: 1, reward: 80, kinds: ["song"] },
+      { key: "viral-sharer", target: 3, reward: 60, kinds: ["share"] },
+    ],
+    weeks: [
+      {
+        weekStart: "2026-10-05",
+        quests: [
+          { key: "generate-song", target: 1, reward: 80, progress: 1, completed: true, claimed: true, claimedAt: "2026-10-06T12:00:00.000Z" },
+        ],
+      },
+    ],
+    entries: [
+      { kind: "crate", key: null, amount: 500, at: "2026-10-15T11:05:00.000Z" },
+      { kind: "quest", key: "generate-song", amount: 80, at: "2026-10-06T12:00:00.000Z" },
+      { kind: "shark-drop", key: null, amount: 350, at: "2026-10-04T09:30:00.000Z" },
+    ],
+  };
+
+  it("a well-formed history payload normalizes whole", () => {
+    const h = normalizeTreasuryHistory(payload);
+    expect(h).not.toBeNull();
+    expect(h!.catalog).toHaveLength(2);
+    expect(h!.weeks[0]!.quests[0]).toMatchObject({ key: "generate-song", claimed: true });
+    expect(h!.entries).toHaveLength(3);
+    expect(historyTotalVb(h!.entries)).toBe(930);
+  });
+
+  it("malformed payloads normalize to null — the error state, never invented rows", () => {
+    expect(normalizeTreasuryHistory(null)).toBeNull();
+    expect(normalizeTreasuryHistory({})).toBeNull();
+    expect(normalizeTreasuryHistory({ catalog: [], weeks: [], entries: [{ kind: "daily", amount: 5, at: "x" }] })).toBeNull();
+    expect(normalizeTreasuryHistory({ catalog: [{ key: "x" }], weeks: [], entries: [] })).toBeNull();
+  });
+
+  it("an empty history is valid and totals zero", () => {
+    const h = normalizeTreasuryHistory({ catalog: [], weeks: [], entries: [] });
+    expect(h).toEqual({ catalog: [], weeks: [], entries: [] });
+    expect(historyTotalVb(h!.entries)).toBe(0);
+  });
+
+  it("ledger kinds name themselves; daily claims are not a kind (no per-claim rail exists)", () => {
+    expect(ledgerEntryKindLabel("quest")).toBe("Quest reward");
+    expect(ledgerEntryKindLabel("shark-drop")).toBe("Shark drop");
+    expect(ledgerEntryKindLabel("crate")).toBe("Hourly crate");
+  });
+
+  it("the leaderboard normalizes the site's rows and refuses junk", () => {
+    const board = normalizeLeaderboard({
+      weekStart: "2026-10-12T00:00:00.000Z",
+      rows: [{ rank: 1, name: "Creator", creations: 4, exports: 2, score: 6, isYou: true }],
+      viewerRank: 1,
+      viewerScore: 6,
+    });
+    expect(board!.rows[0]).toMatchObject({ rank: 1, name: "Creator", score: 6, isYou: true });
+    expect(board!.viewerRank).toBe(1);
+    expect(normalizeLeaderboard({ rows: "nope" })).toBeNull();
+    expect(normalizeLeaderboard(null)).toBeNull();
+  });
+
+  it("the depths panel rides the real rails and carries its honest states", () => {
+    expect(depthsPanel).toContain('fetch("/api/retention/quests/history"');
+    expect(depthsPanel).toContain('fetch("/api/retention/streak"');
+    expect(depthsPanel).toContain('fetch("/api/bonus/status"');
+    expect(depthsPanel).toContain('fetch("/api/retention/leaderboard"');
+    expect(depthsPanel).toContain('data-testid="world-treasury-depths"');
+    expect(depthsPanel).toContain('data-testid="world-treasury-status-strip"');
+    expect(depthsPanel).toContain("NativeErrorState");
+    expect(depthsPanel).toContain("NativeEmptyState");
+    // Amounts render from the payloads only — the claimed total is
+    // the ledger sum, rows show their recorded entry amount.
+    expect(depthsPanel).toContain("historyTotalVb(history.entries)");
+    expect(depthsPanel).toContain("e.amount.toLocaleString");
+    expect(depthsPanel).toContain("c.reward > 0");
+  });
+});
+
 describe("the two pull-up remnants — fixed as explicit in-world transfers", () => {
   it("DailyDropCard: inWorld renders a new-tab anchor; the website keeps its Link", () => {
     expect(dailyDropCard).toContain("inWorld = false");

@@ -39,6 +39,7 @@ import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
+import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
    A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
@@ -86,6 +87,12 @@ export interface StationPanelProps {
    *  the desk has just saved its result as that project). Optional —
    *  hosts without an editor door simply don't offer the chip. */
   onOpenEditorStation?: () => void;
+  /** World Ring 2 (2.20): open another station's panel in-world by
+   *  registry id — the Quest Board's "Go do it" rides this to the
+   *  desk that performs the quest (the same panel-swap the Create
+   *  desks' editor chip uses, generalized). Optional — hosts
+   *  without it leave quest actions as explicit transfers. */
+  onOpenStation?: (stationId: string) => void;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -686,9 +693,28 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
   );
 }
 
-function TreasuryQuests() {
+function TreasuryQuests({
+  isLight,
+  onOpenStation,
+}: {
+  isLight: boolean;
+  onOpenStation?: (stationId: string) => void;
+}) {
   const { getAccessToken, refreshProfile } = useAuth();
-  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} inWorld />;
+  return (
+    <div>
+      <QuestsWidget
+        getToken={getAccessToken}
+        onBalanceChange={refreshProfile}
+        inWorld
+        onGoToStation={onOpenStation}
+      />
+      {/* Ring 2 depth: the trophy ledger, the full catalog with
+          past weeks, and the week's standings — read from the
+          retention rails, under the board's live objectives. */}
+      <TreasuryQuestDepths isLight={isLight} />
+    </div>
+  );
 }
 
 /* ─── The Music Hall jukebox ───────────────────────────────────────── */
@@ -1139,7 +1165,7 @@ export default function StationPanel(props: StationPanelProps) {
           case "treasury-shark":
             return <TreasuryShark isLight={isLight} />;
           case "treasury-quests":
-            return <TreasuryQuests />;
+            return <TreasuryQuests isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "jukebox":
             return <JukeboxPanel {...props} />;
           default:

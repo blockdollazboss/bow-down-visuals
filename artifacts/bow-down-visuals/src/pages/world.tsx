@@ -1825,6 +1825,10 @@ export default function WorldPage() {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
           }}
+          onOpenStation={(stationId) => {
+            const station = STATION_BY_ID.get(stationId);
+            if (station) setPanelTarget({ kind: "station", station });
+          }}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}

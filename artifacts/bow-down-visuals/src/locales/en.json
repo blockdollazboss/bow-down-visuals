@@ -12031,6 +12031,8 @@
     "quests_progress": "{{progress}}/{{target}}",
     "quests_claim": "Claim {{reward}} VB",
     "quests_claimed": "Claimed",
+    "quest_go_do_it": "Go do it",
+    "quest_objective_complete": "Objective complete — {{total}} Visual Bucs are waiting below.",
     "quests_done": "Complete",
     "quests_keep_going": "Keep creating to finish quests",
     "quest_make_thumbnail_title": "Make a thumbnail",
