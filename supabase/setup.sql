@@ -63,9 +63,13 @@ create table if not exists projects (
   input_data   jsonb       not null default '{}'::jsonb,
   output_data  jsonb       not null default '{}'::jsonb,
   credits_used integer     not null default 0,
+  /* Link to the hub project this saved project belongs to (0142). */
+  hub_project_id uuid,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+alter table projects add column if not exists hub_project_id uuid;
 
 alter table projects enable row level security;
 

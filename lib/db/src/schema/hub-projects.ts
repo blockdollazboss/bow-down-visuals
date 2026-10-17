@@ -8,6 +8,10 @@ export const hubProjectsTable = pgTable("hub_projects", {
       many projects; user_id is a plain owner column. */
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull(),
+  /** The hub client's local project id (migration 0142): saves upsert
+      by (user_id, client_ref), so each local project maps to exactly
+      one server row. Null for rows predating the multi-project hub. */
+  client_ref: text("client_ref"),
   name: text("name").notNull().default("Untitled Project"),
   type: text("type").notNull().default("song"),
   assets: jsonb("assets").notNull().default([]),

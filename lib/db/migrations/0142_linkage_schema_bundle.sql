@@ -62,6 +62,11 @@ BEGIN
   END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS hub_projects_user_idx ON hub_projects (user_id);
+-- The hub client's local project id, so a save from a known local
+-- project upserts ITS row (and a fresh local project starts a new row)
+-- without the client ever holding the server id.
+ALTER TABLE hub_projects ADD COLUMN IF NOT EXISTS client_ref TEXT;
+CREATE INDEX IF NOT EXISTS hub_projects_user_client_ref_idx ON hub_projects (user_id, client_ref);
 
 -- ── 5. Creator profile extension fields ────────────────────────────────
 ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS merch_items JSONB NOT NULL DEFAULT '[]'::jsonb;

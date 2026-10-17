@@ -24,7 +24,9 @@ router.get("/asset-library", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
     const [projectRows, generationRows] = await Promise.all([
-      db.select().from(hubProjectsTable).where(eq(hubProjectsTable.user_id, userId)).limit(1),
+      /* 0142: a user can hold many hub projects — the library reads the
+         most recently updated one (the "current" project). */
+      db.select().from(hubProjectsTable).where(eq(hubProjectsTable.user_id, userId)).orderBy(desc(hubProjectsTable.updated_at)).limit(1),
       db
         .select()
         .from(generationHistoryTable)

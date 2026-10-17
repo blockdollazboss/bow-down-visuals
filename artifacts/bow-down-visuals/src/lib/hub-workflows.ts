@@ -658,7 +658,10 @@ export const KIND_LABEL: Record<HubAssetKind, string> = {
 
 export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip", "sfx", "hum"];
 
-/* Where each finished asset naturally wants to go next. */
+/* Where each finished asset naturally wants to go next. The hrefs are
+   the desks; WHICH asset is being handed off rides as an assetId param
+   (see nextStepsFor) so the receiving desk opens with the asset's
+   identity instead of making the creator re-find it (0142, DE-20). */
 export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]> = {
   beat: [
     { label: "Split into stems", href: "/audio-studio?tab=stems" },
@@ -693,3 +696,15 @@ export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]>
   hum: [{ label: "Turn it into a song", href: "/create?panel=song&tab=hum" }],
   other: [],
 };
+
+/** The next steps for one concrete asset: the kind's desks, each href
+ *  carrying the asset's own id (`assetId`) so the hand-off names the
+ *  asset it is about. */
+export function nextStepsFor(asset: { kind: HubAssetKind; id: string }): { label: string; href: string }[] {
+  const steps = NEXT_STEPS[asset.kind] ?? [];
+  if (!asset.id) return steps;
+  return steps.map((s) => ({
+    ...s,
+    href: `${s.href}${s.href.includes("?") ? "&" : "?"}assetId=${encodeURIComponent(asset.id)}`,
+  }));
+}
