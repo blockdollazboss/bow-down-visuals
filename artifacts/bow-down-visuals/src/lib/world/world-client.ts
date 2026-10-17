@@ -20,7 +20,9 @@
  *        peer.action,
  *        peer.say, peer.character, peer.voiceoff, peer.voicedeaf,
  *        voice.joined / voice.left / voice.state / voice.signal /
- *        voice.full / voice.denied, room_full
+ *        voice.full / voice.denied, room_full, pong (the keepalive
+ *        answer — see the session-longevity note at the connect
+ *        constants)
  *
  * Presence is room-scoped: this client only ever holds the room it
  * stands in. A doorway transfer arrives as a FRESH welcome (same
@@ -200,8 +202,9 @@ const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
  * and a watchdog per attempt: an attempt that produces neither a
  * welcome nor a close within its window counts as failed, so a
  * hung connect retries instead of spinning forever. Once a welcome
- * lands the budget is spent for that sequence: a later drop is a
- * real drop and reports the way it always has.
+ * lands the budget is spent for that sequence — but a LATER drop is
+ * no longer instantly terminal: it opens a fresh, quiet reconnect
+ * budget of its own (see "Session longevity" below).
  *
  * The window is sized by SEQUENCE, not by attempt. A FIRST connect
  * (this client has never been welcomed) may be waking the host:
@@ -242,6 +245,50 @@ export const WORLD_WELCOME_WATCHDOG_MS = 20_000;
  *  and answer — on every attempt, not just the first. */
 export const WORLD_FIRST_WELCOME_WATCHDOG_MS = 60_000;
 
+/* ── Session longevity ─────────────────────────────────────────────
+ * Getting in was only half the door: a session that lands must also
+ * STAY landed. Measured live (2026-10-17): a guest who entered fine
+ * was dropped ~1–2 minutes later and the failure card stayed — two
+ * gaps stacked:
+ *
+ * 1. NOTHING kept the path warm. The gateway's protocol ping (30 s,
+ *    server-side) never reaches the browser — the hosting router
+ *    terminates control frames on its own leg (six-minute probe
+ *    sessions saw zero protocol pings while data frames flowed).
+ *    App traffic is all change-driven, so a lone guest standing
+ *    still produces complete silence on their leg, and the router
+ *    reaps the "idle" socket inside a couple of minutes. The fix is
+ *    an APPLICATION keepalive: while inside, the client sends a
+ *    `ping` frame every WORLD_KEEPALIVE_INTERVAL_MS and the room
+ *    answers `pong` — data frames cross every leg, so the path
+ *    stays warm on the strictest idle window in the chain.
+ * 2. A drop while inside was INSTANTLY terminal: the close went
+ *    straight to the error card with no retry at all (the retry
+ *    budget existed only before the first welcome). A hangout
+ *    doesn't eject you for one dropped connection: a drop now runs
+ *    a QUIET reconnect — status stays "inside", `reconnecting`
+ *    flags the interlude for the page's slim notice, and the
+ *    attempts carry the long first-connect windows (the host may
+ *    be mid-restart — the exact case the long window exists for).
+ *    Only a genuinely exhausted reconnect budget lands on the
+ *    error card.
+ *
+ * The pong doubles as a dead-man's switch: silence is ambiguous
+ * (a quiet room is legal), so the liveness clock runs off INBOUND
+ * frames of any kind. The keepalive guarantees an inbound answer
+ * every interval on a live path; no frame at all for
+ * WORLD_LIVENESS_TIMEOUT_MS means the path is dead — possibly
+ * silently, with the socket still claiming open — and the client
+ * retires it and re-enters through the same quiet reconnect. */
+/** How often an inside client sends its keepalive ping. Inside the
+ *  strictest plausible intermediary idle window (55–120 s) with
+ *  room to spare. */
+export const WORLD_KEEPALIVE_INTERVAL_MS = 25_000;
+/** No inbound frame of any kind for this long, while inside, and
+ *  the path is presumed dead: three keepalive cycles with no pong
+ *  is not a quiet room, it's a corpse. */
+export const WORLD_LIVENESS_TIMEOUT_MS = 75_000;
+
 export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, token: string | null): string {
   const proto = loc.protocol === "https:" ? "wss:" : "ws:";
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
@@ -268,6 +315,11 @@ export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | 
 
 export class WorldClient {
   status: WorldStatus = "connecting";
+  /** True while a dropped session is quietly re-entering: the
+   *  status stays "inside" (the hall stays up behind the page's
+   *  slim reconnecting notice) until the welcome lands or the
+   *  reconnect budget is genuinely exhausted. */
+  reconnecting = false;
   self: WorldPeer | null = null;
   peers = new Map<string, WorldPeer>();
   voicePeerIds = new Set<string>();
@@ -289,6 +341,9 @@ export class WorldClient {
 
   /* Assignable handlers — the page wires scene + voice + chat log. */
   onStatus: ((status: WorldStatus) => void) | null = null;
+  /** The quiet-reconnect interlude started/ended — the page shows
+   *  its slim "reconnecting" notice off this, never a card. */
+  onReconnectingChange: ((reconnecting: boolean) => void) | null = null;
   onPeerJoin: ((peer: WorldPeer) => void) | null = null;
   onPeerLeave: ((peerId: string) => void) | null = null;
   /** A peer started (or stopped) an avatar action — the scene
@@ -342,8 +397,21 @@ export class WorldClient {
   private everInside = false;
   private sessionEstablished = false;
   private attemptGeneration = 0;
+  /** A connect sequence (entry or quiet reconnect) is running:
+   *  attempts, watchdogs and backoffs are live, and socket events
+   *  route to the attempt engine instead of the drop handling.
+   *  `sequenceIsReconnect` marks the quiet kind: status stays
+   *  "inside" throughout, windows are the long ones, and a landed
+   *  welcome re-homes the page (the old session's voice mesh died
+   *  with its socket). */
+  private inSequence = false;
+  private sequenceIsReconnect = false;
   private welcomeWatchdog: unknown = null;
   private retryTimer: unknown = null;
+  /** The keepalive/liveness timer (inside only) and the last time
+   *  ANY inbound frame landed, on the injected clock. */
+  private keepaliveTimer: unknown = null;
+  private lastInboundAt = 0;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   /** The vault character this client wants to stand as. `undefined` =
@@ -377,14 +445,92 @@ export class WorldClient {
 
   async connect(): Promise<void> {
     this.clearConnectTimers();
+    this.stopKeepalive();
     /* A new sequence retires everything the old one left in
      * flight — a token fetch still out there must never open a
      * socket for a sequence that no longer exists. */
     this.attemptGeneration += 1;
     this.connectAttemptsMade = 0;
     this.everInside = false;
+    this.inSequence = true;
+    this.sequenceIsReconnect = false;
+    this.setReconnecting(false);
     this.setStatus("connecting");
     await this.openAttempt();
+  }
+
+  /** A session that already landed lost its socket (or its path
+   *  went provably silent): re-enter QUIETLY. The hall stays up —
+   *  status never leaves "inside" — while a fresh attempt sequence
+   *  with the long, wake-tolerant windows runs under the
+   *  `reconnecting` flag. A landed welcome ends the interlude (and
+   *  re-homes the page, like a doorway transfer: the old session's
+   *  voice mesh died with its socket); an exhausted budget is the
+   *  honest error card, finally. */
+  private beginReconnect(): void {
+    if (this.status !== "inside" || this.inSequence) return;
+    this.stopKeepalive();
+    this.clearConnectTimers();
+    this.attemptGeneration += 1;
+    this.connectAttemptsMade = 0;
+    this.everInside = false;
+    this.inSequence = true;
+    this.sequenceIsReconnect = true;
+    this.setReconnecting(true);
+    void this.openAttempt();
+  }
+
+  private setReconnecting(value: boolean): void {
+    if (this.reconnecting === value) return;
+    this.reconnecting = value;
+    this.onReconnectingChange?.(value);
+  }
+
+  /* ── Keepalive + liveness (inside only) ──────────────────────────
+   * One timer, re-armed each tick. The tick pings (the data frame
+   * that keeps every leg of the path warm) and checks the inbound
+   * clock: the ping guarantees a `pong` back on a live path, so a
+   * full liveness window of total silence — no pong, no peer
+   * traffic, nothing — is a dead path even when the socket still
+   * claims to be open. */
+  private startKeepalive(): void {
+    this.stopKeepalive();
+    this.lastInboundAt = this.now();
+    const tick = () => {
+      this.keepaliveTimer = null;
+      if (this.status !== "inside" || this.inSequence) return;
+      if (this.now() - this.lastInboundAt > WORLD_LIVENESS_TIMEOUT_MS) {
+        this.handleDeadPath();
+        return;
+      }
+      this.send({ type: "ping" });
+      this.keepaliveTimer = this.setTimer(tick, WORLD_KEEPALIVE_INTERVAL_MS);
+    };
+    this.keepaliveTimer = this.setTimer(tick, WORLD_KEEPALIVE_INTERVAL_MS);
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer !== null) {
+      this.clearTimer(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+  }
+
+  /** The path went silent past proof: retire the (possibly
+   *  zombie) socket ourselves — nulling it first means its late
+   *  close event is identity-guarded into silence — and re-enter
+   *  through the same quiet reconnect a real close would start. */
+  private handleDeadPath(): void {
+    const socket = this.socket;
+    this.socket = null;
+    if (socket) {
+      try {
+        socket.close();
+      } catch {
+        /* already gone */
+      }
+    }
+    this.beginReconnect();
   }
 
   /** One connection attempt: a watchdog, a fresh token, a fresh
@@ -413,8 +559,9 @@ export class WorldClient {
      * was in flight (or a disconnect / a whole new connect landed):
      * a stale attempt must not open. The generation is the precise
      * guard — the attempt count alone can coincide across
-     * sequences. */
-    if (generation !== this.attemptGeneration || this.status !== "connecting") return;
+     * sequences. (The sequence flag, not the status: a quiet
+     * reconnect's attempts run while the status stays "inside".) */
+    if (generation !== this.attemptGeneration || !this.inSequence) return;
     let socket: WorldSocketLike;
     try {
       socket = this.deps.openSocket(this.deps.socketUrl(token));
@@ -437,25 +584,34 @@ export class WorldClient {
     };
   }
 
-  private handleSocketClose(ev: { code?: number }): void {
+  private handleSocketClose(_ev: { code?: number }): void {
     if (this.status === "full" || this.status === "removed") return; // already explained itself
-    if (!this.everInside && this.status === "connecting") {
-      /* A close before the first welcome — clean (1000/1005, a
-       * draining server) or abnormal (1006, a killed handshake) —
-       * is a failed attempt, not a dead room: it retries inside
-       * the same budget, and only an exhausted budget shows the
-       * card. (Before this, a clean close landed on "closed",
+    if (this.inSequence && !this.everInside) {
+      /* A close before this sequence's welcome — clean (1000/1005,
+       * a draining server) or abnormal (1006, a killed handshake) —
+       * is a failed attempt, not a dead room: it retries inside the
+       * same budget, and only an exhausted budget shows the card.
+       * (Before the retry engine, a clean close landed on "closed",
        * which has no overlay at all — a bare dead room.) */
       this.failConnectAttempt();
       return;
     }
     if (this.status === "inside") {
-      this.setStatus(ev.code === 1000 || ev.code === 1005 ? "closed" : "error");
+      /* A real drop, mid-visit, of any code: the session was
+       * established and the path is gone (a router reap, a host
+       * restart, a network handoff). It used to land on the error
+       * card instantly — one dropped connection ejected you from
+       * the hangout. Now it opens the quiet reconnect: the hall
+       * stays up and only a genuinely exhausted budget shows the
+       * card. (A deliberate leave never reaches here —
+       * disconnect() nulls the socket before closing it, so this
+       * handler is identity-guarded silent.) */
+      this.beginReconnect();
     }
   }
 
   private handleSocketFailure(): void {
-    if (!this.everInside && this.status === "connecting") {
+    if (this.inSequence && !this.everInside) {
       this.failConnectAttempt();
     }
   }
@@ -479,6 +635,13 @@ export class WorldClient {
       }
     }
     if (this.connectAttemptsMade >= WORLD_CONNECT_MAX_ATTEMPTS) {
+      /* The budget is genuinely spent: the sequence closes, the
+       * reconnecting interlude (if this was one) ends, and the
+       * honest error card lands — for an entry and a reconnect
+       * alike. */
+      this.inSequence = false;
+      this.sequenceIsReconnect = false;
+      this.setReconnecting(false);
       this.setStatus("error");
       return;
     }
@@ -487,7 +650,7 @@ export class WorldClient {
       WORLD_CONNECT_BACKOFF_MS[WORLD_CONNECT_BACKOFF_MS.length - 1]!;
     this.retryTimer = this.setTimer(() => {
       this.retryTimer = null;
-      if (this.status !== "connecting" || this.everInside) return;
+      if (!this.inSequence || this.everInside) return;
       void this.openAttempt();
     }, delay);
   }
@@ -496,19 +659,25 @@ export class WorldClient {
    *  its window is a failed attempt — without this, a hung connect
    *  spins on "connecting" forever (there was no timer at all).
    *  The window is sequence-aware: every attempt of a first
-   *  connect gets the long window; every attempt of a re-connect
-   *  gets the short one (see the constants above). The callback is
-   *  generation-guarded: a watchdog that somehow outlives its
-   *  attempt (a callback already queued when the clear landed)
-   *  recognizes its dead generation and does nothing — it can
-   *  never re-error a live session. */
+   *  connect gets the long window; every attempt of a same-client
+   *  re-connect gets the short one; and every attempt of a QUIET
+   *  reconnect (a dropped session re-entering) gets the long
+   *  window too — its likeliest cause is the host mid-restart,
+   *  the exact case the long window exists for (see the constants
+   *  above). The callback is generation-guarded: a watchdog that
+   *  somehow outlives its attempt (a callback already queued when
+   *  the clear landed) recognizes its dead generation and does
+   *  nothing — it can never re-error a live session. */
   private armWelcomeWatchdog(generation: number): void {
     this.clearWelcomeWatchdog();
-    const windowMs = this.sessionEstablished ? WORLD_WELCOME_WATCHDOG_MS : WORLD_FIRST_WELCOME_WATCHDOG_MS;
+    const windowMs =
+      this.sequenceIsReconnect || !this.sessionEstablished
+        ? WORLD_FIRST_WELCOME_WATCHDOG_MS
+        : WORLD_WELCOME_WATCHDOG_MS;
     this.welcomeWatchdog = this.setTimer(() => {
       this.welcomeWatchdog = null;
       if (generation !== this.attemptGeneration) return;
-      if (this.status !== "connecting" || this.everInside) return;
+      if (!this.inSequence || this.everInside) return;
       this.failConnectAttempt();
     }, windowMs);
   }
@@ -531,6 +700,10 @@ export class WorldClient {
   disconnect(): void {
     this.setStatus("closed");
     this.clearConnectTimers();
+    this.stopKeepalive();
+    this.inSequence = false;
+    this.sequenceIsReconnect = false;
+    this.setReconnecting(false);
     this.attemptGeneration += 1; // an in-flight attempt opens nothing after this
     const socket = this.socket;
     this.socket = null;
@@ -739,20 +912,42 @@ export class WorldClient {
       return;
     }
 
+    /* Every inbound frame is proof of life for the liveness
+     * clock — a busy room keeps the clock fed on its own traffic;
+     * a quiet room is fed by the keepalive's pongs. */
+    this.lastInboundAt = this.now();
+
     switch (frame["type"]) {
+      case "pong": {
+        /* The keepalive's answer. The timestamp above is the whole
+         * handling — nothing renders, nothing routes. */
+        return;
+      }
       case "room_full": {
+        /* Terminal for the sequence too: a full hall is never
+         * retried against, entry or reconnect alike — the close
+         * that follows must find nothing left to fail over. */
+        this.inSequence = false;
+        this.sequenceIsReconnect = false;
+        this.setReconnecting(false);
         this.clearConnectTimers();
         this.setStatus("full");
         return;
       }
       case "welcome": {
-        /* The first welcome spends the connect budget for good and
-         * silences the watchdog — from here, drops are real drops.
-         * It also latches the session for this client's life: any
-         * later connect sequence is a RE-connect and arms the
-         * short watchdog windows. */
+        /* The welcome spends the sequence's budget for good and
+         * silences the watchdog. It also latches the session for
+         * this client's life: any later ENTRY sequence is a
+         * RE-connect and arms the short watchdog windows. And it
+         * (re)starts the keepalive — entry, doorway transfer, and
+         * quiet-reconnect landings all keep the path warm from
+         * here. */
         this.everInside = true;
         this.sessionEstablished = true;
+        const completedReconnect = this.sequenceIsReconnect;
+        this.inSequence = false;
+        this.sequenceIsReconnect = false;
+        this.setReconnecting(false);
         this.clearConnectTimers();
         const you = frame["you"] as WorldPeer;
         const wasInside = this.status === "inside";
@@ -783,6 +978,7 @@ export class WorldClient {
           if (peer.voice) this.voicePeerIds.add(peer.peerId);
         }
         this.setStatus("inside");
+        this.startKeepalive();
         // A pick made before the door opened applies on entry.
         if (this.characterWanted !== undefined && !you.guest) {
           this.send({ type: "character", characterId: this.characterWanted });
@@ -796,8 +992,11 @@ export class WorldClient {
           this.send({ type: "voice.deaf", deaf: this.voiceDeafWanted });
         }
         // A doorway transfer re-homes the page (scene room, voice
-        // teardown) — only when the room actually changed.
-        if (wasInside && prevRoomId !== this.room.id) {
+        // teardown) — only when the room actually changed. A
+        // QUIET-RECONNECT landing re-homes it too, same room or
+        // not: the session is brand new, and everything tied to
+        // the dead socket (the voice mesh above all) is over.
+        if (wasInside && (completedReconnect || prevRoomId !== this.room.id)) {
           this.onRoomChanged?.(this.room);
         }
         return;

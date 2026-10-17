@@ -22,6 +22,8 @@ import {
   WORLD_CONNECT_MAX_ATTEMPTS,
   WORLD_FIRST_WELCOME_WATCHDOG_MS,
   WORLD_WELCOME_WATCHDOG_MS,
+  WORLD_KEEPALIVE_INTERVAL_MS,
+  WORLD_LIVENESS_TIMEOUT_MS,
   type WorldSocketLike,
   type WorldStatus,
 } from "./world-client";
@@ -141,10 +143,18 @@ describe("connection + roster", () => {
     expect(client.status).toBe("full");
   });
 
-  it("a dropped socket mid-visit is an error state, not a silent freeze", async () => {
+  it("a dropped socket mid-visit is NOT an instant error — the quiet reconnect opens instead", async () => {
     const { client, socket } = await inside();
     socket.onclose?.({ code: 1006 });
-    expect(client.status).toBe("error");
+    // The hall stays up: still inside, reconnect flagged, no card.
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(true);
+    // The reconnect attempt runs (the shared fake stands in for the
+    // new socket) and its welcome ends the interlude in place.
+    await new Promise((r) => setTimeout(r, 0));
+    socket.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(false);
   });
 });
 
@@ -725,7 +735,9 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
     expect(statuses).toEqual(["inside"]); // connecting → inside, nothing between
-    expect(timers.pendingDelays()).toEqual([]); // watchdog spent with the welcome
+    // The watchdog is spent with the welcome; the only timer left
+    // is the session keepalive.
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
   it("a CLEAN close (1000) during connect retries too — it no longer strands a bare dead room", async () => {
@@ -777,7 +789,8 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     // No timer fires; the welcome simply arrives late — and lands.
     sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
-    expect(timers.pendingDelays()).toEqual([]); // watchdog spent with the welcome
+    // Watchdog spent with the welcome; the keepalive remains.
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
   it("the budget is bounded: after the last attempt fails, the honest error lands", async () => {
@@ -802,24 +815,40 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     expect(sockets).toHaveLength(WORLD_CONNECT_MAX_ATTEMPTS); // and no 4th socket
   });
 
-  it("once inside, the budget is spent — a drop is a real drop and is never retried", async () => {
+  it("once inside, the ENTRY budget is spent — but a drop opens a quiet reconnect, not a card", async () => {
     const { client, sockets, timers } = makeRetryClient();
     await client.connect();
     sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
 
     sockets[0]!.onclose?.({ code: 1006 });
-    expect(client.status).toBe("error");
-    expect(sockets).toHaveLength(1);
-    expect(timers.pendingDelays()).toEqual([]);
+    // No error, no ejection: still inside, the interlude flagged,
+    // and the first reconnect attempt already armed — with the
+    // LONG window (the host may be mid-restart).
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(true);
+    expect(timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
+    await flush();
+    expect(sockets).toHaveLength(2);
+
+    sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(false);
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
-  it("a clean close mid-visit still reads as a deliberate closed, as before", async () => {
+  it("a clean close mid-visit re-enters quietly too — a draining host is a drop, not a deliberate leave", async () => {
     const { client, sockets } = makeRetryClient();
     await client.connect();
     sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     sockets[0]!.onclose?.({ code: 1005 });
-    expect(client.status).toBe("closed");
+    // Deliberate leaves go through disconnect() (which nulls the
+    // socket first, so this handler never runs for them). A clean
+    // close from the wire mid-visit is the host letting go —
+    // the quiet reconnect treats it like any other drop.
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(true);
   });
 
   it("disconnect during the backoff cancels the retry — leaving means leaving", async () => {
@@ -872,32 +901,39 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     // once the handshake completed) brings the client in.
     sockets[2]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
-    expect(timers.pendingDelays()).toEqual([]);
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
-  it("a re-connect after an established session fast-fails at the short window", async () => {
+  it("an ENTRY sequence after an established session still fast-fails at the short window", async () => {
     const { client, sockets, timers } = makeRetryClient();
     await client.connect();
     sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
 
-    // A real drop: a real error, never retried on its own.
+    // A drop quietly reconnects and lands again (long windows —
+    // the host may be mid-restart; see the longevity describe).
     sockets[0]!.onclose?.({ code: 1006 });
-    expect(client.status).toBe("error");
-
-    // The same client connects again — now a RE-connect: the host
-    // demonstrably woke for the earlier session, so every attempt
-    // arms the SHORT window and a hang fails fast.
-    await client.connect();
+    await flush();
     expect(sockets).toHaveLength(2);
+    sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(client.reconnecting).toBe(false);
+
+    // A deliberate connect() on the same client is an ENTRY
+    // sequence after establishment — a RE-connect in the join-fix
+    // sense: the host demonstrably woke for the earlier session,
+    // so every attempt arms the SHORT window and a hang fails
+    // fast. The quiet reconnect's long windows do not leak into it.
+    await client.connect();
+    expect(sockets).toHaveLength(3);
     expect(timers.pendingDelays()).toEqual([WORLD_WELCOME_WATCHDOG_MS]);
     expect(timers.fireNext()).toBe(WORLD_WELCOME_WATCHDOG_MS);
     expect(timers.pendingDelays()).toEqual([1_000]);
     timers.fireNext();
     await flush();
-    expect(sockets).toHaveLength(3);
+    expect(sockets).toHaveLength(4);
     expect(timers.pendingDelays()).toEqual([WORLD_WELCOME_WATCHDOG_MS]);
-    sockets[2]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    sockets[3]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
   });
 
@@ -1029,7 +1065,7 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     sockets[3]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
     expect(statuses).toEqual(["error", "connecting", "inside"]);
-    expect(timers.pendingDelays()).toEqual([]);
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
   it("a watchdog callback that outlives its attempt cannot re-error a live session", async () => {
@@ -1041,7 +1077,7 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     expect(lateWatchdog).toBeDefined();
     sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
-    expect(timers.pendingDelays()).toEqual([]);
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
 
     // The stale callback fires anyway: it must do nothing — no
     // error, no retired socket, no new attempt.
@@ -1049,7 +1085,7 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     expect(client.status).toBe("inside");
     expect(sockets).toHaveLength(1);
     expect(sockets[0]!.readyState).toBe(1); // never closed by the stale timer
-    expect(timers.pendingDelays()).toEqual([]);
+    expect(timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
   });
 
   it("a retired attempt's late close cannot fail the attempt that replaced it", async () => {
@@ -1144,5 +1180,229 @@ describe("the Music Hall jukebox", () => {
     guestRun.client.jukeboxAdd("track:1");
     guestRun.client.jukeboxSkip();
     expect(guestRun.socket.sent).toEqual([]);
+  });
+});
+
+describe("session longevity — keepalive + the quiet reconnect", () => {
+  /* Same hand-driven timers as the connect engine's harness, plus
+   * the injected clock the liveness window reads. */
+  function manualTimers() {
+    let nextId = 1;
+    const timers = new Map<number, { fn: () => void; ms: number }>();
+    return {
+      setTimer: (fn: () => void, ms: number) => {
+        const id = nextId++;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      clearTimer: (handle: unknown) => {
+        timers.delete(handle as number);
+      },
+      pendingDelays: () => [...timers.values()].map((t) => t.ms),
+      fireNext: () => {
+        const first = [...timers.entries()][0];
+        if (!first) return null;
+        timers.delete(first[0]);
+        first[1].fn();
+        return first[1].ms;
+      },
+    };
+  }
+
+  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  function makeLongClient() {
+    const timers = manualTimers();
+    const nowRef = { t: 0 };
+    const sockets: FakeSocket[] = [];
+    const statuses: WorldStatus[] = [];
+    const reconnectEvents: boolean[] = [];
+    const roomsChanged: string[] = [];
+    const client = new WorldClient({
+      getAccessToken: async () => "token-abc",
+      socketUrl: (token) => `ws://hall/api/world/ws${token ? `?token=${token}` : ""}`,
+      openSocket: () => {
+        const s = new FakeSocket();
+        sockets.push(s);
+        return s;
+      },
+      now: () => nowRef.t,
+      setTimer: timers.setTimer,
+      clearTimer: timers.clearTimer,
+    });
+    client.onStatus = (s) => statuses.push(s);
+    client.onReconnectingChange = (r) => reconnectEvents.push(r);
+    client.onRoomChanged = (room) => roomsChanged.push(room.id);
+    return { client, sockets, timers, statuses, reconnectEvents, roomsChanged, nowRef };
+  }
+
+  async function land(h: ReturnType<typeof makeLongClient>) {
+    await h.client.connect();
+    h.sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+  }
+
+  it("pings on the keepalive cadence while inside — and only while inside", async () => {
+    const h = makeLongClient();
+    await h.client.connect();
+    // No keepalive before the welcome: the entry watchdog owns the
+    // connecting phase.
+    expect(h.timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
+
+    h.sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
+
+    h.nowRef.t += WORLD_KEEPALIVE_INTERVAL_MS;
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_INTERVAL_MS);
+    expect(h.sockets[0]!.sent).toContainEqual({ type: "ping" });
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]); // re-armed
+
+    // The pong answers the liveness clock (any inbound frame does).
+    h.sockets[0]!.receive({ type: "pong" });
+    h.nowRef.t += WORLD_KEEPALIVE_INTERVAL_MS;
+    h.timers.fireNext();
+    expect(h.sockets[0]!.sent.filter((f) => f.type === "ping")).toHaveLength(2);
+    expect(h.client.status).toBe("inside");
+  });
+
+  it("any inbound frame feeds the liveness clock — a busy room is its own proof of life", async () => {
+    const h = makeLongClient();
+    await land(h);
+    // Past the liveness timeout on the clock, but a frame lands
+    // first: the tick must ping, not declare the path dead.
+    h.nowRef.t += WORLD_LIVENESS_TIMEOUT_MS + 1_000;
+    h.sockets[0]!.receive({ type: "peer.move", peerId: "w-other", x: 1, y: 0, z: 1, rotY: 0 });
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_INTERVAL_MS);
+    expect(h.sockets[0]!.sent).toContainEqual({ type: "ping" });
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.client.status).toBe("inside");
+  });
+
+  it("silence past the liveness window is a dead path: the zombie socket is retired and the client re-enters quietly", async () => {
+    const h = makeLongClient();
+    await land(h);
+    // No pong, no traffic, nothing — past three missed cycles.
+    h.nowRef.t += WORLD_LIVENESS_TIMEOUT_MS + 1_000;
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_INTERVAL_MS);
+    // The socket was never closed BY the server — the client
+    // retired it itself (its close event is identity-guarded into
+    // silence) and opened the quiet reconnect instead.
+    expect(h.sockets[0]!.readyState).toBe(3);
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(true);
+    await flush();
+    expect(h.sockets).toHaveLength(2);
+    h.sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.reconnectEvents).toEqual([true, false]);
+  });
+
+  it("a drop while inside re-enters quietly: no error status ever shows, and the landing re-homes the page", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(true);
+    await flush();
+    expect(h.sockets).toHaveLength(2);
+    h.sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.statuses).not.toContain("error");
+    expect(h.reconnectEvents).toEqual([true, false]);
+    // The session is new even though the room is the same: the
+    // page tears the dead socket's voice mesh down via the same
+    // re-home a doorway transfer fires.
+    expect(h.roomsChanged).toEqual(["world:kings-hall"]);
+  });
+
+  it("reconnect attempts ride the LONG windows — a host mid-restart gets first-connect patience", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    await flush();
+    expect(h.sockets).toHaveLength(2);
+    expect(h.timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]); // NOT the 20 s window
+    // Attempt 1 hangs (host still restarting): the watchdog fails
+    // it inside the long window, the backoff is the usual one.
+    expect(h.timers.fireNext()).toBe(WORLD_FIRST_WELCOME_WATCHDOG_MS);
+    expect(h.timers.pendingDelays()).toEqual([1_000]);
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(true);
+    h.timers.fireNext();
+    await flush();
+    expect(h.sockets).toHaveLength(3);
+    expect(h.timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
+    h.sockets[2]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(false);
+  });
+
+  it("genuinely exhausted patience lands the honest card: 3 failed reconnect attempts → error", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    await flush();
+    h.sockets[1]!.onerror?.();
+    expect(h.timers.pendingDelays()).toEqual([1_000]);
+    h.timers.fireNext();
+    await flush();
+    h.sockets[2]!.onclose?.({ code: 1006 });
+    expect(h.timers.pendingDelays()).toEqual([2_000]);
+    h.timers.fireNext();
+    await flush();
+    expect(h.sockets).toHaveLength(1 + WORLD_CONNECT_MAX_ATTEMPTS);
+    h.sockets[3]!.onerror?.();
+    expect(h.client.status).toBe("error");
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.reconnectEvents).toEqual([true, false]);
+    expect(h.timers.pendingDelays()).toEqual([]); // nothing left running
+  });
+
+  it("room_full during a reconnect stays terminal — no retry against a full hall, no stuck reconnecting flag", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    await flush();
+    h.sockets[1]!.receive({ type: "room_full", cap: 30 });
+    expect(h.client.status).toBe("full");
+    expect(h.client.reconnecting).toBe(false);
+    h.sockets[1]!.onclose?.({ code: 4429 });
+    expect(h.client.status).toBe("full");
+    expect(h.timers.pendingDelays()).toEqual([]);
+  });
+
+  it("disconnect during a reconnect cancels it — leaving means leaving, mid-interlude too", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    await flush();
+    expect(h.sockets).toHaveLength(2);
+    expect(h.client.reconnecting).toBe(true);
+    h.client.disconnect();
+    expect(h.client.status).toBe("closed");
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.timers.pendingDelays()).toEqual([]);
+    await flush();
+    expect(h.sockets).toHaveLength(2); // nothing further opened
+  });
+
+  it("a second drop after a landed reconnect reconnects again — the patience is per-drop, not per-client", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.sockets[0]!.onclose?.({ code: 1006 });
+    await flush();
+    h.sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.reconnecting).toBe(false);
+    h.sockets[1]!.onclose?.({ code: 1006 });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(true);
+    await flush();
+    expect(h.sockets).toHaveLength(3);
+    h.sockets[2]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.client.status).toBe("inside");
+    expect(h.reconnectEvents).toEqual([true, false, true, false]);
   });
 });
