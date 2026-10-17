@@ -11,6 +11,8 @@
    (stream_schedule, media_kit, series) are read defensively — the renderer
    never crashes if they're absent. */
 
+import { formatDuration, type StreamTrack, type StreamVideo } from "@/lib/streaming";
+
 export type VerticalId =
   | "music"
   | "video"
@@ -386,6 +388,24 @@ export interface SocialPostItem {
   created_at?: string;
 }
 
+/* One catalog row as the profile Music / Videos blocks render it
+   (thumbnail, title, inline preview, duration · plays, deep link). The
+   public-profile endpoint returns the creator's published work as
+   snake_case top_tracks / top_videos; the fetch boundary normalizes
+   them into this shape (see normalizePublicProfile below) — before
+   that mapping existed the blocks read a media_items field no payload
+   ever set and rendered nothing for every creator. */
+export interface ProfileMediaItem {
+  id: string;
+  title: string;
+  thumbnailUrl?: string;
+  url?: string;
+  duration?: string;
+  plays?: number;
+  /** Deep link to the track/video page — media rows are never islands. */
+  href?: string;
+}
+
 export interface CreatorProfile {
   id: string;
   user_id: string;
@@ -423,6 +443,11 @@ export interface CreatorProfile {
   merch_items?: MerchItem[] | null;
   events?: ProfileEventItem[] | null;
   social_posts?: SocialPostItem[] | null;
+  /* Published catalog from the public endpoint's top_tracks /
+     top_videos, normalized at the fetch boundary. Present on profiles
+     loaded through fetchPublicProfile; the Music / Videos blocks read
+     it directly. Absent (owner /me payload) renders as no catalog. */
+  media_items?: { tracks: ProfileMediaItem[]; videos: ProfileMediaItem[] };
 }
 
 export const DEFAULT_THEME: ThemeConfig = { ...THEME_PRESETS[0]! };
@@ -483,11 +508,59 @@ function withRenderableLayout(p: CreatorProfile): CreatorProfile {
   return { ...p, sections, top_creators };
 }
 
+/* ─── Public-profile fetch boundary ───────────────────────────────────
+   GET /api/creator-profiles/:slug answers
+   { profile, counts, top_tracks, top_videos, playlists } where
+   top_tracks / top_videos are the creator's published catalog rows
+   (snake_case DTOs — the same shapes streaming.ts types). Normalize
+   them onto profile.media_items HERE, at the boundary, so every
+   consumer (the Grand Stage Music / Videos blocks included) reads one
+   camelCase shape and the wire shape never leaks into components. */
+export interface PublicProfileWire {
+  profile?: CreatorProfile;
+  top_tracks?: StreamTrack[] | null;
+  top_videos?: StreamVideo[] | null;
+  [key: string]: unknown;
+}
+
+function trackToMediaItem(t: StreamTrack): ProfileMediaItem {
+  return {
+    id: t.id,
+    title: t.title,
+    thumbnailUrl: t.artwork_url ?? undefined,
+    url: t.audio_url,
+    duration: t.duration_sec ? formatDuration(t.duration_sec) : undefined,
+    plays: t.play_count ?? 0,
+    /* The track's own stream page — a catalog row always leads
+       somewhere real, never a dead click. */
+    href: `/track/${t.id}`,
+  };
+}
+
+function videoToMediaItem(v: StreamVideo): ProfileMediaItem {
+  return {
+    id: v.id,
+    title: v.title,
+    thumbnailUrl: v.thumbnail_url ?? undefined,
+    url: v.video_url,
+    duration: v.duration_sec ? formatDuration(v.duration_sec) : undefined,
+    plays: v.view_count ?? 0,
+    href: `/watch/${v.id}`,
+  };
+}
+
+export function normalizePublicProfile(data: PublicProfileWire | CreatorProfile): CreatorProfile {
+  const wire = data as PublicProfileWire;
+  const profile = wire.profile ?? (data as CreatorProfile);
+  const tracks = Array.isArray(wire.top_tracks) ? wire.top_tracks.map(trackToMediaItem) : [];
+  const videos = Array.isArray(wire.top_videos) ? wire.top_videos.map(videoToMediaItem) : [];
+  return withRenderableLayout({ ...profile, media_items: { tracks, videos } });
+}
+
 export async function fetchPublicProfile(slug: string): Promise<CreatorProfile> {
   const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}`);
-  const data = await json<{ profile?: CreatorProfile } | CreatorProfile>(res);
-  const profile = (data as { profile?: CreatorProfile }).profile ?? (data as CreatorProfile);
-  return withRenderableLayout(profile);
+  const data = await json<PublicProfileWire | CreatorProfile>(res);
+  return normalizePublicProfile(data);
 }
 
 export async function fetchMyProfile(): Promise<CreatorProfile | null> {

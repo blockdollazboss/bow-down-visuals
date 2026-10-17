@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type {
   CreatorProfile, FeaturedMedia, ProfileSection, SeriesEntry,
-  MerchItem, ProfileEventItem, SocialPostItem,
+  MerchItem, ProfileEventItem, SocialPostItem, ProfileMediaItem,
 } from "@/lib/artist-profiles";
 import { fetchComments, postComment, profileUrl, type ProfileComment } from "@/lib/artist-profiles";
 import { RichText } from "@/lib/safe-richtext";
@@ -20,16 +20,10 @@ import { useAuth } from "@/contexts/AuthContext";
    editor. `mode="public"` hides empty sections; `mode="preview"` shows
    tasteful empty-state hints so the creator sees what to fill in. */
 
-export interface MediaItem {
-  id: string;
-  title: string;
-  thumbnailUrl?: string;
-  url?: string;
-  duration?: string;
-  plays?: number;
-  /** Deep link to the track/video page — media rows are never islands. */
-  href?: string;
-}
+/* The row shape lives with the profile DTO (lib/artist-profiles):
+   fetchPublicProfile normalizes the endpoint's published catalog into
+   exactly this shape, so what the blocks render IS the wire contract. */
+export type MediaItem = ProfileMediaItem;
 
 /* ─── Stories section (Worker 8 mount — 24h stories + highlights) ─────────── */
 export function StoriesSection({ profileId }: { profileId: string }) {
@@ -889,8 +883,10 @@ export function ProfileSectionByType({
 }: { profile: CreatorProfile; section: ProfileSection; mode?: "public" | "preview" }) {
   const preview = mode === "preview";
   const s = section;
-  /* Extension content lives on the profile defensively. */
-  const mediaItems = (profile as unknown as { media_items?: { tracks?: MediaItem[]; videos?: MediaItem[] } }).media_items;
+  /* The published catalog arrives normalized on the profile itself
+     (fetchPublicProfile maps the endpoint's top_tracks / top_videos
+     onto media_items at the fetch boundary). */
+  const mediaItems = profile.media_items;
 
   switch (s.type) {
     case "hero":
