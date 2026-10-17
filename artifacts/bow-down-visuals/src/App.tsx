@@ -18,6 +18,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
+import { EnterWorldButton } from "@/components/EnterWorldButton";
 import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
 import { ThyCheatCodeHost } from "@/components/ThyCheatCodeHost";
 import { GuideMe } from "@/components/GuideMe";
@@ -456,6 +457,11 @@ function AppShell() {
     <>
       <ScrollToTop />
       {typeof window !== "undefined" && <FloatingThemeToggle />}
+      {/* The Reverse Door (owner, 2026-10-17): every page carries a way
+          into the World. Shell furniture beside the theme toggle, so it
+          shows on every route AppShell renders — guests included; the
+          button hides itself only on /world. */}
+      {typeof window !== "undefined" && <EnterWorldButton />}
       {typeof window !== "undefined" && !location.startsWith("/video-editor") && <BowDownAIGuide />}
       {typeof window !== "undefined" && <ThyCheatCodeChat />}
       {typeof window !== "undefined" && <GuideMe />}
