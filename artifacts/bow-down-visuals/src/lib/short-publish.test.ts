@@ -26,6 +26,17 @@ describe("postShortPublishHref — the 'post a short' deep link", () => {
     expect(q.get("type")).toBe("video");
   });
 
+  it("a sound-carrying href hands the reference to the publish page (and keeps the short intent)", () => {
+    const href = postShortPublishHref({ soundId: "golden-hour-x1y2", soundTitle: "Golden Hour", soundUrl: "https://cdn/s.mp3" });
+    const q = new URLSearchParams(href.split("?")[1]);
+    expect(q.get("short")).toBe("1");
+    expect(q.get("soundId")).toBe("golden-hour-x1y2");
+    expect(q.get("soundTitle")).toBe("Golden Hour");
+    expect(q.get("soundUrl")).toBe("https://cdn/s.mp3");
+    const bare = new URLSearchParams(postShortPublishHref().split("?")[1]);
+    expect(bare.get("soundId")).toBeNull();
+  });
+
   it("both Shorts-page post buttons use it", () => {
     expect(shortsSource.match(/postShortPublishHref\(\)/g)).toHaveLength(2);
   });
@@ -72,12 +83,50 @@ describe("buildShortPostBody — the POST /api/shorts payload", () => {
   it("drafts ride the same body with is_published=false", () => {
     expect(buildShortPostBody({ ...base, publish: false }).is_published).toBe(false);
   });
+
+  it("forwards a sound reference so the created short is stamped with its sound (0091 columns)", () => {
+    const body = buildShortPostBody({
+      ...base,
+      soundId: "golden-hour-x1y2",
+      soundTitle: "Golden Hour",
+      soundUrl: "https://cdn/sound.mp3",
+    });
+    expect(body.sound_id).toBe("golden-hour-x1y2");
+    expect(body.sound_title).toBe("Golden Hour");
+    expect(body.sound_url).toBe("https://cdn/sound.mp3");
+  });
+
+  it("a title-only sound reference still rides (the server derives the sound id from it)", () => {
+    const body = buildShortPostBody({ ...base, soundTitle: "  Loose Title  " });
+    expect(body.sound_title).toBe("Loose Title");
+    expect("sound_id" in body).toBe(false);
+    expect("sound_url" in body).toBe(false);
+  });
+
+  it("no sound reference → no sound keys at all (the row's sound stays unrecorded, honestly)", () => {
+    const body = buildShortPostBody({ ...base, soundId: "   ", soundTitle: null, soundUrl: undefined });
+    expect("sound_id" in body).toBe(false);
+    expect("sound_title" in body).toBe(false);
+    expect("sound_url" in body).toBe(false);
+  });
+
+  it("clamps the sound reference to the endpoint's caps (id 80 / title 120)", () => {
+    const body = buildShortPostBody({ ...base, soundId: "s".repeat(120), soundTitle: "t".repeat(200) });
+    expect((body.sound_id as string)).toHaveLength(80);
+    expect((body.sound_title as string)).toHaveLength(120);
+  });
 });
 
 describe("publish page short wiring (source)", () => {
   it("consumes ?short=1 into short intent", () => {
     expect(publishSource).toContain('params.get("short") === "1"');
     expect(publishSource).toContain("setShortIntent(true)");
+  });
+
+  it("consumes a handed-over sound reference and stamps the fresh short with it", () => {
+    expect(publishSource).toContain('params.get("soundId")');
+    expect(publishSource).toContain("setShortSound({ id: pSoundId, title: pSoundTitle, url: pSoundUrl })");
+    expect(publishSource).toContain("soundId: shortSound?.id, soundTitle: shortSound?.title, soundUrl: shortSound?.url");
   });
 
   it("a fresh short save posts to the shorts endpoint; the regular path stays on /api/publish", () => {
