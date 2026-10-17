@@ -196,6 +196,9 @@ export default function WorldPage() {
 
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<WorldStatus>("connecting");
+  /* The quiet-reconnect interlude: the client stays "inside" while
+     it re-enters; the page shows a slim notice, never a card. */
+  const [reconnecting, setReconnecting] = useState(false);
   /* A boot failure is NOT a connection failure: the scene chunk
      failed to load or the WebGL2 renderer threw before any socket
      existed — the device couldn't start the hall. It wears its own
@@ -819,6 +822,9 @@ export default function WorldPage() {
         scene.setPeerAction(peerId, action);
       };
 
+      client.onReconnectingChange = (r) => {
+        if (!cancelled) setReconnecting(r);
+      };
       client.onStatus = (s) => {
         if (cancelled) return;
         setStatus(s);
@@ -1344,6 +1350,14 @@ export default function WorldPage() {
           <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/70"}`}>
             <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
             <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>Entering the King's Hall…</p>
+          </div>
+        )}
+        {reconnecting && overlay === null && (
+          <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
+            <p className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Connection dropped — walking you back in…
+            </p>
           </div>
         )}
         {bootFailed && (
