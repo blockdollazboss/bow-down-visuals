@@ -191,36 +191,55 @@ export type VoiceNotice = "full" | "denied-guest" | "denied-host";
 
 const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
 
-/* ── First-connect resilience ──────────────────────────────────────
+/* ── Connect resilience ────────────────────────────────────────────
  * The door is retried, quietly, before it is ever called broken:
  * the staging box (and any waking host) can take seconds to accept
  * a socket, and a single dropped handshake used to be a dead end
- * with an error card. The FIRST connect gets a bounded budget —
+ * with an error card. A connect sequence gets a bounded budget —
  * this many attempts in total, with a growing pause between them —
- * and a watchdog per attempt: a handshake that produces neither a
- * welcome nor a close within the window counts as failed, so a
- * hung connect retries instead of spinning forever. Once the first
- * welcome lands the budget is spent for good: a later drop is a
+ * and a watchdog per attempt: an attempt that produces neither a
+ * welcome nor a close within its window counts as failed, so a
+ * hung connect retries instead of spinning forever. Once a welcome
+ * lands the budget is spent for that sequence: a later drop is a
  * real drop and reports the way it always has.
  *
- * The FIRST attempt's window is sized for a WAKING host, not a
- * hung one: the free-tier box spins down when idle and can take
- * the better part of a minute to accept the first socket after a
- * deploy or a quiet spell — while its welcome, once the handshake
- * lands, follows in milliseconds (measured live on staging,
- * 2026-10-17: opens at 24.7 s on a healthy server whose welcome
- * arrived 1 ms later). A flat 20 s window killed those healthy
- * handshakes mid-wake, three in a row, and showed the error card
- * to a hall that was never broken. Later attempts keep the short
- * window: by then the host has had its wake, so a still-hanging
- * handshake is a genuine hang and fails fast. */
+ * The window is sized by SEQUENCE, not by attempt. A FIRST connect
+ * (this client has never been welcomed) may be waking the host:
+ * the free-tier box spins down when idle and can take the better
+ * part of a minute to accept a socket after a deploy or a quiet
+ * spell — and the tail is long even on a warm, settled box
+ * (measured live on staging, 2026-10-17: opens at 24.7 s in the
+ * morning and tailing to 55.8 s later that day, while the welcome,
+ * once the handshake landed, followed in 0–38 ms every time). So
+ * EVERY attempt of a first connect gets the long window: an early
+ * version gave only attempt 1 the long window, and a slow open on
+ * attempt 2 or 3 (20 s) burned the whole budget into the error
+ * card while the server was attaching the peer and answering in
+ * milliseconds — presence flowed, welcomes were sent, and the page
+ * discarded them as belonging to already-retired sockets.
+ * A RE-connect (a session was established earlier in this client's
+ * life, then dropped; the page's Re-enter builds a fresh client,
+ * so this is the same-client path) gets the short window on every
+ * attempt: the host demonstrably woke for the earlier session, so
+ * a still-hanging handshake is a genuine hang and fails fast.
+ *
+ * The watchdog is armed when the attempt STARTS — before the
+ * token fetch, not after the socket exists. The token fetch can
+ * itself make network calls with no timeout of its own (session
+ * validation, a refresh), and an uncovered hang there stranded
+ * the page on "connecting" with no timer running at all. Token
+ * fetch and handshake now share the attempt's one window; a hung
+ * fetch fails the attempt exactly like a hung handshake. */
 export const WORLD_CONNECT_MAX_ATTEMPTS = 3;
 /** The pause before attempt 2 and attempt 3, respectively. */
 export const WORLD_CONNECT_BACKOFF_MS: readonly number[] = [1_000, 2_000];
-/** The welcome window for attempts after the first. */
+/** The welcome window for every attempt of a RE-connect sequence
+ *  (a session was established before): fail fast, the host is
+ *  awake and a hang is a hang. */
 export const WORLD_WELCOME_WATCHDOG_MS = 20_000;
-/** The welcome window for the FIRST attempt — long enough for a
- *  waking host to accept the socket and answer. */
+/** The welcome window for every attempt of a FIRST connect: long
+ *  enough for a waking (or merely slow) host to accept the socket
+ *  and answer — on every attempt, not just the first. */
 export const WORLD_FIRST_WELCOME_WATCHDOG_MS = 60_000;
 
 export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, token: string | null): string {
@@ -310,11 +329,19 @@ export class WorldClient {
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
-  /** First-connect retry state: sockets opened so far in this
-   *  connect sequence, whether the first welcome has ever landed,
-   *  and the two pending timers (welcome watchdog, backoff). */
+  /** Connect retry state: sockets opened so far in this connect
+   *  sequence, whether a welcome has landed in it, and the two
+   *  pending timers (welcome watchdog, backoff). Alongside them:
+   *  `sessionEstablished` — latched by the first welcome this
+   *  client EVER receives and never reset (it sizes the watchdog
+   *  windows: first connect vs re-connect), and `attemptGeneration`
+   *  — a monotone stamp each attempt (and each connect/disconnect)
+   *  takes, so a retired attempt's late continuations and timers
+   *  can always tell they are stale. */
   private connectAttemptsMade = 0;
   private everInside = false;
+  private sessionEstablished = false;
+  private attemptGeneration = 0;
   private welcomeWatchdog: unknown = null;
   private retryTimer: unknown = null;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
@@ -350,31 +377,44 @@ export class WorldClient {
 
   async connect(): Promise<void> {
     this.clearConnectTimers();
+    /* A new sequence retires everything the old one left in
+     * flight — a token fetch still out there must never open a
+     * socket for a sequence that no longer exists. */
+    this.attemptGeneration += 1;
     this.connectAttemptsMade = 0;
     this.everInside = false;
     this.setStatus("connecting");
     await this.openAttempt();
   }
 
-  /** One connection attempt: a fresh token, a fresh socket, a
-   *  welcome watchdog. Every failure route (error, close of ANY
-   *  code before the welcome, a hung handshake, a socket that
-   *  won't even construct) funnels into failConnectAttempt while
-   *  the first-connect budget lasts — the status never leaves
+  /** One connection attempt: a watchdog, a fresh token, a fresh
+   *  socket. Every failure route (error, close of ANY code before
+   *  the welcome, a hung handshake, a hung token fetch, a socket
+   *  that won't even construct) funnels into failConnectAttempt
+   *  while the sequence's budget lasts — the status never leaves
    *  "connecting" between attempts, so the page just keeps showing
    *  its entering state and no error card flashes for a transient. */
   private async openAttempt(): Promise<void> {
     this.connectAttemptsMade += 1;
-    const attempt = this.connectAttemptsMade;
+    const generation = ++this.attemptGeneration;
+    /* The watchdog arms FIRST, before the token fetch: the fetch
+     * is part of the attempt and shares its window (see the
+     * constants above). Guests pay nothing for this — their token
+     * read is a local null, and the timer is the same one the
+     * handshake would have armed anyway. */
+    this.armWelcomeWatchdog(generation);
     let token: string | null = null;
     try {
       token = await this.deps.getAccessToken();
     } catch {
       token = null; // a token hiccup downgrades to guest, never blocks the door
     }
-    /* A disconnect (or a whole new connect) may have landed while
-     * the token was in flight — a stale attempt must not open. */
-    if (this.status !== "connecting" || this.connectAttemptsMade !== attempt) return;
+    /* The watchdog may have retired this attempt while the token
+     * was in flight (or a disconnect / a whole new connect landed):
+     * a stale attempt must not open. The generation is the precise
+     * guard — the attempt count alone can coincide across
+     * sequences. */
+    if (generation !== this.attemptGeneration || this.status !== "connecting") return;
     let socket: WorldSocketLike;
     try {
       socket = this.deps.openSocket(this.deps.socketUrl(token));
@@ -395,7 +435,6 @@ export class WorldClient {
     socket.onerror = () => {
       if (this.socket === socket) this.handleSocketFailure();
     };
-    this.armWelcomeWatchdog(socket, attempt);
   }
 
   private handleSocketClose(ev: { code?: number }): void {
@@ -426,6 +465,10 @@ export class WorldClient {
    *  or, with the budget spent, land on the honest error state. */
   private failConnectAttempt(): void {
     this.clearWelcomeWatchdog();
+    /* Retire the attempt's identity too: a token fetch still in
+     * flight for it resolves into a generation that no longer
+     * matches, and its continuation opens nothing. */
+    this.attemptGeneration += 1;
     const socket = this.socket;
     this.socket = null;
     if (socket) {
@@ -449,18 +492,22 @@ export class WorldClient {
     }, delay);
   }
 
-  /** A handshake that lands neither a welcome nor a close inside
-   *  the window is a failed attempt — without this, a hung connect
+  /** An attempt that lands neither a welcome nor a close inside
+   *  its window is a failed attempt — without this, a hung connect
    *  spins on "connecting" forever (there was no timer at all).
-   *  The window is attempt-aware: the first attempt may be waking
-   *  the host and gets the long window; later attempts get the
-   *  short one (see the constants above). */
-  private armWelcomeWatchdog(socket: WorldSocketLike, attempt: number): void {
+   *  The window is sequence-aware: every attempt of a first
+   *  connect gets the long window; every attempt of a re-connect
+   *  gets the short one (see the constants above). The callback is
+   *  generation-guarded: a watchdog that somehow outlives its
+   *  attempt (a callback already queued when the clear landed)
+   *  recognizes its dead generation and does nothing — it can
+   *  never re-error a live session. */
+  private armWelcomeWatchdog(generation: number): void {
     this.clearWelcomeWatchdog();
-    const windowMs = attempt <= 1 ? WORLD_FIRST_WELCOME_WATCHDOG_MS : WORLD_WELCOME_WATCHDOG_MS;
+    const windowMs = this.sessionEstablished ? WORLD_WELCOME_WATCHDOG_MS : WORLD_FIRST_WELCOME_WATCHDOG_MS;
     this.welcomeWatchdog = this.setTimer(() => {
       this.welcomeWatchdog = null;
-      if (this.socket !== socket) return;
+      if (generation !== this.attemptGeneration) return;
       if (this.status !== "connecting" || this.everInside) return;
       this.failConnectAttempt();
     }, windowMs);
@@ -484,6 +531,7 @@ export class WorldClient {
   disconnect(): void {
     this.setStatus("closed");
     this.clearConnectTimers();
+    this.attemptGeneration += 1; // an in-flight attempt opens nothing after this
     const socket = this.socket;
     this.socket = null;
     if (socket) {
@@ -699,8 +747,12 @@ export class WorldClient {
       }
       case "welcome": {
         /* The first welcome spends the connect budget for good and
-         * silences the watchdog — from here, drops are real drops. */
+         * silences the watchdog — from here, drops are real drops.
+         * It also latches the session for this client's life: any
+         * later connect sequence is a RE-connect and arms the
+         * short watchdog windows. */
         this.everInside = true;
+        this.sessionEstablished = true;
         this.clearConnectTimers();
         const you = frame["you"] as WorldPeer;
         const wasInside = this.status === "inside";
