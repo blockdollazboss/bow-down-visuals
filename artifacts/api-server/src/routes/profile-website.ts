@@ -10,10 +10,13 @@ import {
   shopProductsTable,
   digitalSalesTable,
   storeOrdersTable,
+  retentionPrefsTable,
 } from "@workspace/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { arcadeStatsForUser } from "./arcade";
+import { partyStatsForUser } from "./party";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { formatUsd } from "../lib/platform-fees";
 import {
@@ -385,6 +388,49 @@ router.get("/creator-profiles/:slug/store-catalog", publicApiLimiter, async (req
   } catch (err) {
     req.log.error({ err }, "store-catalog GET error");
     res.status(500).json({ error: "Couldn't load this creator's store. Try again." });
+  }
+});
+
+/* ═══ #4b — Profile game record (DE-15) ═══════════════════════════════════
+   The Trophy Shelf's game group: the profile OWNER's arcade bests and
+   party record, aggregated by the SAME helpers behind /arcade/me and
+   /party/me (one aggregation, every surface). Aggregates only — scores
+   and wins are status, never currency; nothing here touches credits.
+   Privacy: a creator who opted out of leaderboards
+   (retention_prefs.leaderboard_visible = false) shows no game record
+   publicly either — the same opt-out the leaderboards honor. */
+export interface ProfileGameStatsDto {
+  profile: { slug: string; displayName: string };
+  visible: boolean;
+  arcade: Awaited<ReturnType<typeof arcadeStatsForUser>>;
+  party: Awaited<ReturnType<typeof partyStatsForUser>>;
+}
+
+router.get("/creator-profiles/:slug/game-stats", publicApiLimiter, async (req, res) => {
+  try {
+    const profile = await getPublicProfileBySlug(String(req.params["slug"] ?? ""));
+    if (!profile) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private." });
+      return;
+    }
+    const [pref] = await db
+      .select({ visible: retentionPrefsTable.leaderboardVisible })
+      .from(retentionPrefsTable)
+      .where(eq(retentionPrefsTable.userId, profile.userId))
+      .limit(1);
+    const visible = pref?.visible !== false;
+    const dto: ProfileGameStatsDto = {
+      profile: { slug: profile.slug, displayName: profile.displayName },
+      visible,
+      arcade: visible ? await arcadeStatsForUser(profile.userId) : [],
+      party: visible
+        ? await partyStatsForUser(profile.userId)
+        : { games: [], totalMatches: 0 },
+    };
+    res.json(dto);
+  } catch (err) {
+    req.log.error({ err }, "game-stats GET error");
+    res.status(500).json({ error: "Couldn't load this creator's game record. Try again." });
   }
 });
 

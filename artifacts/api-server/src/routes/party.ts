@@ -251,29 +251,44 @@ router.get("/party/leaderboard", requireAuth, publicApiLimiter, async (req: Requ
   }
 });
 
+export interface PartyGameStat {
+  game: PartyGame;
+  matches: number;
+  wins: number;
+  points: number;
+  bestScore: number;
+}
+
+/** One user's party record per game (matches/wins/points/best score).
+ *  Shared by /party/me (the caller) and the public profile game-stats
+ *  surface (the profile owner) so both read the SAME aggregation. */
+export async function partyStatsForUser(userId: string): Promise<{ games: PartyGameStat[]; totalMatches: number }> {
+  const rows = await db
+    .select()
+    .from(partyMatchResultsTable)
+    .where(eq(partyMatchResultsTable.userId, userId));
+  const byGame = new Map<string, { matches: number; wins: number; points: number; bestScore: number }>();
+  for (const r of rows) {
+    const cur = byGame.get(r.game) ?? { matches: 0, wins: 0, points: 0, bestScore: 0 };
+    cur.matches += 1;
+    cur.points += r.score;
+    cur.bestScore = Math.max(cur.bestScore, r.score);
+    if (r.won) cur.wins += 1;
+    byGame.set(r.game, cur);
+  }
+  return {
+    games: (["trivia", "duel"] as PartyGame[]).map((game) => ({
+      game,
+      ...(byGame.get(game) ?? { matches: 0, wins: 0, points: 0, bestScore: 0 }),
+    })),
+    totalMatches: rows.length,
+  };
+}
+
 router.get("/party/me", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const userId = req.userId!;
   try {
-    const rows = await db
-      .select()
-      .from(partyMatchResultsTable)
-      .where(eq(partyMatchResultsTable.userId, userId));
-    const byGame = new Map<string, { matches: number; wins: number; points: number; bestScore: number }>();
-    for (const r of rows) {
-      const cur = byGame.get(r.game) ?? { matches: 0, wins: 0, points: 0, bestScore: 0 };
-      cur.matches += 1;
-      cur.points += r.score;
-      cur.bestScore = Math.max(cur.bestScore, r.score);
-      if (r.won) cur.wins += 1;
-      byGame.set(r.game, cur);
-    }
-    res.json({
-      games: (["trivia", "duel"] as PartyGame[]).map((game) => ({
-        game,
-        ...(byGame.get(game) ?? { matches: 0, wins: 0, points: 0, bestScore: 0 }),
-      })),
-      totalMatches: rows.length,
-    });
+    res.json(await partyStatsForUser(userId));
   } catch (err) {
     logger.error({ err, userId }, "[party] me failed");
     res.status(500).json({ error: "Could not load your party record" });

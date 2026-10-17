@@ -160,30 +160,42 @@ router.get("/arcade/leaderboard", requireAuth, publicApiLimiter, async (req: Req
   }
 });
 
+export interface ArcadeGameStat {
+  game: ArcadeGame;
+  best: number | null;
+  plays: number;
+}
+
+/** One user's per-game arcade record (best + plays, null/0 when
+ *  unplayed). Shared by /arcade/me (the caller) and the public profile
+ *  game-stats surface (the profile owner) so both read the SAME
+ *  aggregation — one record, every surface. */
+export async function arcadeStatsForUser(userId: string): Promise<ArcadeGameStat[]> {
+  const rows = await db
+    .select({ game: arcadeScoresTable.game, score: arcadeScoresTable.score })
+    .from(arcadeScoresTable)
+    .where(eq(arcadeScoresTable.userId, userId));
+  const byGame = new Map<string, { best: number; plays: number }>();
+  for (const r of rows) {
+    const cur = byGame.get(r.game);
+    if (cur) {
+      cur.best = Math.max(cur.best, r.score);
+      cur.plays += 1;
+    } else {
+      byGame.set(r.game, { best: r.score, plays: 1 });
+    }
+  }
+  return ARCADE_GAMES.map((game) => ({
+    game,
+    best: byGame.get(game)?.best ?? null,
+    plays: byGame.get(game)?.plays ?? 0,
+  }));
+}
+
 router.get("/arcade/me", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const userId = req.userId!;
   try {
-    const rows = await db
-      .select({ game: arcadeScoresTable.game, score: arcadeScoresTable.score })
-      .from(arcadeScoresTable)
-      .where(eq(arcadeScoresTable.userId, userId));
-    const byGame = new Map<string, { best: number; plays: number }>();
-    for (const r of rows) {
-      const cur = byGame.get(r.game);
-      if (cur) {
-        cur.best = Math.max(cur.best, r.score);
-        cur.plays += 1;
-      } else {
-        byGame.set(r.game, { best: r.score, plays: 1 });
-      }
-    }
-    res.json({
-      games: ARCADE_GAMES.map((game) => ({
-        game,
-        best: byGame.get(game)?.best ?? null,
-        plays: byGame.get(game)?.plays ?? 0,
-      })),
-    });
+    res.json({ games: await arcadeStatsForUser(userId) });
   } catch (err) {
     logger.error({ err, userId }, "[arcade] me failed");
     res.status(500).json({ error: "Could not load your arcade stats" });
