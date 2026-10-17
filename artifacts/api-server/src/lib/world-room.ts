@@ -22,6 +22,14 @@
  *                                            mesh); the room carries
  *                                            the flag so name plates
  *                                            can say "voice off"
+ *     { type: "voice.deaf", deaf }           deafen (voice modes):
+ *                                            the member STAYS in the
+ *                                            mesh but hears nobody and
+ *                                            mutes their own mic; the
+ *                                            room carries the flag so
+ *                                            name plates can say
+ *                                            "deafened" — a different
+ *                                            mark from voice-off
  *     { type: "voice.signal", to, data }     WebRTC offer/answer/ice
  *                                            relay (voice members only)
  *     { type: "stage.live", streamId }       take the stage with my
@@ -54,6 +62,9 @@
  *     { type: "peer.voiceoff", peerId, off }    a peer's voice switch
  *                                            flipped (name plates mark
  *                                            the voice-off)
+ *     { type: "peer.voicedeaf", peerId, deaf }  a peer deafened (or
+ *                                            lifted it) — name plates
+ *                                            mark the deafened
  *     { type: "voice.state", voicePeerIds }     answer to voice.join
  *     { type: "voice.signal", from, data }      relayed signaling
  *     { type: "voice.full" } / { type: "voice.denied", reason }
@@ -239,6 +250,10 @@ export interface WorldPeerDto {
    *  joined voice yet. Name plates mark it so nobody talks to
    *  someone who can't hear them. */
   voiceOff: boolean;
+  /** Deafened (the voice modes' Deafen): still in the mesh, hearing
+   *  nobody, own mic muted — distinct from voiceOff (fully out).
+   *  Name plates mark it so silence isn't read as ignoring. */
+  voiceDeaf: boolean;
   /** Host authority (resolved at the door; guests never). */
   admin: boolean;
   /** The host muted this member's voice server-side: out of the
@@ -258,6 +273,7 @@ interface WorldPeer extends WorldIdentity {
   guest: boolean;
   voice: boolean;
   voiceOff: boolean;
+  voiceDeaf: boolean;
   admin: boolean;
   hostMuted: boolean;
   character: WorldCharacterRef | null;
@@ -338,6 +354,7 @@ export class WorldRoom {
       guest: peer.guest,
       voice: peer.voice,
       voiceOff: peer.voiceOff,
+      voiceDeaf: peer.voiceDeaf,
       admin: peer.admin,
       hostMuted: peer.hostMuted,
       character: peer.character,
@@ -387,6 +404,7 @@ export class WorldRoom {
       guest: identity.userId === null,
       voice: false,
       voiceOff: false,
+      voiceDeaf: false,
       admin: identity.userId !== null && identity.admin === true,
       hostMuted: false,
       character: null,
@@ -637,8 +655,30 @@ export class WorldRoom {
           peer.voice = false;
           this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
         }
+        if (off && peer.voiceDeaf) {
+          /* Voice-off outranks deafen: the deafened mark clears on
+           * the way out, so the plate tells the one story that
+           * matters — this peer is out of voice entirely. */
+          peer.voiceDeaf = false;
+          this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voicedeaf", peerId: peer.peerId, deaf: false });
+        }
         peer.voiceOff = off;
         this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voiceoff", peerId: peer.peerId, off });
+        return;
+      }
+      case "voice.deaf": {
+        /* Deafen (the voice modes). Members only — guests have no
+         * voice to deafen. Unlike the switch, deafen does NOT leave
+         * the mesh: the peer stays in voice (their client zeroes its
+         * receive gains and mutes its mic track); the server's whole
+         * job is the flag, so every name plate can say "deafened".
+         * No voice.left, no voice.state change — membership is
+         * untouched, and lifting it is just the flag flipping back. */
+        if (peer.guest) return;
+        const deaf = frame["deaf"] === true;
+        if (deaf === peer.voiceDeaf) return;
+        peer.voiceDeaf = deaf;
+        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voicedeaf", peerId: peer.peerId, deaf });
         return;
       }
       case "stage.live": {

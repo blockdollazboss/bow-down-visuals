@@ -495,6 +495,88 @@ describe("the voice switch (voice.off)", () => {
   });
 });
 
+describe("deafen (voice.deaf)", () => {
+  it("flags the peer in the DTO and broadcasts peer.voicedeaf to the room", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+
+    frame(a, room, { type: "voice.deaf", deaf: true });
+    const seenByB = b.sent.find((m) => m.type === "peer.voicedeaf");
+    expect(seenByB).toMatchObject({ peerId: expect.any(String), deaf: true });
+    expect(room.peerFor(a)?.voiceDeaf).toBe(true);
+    expect(room.peerFor(a)?.voiceOff).toBe(false);
+    // The sender hears its own flip back (plates settle from one source).
+    expect(a.sent.some((m) => m.type === "peer.voicedeaf" && m.deaf === true)).toBe(true);
+
+    // A late joiner's snapshot carries the flag from the first frame.
+    const c = fakeSocket();
+    room.attach(c, member("Cara"));
+    const snap = c.sent.find((m) => m.type === "welcome");
+    expect(snap.peers.find((p: any) => p.displayName === "Alpha")?.voiceDeaf).toBe(true);
+    expect(snap.peers.find((p: any) => p.displayName === "Beta")?.voiceDeaf).toBe(false);
+  });
+
+  it("deafening does NOT leave the mesh — membership is untouched, no voice.left", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "voice.join" });
+    frame(b, room, { type: "voice.join" });
+    expect(room.voiceSize()).toBe(2);
+    b.sent.length = 0;
+
+    frame(a, room, { type: "voice.deaf", deaf: true });
+    expect(room.voiceSize()).toBe(2);
+    expect(room.peerFor(a)?.voice).toBe(true);
+    expect(types(b)).toEqual(["peer.voicedeaf"]);
+
+    // And lifting it is just the flag flipping back — still in voice.
+    frame(a, room, { type: "voice.deaf", deaf: false });
+    expect(room.peerFor(a)?.voiceDeaf).toBe(false);
+    expect(room.peerFor(a)?.voice).toBe(true);
+    expect(room.voiceSize()).toBe(2);
+  });
+
+  it("voice-off clears a standing deafen: the room hears undeaf, then off", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "voice.join" });
+    frame(a, room, { type: "voice.deaf", deaf: true });
+    b.sent.length = 0;
+
+    frame(a, room, { type: "voice.off", off: true });
+    expect(room.peerFor(a)?.voiceDeaf).toBe(false);
+    expect(room.peerFor(a)?.voiceOff).toBe(true);
+    expect(room.voiceSize()).toBe(0);
+    expect(types(b)).toEqual(["voice.left", "peer.voicedeaf", "peer.voiceoff"]);
+    expect(b.sent.find((m) => m.type === "peer.voicedeaf")).toMatchObject({ deaf: false });
+  });
+
+  it("a redundant deafen broadcasts nothing; guests can't deafen at all", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const g = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(g, guest());
+    a.sent.length = 0;
+    g.sent.length = 0;
+
+    frame(a, room, { type: "voice.deaf", deaf: false }); // already hearing
+    expect(a.sent).toEqual([]);
+    frame(g, room, { type: "voice.deaf", deaf: true }); // guest — ignored
+    expect(room.peerFor(g)?.voiceDeaf).toBe(false);
+    expect(types(a)).toEqual([]);
+  });
+});
+
 describe("the stage + screen", () => {
   const flush = () => new Promise<void>((r) => setImmediate(r));
   const videoRef = {
