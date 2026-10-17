@@ -686,7 +686,20 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
    instead of wrapping the /party page. The lobby above stays
    page-shaped (it reads ?room=/?stream= from the page URL and
    writes history); the palace lobby is its own native board. */
-export function RoomView({ code, onLeave }: { code: string; onLeave: () => void }) {
+export function RoomView({
+  code,
+  onLeave,
+  inviteUrlFor,
+}: {
+  code: string;
+  onLeave: () => void;
+  /* The invite link this mount copies. The page keeps its own
+     /party?room= link; the palace's Marble Table passes the /world
+     deep link (/world?party=CODE, program 2.23) so a copied invite
+     lands the friend at the in-world table. Default = page link,
+     so page behavior is unchanged where the prop isn't passed. */
+  inviteUrlFor?: (code: string) => string;
+}) {
   const { light, panel, ink, muted, chip, goldBtn } = usePanel();
   const { getAccessToken } = useAuth();
   const clientRef = useRef<PartyClient | null>(null);
@@ -786,13 +799,15 @@ export function RoomView({ code, onLeave }: { code: string; onLeave: () => void 
 
   const copyLink = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/party?room=${code}`);
+      await navigator.clipboard.writeText(
+        inviteUrlFor?.(code) ?? `${window.location.origin}/party?room=${code}`,
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard unavailable — the code itself is the invite */
     }
-  }, [code]);
+  }, [code, inviteUrlFor]);
 
   const standingsWithPlacement = useMemo(() => {
     const list = client.podium?.standings ?? client.reveal?.standings ?? client.players;

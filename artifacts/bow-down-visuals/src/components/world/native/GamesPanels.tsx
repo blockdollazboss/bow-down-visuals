@@ -13,12 +13,16 @@ import {
   Gamepad2,
   Gift,
   Hash,
+  Link2,
   Loader2,
   Play,
+  Radio,
   Trophy,
   Users,
   X,
   Check,
+  CircleUserRound,
+  Swords,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
@@ -27,22 +31,35 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
 import {
   ARCADE_CABINETS,
   PARTY_GAME_META,
+  contestStatusLine,
   createPartyRoomBody,
   dropQualifies,
   gamesSurfaceForStation,
   outcomeForFailedScore,
   outcomeForSavedScore,
   parseArcadeMe,
+  parseChallengeStandings,
   parseCreatedPartyRoom,
+  parseHallOfFame,
+  parseMyLiveStream,
+  parseMyProfileSlug,
   parsePartyLeaderboard,
   parsePartyMe,
   parsePartyRooms,
+  parseWeeklyContest,
   parseSharkDrop,
+  partyInviteUrl,
+  partySummonsHeadline,
+  partyTableHomeLine,
   type ArcadeScoreOutcome,
+  type ContestStanding,
+  type ContestWinnerStanding,
   type PartyLeaderboard,
   type PartyMyRecord,
   type PartyOpenRoom,
+  type PartyTableHome,
   type PendingSharkDrop,
+  type WeeklyContest,
 } from "@/lib/world/games-lobby";
 import type { ArcadeGameId, ArcadeRunResult } from "@/lib/arcade-games";
 import {
@@ -69,23 +86,23 @@ import ArcadeLeaderboard from "@/components/arcade/ArcadeLeaderboard";
      POST /api/arcade/scores on game over; the party server scores
      over its own socket).
 
-   NATIVE FOLLOW-ON (parity log — page-only after this lane):
-   1. The /arcade page's "Keep the streak alive" onward rail
-      (Dashboard drops/quests/streaks, /contests, /winners) has
-      no in-world form here — the Treasury covers drops/quests
-      in-world, but Contests and the Winners' Circle have no
-      palace station yet.
-   2. Party invite links still point at /party?room=CODE (the
-      in-world room's Copy button builds the same link, exactly
-      as the page does) — a /world deep link that lands a guest
-      at the Marble Table with the code pre-filled is follow-on.
-   3. Tables opened from a stream/profile home (?stream= /
-      ?profile= on the page) — in-world tables open plain; the
-      stream/profile home for a palace table is follow-on.
-   4. The party lobby's header sound toggle is page chrome;
-      in-world the toggle lives inside the room itself (the
-      RoomView carries GameSoundToggle) — lobby-level parity
-      is follow-on polish, not function. */
+   RING 2 — THE GAME LOOP (UPGRADE-PROGRAM 2.23–2.25, shipped here):
+   1. Party invites are /world deep links (/world?party=CODE): the
+      lobby's copy buttons and the in-room Copy (via RoomView's
+      inviteUrlFor seam) build them; the world page parses the
+      param on entry, verifies the table against the server, and
+      summons the walker to this table with the code pre-filled.
+   2. Contests + the Winners' Circle stand in the Arcade lobby:
+      this week's contest with its live standings, and the
+      all-time crowns — all from the challenge rails, server
+      numbers verbatim (see games-lobby.ts for the rail verdict:
+      the fan-contest list is owner-only, so it is not the wall).
+   3. Tables open homed from in-world: plain, at your profile, or
+      on your live stream — the same POST body the page builds.
+   REMAINING FOLLOW-ON: the party lobby's header sound toggle is
+   page chrome; in-world the toggle lives inside the room itself
+   (the RoomView carries GameSoundToggle) — lobby-level parity is
+   follow-on polish, not function. */
 
 const SharkRunnerGame = lazy(() => import("@/components/arcade/SharkRunnerGame"));
 const RoyalSkeetGame = lazy(() => import("@/components/arcade/RoyalSkeetGame"));
@@ -422,13 +439,270 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
       {/* The board beside the cabinets — the arcade's own leaderboard
           component, reading GET /api/arcade/leaderboard itself. */}
       <ArcadeLeaderboard light={isLight} refreshNonce={boardNonce} />
+      {/* What's being played for, and who already wears a crown. */}
+      <ContestsWall isLight={isLight} />
     </div>
+  );
+}
+
+/* ─── Contests + the Winners' Circle (2.24) ─────────────────────────
+   The wall of the Game Rooms: what's being played FOR, who's ahead
+   right now, and who already wears a crown. Status you read at a
+   glance — place badges and names, not a data table. Every number
+   is the challenge server's own (weekly contest, its ranked
+   entries, the hall of fame); the wall computes nothing. */
+function WinnerStandingRow({
+  winner,
+  isLight,
+  showChallenge,
+}: {
+  winner: ContestWinnerStanding;
+  isLight: boolean;
+  showChallenge: boolean;
+}) {
+  const ink = isLight ? "text-[#2a1e07]" : "text-white";
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/55";
+  return (
+    <NativeBoardRow
+      isLight={isLight}
+      title={`${winner.creatorName}${winner.creatorSlug ? ` · @${winner.creatorSlug}` : ""}`}
+      detail={
+        showChallenge
+          ? `${winner.challengeTitle}${winner.entryTitle ? ` — “${winner.entryTitle}”` : ""}`
+          : winner.entryTitle
+            ? `“${winner.entryTitle}”`
+            : winner.challengeTitle
+      }
+      meta={winner.prizeCredits > 0 ? `${winner.prizeCredits.toLocaleString()} VB` : undefined}
+      action={
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${
+            winner.place === 1
+              ? "bg-[#d4af37] text-black"
+              : isLight
+                ? "bg-[#7A5A12]/10 text-[#6B5B36]"
+                : "bg-white/10 text-white/75"
+          }`}
+        >
+          {winner.place === 1 ? <Crown className="h-3.5 w-3.5" /> : <Trophy className="h-3.5 w-3.5" />}
+          #{winner.place}
+        </span>
+      }
+    />
+  );
+}
+
+function ContestsWall({ isLight }: { isLight: boolean }) {
+  const authHeaders = useAuthHeaders();
+  const [weekly, setWeekly] = useState<WeeklyContest | null>(null);
+  const [lastWeek, setLastWeek] = useState<{
+    challengeTitle: string;
+    winners: ContestWinnerStanding[];
+  } | null>(null);
+  const [standings, setStandings] = useState<ContestStanding[] | null>(null);
+  const [circle, setCircle] = useState<ContestWinnerStanding[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const [weeklyRes, fameRes] = await Promise.all([
+          fetch("/api/challenges/weekly", { headers }),
+          fetch("/api/challenges/hall-of-fame?limit=5", { headers }),
+        ]);
+        if (weeklyRes.ok) {
+          const presence = parseWeeklyContest(await weeklyRes.json());
+          if (!cancelled) {
+            setWeekly(presence.weekly);
+            setLastWeek(presence.lastWeek);
+          }
+          /* The live standings ride the contest's own page rail —
+             entries the server ranked, votes and views verbatim. */
+          if (presence.weekly && presence.weekly.status !== "winners") {
+            try {
+              const detailRes = await fetch(
+                `/api/challenges/${encodeURIComponent(presence.weekly.slug)}`,
+                { headers },
+              );
+              if (detailRes.ok && !cancelled) {
+                setStandings(parseChallengeStandings(await detailRes.json()));
+              }
+            } catch {
+              /* The contest card stands without its standings. */
+            }
+          }
+        }
+        if (fameRes.ok && !cancelled) {
+          setCircle(parseHallOfFame(await fameRes.json()));
+        }
+        if (!weeklyRes.ok && !fameRes.ok && !cancelled) setFailed(true);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders]);
+
+  const ink = isLight ? "text-[#2a1e07]" : "text-white";
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/55";
+
+  return (
+    <>
+      <NativeBoard isLight={isLight} title="This week's contest">
+        {failed ? (
+          <p className={`px-1 py-2 text-sm ${muted}`}>
+            The contest wall wouldn&rsquo;t load just now — the contest itself is fine.
+          </p>
+        ) : weekly === null && circle === null ? (
+          <NativeLoadingState isLight={isLight} message="Reading the contest wall…" />
+        ) : weekly === null ? (
+          <NativeEmptyState
+            isLight={isLight}
+            message="No contest is running this week — the next crown is still being forged."
+          />
+        ) : (
+          <div className="space-y-2 px-1 py-1" data-testid="world-contest-current">
+            <p className={`text-sm font-black ${ink}`}>
+              {weekly.title}{" "}
+              {weekly.hashtag && (
+                <span className="text-[#C9A84C]">#{weekly.hashtag}</span>
+              )}
+            </p>
+            <p className={`text-xs font-semibold ${muted}`}>
+              {contestStatusLine(weekly.status)} · {weekly.entryCount.toLocaleString()}{" "}
+              entr{weekly.entryCount === 1 ? "y" : "ies"} in
+              {weekly.prizePoolCredits > 0 && (
+                <>
+                  {" "}· playing for{" "}
+                  <span className={ink}>
+                    {weekly.prizePoolCredits.toLocaleString()} Visual Bucs
+                  </span>
+                </>
+              )}
+            </p>
+            {weekly.prizes.length > 0 && weekly.status !== "winners" && (
+              <p className={`text-xs ${muted}`}>
+                {weekly.prizes
+                  .map((p) => `#${p.place} takes ${p.prizeCredits.toLocaleString()} VB`)
+                  .join(" · ")}
+              </p>
+            )}
+            {weekly.status === "winners" && weekly.winners.length > 0 ? (
+              <div data-testid="world-contest-winners">
+                {weekly.winners.map((w) => (
+                  <WinnerStandingRow
+                    key={`${w.place}-${w.creatorName}`}
+                    winner={w}
+                    isLight={isLight}
+                    showChallenge={false}
+                  />
+                ))}
+              </div>
+            ) : standings && standings.length > 0 ? (
+              <div data-testid="world-contest-standings">
+                <p className={`pb-1 text-[11px] font-black uppercase tracking-wide ${muted}`}>
+                  Who&rsquo;s ahead
+                </p>
+                {standings.map((s) => (
+                  <NativeBoardRow
+                    key={`${s.rank}-${s.creatorName}`}
+                    isLight={isLight}
+                    highlighted={s.rank === 1}
+                    title={`${s.rank}. ${s.creatorName}${s.rank === 1 ? " — in the lead" : ""}`}
+                    detail={s.entryTitle ? `“${s.entryTitle}”` : undefined}
+                    meta={`${s.votes.toLocaleString()} votes · ${s.views.toLocaleString()} views`}
+                    action={
+                      s.rank === 1 ? (
+                        <Crown className="h-4 w-4 text-[#C9A84C]" />
+                      ) : undefined
+                    }
+                  />
+                ))}
+              </div>
+            ) : weekly.status !== "winners" ? (
+              <p className={`text-xs ${muted}`}>
+                No entries yet — the lead is there for the taking.
+              </p>
+            ) : null}
+          </div>
+        )}
+      </NativeBoard>
+
+      <NativeBoard isLight={isLight} title="The Winners' Circle">
+        {circle === null ? (
+          failed ? (
+            <p className={`px-1 py-2 text-sm ${muted}`}>
+              The Circle wouldn&rsquo;t load just now.
+            </p>
+          ) : (
+            <NativeLoadingState isLight={isLight} message="Gathering the crowned…" />
+          )
+        ) : circle.length === 0 && !lastWeek ? (
+          <NativeEmptyState
+            isLight={isLight}
+            message="No crowns on the wall yet — this week's contest writes the first names."
+          />
+        ) : (
+          <div data-testid="world-winners-circle">
+            {lastWeek && (
+              <>
+                <p className={`px-1 pb-1 text-[11px] font-black uppercase tracking-wide ${muted}`}>
+                  Last week — {lastWeek.challengeTitle}
+                </p>
+                {lastWeek.winners.map((w) => (
+                  <WinnerStandingRow
+                    key={`lw-${w.place}-${w.creatorName}`}
+                    winner={w}
+                    isLight={isLight}
+                    showChallenge={false}
+                  />
+                ))}
+              </>
+            )}
+            {circle.length > 0 && (
+              <>
+                <p className={`px-1 pb-1 pt-2 text-[11px] font-black uppercase tracking-wide ${muted}`}>
+                  All-time crowns
+                </p>
+                {circle.map((w, i) => (
+                  <WinnerStandingRow
+                    key={`hof-${i}-${w.creatorName}`}
+                    winner={w}
+                    isLight={isLight}
+                    showChallenge
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </NativeBoard>
+    </>
   );
 }
 
 /* ─── The Marble Table ────────────────────────────────────────────── */
 
-function MarbleTablePanel({ isLight }: { isLight: boolean }) {
+/** The party invite prop the world page threads down (2.23): a
+ *  /world?party=CODE landing, already verified against the server's
+ *  own room snapshot by the page. `room` is null when the table
+ *  closed before the walker arrived — the summons says so. */
+export interface PartyInviteProp {
+  code: string;
+  room: PartyOpenRoom | null;
+}
+
+function MarbleTablePanel({
+  isLight,
+  partyInvite,
+}: {
+  isLight: boolean;
+  partyInvite?: PartyInviteProp | null;
+}) {
   const authHeaders = useAuthHeaders();
   const [activeCode, setActiveCode] = useState<string | null>(null);
   const [rooms, setRooms] = useState<PartyOpenRoom[] | null>(null);
@@ -442,6 +716,55 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [summonsDismissed, setSummonsDismissed] = useState(false);
+  /* Table homes (2.25): my profile slug + my live stream, loaded
+     with the lobby — each home offers itself only when it's real. */
+  const [homeKind, setHomeKind] = useState<"plain" | "profile" | "stream">("plain");
+  const [mySlug, setMySlug] = useState<string | null>(null);
+  const [myStream, setMyStream] = useState<{ id: string; title: string | null } | null>(null);
+
+  /* The summons pre-fills the join-by-code — the walker still takes
+     their own seat; nothing auto-joins a match they didn't choose. */
+  useEffect(() => {
+    if (partyInvite?.code) setJoinCode(partyInvite.code);
+  }, [partyInvite?.code]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const [profileRes, streamRes] = await Promise.all([
+          fetch("/api/creator-profiles/me", { headers }),
+          fetch("/api/live-streams/status", { headers }),
+        ]);
+        if (profileRes.ok && !cancelled) {
+          setMySlug(parseMyProfileSlug(await profileRes.json()));
+        }
+        if (streamRes.ok && !cancelled) {
+          setMyStream(parseMyLiveStream(await streamRes.json()));
+        }
+      } catch {
+        /* No homes offer themselves — plain tables still open. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders]);
+
+  const copyInvite = useCallback(async (code: string) => {
+    const url = partyInviteUrl(window.location.origin, code);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 2000);
+    } catch {
+      /* Clipboard unavailable — the code itself is the invite. */
+    }
+  }, []);
 
   const loadLobby = useCallback(async () => {
     try {
@@ -479,6 +802,13 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
     setTick((n) => n + 1);
   }, []);
 
+  const tableHome: PartyTableHome =
+    homeKind === "profile" && mySlug
+      ? { kind: "profile", slug: mySlug }
+      : homeKind === "stream" && myStream
+        ? { kind: "stream", streamId: myStream.id, title: myStream.title }
+        : { kind: "plain" };
+
   const create = useCallback(async () => {
     setCreating(true);
     setCreateError(null);
@@ -486,7 +816,7 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
       const res = await fetch("/api/party/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(createPartyRoomBody(game)),
+        body: JSON.stringify(createPartyRoomBody(game, tableHome)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       const code = parseCreatedPartyRoom(data);
@@ -497,7 +827,9 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
     } finally {
       setCreating(false);
     }
-  }, [authHeaders, game]);
+    // tableHome is derived from homeKind + the loaded homes each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders, game, homeKind, mySlug, myStream]);
 
   const join = useCallback(() => {
     const code = normalizePartyCode(joinCode);
@@ -516,14 +848,73 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
     return (
       <GameStepthrough title="The Marble Table" isLight={isLight} onReturn={leaveRoom}>
         <Suspense fallback={<StepthroughLoading label="Taking your seat…" />}>
-          <PartyRoomView key={activeCode} code={activeCode} onLeave={leaveRoom} />
+          <PartyRoomView
+            key={activeCode}
+            code={activeCode}
+            onLeave={leaveRoom}
+            inviteUrlFor={(code) => partyInviteUrl(window.location.origin, code) ?? ""}
+          />
         </Suspense>
       </GameStepthrough>
     );
   }
 
+  const summonsRoom =
+    partyInvite && !summonsDismissed
+      ? (rooms?.find((r) => r.code === partyInvite.code) ?? partyInvite.room)
+      : null;
+  const showSummons = !!partyInvite && !summonsDismissed;
+
   return (
     <div className="space-y-3" data-testid="world-marble-lobby">
+      {showSummons && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#C9A84C]/60 bg-gradient-to-r from-[#f0d878]/25 via-[#C9A84C]/15 to-transparent p-4"
+          data-testid="world-party-summons"
+        >
+          <Swords className="h-6 w-6 shrink-0 text-[#C9A84C]" />
+          {summonsRoom ? (
+            <>
+              <p className={`flex-1 text-sm font-bold ${ink}`}>
+                {partySummonsHeadline(summonsRoom)} —{" "}
+                {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated
+                {summonsRoom.profileSlug
+                  ? `, playing at @${summonsRoom.profileSlug}`
+                  : summonsRoom.streamId
+                    ? ", on a live stream"
+                    : ""}
+                . Your seat is waiting.
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-join"
+                onClick={() => setActiveCode(summonsRoom.code)}
+                className="rounded-xl bg-gradient-to-r from-[#f0d878] to-[#C9A84C] px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
+              >
+                Take your seat
+              </button>
+            </>
+          ) : (
+            <p className={`flex-1 text-sm font-bold ${ink}`}>
+              You were summoned to table {partyInvite.code}, but that table has closed —
+              the code is filled in below if it reopens, and the open tables are right
+              here.
+            </p>
+          )}
+          <button
+            type="button"
+            aria-label="Dismiss the summons"
+            onClick={() => setSummonsDismissed(true)}
+            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                : "border-white/15 text-white/70"
+            }`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       {record && record.totalMatches > 0 && (
         <p className={`px-1 text-xs font-bold ${muted}`}>
           Your record: {record.totalMatches} match{record.totalMatches === 1 ? "" : "es"} ·{" "}
@@ -561,23 +952,37 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
                 key={room.code}
                 isLight={isLight}
                 title={`${meta.title} · ${room.hostName}`}
-                detail={
-                  room.profileSlug
-                    ? `Playing at @${room.profileSlug}`
-                    : room.streamId
-                      ? "Live stream room"
-                      : `Table ${room.code}`
-                }
+                detail={partyTableHomeLine(room)}
                 meta={`${room.players}/${meta.seats}`}
                 action={
-                  <button
-                    type="button"
-                    data-testid={`world-party-join-${room.code}`}
-                    onClick={() => setActiveCode(room.code)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
-                  >
-                    <Users className="h-3.5 w-3.5" /> Take a seat
-                  </button>
+                  <span className="inline-flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-testid={`world-party-invite-${room.code}`}
+                      onClick={() => void copyInvite(room.code)}
+                      title="Copy a World invite link — it lands your friend at this table"
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        isLight
+                          ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                          : "border-white/15 text-white/75 hover:text-white"
+                      }`}
+                    >
+                      {copiedCode === room.code ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <Link2 className="h-3.5 w-3.5" />
+                      )}
+                      {copiedCode === room.code ? "Copied" : "Invite"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`world-party-join-${room.code}`}
+                      onClick={() => setActiveCode(room.code)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                    >
+                      <Users className="h-3.5 w-3.5" /> Take a seat
+                    </button>
+                  </span>
                 }
               />
             );
@@ -610,6 +1015,69 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
             );
           })}
         </div>
+        {(mySlug || myStream) && (
+          <div className="mt-3" data-testid="world-party-home-picker">
+            <p className={`text-[11px] font-black uppercase tracking-wide ${muted}`}>
+              Hold the table…
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                data-testid="world-party-home-plain"
+                onClick={() => setHomeKind("plain")}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  homeKind === "plain"
+                    ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
+                    : isLight
+                      ? "border-[#C9A84C]/40 text-[#6B5B36]"
+                      : "border-white/15 text-white/70"
+                }`}
+              >
+                <Hash className="h-3.5 w-3.5" /> Right here
+              </button>
+              {mySlug && (
+                <button
+                  type="button"
+                  data-testid="world-party-home-profile"
+                  onClick={() => setHomeKind("profile")}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    homeKind === "profile"
+                      ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
+                      : isLight
+                        ? "border-[#C9A84C]/40 text-[#6B5B36]"
+                        : "border-white/15 text-white/70"
+                  }`}
+                >
+                  <CircleUserRound className="h-3.5 w-3.5" /> At your profile · @{mySlug}
+                </button>
+              )}
+              {myStream && (
+                <button
+                  type="button"
+                  data-testid="world-party-home-stream"
+                  onClick={() => setHomeKind("stream")}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    homeKind === "stream"
+                      ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
+                      : isLight
+                        ? "border-[#C9A84C]/40 text-[#6B5B36]"
+                        : "border-white/15 text-white/70"
+                  }`}
+                >
+                  <Radio className="h-3.5 w-3.5" /> On your live stream
+                  {myStream.title ? ` · ${myStream.title}` : ""}
+                </button>
+              )}
+            </div>
+            <p className={`mt-1.5 text-xs ${muted}`}>
+              {homeKind === "profile" && mySlug
+                ? `This table lives on your profile — players see “Playing at @${mySlug}”.`
+                : homeKind === "stream" && myStream
+                  ? "This table rides your live stream — your audience finds it there."
+                  : "A plain palace table, right here in the Game Rooms."}
+            </p>
+          </div>
+        )}
         {createError && (
           <p className="mt-2 text-sm font-semibold text-[#e0654f]">{createError}</p>
         )}
@@ -707,12 +1175,16 @@ function MarbleTablePanel({ isLight }: { isLight: boolean }) {
 export function GamesPanel({
   stationId,
   isLight,
+  partyInvite,
 }: {
   stationId: string;
   isLight: boolean;
+  partyInvite?: PartyInviteProp | null;
 }) {
   const surface = gamesSurfaceForStation(stationId);
-  if (surface === "marble") return <MarbleTablePanel isLight={isLight} />;
+  if (surface === "marble") {
+    return <MarbleTablePanel isLight={isLight} partyInvite={partyInvite} />;
+  }
   if (surface === "arcade") return <ArcadeCabinetsPanel isLight={isLight} />;
   return null;
 }
