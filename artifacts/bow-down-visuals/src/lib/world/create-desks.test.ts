@@ -430,3 +430,114 @@ describe("the publish rail — Ring 2 items 2.1 + 2.2 (pin g)", () => {
     expect(publishedTrackIdOfResponse(null)).toBeNull();
   });
 });
+
+describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbnails / cover / quests", () => {
+  it("2.3 storyboard costs are the registry's, and the step machine only advances on server truth", async () => {
+    const { analyzeSectionsCost, transcribeCost, aiEditPlanCost, storyboardStepOf, buildAnalyzeSectionsPayload, buildStoryboardDraftPayload, buildStoryboardProjectPayload, withSceneApproval, withSceneClip } = await import("./create-desks");
+    expect(analyzeSectionsCost()).toBe(getCreditCost("/api/analyze-sections")!.cost);
+    expect(transcribeCost()).toBe(getCreditCost("/api/transcribe")!.cost);
+    expect(aiEditPlanCost()).toBe(getCreditCost("/api/generate/ai-edit-plan")!.cost);
+    expect(buildAnalyzeSectionsPayload("words")).toEqual({ lyrics: "words" });
+    const base = { hasLyrics: false, hasStructure: false, sceneCount: 0, decidedCount: 0, approvedCount: 0, clippedApprovedCount: 0 };
+    expect(storyboardStepOf(base)).toBe("intake");
+    expect(storyboardStepOf({ ...base, hasLyrics: true })).toBe("analysis");
+    expect(storyboardStepOf({ ...base, hasLyrics: true, hasStructure: true })).toBe("scenes");
+    expect(storyboardStepOf({ ...base, hasLyrics: true, hasStructure: true, sceneCount: 2 })).toBe("review");
+    expect(storyboardStepOf({ ...base, hasLyrics: true, hasStructure: true, sceneCount: 2, decidedCount: 2, approvedCount: 1 })).toBe("clips");
+    expect(storyboardStepOf({ ...base, hasLyrics: true, hasStructure: true, sceneCount: 2, decidedCount: 2, approvedCount: 1, clippedApprovedCount: 1 })).toBe("done");
+    const scenes = [{ id: "a", approved: false, demoClipUrl: null as string | null, generationStatus: null as string | null }];
+    const approved = withSceneApproval(scenes, "a", true);
+    expect(approved[0]!.approved).toBe(true);
+    expect(scenes[0]!.approved).toBe(false); // immutable
+    expect(withSceneClip(approved, "a", "https://x/c.mp4")[0]).toMatchObject({ demoClipUrl: "https://x/c.mp4", generationStatus: "completed" });
+    const draft = buildStoryboardDraftPayload({ title: "T", formValues: { lyrics: "x" }, rawResult: "r", scenes: [{}], songStructure: { sections: [] } });
+    expect(draft.workflowType).toBe("make-video");
+    const proj = buildStoryboardProjectPayload({ title: "T", inputData: {}, resultText: "r", songStructure: { sections: [] }, scenes: [{ id: "a" }] });
+    expect(proj.projectType).toBe("Make a Music Video");
+    expect((proj.outputData as Record<string, unknown>)["scenes"]).toEqual([{ id: "a" }]);
+  });
+
+  it("2.4 wizard: transcript + edit-plan + project payloads mirror song-and-video.tsx", async () => {
+    const { transcriptOfResponse, buildAiEditPlanPayload, aiEditPlanOfResponse, buildSongVideoProjectPayload } = await import("./create-desks");
+    expect(transcriptOfResponse({ transcript: "la la" })).toBe("la la");
+    expect(transcriptOfResponse({})).toBeNull();
+    const p = buildAiEditPlanPayload({ style: "s", styleName: "S", scenes: [{ section: "Hook", lyricLine: "line", action: "jump", mood: "bright" }, {}], audioFound: true, captionStyle: "bold", currentEffects: {}, artistName: "K", lyricsText: "la" });
+    expect(p.sceneDescriptions).toEqual(["Hook · line · jump · bright", "Scene 2"]);
+    expect(p.sceneCount).toBe(2);
+    expect(aiEditPlanOfResponse({ plan: { transitions: [] } })).toEqual({ transitions: [] });
+    expect(aiEditPlanOfResponse({})).toBeNull();
+    const proj = buildSongVideoProjectPayload({ title: "T", genre: "Hip Hop", mood: "Energetic", inputData: {}, resultText: "r", scenes: [], editorSettings: { aiEdit: {} } });
+    expect(proj.projectType).toBe("Make Song + Video");
+    expect((proj.outputData as Record<string, unknown>)["editorSettings"]).toEqual({ aiEdit: {} });
+  });
+
+  it("2.5 song tabs: inspo/mashup/hum payloads + costs + vault loading mirror the page tabs", async () => {
+    const m = await import("./create-desks");
+    expect(m.inspoAnalyzeCost()).toBe(0);
+    expect(m.inspoGenerateCost()).toBe(getCreditCost("/api/song-inspo/generate")!.cost);
+    expect(m.mashupCost()).toBe(getCreditCost("/api/mashup")!.cost);
+    expect(m.humToSongCost()).toBe(getCreditCost("/api/hum-to-song")!.cost);
+    expect(m.buildInspoAnalyzePayload(" vibe ", " n ")).toEqual({ playlistInput: "vibe", notes: "n" });
+    expect(m.buildInspoGeneratePayload({ styleDna: { genre: "Trap" }, artistName: " K " })).toEqual({ styleDna: { genre: "Trap" }, notes: "", artistName: "K", songTitle: "" });
+    expect(m.styleDnaOfResponse({ styleDna: { genre: "Trap" } })).toEqual({ genre: "Trap" });
+    expect(m.styleDnaOfResponse({})).toBeNull();
+    expect(m.buildMashupPayload({ songAId: "a", songBId: "b", style: "blend", balance: 50, crossfadeSec: 4 })).toEqual({ songA: { songId: "a" }, songB: { songId: "b" }, style: "blend", balance: 50, crossfadeSec: 4 });
+    expect(m.buildMashupPayload({ songAId: "a", songBId: "b", style: "blend", balance: 50, crossfadeSec: 4, mode: "custom", blendPct: 25, durationA: 200, title: " M " })).toMatchObject({ blendPointSec: 50, title: "M" });
+    expect(m.mashupResultOfResponse({ song: { audio_url: "https://x/m.mp3", title: "M" } })).toEqual({ audioUrl: "https://x/m.mp3", title: "M" });
+    expect(m.mashupResultOfResponse({})).toBeNull();
+    expect(m.humAnalyzeFields()).toEqual([["analyzeOnly", "true"]]);
+    expect(m.humGenerateFields({ humRef: "r1", mode: "custom", stylePrompt: "dark", instrumental: true, songTitle: "T" })).toEqual([["humRef", "r1"], ["mode", "custom"], ["stylePrompt", "dark"], ["instrumental", "true"], ["songTitle", "T"]]);
+    expect(m.humGenerateFields({ humRef: "r1", mode: "simple", stylePrompt: "dark" })).toEqual([["humRef", "r1"], ["mode", "simple"]]);
+    expect(m.humAnalysisOfResponse({ humRef: "r", analysis: { tempoBpm: 90 } })).toMatchObject({ humRef: "r" });
+    expect(m.humAnalysisOfResponse({ humRef: "r" })).toBeNull(); // incomplete analysis refused, like the page
+    expect(m.vaultsOfResponse({ vaults: [{ id: "v1", artist_name: "King" }, { id: 3 }] })).toEqual([{ id: "v1", artistName: "King" }]);
+    expect(m.withArtistVault({ artistVault: null }, { id: "v1" })).toEqual({ artistVault: { id: "v1" } });
+  });
+
+  it("2.9+2.10 thumbnail benches: costs from registry, maker fields, variants, CTR truthfulness", async () => {
+    const m = await import("./create-desks");
+    expect(m.thumbnailGeneratorCost()).toBe(getCreditCost("/api/thumbnail-generator")!.cost);
+    expect(m.thumbnailVariantsCost()).toBe(getCreditCost("/api/wave8/thumbnail-ab/variants")!.cost);
+    expect(m.thumbnailTestCost()).toBe(getCreditCost("/api/thumbnail-test")!.cost);
+    expect(m.thumbnailImproveCost()).toBe(getCreditCost("/api/thumbnail-test/improve")!.cost);
+    expect(m.thumbnailGeneratorFields({ prompt: " shout ", stylePreset: "bold-text-pop", aspectRatio: "16:9", overlayText: " NEW ", attribution: true })).toEqual([["prompt", "shout"], ["stylePreset", "bold-text-pop"], ["aspectRatio", "16:9"], ["overlayText", "NEW"], ["attribution", "true"]]);
+    expect(m.thumbnailImagesOfResponse({ images: [{ url: "u1", variation: "a" }, { variation: "b" }] })).toEqual([{ url: "u1", variation: "a" }]);
+    expect(m.buildThumbnailVariantsPayload({ sourceImageUrl: "u", title: "x".repeat(300), niche: "music" }).title).toHaveLength(200);
+    expect(m.thumbnailVariantsOfResponse({ variants: [{ url: "v1", label: "Bold", prompt: "p" }] })).toEqual([{ url: "v1", label: "Bold", prompt: "p" }]);
+    const ctr = m.ctrPredictionOfResponse({ result: { winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", analyses: [{ scores: { overall: 40 } }, { scores: { overall: 91 } }] } });
+    expect(ctr).toEqual({ winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", overallScores: [40, 91] });
+    expect(m.ctrPredictionOfResponse({ result: {} })).toBeNull();
+    expect(m.ctrPredictionOfResponse(null)).toBeNull();
+  });
+
+  it("2.11 cover rails: presets are the page's grid, attribution rides the payload, showcase/share builders", async () => {
+    const m = await import("./create-desks");
+    expect(m.COVER_ART_PRESETS.map((p) => p.style)).toEqual(["luxury-gold", "dark-moody", "vibrant-pop", "cinematic"]);
+    expect(m.buildCoverArtPayload("mood", { songTitle: "T", artistName: "A", style: "retro", aspectRatio: "1:1", tier: "standard", attribution: true }).attribution).toBe(true);
+    expect(m.buildShowcasePublishPayload({ title: " T ", mediaType: "image", mediaUrl: "u", thumbnailUrl: "u" })).toEqual({ title: "T", description: "", mediaType: "image", mediaUrl: "u", thumbnailUrl: "u", creatorName: undefined });
+    expect(m.showcaseSlugOfResponse({ item: { slug: "my-cover" } })).toBe("my-cover");
+    expect(m.showcaseSlugOfResponse({})).toBeNull();
+    expect(m.buildShareTrackPayload({ contentType: "image", channel: "copy" })).toEqual({ content_type: "image", content_id: null, channel: "copy" });
+  });
+
+  it("§5(a) quest chip: only a server diff earns a chip — completion, progress, and the silent cases", async () => {
+    const m = await import("./create-desks");
+    const q = (key: string, progress: number, target: number, completed = false) => ({ key, target, reward: 80, progress, completed, claimed: false });
+    const before = [q("generate-song", 0, 1), q("make-thumbnail", 1, 2)];
+    // completed by this job
+    const done = m.questAdvancesBetween(before, [q("generate-song", 1, 1, true), q("make-thumbnail", 1, 2)]);
+    expect(done).toEqual([{ key: "generate-song", title: "Generate a song", progress: 1, target: 1, completedNow: true }]);
+    expect(m.questChipLine(done[0]!)).toContain("That finished your quest");
+    expect(m.questChipLine(done[0]!)).toContain("Claim it at the Treasury");
+    // advanced but not completed
+    const adv = m.questAdvancesBetween(before, [q("generate-song", 0, 1), q("make-thumbnail", 2, 2, true)]);
+    expect(adv[0]!.completedNow).toBe(true);
+    const prog = m.questAdvancesBetween([q("make-thumbnail", 0, 2)], [q("make-thumbnail", 1, 2)]);
+    expect(m.questChipLine(prog[0]!)).toContain("1 of 2");
+    // NO-QUEST case: nothing moved → no chip; no before snapshot → no chip (unprovable)
+    expect(m.questAdvancesBetween(before, before)).toEqual([]);
+    expect(m.questAdvancesBetween(null, [q("generate-song", 1, 1, true)])).toEqual([]);
+    expect(m.questsOfResponse({ quests: [q("generate-song", 0, 1), { bad: true }] })).toHaveLength(1);
+    expect(m.questsOfResponse(null)).toEqual([]);
+  });
+});
