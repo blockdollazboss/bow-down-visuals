@@ -383,6 +383,11 @@ export class WorldEventScheduler {
           logger.warn({ err, eventId: row.id }, "[world-events] tick failed for one event");
         }
       }
+      /* Refresh again with the tick's transitions applied to the
+       * working copies (tickEvent keeps row.status in step with the
+       * store), so a show that just went live reads LIVE on the
+       * slate in the same tick it started. */
+      await this.refreshSlate(rows, now);
     } finally {
       this.ticking = false;
     }
@@ -444,11 +449,15 @@ export class WorldEventScheduler {
          * restart ate it, the content stopped verifying). Honest
          * end: done, never shown as live. */
         await this.store.setStatus(row.id, "done");
+        row.status = "done";
         return;
       }
       if (startsAt.getTime() > now.getTime()) return; // not yet
       const started = await this.startInRoom(row, nowMs);
-      if (started) await this.store.setStatus(row.id, "live");
+      if (started) {
+        await this.store.setStatus(row.id, "live");
+        row.status = "live";
+      }
       return;
     }
 
@@ -456,6 +465,7 @@ export class WorldEventScheduler {
     if (endsAt.getTime() <= now.getTime()) {
       this.endInRoom(row);
       await this.store.setStatus(row.id, "done");
+      row.status = "done";
       return;
     }
     /* Still live: make sure the room still carries it. A restart, an
