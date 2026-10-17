@@ -22,7 +22,14 @@ import {
   PANEL_ROUTE_PATHS,
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
-import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import {
+  NativePlaceholder,
+  TransferFooter,
+  ListeningBooth,
+  NowPlayingCard,
+  useShelfPlayer,
+  type ShelfPlayerController,
+} from "@/components/world/native";
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
@@ -78,6 +85,14 @@ export interface StationPanelProps {
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
   onJukeboxRemove: (entryId: string) => void;
+  /* The Shelf player (NATIVE-PLAN §3.2): THE one in-world personal
+     player, in the jukebox's prop shape — a world page that wants
+     playback to survive the panel closing may hoist useShelfPlayer
+     and pass its controller in here; otherwise the host owns one
+     for the panel's life and every native surface in it (the
+     Listening Booth today, the Charts board's Play next) plays
+     through the same instance. */
+  shelfPlayer?: ShelfPlayerController;
 }
 
 /* The King's own Front Row is the Royal Court Chamber's standing
@@ -980,6 +995,11 @@ function JukeboxPanel(props: StationPanelProps) {
 export default function StationPanel(props: StationPanelProps) {
   const { target, isLight, isGuest, onClose } = props;
 
+  /* The Shelf player: one instance for the panel's whole life (or
+     the caller's hoisted one, when passed) — see the prop note. */
+  const internalShelfPlayer = useShelfPlayer();
+  const shelfPlayer = props.shelfPlayer ?? internalShelfPlayer;
+
   /* Escape closes the door (the panel pattern, house-wide). */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1113,10 +1133,21 @@ export default function StationPanel(props: StationPanelProps) {
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
         /* The station's pattern surface, framed below by the
-           standard transfer footer. Board-pattern stations with a
-           shipped board render it; every other native station
-           keeps the honest migration placeholder until its pattern
-           surface ships — never a silent pull-up, never a dead end. */
+           standard transfer footer. Each pattern lane's shipped
+           surface renders here; a native station whose pattern
+           hasn't shipped keeps the honest migration placeholder —
+           never a silent pull-up, never a dead end. */
+        if (resolution.pattern === "shelf") {
+          return (
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              <ListeningBooth
+                isLight={isLight}
+                shelfPlayer={shelfPlayer}
+                onJukeboxAdd={props.onJukeboxAdd}
+              />
+            </PanelBoundary>
+          );
+        }
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             {resolution.pattern === "board" && station.id === "charts-desk" ? (
@@ -1193,6 +1224,13 @@ export default function StationPanel(props: StationPanelProps) {
           <X className="h-3.5 w-3.5" /> Back to the room
         </button>
       </div>
+      {/* The Shelf's Now Playing card: rendered by the host for
+          whichever native surface set the player (the Booth, the
+          Charts board's Play) — one player, one card, above the
+          station's own body. */}
+      {resolution?.type === "native" && shelfPlayer.current && (
+        <NowPlayingCard player={shelfPlayer} isLight={isLight} />
+      )}
       {body}
       {/* The standard transfer footer — native panels only, exactly
           one, always the frame's last row (NATIVE-PLAN §3.0). The
