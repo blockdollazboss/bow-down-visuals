@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeMasterPlayerFit,
+  MASTER_PLAYER_FIT_MARGIN,
   MASTER_PLAYER_MINIMIZED_CHIP_WIDTH,
   type MasterPlayerFitInput,
 } from "./master-player-size";
@@ -37,9 +38,13 @@ function total(input: MasterPlayerFitInput): number {
   return height + input.chromeHeight;
 }
 
-/** Usable vertical space between toolbar and dock, minus margins. */
+/** Usable vertical space between toolbar and dock, minus margins.
+ *  The margin is the module's own design constant (MASTER_PLAYER_FIT_MARGIN
+ *  per side): it was 16px when this suite was written and was deliberately
+ *  reduced to 8px in 7df8af33 ("just enough to see the player's hover
+ *  glow"), so the band is derived from the constant, not a hardcoded 32. */
 function usableBand(input: MasterPlayerFitInput): number {
-  return input.viewportHeight - input.headerHeight - input.dockHeight - 32;
+  return input.viewportHeight - input.headerHeight - input.dockHeight - MASTER_PLAYER_FIT_MARGIN * 2;
 }
 
 describe("computeMasterPlayerFit", () => {
@@ -84,7 +89,13 @@ describe("computeMasterPlayerFit", () => {
   });
 
   it("very short viewport collapses the canvas but never NaNs; chrome still renders", () => {
-    const input = base({ viewportHeight: 400, aspect: FORMATS["9:16"] });
+    // A viewport short enough that the band is genuinely exhausted:
+    // header + dock + chrome + both fit margins, minus a few px. (At the
+    // old 16px margin a 400px viewport exhausted the band; at the current
+    // 8px margin the exhaustion point is 390px for these fixtures.)
+    const exhausted =
+      base().headerHeight + base().dockHeight + base().chromeHeight + MASTER_PLAYER_FIT_MARGIN * 2 - 10;
+    const input = base({ viewportHeight: exhausted, aspect: FORMATS["9:16"] });
     const { width, height } = computeMasterPlayerFit(input);
     expect(Number.isFinite(width)).toBe(true);
     expect(Number.isFinite(height)).toBe(true);
@@ -94,7 +105,10 @@ describe("computeMasterPlayerFit", () => {
     expect(input.chromeHeight).toBeGreaterThan(0);
   });
 
-  it("respects a larger saved width when space allows", () => {
+  it("fills the available space — the saved width no longer sizes the player", () => {
+    // Design change (0d963557, "master player not draggable — always fills
+    // the available space"): the player takes the full fit width and the
+    // persisted savedWidth is ignored, large or small.
     const input = base({
       viewportHeight: 1200,
       aspect: FORMATS["16:9"],
@@ -102,9 +116,11 @@ describe("computeMasterPlayerFit", () => {
       columnWidth: 1200,
     });
     const { width, height } = computeMasterPlayerFit(input);
-    expect(width).toBe(800);
-    expect(height).toBe(Math.round(800 / FORMATS["16:9"]));
+    expect(width).toBe(1200);
+    expect(height).toBe(Math.round(1200 / FORMATS["16:9"]));
     expect(total(input)).toBeLessThanOrEqual(usableBand(input));
+    // A small saved width changes nothing either.
+    expect(computeMasterPlayerFit({ ...input, savedWidth: 300 }).width).toBe(1200);
   });
 
   it("clamps an oversized saved width to the design max", () => {

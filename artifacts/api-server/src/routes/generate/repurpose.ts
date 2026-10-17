@@ -37,11 +37,12 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Pricing ─────────────────────────────────────────────────────────────
-   5 credits for the full repurpose pack: Whisper transcription + GPT-6
-   master analysis (3 clip moments, 5 caption+hashtag sets, 4 platform
-   descriptions, 3 thumbnail prompts) + server-side ffmpeg auto-cutting of
-   3 vertical clips + 3 AI thumbnail images. 1 credit per individual
-   re-roll (text block or thumbnail image). Both env-overridable. */
+   500 Visual Bucs for the full repurpose pack: Whisper transcription +
+   GPT-6 master analysis (3 clip moments, 5 caption+hashtag sets, 4
+   platform descriptions, 3 thumbnail prompts) + server-side ffmpeg
+   auto-cutting of 3 vertical clips + 3 AI thumbnail images. 100 Visual
+   Bucs per individual re-roll (text block or thumbnail image). Both
+   env-overridable. */
 export const REPURPOSE_PACK_CREDITS =
   Number(process.env["REPURPOSE_PACK_CREDITS"]) || 500;
 export const REPURPOSE_REROLL_CREDITS =
@@ -560,13 +561,14 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
   }
 }
 
-/* ── POST /api/repurpose/analyze — the full 5-credit pack ────────────────
-   Upload a video (or pass a Supabase storage videoUrl). Charges 5 credits
-   up front, then: transcribes with Whisper, runs the GPT-6 master analysis
-   (moments, captions, descriptions, thumbnail prompts), and kicks off two
-   server-owned background jobs (clip cutting + thumbnail generation) that
-   are INCLUDED in the 5 credits. Refunds on no-speech, bad AI output, or
-   any provider failure — the user never pays for a pack they didn't get. */
+/* ── POST /api/repurpose/analyze — the full 500-Bucs pack ────────────────
+   Upload a video (or pass a Supabase storage videoUrl). Charges 500
+   Visual Bucs up front, then: transcribes with Whisper, runs the GPT-6
+   master analysis (moments, captions, descriptions, thumbnail prompts),
+   and kicks off two server-owned background jobs (clip cutting +
+   thumbnail generation) that are INCLUDED in the 500. Refunds on
+   no-speech, bad AI output, or any provider failure — the user never
+   pays for a pack they didn't get. */
 router.post(
   "/repurpose/analyze",
   publicApiLimiter,

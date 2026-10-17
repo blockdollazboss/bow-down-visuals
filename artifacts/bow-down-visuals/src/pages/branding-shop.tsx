@@ -43,6 +43,7 @@ interface Product {
   sizes: string[];
   icon: LucideIcon;
   blurb: string;
+  quoteOnly?: boolean;
 }
 
 const ICONS: Record<ProductKey, LucideIcon> = {
@@ -224,6 +225,9 @@ export default function BrandingShop() {
 
   function addToCart(product: ProductKey) {
     const s = sel[product];
+    // Quote-only tiers (the premium die-cut rug) are display-only —
+    // never carted, so they can never poison a checkout.
+    if (PRODUCTS.find((p) => p.key === product)?.quoteOnly) return;
     // Rugs require a logo upload first
     if (product === "rug" && !rugLogos["rug"]) {
       setError("Please upload your logo first");
@@ -806,9 +810,15 @@ export default function BrandingShop() {
                           )}
                         </div>
                       )}
-                      <button onClick={() => addToCart(p.key)} className={`${goldBtn} flex-1 !px-4 !py-2.5`}>
-                        <ShoppingCart className="h-4 w-4" /> {t("brandingShop.addToCart")}
-                      </button>
+                      {p.quoteOnly ? (
+                        <span className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-bold text-primary">
+                          <Gem className="h-4 w-4" /> {t("brandingShop.contactForQuote")}
+                        </span>
+                      ) : (
+                        <button onClick={() => addToCart(p.key)} className={`${goldBtn} flex-1 !px-4 !py-2.5`}>
+                          <ShoppingCart className="h-4 w-4" /> {t("brandingShop.addToCart")}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -880,7 +890,7 @@ export default function BrandingShop() {
                     {t("brandingShop.mockupLabel")}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {PRODUCTS.map((p) => (
+                    {PRODUCTS.filter((p) => !p.quoteOnly).map((p) => (
                       <button
                         key={p.key}
                         onClick={() => toggleDesignProduct(p.key)}

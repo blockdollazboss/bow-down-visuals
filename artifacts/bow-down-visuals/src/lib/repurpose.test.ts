@@ -9,9 +9,9 @@ import {
 } from "./repurpose";
 
 describe("pricing", () => {
-  it("pack costs 5 credits, re-rolls cost 1", () => {
-    expect(PACK_CREDITS).toBe(5);
-    expect(REROLL_CREDITS).toBe(1);
+  it("pack costs 500 credits, re-rolls cost 100", () => {
+    expect(PACK_CREDITS).toBe(500);
+    expect(REROLL_CREDITS).toBe(100);
   });
 });
 

@@ -26,7 +26,7 @@ const routeSource = readFileSync(
 );
 
 describe("branding shop pricing", () => {
-  it("charges 2 credits per AI brand-kit design set", () => {
+  it("charges 200 Visual Bucs per AI brand-kit design set", () => {
     expect(DESIGN_CREDIT_COST).toBe(200);
   });
 
@@ -39,9 +39,9 @@ describe("branding shop pricing", () => {
     }
   });
 
-  it("has the seven launch products", () => {
+  it("has the eight orderable products (rug included, quote-only rug-premium excluded)", () => {
     expect(Object.keys(PRODUCTS).sort()).toEqual(
-      ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"].sort()
+      ["hoodie", "mug", "phonecase", "poster", "rug", "snapback", "tote", "tshirt"].sort()
     );
   });
 
@@ -107,6 +107,29 @@ describe("order schema", () => {
 
   it("accepts a valid order", () => {
     expect(orderSchema.safeParse(valid).success).toBe(true);
+    // A rug order (with its uploaded logo as designUrl) validates too —
+    // the rug was in the storefront catalog + PrintKK fulfillment long
+    // before the route catalog learned its key, and every rug checkout
+    // 400'd until PRODUCTS gained it.
+    const rugOrder = {
+      ...valid,
+      items: [
+        {
+          product: "rug",
+          color: "black",
+          size: "3x5 ft",
+          qty: 1,
+          designUrl: "https://example.com/logo.png",
+        },
+      ],
+    };
+    expect(orderSchema.safeParse(rugOrder).success).toBe(true);
+    // rug-premium is a contact-for-quote display tier, never orderable.
+    const quoteOnly = {
+      ...valid,
+      items: [{ product: "rug-premium", color: "black", size: "Custom shape", qty: 1 }],
+    };
+    expect(orderSchema.safeParse(quoteOnly).success).toBe(false);
   });
 
   it("rejects an empty cart", () => {

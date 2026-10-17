@@ -11,6 +11,9 @@ export interface CatalogProduct {
   priceCents: number;
   sizes: string[];
   blurb: string;
+  /* Display-only tier: shown in the catalog but never carted, designed,
+     or ordered — sales run through a quote conversation instead. */
+  quoteOnly?: boolean;
 }
 
 export const BRANDING_PRODUCTS: CatalogProduct[] = [
@@ -22,7 +25,7 @@ export const BRANDING_PRODUCTS: CatalogProduct[] = [
   { key: "phonecase", label: "Phone Case", priceCents: 2299, sizes: ["iPhone", "Samsung"], blurb: "Tough protective case with your brand mark" },
   { key: "tote", label: "Canvas Tote", priceCents: 1899, sizes: ["One size"], blurb: "Heavy canvas tote, everyday brand billboard" },
   { key: "rug", label: "Custom Logo Rug", priceCents: 4999, sizes: ['2x3 ft', '3x5 ft', '4x6 ft'], blurb: "Your logo printed on a premium area rug — upload your brand mark" },
-  { key: "rug-premium", label: "Premium Die-Cut Rug", priceCents: 14999, sizes: ['Custom shape'], blurb: "Your logo cut to shape — hand-tufted, any silhouette. Contact for quote." },
+  { key: "rug-premium", label: "Premium Die-Cut Rug", priceCents: 14999, sizes: ['Custom shape'], blurb: "Your logo cut to shape — hand-tufted, any silhouette. Contact for quote.", quoteOnly: true },
 ];
 
 export const BRANDING_COLORS: Array<{ key: ColorKey; label: string }> = [

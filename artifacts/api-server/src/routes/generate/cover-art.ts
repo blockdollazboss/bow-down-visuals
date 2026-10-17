@@ -15,8 +15,8 @@ import { attributionOptIn, burnAttributionIntoImage } from "../../lib/attributio
 const router = Router();
 
 /* ─── Pricing ───────────────────────────────────────────────────────────────
-   2 credits standard / 3 credits premium — in line with site image pricing
-   (Pro 2cr, Turbo 1cr, Sunburst 1-2cr). Env-overridable without a deploy. */
+   200 Visual Bucs standard / 300 premium — in line with site image
+   pricing. Env-overridable without a deploy. */
 export const COVER_ART_STANDARD_CREDITS =
   Number(process.env["COVER_ART_STANDARD_CREDITS"]) || 200;
 export const COVER_ART_PREMIUM_CREDITS =
@@ -238,7 +238,7 @@ async function uploadCoverArt(userId: string, buffer: Buffer): Promise<{ url: st
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/cover-art
-   Paid: 2 credits standard / 3 credits premium. Auth required.
+   Paid: 200 Visual Bucs standard / 300 premium. Auth required.
    1. Validate input.
    2. Credit pre-check (402 when short).
    3. Charge BEFORE generation.
