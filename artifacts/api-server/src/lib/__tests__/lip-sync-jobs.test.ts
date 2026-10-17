@@ -54,6 +54,16 @@ async function insertJobAt(createdAtIso: string): Promise<string> {
 }
 
 describe("createLipSyncJob", () => {
+  it("records the character the job was made as (0142, G8)", async () => {
+    const vaultId = randomUUID();
+    const job = await createLipSyncJob({ userId: randomUUID(), artistVaultId: vaultId, params: PARAMS });
+    expect(job.artistVaultId).toBe(vaultId);
+    const fetched = await getLipSyncJob(job.id);
+    expect(fetched?.artistVaultId).toBe(vaultId);
+    const plain = await makeJob();
+    expect(plain.artistVaultId).toBeNull();
+  });
+
   it("creates a queued job with sane defaults", async () => {
     const job = await makeJob();
     expect(job.state).toBe("queued");

@@ -374,6 +374,8 @@ const lipSyncPreviewSchema = z.object({
   preserveArtistLook: z.boolean().optional(),
   projectId: z.string().max(100).optional(),
   sceneId: z.string().max(100).optional(),
+  /* The Creative Vault character this lip-sync is made as (0142, G8). */
+  artistVaultId: z.string().uuid().optional(),
 });
 
 const lipSyncSceneTestSchema = z.object({
@@ -421,6 +423,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       preserveArtistLook,
       projectId,
       sceneId,
+      artistVaultId,
     } = parsed.data;
 
     void audioSourceType;
@@ -569,6 +572,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
         userId,
         projectId: projectId ?? null,
         sceneId: sceneId ?? null,
+        artistVaultId: artistVaultId ?? null,
         params: {
           clipUrl,
           audioUrl,

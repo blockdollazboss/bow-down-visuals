@@ -406,6 +406,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           prompt:      scene.aiVideoPrompt || null,
           finalPrompt,
           runwayJobId: jobId,
+          /* The character this clip was made as (0142, G8). */
+          artistVaultId: artistVault?.id ?? null,
           videoUrl:    clipUrl,
           status:      "completed",
         }),

@@ -25,6 +25,7 @@
     import { Button } from "@/components/ui/button";
     import type { SceneData } from "@/lib/scene-parser";
     import { useAuth } from "@/contexts/AuthContext";
+    import { useActiveArtist } from "@/contexts/ActiveArtistContext";
     import { useToast } from "@/hooks/use-toast";
     import { useConfirmedApi } from "@/hooks/use-confirmed-api";
     import { OutOfCredits } from "@/components/OutOfCredits";
@@ -125,6 +126,9 @@
       const { getAccessToken, refreshProfile } = useAuth();
       const { toast } = useToast();
       const { confirmedFetch } = useConfirmedApi();
+      /* The character in front of the camera — clips record who they
+         were made as (0142, G8). */
+      const { activeArtist } = useActiveArtist();
 
       const [isPolling, setIsPolling] = useState(false);
       const [taskId, setTaskId] = useState<string | null>(null);
@@ -172,6 +176,7 @@
               prompt: scene.aiVideoPrompt || null,
               finalPrompt: promptUsedRef.current || null,
               runwayJobId: jobId,
+              artistVaultId: activeArtist?.id ?? null,
               videoUrl: clipUrl,
               status: "completed",
             }),

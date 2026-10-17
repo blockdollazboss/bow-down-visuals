@@ -24,6 +24,9 @@ interface GeneratedClip {
   prompt: string | null;
   final_prompt: string | null;
   runway_job_id: string | null;
+  /* The character this clip was made as (0142, G8) — named via the
+     vault list when it resolves. */
+  artist_vault_id: string | null;
   video_url: string;
   thumbnail_url: string | null;
   status: string;
@@ -813,11 +816,13 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 /* ─── Clip Card ────────────────────────────────────────────────────────────── */
 function ClipCard({
   clip,
+  characterName,
   onDelete,
   onAttach,
   onSeoScore,
 }: {
   clip: GeneratedClip;
+  characterName?: string | null;
   onDelete: (id: string) => void;
   onAttach: (clip: GeneratedClip) => void;
   onSeoScore: (clip: GeneratedClip) => void;
@@ -882,6 +887,9 @@ function ClipCard({
               <Calendar className="h-3 w-3 text-white/30 shrink-0" />
               <p className="text-[11px] text-white/35">{formatDate(clip.created_at)}</p>
             </div>
+            {characterName && (
+              <p className="text-[11px] text-[#C9A84C] mt-0.5 truncate">Made as {characterName}</p>
+            )}
           </div>
           <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/20 rounded-full px-2 py-0.5 shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
@@ -1027,6 +1035,9 @@ export default function MyClips() {
   const { toast } = useToast();
 
   const [clips, setClips] = useState<GeneratedClip[]>([]);
+  /* Vault id → character name, for the "Made as …" line (0142, G8).
+     Best-effort: clips without a resolvable character show nothing. */
+  const [vaultNames, setVaultNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attachingClip, setAttachingClip] = useState<GeneratedClip | null>(null);
@@ -1044,6 +1055,22 @@ export default function MyClips() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json() as { clips: GeneratedClip[] };
         setClips(data.clips ?? []);
+        /* Resolve character names for the clips that carry one. */
+        try {
+          const vRes = await fetch("/api/artist-vaults", {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          });
+          if (vRes.ok) {
+            const vData = (await vRes.json()) as { vaults?: Array<{ id: string; artist_name?: string }> };
+            const map: Record<string, string> = {};
+            for (const v of vData.vaults ?? []) {
+              if (v.id && v.artist_name) map[v.id] = v.artist_name;
+            }
+            setVaultNames(map);
+          }
+        } catch {
+          /* names are a display nicety — never fail the list over them */
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load clips");
       } finally {
@@ -1169,6 +1196,7 @@ export default function MyClips() {
               <ClipCard
                 key={clip.id}
                 clip={clip}
+                characterName={clip.artist_vault_id ? vaultNames[clip.artist_vault_id] ?? null : null}
                 onDelete={handleDelete}
                 onAttach={setAttachingClip}
                 onSeoScore={setSeoClip}

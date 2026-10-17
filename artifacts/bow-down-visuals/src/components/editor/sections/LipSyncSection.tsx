@@ -17,6 +17,7 @@ import { requestAudioExport } from "@/lib/audio-export";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -272,6 +273,9 @@ export function LipSyncSection({
   const ls = settings.lipSync;
   const ms = settings.musicStudio;
   const { getAccessToken } = useAuth();
+  /* The character in front of the camera — lip-sync jobs record who
+     they were made as (0142, G8). */
+  const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
   const { confirmSpend } = useCreditConfirm();
   const isLight = useIsLightTheme();
@@ -861,6 +865,7 @@ export function LipSyncSection({
         preserveArtistLook:   ls.preserveArtistLook,
         projectId:          projectId ?? null,
         sceneId,
+        artistVaultId:      activeArtist?.id ?? null,
         getAccessToken,
         onSyncLabsJobAccepted: (syncLabsJobId) => {
           /* Save provider job ID immediately — persists even if local polling times out */
@@ -984,6 +989,7 @@ export function LipSyncSection({
           preserveArtistLook:   ls.preserveArtistLook,
           projectId:          projectId ?? null,
           sceneId:            sid,
+          artistVaultId:      activeArtist?.id ?? null,
           getAccessToken,
           onSyncLabsJobAccepted: (syncLabsJobId) => {
             updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
@@ -3968,6 +3974,8 @@ interface LipSyncBackendRequest {
   /** Passed through so the server can record this clip in generation history. */
   projectId?:           string | null;
   sceneId?:             string | null;
+  /** The character this lip-sync is made as (0142, G8). */
+  artistVaultId?:       string | null;
   getAccessToken:       () => Promise<string | null>;
   /** Called the first time the backend records the Sync.so provider job ID.
    *  The client should immediately persist this to the clip so it survives
@@ -4016,6 +4024,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       preserveArtistLook:   req.preserveArtistLook,
       projectId:            req.projectId ?? undefined,
       sceneId:              req.sceneId ?? undefined,
+      artistVaultId:        req.artistVaultId ?? undefined,
     }),
     signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
   });
