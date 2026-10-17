@@ -1183,6 +1183,132 @@ describe("the Music Hall jukebox", () => {
   });
 });
 
+describe("world events — slate, first-play moment, drop spectacles", () => {
+  const DROP = {
+    eventId: "evt-drop",
+    title: "Courtyard Drop",
+    roomId: "world:courtyard",
+    roomName: "Courtyard",
+    amountVb: 200,
+    claimCap: 2,
+    claimsLeft: 2,
+  };
+
+  it("directory entries carry their booked slate through untouched", async () => {
+    const { client, socket } = await inside();
+    const rooms: unknown[] = [];
+    client.onDirectory = (r) => rooms.push(r);
+    const slate = [
+      {
+        id: "evt-1",
+        kind: "stage_show",
+        title: "Big Night",
+        hostName: "Host",
+        startsAt: "2026-10-17T20:00:00.000Z",
+        endsAt: "2026-10-17T21:00:00.000Z",
+        status: "live",
+      },
+    ];
+    socket.receive({
+      type: "palace.directory",
+      rooms: [
+        { id: "world:kings-hall", name: "The King's Hall", count: 2, members: ["A", "B"], live: true, events: slate },
+        { id: "world:music-hall", name: "Music Hall", count: 0, members: [], live: false },
+      ],
+    });
+    expect(client.directory[0]?.events).toEqual(slate);
+    expect(client.directory[1]?.events).toBeUndefined();
+    expect(rooms).toHaveLength(1);
+  });
+
+  it("the screen's booked event rides screen.state into the mirror", async () => {
+    const { client, socket } = await inside();
+    socket.receive({
+      type: "screen.state",
+      screen: {
+        mode: "video",
+        holder: { peerId: "event:evt-1", name: "Host", slug: "host" },
+        title: "Booked Film",
+        streamId: null,
+        video: null,
+        playback: { playing: true, positionSec: 3 },
+        notice: "LIVE: Big Night by Host",
+        event: { id: "evt-1", title: "Big Night", hostName: "Host" },
+      },
+    });
+    expect(client.screen?.event).toEqual({ id: "evt-1", title: "Big Night", hostName: "Host" });
+  });
+
+  it("jukebox.nowplaying lands the first-play moment; a party rides jukebox.state", async () => {
+    const { client, socket } = await inside();
+    const moments: unknown[] = [];
+    client.onNowPlaying = (m) => moments.push(m);
+    socket.receive({
+      type: "jukebox.nowplaying",
+      moment: { entryId: "j9", trackId: "track:9", title: "Fresh One", creatorName: "New Artist", addedByName: "Host" },
+    });
+    expect(client.nowPlaying).toMatchObject({ title: "Fresh One", creatorName: "New Artist" });
+    expect(moments).toHaveLength(1);
+    socket.receive({
+      type: "jukebox.state",
+      jukebox: {
+        current: null,
+        queue: [],
+        party: { eventId: "evt-p", title: "Album Night", hostName: "Host" },
+      },
+    });
+    expect(client.jukebox?.party).toEqual({ eventId: "evt-p", title: "Album Night", hostName: "Host" });
+  });
+
+  it("drop frames: welcome snapshot, landed herald, witnessed claim, sweep, denial — and the claim intent", async () => {
+    const { client, socket } = await inside();
+    // The welcome snapshot: a drop already standing in the room.
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:courtyard", name: "Courtyard" },
+      you: SELF,
+      peers: [],
+      drop: DROP,
+    });
+    expect(client.drop).toEqual(DROP);
+
+    const landed: unknown[] = [];
+    const claimed: unknown[] = [];
+    client.onDropLanded = (d) => landed.push(d);
+    client.onDropClaimed = (claim, dropState) => claimed.push({ claim, dropState });
+    socket.receive({ type: "drop.landed", kind: "drop", title: DROP.title, roomId: DROP.roomId, roomName: DROP.roomName, drop: DROP });
+    expect(landed).toEqual([DROP]);
+
+    socket.receive({
+      type: "drop.claimed",
+      drop: { ...DROP, claimsLeft: 1 },
+      claim: { name: "Alpha", amountVb: 200 },
+    });
+    expect(claimed).toEqual([{ claim: { name: "Alpha", amountVb: 200 }, dropState: { ...DROP, claimsLeft: 1 } }]);
+    expect(client.drop?.claimsLeft).toBe(1);
+
+    socket.receive({ type: "drop.state", drop: null });
+    expect(client.drop).toBeNull();
+
+    let denied = "";
+    client.onDropDenied = (r) => {
+      denied = r;
+    };
+    socket.receive({ type: "drop.denied", reason: "claimed-out" });
+    expect(denied).toBe("claimed-out");
+
+    socket.sent = [];
+    client.claimDrop();
+    expect(socket.sent).toEqual([{ type: "drop.claim" }]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true });
+    guestRun.socket.sent = [];
+    guestRun.client.claimDrop();
+    expect(guestRun.socket.sent).toEqual([]);
+  });
+});
+
 describe("session longevity — keepalive + the quiet reconnect", () => {
   /* Same hand-driven timers as the connect engine's harness, plus
    * the injected clock the liveness window reads. */
