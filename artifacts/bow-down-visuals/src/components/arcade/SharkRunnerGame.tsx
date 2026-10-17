@@ -121,7 +121,7 @@ export default function SharkRunnerGame({
     avatar.src = "/cheat-code-avatar.webp";
     avatar.onload = () => { imagesRef.current.avatar = avatar; };
     const coin = new Image();
-    coin.src = "/visual-bucs-coin-transparent.png";
+    coin.src = "/images/visual-bucs-coin-transparent.png";
     coin.onload = () => { imagesRef.current.coin = coin; };
   }, []);
 
