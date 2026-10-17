@@ -139,6 +139,15 @@ export const messagesTable = pgTable("messages", {
   conversationId: uuid("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
   senderUserId:   uuid("sender_user_id").notNull(),
   body:           text("body").notNull(),
+  /* DM attachments (Ring 2, 2.17): one piece of the sender's own work
+     riding with the message — a beat, a cover, a clip. attachmentUrl
+     stores the PERMANENT storage ref (supabase:// / r2://, mirrored at
+     send time per mirror-on-save), never a signed URL; reads mint a
+     fresh URL per fetch. All three columns are nullable: text-only
+     messages (every row before 0144) keep them NULL. */
+  attachmentUrl:  text("attachment_url"),
+  attachmentType: text("attachment_type"),
+  attachmentName: text("attachment_name"),
   isRead:         boolean("is_read").notNull().default(false),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

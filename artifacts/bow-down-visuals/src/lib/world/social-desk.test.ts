@@ -14,8 +14,10 @@
  *   data (platforms meta carries the cost);
  * - reaction math mirrors PostCard (tap = set, same tap = remove,
  *   never below zero);
- * - the follow-on log names moderation + full threads as
- *   transfer-only in v1;
+ * - Ring 2 (2.17–2.19): attachment classification/presentation +
+ *   thread search, the FULL thread (no preview cap), the reply
+ *   bench's batching + server-priced seam, and the follow-on log
+ *   keeping only moderation transfer-only;
  * - source pins: the desk components ride these builders, the host
  *   dispatches pattern "social" to them, and the host still renders
  *   the ONE TransferFooter for native resolutions.
@@ -23,17 +25,21 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  DM_CONVERSATIONS_PATH, DM_START_PATH,
+  DM_CONVERSATIONS_PATH, DM_START_PATH, DM_ATTACHMENT_UPLOAD_PATH,
   dmMessagesPath, dmSendPath, dmRequestActionPath, profileResolvePath,
   dmConversationName, dmCanChat, dmNeedsAnswer, dmCanSendDraft,
   dmUnreadTotal, dmFindConversation, normalizeDmConversations,
+  dmMessageAttachment, dmAttachmentKindForMime, dmAttachmentKindForUrl,
+  dmAttachmentNameForUrl, dmWorkLabel, dmFilterMessages, dmConversationMatches,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
-  REACT_PATH, reactRemovePath, feedPath, postRepliesPath,
+  REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
+  COMMENT_REPLIES_PATH, COMMENT_REPLIES_META_PATH,
+  REPLY_DRAFT_TONES, replyDraftBatch,
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
-  nextReactionState, repliesPreview, REPLIES_PREVIEW_COUNT,
-  SOCIAL_NATIVE_FOLLOW_ONS,
-  type DmConversation,
+  nextReactionState, fullThread,
+  SOCIAL_NATIVE_FOLLOW_ONS, SOCIAL_RING2_PROMOTIONS,
+  type DmConversation, type DmMessage,
 } from "./social-desk";
 import type { FeedPost } from "@/lib/social-api";
 
@@ -85,6 +91,7 @@ describe("DM endpoints — the messages page's exact rails", () => {
   it("pins every path verbatim", () => {
     expect(DM_CONVERSATIONS_PATH).toBe("/api/dm/conversations");
     expect(DM_START_PATH).toBe("/api/dm/start");
+    expect(DM_ATTACHMENT_UPLOAD_PATH).toBe("/api/dm/attachments/upload");
     expect(dmMessagesPath("c 1")).toBe("/api/dm/c%201/messages");
     expect(dmSendPath("c1")).toBe("/api/dm/c1/send");
     expect(dmRequestActionPath("c1", "accept")).toBe("/api/dm/c1/accept");
@@ -114,6 +121,13 @@ describe("DM thread rules — mirrored from messages.tsx", () => {
     expect(dmCanSendDraft("hello", false)).toBe(false);
   });
 
+  it("a staged attachment completes an empty draft — but only in a chattable thread", () => {
+    expect(dmCanSendDraft("", true, true)).toBe(true);
+    expect(dmCanSendDraft("   ", true, true)).toBe(true);
+    expect(dmCanSendDraft("", false, true)).toBe(false);
+    expect(dmCanSendDraft("", true, false)).toBe(false);
+  });
+
   it("names, unread totals, lookup and payload guards behave", () => {
     expect(dmConversationName(conv())).toBe("Queen Bee");
     expect(dmConversationName(conv({ other: { user_id: "u2", profile: null } }))).toBe("Creator");
@@ -138,6 +152,9 @@ describe("community endpoints — the pages' exact rails", () => {
     expect(REACT_PATH).toBe("/api/react");
     expect(reactRemovePath("p 1")).toBe("/api/react?target_kind=post&target_id=p%201");
     expect(postRepliesPath("p1")).toBe("/api/posts/p1/replies");
+    expect(postReplyPath("p 1")).toBe("/api/posts/p%201/reply");
+    expect(COMMENT_REPLIES_PATH).toBe("/api/comment-replies");
+    expect(COMMENT_REPLIES_META_PATH).toBe("/api/comment-replies/meta");
     expect(feedPath(12)).toBe("/api/feed?mode=chrono&limit=12");
     expect(feedPath(0)).toBe("/api/feed?mode=chrono&limit=1");
     expect(feedPath(999)).toBe("/api/feed?mode=chrono&limit=30");
@@ -175,19 +192,102 @@ describe("community pure helpers", () => {
     expect(nextReactionState("like", { like: 0 }, "like").counts.like).toBe(0);
   });
 
-  it("the replies preview is capped — the full thread is the transfer's job", () => {
-    expect(REPLIES_PREVIEW_COUNT).toBe(3);
-    expect(repliesPreview([1, 2, 3, 4, 5])).toEqual([1, 2, 3]);
+  it("the full thread is the whole thread — no preview cap (2.18)", () => {
+    expect(fullThread([1, 2, 3, 4, 5])).toEqual([1, 2, 3, 4, 5]);
+    expect(fullThread([])).toEqual([]);
+  });
+});
+
+describe("DM attachments (2.17) — classification and presentation", () => {
+  it("classifies picked files by MIME the way the server's filter does", () => {
+    expect(dmAttachmentKindForMime("audio/mpeg")).toBe("audio");
+    expect(dmAttachmentKindForMime("video/mp4")).toBe("video");
+    expect(dmAttachmentKindForMime("image/png")).toBe("image");
+    expect(dmAttachmentKindForMime("text/plain")).toBeNull();
+    expect(dmAttachmentKindForMime("application/pdf")).toBeNull();
+  });
+
+  it("classifies by-URL attachments from the file ending, and titles them", () => {
+    expect(dmAttachmentKindForUrl("https://cdn.example.com/work/beat.mp3?x=1")).toBe("audio");
+    expect(dmAttachmentKindForUrl("https://cdn.example.com/cover.JPG")).toBe("image");
+    expect(dmAttachmentKindForUrl("https://cdn.example.com/clip.webm")).toBe("video");
+    expect(dmAttachmentKindForUrl("https://example.com/page")).toBeNull();
+    expect(dmAttachmentKindForUrl("not a url")).toBeNull();
+    expect(dmAttachmentNameForUrl("https://cdn.example.com/work/my%20beat.mp3")).toBe("my beat.mp3");
+  });
+
+  it("a message's attachment reads back as one tidy, valid object", () => {
+    const m: DmMessage = {
+      id: "m1", senderUserId: "u1", body: "", created_at: "2026-10-17T00:00:00Z",
+      attachment_url: "https://signed.example/x", attachment_type: "audio", attachment_name: "beat.mp3",
+    };
+    expect(dmMessageAttachment(m)).toEqual({ url: "https://signed.example/x", type: "audio", name: "beat.mp3" });
+    expect(dmMessageAttachment({ ...m, attachment_url: null })).toBeNull();
+    expect(dmMessageAttachment({ ...m, attachment_type: "document" })).toBeNull();
+    expect(dmMessageAttachment({ id: "m2", senderUserId: "u1", body: "hi", created_at: "" })).toBeNull();
+  });
+
+  it("work is introduced as what it is — a beat, a clip, artwork", () => {
+    expect(dmWorkLabel("audio")).toBe("Beat");
+    expect(dmWorkLabel("video")).toBe("Clip");
+    expect(dmWorkLabel("image")).toBe("Artwork");
+  });
+});
+
+describe("DM thread search (2.17)", () => {
+  const msgs: DmMessage[] = [
+    { id: "1", senderUserId: "u1", body: "that hook is fire", created_at: "" },
+    {
+      id: "2", senderUserId: "u2", body: "", created_at: "",
+      attachment_url: "https://x", attachment_type: "audio", attachment_name: "midnight-beat.mp3",
+    },
+    { id: "3", senderUserId: "u1", body: "send the stems Friday", created_at: "" },
+  ];
+
+  it("searches words and work titles alike; an empty query keeps everything", () => {
+    expect(dmFilterMessages(msgs, "hook").map((m) => m.id)).toEqual(["1"]);
+    expect(dmFilterMessages(msgs, "MIDNIGHT").map((m) => m.id)).toEqual(["2"]);
+    expect(dmFilterMessages(msgs, "  ")).toHaveLength(3);
+    expect(dmFilterMessages(msgs, "nope")).toEqual([]);
+  });
+
+  it("conversation search covers name, slug, last words and last work", () => {
+    expect(dmConversationMatches(conv(), "queen")).toBe(true);
+    expect(dmConversationMatches(conv(), "bee")).toBe(true);
+    expect(dmConversationMatches(conv({
+      last_message: { body: "", createdAt: "", senderUserId: "u2", attachment_type: "audio", attachment_name: "final-mix.wav" },
+    }), "final-mix")).toBe(true);
+    expect(dmConversationMatches(conv(), "stranger")).toBe(false);
+    expect(dmConversationMatches(conv(), "")).toBe(true);
+  });
+});
+
+describe("reply-drafts bench seam (2.19)", () => {
+  it("the tones mirror the server's enum, in order", () => {
+    expect(REPLY_DRAFT_TONES.map((t) => t.key)).toEqual(["hype", "grateful", "playful", "professional"]);
+  });
+
+  it("the batch is one comment per line, capped at the route's own max", () => {
+    expect(replyDraftBatch(" one \n\n two\nthree ", 10)).toEqual(["one", "two", "three"]);
+    expect(replyDraftBatch("a\nb\nc", 2)).toEqual(["a", "b"]);
+    expect(replyDraftBatch("", 10)).toEqual([]);
   });
 });
 
 describe("the parity follow-on log", () => {
-  it("names moderation and full threads as transfer-only in v1", () => {
+  it("only moderation stays transfer-only — Ring 2 promoted the rest", () => {
     const ids = SOCIAL_NATIVE_FOLLOW_ONS.map((f) => f.id);
-    expect(ids).toContain("moderation-bench");
-    expect(ids).toContain("full-comment-threads");
+    expect(ids).toEqual(["moderation-bench"]);
     const mod = SOCIAL_NATIVE_FOLLOW_ONS.find((f) => f.id === "moderation-bench")!;
     expect(mod.label).toContain("/api/community/moderate");
+  });
+
+  it("the Ring 2 promotions are recorded in the program's own numbering", () => {
+    expect(SOCIAL_RING2_PROMOTIONS.map((p) => [p.id, p.item])).toEqual([
+      ["dm-attachments", "2.17"],
+      ["full-comment-threads", "2.18"],
+      ["reply-drafts-bench", "2.19"],
+    ]);
   });
 });
 
@@ -197,6 +297,8 @@ describe("source pins — the desk and its host dispatch", () => {
       "DM_CONVERSATIONS_PATH", "dmMessagesPath", "dmSendPath", "dmRequestActionPath",
       "profileResolvePath", "COMMUNITY_SUPERFANS_PATH", "COMMUNITY_SENTIMENT_PATH",
       "GENERATE_COMMUNITY_POST_PATH", "POSTS_PATH", "feedPath", "postRepliesPath",
+      "DM_ATTACHMENT_UPLOAD_PATH", "postReplyPath", "COMMENT_REPLIES_PATH",
+      "COMMENT_REPLIES_META_PATH",
     ]) {
       expect(deskSrc, needle).toContain(needle);
     }
@@ -205,6 +307,22 @@ describe("source pins — the desk and its host dispatch", () => {
     expect(deskSrc).toContain('data-testid="world-dm-send"');
     expect(deskSrc).toContain('data-testid="world-dm-accept"');
     expect(deskSrc).toContain('data-testid="world-community-pin-post"');
+    /* Ring 2 surfaces exist in the desk, not just the lib. */
+    expect(deskSrc).toContain('data-testid="world-dm-attach"');
+    expect(deskSrc).toContain('data-testid="world-dm-attachment"');
+    expect(deskSrc).toContain('data-testid="world-dm-attachment-audio"');
+    expect(deskSrc).toContain('data-testid="world-dm-search"');
+    expect(deskSrc).toContain('data-testid="world-dm-thread-search"');
+    expect(deskSrc).toContain('data-testid="world-community-reply-send"');
+    expect(deskSrc).toContain('data-testid="world-community-bench-draft"');
+    expect(deskSrc).toContain('data-testid="world-community-bench-post"');
+  });
+
+  it("attachments are presented as titled work with a player, never a file chip", () => {
+    expect(deskSrc).toContain("<audio controls");
+    expect(deskSrc).toContain("<video controls");
+    expect(deskSrc).toContain("dmWorkLabel(att.type)");
+    expect(deskSrc).toContain("hand-off");
   });
 
   it("moderation is never called from the desk — transfer-only in v1", () => {

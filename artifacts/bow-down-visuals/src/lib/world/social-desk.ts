@@ -6,10 +6,11 @@
  * ride the EXACT rails the website's own pages ride, named here
  * once so the components and the tests read the same table.
  *
- * DM rails (pages/messages.tsx, verbatim):
+ * DM rails (pages/messages.tsx, verbatim; attachments are Ring 2):
  *   GET  /api/dm/conversations            → { inbox, requests }
  *   GET  /api/dm/:id/messages             → { messages, status }
- *   POST /api/dm/:id/send                 { body }
+ *   POST /api/dm/:id/send                 { body, attachment? }
+ *   POST /api/dm/attachments/upload       multipart "file" → { url, ref, type, name }
  *   POST /api/dm/start                    { user_id }
  *   GET  /api/profiles/resolve?slug=…     → { user_id }
  *   POST /api/dm/:id/accept · /decline · /block
@@ -24,7 +25,10 @@
  *   POST /api/posts                       { body }      (pin to board)
  *   POST /api/react                       { target_kind:"post", target_id, emoji }
  *   DELETE /api/react?target_kind=post&target_id=…
- *   GET  /api/posts/:id/replies           → { replies } (short preview)
+ *   GET  /api/posts/:id/replies           → { replies } (the FULL thread)
+ *   POST /api/posts/:id/reply             { body }      (answer in-world)
+ *   POST /api/comment-replies             { comments, tone, voiceNotes } → { replies }
+ *   GET  /api/comment-replies/meta        → { cost, tones, maxComments }
  *
  * NOTE on methods: superfans/sentiment are POST on the server (they
  * analyse a comments batch and charge for the run) — there is no
@@ -50,9 +54,24 @@ export interface DmConversation {
   status: string;
   requested_by_me: boolean;
   other: { user_id: string; profile: DmProfileCard | null };
-  last_message: { body: string; createdAt: string; senderUserId: string } | null;
+  last_message: {
+    body: string; createdAt: string; senderUserId: string;
+    attachment_type?: string | null; attachment_name?: string | null;
+  } | null;
   unread: number;
   last_message_at: string | null;
+}
+
+/** One piece of work riding with a message (2.17): a beat, a cover,
+ *  a clip. `url` is what the client opens (the server mints a fresh
+ *  URL from the stored permanent ref on every read); on SEND the
+ *  client passes the upload's `ref` — or an external URL to its own
+ *  file, which the server mirrors into permanent storage. */
+export type DmAttachmentType = "audio" | "image" | "video";
+export interface DmAttachment {
+  url: string;
+  type: DmAttachmentType;
+  name: string;
 }
 
 export interface DmMessage {
@@ -60,12 +79,23 @@ export interface DmMessage {
   senderUserId: string;
   body: string;
   created_at: string;
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
+}
+
+/** The attachment a message carries, as one tidy object (or null). */
+export function dmMessageAttachment(m: DmMessage): DmAttachment | null {
+  if (!m.attachment_url || !m.attachment_type || !m.attachment_name) return null;
+  if (m.attachment_type !== "audio" && m.attachment_type !== "image" && m.attachment_type !== "video") return null;
+  return { url: m.attachment_url, type: m.attachment_type, name: m.attachment_name };
 }
 
 /* ─── DM endpoints ────────────────────────────────────────────────── */
 
 export const DM_CONVERSATIONS_PATH = "/api/dm/conversations";
 export const DM_START_PATH = "/api/dm/start";
+export const DM_ATTACHMENT_UPLOAD_PATH = "/api/dm/attachments/upload";
 
 export function dmMessagesPath(conversationId: string): string {
   return `/api/dm/${encodeURIComponent(conversationId)}/messages`;
@@ -106,11 +136,86 @@ export function dmNeedsAnswer(status: string, conv: DmConversation | null): bool
   return !!conv && status === "request" && !conv.requested_by_me;
 }
 
-/** A draft can be sent only into a chattable thread, non-empty.
+/** A draft can be sent only into a chattable thread, non-empty —
+ *  unless a piece of work rides along: an attachment-only hand-off
+ *  (a beat with no words) is a complete message on the server.
  *  The 2,000-char cap is the composer input's own (messages.tsx). */
 export const DM_DRAFT_MAX = 2000;
-export function dmCanSendDraft(draft: string, canChat: boolean): boolean {
-  return canChat && draft.trim().length > 0;
+export function dmCanSendDraft(draft: string, canChat: boolean, hasAttachment = false): boolean {
+  return canChat && (draft.trim().length > 0 || hasAttachment);
+}
+
+/* ─── DM attachment helpers ───────────────────────────────────────── */
+
+/** Classify a picked file by MIME, the way the server's upload filter
+ *  does (audio/*, video/*, image/* — anything else can't ride). */
+export function dmAttachmentKindForMime(mime: string): DmAttachmentType | null {
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("image/")) return "image";
+  return null;
+}
+
+const DM_EXT_KIND: Record<string, DmAttachmentType> = {
+  mp3: "audio", wav: "audio", ogg: "audio", m4a: "audio", flac: "audio", aac: "audio",
+  mp4: "video", mov: "video", webm: "video", m4v: "video",
+  jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image", avif: "image",
+};
+
+/** Classify a by-URL attachment from its file extension; a URL whose
+ *  kind can't be told can't be attached (the server validates too). */
+export function dmAttachmentKindForUrl(url: string): DmAttachmentType | null {
+  try {
+    const m = /\.([a-z0-9]{2,5})(?:\?|#|$)/i.exec(new URL(url.trim()).pathname);
+    return m ? (DM_EXT_KIND[m[1]!.toLowerCase()] ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The file's own name out of a URL (what the work is titled). */
+export function dmAttachmentNameForUrl(url: string): string {
+  try {
+    const last = new URL(url.trim()).pathname.split("/").filter(Boolean).pop() ?? "";
+    const name = decodeURIComponent(last).trim();
+    return name.length > 0 ? name.slice(0, 200) : "Shared work";
+  } catch {
+    return "Shared work";
+  }
+}
+
+/** How a piece of work is introduced in-thread — a creator hand-off
+ *  is presented as the work it is, never as a bare file. */
+export function dmWorkLabel(type: DmAttachmentType): string {
+  return type === "audio" ? "Beat" : type === "video" ? "Clip" : "Artwork";
+}
+
+/* ─── DM thread search ────────────────────────────────────────────── */
+
+function dmHaystack(parts: readonly (string | null | undefined)[]): string {
+  return parts.filter((p) => typeof p === "string").join(" ").toLowerCase();
+}
+
+/** Search inside the open thread: words and work titles both count. */
+export function dmMessageMatches(m: DmMessage, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return dmHaystack([m.body, m.attachment_name]).includes(q);
+}
+
+export function dmFilterMessages(messages: readonly DmMessage[], query: string): DmMessage[] {
+  return messages.filter((m) => dmMessageMatches(m, query));
+}
+
+/** Search the conversation list: the creator's name, their slug, the
+ *  last words, or the title of the last piece of work sent. */
+export function dmConversationMatches(c: DmConversation, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return dmHaystack([
+    c.other.profile?.displayName, c.other.profile?.slug,
+    c.last_message?.body, c.last_message?.attachment_name,
+  ]).includes(q);
 }
 
 /** Total unread across a conversation list (the tab badge math). */
@@ -157,6 +262,42 @@ export function feedPath(limit: number): string {
 
 export function postRepliesPath(postId: string): string {
   return `/api/posts/${encodeURIComponent(postId)}/replies`;
+}
+
+/** Answer a thread in-world (the social rails' own reply route;
+ *  body obeys the same 1–500 gate as a board post). */
+export function postReplyPath(postId: string): string {
+  return `/api/posts/${encodeURIComponent(postId)}/reply`;
+}
+
+/* ─── Reply-drafts bench (2.19) ─────────────────────────────────────
+   The community page's drafting bench, docked at the board:
+   POST /api/comment-replies drafts one reply per pasted comment in a
+   chosen tone. It CHARGES per batch — the price is never hardcoded
+   here: the desk reads it from GET /api/comment-replies/meta, which
+   reports the server's own charge constant. */
+export const COMMENT_REPLIES_PATH = "/api/comment-replies";
+export const COMMENT_REPLIES_META_PATH = "/api/comment-replies/meta";
+
+/** Tone keys mirror the server's TONES enum exactly. */
+export const REPLY_DRAFT_TONES = [
+  { key: "hype", label: "Hype" },
+  { key: "grateful", label: "Grateful" },
+  { key: "playful", label: "Playful" },
+  { key: "professional", label: "Professional" },
+] as const;
+export type ReplyDraftTone = (typeof REPLY_DRAFT_TONES)[number]["key"];
+
+/** Split the bench's paste box into the batch the route accepts:
+ *  one comment per line, at most maxComments (the route's own cap,
+ *  reported by its meta). */
+export function replyDraftBatch(text: string, maxComments: number): string[] {
+  const cap = Math.max(1, Math.floor(maxComments) || 1);
+  return text
+    .split("\n")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0)
+    .slice(0, cap);
 }
 
 export const REACT_PATH = "/api/react";
@@ -247,11 +388,12 @@ export function nextReactionState(
   return { emoji: removing ? null : next, counts: out };
 }
 
-/** Replies preview: the board shows the first few replies read-only;
- *  the full thread is the transfer's job (follow-on log). */
-export const REPLIES_PREVIEW_COUNT = 3;
-export function repliesPreview<T>(replies: readonly T[]): T[] {
-  return replies.slice(0, REPLIES_PREVIEW_COUNT);
+/** Full threads (2.18): opening a thread shows the WHOLE conversation
+ *  — every reply the replies rail returns (the route caps at 100),
+ *  never a 3-reply preview. This helper exists so the count the card
+ *  states is the count it renders. */
+export function fullThread<T>(replies: readonly T[]): T[] {
+  return [...replies];
 }
 
 /* ─── The parity follow-on log (NATIVE-PLAN §3.4, v1 scope line) ───
@@ -265,19 +407,15 @@ export const SOCIAL_NATIVE_FOLLOW_ONS = [
     label: "Community moderation bench (POST /api/community/moderate)",
     note: "An admin workbench, not a hangout action — stays on the website via the Community Hall transfer in v1.",
   },
-  {
-    id: "full-comment-threads",
-    label: "Full post comment threads",
-    note: "Board post cards read + react in-world and preview the first replies; the full /post/:id thread opens on the website via the station transfer.",
-  },
-  {
-    id: "reply-drafts-bench",
-    label: "AI reply-drafts bench (POST /api/comment-replies)",
-    note: "The community page's tone/tone-batch drafting bench stays transfer-only; the Hall's pin composer covers quick posting in-world.",
-  },
-  {
-    id: "dm-attachments",
-    label: "DM attachments and thread search",
-    note: "The Post Office desk is text threads in v1 — the messages page's rails carry no attachment send, so nothing is faked in-world.",
-  },
+] as const;
+
+/* Ring 2 promotions (UPGRADE-PROGRAM §2.17–2.19), built and no longer
+   follow-ons: DM attachments + thread search at the Post Office,
+   full post threads in the Community Hall, and the reply-drafts
+   bench docked at the board. Named here so the record shows what
+   graduated, in the program's own numbering. */
+export const SOCIAL_RING2_PROMOTIONS = [
+  { id: "dm-attachments", item: "2.17", label: "DM attachments + thread search at the Post Office" },
+  { id: "full-comment-threads", item: "2.18", label: "Full post threads in the Community Hall" },
+  { id: "reply-drafts-bench", item: "2.19", label: "Reply-drafts bench at the board" },
 ] as const;
