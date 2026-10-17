@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHubProject } from "@/lib/hub-project";
+import { fetchBrandKit, bioPageFieldsFromBrandKit } from "@/lib/brand-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -181,6 +182,40 @@ export function LinkInBioBuilder() {
     if (vault.reference_image_url) setAvatarUrl(vault.reference_image_url);
     setSlug((s) => (s ? s : slugify(vault.artist_name)));
     setPrefilled(true);
+  }
+
+  /* Linkage (DE-5): the brand kit is the other prefill source — name,
+     tagline as headline, bio lines, and the kit logo as the page avatar
+     (a bio page's avatar IS the creator's mark). Fills only empty
+     fields: a saved bio page's own words stay canonical for that page. */
+  const [brandNote, setBrandNote] = useState<string | null>(null);
+  const [importingBrand, setImportingBrand] = useState(false);
+  async function importFromBrandKit() {
+    setImportingBrand(true);
+    setBrandNote(null);
+    try {
+      const kit = await fetchBrandKit(getAccessToken);
+      if (!kit) {
+        setBrandNote(t("linkInBio.profile.brandKitNone", { defaultValue: "No brand kit yet — generate one in Branding and it can start this page for you." }));
+        return;
+      }
+      const f = bioPageFieldsFromBrandKit(kit);
+      let filled = 0;
+      if (f.displayName && !displayName.trim()) { setDisplayName(f.displayName); filled++; }
+      if (f.headline && !headline.trim()) { setHeadline(f.headline); filled++; }
+      if (f.bio && !bio.trim()) { setBio(f.bio); filled++; }
+      if (f.avatarUrl && !avatarUrl.trim()) { setAvatarUrl(f.avatarUrl); filled++; }
+      if (f.displayName) setSlug((s) => (s ? s : slugify(f.displayName!)));
+      setBrandNote(
+        filled
+          ? t("linkInBio.profile.brandKitFilled", { defaultValue: "Started from your brand kit — only the empty fields; your saved words were left alone." })
+          : t("linkInBio.profile.brandKitNothingNew", { defaultValue: "Your brand kit is saved — everything it holds is already on this page." }),
+      );
+    } catch {
+      setBrandNote(t("linkInBio.profile.brandKitFailed", { defaultValue: "Couldn't load your brand kit — try again." }));
+    } finally {
+      setImportingBrand(false);
+    }
   }
 
   function cleanAvatar(): string | null {
@@ -423,6 +458,16 @@ export function LinkInBioBuilder() {
       <div className={sectionClass}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold">{t("linkInBio.profile.title")}</h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void importFromBrandKit()}
+              disabled={importingBrand}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-primary/40 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:opacity-50"
+            >
+              {importingBrand ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {t("linkInBio.profile.brandKitImport", { defaultValue: "Import from my brand kit" })}
+            </button>
           {vaults.length > 0 && (
             <div className="flex items-center gap-2">
               <select
@@ -441,7 +486,13 @@ export function LinkInBioBuilder() {
               </select>
             </div>
           )}
+          </div>
         </div>
+        {brandNote && (
+          <p className="mb-4 inline-flex items-center gap-1.5 text-xs text-primary/80">
+            <Sparkles className="h-3.5 w-3.5" /> {brandNote}
+          </p>
+        )}
         {vaults.length === 0 && (
           <p className="mb-4 text-xs text-white/35">{t("linkInBio.profile.noVaults")}</p>
         )}

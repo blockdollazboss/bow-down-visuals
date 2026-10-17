@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import {
   Newspaper, Loader2, Sparkles, Plus, Trash2, Copy, Check, Download,
   RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil, Send,
+  Fingerprint,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { slugifyHandle } from "@/lib/press-kit";
+import { fetchBrandKit, pressKitFieldsFromBrandKit } from "@/lib/brand-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
@@ -65,7 +67,7 @@ const inputCls =
 export default function PressKitBuilder() {
   usePageTitle("Press Kit", "Build an electronic press kit with an AI-written bio, photos, top tracks, and booking contact — published as a shareable page.");
   const isLight = useIsLightTheme();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
@@ -179,6 +181,39 @@ export default function PressKitBuilder() {
   }
 
   const cleanList = (l: string[]) => l.map((s) => s.trim()).filter(Boolean);
+
+  /* Linkage (DE-5): fill the form's empty fields from the creator's
+     brand kit — name, tagline, bio lines and press facts — instead of
+     re-typing what the brand already knows. The kit's logo is NOT
+     imported as a press photo: a logo is not a photo. */
+  const [importingBrand, setImportingBrand] = useState(false);
+  const [brandImportNote, setBrandImportNote] = useState<string | null>(null);
+  async function importFromBrandKit() {
+    setImportingBrand(true);
+    setBrandImportNote(null);
+    try {
+      const kit = await fetchBrandKit(getAccessToken);
+      if (!kit) {
+        setBrandImportNote(t("press-kit.brandKit.none", { defaultValue: "No brand kit yet — generate one in Branding and it can fill this in for you." }));
+        return;
+      }
+      const f = pressKitFieldsFromBrandKit(kit);
+      let filled = 0;
+      if (f.artistName && !artistName.trim()) { setArtistName(f.artistName); filled++; }
+      if (f.tagline && !tagline.trim()) { setTagline(f.tagline); filled++; }
+      if (f.bio && !bio.trim()) { setBio(f.bio); filled++; }
+      if (f.achievements && achievements.every((a) => !a.trim())) { setAchievements(f.achievements); filled++; }
+      setBrandImportNote(
+        filled
+          ? t("press-kit.brandKit.filled", { defaultValue: "Filled from your brand kit — only the empty fields; your words were left alone." })
+          : t("press-kit.brandKit.nothingNew", { defaultValue: "Your brand kit is saved — everything it holds is already in this form." }),
+      );
+    } catch {
+      setBrandImportNote(t("press-kit.brandKit.failed", { defaultValue: "Couldn't load your brand kit — try again." }));
+    } finally {
+      setImportingBrand(false);
+    }
+  }
 
   async function handleGenerate() {
     setError(null);
@@ -525,6 +560,20 @@ export default function PressKitBuilder() {
               /* ── create / edit form ── */
               <div className="space-y-6">
                 <h2 className="text-xl font-bold">{selectedKit ? t("press-kit.editTitle") : t("press-kit.createTitle")}</h2>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void importFromBrandKit()}
+                    disabled={importingBrand}
+                    className={isLight ? "border-[#C9A84C]/50 text-[#7A5A12]" : "border-[#d4af37]/40 text-[#d4af37] hover:bg-[#d4af37]/10"}
+                  >
+                    {importingBrand ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-2" />}
+                    {t("press-kit.brandKit.import", { defaultValue: "Import from my brand kit" })}
+                  </Button>
+                  {brandImportNote && <span className={`text-xs ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>{brandImportNote}</span>}
+                </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>

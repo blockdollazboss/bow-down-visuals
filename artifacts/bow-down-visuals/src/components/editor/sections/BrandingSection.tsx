@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ImagePlus, X, Loader2, Tv2, LogOut, Droplets, Type,
+  ImagePlus, X, Loader2, Tv2, LogOut, Droplets, Type, Fingerprint,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   type IntroCardPreset, type CardDuration,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
+import { fetchBrandKit, type BrandKit } from "@/lib/brand-kit";
 
 interface Props {
   settings: EditorSettings;
@@ -89,6 +90,26 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
   const [wmError, setWmError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showLogoPreview, setShowLogoPreview] = useState(true);
+
+  /* Linkage (DE-5): the creator's brand kit is the source of truth for
+     the logo + tagline — read it once and offer both with no re-upload
+     and no re-typing. A missing/unreachable kit simply hides the offers;
+     the upload path below is untouched. */
+  const [brandKit, setBrandKit] = useState<BrandKit | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const kit = await fetchBrandKit(getAccessToken);
+        if (!cancelled) setBrandKit(kit);
+      } catch {
+        /* no kit offer — the manual paths still work */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const kitTagline = brandKit?.selectedTagline ?? brandKit?.taglines[0] ?? null;
 
   function setBranding<K extends keyof typeof b>(key: K, value: (typeof b)[K]) {
     setSettings({ ...settings, branding: { ...b, [key]: value } });
@@ -190,6 +211,17 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                     onChange={(v) => setIntro({ tagline: v })}
                     testId="branding-intro-tagline"
                   />
+                  {kitTagline && !ic.tagline && (
+                    <button
+                      type="button"
+                      onClick={() => setIntro({ tagline: kitTagline })}
+                      className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary/80 transition hover:text-primary"
+                      data-testid="branding-intro-brand-tagline"
+                    >
+                      <Fingerprint className="h-3 w-3" />
+                      Use my brand tagline — “{kitTagline}”
+                    </button>
+                  )}
                 </Field>
               </div>
 
@@ -350,17 +382,34 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                   className="hidden"
                   onChange={handleLogoUpload}
                 />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={wmUploading}
-                  className="gap-2 border-white/15"
-                  data-testid="branding-wm-upload"
-                >
-                  {wmUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-                  {wmUploading ? "Uploading…" : wm.customLogoUrl ? "Replace logo" : "Upload your logo"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={wmUploading}
+                    className="gap-2 border-white/15"
+                    data-testid="branding-wm-upload"
+                  >
+                    {wmUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                    {wmUploading ? "Uploading…" : wm.customLogoUrl ? "Replace logo" : "Upload your logo"}
+                  </Button>
+                  {brandKit?.logoUrl && wm.customLogoUrl !== brandKit.logoUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setShowLogoPreview(true); setWm({ customLogoUrl: brandKit.logoUrl }); }}
+                      className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                      data-testid="branding-wm-brand-kit"
+                    >
+                      <Fingerprint className="h-3.5 w-3.5" />
+                      Use my brand logo
+                    </Button>
+                  )}
+                </div>
+                {brandKit?.logoUrl && wm.customLogoUrl === brandKit.logoUrl && (
+                  <p className="text-[11px] text-primary/70">That’s the logo from your brand kit — no upload needed.</p>
+                )}
               </div>
 
               {/* Position */}
