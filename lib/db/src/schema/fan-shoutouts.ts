@@ -65,6 +65,11 @@ export const shoutoutRequestsTable = pgTable(
     price_cents: integer("price_cents").notNull().default(0),
     /* Where the finished shoutout video lives (Supabase URL), set by creator. */
     delivery_url: text("delivery_url"),
+    /* Checkout (migration 0142, DE-14): the Stripe Checkout session that
+       pays for this request (UNIQUE — one session pays one request) and
+       when payment was verified. Null = unpaid (or a free request). */
+    stripe_session_id: text("stripe_session_id"),
+    paid_at: timestamp("paid_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     delivered_at: timestamp("delivered_at", { withTimezone: true }),
@@ -72,6 +77,8 @@ export const shoutoutRequestsTable = pgTable(
   (t) => [
     index("shoutout_requests_creator_idx").on(t.creator_user_id),
     index("shoutout_requests_status_idx").on(t.status),
+    /* Idempotency (migration 0142): one checkout session pays one request. */
+    uniqueIndex("shoutout_requests_stripe_session_ux").on(t.stripe_session_id),
   ],
 );
 

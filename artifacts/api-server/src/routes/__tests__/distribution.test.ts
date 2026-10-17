@@ -216,13 +216,18 @@ CREATE TABLE distribution_royalty_splits (
   created_at timestamptz NOT NULL DEFAULT now()
 );`;
 
-/* Minimal songs table — only the columns the songId ownership check reads. */
+/* Minimal songs table — the columns the songId link reads/writes.
+   lyrics / genre / isrc / cover_art_url arrived with migration 0142. */
 const SONGS_DDL = `
 CREATE TABLE songs (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL,
   title text NOT NULL,
-  audio_url text NOT NULL
+  audio_url text NOT NULL,
+  lyrics text,
+  genre text,
+  isrc text,
+  cover_art_url text
 );`;
 
 const realFetch = globalThis.fetch;
@@ -814,6 +819,79 @@ describe("ISRC validation", () => {
     expect(status).toBe(201);
     expect(json.release.audioUrl).toBe("https://example.com/mysong.mp3");
     expect(json.release.songId).toBe(songId);
+  });
+
+  /* 0142 (DE-9): release metadata lives on the songs row. */
+  it("prefills genre/isrc/cover/lyrics from the song when the wizard omits them", async () => {
+    const songId = randomUUID();
+    await testState.db.execute(sql`
+      INSERT INTO songs (id, user_id, title, audio_url, genre, isrc, lyrics, cover_art_url)
+      VALUES (${songId}, ${USER_A}, ${"Known Song"}, ${"https://example.com/known.mp3"},
+              ${"Hip Hop"}, ${"USABC2499999"}, ${"stored verse"}, ${"https://example.com/cover.png"})
+    `);
+    const { status, json } = await req("POST", "/distribution/releases", {
+      title: "Known Song",
+      artistName: "Test Artist",
+      songId,
+    });
+    expect(status).toBe(201);
+    expect(json.release.genre).toBe("Hip Hop");
+    expect(json.release.isrc).toBe("USABC2499999");
+    expect(json.release.artworkUrl).toBe("https://example.com/cover.png");
+    expect(json.release.metadata.lyrics).toBe("stored verse");
+  });
+
+  it("writes wizard-supplied metadata back to the song row", async () => {
+    const songId = randomUUID();
+    await testState.db.execute(sql`
+      INSERT INTO songs (id, user_id, title, audio_url)
+      VALUES (${songId}, ${USER_A}, ${"Fresh Song"}, ${"https://example.com/fresh.mp3"})
+    `);
+    const { status, json } = await req("POST", "/distribution/releases", {
+      title: "Fresh Song",
+      artistName: "Test Artist",
+      songId,
+      genre: "Trap",
+      isrc: "USXYZ2412345",
+      lyrics: "brand new hook",
+      artworkUrl: "https://example.com/new-cover.png",
+    });
+    expect(status).toBe(201);
+    const rows = await testState.db.execute(sql`
+      SELECT genre, isrc, lyrics, cover_art_url FROM songs WHERE id = ${songId}
+    `);
+    const song = rows.rows[0] as any;
+    expect(song.genre).toBe("Trap");
+    expect(song.isrc).toBe("USXYZ2412345");
+    expect(song.lyrics).toBe("brand new hook");
+    expect(song.cover_art_url).toBe("https://example.com/new-cover.png");
+    expect(json.release.metadata.lyrics).toBe("brand new hook");
+  });
+
+  it("PATCH on a linked release keeps the song's metadata in step", async () => {
+    const songId = randomUUID();
+    await testState.db.execute(sql`
+      INSERT INTO songs (id, user_id, title, audio_url, genre)
+      VALUES (${songId}, ${USER_A}, ${"Patch Song"}, ${"https://example.com/patch.mp3"}, ${"Old Genre"})
+    `);
+    const created = await req("POST", "/distribution/releases", {
+      title: "Patch Song",
+      artistName: "Test Artist",
+      songId,
+    });
+    expect(created.status).toBe(201);
+    const releaseId = created.json.release.id;
+    const { status } = await req("PATCH", `/distribution/releases/${releaseId}`, {
+      genre: "New Genre",
+      lyrics: "patched verse",
+    });
+    expect(status).toBe(200);
+    const rows = await testState.db.execute(sql`
+      SELECT genre, lyrics FROM songs WHERE id = ${songId}
+    `);
+    const song = rows.rows[0] as any;
+    expect(song.genre).toBe("New Genre");
+    expect(song.lyrics).toBe("patched verse");
   });
 });
 

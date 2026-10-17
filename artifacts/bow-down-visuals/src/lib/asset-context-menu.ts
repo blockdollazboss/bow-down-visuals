@@ -9,7 +9,7 @@
  */
 import type { ContextMenuItem } from "../components/editor/ClipContextMenu";
 import type { HubAsset } from "./hub-project";
-import { NEXT_STEPS } from "./hub-workflows";
+import { nextStepsFor } from "./hub-workflows";
 import { intentsForKind } from "./asset-handoff";
 
 export interface AssetMenuActions {
@@ -36,7 +36,7 @@ export function buildAssetContextItems(asset: HubAsset, actions: AssetMenuAction
       onClick: () => actions.onUse?.(asset),
     });
   }
-  const next = NEXT_STEPS[asset.kind] ?? [];
+  const next = nextStepsFor(asset);
   if (actions.onNavigate && next.length > 0) {
     items.push({
       key: "next",

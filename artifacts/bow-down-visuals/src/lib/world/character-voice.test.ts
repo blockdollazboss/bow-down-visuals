@@ -23,6 +23,10 @@ import {
   profileBandsFor,
   isIdentityProfile,
   resolveCharacterVoiceProfile,
+  profileFromStored,
+  storedFormOf,
+  DEEP_VOICE_PRESET,
+  BRIGHT_VOICE_PRESET,
   shapingParamsFor,
   loadCharacterVoiceEnabled,
   storeCharacterVoiceEnabled,
@@ -109,8 +113,45 @@ describe("resolution — the character you stand as", () => {
     expect(resolveCharacterVoiceProfile({ characterId: HOUSE_GUARD_FEMALE_ID, presenceKey: "anyone" })).toBe(GUARD_FEMALE_VOICE_PROFILE);
   });
 
-  it("a vault character resolves to neutral — the vault stores no shaping profile", () => {
+  it("a vault character with no set voice resolves to neutral", () => {
     expect(resolveCharacterVoiceProfile({ characterId: "vault-row-123", presenceKey: "someone" })).toBe(NEUTRAL_VOICE_PROFILE);
+    expect(resolveCharacterVoiceProfile({ characterId: "vault-row-123", presenceKey: "someone", storedProfile: null })).toBe(NEUTRAL_VOICE_PROFILE);
+  });
+
+  it("a vault character WITH a set voice speaks in it (0142, G4)", () => {
+    const stored = { pitchSemitones: -6, formantRatio: 0.85, formantGainDb: 2.5, eq: [{ type: "lowshelf" as const, freqHz: 200, gainDb: 2, q: 0.8 }] };
+    const p = resolveCharacterVoiceProfile({
+      characterId: "vault-row-123",
+      presenceKey: "someone",
+      storedProfile: stored,
+      characterName: "Nova",
+    });
+    expect(p.id).toBe("vault:vault-row-123");
+    expect(p.label).toBe("Nova");
+    expect(p.pitchSemitones).toBe(-6);
+    expect(p.formantRatio).toBe(0.85);
+    expect(p.formantGainDb).toBe(2.5);
+    expect(p.eq).toEqual(stored.eq);
+    expect(isIdentityProfile(p)).toBe(false);
+    /* and the shaper actually applies it */
+    const params = shapingParamsFor(p, true);
+    expect(params.bypass).toBe(false);
+    expect(params.pitchSemitones).toBe(-6);
+  });
+
+  it("a stored profile never overrides a house guard's own voice", () => {
+    const stored = { pitchSemitones: 5, formantRatio: 1.4, formantGainDb: 3, eq: [] };
+    expect(
+      resolveCharacterVoiceProfile({ characterId: HOUSE_GUARD_ID, presenceKey: "x", storedProfile: stored, characterName: "Nova" }),
+    ).toBe(GUARD_MALE_VOICE_PROFILE);
+  });
+
+  it("the editor presets are the guards' proven numbers, stored-form", () => {
+    expect(DEEP_VOICE_PRESET).toEqual(storedFormOf(GUARD_MALE_VOICE_PROFILE));
+    expect(BRIGHT_VOICE_PRESET).toEqual(storedFormOf(GUARD_FEMALE_VOICE_PROFILE));
+    const p = profileFromStored("abc", "  ", DEEP_VOICE_PRESET);
+    expect(p.label).toBe("your character");
+    expect(p.pitchSemitones).toBe(GUARD_MALE_VOICE_PROFILE.pitchSemitones);
   });
 
   it("no pick speaks as the guard the hall deals you", () => {

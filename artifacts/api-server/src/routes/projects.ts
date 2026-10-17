@@ -21,7 +21,24 @@ const SaveProjectSchema = z.object({
   outputData:   z.record(z.string(), z.unknown()).optional().default({}),
   creditsUsed:  z.number().int().min(0).optional().default(0),
   genHistoryId: z.string().uuid().optional().nullable(),
+  /* The hub project this editor project belongs to (0142) — links the
+     two project universes. The column is added by migration 0142 where
+     the table lives in the app DB and by supabase/setup.sql where it
+     lives in Supabase; writes/reads degrade gracefully until it exists
+     (see the hub_project_id fallbacks below). */
+  hubProjectId: z.string().uuid().optional().nullable(),
 });
+
+/** True when a PostgREST error is the "column not in schema cache" one
+    for hub_project_id — the signal to retry without the link field. */
+function isMissingHubColumn(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  return (error.message ?? "").includes("hub_project_id");
+}
+
+const PROJECT_COLUMNS_BASE =
+  "id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at";
+const PROJECT_COLUMNS_WITH_HUB = `${PROJECT_COLUMNS_BASE}, hub_project_id`;
 
 router.post("/projects", requireAuth, async (req, res) => {
   const parsed = SaveProjectSchema.safeParse(req.body);
@@ -31,22 +48,39 @@ router.post("/projects", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
-  const { data: project, error } = await req.userSupabase!
+  const insertPayload = {
+    user_id:      req.userId,
+    project_type: d.projectType,
+    title:        d.title,
+    artist_name:  d.artistName ?? null,
+    song_title:   d.songTitle  ?? null,
+    genre:        d.genre      ?? null,
+    mood:         d.mood       ?? null,
+    input_data:   d.inputData,
+    output_data:  await mirrorProjectScenes(d.outputData, req.userId!),
+    credits_used: d.creditsUsed,
+  };
+
+  let { data: project, error } = await req.userSupabase!
     .from("projects")
-    .insert({
-      user_id:      req.userId,
-      project_type: d.projectType,
-      title:        d.title,
-      artist_name:  d.artistName ?? null,
-      song_title:   d.songTitle  ?? null,
-      genre:        d.genre      ?? null,
-      mood:         d.mood       ?? null,
-      input_data:   d.inputData,
-      output_data:  await mirrorProjectScenes(d.outputData, req.userId!),
-      credits_used: d.creditsUsed,
-    })
+    .insert(
+      (d.hubProjectId !== undefined
+        ? { ...insertPayload, hub_project_id: d.hubProjectId }
+        : insertPayload) as never,
+    )
     .select("id")
     .single();
+
+  if (error && d.hubProjectId !== undefined && isMissingHubColumn(error)) {
+    /* The projects table doesn't carry the link column yet (0142 not
+       run against this database) — save without the link rather than
+       failing the save. */
+    ({ data: project, error } = await req.userSupabase!
+      .from("projects")
+      .insert(insertPayload)
+      .select("id")
+      .single());
+  }
 
   if (error) {
     // Attempt to refund credits. Read fresh profile credits — req.userCredits is stale
@@ -78,11 +112,21 @@ router.post("/projects", requireAuth, async (req, res) => {
 });
 
 router.get("/projects", requireAuth, async (req, res) => {
-  const { data: projects, error } = await req.userSupabase!
+  let { data: projects, error } = await req.userSupabase!
     .from("projects")
-    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
+    .select(PROJECT_COLUMNS_WITH_HUB)
     .eq("user_id", req.userId)
     .order("created_at", { ascending: false });
+
+  if (error && isMissingHubColumn(error)) {
+    const fallback = await req.userSupabase!
+      .from("projects")
+      .select(PROJECT_COLUMNS_BASE)
+      .eq("user_id", req.userId)
+      .order("created_at", { ascending: false });
+    error = fallback.error;
+    projects = (fallback.data ?? []).map((row) => ({ ...row, hub_project_id: null })) as typeof projects;
+  }
 
   if (error) {
     res.status(500).json({ error: error.message });
@@ -103,12 +147,23 @@ router.get("/projects", requireAuth, async (req, res) => {
 router.get("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
 
-  const { data: project, error } = await req.userSupabase!
+  let { data: project, error } = await req.userSupabase!
     .from("projects")
-    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
+    .select(PROJECT_COLUMNS_WITH_HUB)
     .eq("id", id)
     .eq("user_id", req.userId)
     .single();
+
+  if (error && isMissingHubColumn(error)) {
+    const fallback = await req.userSupabase!
+      .from("projects")
+      .select(PROJECT_COLUMNS_BASE)
+      .eq("id", id)
+      .eq("user_id", req.userId)
+      .single();
+    error = fallback.error;
+    project = fallback.data ? { ...fallback.data, hub_project_id: null } : fallback.data;
+  }
 
   if (error || !project) {
     res.status(404).json({ error: "Project not found" });

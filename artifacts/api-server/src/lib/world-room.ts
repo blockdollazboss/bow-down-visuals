@@ -177,6 +177,13 @@ export interface WorldCharacterRef {
   name: string;
   portraitUrl: string | null;
   loopUrl: string | null;
+  /** The character's stored voice-shaping profile (0142, G4), sanitized
+   *  server-side from artist_vaults.voice_profile. Null/absent = no set
+   *  voice — the member speaks as themselves. Only the SELF presence's
+   *  profile is ever applied (shaping is send-side, on the speaker's
+   *  own client); it rides the ref so the hall's resolution and the
+   *  voice resolution stay one and the same pick. */
+  voiceProfile?: import("./character-voice-profile").CharacterVoiceProfileStored | null;
 }
 
 /** The house palace guards — the World's approved default

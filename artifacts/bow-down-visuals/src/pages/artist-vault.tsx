@@ -27,6 +27,11 @@ import {
 import { r2UploadFile, r2Remove, storageKeyFromUrl } from "@/lib/r2-storage";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
+import {
+  DEEP_VOICE_PRESET,
+  BRIGHT_VOICE_PRESET,
+  type StoredCharacterVoiceProfile,
+} from "@/lib/world/character-voice";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "@/lib/character-themes";
@@ -63,6 +68,8 @@ interface ArtistVaultRecord {
   voice_id: string | null;
   voice_name: string | null;
   voice_preview_url: string | null;
+  /* World voice-shaping profile (0142) — null = no set voice. */
+  voice_profile: StoredCharacterVoiceProfile | null;
   is_active: boolean;
   created_at: string;
 }
@@ -1618,6 +1625,10 @@ export default function ArtistVault() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoPath, setPhotoPath] = useState<string | null>(null);
+  /* World voice (0142, G4): the character's voice-shaping profile for
+     the palace hall. null = no set voice (sounds like its speaker). */
+  const [voiceProfile, setVoiceProfile] = useState<StoredCharacterVoiceProfile | null>(null);
+  const [voiceAdvancedOpen, setVoiceAdvancedOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -1712,6 +1723,8 @@ export default function ArtistVault() {
     reset();
     setPhotoUrl(null);
     setPhotoPath(null);
+    setVoiceProfile(null);
+    setVoiceAdvancedOpen(false);
     setPhotoError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1735,6 +1748,8 @@ export default function ArtistVault() {
     setValue("specialStyleRules", vault.special_style_rules ?? "");
     setPhotoUrl(vault.reference_image_url ?? null);
     setPhotoPath(vault.reference_image_path ?? null);
+    setVoiceProfile(vault.voice_profile ?? null);
+    setVoiceAdvancedOpen(false);
     setPhotoError(null);
     setOpenVault(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1772,6 +1787,7 @@ export default function ArtistVault() {
         voice_id: null,
         voice_name: null,
         voice_preview_url: null,
+        voice_profile: voiceProfile,
         is_active: false,
         created_at: "",
       };
@@ -1795,6 +1811,9 @@ export default function ArtistVault() {
         referenceImageUrl: partialVault.reference_image_url,
         referenceImagePath: partialVault.reference_image_path,
         consistencyPrompt: consistency,
+        /* World voice profile (0142): always sent with the form so a
+           preset change or a clear actually persists. */
+        voiceProfile: voiceProfile,
       };
       const url = editId ? `/api/artist-vaults/${editId}` : "/api/artist-vaults";
       const method = editId ? "PUT" : "POST";
@@ -2273,6 +2292,75 @@ export default function ArtistVault() {
                   <Input {...register("voiceStyle")} placeholder={t("artistVault.voiceStylePlaceholder")} className={inputClass} />
                 </FieldWrapper>
               </div>
+            </div>
+
+            {/* World voice (0142, G4): the character's voice in the hall */}
+            <div>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-1">{t("artistVault.worldVoiceSection")}</p>
+              <p className="text-xs text-white/40 mb-4">{t("artistVault.worldVoiceHint")}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    { key: "deep", label: t("artistVault.voicePresetDeep"), preset: DEEP_VOICE_PRESET },
+                    { key: "natural", label: t("artistVault.voicePresetNatural"), preset: null },
+                    { key: "bright", label: t("artistVault.voicePresetBright"), preset: BRIGHT_VOICE_PRESET },
+                  ] as const
+                ).map(({ key, label, preset }) => {
+                  const active =
+                    preset === null
+                      ? voiceProfile === null
+                      : voiceProfile !== null && JSON.stringify(voiceProfile) === JSON.stringify(preset);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setVoiceProfile(preset ? { ...preset, eq: preset.eq.map((b) => ({ ...b })) } : null)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${active ? "bg-primary text-black" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setVoiceAdvancedOpen((v) => !v)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10] transition-colors"
+                >
+                  {t("artistVault.voiceAdvanced")}
+                </button>
+              </div>
+              {voiceAdvancedOpen && (
+                <div className="mt-4 space-y-4 max-w-md">
+                  {(
+                    [
+                      { key: "pitchSemitones", label: t("artistVault.voicePitch"), min: -12, max: 12, step: 0.5, format: (v: number) => `${v > 0 ? "+" : ""}${v}` },
+                      { key: "formantRatio", label: t("artistVault.voiceFormant"), min: 0.5, max: 2, step: 0.05, format: (v: number) => v.toFixed(2) },
+                      { key: "formantGainDb", label: t("artistVault.voiceBody"), min: 0, max: 6, step: 0.25, format: (v: number) => `${v} dB` },
+                    ] as const
+                  ).map(({ key, label, min, max, step, format }) => {
+                    const current = voiceProfile ?? { pitchSemitones: 0, formantRatio: 1, formantGainDb: 0, eq: [] };
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs text-white/50">{label}</Label>
+                          <span className="text-xs text-white/40">{format(current[key])}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={min}
+                          max={max}
+                          step={step}
+                          value={current[key]}
+                          onChange={(e) =>
+                            setVoiceProfile({ ...current, eq: current.eq.map((b) => ({ ...b })), [key]: Number(e.target.value) })
+                          }
+                          className="w-full accent-[#C9A84C]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Artist Photo Upload */}

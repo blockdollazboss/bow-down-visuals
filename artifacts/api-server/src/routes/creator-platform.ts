@@ -179,6 +179,10 @@ const streamScheduleSchema = z.array(z.object({
 
 const mediaKitSchema = z.record(z.string(), z.unknown());
 
+/* Extension entry lists (0142, DE-20): merch / events / series /
+   social posts — free-form entries the client types already define. */
+const extensionListSchema = z.array(z.record(z.string(), z.unknown())).max(200);
+
 const upsertProfileSchema = z.object({
   slug: slugSchema,
   display_name: z.string().trim().min(1).max(80),
@@ -197,6 +201,10 @@ const upsertProfileSchema = z.object({
   tip_jar_enabled: z.boolean().optional().default(true),
   ai_design: z.record(z.string(), z.unknown()).optional().nullable(),
   is_public: z.boolean().optional().default(true),
+  merch_items: extensionListSchema.optional().default([]),
+  events: extensionListSchema.optional().default([]),
+  series: extensionListSchema.optional().default([]),
+  social_posts: extensionListSchema.optional().default([]),
 });
 
 const updateMeSchema = z.object({
@@ -216,6 +224,10 @@ const updateMeSchema = z.object({
   ai_design: z.record(z.string(), z.unknown()).optional().nullable(),
   is_public: z.boolean().optional(),
   display_name: z.string().trim().min(1).max(80).optional(),
+  merch_items: extensionListSchema.optional(),
+  events: extensionListSchema.optional(),
+  series: extensionListSchema.optional(),
+  social_posts: extensionListSchema.optional(),
 });
 
 const commentSchema = z.object({
@@ -738,6 +750,11 @@ function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
     theme_config: completeThemeConfig(p.themeConfig),
     sections: p.sections,
     featured_media: p.featuredMedia,
+    /* Extension fields (0142): persisted at last — setup edits land. */
+    merch_items: p.merchItems ?? [],
+    events: p.profileEvents ?? [],
+    series: p.series ?? [],
+    social_posts: p.socialPosts ?? [],
     social_links: p.socialLinks,
     top_creators: p.topCreators,
     tip_jar_enabled: p.tipJarEnabled,
@@ -896,6 +913,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         theme_config: completeThemeConfig(profile.themeConfig),
         sections: profile.sections,
         featured_media: profile.featuredMedia,
+        merch_items: profile.merchItems ?? [],
+        events: profile.profileEvents ?? [],
+        series: profile.series ?? [],
+        social_posts: profile.socialPosts ?? [],
         social_links: profile.socialLinks,
         top_creators: profile.topCreators,
         tip_jar_enabled: profile.tipJarEnabled,
@@ -1005,6 +1026,10 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
       tipJarEnabled: data.tip_jar_enabled,
       aiDesign: data.ai_design ?? null,
       isPublic: data.is_public,
+      merchItems: await mirrorProfileMediaDeep(data.merch_items, userId),
+      profileEvents: await mirrorProfileMediaDeep(data.events, userId),
+      series: await mirrorProfileMediaDeep(data.series, userId),
+      socialPosts: await mirrorProfileMediaDeep(data.social_posts, userId),
       updatedAt: new Date(),
     };
 
@@ -1061,6 +1086,10 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
     if (data.ai_design !== undefined) patch.aiDesign = data.ai_design;
     if (data.is_public !== undefined) patch.isPublic = data.is_public;
     if (data.display_name !== undefined) patch.displayName = data.display_name;
+    if (data.merch_items !== undefined) patch.merchItems = await mirrorProfileMediaDeep(data.merch_items, userId);
+    if (data.events !== undefined) patch.profileEvents = await mirrorProfileMediaDeep(data.events, userId);
+    if (data.series !== undefined) patch.series = await mirrorProfileMediaDeep(data.series, userId);
+    if (data.social_posts !== undefined) patch.socialPosts = await mirrorProfileMediaDeep(data.social_posts, userId);
 
     const [updated] = await db.update(creatorProfilesTable).set(patch)
       .where(eq(creatorProfilesTable.id, existing.id)).returning();

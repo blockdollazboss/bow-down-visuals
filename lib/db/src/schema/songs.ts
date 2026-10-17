@@ -28,6 +28,13 @@ export const songsTable = pgTable("songs", {
   /** For mashups: crossfade | beat-match | interleave. */
   mashup_style: text("mashup_style"),
   duration_sec: text("duration_sec"),
+  /** Release metadata (migration 0142, DE-9): saved once on the song so
+      the distribute flow reads/writes it here instead of re-collecting
+      it per release. All nullable — older songs simply don't know yet. */
+  lyrics: text("lyrics"),
+  genre: text("genre"),
+  isrc: text("isrc"),
+  cover_art_url: text("cover_art_url"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

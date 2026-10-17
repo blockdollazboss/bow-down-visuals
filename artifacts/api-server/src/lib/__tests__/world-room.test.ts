@@ -343,6 +343,26 @@ describe("vault characters (walk in as)", () => {
     expect(welcomeC.peers.find((p: any) => p.displayName === "Alpha")?.character).toEqual(NOVA);
   });
 
+  it("a character's set voice rides the ref untouched (0142, G4)", async () => {
+    const withVoice = {
+      ...NOVA,
+      voiceProfile: { pitchSemitones: -6, formantRatio: 0.85, formantGainDb: 2.5, eq: [] },
+    };
+    const room = roomWithResolver(async () => withVoice as typeof NOVA);
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+
+    frame(a, room, { type: "character", characterId: NOVA.id });
+    await flush();
+
+    const seenByB = b.sent.find((m) => m.type === "peer.character");
+    expect(seenByB.character).toEqual(withVoice);
+    expect(room.peerFor(a)?.character).toEqual(withVoice);
+  });
+
   it("refused picks (resolver says no) change nothing and broadcast nothing", async () => {
     const room = roomWithResolver(async () => null);
     const a = fakeSocket();

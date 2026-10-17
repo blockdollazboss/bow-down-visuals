@@ -470,6 +470,9 @@ export default function WorldPage() {
     return resolveCharacterVoiceProfile({
       characterId: self.character?.id ?? null,
       presenceKey: self.profileSlug ?? self.peerId,
+      /* G4 (0142): a vault character's set voice rides its ref. */
+      storedProfile: self.character?.voiceProfile ?? null,
+      characterName: self.character?.name ?? null,
     });
   };
 

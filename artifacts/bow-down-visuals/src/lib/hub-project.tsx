@@ -186,6 +186,21 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     }
   }, [dones]);
 
+  /* The active character's vault id, read from the same device storage
+     the ActiveArtist context writes (this provider wraps that one, so
+     the hook isn't reachable from here). Null when no character is in
+     front of the camera. */
+  function activeArtistVaultId(): string | null {
+    try {
+      const raw = localStorage.getItem("bdv_active_artist");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { id?: unknown };
+      return typeof parsed?.id === "string" && /^[0-9a-f-]{36}$/i.test(parsed.id) ? parsed.id : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function pushProject(snapshot: HubProject, token: string | null) {
     const res = await fetch("/api/hub/project", {
       method: "PUT",
@@ -194,12 +209,18 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
+        /* 0142: the local project id is the upsert key — this local
+           project always maps to its own server row, and a fresh local
+           project starts a fresh row (multiple projects per user). */
+        clientRef: snapshot.id,
         name: snapshot.name,
         type: snapshot.type,
         assets: snapshot.assets,
         concept: snapshot.concept,
         templateKey: snapshot.templateKey,
         attribution: snapshot.attribution,
+        /* The character this project is being made as (0142, G8). */
+        artistVaultId: activeArtistVaultId(),
         updatedAt: snapshot.updatedAt,
       }),
     });
@@ -222,14 +243,16 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         });
         if (!res.ok) throw new Error(`hub pull failed: ${res.status}`);
         const data = (await res.json()) as {
-          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; attribution?: boolean; updatedAt: number } | null;
+          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; attribution?: boolean; clientRef?: string | null; updatedAt: number } | null;
         };
         if (cancelled) return;
         const local = projectRef.current;
         const server = data.project;
         if (server && server.updatedAt > local.updatedAt) {
           const adopted: HubProject = {
-            id: local.id,
+            /* Adopt the server's client ref too (0142): future saves
+               keep landing on the same server row, on any device. */
+            id: server.clientRef ?? local.id,
             name: server.name,
             type: ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
             assets: Array.isArray(server.assets) ? server.assets : [],

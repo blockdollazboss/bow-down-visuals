@@ -198,6 +198,10 @@ export const createReleaseSchema = z.object({
   /* Optional link into the user's song library — server verifies ownership
      and prefills audioUrl from the song when none is given. */
   songId: z.string().uuid("Song id must be a valid UUID.").optional(),
+  /* The song's lyrics (0142, DE-9): stored on the linked songs row and
+     mirrored into the release metadata; the wizard no longer treats
+     lyrics as release-only scratch. */
+  lyrics: z.string().max(10000).optional(),
   /* Release-level track listing. single → exactly 1, EP → 2–6, album → 7–30. */
   tracks: z.array(trackSchema).max(30).optional().default([]),
   isrc: z.string().max(20).optional().transform((v) => (v ? v.toUpperCase().replace(/[-\s]/g, "") : v)),
@@ -753,24 +757,39 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
     /* Song-library link: verify ownership, prefill audio when not given. */
     let audioUrl = d.audioUrl?.trim() || null;
     let songId: string | null = null;
+    let songMeta: { genre: string | null; isrc: string | null; lyrics: string | null; cover_art_url: string | null } | null = null;
     if (d.songId) {
       const songResult = await db.execute(sql`
-        SELECT id, audio_url FROM songs WHERE id = ${d.songId} AND user_id = ${req.userId!} LIMIT 1
+        SELECT id, audio_url, genre, isrc, lyrics, cover_art_url FROM songs WHERE id = ${d.songId} AND user_id = ${req.userId!} LIMIT 1
       `);
-      const song = songResult.rows[0] as unknown as { id: string; audio_url: string } | undefined;
+      const song = songResult.rows[0] as unknown as {
+        id: string; audio_url: string;
+        genre: string | null; isrc: string | null; lyrics: string | null; cover_art_url: string | null;
+      } | undefined;
       if (!song) {
         res.status(400).json({ error: "That song isn't in your library." });
         return;
       }
       songId = song.id;
+      songMeta = { genre: song.genre, isrc: song.isrc, lyrics: song.lyrics, cover_art_url: song.cover_art_url };
       if (!audioUrl) audioUrl = song.audio_url;
     }
     if (audioUrl) {
       audioUrl = (await mirrorExternalMediaUrl(audioUrl, { kind: "audio", ownerKey: req.userId! })) ?? audioUrl;
     }
-    const artworkUrl = d.artworkUrl?.trim()
-      ? ((await mirrorExternalMediaUrl(d.artworkUrl.trim(), { kind: "image", ownerKey: req.userId! })) ?? d.artworkUrl.trim())
+    /* Release metadata lives on the song (0142, DE-9): values the wizard
+       supplied win; anything left blank is prefilled from the song. */
+    const genre = d.genre?.trim() || songMeta?.genre || null;
+    const isrc = d.isrc || songMeta?.isrc || null;
+    const lyrics = d.lyrics?.trim() || songMeta?.lyrics || null;
+    const artworkInput = d.artworkUrl?.trim() || songMeta?.cover_art_url || "";
+    const artworkUrl = artworkInput
+      ? ((await mirrorExternalMediaUrl(artworkInput, { kind: "image", ownerKey: req.userId! })) ?? artworkInput)
       : null;
+    const metadata: Record<string, unknown> = {
+      ...(d.metadata ?? {}),
+      ...(lyrics ? { lyrics } : {}),
+    };
     const id = randomUUID();
     const result = await db.execute(sql`
       INSERT INTO distribution_releases
@@ -785,19 +804,24 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
         ${d.releaseDate?.trim() || null}, ${JSON.stringify(d.platforms ?? [])}::jsonb,
         ${audioUrl}, ${artworkUrl}, ${songId},
         ${JSON.stringify(d.tracks ?? [])}::jsonb,
-        ${d.isrc || null}, ${d.genre?.trim() || null}, ${d.explicit}, ${d.explicitDeclared},
+        ${isrc}, ${genre}, ${d.explicit}, ${d.explicitDeclared},
         ${d.upc?.trim() || null}, ${d.upcKind ?? "internal"},
         ${d.label?.trim() || null}, ${d.labelImprint?.trim() || null},
         ${d.copyrightLine?.trim() || null}, ${d.copyrightCLine?.trim() || null},
         ${d.copyrightPLine?.trim() || null}, ${d.subgenre?.trim() || null},
         ${d.originalReleaseDate?.trim() || null}, ${d.preorderDate?.trim() || null},
         ${d.territoriesMode ?? "worldwide"}, ${JSON.stringify(d.territories ?? [])}::jsonb,
-        ${d.metadata ? JSON.stringify(d.metadata) : null}::jsonb,
+        ${Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null}::jsonb,
         ${d.strategy ? JSON.stringify(d.strategy) : null}::jsonb,
         'draft', 0
       )
       RETURNING ${RELEASE_COLUMNS}
     `);
+    /* Write the final metadata back to the song so the NEXT release (and
+       every other surface) reads it from the song, not from scratch. */
+    if (songId) {
+      await syncSongReleaseMetadata(req.userId!, songId, { genre, isrc, lyrics, coverArtUrl: artworkUrl });
+    }
     res.status(201).json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(result.rows[0] as unknown as ReleaseRow) }));
   } catch (err) {
     logger.error({ err }, "[distribution] create release failed");
@@ -821,6 +845,38 @@ router.get("/distribution/releases", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Couldn't load releases — try again." });
   }
 });
+
+/* ── Song-library metadata sync (0142, DE-9) ──────────────────────────────
+   The songs row is the ONE place release metadata lives (migration 0142
+   added lyrics / genre / isrc / cover_art_url to songs). Creating or
+   updating a release linked to a library song writes the metadata back
+   to the song, and creating a release prefills from whatever the song
+   already knows — the wizard stops re-collecting it per release.
+   Non-empty values only: a blank release field never erases what the
+   song knows. Best-effort: a sync failure never fails the release. */
+interface SongReleaseMetadata {
+  genre?: string | null;
+  isrc?: string | null;
+  lyrics?: string | null;
+  coverArtUrl?: string | null;
+}
+
+async function syncSongReleaseMetadata(userId: string, songId: string, fields: SongReleaseMetadata): Promise<void> {
+  const sets = [];
+  if (fields.genre?.trim()) sets.push(sql`genre = ${fields.genre.trim()}`);
+  if (fields.isrc?.trim()) sets.push(sql`isrc = ${fields.isrc.trim()}`);
+  if (fields.lyrics?.trim()) sets.push(sql`lyrics = ${fields.lyrics.trim()}`);
+  if (fields.coverArtUrl?.trim()) sets.push(sql`cover_art_url = ${fields.coverArtUrl.trim()}`);
+  if (sets.length === 0) return;
+  try {
+    await db.execute(sql`
+      UPDATE songs SET ${sql.join(sets, sql`, `)}
+      WHERE id = ${songId} AND user_id = ${userId}
+    `);
+  } catch (err) {
+    logger.warn({ err, songId }, "[distribution] song metadata sync failed (release unaffected)");
+  }
+}
 
 function releaseId(req: Request): string {
   const id = req.params.id;
@@ -921,7 +977,13 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       territories_mode:
         d.territoriesMode !== undefined ? d.territoriesMode : (existing.territories_mode ?? "worldwide"),
       territories: d.territories !== undefined ? d.territories : (existing.territories ?? []),
-      metadata: d.metadata !== undefined ? d.metadata : existing.metadata,
+      metadata: (() => {
+        let m = d.metadata !== undefined ? d.metadata : existing.metadata;
+        if (d.lyrics !== undefined && d.lyrics.trim()) {
+          m = { ...(m ?? {}), lyrics: d.lyrics.trim() };
+        }
+        return m;
+      })(),
       strategy: d.strategy !== undefined ? d.strategy : existing.strategy,
     };
     const result = await db.execute(sql`
@@ -957,6 +1019,16 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       RETURNING ${RELEASE_COLUMNS}
     `);
     const row = result.rows[0] as unknown as ReleaseRow;
+    /* Keep the linked song's metadata in step (0142, DE-9). */
+    if (existing.song_id) {
+      const metaLyrics = (merged.metadata as Record<string, unknown> | null)?.["lyrics"];
+      await syncSongReleaseMetadata(req.userId!, existing.song_id, {
+        genre: merged.genre,
+        isrc: merged.isrc,
+        lyrics: typeof metaLyrics === "string" ? metaLyrics : null,
+        coverArtUrl: merged.artwork_url,
+      });
+    }
     res.json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(row) }));
   } catch (err) {
     logger.error({ err }, "[distribution] update release failed");

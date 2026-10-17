@@ -21,6 +21,8 @@ const SaveClipSchema = z.object({
   prompt:       z.string().optional().nullable(),
   finalPrompt:  z.string().optional().nullable(),
   runwayJobId:  z.string().optional().nullable(),
+  /* The Creative Vault character this clip was made as (0142, G8). */
+  artistVaultId: z.string().uuid().optional().nullable(),
   /* Accepts a stable Supabase storage ref (supabase://generated-clips/…)
      or any playable URL — legacy GCS signed URLs included. */
   videoUrl:     z.string().min(1),
@@ -66,6 +68,7 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
         prompt:        d.prompt ?? null,
         final_prompt:  d.finalPrompt ?? null,
         runway_job_id: d.runwayJobId ?? null,
+        artist_vault_id: d.artistVaultId ?? null,
         video_url:     storedVideoUrl,
         thumbnail_url: storedThumbnailUrl,
         status:        d.status ?? "completed",

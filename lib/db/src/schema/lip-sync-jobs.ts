@@ -27,6 +27,9 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   user_id: uuid("user_id").notNull(),
   project_id: uuid("project_id"),
   scene_id: text("scene_id"),
+  /** The Creative Vault character this lip-sync was made as (migration
+      0142, G8). Nullable: no character pick = null. */
+  artist_vault_id: uuid("artist_vault_id"),
   /** queued | submitting | polling | done | failed */
   state: text("state").notNull().default("queued"),
   /** Full lip-sync request params — everything needed to (re)run the submit. */

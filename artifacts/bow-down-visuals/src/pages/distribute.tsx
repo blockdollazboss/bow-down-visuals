@@ -89,6 +89,9 @@ interface ReleaseMeta {
   titleOptions?: string[];
   description?: string;
   genreTags?: string[];
+  /* The song's lyrics, carried on the release metadata (0142) — the
+     detail card's lyrics box starts from these instead of blank. */
+  lyrics?: string;
 }
 interface ReleaseStrategy {
   timing?: string;
@@ -137,6 +140,12 @@ interface SongRow {
   audio_url: string;
   duration_sec?: string | null;
   source?: string | null;
+  /* Release metadata saved on the song (0142) — selecting the song
+     prefills the wizard instead of re-asking. */
+  lyrics?: string | null;
+  genre?: string | null;
+  isrc?: string | null;
+  cover_art_url?: string | null;
 }
 interface PricingTier {
   type: string;
@@ -389,6 +398,11 @@ function NewReleaseWizard(props: {
     setAudioUrl(s?.audio_url ?? "");
     if (s && !title.trim()) setTitle(s.title);
     if (s && tracks.length === 1 && !tracks[0]!.title.trim()) setTracks([{ title: s.title }]);
+    /* Prefill release metadata the song already knows (0142) — the
+       wizard only asks for what's actually missing. */
+    if (s?.genre && !genre.trim()) setGenre(s.genre);
+    if (s?.isrc && !isrc.trim()) setIsrc(s.isrc);
+    if (s?.cover_art_url && !artworkUrl.trim()) setArtworkUrl(s.cover_art_url);
   }
 
   function togglePlatform(key: string) {
@@ -1607,7 +1621,7 @@ function ReleaseDetail(props: {
 
   /* AI metadata */
   const [vibe, setVibe] = useState("");
-  const [lyrics, setLyrics] = useState("");
+  const [lyrics, setLyrics] = useState(() => release.metadata?.lyrics ?? "");
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaResult, setMetaResult] = useState<MetadataResult | null>(null);
 

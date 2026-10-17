@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
-import { saveGeneration } from "../../lib/save-generation";
+import { saveGeneration, asVaultId } from "../../lib/save-generation";
 import { r2Upload } from "../../lib/r2-client";
 
 const router = Router();
@@ -238,6 +238,7 @@ router.post("/photo-enhance", requireAuth, generationLimiter, async (req, res) =
     saveGeneration({
       userId: req.userId!,
       type: "image",
+      artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId),
       title: `Photo Enhance (${operations.join(" + ")})`,
       fileUrl: publicUrl,
       thumbnailUrl: publicUrl,

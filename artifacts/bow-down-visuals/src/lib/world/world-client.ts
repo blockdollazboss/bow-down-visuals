@@ -43,6 +43,11 @@ export interface WorldCharacterRef {
   name: string;
   portraitUrl: string | null;
   loopUrl: string | null;
+  /** The character's set voice (0142, G4): the shaping profile the
+   *  server resolved from the vault row, or null when the character
+   *  has no set voice. Only ever applied to the SELF presence —
+   *  shaping is send-side, on the speaker's own client. */
+  voiceProfile?: import("./character-voice").StoredCharacterVoiceProfile | null;
 }
 
 export type { WorldActionId } from "./actions";
@@ -676,12 +681,24 @@ export class WorldClient {
           const r = raw as Record<string, unknown>;
           const portraitUrl = typeof r["portraitUrl"] === "string" && r["portraitUrl"] ? r["portraitUrl"] : null;
           const loopUrl = typeof r["loopUrl"] === "string" && r["loopUrl"] ? r["loopUrl"] : null;
+          /* The character's set voice (0142, G4) rides the same ref —
+             the server sanitizes it before broadcast; the shape
+             check here is the client's own DTO discipline. Only the
+             SELF presence's profile is ever applied (send-side). */
+          const rawProfile = r["voiceProfile"];
+          const voiceProfile =
+            rawProfile && typeof rawProfile === "object" &&
+            typeof (rawProfile as Record<string, unknown>)["pitchSemitones"] === "number" &&
+            typeof (rawProfile as Record<string, unknown>)["formantRatio"] === "number" &&
+            typeof (rawProfile as Record<string, unknown>)["formantGainDb"] === "number"
+              ? (rawProfile as WorldCharacterRef["voiceProfile"])
+              : null;
           if (
             typeof r["id"] === "string" && r["id"] &&
             typeof r["name"] === "string" &&
             (portraitUrl !== null || loopUrl !== null)
           ) {
-            character = { id: r["id"], name: r["name"], portraitUrl, loopUrl };
+            character = { id: r["id"], name: r["name"], portraitUrl, loopUrl, voiceProfile };
           }
         }
         const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);

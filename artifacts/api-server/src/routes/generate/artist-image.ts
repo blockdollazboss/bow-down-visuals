@@ -10,7 +10,7 @@ import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
-import { saveGeneration } from "../../lib/save-generation";
+import { saveGeneration, asVaultId } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { r2Upload } from "../../lib/r2-client";
 import {
@@ -66,7 +66,7 @@ const ARTIST_BUCKET = "artist-references";
  * Tracks submitted image tasks so credits are only charged on SUCCEEDED.
  * Key: Runway taskId  Value: { userId, credits }
  */
-const pendingImageTasks = new Map<string, { userId: string; credits: number; prompt: string }>();
+const pendingImageTasks = new Map<string, { userId: string; credits: number; prompt: string; artistVaultId?: string | null }>();
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -435,7 +435,12 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
           contentModeration: { publicFigureThreshold: "low" },
         });
 
-    pendingImageTasks.set(task.id, { userId: req.userId!, credits: creditCost, prompt: finalPrompt });
+    pendingImageTasks.set(task.id, {
+      userId: req.userId!,
+      credits: creditCost,
+      prompt: finalPrompt,
+      artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId),
+    });
     req.log.info({ taskId: task.id, userId: req.userId }, "[artist-image] task submitted — credits pending on SUCCEEDED");
 
     res.json({ taskId: task.id, creditCost, model: plan.model, ratio: plan.ratio });
@@ -517,6 +522,7 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
           saveGeneration({
             userId: pending.userId,
             type: "image",
+            artistVaultId: pending.artistVaultId ?? null,
             title: "Artist Image",
             fileUrl: publicUrl,
             thumbnailUrl: publicUrl,

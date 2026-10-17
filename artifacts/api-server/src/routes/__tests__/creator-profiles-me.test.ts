@@ -181,6 +181,10 @@ function ownerRow(): Record<string, unknown> {
     themeConfig: {},
     sections: [],
     featuredMedia: null,
+    merchItems: [{ title: "Crown Tee", price: "$40" }],
+    profileEvents: [{ title: "Listening Party", date: "2026-11-01" }],
+    series: [{ title: "The Making Of", episodeCount: 4 }],
+    socialPosts: [{ platform: "tiktok", caption: "new drop" }],
     socialLinks: null,
     topCreators: [],
     tipJarEnabled: true,
@@ -247,6 +251,38 @@ describe("GET /api/creator-profiles/me — the owner's own profile", () => {
     expect(profile).not.toHaveProperty("displayName");
     expect(profile).not.toHaveProperty("isPublic");
     expect(profile).not.toHaveProperty("themeConfig");
+  });
+
+  it("PUT accepts + persists the extension lists, and GET returns them (0142, DE-20)", async () => {
+    h.state.profilesByUserId.set(AUTH_USER_ID, ownerRow());
+
+    const putResult = await put("/creator-profiles/me", {
+      merch_items: [{ title: "Gold Chain Print", price: "$25" }],
+      events: [{ title: "Album Release Night", date: "2026-12-01" }],
+      series: [{ title: "Studio Diaries", episodeCount: 9 }],
+      social_posts: [{ platform: "instagram", caption: "studio day" }],
+    });
+    expect(putResult.status).toBe(200);
+    expect(putResult.json.profile.merch_items[0].title).toBe("Gold Chain Print");
+    expect(putResult.json.profile.events[0].title).toBe("Album Release Night");
+    expect(putResult.json.profile.series[0].episodeCount).toBe(9);
+    expect(putResult.json.profile.social_posts[0].platform).toBe("instagram");
+
+    const getResult = await get("/creator-profiles/me");
+    expect(getResult.status).toBe(200);
+    expect(getResult.json.merch_items[0].title).toBe("Gold Chain Print");
+    expect(getResult.json.events[0].date).toBe("2026-12-01");
+  });
+
+  it("a PUT that omits the extension lists leaves the stored ones intact", async () => {
+    h.state.profilesByUserId.set(AUTH_USER_ID, ownerRow());
+
+    const { status, json } = await put("/creator-profiles/me", { bio: "New bio." });
+    expect(status).toBe(200);
+    expect(json.profile.merch_items[0].title).toBe("Crown Tee");
+    expect(json.profile.events[0].title).toBe("Listening Party");
+    expect(json.profile.series[0].title).toBe("The Making Of");
+    expect(json.profile.social_posts[0].caption).toBe("new drop");
   });
 
   it("does not leak into the public :slug route — a stranger's slug still resolves publicly", async () => {

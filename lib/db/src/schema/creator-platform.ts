@@ -45,6 +45,14 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
       'private'. */
   collectionVisibility: text("collection_visibility").$type<"public" | "private">().notNull().default("public"),
   featuredMedia:   jsonb("featured_media").$type<Record<string, unknown> | null>(),
+  /** Extension fields (migration 0142, DE-20): edited in artist-setup
+      and rendered defensively by the public page; the save schemas used
+      to strip them, so merch / events / series / social posts never
+      persisted. Free-form entry arrays, like the client types. */
+  merchItems:      jsonb("merch_items").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  profileEvents:   jsonb("events").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  series:          jsonb("series").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  socialPosts:     jsonb("social_posts").$type<Array<Record<string, unknown>>>().notNull().default([]),
   socialLinks:     jsonb("social_links").$type<Record<string, string>>().notNull().default({}),
   topCreators:     jsonb("top_creators").$type<Array<Record<string, unknown>>>().notNull().default([]),
   tipJarEnabled:   boolean("tip_jar_enabled").notNull().default(true),

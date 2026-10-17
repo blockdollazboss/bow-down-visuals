@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useHubProject, type HubAsset, type HubAssetKind, type HubProjectType } from "@/lib/hub-project";
 import {
-  getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, NEXT_STEPS,
+  getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, nextStepsFor,
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
@@ -44,7 +44,7 @@ function AssetCard({ asset }: { asset: HubAsset }) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
-  const next = NEXT_STEPS[asset.kind] ?? [];
+  const next = nextStepsFor(asset);
 
   /* "Send to desk": the real handoff — stash (ownership-validated
      against this project) and navigate to the receiving desk. */

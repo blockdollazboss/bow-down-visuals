@@ -8,9 +8,11 @@ import {
 import { useTranslation } from "react-i18next";
 
 /* ─── Public tip page — /tips/:handle ──────────────────────────────────────
-   Fans land here from a creator's shared link, pick an amount, and record a
-   tip. Payment processing is COMING SOON: no charge is made, the page and
-   the API both say so plainly. */
+   Fans land here from a creator's shared link, pick an amount, and tip.
+   Real checkout (0142): Send opens a secure checkout and the tip lands
+   as paid on return. When payments aren't configured, the page falls
+   back to recording tip intent — and says so plainly (the API's notice
+   drives the copy below). */
 
 interface PublicPage {
   handle: string;
@@ -47,7 +49,31 @@ export default function TipPage() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  /* Set when a real checkout payment verifies on return (0142). */
+  const [paidAmount, setPaidAmount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /* Back from checkout: verify the session once and show the paid state. */
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    if (!sessionId) return;
+    void (async () => {
+      try {
+        const res = await fetch("/api/tips/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.status === "paid") {
+          setPaidAmount((json.amountCents as number) / 100);
+          setSent(true);
+        }
+      } catch {
+        /* the tip row keeps its state; nothing false is shown */
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!handle) return;
@@ -76,6 +102,25 @@ export default function TipPage() {
     setSending(true);
     setError(null);
     try {
+      /* Real checkout first (0142). A 503 means payments aren't
+         configured in this environment — fall back to recording the
+         tip intent, exactly the pre-checkout behavior. */
+      const co = await fetch(`/api/tips/${encodeURIComponent(handle)}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: effectiveAmount, fanName, message }),
+      });
+      if (co.ok) {
+        const coJson = await co.json().catch(() => null);
+        if (coJson?.checkoutUrl) {
+          window.location.href = coJson.checkoutUrl as string;
+          return;
+        }
+      } else if (co.status !== 503) {
+        const coJson = await co.json().catch(() => null);
+        setError(coJson?.details?.[0]?.message ?? coJson?.error ?? t("tipPage.recordFailed"));
+        return;
+      }
       const res = await fetch(`/api/tips/${encodeURIComponent(handle)}/tip`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,9 +156,11 @@ export default function TipPage() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
               <Check className="h-8 w-8 text-emerald-400" />
             </div>
-            <h1 className="mt-4 text-2xl font-bold">{t("tipPage.recordedTitle")}</h1>
+            <h1 className="mt-4 text-2xl font-bold">{paidAmount != null ? t("tipPage.paidTitle") : t("tipPage.recordedTitle")}</h1>
             <p className="mx-auto mt-2 max-w-sm text-white/55">
-              {t("tipPage.recordedBody", { name: data.page.displayName, amount: effectiveAmount?.toFixed(2) })}
+              {paidAmount != null
+                ? t("tipPage.paidBody", { name: data.page.displayName, amount: paidAmount.toFixed(2) })
+                : t("tipPage.recordedBody", { name: data.page.displayName, amount: effectiveAmount?.toFixed(2) })}
             </p>
           </div>
         ) : (

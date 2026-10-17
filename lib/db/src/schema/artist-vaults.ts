@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -35,6 +35,17 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   voice_id: text("voice_id"),
   voice_name: text("voice_name"),
   voice_preview_url: text("voice_preview_url"),
+  /* World voice-shaping profile (migration 0142, G4): the numbers the
+     hall's send-side shaper applies when the owner talks AS this
+     character — { pitchSemitones, formantRatio, formantGainDb,
+     eq: [{ type, freqHz, gainDb, q }] }, the character-voice.ts shape.
+     Null = no set voice: the character sounds like its speaker. */
+  voice_profile: jsonb("voice_profile").$type<{
+    pitchSemitones: number;
+    formantRatio: number;
+    formantGainDb: number;
+    eq: Array<{ type: string; freqHz: number; gainDb: number; q: number }>;
+  } | null>(),
   is_active: boolean("is_active").notNull().default(false),
   /* Spotlight slot order (choose-artist page). Lower = earlier slot.
      The user drag-and-drops which artist/character holds each spotlight. */

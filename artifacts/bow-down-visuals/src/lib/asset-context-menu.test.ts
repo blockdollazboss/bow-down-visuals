@@ -37,13 +37,13 @@ describe("hub asset context menu", () => {
     expect(item(items, "remove").danger).toBe(true);
   });
 
-  it("next-step submenu carries the real NEXT_STEPS routes", () => {
+  it("next-step submenu carries the real NEXT_STEPS routes + the asset's id (0142)", () => {
     const a = actions();
     const items = buildAssetContextItems(song, a);
     const next = item(items, "next");
     expect(next.children?.map((c) => c.label)).toContain("Make the video");
     next.children?.find((c) => c.label === "Make the video")?.onClick?.();
-    expect(a.onNavigate).toHaveBeenCalledWith("/create?panel=video");
+    expect(a.onNavigate).toHaveBeenCalledWith("/create?panel=video&assetId=a1");
   });
 
   it("send-to-desk submenu carries the real handoff intents for the kind", () => {
