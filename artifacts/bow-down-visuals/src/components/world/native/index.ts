@@ -19,3 +19,4 @@ export {
   type CreateDeskRunnerProps,
 } from "./CreateDeskRunner";
 export { NativePlaceholder, type NativePlaceholderProps } from "./NativePlaceholder";
+export { BrandingKitDesk, PressKitDesk, PromoteDesk } from "./BusinessDesks";

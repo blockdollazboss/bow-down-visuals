@@ -23,6 +23,7 @@ import {
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -1058,10 +1059,21 @@ export default function StationPanel(props: StationPanelProps) {
         /* The migration placeholder until this station's pattern
            surface ships — honest, palace-voiced, and framed below
            by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+           one branch's contents; the frame and footer stay.
+           Lane 7: the "business" pattern's three desks are live —
+           dispatched by station id; every other pattern (and any
+           future business station) keeps the placeholder. */
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            <NativePlaceholder station={station} isLight={isLight} />
+            {resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
+              <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
+              <PressKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "promote-room" ? (
+              <PromoteDesk isLight={isLight} isGuest={isGuest} />
+            ) : (
+              <NativePlaceholder station={station} isLight={isLight} />
+            )}
           </PanelBoundary>
         );
       case "custom":
