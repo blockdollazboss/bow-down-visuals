@@ -565,8 +565,9 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
         )}
       </div>
       {/* The day's content drop rides the same rail it always has —
-          the real card, in the vault. */}
-      <DailyDropCard />
+          the real card, in the vault. inWorld: its CTA is an
+          explicit new-tab transfer, never a same-tab walk-out. */}
+      <DailyDropCard inWorld />
     </div>
   );
 }
@@ -745,7 +746,7 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
 
 function TreasuryQuests() {
   const { getAccessToken, refreshProfile } = useAuth();
-  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />;
+  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} inWorld />;
 }
 
 /* ─── The Music Hall jukebox ───────────────────────────────────────── */

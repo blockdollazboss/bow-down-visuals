@@ -34,7 +34,7 @@ const KIND_LABEL_KEY: Record<DropKind, string> = {
   hook: "retention.dailyDrop.kindHook",
 };
 
-export function DailyDropCard() {
+export function DailyDropCard({ inWorld = false }: { inWorld?: boolean } = {}) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
@@ -104,11 +104,24 @@ export function DailyDropCard() {
             {t(`retention.drops.${drop.key}.description`)}
           </p>
         </div>
-        <Link href={drop.href} className="shrink-0">
-          <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)] cursor-pointer">
-            {t("retention.dailyDrop.cta")}<ArrowRight className="h-4 w-4" />
-          </span>
-        </Link>
+        {/* In the palace (inWorld) the CTA is an explicit transfer,
+            never a same-tab ejection: the drop's tool opens in a new
+            tab and the walker stays in the room (NATIVE-PLAN §3.0 —
+            the TransferFooter shape). On the website nothing
+            changes: the same wouter Link, the same pill. */}
+        {inWorld ? (
+          <a href={drop.href} target="_blank" rel="noopener noreferrer" className="shrink-0">
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)] cursor-pointer">
+              {t("retention.dailyDrop.cta")}<ArrowRight className="h-4 w-4" />
+            </span>
+          </a>
+        ) : (
+          <Link href={drop.href} className="shrink-0">
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)] cursor-pointer">
+              {t("retention.dailyDrop.cta")}<ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
+        )}
       </div>
       <p className="relative text-[10px] text-white/25 mt-3 font-medium">{t("retention.dailyDrop.subtitle")}</p>
     </section>
