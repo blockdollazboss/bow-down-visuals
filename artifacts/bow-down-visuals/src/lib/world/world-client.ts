@@ -201,11 +201,27 @@ const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
  * welcome nor a close within the window counts as failed, so a
  * hung connect retries instead of spinning forever. Once the first
  * welcome lands the budget is spent for good: a later drop is a
- * real drop and reports the way it always has. */
+ * real drop and reports the way it always has.
+ *
+ * The FIRST attempt's window is sized for a WAKING host, not a
+ * hung one: the free-tier box spins down when idle and can take
+ * the better part of a minute to accept the first socket after a
+ * deploy or a quiet spell — while its welcome, once the handshake
+ * lands, follows in milliseconds (measured live on staging,
+ * 2026-10-17: opens at 24.7 s on a healthy server whose welcome
+ * arrived 1 ms later). A flat 20 s window killed those healthy
+ * handshakes mid-wake, three in a row, and showed the error card
+ * to a hall that was never broken. Later attempts keep the short
+ * window: by then the host has had its wake, so a still-hanging
+ * handshake is a genuine hang and fails fast. */
 export const WORLD_CONNECT_MAX_ATTEMPTS = 3;
 /** The pause before attempt 2 and attempt 3, respectively. */
 export const WORLD_CONNECT_BACKOFF_MS: readonly number[] = [1_000, 2_000];
+/** The welcome window for attempts after the first. */
 export const WORLD_WELCOME_WATCHDOG_MS = 20_000;
+/** The welcome window for the FIRST attempt — long enough for a
+ *  waking host to accept the socket and answer. */
+export const WORLD_FIRST_WELCOME_WATCHDOG_MS = 60_000;
 
 export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, token: string | null): string {
   const proto = loc.protocol === "https:" ? "wss:" : "ws:";
@@ -379,7 +395,7 @@ export class WorldClient {
     socket.onerror = () => {
       if (this.socket === socket) this.handleSocketFailure();
     };
-    this.armWelcomeWatchdog(socket);
+    this.armWelcomeWatchdog(socket, attempt);
   }
 
   private handleSocketClose(ev: { code?: number }): void {
@@ -435,15 +451,19 @@ export class WorldClient {
 
   /** A handshake that lands neither a welcome nor a close inside
    *  the window is a failed attempt — without this, a hung connect
-   *  spins on "connecting" forever (there was no timer at all). */
-  private armWelcomeWatchdog(socket: WorldSocketLike): void {
+   *  spins on "connecting" forever (there was no timer at all).
+   *  The window is attempt-aware: the first attempt may be waking
+   *  the host and gets the long window; later attempts get the
+   *  short one (see the constants above). */
+  private armWelcomeWatchdog(socket: WorldSocketLike, attempt: number): void {
     this.clearWelcomeWatchdog();
+    const windowMs = attempt <= 1 ? WORLD_FIRST_WELCOME_WATCHDOG_MS : WORLD_WELCOME_WATCHDOG_MS;
     this.welcomeWatchdog = this.setTimer(() => {
       this.welcomeWatchdog = null;
       if (this.socket !== socket) return;
       if (this.status !== "connecting" || this.everInside) return;
       this.failConnectAttempt();
-    }, WORLD_WELCOME_WATCHDOG_MS);
+    }, windowMs);
   }
 
   private clearWelcomeWatchdog(): void {

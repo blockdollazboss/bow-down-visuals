@@ -20,6 +20,7 @@ import {
   worldOverlay,
   defaultWorldSocketUrl,
   WORLD_CONNECT_MAX_ATTEMPTS,
+  WORLD_FIRST_WELCOME_WATCHDOG_MS,
   WORLD_WELCOME_WATCHDOG_MS,
   type WorldSocketLike,
   type WorldStatus,
@@ -706,7 +707,8 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     const { client, sockets, timers, statuses } = makeRetryClient();
     await client.connect();
     expect(sockets).toHaveLength(1);
-    expect(timers.pendingDelays()).toEqual([WORLD_WELCOME_WATCHDOG_MS]);
+    // The FIRST attempt arms the long, wake-tolerant window.
+    expect(timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
 
     sockets[0]!.onerror?.();
     expect(client.status).toBe("connecting");
@@ -740,7 +742,9 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     const { client, sockets, timers } = makeRetryClient();
     await client.connect();
     // The socket neither opens a welcome nor closes — it just hangs.
-    expect(timers.fireNext()).toBe(WORLD_WELCOME_WATCHDOG_MS);
+    // The first attempt hangs for its full (long) window before the
+    // watchdog retires it.
+    expect(timers.fireNext()).toBe(WORLD_FIRST_WELCOME_WATCHDOG_MS);
     expect(client.status).toBe("connecting");
     expect(sockets[0]!.readyState).toBe(3); // the watchdog retired it
     expect(timers.pendingDelays()).toEqual([1_000]);
@@ -748,8 +752,25 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     timers.fireNext();
     await flush();
     expect(sockets).toHaveLength(2);
+    // Later attempts arm the SHORT window — the host has had its
+    // wake by now, so a hang here is a genuine hang.
+    expect(timers.pendingDelays()).toEqual([WORLD_WELCOME_WATCHDOG_MS]);
     sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(client.status).toBe("inside");
+  });
+
+  it("a slow first handshake inside the wake window still gets in — the watchdog does not kill a waking host", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    // The first window strictly outlasts the later-attempt window:
+    // a host that answers at, say, 25 s (a real staging wake,
+    // measured 2026-10-17) is inside this one and past the old one.
+    expect(WORLD_FIRST_WELCOME_WATCHDOG_MS).toBeGreaterThan(WORLD_WELCOME_WATCHDOG_MS);
+    expect(timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
+    // No timer fires; the welcome simply arrives late — and lands.
+    sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(timers.pendingDelays()).toEqual([]); // watchdog spent with the welcome
   });
 
   it("the budget is bounded: after the last attempt fails, the honest error lands", async () => {
