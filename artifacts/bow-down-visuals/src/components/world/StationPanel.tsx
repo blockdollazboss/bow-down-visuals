@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
-import { splitPanelPath, stationGuestBlocked } from "@/lib/world/station-panel";
+import { splitPanelPath, stationGuestBlocked, editorStepthroughSearch } from "@/lib/world/station-panel";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -54,6 +54,11 @@ export interface StationPanelProps {
   jukeboxDenied: string | null;
   myPeerId: string | null;
   isAdmin: boolean;
+  /** The creator's most recent editor project, resolved by the
+   *  page when the editor door opens: the step-through seeds the
+   *  editor's location with ?project=<id> so it opens where they
+   *  left off. Null (or still loading) → the editor opens fresh. */
+  editorProjectId?: string | null;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -198,6 +203,25 @@ function PanelRouter({ initialPath, isLight }: { initialPath: string; isLight: b
           </Switch>
         </Suspense>
       </PanelBoundary>
+    </Router>
+  );
+}
+
+/* The step-through editor, seeded with its deep link: inside the
+   palace there is no real /video-editor URL, so the editor mounts
+   under a memory router standing at /video-editor — its useSearch
+   reads the seeded ?project= exactly as it reads the site's. When
+   the resolved project lands a beat after the door opens, the seed
+   updates in place and the editor's own load effect picks it up. */
+function StepThroughEditor({ projectId }: { projectId: string | null }) {
+  const search = editorStepthroughSearch(projectId);
+  const loc = useMemo(
+    () => memoryLocation({ path: "/video-editor", searchPath: search }),
+    [search],
+  );
+  return (
+    <Router hook={loc.hook}>
+      <PanelEditor />
     </Router>
   );
 }
@@ -985,7 +1009,7 @@ export default function StationPanel(props: StationPanelProps) {
                 </div>
               }
             >
-              <PanelEditor />
+              <StepThroughEditor projectId={props.editorProjectId ?? null} />
             </Suspense>
           </PanelBoundary>
         </div>

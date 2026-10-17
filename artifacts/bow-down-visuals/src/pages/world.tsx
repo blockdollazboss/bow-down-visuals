@@ -36,6 +36,7 @@ import {
   jukeboxPlaybackNow,
   jukeboxNeedsSeek,
 } from "@/lib/world/jukebox-sync";
+import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
 import { MUSIC_HALL_ID } from "@/lib/world/palace-layout";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -289,6 +290,40 @@ export default function WorldPage() {
       setPanelTarget({ kind: "station", station: nearStation });
     }
   };
+  /* The editor step-through's deep link: when the Visual Vibes
+     door opens, resolve the creator's most recent editor project
+     so the editor opens where they left off (no project → fresh,
+     as before). Re-resolved on every open; a failed read just
+     leaves it null. */
+  const [editorProjectId, setEditorProjectId] = useState<string | null>(null);
+  const editorDoorOpen =
+    panelTarget?.kind === "station" && panelTarget.station.panel.kind === "stepthrough";
+  useEffect(() => {
+    if (!editorDoorOpen || !user) {
+      setEditorProjectId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/projects", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { projects?: EditorProjectRow[] };
+        if (!cancelled && Array.isArray(data.projects)) {
+          setEditorProjectId(newestEditorProjectId(data.projects));
+        }
+      } catch {
+        /* the step-through opens fresh — never blocked on this */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorDoorOpen, user?.id]);
   /* The Music Hall jukebox: the room's state as last broadcast, the
      anchor (state + when it landed here) the room audio derives
      its position from, and whether the browser is letting the
@@ -1711,6 +1746,7 @@ export default function WorldPage() {
           jukeboxDenied={jukeboxDenied}
           myPeerId={myPeerId}
           isAdmin={isAdmin}
+          editorProjectId={editorProjectId}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
