@@ -111,3 +111,4 @@ export * from "./trust";
 export * from "./distribution-legacy";
 export * from "./arcade";
 export * from "./party";
+export * from "./world-events";

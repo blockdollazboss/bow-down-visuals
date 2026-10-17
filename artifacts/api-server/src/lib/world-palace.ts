@@ -110,6 +110,22 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
   },
 ];
 
+/** One booked event on a room's slate (World Events, migration
+ *  0145): the live one first, then what's next — "tonight at the
+ *  palace", carried additively on the directory entry so the board
+ *  and the entry screen can read the palace's schedule without a
+ *  second channel. Written by the events scheduler (lib/world-
+ *  events) via setDirectoryEvents; absent when nothing is booked. */
+export interface PalaceDirectoryEvent {
+  id: string;
+  kind: string;
+  title: string;
+  hostName: string;
+  startsAt: string;
+  endsAt: string;
+  status: "scheduled" | "live";
+}
+
 export interface PalaceDirectoryEntry {
   id: string;
   name: string;
@@ -119,6 +135,8 @@ export interface PalaceDirectoryEntry {
   members: string[];
   /** A show holds the hall's stage (only the hall can be live). */
   live: boolean;
+  /** This room's booked slate (live + upcoming), when any. */
+  events?: PalaceDirectoryEvent[];
 }
 
 const DIRECTORY_MEMBER_NAMES = 12;
@@ -137,13 +155,19 @@ export class WorldPalace {
       // Only the hall gets the stage resolvers: it is the palace's
       // one stage, and no other room may ever verify a claim. Only
       // the Music Hall gets the jukebox resolver — the same rule,
-      // one authority per piece of room programming.
+      // one authority per piece of room programming. The drop-claim
+      // rail is the exception: a drop spectacle can land in ANY
+      // room, so every room carries the (injected, route-owned)
+      // claimer; the room itself decides who may claim.
       const roomDeps =
         def.roomId === WORLD_ROOM_ID
           ? deps
           : def.roomId === "world:music-hall"
-            ? { resolveJukeboxTrack: deps.resolveJukeboxTrack }
-            : {};
+            ? {
+                resolveJukeboxTrack: deps.resolveJukeboxTrack,
+                claimWorldDrop: deps.claimWorldDrop,
+              }
+            : { claimWorldDrop: deps.claimWorldDrop };
       const room = new WorldRoom(hub, roomDeps, { roomId, name, ...opts });
       room.onChange = () => this.broadcastDirectory();
       this.rooms.set(roomId, room);
@@ -180,15 +204,29 @@ export class WorldPalace {
     return n;
   }
 
+  /** The events slate per room, owned by the events scheduler
+   *  (lib/world-events): roomId → live + upcoming booked events.
+   *  Directory-only data — the rooms themselves never read it. */
+  private directoryEvents = new Map<string, PalaceDirectoryEvent[]>();
+
+  /** Replace the directory slate and rebroadcast the directory so
+   *  everyone inside sees the fresh "tonight at the palace". */
+  setDirectoryEvents(byRoom: Map<string, PalaceDirectoryEvent[]>): void {
+    this.directoryEvents = byRoom;
+    this.broadcastDirectory();
+  }
+
   directory(): PalaceDirectoryEntry[] {
     return PALACE_ROOM_DEFS.map((def) => {
       const room = this.rooms.get(def.roomId)!;
+      const events = this.directoryEvents.get(def.roomId);
       return {
         id: def.roomId,
         name: def.name,
         count: room.size(),
         members: room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
         live: room.stageHeld(),
+        ...(events && events.length > 0 ? { events } : {}),
       };
     });
   }

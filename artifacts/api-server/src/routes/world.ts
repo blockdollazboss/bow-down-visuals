@@ -49,6 +49,11 @@ import {
 } from "../lib/world-room";
 import { WorldPalace } from "../lib/world-palace";
 import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
+import {
+  WorldEventScheduler,
+  WORLD_EVENT_TICK_MS,
+  claimSpectacleDrop,
+} from "../lib/world-events";
 
 const router = Router();
 
@@ -774,6 +779,9 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     resolveStageStream,
     resolveScreenVideo,
     resolveJukeboxTrack,
+    /* Drop spectacles (3.4) pay through the existing drop rails —
+     * the claimer owns the weekly budget check + grant + ledger. */
+    claimWorldDrop: claimSpectacleDrop,
   });
   activePalace = palace;
 
@@ -816,6 +824,33 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
   });
 
   return palace;
+}
+
+/**
+ * Start the palace calendar's scheduler tick (World Events, lib/
+ * world-events): every WORLD_EVENT_TICK_MS it starts due stage
+ * shows / listening parties / drops in their rooms, ends what's
+ * over, and refreshes the directory slate. Called once from
+ * index.ts after the WS mount — tests drive the scheduler class
+ * directly instead, so no interval ever runs under vitest. The
+ * first tick runs immediately: a restart mid-show re-drives the
+ * live events' room state instead of stranding them.
+ */
+export function startWorldEventScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new WorldEventScheduler({
+    palace,
+    resolveScreenVideo,
+    resolveJukeboxTrack,
+  });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[world-events] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, WORLD_EVENT_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
 }
 
 export default router;

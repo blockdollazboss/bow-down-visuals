@@ -98,6 +98,18 @@ export interface PalaceRoomInfo {
   name: string;
 }
 
+/** One booked event on a room's slate (World Events, 0145): the
+ *  live one first, then what's next — "tonight at the palace". */
+export interface PalaceDirectoryEvent {
+  id: string;
+  kind: string;
+  title: string;
+  hostName: string;
+  startsAt: string;
+  endsAt: string;
+  status: "scheduled" | "live";
+}
+
 /** One row of the palace directory: a room, its headcount, who's
  *  inside (display names, server-capped), and whether a show holds
  *  the hall's stage. */
@@ -107,6 +119,8 @@ export interface PalaceDirectoryEntry {
   count: number;
   members: string[];
   live: boolean;
+  /** This room's booked slate (live + upcoming), when any. */
+  events?: PalaceDirectoryEvent[];
 }
 
 /** The hall's id — the palace's front door and its one stage room. */
@@ -129,6 +143,10 @@ export interface WorldScreenState {
   } | null;
   playback: { playing: boolean; positionSec: number } | null;
   notice: string | null;
+  /** The booked World Event on the screen, while a scheduled stage
+   *  show holds it — "LIVE: <title> by <hostName>". Absent for
+   *  walk-in shows and the ambient screen. */
+  event?: { id: string; title: string; hostName: string } | null;
 }
 
 /** One song on the Music Hall jukebox: the track (resolved and
@@ -156,6 +174,31 @@ export interface WorldJukeboxState {
     playback: { playing: boolean; positionSec: number };
   } | null;
   queue: WorldJukeboxEntry[];
+  /** The booked listening party whose queue this is, while one
+   *  runs. Absent during open queueing. */
+  party?: { eventId: string; title: string; hostName: string } | null;
+}
+
+/** A song just STARTED on the Music Hall jukebox (THE-GAME §5(a)'s
+ *  first-play moment): the track and its creator, from server data. */
+export interface WorldNowPlayingMoment {
+  entryId: string;
+  trackId: string;
+  title: string;
+  creatorName: string | null;
+  addedByName: string;
+}
+
+/** A drop spectacle standing in the room you're in (World Events
+ *  3.4): claimable by the members standing there, first-come. */
+export interface WorldDropState {
+  eventId: string;
+  title: string;
+  roomId: string;
+  roomName: string;
+  amountVb: number;
+  claimCap: number;
+  claimsLeft: number;
 }
 
 export interface WorldSocketLike {
@@ -333,6 +376,12 @@ export class WorldClient {
    *  entering any other room clears it: the music stays behind the
    *  door you walked out of. */
   jukebox: WorldJukeboxState | null = null;
+  /** The last song the jukebox STARTED (the §5(a) first-play
+   *  moment), as last announced by the room. */
+  nowPlaying: WorldNowPlayingMoment | null = null;
+  /** The drop spectacle standing in the room I'm in, when one has
+   *  landed (welcome snapshot, then drop.* frames). */
+  drop: WorldDropState | null = null;
   /** The room this client stands in (set by every welcome). */
   room: PalaceRoomInfo | null = null;
   /** The palace directory — who's where — as last broadcast (and
@@ -366,6 +415,20 @@ export class WorldClient {
   /** A jukebox action was refused (guests / unplayable / queue-full
    *  / not-yours) — the panel says why instead of failing silently. */
   onJukeboxDenied: ((reason: string) => void) | null = null;
+  /** A song just started on the jukebox — the first-play moment
+   *  naming the song + its creator. */
+  onNowPlaying: ((moment: WorldNowPlayingMoment) => void) | null = null;
+  /** A drop spectacle landed in this room (the herald moment). */
+  onDropLanded: ((drop: WorldDropState) => void) | null = null;
+  /** The room's drop state changed (landed claims ticking down, or
+   *  the chest swept). Null = no drop stands. */
+  onDrop: ((drop: WorldDropState | null) => void) | null = null;
+  /** A claim landed, witnessed by the room: who + how much, from
+   *  server truth. */
+  onDropClaimed: ((claim: { name: string; amountVb: number }, drop: WorldDropState | null) => void) | null = null;
+  /** My claim was refused (guests / no-drop / already-claimed /
+   *  claimed-out / budget). */
+  onDropDenied: ((reason: string) => void) | null = null;
   /** A screen action was refused: someone else holds the stage. */
   onScreenDenied: ((holderName: string | null) => void) | null = null;
   /** The host muted/unmuted ME (self only) — the page shows the
@@ -867,6 +930,16 @@ export class WorldClient {
     this.send({ type: "jukebox.remove", entryId });
   }
 
+  /* ── Drop spectacles (World Events 3.4) ────────────────────────
+   * One intent; the room enforces members-only, in-room, first-come
+   * on it. Guests don't even send it — they watch. */
+
+  /** Claim the drop standing in this room. */
+  claimDrop(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "drop.claim" });
+  }
+
   /* ── Host actions (the server re-verifies admin on every one) ── */
 
   adminMute(peerId: string, muted: boolean): void {
@@ -967,6 +1040,13 @@ export class WorldClient {
         this.jukebox =
           frame["jukebox"] && typeof frame["jukebox"] === "object"
             ? (frame["jukebox"] as WorldJukeboxState)
+            : null;
+        /* A drop standing in the room rides the welcome the same
+         *  way; any other room's welcome clears it — the chest stays
+         *  in the room it landed in. */
+        this.drop =
+          frame["drop"] && typeof frame["drop"] === "object"
+            ? (frame["drop"] as WorldDropState)
             : null;
         this.peers.clear();
         /* A transfer welcome starts a new room's voice world: the
@@ -1167,6 +1247,48 @@ export class WorldClient {
         this.onJukeboxDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "refused");
         return;
       }
+      case "jukebox.nowplaying": {
+        if (frame["moment"] && typeof frame["moment"] === "object") {
+          this.nowPlaying = frame["moment"] as WorldNowPlayingMoment;
+          this.onNowPlaying?.(this.nowPlaying);
+        }
+        return;
+      }
+      case "drop.landed": {
+        if (frame["drop"] && typeof frame["drop"] === "object") {
+          this.drop = frame["drop"] as WorldDropState;
+          this.onDropLanded?.(this.drop);
+          this.onDrop?.(this.drop);
+        }
+        return;
+      }
+      case "drop.state": {
+        this.drop =
+          frame["drop"] && typeof frame["drop"] === "object"
+            ? (frame["drop"] as WorldDropState)
+            : null;
+        this.onDrop?.(this.drop);
+        return;
+      }
+      case "drop.claimed": {
+        if (frame["drop"] && typeof frame["drop"] === "object") {
+          this.drop = frame["drop"] as WorldDropState;
+        }
+        const claim = frame["claim"] as { name?: unknown; amountVb?: unknown } | undefined;
+        this.onDropClaimed?.(
+          {
+            name: typeof claim?.name === "string" ? claim.name : "A creator",
+            amountVb: typeof claim?.amountVb === "number" ? claim.amountVb : 0,
+          },
+          this.drop,
+        );
+        this.onDrop?.(this.drop);
+        return;
+      }
+      case "drop.denied": {
+        this.onDropDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "refused");
+        return;
+      }
       case "screen.denied": {
         this.onScreenDenied?.(
           typeof frame["holderName"] === "string" ? frame["holderName"] : null,
@@ -1202,4 +1324,32 @@ export async function fetchWorldDirectory(signal?: AbortSignal): Promise<PalaceD
   if (!res.ok) throw new Error(`world directory ${res.status}`);
   const body = (await res.json()) as { rooms?: PalaceDirectoryEntry[] };
   return Array.isArray(body.rooms) ? body.rooms : [];
+}
+
+/** One booked World Event (the palace calendar, 0145), as the REST
+ *  slate serves it — mirrors the DTO in routes/world-events. */
+export interface WorldEventDto {
+  id: string;
+  kind: "stage_show" | "listening_party" | "drop";
+  roomId: string;
+  hostUserId: string;
+  hostName: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  payload: Record<string, unknown>;
+  status: "scheduled" | "live" | "done" | "cancelled";
+  createdAt: string;
+}
+
+/** The palace calendar over HTTP: live + upcoming events, soonest
+ *  first — the "tonight at the palace" read for the board and any
+ *  surface that hasn't stepped in yet (Lane K renders the board
+ *  block from this + the directory slate). Mirrors
+ *  GET /api/world/events. */
+export async function fetchWorldEvents(signal?: AbortSignal): Promise<WorldEventDto[]> {
+  const res = await fetch("/api/world/events", { signal });
+  if (!res.ok) throw new Error(`world events ${res.status}`);
+  const body = (await res.json()) as { events?: WorldEventDto[] };
+  return Array.isArray(body.events) ? body.events : [];
 }

@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
-import { registerWorldWs } from "./routes/world";
+import { registerWorldWs, startWorldEventScheduler } from "./routes/world";
 import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
@@ -67,7 +67,11 @@ const server = app.listen(port, (err) => {
 const wsGateway = new LiveWsGateway();
 registerLiveChatWs(wsGateway);
 registerLiveControlWs(wsGateway);
-registerWorldWs(wsGateway);
+const worldPalace = registerWorldWs(wsGateway);
+/* The palace calendar (World Events, 0145): due stage shows,
+   listening parties and drop spectacles are driven into their
+   rooms by this tick — cheap, one indexed select per interval. */
+startWorldEventScheduler(worldPalace);
 registerPartyWs(wsGateway);
 registerStageWs(wsGateway);
 wsGateway.attach(server);
