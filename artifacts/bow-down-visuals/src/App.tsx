@@ -263,9 +263,9 @@ class RouteErrorBoundary extends Component<
           <div className="relative max-w-sm text-center space-y-4">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center overflow-hidden">
               {/* The King himself, never a stock emoji glyph — the
-                  character portrait asset. */}
+                  character icon asset (same mark as the app icon). */}
               <img
-                src={`${import.meta.env.BASE_URL}king-shark-portrait.png`}
+                src={`${import.meta.env.BASE_URL}icon-192.png`}
                 alt="Thy Cheat Code, the King Shark"
                 className="h-full w-full object-cover"
                 draggable={false}

@@ -79,7 +79,7 @@ export default function Explore() {
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="mb-10 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e8c86a]">One page. Everything popping.</p>
-          <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Explore <img src={`${import.meta.env.BASE_URL}king-shark-portrait.png`} alt="" aria-hidden="true" draggable={false} className="inline-block h-[1em] w-[1em] rounded-[0.22em] object-cover align-[-0.13em]" /></h1>
+          <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Explore <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" aria-hidden="true" draggable={false} className="inline-block h-[1em] w-[1em] rounded-[0.22em] object-cover align-[-0.13em]" /></h1>
           <p className="mx-auto mt-3 max-w-xl text-white/60">
             The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place. Share anything; your referral code rides along.
           </p>
