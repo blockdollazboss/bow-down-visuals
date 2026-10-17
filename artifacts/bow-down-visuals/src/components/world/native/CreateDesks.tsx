@@ -322,11 +322,6 @@ export function SongDesk(props: CreateDeskProps) {
         const json = (await res.json().catch(() => null)) as unknown;
         if (cancelled) return;
         setVaults(vaultsOfResponse(json));
-        if (json && typeof json === "object") {
-          const list = Array.isArray(json) ? json : ((json as { vaults?: unknown[] }).vaults ?? []);
-          setVaultRaw((prev) => prev ?? null);
-          void list;
-        }
       } catch {
         /* vault presets are a nicety — the desk works without them */
       }
