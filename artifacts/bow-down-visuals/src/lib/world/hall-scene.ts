@@ -79,6 +79,16 @@ import {
   type GuardVariant,
 } from "./figure";
 import {
+  loopForCharacterRef,
+  loopForGuardVariant,
+  loopSuspendedForSpeech,
+  loopVideoUrl,
+  remapMaskAlpha,
+  selectLiveLoops,
+  MASK_INSET_PX,
+  type FigureLoopDef,
+} from "./figure-loop";
+import {
   PALACE_LAYOUT,
   PALACE_DOORS,
   PALACE_DOOR_HEIGHT,
@@ -102,6 +112,21 @@ import { createMover, stepMover, type MoverState } from "./movement";
  *  (m/s) — a touch over run pace, so a sprinting peer reads as
  *  sprinting, never as teleporting rubber. */
 const PEER_CHASE_MAX = 7.2;
+/** Living loops: a figure's canvas repaints with its loop at most
+ *  this often (ms) while the mouth is still — the eye reads 30fps
+ *  motion fine, and phone GPUs keep the change. */
+const LOOP_REDRAW_MS = 33;
+/** Living loops: the still⇄loop crossfade length (seconds) — at
+ *  speech edges and budget edges alike, nothing ever pops. */
+const LOOP_FADE_SEC = 0.18;
+/** Living loops: voice level above this counts as speaking for
+ *  the mouth-drift suspension rule. */
+const LOOP_SPEECH_LEVEL = 0.02;
+/** Living loops: quiet this long (ms) before a speech-suspended
+ *  loop fades back in — speech gaps don't flicker the figure. */
+const LOOP_SPEECH_RESUME_MS = 300;
+const LOOP_SCRATCH_SPHERE = new THREE.Sphere(new THREE.Vector3(), 1.4);
+const LOOP_SCRATCH_MAT = new THREE.Matrix4();
 /** Past this gap (m) a peer's figure snaps to its target instead
  *  of chasing — lag corrections land, they don't slide. */
 const PEER_SNAP_DIST = 6;
@@ -434,6 +459,16 @@ interface PortraitState {
   cover: CoverTransform;
   /** The mouth the landmarks found — null = no face, no lips, ever. */
   mouth: MouthBox | null;
+  /** Living loop (figure-loop.ts): the loop's video element once
+   *  it can play — drawn into this same canvas over the still.
+   *  Null = still only. loopCrop is the figure's region of a
+   *  shared sheet (the guards' videos), loopMask the still's own
+   *  alpha re-cut for opaque masked loops, loopAlpha the 0..1
+   *  crossfade blend the tick drives. */
+  loopVideo: HTMLVideoElement | null;
+  loopCrop: { x: number; y: number; w: number; h: number } | null;
+  loopMask: HTMLCanvasElement | null;
+  loopAlpha: number;
 }
 
 interface AvatarRig {
@@ -490,6 +525,39 @@ interface AvatarRig {
   speechTarget: number;
   speechShown: number;
   lastMouthDrawAt: number;
+  /** The living loop feeding this figure's canvas, if its
+   *  character has one (figure-loop.ts). Owned end to end by the
+   *  loop methods below; torn down on every figure swap. */
+  loopFeed: FigureLoopFeed | null;
+  /** The standing character's name from the latest reconcile —
+   *  the loop registry keys the King's loop off it. */
+  characterName: string;
+}
+
+/** One figure's living loop: the (never-displayed) video element
+ *  whose frames are drawn into the figure's portrait canvas. The
+ *  still stays first paint and permanent fallback — a failed feed
+ *  simply never blends in. */
+interface FigureLoopFeed {
+  id: number;
+  def: FigureLoopDef;
+  video: HTMLVideoElement;
+  /** canplay reached — frames are drawable. */
+  ready: boolean;
+  /** Terminal failure (error, repeated play rejection, mask could
+   *  not be built): the figure stays its still, forever. */
+  failed: boolean;
+  /** The per-tick budget pass chose this feed to be playing. */
+  active: boolean;
+  /** 0..1 crossfade blend toward active (and not speech-suspended). */
+  alpha: number;
+  /** The still-alpha mask for masked loops, built at attach. */
+  mask: HTMLCanvasElement | null;
+  lastVideoTime: number;
+  playRejections: number;
+  /** When the figure last went quiet (speech-suspension release
+   *  timing); 0 = currently speaking or never tracked. */
+  silentSinceMs: number;
 }
 
 const PORTRAIT_CANVAS_W = 384;
@@ -538,6 +606,47 @@ function drawPortraitCanvas(portrait: PortraitState, openness: number): void {
   const { ctx, canvas, image, cover } = portrait;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(image, cover.offsetX, cover.offsetY, cover.drawnW, cover.drawnH);
+  // Living-loop layer: while this figure's loop is blended in,
+  // its frames paint over the still in the same canvas — cropped
+  // to the figure's own region when the loop is a shared sheet
+  // (the guards), cover-fit whole when it isn't (the King).
+  // Masked loops (opaque video, transparent still) are then
+  // re-cut to the figure by the still's own alpha, so no studio
+  // backdrop ever shows; the mouth overlay below still draws
+  // last, over still and loop alike. Any draw failure leaves the
+  // still standing — the loop is an enhancement, never a risk.
+  const loopVideo = portrait.loopVideo;
+  if (loopVideo && portrait.loopAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = portrait.loopAlpha;
+    try {
+      const crop = portrait.loopCrop;
+      if (crop && loopVideo.videoWidth > 0) {
+        ctx.drawImage(
+          loopVideo,
+          crop.x * loopVideo.videoWidth,
+          crop.y * loopVideo.videoHeight,
+          crop.w * loopVideo.videoWidth,
+          crop.h * loopVideo.videoHeight,
+          cover.offsetX,
+          cover.offsetY,
+          cover.drawnW,
+          cover.drawnH,
+        );
+      } else {
+        ctx.drawImage(loopVideo, cover.offsetX, cover.offsetY, cover.drawnW, cover.drawnH);
+      }
+    } catch {
+      /* a torn-down or unready frame — the still underneath stands */
+    }
+    ctx.restore();
+    if (portrait.loopMask) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.drawImage(portrait.loopMask, 0, 0);
+      ctx.restore();
+    }
+  }
   const mouth = portrait.mouth;
   if (mouth && openness > 0.015) {
     const center = normalizedToCanvas({ x: mouth.cx, y: mouth.cy }, portrait.srcW, portrait.srcH, cover);
@@ -588,6 +697,10 @@ function buildPortraitFigure(image: HTMLImageElement, mouth: MouthBox | null): B
       PORTRAIT_CANVAS_H,
     ),
     mouth,
+    loopVideo: null,
+    loopCrop: null,
+    loopMask: null,
+    loopAlpha: 0,
   };
 
   const body = new THREE.Group();
@@ -664,6 +777,10 @@ function buildDefaultFigure(image: HTMLImageElement, mouth: MouthBox | null): Bu
     srcH,
     cover: coverTransform(srcW, srcH, size.w, size.h),
     mouth,
+    loopVideo: null,
+    loopCrop: null,
+    loopMask: null,
+    loopAlpha: 0,
   };
 
   const body = new THREE.Group();
@@ -744,6 +861,8 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     speechTarget: 0,
     speechShown: 0,
     lastMouthDrawAt: 0,
+    loopFeed: null,
+    characterName: "",
   };
 }
 
@@ -856,6 +975,11 @@ export class KingsHallScene {
   };
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
+  /* Living loops: feed ids (budget keys) + the one-time
+     hidden-tab pause hook. */
+  private nextLoopFeedId = 1;
+  private loopVisibilityHooked = false;
+  private loopFrustum: THREE.Frustum | null = null;
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
 
   private quality: QualityTier;
@@ -2239,7 +2363,8 @@ export class KingsHallScene {
    *  stays set so the 120 ms upsert cadence never turns into a retry
    *  storm. */
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
-    const want = peer.character && peer.character.portraitUrl ? peer.character : null;
+    const want = peer.character && (peer.character.portraitUrl || peer.character.loopUrl) ? peer.character : null;
+    rig.characterName = want?.name ?? "";
     const wantId = want?.id ?? null;
     /* A house guard pick arrives as a character ref too — but it
      * stands as the full-body guard figure, never the easel. */
@@ -2259,28 +2384,85 @@ export class KingsHallScene {
       return;
     }
     rig.guardWanted = null;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-      void locatePortraitMouth(img).then((mouth) => {
+    if (want.portraitUrl) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
         if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-        try {
-          const built = buildPortraitFigure(img, mouth);
-          rig.defaultFigure = false;
-          rig.guardVariant = null;
-          this.swapFigure(rig, built.body, built.portrait, wantId);
-        } catch {
-          /* canvas unavailable — the standing figure keeps standing */
-        }
-      });
+        void locatePortraitMouth(img).then((mouth) => {
+          if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+          try {
+            const built = buildPortraitFigure(img, mouth);
+            rig.defaultFigure = false;
+            rig.guardVariant = null;
+            this.swapFigure(rig, built.body, built.portrait, wantId);
+            // Living loop: the ref's loopUrl — resolved server-side
+            // from the character's own vault row, keyed by its
+            // identity end to end (never by name).
+            this.attachLoopFeed(rig, loopForCharacterRef(want));
+          } catch {
+            /* canvas unavailable — the standing figure keeps standing */
+          }
+        });
+      };
+      img.onerror = () => {
+        /* portrait unreachable (or not CORS-clean for WebGL): the
+           standing figure keeps standing; no retry until the pick
+           changes */
+      };
+      img.src = want.portraitUrl;
+      return;
+    }
+    /* Video-only character: its vault row carries a living loop
+       but no portrait. The figure's still is the loop's own first
+       frame — snapshot it once the video can play, stand the
+       figure on it, and let the loop feed take over from there.
+       Any failure along the way leaves the standing figure
+       standing — the same contract as a failed portrait load. */
+    const loopUrl = want.loopUrl;
+    if (!loopUrl) return;
+    const probe = document.createElement("video");
+    probe.muted = true;
+    probe.playsInline = true;
+    probe.preload = "auto";
+    probe.crossOrigin = "anonymous";
+    probe.onerror = () => {
+      /* loop unreachable — the standing figure keeps standing */
     };
-    img.onerror = () => {
-      /* portrait unreachable (or not CORS-clean for WebGL): the
-         standing figure keeps standing; no retry until the pick
-         changes */
+    probe.oncanplay = () => {
+      if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+      try {
+        const snap = document.createElement("canvas");
+        snap.width = probe.videoWidth;
+        snap.height = probe.videoHeight;
+        const sctx = snap.width > 0 ? snap.getContext("2d") : null;
+        if (!sctx) return;
+        sctx.drawImage(probe, 0, 0);
+        const stillUrl = snap.toDataURL("image/png");
+        probe.removeAttribute("src");
+        probe.load();
+        const img = new Image();
+        img.onload = () => {
+          if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+          void locatePortraitMouth(img).then((mouth) => {
+            if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+            try {
+              const built = buildPortraitFigure(img, mouth);
+              rig.defaultFigure = false;
+              rig.guardVariant = null;
+              this.swapFigure(rig, built.body, built.portrait, wantId);
+              this.attachLoopFeed(rig, loopForCharacterRef(want));
+            } catch {
+              /* canvas unavailable — the standing figure keeps standing */
+            }
+          });
+        };
+        img.src = stillUrl;
+      } catch {
+        /* a tainted or torn-down probe — the standing figure stands */
+      }
     };
-    img.src = want.portraitUrl;
+    probe.src = loopUrl;
   }
 
   /** Stand the presence as a palace guard: the explicit pick when
@@ -2310,6 +2492,7 @@ export class KingsHallScene {
         rig.defaultFigure = true;
         rig.guardVariant = variant;
         this.swapFigure(rig, built.body, built.portrait, null, DEFAULT_SPRITE_Y);
+        this.attachLoopFeed(rig, loopForGuardVariant(variant));
         return;
       } catch {
         /* canvas unavailable — fall through to the capsule */
@@ -2364,6 +2547,9 @@ export class KingsHallScene {
     characterId: string | null,
     spriteY?: number,
   ): void {
+    // The old figure's loop dies with it — every swap path (guard,
+    // portrait, capsule) funnels through here.
+    this.teardownLoopFeed(rig);
     rig.group.remove(rig.body);
     if (rig.portrait) rig.portrait.texture.dispose();
     disposeObjectTree(rig.body);
@@ -2394,6 +2580,7 @@ export class KingsHallScene {
     const rig = this.avatars.get(peerId);
     if (!rig) return;
     this.avatars.delete(peerId);
+    this.teardownLoopFeed(rig);
     this.scene.remove(rig.group);
     if (rig.portrait) rig.portrait.texture.dispose();
     disposeObjectTree(rig.group);
@@ -2484,6 +2671,7 @@ export class KingsHallScene {
   setSelfFigure(peer: WorldPeer | null): void {
     if (!peer) {
       if (this.selfRig) {
+        this.teardownLoopFeed(this.selfRig);
         this.scene.remove(this.selfRig.group);
         if (this.selfRig.portrait) this.selfRig.portrait.texture.dispose();
         disposeObjectTree(this.selfRig.group);
@@ -2679,6 +2867,11 @@ export class KingsHallScene {
     // composed with my walk rig's body physics.
     if (this.selfRig) this.applyActionPose(this.selfRig, dt, nowMs, this.selfMover);
 
+    // Living-loop budget pass: decide which feeds may decode
+    // this tick (nearest visible, capped) before the figure
+    // updates below drive their crossfades.
+    this.serviceLoopFeeds();
+
     // Character figures: the portrait panel billboards toward the
     // viewer (a portrait is a face — it should meet your eye, not the
     // walker's heading), and its lips track the speaker's voice.
@@ -2745,16 +2938,256 @@ export class KingsHallScene {
       rig.body.rotation.z += Math.sin(nowMs / 1500 + rig.swayPhase) * 0.018;
     }
 
+    // A loop feed that failed mid-life steps aside for good: the
+    // canvas goes back to the still alone, once, and stays there.
+    const portrait = rig.portrait;
+    if (rig.loopFeed?.failed && portrait.loopVideo) {
+      portrait.loopVideo = null;
+      portrait.loopMask = null;
+      portrait.loopCrop = null;
+      portrait.loopAlpha = 0;
+      drawPortraitCanvas(portrait, rig.speechShown);
+    }
+
+    // Living loop: drive the still⇄loop crossfade. The blend aims
+    // at 1 only while the budget pass keeps this feed live, its
+    // video can play, and — for a character whose landmarked mouth
+    // would drift on its loop (the mouth-drift rule in
+    // figure-loop.ts) — its figure is silent: speech suspends the
+    // loop at once, and ~300ms of quiet brings it back. The mouth
+    // overlay keeps drawing over both layers in the same pass.
+    const feed = rig.loopFeed && !rig.loopFeed.failed ? rig.loopFeed : null;
+    let loopWantsDraw = false;
+    if (feed) {
+      const speaking = rig.speechTarget > LOOP_SPEECH_LEVEL;
+      const suspended = loopSuspendedForSpeech(feed.def, speaking);
+      if (suspended) feed.silentSinceMs = 0;
+      else if (feed.silentSinceMs === 0) feed.silentSinceMs = nowMs;
+      const resting =
+        !suspended && feed.silentSinceMs !== 0 && nowMs - feed.silentSinceMs >= LOOP_SPEECH_RESUME_MS;
+      const target = feed.ready && feed.active && resting ? 1 : 0;
+      if (feed.alpha !== target) {
+        const dir = target > feed.alpha ? 1 : -1;
+        feed.alpha = clamp(feed.alpha + dir * (dt / LOOP_FADE_SEC), 0, 1);
+        loopWantsDraw = true;
+      } else if (
+        target === 1 &&
+        feed.video.readyState >= 2 &&
+        feed.video.currentTime !== feed.lastVideoTime
+      ) {
+        feed.lastVideoTime = feed.video.currentTime;
+        loopWantsDraw = true;
+      }
+      portrait.loopAlpha = feed.alpha;
+    }
+
     const opennessDiff = rig.speechTarget - rig.speechShown;
-    if (Math.abs(opennessDiff) > 0.002) {
+    const mouthMoving = Math.abs(opennessDiff) > 0.002;
+    if (mouthMoving) {
       rig.speechShown += opennessDiff * Math.min(1, dt * 20);
       if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
-      // ~15 fps texture updates while the mouth is actually moving.
-      if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
-        rig.lastMouthDrawAt = nowMs;
-        drawPortraitCanvas(rig.portrait, rig.speechShown);
+    }
+    // ~15 fps texture updates while the mouth is actually moving;
+    // ~30 fps while the loop paints and the mouth is still.
+    const drawDue = mouthMoving
+      ? nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget
+      : loopWantsDraw && nowMs - rig.lastMouthDrawAt >= LOOP_REDRAW_MS;
+    if ((mouthMoving || loopWantsDraw) && drawDue) {
+      rig.lastMouthDrawAt = nowMs;
+      drawPortraitCanvas(portrait, rig.speechShown);
+    }
+  }
+
+  /* ── Living loops (figure-loop.ts) ─────────────────────────────
+   * A loop feeds FRAMES into the figure's existing portrait
+   * canvas; the still stays first paint and permanent fallback,
+   * the mouth overlay keeps drawing over both, and the body —
+   * gait, lean, poses, billboard — is untouched: the loop
+   * replaces the texture's pixels, never the figure. */
+
+  /** Attach the character's loop to a freshly swapped figure.
+   *  Cheap to call on every swap: a rig already feeding the same
+   *  loop keeps its feed. A masked loop whose still-alpha mask
+   *  cannot be built fails ON PURPOSE — an unmasked guard loop
+   *  would show its studio backdrop, so the still stands. */
+  private attachLoopFeed(rig: AvatarRig, def: FigureLoopDef | null): void {
+    if (!def || !rig.portrait) return;
+    if (rig.loopFeed?.def.key === def.key && !rig.loopFeed.failed) return;
+    this.teardownLoopFeed(rig);
+    const portrait = rig.portrait;
+    let mask: HTMLCanvasElement | null = null;
+    if (def.masked) {
+      mask = this.buildLoopMask(portrait);
+      if (!mask) return; // no feed at all — the still stands
+    }
+    const video = document.createElement("video");
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.crossOrigin = "anonymous";
+    // No poster attribute: the element is never displayed — the
+    // figure's still IS the first paint; the registry's poster
+    // path ships as an asset for surfaces that show one.
+    video.src = loopVideoUrl(import.meta.env.BASE_URL, def);
+    const feed: FigureLoopFeed = {
+      id: this.nextLoopFeedId++,
+      def,
+      video,
+      ready: false,
+      failed: false,
+      active: false,
+      alpha: 0,
+      mask,
+      lastVideoTime: -1,
+      playRejections: 0,
+      silentSinceMs: 0,
+    };
+    rig.loopFeed = feed;
+    video.addEventListener("canplay", () => {
+      if (rig.loopFeed !== feed) return;
+      feed.ready = true;
+      portrait.loopVideo = video;
+      portrait.loopCrop = def.sourceCrop;
+      portrait.loopMask = feed.mask;
+    });
+    video.addEventListener(
+      "error",
+      () => {
+        feed.failed = true;
+      },
+      { once: true },
+    );
+    this.hookLoopVisibility();
+  }
+
+  /** Stop and release a figure's loop. Called on every figure
+   *  swap (from swapFigure), on peer removal, and when the self
+   *  figure goes away — a video element must never outlive its
+   *  figure or keep decoding for nobody. */
+  private teardownLoopFeed(rig: AvatarRig): void {
+    const feed = rig.loopFeed;
+    if (!feed) return;
+    rig.loopFeed = null;
+    try {
+      feed.video.pause();
+    } catch {
+      /* never played — nothing to stop */
+    }
+    feed.video.removeAttribute("src");
+    try {
+      feed.video.load();
+    } catch {
+      /* release is best-effort; the element is garbage either way */
+    }
+    if (rig.portrait) {
+      rig.portrait.loopVideo = null;
+      rig.portrait.loopMask = null;
+      rig.portrait.loopCrop = null;
+      rig.portrait.loopAlpha = 0;
+    }
+  }
+
+  /** Build the guard mask from the figure's own still: draw the
+   *  still exactly as the portrait canvas does, keep only its
+   *  alpha (levels remapped per figure-loop.ts), then inset it a
+   *  couple of px so the mask edge tucks inside the video
+   *  figure's own edge. Null on any failure — the caller fails
+   *  the feed rather than play unmasked video. */
+  private buildLoopMask(portrait: PortraitState): HTMLCanvasElement | null {
+    try {
+      const { canvas, image, cover } = portrait;
+      const mask = document.createElement("canvas");
+      mask.width = canvas.width;
+      mask.height = canvas.height;
+      const mctx = mask.getContext("2d", { willReadFrequently: true });
+      if (!mctx) return null;
+      mctx.drawImage(image, cover.offsetX, cover.offsetY, cover.drawnW, cover.drawnH);
+      const data = mctx.getImageData(0, 0, mask.width, mask.height);
+      const px = data.data;
+      for (let i = 3; i < px.length; i += 4) px[i] = remapMaskAlpha(px[i]!);
+      mctx.putImageData(data, 0, 0);
+      const inset = document.createElement("canvas");
+      inset.width = mask.width;
+      inset.height = mask.height;
+      const ictx = inset.getContext("2d");
+      if (!ictx) return null;
+      const s = MASK_INSET_PX;
+      ictx.drawImage(mask, s, s, mask.width - s * 2, mask.height - s * 2);
+      return inset;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The per-tick loop budget: at most MAX_LIVE_LOOPS feeds play
+   *  (figure-loop.ts), nearest visible figures first; everyone
+   *  else's video pauses and their figure crossfades back to its
+   *  still in updateFigure. Also self-heals playback after the
+   *  tab was hidden (the visibility hook pauses everything). */
+  private serviceLoopFeeds(): void {
+    const entries: { rig: AvatarRig; feed: FigureLoopFeed }[] = [];
+    const collect = (rig: AvatarRig | null) => {
+      if (rig?.loopFeed && !rig.loopFeed.failed && rig.portrait) {
+        entries.push({ rig, feed: rig.loopFeed });
+      }
+    };
+    for (const rig of this.avatars.values()) collect(rig);
+    collect(this.selfRig);
+    if (!entries.length) return;
+    this.camera.getWorldPosition(SCRATCH_VEC);
+    if (!this.loopFrustum) this.loopFrustum = new THREE.Frustum();
+    const frustum = this.loopFrustum;
+    frustum.setFromProjectionMatrix(
+      LOOP_SCRATCH_MAT.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse),
+    );
+    const decorated = entries.map(({ rig, feed }) => {
+      const p = rig.group.position;
+      LOOP_SCRATCH_SPHERE.center.set(p.x, 1, p.z);
+      const inView =
+        rig === this.selfRig ? rig.group.visible : rig.group.visible && frustum.intersectsSphere(LOOP_SCRATCH_SPHERE);
+      return {
+        key: `f${feed.id}`,
+        distance: Math.hypot(p.x - SCRATCH_VEC.x, p.z - SCRATCH_VEC.z),
+        visible: inView,
+        feed,
+      };
+    });
+    const live = selectLiveLoops(decorated);
+    for (const d of decorated) {
+      const shouldLive = live.has(d.key) && d.feed.ready;
+      d.feed.active = shouldLive;
+      const v = d.feed.video;
+      if (shouldLive && v.paused) {
+        v.play().catch(() => {
+          d.feed.playRejections += 1;
+          if (d.feed.playRejections >= 3) d.feed.failed = true;
+        });
+      } else if (!shouldLive && !v.paused) {
+        v.pause();
       }
     }
+  }
+
+  /** Pause every loop while the tab is hidden — a backgrounded
+   *  hall shouldn't keep decoding video for nobody. Registered
+   *  once, on the first feed; the budget pass resumes the chosen
+   *  feeds when the hall is visible again. */
+  private hookLoopVisibility(): void {
+    if (this.loopVisibilityHooked) return;
+    this.loopVisibilityHooked = true;
+    document.addEventListener("visibilitychange", () => {
+      if (this.disposed || !document.hidden) return;
+      const pause = (rig: AvatarRig | null) => {
+        try {
+          rig?.loopFeed?.video.pause();
+        } catch {
+          /* not playing */
+        }
+      };
+      for (const rig of this.avatars.values()) pause(rig);
+      pause(this.selfRig);
+    });
   }
 
   /** The flat-screen camera. First person: at the rig's eye, pitch

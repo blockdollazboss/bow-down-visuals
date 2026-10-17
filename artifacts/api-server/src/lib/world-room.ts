@@ -167,11 +167,16 @@ export interface WorldIdentity {
 /** A Creative Vault character a member walks in as. Resolved
  *  server-side from the vault row the member owns — the client only
  *  ever sends the character's id, never a name or image URL, so a
- *  modified client can't dress itself in someone else's character. */
+ *  modified client can't dress itself in someone else's character.
+ *  A character stands on its portrait (reference image) or, when
+ *  the row carries a living asset instead, on its loop
+ *  (reference video) — at least one of the two is always present;
+ *  both ride the payload when the row has both. */
 export interface WorldCharacterRef {
   id: string;
   name: string;
-  portraitUrl: string;
+  portraitUrl: string | null;
+  loopUrl: string | null;
 }
 
 /** The house palace guards — the World's approved default
@@ -189,17 +194,20 @@ export const HOUSE_CHARACTER_REFS: Record<string, WorldCharacterRef> = {
     id: HOUSE_GUARD_ID,
     name: "Palace Guard",
     portraitUrl: "/world/default-character.png",
+    loopUrl: null,
   },
   [HOUSE_GUARD_FEMALE_ID]: {
     id: HOUSE_GUARD_FEMALE_ID,
     name: "Palace Guard — Female",
     portraitUrl: "/world/default-character-female.png",
+    loopUrl: null,
   },
 };
 
 /** Injected by the route layer (which owns the DB): verify the
- *  character belongs to this user (or their active team) and carry a
- *  portrait; return the ref to broadcast, or null to refuse the pick. */
+ *  character belongs to this user (or their active team) and carry
+ *  a portrait or a living loop; return the ref to broadcast, or
+ *  null to refuse the pick. */
 export type WorldCharacterResolver = (
   userId: string,
   characterId: string,
