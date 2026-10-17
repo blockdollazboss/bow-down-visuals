@@ -75,7 +75,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import partyRouter, { partyRooms, recordMatchResults } from "../party";
 import { PARTY_QUESTIONS, validateQuestionBank, questionsForCategory } from "../../lib/party-questions";
-import { pointsForAnswer, placementsFor, sortStandings } from "../../lib/party-rooms";
+import { pointsForAnswer, placementsFor, sortStandings, PartyRooms } from "../../lib/party-rooms";
+import { RoomHub } from "../../lib/live-ws";
 
 let base = "";
 let server: ReturnType<express.Express["listen"]>;
@@ -241,6 +242,150 @@ describe("party question bank", () => {
     for (const word of banned) {
       expect(haystack).not.toContain(word);
     }
+  });
+});
+
+/* ─── Recent-match no-repeat selection ────────────────────────────────
+   The bank grew to 153, and the room engine additionally refuses to
+   re-deal what a seated player saw in their most recent match: a
+   second match at the same table must ask entirely fresh questions. */
+
+function mulberry32(seed: number) {
+  let a = seed;
+  return () => {
+    a += 0x6d2b79f5;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+interface FakeSocket {
+  readyState: number;
+  frames: Record<string, unknown>[];
+  send: (data: string) => void;
+  close: () => void;
+}
+
+function fakeSocket(): FakeSocket {
+  const s: FakeSocket = {
+    readyState: 1,
+    frames: [],
+    send(data: string) {
+      s.frames.push(JSON.parse(data) as Record<string, unknown>);
+    },
+    close() {},
+  };
+  return s;
+}
+
+function makeRooms(seed: number) {
+  const timers: { fn: () => void; cleared: boolean }[] = [];
+  const rooms = new PartyRooms(new RoomHub(), {
+    rng: mulberry32(seed),
+    questionMs: 1_000,
+    pickMs: 300,
+    schedule: (fn) => {
+      const t = { fn, cleared: false };
+      timers.push(t);
+      return t;
+    },
+    cancel: (h) => {
+      (h as { cleared: boolean }).cleared = true;
+    },
+  });
+  return { rooms, timers };
+}
+
+const idFor = (userId: string) => ({
+  userId,
+  displayName: userId === ME ? "Host" : "Guest",
+  avatarUrl: null,
+  profileSlug: null,
+});
+
+function questionsAsked(sock: FakeSocket): string[] {
+  return sock.frames
+    .filter((f) => f["type"] === "question")
+    .map((f) => {
+      const q = PARTY_QUESTIONS.find((x) => x.prompt === f["prompt"]);
+      return q ? q.id : `unknown:${String(f["prompt"])}`;
+    });
+}
+
+function lastFrame(sock: FakeSocket, type: string): Record<string, unknown> | undefined {
+  return [...sock.frames].reverse().find((f) => f["type"] === type);
+}
+
+/** Play a full 5-question trivia match between ME (host) and OTHER. */
+function playTriviaMatch(rooms: PartyRooms): string[] {
+  const room = rooms.createRoom(idFor(ME), { game: "trivia" });
+  const a = fakeSocket();
+  const b = fakeSocket();
+  rooms.attach(a as never, room.code, idFor(ME));
+  rooms.attach(b as never, room.code, idFor(OTHER));
+  let now = 1_000_000;
+  rooms.handleFrame(a as never, JSON.stringify({ type: "start", rounds: 5 }), now);
+  for (let i = 0; i < 5; i++) {
+    now += 100;
+    rooms.handleFrame(a as never, JSON.stringify({ type: "answer", choice: 0 }), now);
+    rooms.handleFrame(b as never, JSON.stringify({ type: "answer", choice: 1 }), now);
+    now += 100;
+    rooms.handleFrame(a as never, JSON.stringify({ type: "next" }), now);
+  }
+  expect(lastFrame(a, "podium")).toBeDefined();
+  return questionsAsked(a);
+}
+
+describe("party no-repeat selection", () => {
+  it("a second trivia match at the same table asks none of the first match's questions", () => {
+    const { rooms } = makeRooms(7);
+    const first = playTriviaMatch(rooms);
+    expect(first).toHaveLength(5);
+    const second = playTriviaMatch(rooms);
+    expect(second).toHaveLength(5);
+    expect(second.filter((id) => first.includes(id))).toEqual([]);
+  });
+
+  it("duel questions avoid the previous match's questions too", () => {
+    const { rooms } = makeRooms(11);
+    const playDuel = (): string[] => {
+      const room = rooms.createRoom(idFor(ME), { game: "duel" });
+      const a = fakeSocket();
+      const b = fakeSocket();
+      rooms.attach(a as never, room.code, idFor(ME));
+      rooms.attach(b as never, room.code, idFor(OTHER));
+      const peerOf = (sock: FakeSocket) =>
+        (lastFrame(sock, "welcome")?.["you"] as { peerId: string }).peerId;
+      const aPeer = peerOf(a);
+      let now = 5_000_000;
+      rooms.handleFrame(a as never, JSON.stringify({ type: "start" }), now);
+      for (let round = 0; round < 5; round++) {
+        const pick = lastFrame(a, "pick.begin");
+        if (!pick) break;
+        const pickerSock = pick["pickerPeerId"] === aPeer ? a : b;
+        now += 50;
+        rooms.handleFrame(pickerSock as never, JSON.stringify({ type: "pick", category: "music" }), now);
+        const qFrame = lastFrame(a, "question");
+        const q = PARTY_QUESTIONS.find((x) => x.prompt === qFrame?.["prompt"]);
+        if (!q) break;
+        // Host answers correctly at once; the guest answers wrong — 3
+        // rounds end the duel, the loop's 5 is only a safety bound.
+        now += 10;
+        rooms.handleFrame(a as never, JSON.stringify({ type: "answer", choice: q.answer }), now);
+        rooms.handleFrame(b as never, JSON.stringify({ type: "answer", choice: (q.answer + 1) % 4 }), now);
+        now += 50;
+        if (lastFrame(a, "podium")) break;
+        rooms.handleFrame(a as never, JSON.stringify({ type: "next" }), now);
+      }
+      expect(lastFrame(a, "podium")).toBeDefined();
+      return questionsAsked(a);
+    };
+    const first = playDuel();
+    expect(first.length).toBeGreaterThanOrEqual(3);
+    const second = playDuel();
+    expect(second.filter((id) => first.includes(id))).toEqual([]);
   });
 });
 
