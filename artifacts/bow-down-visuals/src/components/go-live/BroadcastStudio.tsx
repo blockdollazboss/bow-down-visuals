@@ -46,6 +46,8 @@ import {
 } from "@/lib/stream-kit/transport";
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
 import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
+import { refreshStageVaultAvatars } from "@/lib/stream-kit/avatar-vault";
+import { fetchVaultCharacters } from "@/lib/world/characters";
 import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
 import type { SceneSource } from "@/lib/stream-kit/scenes";
 import ScenesPanel from "./studio/ScenesPanel";
@@ -365,6 +367,14 @@ export default function BroadcastStudio() {
       mixerRef.current?.getAnalyser("mic") ?? changerRef.current?.getAnalyser() ?? null;
     stage.onChange = bump;
     stageRef.current = stage;
+    /* Vault-linked avatars re-resolve at studio load: a portrait
+       edited in the Creative Vault since a scene was built reaches
+       the stream without re-picking the character. */
+    void fetchVaultCharacters(getAccessToken)
+      .then((characters) => {
+        if (characters.length) refreshStageVaultAvatars(stage, characters);
+      })
+      .catch(() => undefined);
     const preview = new PreviewStage(previewCanvas, stage);
     previewStageRef.current = preview;
     stage.start();
