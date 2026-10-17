@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
-  Maximize, Minimize, Gamepad2,
+  Maximize, Minimize, Gamepad2, AudioWaveform,
 } from "lucide-react";
 import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,6 +44,15 @@ import {
   type VoiceToggleAction,
   type VoiceToggleState,
 } from "@/lib/world/voice-toggle";
+import {
+  CharacterVoiceShaper,
+  loadCharacterVoiceEnabled,
+  storeCharacterVoiceEnabled,
+  resolveCharacterVoiceProfile,
+  shapingParamsFor,
+  NEUTRAL_VOICE_PROFILE,
+  type CharacterVoiceProfile,
+} from "@/lib/world/character-voice";
 import type { KingsHallScene, HallScreenSource } from "@/lib/world/hall-scene";
 import { normalizeHallTheme, type HallTheme } from "@/lib/world/hall-looks";
 import {
@@ -112,6 +121,7 @@ export default function WorldPage() {
   const sceneRef = useRef<KingsHallScene | null>(null);
   const meshRef = useRef<VoiceMesh | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const shaperRef = useRef<CharacterVoiceShaper | null>(null);
   const localTapRef = useRef<{ getLevel: () => number; dispose: () => void } | null>(null);
   const spawnedRef = useRef(false);
 
@@ -132,6 +142,18 @@ export default function WorldPage() {
   );
   const voiceSwitchRef = useRef(voiceSwitch);
   voiceSwitchRef.current = voiceSwitch;
+  /* Character voice (owner's order): you talk AS your character, so
+     you sound like them — a live shaping profile on your own mic,
+     resolved from the character you stand as. The switch is the
+     owner's standing law made visible: default on, one tap back to
+     your own voice, remembered on this device. The graph fails
+     open — a shaping error can only ever hand the mesh your raw
+     mic, never silence (lib/world/character-voice). */
+  const [charVoiceOn, setCharVoiceOn] = useState<boolean>(() => loadCharacterVoiceEnabled());
+  const charVoiceRef = useRef(charVoiceOn);
+  charVoiceRef.current = charVoiceOn;
+  const [voiceProfile, setVoiceProfile] = useState<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
+  const voiceProfileRef = useRef<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
   const [voiceBusy, setVoiceBusy] = useState(false);
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
@@ -327,9 +349,42 @@ export default function WorldPage() {
      tear the mesh down; deafen = mute the track, mesh stays up),
      the announcements are presence frames, the gains are the mesh's
      policy, and the preference is device memory. */
+  /* Character voice: whose voice the current presence speaks with,
+     resolved from the character it stands as — the same resolution
+     the scene dresses the figure by (a guard pick, the dealt guard,
+     a vault character). Pure; the shaper diffs its own parameters,
+     so syncing costs nothing when nothing changed. */
+  const currentVoiceProfile = (): CharacterVoiceProfile => {
+    const self = clientRef.current?.self;
+    if (!self) return NEUTRAL_VOICE_PROFILE;
+    return resolveCharacterVoiceProfile({
+      characterId: self.character?.id ?? null,
+      presenceKey: self.profileSlug ?? self.peerId,
+    });
+  };
+
+  const syncCharVoice = () => {
+    const profile = currentVoiceProfile();
+    if (profile.id !== voiceProfileRef.current.id) {
+      voiceProfileRef.current = profile;
+      setVoiceProfile(profile);
+    }
+    shaperRef.current?.apply(shapingParamsFor(profile, charVoiceRef.current));
+  };
+
+  const toggleCharVoice = () => {
+    const next = !charVoiceRef.current;
+    charVoiceRef.current = next;
+    setCharVoiceOn(next);
+    storeCharacterVoiceEnabled(next);
+    shaperRef.current?.apply(shapingParamsFor(voiceProfileRef.current, next));
+  };
+
   const teardownVoiceSession = () => {
     meshRef.current?.leave();
     meshRef.current = null;
+    shaperRef.current?.dispose();
+    shaperRef.current = null;
     localTapRef.current?.dispose();
     localTapRef.current = null;
     micStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -527,6 +582,9 @@ export default function WorldPage() {
       peerSync = setInterval(() => {
         for (const peer of client.peers.values()) scene.upsertPeer(peer);
         if (client.self && client.status === "inside") scene.setSelfFigure(client.self);
+        /* Character voice follows the same presence: a character
+           pick landing mid-session re-voices the live mic. */
+        if (client.self && client.status === "inside") syncCharVoice();
         if (!cancelled) setPeopleCount(client.status === "inside" ? client.peers.size + 1 : 0);
         /* The host panel's roster, refreshed only when it actually
            changes (the signature keeps this off the render path). */
@@ -620,6 +678,8 @@ export default function WorldPage() {
       if (lipTick) clearInterval(lipTick);
       meshRef.current?.leave();
       meshRef.current = null;
+      shaperRef.current?.dispose();
+      shaperRef.current = null;
       localTapRef.current?.dispose();
       localTapRef.current = null;
       micStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -645,13 +705,24 @@ export default function WorldPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = stream;
+      /* Character voice inserts HERE: the shaper wraps the raw mic
+         and the mesh sends its output stream instead. create()
+         fails open — null (or any error) means the mesh gets the
+         raw stream and the hall hears your own voice, never
+         silence. The lips tap below still reads the RAW stream:
+         your real level, pre-shaping. */
+      const shaper = await CharacterVoiceShaper.create(
+        stream,
+        shapingParamsFor(currentVoiceProfile(), charVoiceRef.current),
+      ).catch(() => null);
+      shaperRef.current = shaper;
       const mesh = new VoiceMesh({
         sendSignal: (to, data) => client.sendSignal(to, data),
         createPeerConnection: createBrowserPeerConnection,
         createSink: createBrowserVoiceSink,
       });
       meshRef.current = mesh;
-      mesh.start(stream);
+      mesh.start(shaper?.outputStream ?? stream);
       /* A fresh mesh hears with the CURRENT mode's policy — joining
          in Lobby hears the hall, joining deafened hears nobody (and
          the machine's deafen-mic mutes the mic on the join). */
@@ -1243,6 +1314,36 @@ export default function WorldPage() {
                     );
                   })}
                 </div>
+                {/* Character voice: your mic, shaped live into the
+                    voice of the character you stand as. Default on;
+                    off is one tap and remembered — speaking as
+                    yourself is always available. The shaping fails
+                    open to your raw mic, never to silence. */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={charVoiceOn}
+                  aria-label="Character voice"
+                  onClick={toggleCharVoice}
+                  data-testid="world-character-voice-switch"
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    charVoiceOn
+                      ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
+                      : isLight
+                        ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36] hover:text-[#2a1e07]"
+                        : "border-white/20 bg-white/5 text-white/60 hover:text-white"
+                  }`}
+                >
+                  <AudioWaveform className="h-4 w-4" />
+                  Character voice
+                </button>
+                <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                  {charVoiceOn
+                    ? voiceProfile.id === "neutral"
+                      ? "This character has no set voice yet — you sound like yourself."
+                      : `You sound like ${voiceProfile.label}.`
+                    : "Character voice is off — you sound like yourself."}
+                </span>
                 {voiceSwitch.mode === "off" && (
                   <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                     You can't hear or be heard here — your name plate shows it. Text still works.
