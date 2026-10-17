@@ -333,8 +333,9 @@ async function firePlatform(
        cover art) fire through the image publishers — never through
        the video ones. TikTok's posting API here is video-only, so an
        image post fails that one platform with a clear reason while
-       Instagram/Facebook still deliver (partial success settles as
-       posted, per the money rules above). */
+       Instagram/Facebook still deliver (a permanent failure like
+       this one still rides the generic retry path and settles as
+       posted on the terminal attempt — see the settle rules below). */
     const isImage = post.media_type === "image";
 
     if (platform === "instagram") {

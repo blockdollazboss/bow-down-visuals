@@ -245,7 +245,7 @@ describe("scheduler-jobs", () => {
     expect(n).toBe(0);
   });
 
-  it("fires an image post through the image publishers — TikTok fails with the reason, the rest still deliver", async () => {
+  it("fires an image post through the image publishers — on the terminal attempt TikTok fails with the reason, the rest still deliver and the post settles posted", async () => {
     const calls = { igImage: 0, fbPhoto: 0, igVideo: 0, fbVideo: 0, tt: 0 };
     const { deps, updates } = makeDeps({
       publishers: {
@@ -268,6 +268,10 @@ describe("scheduler-jobs", () => {
     const post = makePost({
       media_url: "https://cdn.example.com/cover.jpg",
       media_type: "image",
+      /* Terminal attempt — earlier attempts retry failed platforms
+         (the house settle rule); the per-platform results and the
+         partial-success settle are what this test pins down. */
+      attempts: SCHEDULER_MAX_ATTEMPTS,
       caption: "Golden Hour drops Friday — pre-save it now: https://bowdownvisuals.com/presave/golden-hour",
       platforms: ["instagram", "tiktok", "facebook"] as SchedulerPlatform[],
       account_ids: { instagram: "acct-ig", tiktok: "acct-tt", facebook: "acct-fb" },
