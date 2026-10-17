@@ -205,7 +205,7 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
   );
 }
 
-/* CrownedLogo — bare Shark King mark, no box. Levitates with a breathing
+/* CrownedLogo — the bare BDV roundel mark, no box. Levitates with a breathing
    gold aura and orbiting light ring. The aura brightens and the mark swells
    subtly as your cursor approaches — alive, not gimmicky. */
 function CrownedLogo({ isLight }: { isLight: boolean }) {
@@ -252,9 +252,9 @@ function CrownedLogo({ isLight }: { isLight: boolean }) {
         <div aria-hidden className="absolute inset-0 -m-4 animate-[spin_12s_linear_infinite]">
           <div className="absolute inset-0 rounded-full border border-transparent border-t-primary/70 border-r-primary/30" />
         </div>
-        {/* Bare mark — no box, no container. Light theme gets the ivory-ribbon logo. */}
+        {/* Bare mark — no box, no container. The BDV roundel: bronze on light theme, gold on dark. */}
         <img
-          src={isLight ? "/logo-light.webp" : "/logo-static.webp"}
+          src={isLight ? "/logo-roundel-bronze.svg" : "/logo-roundel.svg"}
           alt="Bow Down Visuals"
           className="relative h-28 w-28 object-contain"
           style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}

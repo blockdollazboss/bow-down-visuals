@@ -84,7 +84,7 @@ export default function Events() {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e8c86a]">Don't miss the moment</p>
-            <h1 className="mt-2 text-4xl font-bold">Events <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" aria-hidden="true" draggable={false} className="inline-block h-[1em] w-[1em] rounded-[0.22em] object-cover align-[-0.13em]" /></h1>
+            <h1 className="mt-2 text-4xl font-bold">Events <img src={`${import.meta.env.BASE_URL}king-shark-portrait.png`} alt="" aria-hidden="true" draggable={false} className="inline-block h-[1em] w-[1em] rounded-[0.22em] object-cover align-[-0.13em]" /></h1>
             <p className="mt-2 max-w-xl text-white/60">
               Streams, drops, premieres. RSVP free — show up loud.
             </p>

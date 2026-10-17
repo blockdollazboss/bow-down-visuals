@@ -14,7 +14,7 @@ function PolicyNav() {
     <header className={`${isLight ? "sticky top-0 z-40 border-b border-[#C9A84C]/20 bg-[#FCF7EA]/90 backdrop-blur-xl" : "sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl"}`}>
       <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between">
         <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg">
-          <img src={`${import.meta.env.BASE_URL}logo-static.webp`} alt="Bow Down Visuals" className="h-10 w-auto" />
+          <img src={`${import.meta.env.BASE_URL}${isLight ? "logo-roundel-bronze.svg" : "logo-roundel.svg"}`} alt="Bow Down Visuals" className="h-10 w-auto" />
         </Link>
         <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">{t("privacy.contactSupport")}</Link>
       </div>
