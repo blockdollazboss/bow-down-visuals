@@ -90,6 +90,11 @@ export const shopEventsTable = pgTable("shop_events", {
   platform_fee_cents: integer("platform_fee_cents").notNull().default(0),
   /** Buyer email for sale events (order follow-up). */
   buyer_email: text("buyer_email"),
+  /** Connect settlement (migration 0142, DE-14): the creator_payouts row
+      that paid this sale out. Null = not yet settled. A linked payout in
+      'failed' status does not settle (see pendingPayoutCents). */
+  settled_payout_id: uuid("settled_payout_id"),
+  settled_at: timestamp("settled_at", { withTimezone: true }),
   /** Hashed client IP for view dedup — never a raw IP. */
   ip_hash: text("ip_hash"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

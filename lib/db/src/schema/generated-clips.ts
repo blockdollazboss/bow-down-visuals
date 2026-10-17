@@ -11,6 +11,9 @@ export const generatedClipsTable = pgTable("generated_clips", {
   prompt: text("prompt"),
   final_prompt: text("final_prompt"),
   runway_job_id: text("runway_job_id"),
+  /** The Creative Vault character this clip was made as (migration
+      0142, G8). Nullable: no character pick = null. */
+  artist_vault_id: uuid("artist_vault_id"),
   video_url: text("video_url"),
   thumbnail_url: text("thumbnail_url"),
   status: text("status").notNull().default("completed"),

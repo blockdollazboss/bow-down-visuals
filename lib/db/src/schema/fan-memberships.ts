@@ -68,6 +68,11 @@ export const fanMembersTable = pgTable(
        paid checkout, otherwise the membership reads as expired. */
     trial_ends_at: timestamp("trial_ends_at", { withTimezone: true }),
     stripe_session_id: text("stripe_session_id"),
+    /* Connect settlement (migration 0142, DE-14): the creator_payouts row
+       that paid this membership out. Null = not yet settled. A linked
+       payout in 'failed' status does not settle (see pendingPayoutCents). */
+    settled_payout_id: uuid("settled_payout_id"),
+    settled_at: timestamp("settled_at", { withTimezone: true }),
     /* Gifted memberships: another user paid for this fan's seat. */
     is_gift: boolean("is_gift").notNull().default(false),
     gifted_by_user_id: uuid("gifted_by_user_id"),
