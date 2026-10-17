@@ -267,3 +267,109 @@ describe("the stage stays in the hall", () => {
     expect(hall?.live).toBe(true);
   });
 });
+
+const TREASURY = "world:treasury";
+const ROYAL_COURT = "world:royal-court";
+const BRANDING = "world:branding-atelier";
+
+describe("the second ring (palace follow-on)", () => {
+  it("the registry serves eight rooms, hall included", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const ids = palace.directory().map((r) => r.id);
+    expect(ids).toEqual([
+      WORLD_ROOM_ID,
+      "world:music-hall",
+      "world:game-rooms",
+      "world:create-wing",
+      "world:courtyard",
+      TREASURY,
+      ROYAL_COURT,
+      BRANDING,
+    ]);
+    expect(palace.directory().find((r) => r.id === TREASURY)?.name).toBe("Treasury");
+    expect(palace.directory().find((r) => r.id === ROYAL_COURT)?.name).toBe("Royal Court Chamber");
+    expect(palace.directory().find((r) => r.id === BRANDING)?.name).toBe("Branding Atelier");
+  });
+
+  it("doorway transfers land in each new room at the crossing point, clamped to its bounds", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const cases: Array<{ roomId: string; name: string; x: number; z: number }> = [
+      { roomId: TREASURY, name: "Treasury", x: -15.2, z: -13.5 },
+      { roomId: ROYAL_COURT, name: "Royal Court Chamber", x: 15.2, z: -13.5 },
+      { roomId: BRANDING, name: "Branding Atelier", x: 15.2, z: 5 },
+    ];
+    for (const [i, c] of cases.entries()) {
+      const s = fakeSocket();
+      enter(palace, s, `Walker${i}`);
+      frame(palace, s, { type: "room.enter", roomId: c.roomId, x: c.x, z: c.z, rotY: 0 });
+      const welcome = s.sent.filter((m) => m.type === "welcome").pop();
+      expect(welcome.room).toEqual({ id: c.roomId, name: c.name });
+      expect(welcome.you.x).toBe(c.x);
+      expect(welcome.you.z).toBe(c.z);
+      expect(palace.roomOf(s)?.roomId).toBe(c.roomId);
+      // No stage, no jukebox in the welcome — each authority lives
+      // in exactly one room.
+      expect(welcome.screen).toBeUndefined();
+      expect(welcome.jukebox).toBeUndefined();
+    }
+  });
+
+  it("out-of-bounds crossing points clamp into the new rooms", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const s = fakeSocket();
+    enter(palace, s, "Clamper");
+    frame(palace, s, { type: "room.enter", roomId: TREASURY, x: -99, z: 99 });
+    const welcome = s.sent.filter((m) => m.type === "welcome").pop();
+    expect(welcome.you.x).toBe(-27.8); // the Treasury's west clamp
+    expect(welcome.you.z).toBe(-9.6); // and its south clamp
+  });
+
+  it("the new rooms refuse the stage too — the hall is the one stage", () => {
+    const palace = new WorldPalace(new RoomHub(), {
+      resolveStageStream: async () => ({
+        streamId: "s1",
+        title: "Show",
+        performerName: "Alpha",
+        performerSlug: "alpha",
+      }),
+    });
+    const s = fakeSocket();
+    enter(palace, s, "Alpha");
+    frame(palace, s, { type: "room.enter", roomId: TREASURY, x: -16, z: -13.5 });
+    s.sent = [];
+    frame(palace, s, { type: "stage.live", streamId: "s1" });
+    expect(palace.hallRoom.stageHeld()).toBe(false);
+    expect(s.sent.filter((m) => m.type === "screen.state")).toEqual([]);
+  });
+
+  it("the jukebox resolver reaches the Music Hall only", async () => {
+    const palace = new WorldPalace(new RoomHub(), {
+      resolveJukeboxTrack: async (_userId, trackId) =>
+        trackId === "track:good"
+          ? {
+              id: trackId,
+              title: "Good Song",
+              url: "https://example.test/good.mp3",
+              durationSec: 30,
+              creatorName: "Alpha",
+              artworkUrl: null,
+            }
+          : null,
+    });
+    const s = fakeSocket();
+    enter(palace, s, "Alpha");
+    // In the hall, a jukebox frame is not the hall's to answer.
+    frame(palace, s, { type: "jukebox.add", trackId: "track:good" });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(s.sent.filter((m) => m.type === "jukebox.state")).toEqual([]);
+    // Through the music door, the same frame puts the song on.
+    frame(palace, s, { type: "room.enter", roomId: MUSIC, x: -16, z: -2 });
+    const musicWelcome = s.sent.filter((m) => m.type === "welcome").pop();
+    expect(musicWelcome.jukebox).toEqual({ current: null, queue: [] });
+    frame(palace, s, { type: "jukebox.add", trackId: "track:good" });
+    await new Promise((r) => setTimeout(r, 10));
+    const state = s.sent.filter((m) => m.type === "jukebox.state").pop();
+    expect(state.jukebox.current.entry.track.id).toBe("track:good");
+    expect(state.jukebox.current.playback.playing).toBe(true);
+  });
+});

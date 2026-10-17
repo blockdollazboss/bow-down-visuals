@@ -16,6 +16,9 @@ import {
   GAME_ROOMS_ID,
   CREATE_WING_ID,
   COURTYARD_ID,
+  TREASURY_ID,
+  ROYAL_COURT_ID,
+  BRANDING_ATELIER_ID,
   isWalkable,
   roomAt,
   resolvePalaceMove,
@@ -111,5 +114,63 @@ describe("crossings", () => {
   it("clamping lands inside the named room", () => {
     const p = clampToRoom(GAME_ROOMS_ID, 0, 0);
     expect(roomAt(p.x, p.z, HALL_ROOM_ID)).toBe(GAME_ROOMS_ID);
+  });
+});
+
+describe("the second ring (palace follow-on)", () => {
+  it("adds the Treasury, the Royal Court Chamber and the Branding Atelier, one door each", () => {
+    for (const id of [TREASURY_ID, ROYAL_COURT_ID, BRANDING_ATELIER_ID]) {
+      expect(PALACE_LAYOUT[id]).toBeDefined();
+      expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
+    }
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(8);
+  });
+
+  it("the front doors open beside the stage, never through it", () => {
+    // The stage spans |x| ≤ 11 — the front-door aprons (|x| 13..14.4)
+    // are audience floor, and the stage itself stays unwalkable.
+    expect(isWalkable(-13.6, -13.5)).toBe(true);
+    expect(isWalkable(13.6, -13.5)).toBe(true);
+    expect(isWalkable(0, -13.5)).toBe(false);
+    // The front walls are solid away from the doors.
+    expect(isWalkable(-14.2, -10.5)).toBe(false);
+    expect(isWalkable(14.2, -17)).toBe(false);
+  });
+
+  it("crossings flip at each new door's plane", () => {
+    const toTreasury = resolvePalaceMove({ x: -14.0, z: -13.5, room: HALL_ROOM_ID }, -14.35, -13.5);
+    expect(toTreasury.room).toBe(TREASURY_ID);
+    expect(toTreasury.entered).toBe(TREASURY_ID);
+    const backAgain = resolvePalaceMove({ x: -14.35, z: -13.5, room: TREASURY_ID }, -13.6, -13.5);
+    expect(backAgain.room).toBe(HALL_ROOM_ID);
+    expect(backAgain.entered).toBe(HALL_ROOM_ID);
+
+    const toCourt = resolvePalaceMove({ x: 14.0, z: -13.5, room: HALL_ROOM_ID }, 14.35, -13.5);
+    expect(toCourt.room).toBe(ROYAL_COURT_ID);
+    expect(toCourt.entered).toBe(ROYAL_COURT_ID);
+
+    const toBranding = resolvePalaceMove({ x: 14.0, z: 5, room: HALL_ROOM_ID }, 14.35, 5);
+    expect(toBranding.room).toBe(BRANDING_ATELIER_ID);
+    expect(toBranding.entered).toBe(BRANDING_ATELIER_ID);
+  });
+
+  it("the front wall refuses crossings away from the front doors", () => {
+    const res = resolvePalaceMove({ x: -13.05, z: -10.5, room: HALL_ROOM_ID }, -14.3, -10.5);
+    expect(res.x).toBe(-13.05);
+    expect(res.entered).toBeNull();
+  });
+
+  it("no path crosses between the Treasury and the Music Hall — the shared wall has no door", () => {
+    const res = resolvePalaceMove({ x: -20, z: -9.7, room: TREASURY_ID }, -20, -8.0);
+    expect(res.room).toBe(TREASURY_ID);
+    expect(res.z).toBe(-9.7);
+    // And the band between the two rooms is wall, not floor.
+    expect(isWalkable(-20, -9.0)).toBe(false);
+  });
+
+  it("no path crosses between the Royal Court Chamber and the Create Wing", () => {
+    const res = resolvePalaceMove({ x: 20, z: -9.7, room: ROYAL_COURT_ID }, 20, -8.0);
+    expect(res.room).toBe(ROYAL_COURT_ID);
+    expect(res.z).toBe(-9.7);
   });
 });

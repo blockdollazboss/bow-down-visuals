@@ -129,6 +129,33 @@ export interface WorldScreenState {
   notice: string | null;
 }
 
+/** One song on the Music Hall jukebox: the track (resolved and
+ *  verified server-side) + who put it on. */
+export interface WorldJukeboxEntry {
+  entryId: string;
+  track: {
+    id: string;
+    title: string;
+    url: string;
+    durationSec: number;
+    creatorName: string | null;
+    artworkUrl: string | null;
+  };
+  addedByPeerId: string;
+  addedByName: string;
+}
+
+/** The Music Hall jukebox, mirrored from the room: the song on now
+ *  (with the position the server last stamped from its anchor) and
+ *  the up-next queue. Null outside the Music Hall. */
+export interface WorldJukeboxState {
+  current: {
+    entry: WorldJukeboxEntry;
+    playback: { playing: boolean; positionSec: number };
+  } | null;
+  queue: WorldJukeboxEntry[];
+}
+
 export interface WorldSocketLike {
   readyState: number;
   send(data: string): void;
@@ -214,6 +241,11 @@ export class WorldClient {
    *  hall carries screen state — a transfer welcome from another
    *  room omits it and the hall's last state stands. */
   screen: WorldScreenState | null = null;
+  /** The Music Hall jukebox, as the room last stated it (welcome,
+   *  then every `jukebox.state`). Only the Music Hall carries it —
+   *  entering any other room clears it: the music stays behind the
+   *  door you walked out of. */
+  jukebox: WorldJukeboxState | null = null;
   /** The room this client stands in (set by every welcome). */
   room: PalaceRoomInfo | null = null;
   /** The palace directory — who's where — as last broadcast (and
@@ -237,6 +269,13 @@ export class WorldClient {
   onVoicePeerLeft: ((peerId: string) => void) | null = null;
   onVoiceNotice: ((notice: VoiceNotice) => void) | null = null;
   onScreen: ((screen: WorldScreenState) => void) | null = null;
+  /** The Music Hall jukebox changed (a song added, skipped, the
+   *  transport worked) — the page re-renders the queue and re-syncs
+   *  its room audio to the new stamp. */
+  onJukebox: ((jukebox: WorldJukeboxState) => void) | null = null;
+  /** A jukebox action was refused (guests / unplayable / queue-full
+   *  / not-yours) — the panel says why instead of failing silently. */
+  onJukeboxDenied: ((reason: string) => void) | null = null;
   /** A screen action was refused: someone else holds the stage. */
   onScreenDenied: ((holderName: string | null) => void) | null = null;
   /** The host muted/unmuted ME (self only) — the page shows the
@@ -558,6 +597,35 @@ export class WorldClient {
     this.send({ type: "stage.end" });
   }
 
+  /* ── The Music Hall jukebox ─────────────────────────────────────
+   * Plain intents; the room enforces members-only adds and
+   * adder-or-host transport on every one. */
+
+  /** Put a song on the jukebox (catalog id only — the server
+   *  re-verifies the published track and derives its URL). */
+  jukeboxAdd(trackId: string): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "jukebox.add", trackId });
+  }
+
+  /** Shared play/pause for the song on now. */
+  jukeboxPlayPause(playing: boolean): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "jukebox.playpause", playing });
+  }
+
+  /** Skip the song on now. */
+  jukeboxSkip(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "jukebox.skip" });
+  }
+
+  /** Pull one of my queued songs back off. */
+  jukeboxRemove(entryId: string): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "jukebox.remove", entryId });
+  }
+
   /* ── Host actions (the server re-verifies admin on every one) ── */
 
   adminMute(peerId: string, muted: boolean): void {
@@ -626,6 +694,13 @@ export class WorldClient {
         if (frame["screen"] && typeof frame["screen"] === "object") {
           this.screen = frame["screen"] as WorldScreenState;
         }
+        /* The jukebox rides the welcome only in the Music Hall;
+         *  any other room's welcome clears it (the music does not
+         *  follow you through a doorway). */
+        this.jukebox =
+          frame["jukebox"] && typeof frame["jukebox"] === "object"
+            ? (frame["jukebox"] as WorldJukeboxState)
+            : null;
         this.peers.clear();
         /* A transfer welcome starts a new room's voice world: the
          * old mesh membership is gone with the old room. */
@@ -805,6 +880,17 @@ export class WorldClient {
           this.screen = frame["screen"] as WorldScreenState;
           this.onScreen?.(this.screen);
         }
+        return;
+      }
+      case "jukebox.state": {
+        if (frame["jukebox"] && typeof frame["jukebox"] === "object") {
+          this.jukebox = frame["jukebox"] as WorldJukeboxState;
+          this.onJukebox?.(this.jukebox);
+        }
+        return;
+      }
+      case "jukebox.denied": {
+        this.onJukeboxDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "refused");
         return;
       }
       case "screen.denied": {

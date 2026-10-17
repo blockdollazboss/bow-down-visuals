@@ -801,3 +801,79 @@ describe("the first connect — bounded retry + welcome watchdog", () => {
     expect(sockets).toHaveLength(1);
   });
 });
+
+describe("the Music Hall jukebox", () => {
+  const JUKEBOX = {
+    current: {
+      entry: {
+        entryId: "j1",
+        track: {
+          id: "track:1",
+          title: "Song One",
+          url: "https://example.test/one.mp3",
+          durationSec: 30,
+          creatorName: "Me",
+          artworkUrl: null,
+        },
+        addedByPeerId: "w-self",
+        addedByName: "Me",
+      },
+      playback: { playing: true, positionSec: 4 },
+    },
+    queue: [],
+  };
+  const MUSIC_ROOM = { id: "world:music-hall", name: "Music Hall" };
+
+  it("the welcome carries the jukebox in the Music Hall; other rooms clear it", async () => {
+    const { client, socket } = makeClient();
+    await client.connect();
+    socket.receive({ type: "welcome", peerId: SELF.peerId, room: MUSIC_ROOM, you: SELF, peers: [], jukebox: JUKEBOX });
+    expect(client.jukebox).toEqual(JUKEBOX);
+    // A doorway transfer's welcome (no jukebox field) clears it —
+    // the music does not follow you out of the Music Hall.
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:treasury", name: "Treasury" },
+      you: SELF,
+      peers: [],
+    });
+    expect(client.jukebox).toBeNull();
+  });
+
+  it("jukebox.state updates the mirror and fires onJukebox; denials reach onJukeboxDenied", async () => {
+    const { client, socket } = await inside();
+    const seen: unknown[] = [];
+    client.onJukebox = (jb) => seen.push(jb);
+    socket.receive({ type: "jukebox.state", jukebox: JUKEBOX });
+    expect(client.jukebox).toEqual(JUKEBOX);
+    expect(seen).toEqual([JUKEBOX]);
+    let denied = "";
+    client.onJukeboxDenied = (reason) => {
+      denied = reason;
+    };
+    socket.receive({ type: "jukebox.denied", reason: "queue-full" });
+    expect(denied).toBe("queue-full");
+  });
+
+  it("the senders frame the four jukebox intents; a guest client sends none of them", async () => {
+    const { client, socket } = await inside();
+    socket.sent = [];
+    client.jukeboxAdd("track:1");
+    client.jukeboxPlayPause(false);
+    client.jukeboxSkip();
+    client.jukeboxRemove("j1");
+    expect(socket.sent).toEqual([
+      { type: "jukebox.add", trackId: "track:1" },
+      { type: "jukebox.playpause", playing: false },
+      { type: "jukebox.skip" },
+      { type: "jukebox.remove", entryId: "j1" },
+    ]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true });
+    guestRun.socket.sent = [];
+    guestRun.client.jukeboxAdd("track:1");
+    guestRun.client.jukeboxSkip();
+    expect(guestRun.socket.sent).toEqual([]);
+  });
+});

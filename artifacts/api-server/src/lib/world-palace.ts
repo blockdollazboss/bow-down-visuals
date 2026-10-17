@@ -62,6 +62,9 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "Music Hall",
     bounds: { minX: -27.8, maxX: -13.0, minZ: -8.4, maxZ: 2.9 },
     spawn: { x: -16.5, z: -2 },
+    /* The Music Hall's one piece of room programming: the jukebox
+     * (queue + shared playback). No other room runs one. */
+    jukeboxEnabled: true,
   },
   {
     roomId: "world:game-rooms",
@@ -80,6 +83,28 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "Courtyard",
     bounds: { minX: -13.5, maxX: 13.5, minZ: 11.1, maxZ: 25.6 },
     spawn: { x: 0, z: 14.5 },
+  },
+  /* The second ring (palace follow-on): the front rooms flank the
+   * stage end of the hall; the Branding Atelier mirrors the Game
+   * Rooms across the hall. Bounds + spawn mirror the client floor
+   * plan (lib/world/palace-layout.ts) to the same plan. */
+  {
+    roomId: "world:treasury",
+    name: "Treasury",
+    bounds: { minX: -27.8, maxX: -13.0, minZ: -17.5, maxZ: -9.6 },
+    spawn: { x: -16.5, z: -13.5 },
+  },
+  {
+    roomId: "world:royal-court",
+    name: "Royal Court Chamber",
+    bounds: { minX: 13.0, maxX: 27.8, minZ: -17.5, maxZ: -9.6 },
+    spawn: { x: 16.5, z: -13.5 },
+  },
+  {
+    roomId: "world:branding-atelier",
+    name: "Branding Atelier",
+    bounds: { minX: 13.0, maxX: 27.8, minZ: 3.6, maxZ: 11.4 },
+    spawn: { x: 16.5, z: 5 },
   },
 ];
 
@@ -108,8 +133,16 @@ export class WorldPalace {
     for (const def of PALACE_ROOM_DEFS) {
       const { roomId, name, ...opts } = def;
       // Only the hall gets the stage resolvers: it is the palace's
-      // one stage, and no other room may ever verify a claim.
-      const room = new WorldRoom(hub, def.roomId === WORLD_ROOM_ID ? deps : {}, { roomId, name, ...opts });
+      // one stage, and no other room may ever verify a claim. Only
+      // the Music Hall gets the jukebox resolver — the same rule,
+      // one authority per piece of room programming.
+      const roomDeps =
+        def.roomId === WORLD_ROOM_ID
+          ? deps
+          : def.roomId === "world:music-hall"
+            ? { resolveJukeboxTrack: deps.resolveJukeboxTrack }
+            : {};
+      const room = new WorldRoom(hub, roomDeps, { roomId, name, ...opts });
       room.onChange = () => this.broadcastDirectory();
       this.rooms.set(roomId, room);
     }

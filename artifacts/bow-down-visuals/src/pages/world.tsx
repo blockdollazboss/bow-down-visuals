@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
-  Maximize, Minimize, Gamepad2, AudioWaveform,
+  Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
 } from "lucide-react";
 import {
@@ -25,8 +25,19 @@ import {
   type WorldSayEvent,
   type WorldPeer,
   type WorldScreenState,
+  type WorldJukeboxState,
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
+import {
+  nearestStation,
+  type PalaceStation,
+} from "@/lib/world/stations";
+import {
+  jukeboxPlaybackNow,
+  jukeboxNeedsSeek,
+} from "@/lib/world/jukebox-sync";
+import { MUSIC_HALL_ID } from "@/lib/world/palace-layout";
+import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
 import { fetchPublicCourt } from "@/lib/royal-court";
 import {
   VoiceMesh,
@@ -261,6 +272,24 @@ export default function WorldPage() {
   const [myStream, setMyStream] = useState<{ id: string; title: string } | null>(null);
   const [catalog, setCatalog] = useState<{ mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } | null>(null);
   const [screenNote, setScreenNote] = useState<string | null>(null);
+  /* The doors (the access layer): the station I'm standing at —
+     polled off the scene's pose against the same registry the
+     scene builds its markers from — and the panel it opened. */
+  const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
+  const nearStationIdRef = useRef<string | null>(null);
+  const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
+  /* The Music Hall jukebox: the room's state as last broadcast, the
+     anchor (state + when it landed here) the room audio derives
+     its position from, and whether the browser is letting the
+     room be heard yet (autoplay is the browser's call, not ours). */
+  const [jukebox, setJukebox] = useState<WorldJukeboxState | null>(null);
+  const [jukeboxDenied, setJukeboxDenied] = useState<string | null>(null);
+  const jukeboxAnchorRef = useRef<{ state: WorldJukeboxState | null; at: number }>({
+    state: null,
+    at: 0,
+  });
+  const jukeboxAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [jukeboxAudible, setJukeboxAudible] = useState(true);
   /* Host (admin) state: the roster for the host panel, whether the
      host muted ME, and the two-tap remove arm. */
   const [hostPanelOpen, setHostPanelOpen] = useState(false);
@@ -391,6 +420,99 @@ export default function WorldPage() {
       cancelled = true;
     };
   }, [stageSlug, stageHeld, status]);
+
+  /* The Music Hall's room audio: one element, created once, driven
+     only by the room's jukebox state (never by the panel — the
+     music belongs to the room, panel open or not). The position
+     derives from the server's anchor stamp; drift past the
+     tolerance is pulled back; leaving the room silences it. */
+  useEffect(() => {
+    const el = new Audio();
+    el.preload = "auto";
+    el.volume = 0.85;
+    jukeboxAudioRef.current = el;
+    return () => {
+      el.pause();
+      el.removeAttribute("src");
+      jukeboxAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = jukeboxAudioRef.current;
+    if (!el) return;
+    const desired =
+      roomId === MUSIC_HALL_ID
+        ? jukeboxPlaybackNow(jukeboxAnchorRef.current.state, jukeboxAnchorRef.current.at, Date.now())
+        : null;
+    if (!desired) {
+      el.pause();
+      if (el.getAttribute("src")) el.removeAttribute("src");
+      return;
+    }
+    if (el.getAttribute("src") !== desired.url) {
+      el.src = desired.url;
+      try {
+        el.currentTime = desired.positionSec;
+      } catch {
+        /* no metadata yet — the drift pass seeks once it lands */
+      }
+    } else if (jukeboxNeedsSeek(desired, el.currentTime)) {
+      el.currentTime = desired.positionSec;
+    }
+    if (desired.playing) {
+      if (el.paused) {
+        void el
+          .play()
+          .then(() => setJukeboxAudible(true))
+          .catch(() => setJukeboxAudible(false));
+      }
+    } else if (!el.paused) {
+      el.pause();
+    }
+  }, [jukebox, roomId]);
+
+  /* The drift pass: every couple of seconds in the Music Hall, the
+     element is checked against the room's anchor — and a play()
+     the browser blocked before the walker's first tap is retried,
+     so the first click in the room is what lets it be heard. */
+  useEffect(() => {
+    if (roomId !== MUSIC_HALL_ID) return;
+    const id = setInterval(() => {
+      const el = jukeboxAudioRef.current;
+      const anchor = jukeboxAnchorRef.current;
+      if (!el || !anchor.state?.current) return;
+      const desired = jukeboxPlaybackNow(anchor.state, anchor.at, Date.now());
+      if (!desired) return;
+      if (el.getAttribute("src") === desired.url && jukeboxNeedsSeek(desired, el.currentTime)) {
+        el.currentTime = desired.positionSec;
+      }
+      if (desired.playing && el.paused) {
+        void el
+          .play()
+          .then(() => setJukeboxAudible(true))
+          .catch(() => setJukeboxAudible(false));
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [roomId]);
+
+  /* Walk-up keys: E opens the door you're standing at. Typing (the
+     say box, any field) keeps its letters; an open panel keeps the
+     key for itself. */
+  useEffect(() => {
+    if (status !== "inside") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "e" && e.key !== "E") return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (panelTarget || !nearStation) return;
+      e.preventDefault();
+      setPanelTarget({ kind: "station", station: nearStation });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [status, nearStation, panelTarget]);
 
   /* The screen remote's data: my live stream (the existing status
      endpoint — the same one the Go Live studio reads) and the video
@@ -555,6 +677,7 @@ export default function WorldPage() {
     let screenPoll: ReturnType<typeof setInterval> | null = null;
     let volumeTick: ReturnType<typeof setInterval> | null = null;
     let lipTick: ReturnType<typeof setInterval> | null = null;
+    let stationTick: ReturnType<typeof setInterval> | null = null;
 
     (async () => {
       /* Boot failures BEFORE the socket exists (the scene chunk fails
@@ -647,6 +770,8 @@ export default function WorldPage() {
           hostMutedRef.current = client.self.hostMuted;
           setIsAdmin(client.self.admin);
           setMyPeerId(client.self.peerId);
+          jukeboxAnchorRef.current = { state: client.jukebox, at: Date.now() };
+          setJukebox(client.jukebox);
           // Your own figure (seen in third person) stands as you.
           scene.setSelfFigure(client.self);
           if (!spawnedRef.current) {
@@ -673,6 +798,11 @@ export default function WorldPage() {
         }
         setRoomId(room.id);
         setRoomName(room.name);
+        // The old room's doors close with it: an open panel and the
+        // walk-up prompt belong to the room they stand in.
+        setPanelTarget(null);
+        nearStationIdRef.current = null;
+        setNearStation(null);
         // A doorway starts the figure clean in the new room (the
         // server resets the performed action on transfer too).
         setMyAction(null);
@@ -753,6 +883,11 @@ export default function WorldPage() {
             ? `The stage is held by ${holderName} — one hand on the screen at a time.`
             : "The screen didn't change — the stage isn't yours to drive right now.",
         );
+      };
+      /* A jukebox refusal (guests / unplayable / queue-full /
+         not-yours): the panel says why, in words. */
+      client.onJukeboxDenied = (reason) => {
+        if (!cancelled) setJukeboxDenied(reason);
       };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
@@ -856,6 +991,38 @@ export default function WorldPage() {
         }
       }, 66);
 
+      /* The doors: the walk-up prompt follows the walker's pose
+         (the nearest station in this room, from the registry the
+         scene's markers are built from), and the jukebox mirror
+         stays glued to the room's own state — welcome stamps and
+         jukebox.state frames both land on client.jukebox first, so
+         a reference change here is the room speaking. A landed
+         state also clears the last refusal: the action went
+         through, the note has done its work. */
+      stationTick = setInterval(() => {
+        if (client.status !== "inside" || !client.room) {
+          if (nearStationIdRef.current !== null) {
+            nearStationIdRef.current = null;
+            if (!cancelled) setNearStation(null);
+          }
+        } else {
+          const pose = scene.localPose();
+          const st = nearestStation(client.room.id, pose.x, pose.z);
+          const id = st?.id ?? null;
+          if (id !== nearStationIdRef.current) {
+            nearStationIdRef.current = id;
+            if (!cancelled) setNearStation(st);
+          }
+        }
+        if (client.jukebox !== jukeboxAnchorRef.current.state) {
+          jukeboxAnchorRef.current = { state: client.jukebox, at: Date.now() };
+          if (!cancelled) {
+            setJukebox(client.jukebox);
+            setJukeboxDenied(null);
+          }
+        }
+      }, 200);
+
       bootPhase = false;
       await client.connect();
       } catch {
@@ -872,6 +1039,7 @@ export default function WorldPage() {
       if (screenPoll) clearInterval(screenPoll);
       if (volumeTick) clearInterval(volumeTick);
       if (lipTick) clearInterval(lipTick);
+      if (stationTick) clearInterval(stationTick);
       meshRef.current?.leave();
       meshRef.current = null;
       shaperRef.current?.dispose();
@@ -1203,6 +1371,68 @@ export default function WorldPage() {
             WASD to walk · drag or click to look · Shift to hurry
           </p>
         )}
+
+        {/* The walk-up prompt: the door you're standing at. The gold
+            marker in the scene and this prompt read the same
+            registry, so they can never disagree about where a door
+            stands. E opens it too; the panel's own close is the way
+            back to the room. */}
+        {status === "inside" && nearStation && !panelTarget && (
+          <div
+            className="absolute bottom-24 left-1/2 z-10 w-[min(92vw,440px)] -translate-x-1/2 sm:bottom-20"
+            data-testid="world-station-prompt"
+          >
+            <div
+              className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-sm ${
+                isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95" : "border-[#d4af37]/50 bg-black/80"
+              }`}
+            >
+              <DoorOpen className="h-5 w-5 shrink-0 text-[#d4af37]" />
+              <div className="min-w-0 flex-1">
+                <p className={`truncate text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  {nearStation.name}
+                </p>
+                <p className={`truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                  {nearStation.tagline}
+                </p>
+              </div>
+              <button
+                type="button"
+                data-testid="world-station-open"
+                onClick={() => setPanelTarget({ kind: "station", station: nearStation })}
+                className="shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Open
+              </button>
+              <kbd
+                className={`hidden shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-black md:block ${
+                  isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
+                }`}
+              >
+                E
+              </kbd>
+            </div>
+          </div>
+        )}
+
+        {/* The Music Hall, muted by the browser: autoplay is the
+            browser's call — when it says no, the room says so and
+            one tap lets it be heard. Never silent pretending. */}
+        {status === "inside" && roomId === MUSIC_HALL_ID && jukebox?.current && !jukeboxAudible && (
+          <button
+            type="button"
+            data-testid="world-jukebox-hear"
+            onClick={() => {
+              void jukeboxAudioRef.current
+                ?.play()
+                .then(() => setJukeboxAudible(true))
+                .catch(() => undefined);
+            }}
+            className="absolute bottom-24 right-3 z-10 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 bg-black/75 px-4 py-2 text-sm font-bold text-[#e8c86a] backdrop-blur-sm transition hover:bg-black/90 sm:bottom-20"
+          >
+            <Music2 className="h-4 w-4" /> Tap to hear the Music Hall
+          </button>
+        )}
       </div>
 
       {/* In-hall character panel — the same picker as the door,
@@ -1435,6 +1665,29 @@ export default function WorldPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* The doors, opened: a station's panel (or the page a Court
+          portrait pointed at). The step-through kind renders itself
+          full-screen from inside this same mount. */}
+      {panelTarget && status === "inside" && (
+        <StationPanel
+          target={panelTarget}
+          isLight={isLight}
+          isGuest={isGuest}
+          onClose={() => setPanelTarget(null)}
+          onOpenPage={(path, title) => setPanelTarget({ kind: "page", path, title })}
+          directory={directory}
+          currentRoomId={roomId}
+          jukebox={jukebox}
+          jukeboxDenied={jukeboxDenied}
+          myPeerId={myPeerId}
+          isAdmin={isAdmin}
+          onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
+          onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
+          onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
+          onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
+        />
       )}
 
       {/* ── Bottom bar: say + voice + VR ── */}

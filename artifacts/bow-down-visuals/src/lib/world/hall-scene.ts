@@ -97,9 +97,13 @@ import {
   GAME_ROOMS_ID,
   CREATE_WING_ID,
   COURTYARD_ID,
+  TREASURY_ID,
+  ROYAL_COURT_ID,
+  BRANDING_ATELIER_ID,
   resolvePalaceMove,
   clampToRoom,
 } from "./palace-layout";
+import { stationsInRoom } from "./stations";
 import {
   ACTION_BY_ID,
   actionClearedByMove,
@@ -1362,34 +1366,54 @@ export class KingsHallScene {
     this.wallRunX(group, mats, 12.2, -2.2, 2.2, DH, H, -1);
     this.doorArchX(group, mats, 12.2, -2.2, 2.2);
     this.doorPlate(group, "COURTYARD", 0, DH + 0.66, 11.93, Math.PI, 4.2);
-    // The west wall — doors to the Music Hall (z = -2) and the Game
-    // Rooms (z = 5) where two of its windows/frames used to hang.
-    this.wallRunZ(group, mats, -14.2, -18.4, -3.5, 0, H, 1);
+    // The west wall — doors to the Treasury (z = -13.5, front),
+    // the Music Hall (z = -2) and the Game Rooms (z = 5).
+    this.wallRunZ(group, mats, -14.2, -18.4, -15, 0, H, 1);
+    this.wallRunZ(group, mats, -14.2, -12, -3.5, 0, H, 1);
     this.wallRunZ(group, mats, -14.2, -0.5, 3.5, 0, H, 1);
     this.wallRunZ(group, mats, -14.2, 6.5, 12.4, 0, H, 1);
+    this.wallRunZ(group, mats, -14.2, -15, -12, DH, H, 1);
     this.wallRunZ(group, mats, -14.2, -3.5, -0.5, DH, H, 1);
     this.wallRunZ(group, mats, -14.2, 3.5, 6.5, DH, H, 1);
+    this.doorArchZ(group, mats, -14.2, -15, -12);
     this.doorArchZ(group, mats, -14.2, -3.5, -0.5);
     this.doorArchZ(group, mats, -14.2, 3.5, 6.5);
+    this.doorPlate(group, "TREASURY", -13.93, DH + 0.66, -13.5, Math.PI / 2);
     this.doorPlate(group, "MUSIC HALL", -13.93, DH + 0.66, -2, Math.PI / 2);
     this.doorPlate(group, "GAME ROOMS", -13.93, DH + 0.66, 5, Math.PI / 2);
-    // The east wall — the Create Wing door at z = -2.
-    this.wallRunZ(group, mats, 14.2, -18.4, -3.5, 0, H, -1);
-    this.wallRunZ(group, mats, 14.2, -0.5, 12.4, 0, H, -1);
+    // The east wall — doors to the Royal Court Chamber (z = -13.5,
+    // front), the Create Wing (z = -2) and the Branding Atelier
+    // (z = 5).
+    this.wallRunZ(group, mats, 14.2, -18.4, -15, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, -12, -3.5, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, -0.5, 3.5, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, 6.5, 12.4, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, -15, -12, DH, H, -1);
     this.wallRunZ(group, mats, 14.2, -3.5, -0.5, DH, H, -1);
+    this.wallRunZ(group, mats, 14.2, 3.5, 6.5, DH, H, -1);
+    this.doorArchZ(group, mats, 14.2, -15, -12);
     this.doorArchZ(group, mats, 14.2, -3.5, -0.5);
+    this.doorArchZ(group, mats, 14.2, 3.5, 6.5);
+    this.doorPlate(group, "ROYAL COURT", 13.93, DH + 0.66, -13.5, -Math.PI / 2);
     this.doorPlate(group, "CREATE WING", 13.93, DH + 0.66, -2, -Math.PI / 2);
+    this.doorPlate(group, "BRANDING ATELIER", 13.93, DH + 0.66, 5, -Math.PI / 2);
 
     if (look.windows) {
       this.buildWindow(group, mats, -9);
-      for (const z of [-9, 5]) this.buildPanelFrame(group, mats, 1, z);
+      for (const z of [-9, 9.5]) this.buildPanelFrame(group, mats, 1, z);
     } else {
       for (const side of [-1, 1] as const) {
-        for (const z of [-9, 5]) this.buildPanelFrame(group, mats, side, z);
+        // The side frames hang at z = -9 and z = 9.5 — clear of
+        // every doorway (the z = 5 frame used to cross the Game
+        // Rooms door, and would cross the Branding Atelier's too).
+        for (const z of [-9, 9.5]) this.buildPanelFrame(group, mats, side, z);
         for (const z of [-5.5, 2.5]) this.buildSconce(group, mats, anim, side, z, side * 13.3);
       }
       for (const x of [-6, 6]) this.buildSconce(group, mats, anim, 0, x, null);
     }
+    // The hall's own door-stations (the Kingdom Board, the Post
+    // Office) stand against the back wall.
+    this.buildStationMarkers(group, mats, HALL_ROOM_ID);
   }
 
   /** A tall arched window pouring daylight in (Look A, left wall).
@@ -1894,7 +1918,7 @@ export class KingsHallScene {
 
   private buildRoomShells(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     this.shellGroups.clear();
-    for (const roomId of [MUSIC_HALL_ID, GAME_ROOMS_ID, CREATE_WING_ID]) {
+    for (const roomId of [MUSIC_HALL_ID, GAME_ROOMS_ID, CREATE_WING_ID, TREASURY_ID, ROYAL_COURT_ID, BRANDING_ATELIER_ID]) {
       this.buildIndoorShell(group, look, mats, roomId);
     }
     this.buildCourtyardShell(group, look, mats, anim);
@@ -1997,7 +2021,9 @@ export class KingsHallScene {
     const { interior } = def;
     const cx = (interior.minX + interior.maxX) / 2;
     const cz = (interior.minZ + interior.maxZ) / 2;
-    const west = roomId !== CREATE_WING_ID; // west-side rooms face east, and vice versa
+    // West-side rooms face east, east-side rooms face west — read
+    // off the plan, so a new room needs no builder changes.
+    const west = interior.maxX < 0;
 
     this.shellFloor(g, look, mats, interior, look.floorRoughness, 7);
 
@@ -2009,14 +2035,18 @@ export class KingsHallScene {
     ceiling.position.set(cx, 6.5, cz);
     g.add(ceiling);
 
-    // The three walls the hall didn't already build. The Music Hall
-    // also builds the shared wall the Game Rooms lean on (z = 3.3) —
-    // one wall, two faces, built once.
+    // The three walls the hall didn't already build: the outer
+    // wall, the front wall, and the back wall — each face 0.2 into
+    // the wall band from its interior line, so two rooms sharing a
+    // band build the same face twice at the same plane (the Music
+    // Hall / Game Rooms wall at z = 3.3 is exactly that) and never
+    // leave a gap. Room bands: Music −8.6..3.1, Game 3.5..11.9,
+    // Treasury −17.9..−9.2, Create −8.6..3.1, Royal Court
+    // −17.9..−9.2, Branding 3.5..11.9.
     if (west) {
       this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1);
       this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1);
-      if (roomId === MUSIC_HALL_ID) this.wallRunX(g, mats, 3.3, -28.4, -14.2, 0, 6.5, -1);
-      if (roomId === GAME_ROOMS_ID) this.wallRunX(g, mats, 12.1, -28.4, -14.2, 0, 6.5, -1);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, -28.4, -14.2, 0, 6.5, -1);
     } else {
       this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1);
       this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1);
@@ -2035,8 +2065,48 @@ export class KingsHallScene {
     if (west) this.shellPanelFrame(g, mats, interior.minX + 0.06, cz, Math.PI / 2);
     else this.shellPanelFrame(g, mats, interior.maxX - 0.06, cz, -Math.PI / 2);
 
+    // The room's door-stations: walk up, and the feature opens.
+    this.buildStationMarkers(g, mats, roomId);
+
     group.add(g);
     this.shellGroups.set(roomId, g);
+  }
+
+  /** The access layer made physical: one marker per door-station
+   *  (lib/world/stations) — a gold ring on the floor and the
+   *  station's name plate floating over it, in the house plate
+   *  style. The page reads the same registry for the walk-up
+   *  prompt, so the marker and the prompt can never disagree
+   *  about where a door stands. No lights, no new textures: the
+   *  plate reuses the doorway plates' canvas. */
+  private buildStationMarkers(group: THREE.Group, mats: LookMaterials, roomId: string): void {
+    for (const s of stationsInRoom(roomId)) {
+      const g = new THREE.Group();
+      g.position.set(s.x, 0, s.z);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.045, 8, 40), mats.gold);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.035;
+      g.add(ring);
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(0.8, 32),
+        new THREE.MeshStandardMaterial({
+          color: 0xd4af37, transparent: true, opacity: 0.13, roughness: 0.4, metalness: 0.6, depthWrite: false,
+        }),
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.025;
+      g.add(disc);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), mats.gold);
+      gem.position.y = 1.55;
+      g.add(gem);
+      const plate = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: doorPlateTexture(s.name.toUpperCase()), transparent: true, depthWrite: false }),
+      );
+      plate.scale.set(2.3, (2.3 * 224) / 1024, 1);
+      plate.position.y = 2.15;
+      g.add(plate);
+      group.add(g);
+    }
   }
 
   private buildCourtyardShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
@@ -2135,8 +2205,55 @@ export class KingsHallScene {
     // The way back, labeled from the courtyard side of the arch.
     this.doorPlate(g, "THE KING'S HALL", 0, PALACE_DOOR_HEIGHT + 0.66, 12.52, 0, 4.2);
 
+    // The courtyard's door-stations along the colonnade.
+    this.buildStationMarkers(g, mats, COURTYARD_ID);
+    this.buildCreatorRoomsArch(g, mats);
+
     group.add(g);
     this.shellGroups.set(COURTYARD_ID, g);
+  }
+
+  /** The Creator Rooms — PHASE 2 (the plan), and the courtyard
+   *  says so in stone: a grand arch on the far colonnade with its
+   *  double doors SHUT and sealed, plated CREATOR ROOMS with a
+   *  smaller COMING SOON beneath. Visibly reserved, honestly
+   *  closed — there is no doorway here in the floor plan and no
+   *  portal behind the slabs; when the phase lands, the doors
+   *  open for real or not at all. */
+  private buildCreatorRoomsArch(g: THREE.Group, mats: LookMaterials): void {
+    const arch = new THREE.Group();
+    arch.position.set(9.5, 0, 26.0);
+    const darkSlab = new THREE.MeshStandardMaterial({ color: 0x17110a, roughness: 0.55, metalness: 0.25 });
+    for (const sx of [-1.45, 1.45]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 3.9, 0.55), mats.marble);
+      pillar.position.set(sx, 1.95, 0);
+      pillar.castShadow = QUALITY[this.quality].shadows;
+      arch.add(pillar);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.18, 0.72), mats.gold);
+      cap.position.set(sx, 3.99, 0);
+      arch.add(cap);
+    }
+    const header = new THREE.Mesh(new THREE.BoxGeometry(3.62, 0.34, 0.6), mats.gold);
+    header.position.set(0, 4.2, 0);
+    arch.add(header);
+    // The shut doors: two dark slabs, flush, with gold furniture
+    // and the seal where the handles meet — closed, and meant to
+    // read closed.
+    for (const sx of [-0.58, 0.58]) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(1.14, 3.05, 0.1), darkSlab);
+      slab.position.set(sx, 1.55, -0.05);
+      arch.add(slab);
+      const handle = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mats.gold);
+      handle.position.set(sx > 0 ? -0.14 : 0.14, 1.55, -0.14);
+      arch.add(handle);
+    }
+    const seal = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 20), mats.gold);
+    seal.rotation.x = Math.PI / 2;
+    seal.position.set(0, 1.55, -0.12);
+    arch.add(seal);
+    this.doorPlate(arch, "CREATOR ROOMS", 0, 4.72, -0.32, Math.PI, 3.6);
+    this.doorPlate(arch, "COMING SOON", 0, 3.62, -0.32, Math.PI, 2.0);
+    g.add(arch);
   }
 
   /* ── Screen ── */

@@ -30,6 +30,13 @@ export const MUSIC_HALL_ID = "world:music-hall";
 export const GAME_ROOMS_ID = "world:game-rooms";
 export const CREATE_WING_ID = "world:create-wing";
 export const COURTYARD_ID = "world:courtyard";
+/* The second ring (palace follow-on): the front rooms flank the
+ * stage end of the hall, the Branding Atelier mirrors the Game
+ * Rooms on the east. Same door standard as the first ring — one
+ * door each, straight off the hall. */
+export const TREASURY_ID = "world:treasury";
+export const ROYAL_COURT_ID = "world:royal-court";
+export const BRANDING_ATELIER_ID = "world:branding-atelier";
 
 export interface PalaceRect {
   minX: number;
@@ -90,6 +97,36 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     camClamp: { minX: 14.7, maxX: 27.9, minZ: -8.3, maxZ: 2.8 },
     spawn: { x: 15.6, z: -2 },
   },
+  /* The second ring. The two front rooms share the front band
+   * (z −17.9..−9.2) on either side of the hall — their doors land
+   * walkers on the hall's audience floor beside the stage (the
+   * stage itself spans |x| ≤ 11, so the aprons at |x| 13.05..14.4
+   * are clear floor). The Branding Atelier mirrors the Game Rooms
+   * across the hall exactly (z 3.5..11.9). */
+  [TREASURY_ID]: {
+    id: TREASURY_ID,
+    name: "Treasury",
+    interior: { minX: -28.2, maxX: -14.4, minZ: -17.9, maxZ: -9.2 },
+    walk: { minX: -27.85, maxX: -14.35, minZ: -17.55, maxZ: -9.55 },
+    spawn: { x: -15.6, z: -13.5 },
+    camClamp: { minX: -27.9, maxX: -14.7, minZ: -17.6, maxZ: -9.6 },
+  },
+  [ROYAL_COURT_ID]: {
+    id: ROYAL_COURT_ID,
+    name: "Royal Court Chamber",
+    interior: { minX: 14.4, maxX: 28.2, minZ: -17.9, maxZ: -9.2 },
+    walk: { minX: 14.35, maxX: 27.85, minZ: -17.55, maxZ: -9.55 },
+    spawn: { x: 15.6, z: -13.5 },
+    camClamp: { minX: 14.7, maxX: 27.9, minZ: -17.6, maxZ: -9.6 },
+  },
+  [BRANDING_ATELIER_ID]: {
+    id: BRANDING_ATELIER_ID,
+    name: "Branding Atelier",
+    interior: { minX: 14.4, maxX: 28.2, minZ: 3.5, maxZ: 11.9 },
+    walk: { minX: 14.35, maxX: 27.85, minZ: 3.85, maxZ: 11.55 },
+    spawn: { x: 15.6, z: 5 },
+    camClamp: { minX: 14.7, maxX: 27.9, minZ: 3.8, maxZ: 11.6 },
+  },
   [COURTYARD_ID]: {
     id: COURTYARD_ID,
     name: "Courtyard",
@@ -149,6 +186,40 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: 13.05, maxX: 14.4, minZ: -3.45, maxZ: -0.55 },
     negRoom: HALL_ROOM_ID,
     posRoom: CREATE_WING_ID,
+  },
+  /* The front doors: three metres wide in the hall's front side
+   * walls (span −15..−12), clear of the stage (|x| ≤ 11), the
+   * columns (x ±12.4, z −8/0/8) and the dark look's side sconces
+   * and panel frames (z −9..5). */
+  {
+    roomId: TREASURY_ID,
+    axis: "x",
+    plane: -14.2,
+    spanMin: -15,
+    spanMax: -12,
+    portal: { minX: -14.4, maxX: -13.05, minZ: -14.95, maxZ: -12.05 },
+    negRoom: TREASURY_ID,
+    posRoom: HALL_ROOM_ID,
+  },
+  {
+    roomId: ROYAL_COURT_ID,
+    axis: "x",
+    plane: 14.2,
+    spanMin: -15,
+    spanMax: -12,
+    portal: { minX: 13.05, maxX: 14.4, minZ: -14.95, maxZ: -12.05 },
+    negRoom: HALL_ROOM_ID,
+    posRoom: ROYAL_COURT_ID,
+  },
+  {
+    roomId: BRANDING_ATELIER_ID,
+    axis: "x",
+    plane: 14.2,
+    spanMin: 3.5,
+    spanMax: 6.5,
+    portal: { minX: 13.05, maxX: 14.4, minZ: 3.55, maxZ: 6.45 },
+    negRoom: HALL_ROOM_ID,
+    posRoom: BRANDING_ATELIER_ID,
   },
   {
     roomId: COURTYARD_ID,
