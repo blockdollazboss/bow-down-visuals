@@ -317,10 +317,20 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(isCreateDeskId("jukebox")).toBe(false);
   });
 
-  it("the follow-on log names the audio hub deep end + per-desk leftovers", () => {
+  it("the follow-on log keeps ONLY the honest remainder after Ring 2 (2.3–2.11 retired)", () => {
     const items = CREATE_DESK_NATIVE_FOLLOWONS.map((f) => `${f.desk}: ${f.item}`);
-    expect(items.some((i) => i.includes("full multi-tool audio workbench"))).toBe(true);
-    for (const desk of ["song-desk", "video-desk", "song-video-desk", "cover-art-desk", "thumbnail-desk", "audio-desk"]) {
+    /* Retired by Ring 2: the shipped benches must NOT still be logged as gaps. */
+    expect(items.some((i) => i.includes("full multi-tool audio workbench"))).toBe(false);
+    expect(items.some((i) => i.includes("The full storyboard flow"))).toBe(false);
+    expect(items.some((i) => i.includes("4-variation Thumbnail Maker mode (200 VB) and the A/B thumbnail test benches (v1 is"))).toBe(false);
+    expect(items.some((i) => i.includes("Full preset panels"))).toBe(false);
+    /* Remaining, narrowed: arrangement timeline, harmony AI mode, .lrc/cover
+       action-row extras, jukebox-from-Create-Wing, thumbnail improve rail. */
+    expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(true);
+    expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(true);
+    expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(true);
+    expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(true);
+    for (const desk of ["song-desk", "thumbnail-desk", "audio-desk"]) {
       expect(items.some((i) => i.startsWith(`${desk}:`)), desk).toBe(true);
     }
   });

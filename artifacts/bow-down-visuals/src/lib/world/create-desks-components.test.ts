@@ -1,0 +1,103 @@
+/**
+ * create-desks-components — Ring 2 Lane G source-contract pins.
+ * The desks' components must ride the SITE's real endpoints (the
+ * 2D pages are the reference implementation) — these pins fail if
+ * a bench's rail moves, if a price stops being displayed before
+ * the run, or if the quest chip is rendered anywhere except from
+ * the shared server-diff hook.
+ */
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+const desks = read("../../components/world/native/CreateDesks.tsx");
+const storyboard = read("../../components/world/native/StoryboardBench.tsx");
+const songTabs = read("../../components/world/native/SongDeskTabs.tsx");
+const thumbBenches = read("../../components/world/native/ThumbnailBenches.tsx");
+const audioDesk = read("../../components/world/native/AudioDesk.tsx");
+const shared = read("../../components/world/native/CreateDeskShared.tsx");
+
+describe("2.3 storyboard bench contracts", () => {
+  it("docks analysis, the audio scene flow, per-scene clips, draft autosave + project save", () => {
+    expect(storyboard).toContain('fetch("/api/analyze-sections"');
+    expect(storyboard).toContain("runAudioSceneFlow");
+    expect(storyboard).toContain('fetch("/api/generate-runway-clip"');
+    expect(storyboard).toContain('fetch("/api/drafts"');
+    expect(storyboard).toContain("buildStoryboardProjectPayload");
+    expect(storyboard).toContain("analyzeSectionsCost()");
+    expect(storyboard).toContain("videoClipCost()");
+    expect(storyboard).toContain('data-testid="world-storyboard-approve"');
+  });
+});
+
+describe("2.4 song+video wizard contracts", () => {
+  it("auto-transcribes on upload, applies the edit plan, saves the finished package", () => {
+    expect(desks).toContain('fetch("/api/transcribe"');
+    expect(desks).toContain('fetch("/api/generate/ai-edit-plan"');
+    expect(desks).toContain("applyAiTransitionsToClips");
+    expect(desks).toContain("buildSongVideoProjectPayload");
+    expect(desks).toContain('data-testid="world-song-video-wizard"');
+  });
+});
+
+describe("2.5 song desk tab contracts", () => {
+  it("inspo/mashup/hum benches + vault loading + intake ride the page tabs' endpoints", () => {
+    expect(songTabs).toContain('fetch("/api/song-inspo/analyze"');
+    expect(songTabs).toContain('"/api/song-inspo/generate"');
+    expect(songTabs).toContain('fetch("/api/song-inspo/presets"');
+    expect(songTabs).toContain('fetch("/api/mashup"');
+    expect(songTabs).toContain('fetch("/api/hum-to-song"');
+    expect(desks).toContain('fetch("/api/artist-vaults"');
+    expect(desks).toContain("withArtistVault");
+    expect(desks).toContain('fetch("/api/transcribe"');
+    for (const label of ["Inspo", "Mashup", "Hum to Song"]) expect(desks).toContain(label);
+  });
+});
+
+describe("2.6–2.8 audio desk contracts", () => {
+  it("the full bench is registry-driven and the A/B player + beat fields are docked", () => {
+    expect(audioDesk).toContain("AUDIO_BENCHES");
+    expect(audioDesk).toContain("interpretAudioBenchResponse");
+    expect(audioDesk).toContain('data-testid="world-audio-full-bench"');
+    expect(audioDesk).toContain("<ABAudioPlayer");
+    expect(shared).toContain('data-testid="world-audio-ab-player"');
+    expect(shared).toContain("peaksFromChannelData");
+    /* 2.8: beat posts the surfaced fields, not the silent defaults */
+    expect(audioDesk).toContain("bpm: beatBpm");
+    expect(audioDesk).toContain("musicalKey: beatKey");
+    expect(audioDesk).toContain("lengthSeconds: beatLength");
+    expect(audioDesk).toContain("title: beatTitle");
+  });
+});
+
+describe("2.9–2.11 thumbnail + cover contracts", () => {
+  it("thumbnail benches ride the studio endpoints with the overlay editor + CTR bench", () => {
+    expect(thumbBenches).toContain('fetch("/api/thumbnail-generator"');
+    expect(thumbBenches).toContain('fetch("/api/wave8/thumbnail-ab/variants"');
+    expect(thumbBenches).toContain('fetch("/api/thumbnail-test"');
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-overlay-preview"');
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-face-upload"');
+    expect(thumbBenches).toContain("ctrPredictionOfResponse");
+  });
+
+  it("cover desk carries presets, attribution, share tracking, showcase + history", () => {
+    expect(desks).toContain('data-testid="world-cover-preset-grid"');
+    expect(desks).toContain("COVER_ART_PRESETS");
+    expect(desks).toContain('data-testid="world-cover-attribution-toggle"');
+    expect(desks).toContain('fetch("/api/showcase/publish"');
+    expect(desks).toContain('fetch("/api/shares"');
+    expect(desks).toContain('data-testid="world-cover-history"');
+  });
+});
+
+describe("§5(a) quest chip contracts", () => {
+  it("the chip reads server truth via the shared hook and renders only from its lines", () => {
+    expect(shared).toContain('fetch("/api/retention/quests"');
+    expect(shared).toContain("questAdvancesBetween");
+    expect(shared).toContain('data-testid="world-create-quest-chip"');
+    expect(shared).toContain("if (lines.length === 0) return null");
+    for (const src of [desks, storyboard, songTabs, thumbBenches, audioDesk]) {
+      expect(src).toContain("useQuestProgressChip");
+    }
+  });
+});
