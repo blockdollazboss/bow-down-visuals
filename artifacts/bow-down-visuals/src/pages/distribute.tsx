@@ -19,6 +19,7 @@ import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
 import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel } from "@/components/distribute/DistributionLegacyPanels";
 import { useHubProject } from "@/lib/hub-project";
+import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
@@ -1479,11 +1480,21 @@ function PresaveManager(props: {
     }
   }
 
-  const announceCaption =
-    `🎵 ${release.title} by ${release.artistName} ` +
-    (release.releaseDate ? `drops ${release.releaseDate}` : "is dropping soon") +
-    ` — pre-save it now: ${presaveUrl ?? ""} Made with Bow Down Visuals`;
-  const schedulerHref = `/scheduler?schedule=1&caption=${encodeURIComponent(announceCaption)}`;
+  /* The announcement is scheduled from the release itself: the
+     caption carries the pre-save link (this release's canonical page
+     on our site), and the cover art rides along as the post's media
+     so the composer opens ready to schedule — nothing re-typed. */
+  const announceCaption = releaseAnnounceCaption({
+    title: release.title,
+    artistName: release.artistName,
+    releaseDate: release.releaseDate,
+    presaveUrl: presaveUrl ?? "",
+  });
+  const schedulerHref = buildSchedulerHref({
+    caption: announceCaption,
+    media: release.artworkUrl,
+    mediaType: release.artworkUrl ? "image" : undefined,
+  });
 
   return (
     <div className="space-y-5">

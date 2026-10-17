@@ -16,7 +16,9 @@ import {
 } from "./social-idempotency";
 import {
   publishReelToInstagram,
+  publishImageToInstagram,
   publishVideoToPage,
+  publishPhotoToPage,
   MetaApiError,
 } from "./social-meta";
 import {
@@ -36,7 +38,11 @@ import { refundCredits } from "./credits";
  * publishDueScheduledPosts(), which atomically claims due rows
  * (status='scheduled' AND scheduled_at <= now) with a single
  * UPDATE … WHERE — never in-memory state, so a deploy or restart can
- * neither lose nor double-fire a scheduled post.
+ * neither lose nor double-fire a scheduled post. Image posts
+ * (media_type='image', e.g. a release announcement with its cover art)
+ * fire through the image helpers (publishImageToInstagram /
+ * publishPhotoToPage); TikTok stays video-only and fails image posts
+ * with a clear per-platform reason.
  *
  * Money: scheduling reserves 1 credit per scheduled post up front
  * (regardless of platform count). The worker publishes through the EXISTING
@@ -78,6 +84,12 @@ export interface SchedulerPublishers {
     videoUrl: string;
     caption: string;
   }) => Promise<{ mediaId: string; permalink: string | null }>;
+  instagramImage: (input: {
+    igUserId: string;
+    accessToken: string;
+    imageUrl: string;
+    caption: string;
+  }) => Promise<{ mediaId: string; permalink: string | null }>;
   tiktok: (input: {
     accessToken: string;
     videoBytes: Buffer;
@@ -88,6 +100,12 @@ export interface SchedulerPublishers {
     videoUrl: string;
     description: string;
   }) => Promise<{ videoId: string; permalink: string }>;
+  facebookPhoto: (input: {
+    pageId: string;
+    accessToken: string;
+    imageUrl: string;
+    caption: string;
+  }) => Promise<{ photoId: string; permalink: string }>;
 }
 
 export interface LoadedAccount {
@@ -112,8 +130,10 @@ export interface LoadedAccount {
 
 const defaultPublishers: SchedulerPublishers = {
   instagram: (input) => publishReelToInstagram(input),
+  instagramImage: (input) => publishImageToInstagram(input),
   tiktok: async (input) => uploadDraftToTikTok(input),
   facebook: (input) => publishVideoToPage(input),
+  facebookPhoto: (input) => publishPhotoToPage(input),
 };
 
 function resolveDeps(deps: SchedulerDeps = {}): Required<
@@ -309,15 +329,30 @@ async function firePlatform(
   try {
     const account = await r.loadAccount(post.user_id, platform, accountId);
     const caption = fullCaption(post);
+    /* media_type="image" posts (a release announcement carrying its
+       cover art) fire through the image publishers — never through
+       the video ones. TikTok's posting API here is video-only, so an
+       image post fails that one platform with a clear reason while
+       Instagram/Facebook still deliver (a permanent failure like
+       this one still rides the generic retry path and settles as
+       posted on the terminal attempt — see the settle rules below). */
+    const isImage = post.media_type === "image";
 
     if (platform === "instagram") {
       if (!account.igUserId) throw new Error("The Instagram account is missing its IG user id.");
-      const { mediaId, permalink } = await r.publishers.instagram({
-        igUserId: account.igUserId,
-        accessToken: account.accessToken,
-        videoUrl: mediaUrl,
-        caption,
-      });
+      const { mediaId, permalink } = isImage
+        ? await r.publishers.instagramImage({
+            igUserId: account.igUserId,
+            accessToken: account.accessToken,
+            imageUrl: mediaUrl,
+            caption,
+          })
+        : await r.publishers.instagram({
+            igUserId: account.igUserId,
+            accessToken: account.accessToken,
+            videoUrl: mediaUrl,
+            caption,
+          });
       await r.attemptStore.completeAttempt(attemptId, {
         mediaId,
         permalink,
@@ -328,6 +363,9 @@ async function firePlatform(
     }
 
     if (platform === "tiktok") {
+      if (isImage) {
+        throw new Error("TikTok posts need a video — this image post can still go to Instagram and Facebook.");
+      }
       const videoBytes = await r.downloadVideo(mediaUrl);
       const { publishId } = await r.publishers.tiktok({
         accessToken: account.accessToken,
@@ -344,6 +382,21 @@ async function firePlatform(
 
     /* facebook */
     if (!account.pageId) throw new Error("The Facebook connection is missing its Page id.");
+    if (isImage) {
+      const { photoId, permalink } = await r.publishers.facebookPhoto({
+        pageId: account.pageId,
+        accessToken: account.accessToken,
+        imageUrl: mediaUrl,
+        caption,
+      });
+      await r.attemptStore.completeAttempt(attemptId, {
+        mediaId: photoId,
+        permalink,
+        creditsUsed: 1,
+        creditsRemaining: 0,
+      });
+      return { platform, status: "posted", mediaId: photoId, permalink };
+    }
     const { videoId, permalink } = await r.publishers.facebook({
       pageId: account.pageId,
       accessToken: account.accessToken,

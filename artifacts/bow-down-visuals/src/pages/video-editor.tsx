@@ -705,23 +705,54 @@ export default function VideoEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  /* ── MediaLinkBar "Use this sound": ?sound=track:<id> ──
+  /* ── "Use this sound": ?sound=track:<id> | ?sound=short:<sound_id> ──
      The streaming track resolves through the media API and is attached
      as a project soundtrack stem — the same settings.musicStudio.stems
      state the beat handoff feeds and the preview/render audio resolves
      from, so the sound is mixed into the video the user cuts here. The
      link's tab (repurpose) is left alone; a toast names where the sound
      landed. One-shot like the beat handoff: the param is stripped once
-     consumed, whether the track resolves or not. */
+     consumed, whether the sound resolves or not.
+     The short: scheme is a Shorts sound_id (Shorts rail / sound page):
+     it resolves through GET /api/sounds/:id — the same record the feed
+     reads. A sound minted from a title alone carries no separate audio
+     file; that case fails honestly instead of attaching the wrong
+     thing. */
   useEffect(() => {
     let alive = true;
     try {
       const sound = new URLSearchParams(window.location.search).get("sound");
       if (!sound) return;
-      const m = /^track:(.+)$/.exec(sound.trim());
-      if (!m) return;
+      const trackMatch = /^track:(.+)$/.exec(sound.trim());
+      const shortMatch = /^short:(.+)$/.exec(sound.trim());
+      if (!trackMatch && !shortMatch) return;
       void (async () => {
-        const found = await fetchTrack(m[1]);
+        let resolved: { title: string; audioUrl: string | null; durationSec?: number } | null = null;
+        let shortNoAudio = false;
+        if (trackMatch) {
+          const found = await fetchTrack(trackMatch[1]);
+          if (found) {
+            resolved = {
+              title: found.track.title,
+              audioUrl: resolveMedia(found.track.audio_url),
+              durationSec: found.track.duration_sec ?? undefined,
+            };
+          }
+        } else if (shortMatch) {
+          try {
+            const res = await fetch(`/api/sounds/${encodeURIComponent(shortMatch[1])}`);
+            const data = res.ok ? ((await res.json()) as { sound?: { title?: string | null; url?: string | null } }) : null;
+            if (data?.sound) {
+              resolved = {
+                title: data.sound.title ?? "Short sound",
+                audioUrl: resolveMedia(data.sound.url),
+              };
+              if (!data.sound.url) shortNoAudio = true;
+            }
+          } catch {
+            resolved = null;
+          }
+        }
         if (!alive) return;
         try {
           const url = new URL(window.location.href);
@@ -730,14 +761,17 @@ export default function VideoEditor() {
         } catch {
           /* non-browser — ignore */
         }
-        const audioUrl = resolveMedia(found?.track?.audio_url);
-        if (!found || !audioUrl) {
+        const audioUrl = resolved?.audioUrl ?? null;
+        if (!resolved || !audioUrl) {
           toast({
             title: t("videoEditor.soundLoadFailedTitle", { defaultValue: "Couldn't load that sound" }),
-            description: t("videoEditor.soundLoadFailedDesc", { defaultValue: "That track may be private or removed — pick a sound from the Music tab instead." }),
+            description: shortNoAudio
+              ? t("videoEditor.shortSoundNoAudioDesc", { defaultValue: "That sound has no separate audio file — it lives in the original short. Duet the short to build on it." })
+              : t("videoEditor.soundLoadFailedDesc", { defaultValue: "That track may be private or removed — pick a sound from the Music tab instead." }),
           });
           return;
         }
+        const soundInfo = resolved;
         const ext = audioUrl.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
         const fileType =
           ext === "wav" ? "audio/wav" : ext === "m4a" ? "audio/mp4" : ext === "ogg" ? "audio/ogg" : ext === "flac" ? "audio/flac" : "audio/mpeg";
@@ -751,14 +785,14 @@ export default function VideoEditor() {
                 ...prev.musicStudio.stems,
                 {
                   id: `sound-${Date.now()}`,
-                  name: found.track.title,
+                  name: soundInfo.title,
                   type: "Full Song Mix",
                   url: audioUrl,
                   storagePath: "",
                   fileType,
                   fileSize: 0,
                   uploadedAt: new Date().toISOString(),
-                  durationSec: found.track.duration_sec ?? undefined,
+                  durationSec: soundInfo.durationSec,
                   muted: false,
                   solo: false,
                   locked: false,
@@ -777,7 +811,7 @@ export default function VideoEditor() {
           title: t("videoEditor.soundAttachedTitle", { defaultValue: "Sound attached to this project" }),
           description: t("videoEditor.soundAttachedDesc", {
             defaultValue: "\"{{title}}\" is now your soundtrack stem — find it in the Music tab; it mixes into preview and export.",
-            title: found.track.title,
+            title: soundInfo.title,
           }),
         });
       })();

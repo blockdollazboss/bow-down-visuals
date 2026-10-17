@@ -739,28 +739,40 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
     }
   }, []);
 
-  /* Title of the video pre-loaded via the duet deep-link (shown by Step 1). */
+  /* Title of the video pre-loaded via the duet/stitch deep-link (shown by Step 1). */
   const [duetTitle, setDuetTitle] = useState<string | null>(null);
+  /* Which deep-link loaded the base clip — the banner names the mode
+     the user actually picked (duet vs stitch). */
+  const [linkMode, setLinkMode] = useState<"duet" | "stitch">("duet");
 
-  /* Deep-link: ?duet=video:<id> (MediaLinkBar "Duet / Stitch") loads that
-     video as the base clip. The id resolves through the streaming API into
-     the same videoUrl state the paste-a-URL input drives, so Analyze/Cut
-     run on it exactly like a pasted link. One-shot: the param is stripped
-     whether the load succeeds or not, so a refresh never re-seeds over
-     the user's edits. Unknown/unpublished ids surface the shared error. */
+  /* Deep-link: ?duet=video:<id> (MediaLinkBar "Duet / Stitch") and
+     ?stitch=video:<id> (the Shorts rail) load that video as the base
+     clip. The id resolves through the streaming API into the same
+     videoUrl state the paste-a-URL input drives, so Analyze/Cut run
+     on it exactly like a pasted link. Both modes start from the loaded
+     base clip — duet builds beside it, stitch builds from it — and
+     linkMode keeps the chosen one named on screen. One-shot: the
+     params are stripped whether the load succeeds or not, so a
+     refresh never re-seeds over the user's edits. Unknown/unpublished
+     ids surface the shared error. */
   useEffect(() => {
     let alive = true;
     try {
-      const duet = new URLSearchParams(window.location.search).get("duet");
-      if (!duet) return;
-      const m = /^video:(.+)$/.exec(duet.trim());
+      const search = new URLSearchParams(window.location.search);
+      const duet = search.get("duet");
+      const stitch = search.get("stitch");
+      const raw = duet ?? stitch;
+      if (!raw) return;
+      const m = /^video:(.+)$/.exec(raw.trim());
       if (!m) return;
+      const mode = duet ? "duet" : "stitch";
       void (async () => {
         const found = await fetchVideo(m[1]);
         if (!alive) return;
         try {
           const params = new URLSearchParams(window.location.search);
           params.delete("duet");
+          params.delete("stitch");
           window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
         } catch {
           /* non-browser — ignore */
@@ -772,6 +784,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
         }
         setFile(null);
         setVideoUrl(url);
+        setLinkMode(mode);
         setDuetTitle(found?.video?.title ?? "");
       })();
     } catch {
@@ -1092,7 +1105,9 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
               {duetTitle !== null && (
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                   <Scissors className="h-3.5 w-3.5 shrink-0" />
-                  {t("repurpose.duetLoaded", { defaultValue: "Base clip loaded for duet / stitch" })}
+                  {linkMode === "stitch"
+                    ? t("repurpose.stitchLoaded", { defaultValue: "Base clip loaded for stitch" })
+                    : t("repurpose.duetLoaded", { defaultValue: "Base clip loaded for duet / stitch" })}
                   {duetTitle ? <span className="truncate font-normal text-white/50">· {duetTitle}</span> : null}
                 </span>
               )}

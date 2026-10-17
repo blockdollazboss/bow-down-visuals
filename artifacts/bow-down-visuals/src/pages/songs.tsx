@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard} from "lucide-react";
+import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -11,6 +11,7 @@ import { CoverComparePlayer } from "@/components/song/CoverComparePlayer";
 import { RemixChain } from "@/components/songs/RemixChain";
 import AlbumsSection from "./songs/albums-section";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
+import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 
 interface SongRecord {
   id: string;
@@ -450,6 +451,19 @@ export default function SongsPage() {
                     >
                       <Clapperboard className="h-4 w-4 mr-1" />
                       Make a Canvas
+                    </Link>
+                    <Link
+                      href={buildSchedulerHref({
+                        caption: songAnnounceCaption({
+                          title: s.title,
+                          trackUrl: trackPageUrl(window.location.origin, s.id),
+                        }),
+                      })}
+                      title="Schedule an announcement post — its link to this song is filled in for you"
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/5 transition"
+                    >
+                      <Megaphone className="h-4 w-4 mr-1" />
+                      Announce
                     </Link>
                     <Button
                       size="sm"

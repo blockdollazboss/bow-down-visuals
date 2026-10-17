@@ -10,6 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBucs } from "@/lib/visual-bucs";
 import { normalizeShortsFeed, normalizeShortItem } from "@/lib/shorts-data";
+import {
+  postShortPublishHref,
+  duetEditorHref,
+  stitchEditorHref,
+  shortSoundEditorHref,
+} from "@/lib/short-publish";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
@@ -251,7 +257,7 @@ export default function ShortsFeed() {
           priced downloads sell while you sleep, your sound pays you every time someone uses it,
           and challenges put your name on the leaderboard.
         </p>
-        <Link href="/publish?type=video&category=video"
+        <Link href={postShortPublishHref()}
           className="rounded-full bg-primary px-8 py-3 font-bold text-black hover:brightness-110">
           Post your first short
         </Link>
@@ -295,7 +301,7 @@ export default function ShortsFeed() {
       </div>
 
       {/* big record button — 1 star: pure feed + post. Never gated. */}
-      <Link href="/publish?type=video&category=video" title="Post a short"
+      <Link href={postShortPublishHref()} title="Post a short"
         className="absolute bottom-6 left-1/2 z-20 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-3xl font-black text-black shadow-[0_0_30px_rgba(212,175,55,0.5)] transition hover:scale-105">
         +
       </Link>
@@ -490,11 +496,11 @@ function ShortCard({
         )}
         {/* 2 stars: duet / stitch controls */}
         <div data-min-stars="2" className="flex flex-col items-center gap-4">
-          <Link href={`/video-editor?duet=${item.id}`} className="flex flex-col items-center gap-1" title="Duet this short">
+          <Link href={duetEditorHref(item.id)} className="flex flex-col items-center gap-1" title="Duet this short">
             <span className="rounded-full bg-black/60 p-3"><Columns2 className="h-6 w-6 text-white" /></span>
             <span className="text-xs font-semibold text-white">Duet</span>
           </Link>
-          <Link href={`/video-editor?stitch=${item.id}`} className="flex flex-col items-center gap-1" title="Stitch this short">
+          <Link href={stitchEditorHref(item.id)} className="flex flex-col items-center gap-1" title="Stitch this short">
             <span className="rounded-full bg-black/60 p-3"><Scissors className="h-6 w-6 text-white" /></span>
             <span className="text-xs font-semibold text-white">Stitch</span>
           </Link>
@@ -609,7 +615,7 @@ function ShortCard({
               </span>
             </Link>
             <div data-min-stars="3">
-              <Link href={`/video-editor?sound=${encodeURIComponent(item.sound.id)}`}
+              <Link href={shortSoundEditorHref(item.sound.id)}
                 className="rounded-full border border-primary/50 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10">
                 Use this sound
               </Link>

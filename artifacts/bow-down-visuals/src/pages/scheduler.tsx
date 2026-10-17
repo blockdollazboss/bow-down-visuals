@@ -46,6 +46,10 @@ import {
   type SchedulerPlatformKey,
 } from "@/lib/scheduler";
 import { usePageTitle } from "@/hooks/use-page-title";
+import {
+  parseSchedulerMediaType,
+  type SchedulerMediaType,
+} from "@/lib/scheduler-handoff";
 
 /* ─── Content Scheduler ──────────────────────────────────────────────────
    One calendar to schedule video posts across Instagram Reels, TikTok, and
@@ -246,6 +250,7 @@ export default function Scheduler() {
   const [prefill, setPrefill] = useState<{ date: string; time: string } | null>(null);
   const [captionPrefill, setCaptionPrefill] = useState<string | null>(null);
   const [mediaPrefill, setMediaPrefill] = useState<string | null>(null);
+  const [mediaTypePrefill, setMediaTypePrefill] = useState<SchedulerMediaType | null>(null);
   const [platformPrefill, setPlatformPrefill] = useState<SchedulerPlatformKey[] | null>(null);
 
   /* Deep-link protocol (used by Multi-Ratio Export handoffs):
@@ -269,10 +274,13 @@ export default function Scheduler() {
       if (params.get("schedule") !== "1") return;
       const caption = params.get("caption") ?? undefined;
       const media = params.get("media") ?? undefined;
+      /* mediaType rides the protocol for non-video media — a release
+         announcement hands over its cover art as an image post. */
+      const mediaType = media ? parseSchedulerMediaType(params.get("mediaType")) : undefined;
       const rawPlatforms = (params.get("platform") ?? "").split(",").map((p) => p.trim().toLowerCase());
       const valid: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"]
         .filter((p) => rawPlatforms.includes(p)) as SchedulerPlatformKey[];
-      openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined);
+      openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined, mediaType);
       // Consume the params so a refresh doesn't reopen the composer.
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
@@ -350,11 +358,12 @@ export default function Scheduler() {
     [monthCursor],
   );
 
-  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string, mediaUrl?: string, platforms?: SchedulerPlatformKey[]) {
+  function openComposer(post?: ScheduledPostShape, date?: string, time?: string, caption?: string, mediaUrl?: string, platforms?: SchedulerPlatformKey[], mediaType?: SchedulerMediaType) {
     setEditingPost(post ?? null);
     setPrefill(date ? { date, time: time ?? "18:00" } : null);
     setCaptionPrefill(caption ?? null);
     setMediaPrefill(mediaUrl ?? null);
+    setMediaTypePrefill(mediaType ?? null);
     setPlatformPrefill(platforms ?? null);
     setComposerOpen(true);
   }
@@ -604,11 +613,12 @@ export default function Scheduler() {
           prefill={prefill}
           captionPrefill={captionPrefill}
           mediaPrefill={mediaPrefill}
+          mediaTypePrefill={mediaTypePrefill}
           platformPrefill={platformPrefill}
           accounts={accounts}
           timezone={timezone}
-          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setPlatformPrefill(null); }}
-          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setPlatformPrefill(null); await refresh(); }}
+          onClose={() => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); }}
+          onSaved={async () => { setComposerOpen(false); setEditingPost(null); setPrefill(null); setCaptionPrefill(null); setMediaPrefill(null); setMediaTypePrefill(null); setPlatformPrefill(null); await refresh(); }}
           onOutOfCredits={() => setOutOfCredits(true)}
         />
       )}
@@ -1716,6 +1726,7 @@ function ComposerModal(props: {
   prefill: { date: string; time: string } | null;
   captionPrefill: string | null;
   mediaPrefill: string | null;
+  mediaTypePrefill: SchedulerMediaType | null;
   platformPrefill: SchedulerPlatformKey[] | null;
   accounts: SocialAccountInfo[];
   timezone: string;
@@ -1734,6 +1745,9 @@ function ComposerModal(props: {
   const { project: hubProject, getShareLink } = useHubProject();
 
   const [mediaRef, setMediaRef] = useState(post?.mediaUrl ?? props.mediaPrefill ?? "");
+  /* The post's real media type — an image handoff (release cover art)
+     must be stored AND fired as an image, never stamped "video". */
+  const [mediaType, setMediaType] = useState<SchedulerMediaType>(post?.mediaType ?? props.mediaTypePrefill ?? "video");
   const [previewUrl, setPreviewUrl] = useState(() => {
     const initial = post?.mediaUrl ?? props.mediaPrefill ?? "";
     return initial && !initial.startsWith("supabase://") ? initial : "";
@@ -1787,6 +1801,7 @@ function ComposerModal(props: {
       /* Persist the stable storage ref (never expires); preview with the signed URL. */
       setMediaRef(data.ref);
       setPreviewUrl(data.url ?? "");
+      setMediaType("video");
       toast({ title: t("scheduler.toast.videoUploaded"), description: t("scheduler.toast.readyToSchedule") });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("scheduler.error.uploadFailed"));
@@ -1854,7 +1869,7 @@ function ComposerModal(props: {
       }
       const payload = {
         mediaUrl: mediaRef,
-        mediaType: "video",
+        mediaType,
         caption: finalCaption,
         hashtags: normalizeHashtags(hashtags),
         platforms,
@@ -1920,17 +1935,22 @@ function ComposerModal(props: {
               }
               setMediaRef(asset.url);
               setPreviewUrl(asset.url);
+              setMediaType("video");
             }}
           />
         )}
 
         {/* media */}
         <div className="mt-6">
-          <label className={labelClass}>{t("scheduler.composer.video")}</label>
+          <label className={labelClass}>{mediaType === "image" ? t("scheduler.composer.image", { defaultValue: "Image" }) : t("scheduler.composer.video")}</label>
           {previewUrl || mediaRef ? (
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
               {previewUrl ? (
-                <video src={previewUrl} controls playsInline className="max-h-64 w-full object-contain" />
+                mediaType === "image" ? (
+                  <img src={previewUrl} alt="" className="max-h-64 w-full object-contain" />
+                ) : (
+                  <video src={previewUrl} controls playsInline className="max-h-64 w-full object-contain" />
+                )
               ) : (
                 <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/50">
                   <Video className="h-5 w-5 text-primary/60" /> {t("scheduler.composer.noPreview")}
@@ -2032,6 +2052,12 @@ function ComposerModal(props: {
             <p className="mt-2 flex items-start gap-1.5 text-[12px] text-white/45">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
               {t("scheduler.composer.tiktokNote")}
+            </p>
+          )}
+          {mediaType === "image" && platforms.includes("tiktok") && (
+            <p className="mt-2 flex items-start gap-1.5 text-[12px] text-white/45">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+              {t("scheduler.composer.imageTiktokNote", { defaultValue: "TikTok needs a video — this image post will publish to Instagram and Facebook only." })}
             </p>
           )}
         </div>

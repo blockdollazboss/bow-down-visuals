@@ -5,7 +5,7 @@ import {
   Music2, Clapperboard, Gamepad2, Mic2, Film, Tv, Sparkles, GraduationCap,
   MoreHorizontal, AudioLines, Video, UploadCloud, X, Loader2, Rocket,
   BadgeCheck, Pencil, Trash2, ExternalLink, ImagePlus, Wand2, DollarSign,
-  ChevronRight, AlertTriangle, CheckCircle2, User, Share2, Trophy,
+  ChevronRight, AlertTriangle, CheckCircle2, User, Share2, Trophy, Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,11 @@ import {
 } from "@/components/publish/PublishToProfileButton";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import {
+  buildShortPostBody,
+  SHORT_MAX_DURATION_SEC,
+  SHORTS_API_PATH,
+} from "@/lib/short-publish";
 
 /* ─── Vertical config (all nine creator verticals) ───────────────────────── */
 const VERTICAL_META: Record<PublishVertical, { label: string; icon: typeof Music2; hint: string }> = {
@@ -107,10 +112,13 @@ export default function Publish() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fromTool, setFromTool] = useState<{ path: string; label: string } | null>(null);
-  const [publishedItem, setPublishedItem] = useState<{ slug: string; itemId: string; kind: ContentType; title: string } | null>(null);
+  const [publishedItem, setPublishedItem] = useState<{ slug: string; itemId: string; kind: ContentType; title: string; short?: boolean } | null>(null);
   const [shareState, setShareState] = useState<"idle" | "shared" | "copied">("idle");
   /* Challenge engine 2.0: ?challenge=slug auto-enters a fresh video publish. */
   const [challengeSlug, setChallengeSlug] = useState<string | null>(null);
+  /* Shorts linkage: ?short=1 (every "post a short" surface) routes a
+     fresh video save through POST /api/shorts so it lands as a short. */
+  const [shortIntent, setShortIntent] = useState(false);
   const [challengeTitle, setChallengeTitle] = useState<string>("");
   const [liveChallenges, setLiveChallenges] = useState<Array<{ slug: string; title: string; prize_pool_credits: number }>>([]);
   const [enterSlug, setEnterSlug] = useState<string>("");
@@ -175,6 +183,10 @@ export default function Publish() {
           .then((r) => (r.ok ? r.json() : null))
           .then((j) => { if (j?.challenge?.title) setChallengeTitle(j.challenge.title); })
           .catch(() => { /* challenge name is decorative */ });
+      }
+      if (params.get("short") === "1") {
+        setShortIntent(true);
+        setContentType("video");
       }
       if ([...params.keys()].length) {
         window.history.replaceState(null, "", window.location.pathname);
@@ -479,6 +491,17 @@ export default function Publish() {
 
       const isEdit = editingId !== null;
       const existing = isEdit ? drafts.find((d) => d.id === editingId) : undefined;
+      /* Shorts linkage: a fresh video save that arrived with short
+         intent goes through POST /api/shorts — the only writer that
+         sets is_short=true — so it lands in the Shorts feed. Edits
+         keep the publish path (the row already carries is_short, and
+         the PUT preserves it). Regular posts are untouched. */
+      const isShortCreate = shortIntent && !isEdit && contentType === "video";
+      if (isShortCreate && durationSec != null && durationSec > SHORT_MAX_DURATION_SEC) {
+        throw new Error(
+          `Shorts cap at ${SHORT_MAX_DURATION_SEC / 60} minutes and this one runs longer — trim it, or tap "Regular video" above and post it full-length.`,
+        );
+      }
       const rawMediaUrl = finalMediaUrl ?? (existing ? existing.media_url : null);
       /* Mirror-on-save: whatever lands in the row is the permanent
          storage ref — deep-link prefills and AI artwork arrive as raw
@@ -487,8 +510,13 @@ export default function Publish() {
       const saveMediaUrl = await mirrorForSave(rawMediaUrl, contentType);
       const saveArtworkUrl = await mirrorForSave(artworkRef ?? artworkUrl, "image");
 
-      const body: Record<string, unknown> =
-        contentType === "audio"
+      const body: Record<string, unknown> = isShortCreate
+        ? buildShortPostBody({
+            profileId: profile.id, title, videoUrl: saveMediaUrl ?? "",
+            thumbnailUrl: saveArtworkUrl, description, tags,
+            durationSec, publish,
+          })
+        : contentType === "audio"
           ? {
               profile_id: profile.id, title: title.trim(), audio_url: saveMediaUrl,
               artwork_url: saveArtworkUrl, genre: genre || undefined, category: vertical,
@@ -504,7 +532,9 @@ export default function Publish() {
             };
 
       const endpoint = contentType === "audio" ? "track" : "video";
-      const url = isEdit ? `/api/publish/${endpoint}/${editingId}` : `/api/publish/${endpoint}`;
+      const url = isShortCreate
+        ? SHORTS_API_PATH
+        : isEdit ? `/api/publish/${endpoint}/${editingId}` : `/api/publish/${endpoint}`;
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -513,12 +543,13 @@ export default function Publish() {
       const j = await res.json() as {
         error?: string; message?: string;
         track?: { id?: string | number }; video?: { id?: string | number };
+        short?: { id?: string | number };
       };
       if (!res.ok) throw new Error(j.message ?? j.error ?? `Save failed (${res.status})`);
 
       if (publish) {
-        const itemId = String(j.track?.id ?? j.video?.id ?? "");
-        setPublishedItem({ slug: profile.slug, itemId, kind: contentType, title: title.trim() });
+        const itemId = String(j.track?.id ?? j.video?.id ?? j.short?.id ?? "");
+        setPublishedItem({ slug: profile.slug, itemId, kind: contentType, title: title.trim(), short: isShortCreate });
         setShareState("idle");
         setEnteredState("idle");
         /* Challenge engine 2.0: auto-enter a fresh video into ?challenge=slug. */
@@ -553,7 +584,17 @@ export default function Publish() {
         }
         toast({
           title: "You're live! 🚀",
-          description: (
+          description: isShortCreate ? (
+            <span>
+              Your short is live in the Shorts feed.{" "}
+              <button
+                className="underline font-bold text-amber-300"
+                onClick={() => navigate(`/shorts?start=${itemId}`)}
+              >
+                Watch it now →
+              </button>
+            </span>
+          ) : (
             <span>
               Your {contentType === "audio" ? "audio" : "video"} is on your profile and ready to sell.{" "}
               <button
@@ -580,6 +621,7 @@ export default function Publish() {
 
   function resetForm() {
     setPublishedItem(null); setShareState("idle");
+    setShortIntent(false);
     setTitle(""); setDescription(""); setGenre(""); setTagsInput(""); setIsrc("");
     setSeason(""); setEpisode(""); setPriceMode("free"); setPriceDollars("");
     setFile(null); setPrefillUrl(null); setPrefillLabel(null);
@@ -629,13 +671,17 @@ export default function Publish() {
     [title, file, prefillUrl, editingId],
   );
 
+  /* Effective short mode for THIS form: fresh video + short intent. */
+  const shortMode = shortIntent && !editingId && contentType === "video";
+
   const mediaPreviewUrl = file ? undefined : prefillUrl ?? undefined;
 
   /* ── Share sheet: native share, clipboard fallback — never a dead "done" ── */
   async function sharePublished() {
     if (!publishedItem) return;
-    const anchor = `#${publishedItem.kind === "audio" ? "track" : "video"}-${publishedItem.itemId}`;
-    const url = `${window.location.origin}/artist/${publishedItem.slug}${anchor}`;
+    const url = publishedItem.short
+      ? `${window.location.origin}/shorts?start=${publishedItem.itemId}`
+      : `${window.location.origin}/artist/${publishedItem.slug}#${publishedItem.kind === "audio" ? "track" : "video"}-${publishedItem.itemId}`;
     const shareData = {
       title: `${publishedItem.title} — Bow Down Visuals`,
       text: `Check out "${publishedItem.title}" on my Bow Down Visuals profile`,
@@ -657,6 +703,7 @@ export default function Publish() {
 
   function liveItemUrl(): string | null {
     if (!publishedItem || !publishedItem.itemId) return null;
+    if (publishedItem.short) return `/shorts?start=${publishedItem.itemId}`;
     const anchor = `#${publishedItem.kind === "audio" ? "track" : "video"}-${publishedItem.itemId}`;
     return `/artist/${publishedItem.slug}${anchor}`;
   }
@@ -741,6 +788,29 @@ export default function Publish() {
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white/45 hover:text-amber-300"
             >
               ← Back to {fromTool.label}
+            </button>
+          </div>
+        )}
+
+        {/* Shorts intent — arrived from a "post a short" surface: the
+            save routes through POST /api/shorts and lands in the feed. */}
+        {shortMode && (
+          <div className={`mt-6 flex items-start justify-between gap-3 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <div className="flex items-start gap-2.5">
+              <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+              <div>
+                <p className="text-sm font-bold text-amber-200">Posting as a Short</p>
+                <p className="mt-0.5 text-xs text-white/50">
+                  This lands in the Shorts feed — up to {SHORT_MAX_DURATION_SEC / 60} minutes long.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShortIntent(false)}
+              className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] font-bold text-white/60 hover:text-white"
+              title="Post as a regular video instead"
+            >
+              Regular video
             </button>
           </div>
         )}
@@ -1131,7 +1201,7 @@ export default function Publish() {
             className="rounded-2xl bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-4 text-sm font-black text-black hover:brightness-110 disabled:opacity-40 shadow-[0_0_32px_rgba(251,191,36,0.25)]"
           >
             {saving ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : (
-              <span className="inline-flex items-center gap-1.5"><Rocket className="h-4 w-4" /> {editingId ? "Publish now" : "Publish — go live"}</span>
+              <span className="inline-flex items-center gap-1.5"><Rocket className="h-4 w-4" /> {editingId ? "Publish now" : shortMode ? "Publish Short — go live" : "Publish — go live"}</span>
             )}
           </button>
         </div>
