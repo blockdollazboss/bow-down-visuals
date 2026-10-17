@@ -2743,7 +2743,7 @@
     "embed_on_your_own_site": "Incorpore no Seu Próprio Site",
     "paste_this_anywhere_signups_land": "Cole em qualquer lugar – as inscrições vão direto para a sua lista. Grátis.",
     "how_sending_works_v1": "Como funciona o envio (v1):",
-    "campaigns_queue_through_our_simp": "As campanhas entram em fila pelo nosso remetente simples no servidor — não por um provedor de e-mail dedicado.\n Isso significa: sem garantia de entrega na caixa de entrada, sem reputação de IP dedicada, e os envios funcionam melhor para listas de até alguns milhares. Quando sua lista passar do plano gratuito, migramos você para uma integração ESP adequada. O rastreamento de abertura usa um pixel simples e subestima caixas de entrada focadas em privacidade.",
+    "campaigns_queue_through_our_simp": "As campanhas entram em fila pelo nosso remetente simples no servidor — não por um provedor de e-mail dedicado.\n Isso significa: sem garantia de entrega na caixa de entrada, sem reputação de IP dedicada, e os envios funcionam melhor para listas de até alguns milhares. Quando sua lista passar do plano gratuito, migramos você para uma integração ESP adequada. O rastreamento de abertura ainda não está ligado, então não exibimos taxas de abertura — sem números inventados.",
     "list_built_ask": "Lista pronta? Pergunte",
     "thy_cheat_code": "Thy Cheat Code",
     "in_the_chat_bubble_for_newslette": "no\n balão de chat para ideias de newsletter que realmente são abertas.",

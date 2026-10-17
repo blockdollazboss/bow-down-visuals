@@ -2704,7 +2704,7 @@
     "body": "Text",
     "builder": "Builder",
     "call_to_action_optional_e_g_pre": "Call to Action (optional — z. B. Single vorspeichern)",
-    "campaigns_queue_through_our_simp": "Kampagnen\n laufen über unseren einfachen serverseitigen Versand — keinen dedizierten E-Mail-Serviceanbieter.\n Das bedeutet keine garantierte Inbox-Zustellung, keine dedizierte IP-Reputation, und der Versand eignet sich\n am besten für Listen unter einigen Tausend. Sobald Ihre Liste über die Gratis-Stufe hinauswächst,\n migrieren wir Sie auf eine richtige ESP-Integration. Das Öffnen-Tracking nutzt ein Pixel nach bestem Bemühen und\n unterzählt datenschutzbewusste Postfächer.",
+    "campaigns_queue_through_our_simp": "Kampagnen\n laufen über unseren einfachen serverseitigen Versand — keinen dedizierten E-Mail-Serviceanbieter.\n Das bedeutet keine garantierte Inbox-Zustellung, keine dedizierte IP-Reputation, und der Versand eignet sich\n am besten für Listen unter einigen Tausend. Sobald Ihre Liste über die Gratis-Stufe hinauswächst,\n migrieren wir Sie auf eine richtige ESP-Integration. Das Öffnen-Tracking ist noch nicht angebunden,\n daher zeigen wir keine Öffnungsraten an — keine erfundenen Zahlen.",
     "copy_body": "Text kopieren",
     "copy_embed_code": "Embed-Code kopieren",
     "copy_link": "Link kopieren",

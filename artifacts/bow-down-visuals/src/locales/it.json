@@ -4904,7 +4904,7 @@
     "embed_on_your_own_site": "Incorpora sul tuo sito",
     "paste_this_anywhere_signups_land": "Incollalo ovunque — le iscrizioni finiscono direttamente nella tua lista. Gratis.",
     "how_sending_works_v1": "Come funziona l'invio (v1):",
-    "campaigns_queue_through_our_simp": "le campagne\n passano attraverso il nostro semplice sender lato server — non un provider di servizi email dedicato.\n Ciò significa nessuna garanzia di recapito in inbox, nessuna reputazione IP dedicata, e gli invii sono\n ideali per liste sotto le poche migliaia. Man mano che la tua lista cresce oltre il piano gratis, ti\n passeremo a una vera integrazione ESP. Il tracking delle aperture usa un pixel best-effort e\n sottostima le inbox attente alla privacy.",
+    "campaigns_queue_through_our_simp": "le campagne\n passano attraverso il nostro semplice sender lato server — non un provider di servizi email dedicato.\n Ciò significa nessuna garanzia di recapito in inbox, nessuna reputazione IP dedicata, e gli invii sono\n ideali per liste sotto le poche migliaia. Man mano che la tua lista cresce oltre il piano gratis, ti\n passeremo a una vera integrazione ESP. Il tracking delle aperture non è ancora collegato, quindi\n non riportiamo tassi di apertura — niente numeri inventati.",
     "list_built_ask": "Lista pronta? Chiedi a",
     "thy_cheat_code": "Thy Cheat Code",
     "in_the_chat_bubble_for_newslette": "nella\n bolla di chat per idee di newsletter che vengono davvero aperte.",

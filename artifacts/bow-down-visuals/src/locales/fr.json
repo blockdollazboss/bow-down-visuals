@@ -2743,7 +2743,7 @@
     "embed_on_your_own_site": "Intègre sur ton propre site",
     "paste_this_anywhere_signups_land": "Colle-le n'importe où — les inscriptions arrivent directement dans ta liste. Gratuit.",
     "how_sending_works_v1": "Comment fonctionne l'envoi (v1) :",
-    "campaigns_queue_through_our_simp": "Les campagnes\n transitent par notre simple expéditeur côté serveur — pas un vrai service d'envoi d'e-mails.\n Ça veut dire : aucun placement garanti en boîte de réception, aucune réputation d'IP dédiée, et les envois conviennent\n mieux aux listes de quelques milliers d'abonnés. Quand ta liste dépassera l'offre gratuite, on te fera\n passer à une vraie intégration ESP. Le suivi d'ouverture utilise un pixel au mieux et\n sous-compte les boîtes de réception soucieuses de la vie privée.",
+    "campaigns_queue_through_our_simp": "Les campagnes\n transitent par notre simple expéditeur côté serveur — pas un vrai service d'envoi d'e-mails.\n Ça veut dire : aucun placement garanti en boîte de réception, aucune réputation d'IP dédiée, et les envois conviennent\n mieux aux listes de quelques milliers d'abonnés. Quand ta liste dépassera l'offre gratuite, on te fera\n passer à une vraie intégration ESP. Le suivi d'ouverture n'est pas encore branché, donc nous\n n'affichons pas de taux d'ouverture — pas de chiffres inventés.",
     "list_built_ask": "Liste créée ? Demande à",
     "thy_cheat_code": "Thy Cheat Code",
     "in_the_chat_bubble_for_newslette": "dans la\n bulle de chat pour des idées de newsletter qui se font vraiment ouvrir.",
