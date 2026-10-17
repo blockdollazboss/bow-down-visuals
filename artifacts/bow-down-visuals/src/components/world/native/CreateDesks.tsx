@@ -7,13 +7,25 @@ import {
   DeskTextField,
   ImageResult,
   PublishedReward,
+  QuestProgressChip,
   ResultChips,
   SongAudioRail,
   TextResult,
   VideoResult,
   useDeskAuthHeaders,
+  useQuestProgressChip,
   type SongAudioState,
 } from "./CreateDeskShared";
+import { StoryboardBench } from "./StoryboardBench";
+import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
+import { ThumbnailBenches } from "./ThumbnailBenches";
+import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import {
+  AI_EDIT_STYLE_DEFS,
+  applyAiTransitionsToClips,
+  defaultAiEditSettings,
+  defaultEditorSettings,
+} from "@/lib/editor-settings";
 import { callGenerateApi } from "@/lib/generate-api";
 import { generateMusicAudio, type GenerateMusicAudioRequest } from "@/lib/generate-music-audio";
 import { extractSongPackage } from "@/lib/hub-song";
@@ -21,8 +33,14 @@ import { COVER_ART_RATIOS, COVER_ART_STYLES } from "@/lib/cover-art";
 import type { ArtistImageModel } from "@/components/generate-artist-image";
 import { ARTIST_IMAGE_MODELS } from "@/components/generate-artist-image";
 import {
+  aiEditPlanCost,
+  analyzeSectionsCost,
+  buildAiEditPlanPayload,
   buildArtistImagePayload,
   buildCoverArtPayload,
+  buildShowcasePublishPayload,
+  buildShareTrackPayload,
+  buildSongVideoProjectPayload,
   buildCoverInMotionPayload,
   buildDraftPayload,
   buildEditorProjectPayload,
@@ -35,6 +53,8 @@ import {
   buildSongVideoPayloadTurbo,
   buildThumbnailPayload,
   buildVideoPlanPayload,
+  COVER_ART_PRESETS,
+  aiEditPlanOfResponse,
   coverArtCost,
   coverInMotionCost,
   distributeHrefForCover,
@@ -44,9 +64,17 @@ import {
   publishedTrackIdOfResponse,
   resultExcerpt,
   scheduleHrefForMedia,
+  showcaseSlugOfResponse,
+  transcribeCost,
+  transcriptOfResponse,
+  vaultsOfResponse,
+  withArtistVault,
+  withSceneApproval,
+  TRANSCRIBE_FORM_FIELD,
   SONG_AUDIO_LENGTH_SECONDS,
   songDeskCost,
   songVideoDeskCost,
+  SONG_VIDEO_TURBO_DEFAULTS,
   SONG_DRAFT_WORKFLOW,
   THUMBNAIL_DRAFT_WORKFLOW,
   thumbnailDeskCost,
@@ -263,6 +291,13 @@ const LENGTH_OPTIONS = ["", "30 seconds", "60 seconds", "2 minutes", "Full song"
 export function SongDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
+  const authHeaders = useDeskAuthHeaders();
+  const quest = useQuestProgressChip();
+  const [tab, setTab] = useState<"create" | "inspo" | "mashup" | "hum">("create");
+  const [vaults, setVaults] = useState<Array<{ id: string; artistName: string }>>([]);
+  const [vaultRaw, setVaultRaw] = useState<Record<string, unknown> | null>(null);
+  const [intakeBusy, setIntakeBusy] = useState(false);
+  const [intakeNote, setIntakeNote] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [adv, setAdv] = useState<SongAdvanced>(EMPTY_SONG_ADVANCED);
   const [state, setState] = useState<CreateDeskJobState>("idle");
@@ -275,6 +310,77 @@ export function SongDesk(props: CreateDeskProps) {
   const useAdvanced = Object.values(adv).some((v) => v.trim().length > 0);
   const set = (k: keyof SongAdvanced) => (v: string) => setAdv((a) => ({ ...a, [k]: v }));
 
+  /* Ring 2 (2.5): Artist Vault preset loading — the selector's own
+     rail (GET /api/artist-vaults); picking one posts the whole
+     vault object as artistVault, exactly as make-song posts it. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/artist-vaults", { headers: await authHeaders() });
+        if (!res.ok) return;
+        const json = (await res.json().catch(() => null)) as unknown;
+        if (cancelled) return;
+        setVaults(vaultsOfResponse(json));
+        if (json && typeof json === "object") {
+          const list = Array.isArray(json) ? json : ((json as { vaults?: unknown[] }).vaults ?? []);
+          setVaultRaw((prev) => prev ?? null);
+          void list;
+        }
+      } catch {
+        /* vault presets are a nicety — the desk works without them */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadVault = async (id: string) => {
+    if (!id) {
+      setVaultRaw(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/artist-vaults", { headers: await authHeaders() });
+      const json = (await res.json().catch(() => null)) as { vaults?: Array<Record<string, unknown>> } | Array<Record<string, unknown>> | null;
+      const list = Array.isArray(json) ? json : (json?.vaults ?? []);
+      const found = list.find((v) => v["id"] === id) ?? null;
+      setVaultRaw(found);
+      if (found && typeof found["artist_name"] === "string" && !adv.artistName) {
+        setAdv((a) => ({ ...a, artistName: found["artist_name"] as string }));
+      }
+    } catch {
+      /* keep the current preset state */
+    }
+  };
+
+  /* Ring 2 (2.5): upload + auto-transcribe intake — the file rides
+     POST /api/transcribe (form field "audio") and the transcript
+     becomes the song's topic/lyrics seed in the prompt. */
+  const intakeFile = async (file: File) => {
+    setIntakeBusy(true);
+    setIntakeNote(null);
+    void quest.snapshot();
+    try {
+      const form = new FormData();
+      form.append(TRANSCRIBE_FORM_FIELD, file);
+      const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Transcription failed.");
+      const transcript = transcriptOfResponse(data);
+      if (!transcript) throw new Error("The transcription came back empty — paste the words instead.");
+      setPrompt(transcript.slice(0, 2000));
+      setIntakeNote("Transcribed — the words are in the prompt below, ready to make the song.");
+      refreshProfile();
+    } catch (err) {
+      setIntakeNote(err instanceof Error ? err.message : "Transcription failed.");
+    } finally {
+      setIntakeBusy(false);
+    }
+  };
+
   const run = async () => {
     if (state === "running" || !prompt.trim()) return;
     setState("running");
@@ -282,15 +388,18 @@ export function SongDesk(props: CreateDeskProps) {
     setRawResult(null);
     draft.reset();
     rail.reset();
+    void quest.snapshot();
     try {
       const token = await getAccessToken();
-      const payload = useAdvanced ? buildSongPayloadAdvanced(prompt, adv) : buildSongPayloadTurbo(prompt);
+      const base = useAdvanced ? buildSongPayloadAdvanced(prompt, adv) : buildSongPayloadTurbo(prompt);
+      const payload = vaultRaw ? withArtistVault(base, vaultRaw) : base;
       const result = await callGenerateApi("/api/generate-song", payload, token);
       if (!result) throw new Error("The song make didn't start.");
       setRawResult(result.rawResult);
       setGenHistoryId(result.genHistoryId ?? null);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
+      void quest.checkAfter();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Song generation failed.");
       setState("failed");
@@ -307,8 +416,53 @@ export function SongDesk(props: CreateDeskProps) {
     onJukeboxAdd: props.onJukeboxAdd,
   });
 
+  const songTabBtn = (active: boolean) =>
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+      active
+        ? "border-[#d4af37] bg-[#d4af37] text-black"
+        : isLight
+          ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+          : "border-white/15 text-white/75 hover:text-white"
+    }`;
+
+  if (tab !== "create") {
+    return (
+      <div className="space-y-3" data-testid="world-create-song-desk">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Song Desk tabs">
+          <button type="button" role="tab" aria-selected={false} onClick={() => setTab("create")} className={songTabBtn(false)}>Create</button>
+          <button type="button" role="tab" aria-selected={tab === "inspo"} onClick={() => setTab("inspo")} className={songTabBtn(tab === "inspo")}>Inspo</button>
+          <button type="button" role="tab" aria-selected={tab === "mashup"} onClick={() => setTab("mashup")} className={songTabBtn(tab === "mashup")}>Mashup</button>
+          <button type="button" role="tab" aria-selected={tab === "hum"} onClick={() => setTab("hum")} className={songTabBtn(tab === "hum")}>Hum to Song</button>
+        </div>
+        {tab === "inspo" ? <SongInspoBench isLight={isLight} /> : tab === "mashup" ? <SongMashupBench isLight={isLight} /> : <SongHumBench isLight={isLight} />}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3" data-testid="world-create-song-desk">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Song Desk tabs">
+        <button type="button" role="tab" aria-selected={true} onClick={() => setTab("create")} className={songTabBtn(true)}>Create</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("inspo")} className={songTabBtn(false)}>Inspo</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("mashup")} className={songTabBtn(false)}>Mashup</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("hum")} className={songTabBtn(false)}>Hum to Song</button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {vaults.length > 0 ? (
+          <DeskSelectField
+            isLight={isLight}
+            label="Artist Vault preset"
+            value={typeof vaultRaw?.["id"] === "string" ? (vaultRaw["id"] as string) : ""}
+            onChange={(v) => void loadVault(v)}
+            options={[{ value: "", label: "No preset" }, ...vaults.map((v) => ({ value: v.id, label: v.artistName }))]}
+          />
+        ) : null}
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+          {intakeBusy ? "Transcribing…" : `Upload a song + transcribe · ${transcribeCost().toLocaleString("en-US")} Visual Bucs`}
+          <input type="file" accept="audio/*" className="hidden" data-testid="world-song-intake-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intakeFile(f); }} />
+        </label>
+        {intakeNote ? <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{intakeNote}</span> : null}
+      </div>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
           <DeskTextField isLight={isLight} label="Artist name" value={adv.artistName} onChange={set("artistName")} />
@@ -401,6 +555,7 @@ export function SongDesk(props: CreateDeskProps) {
                   Make the audio, publish it to your profile right here, and the jukebox chip lights up.
                 </p>
               )}
+              <QuestProgressChip isLight={isLight} lines={quest.lines} />
             </div>
           ) : undefined
         }
@@ -421,6 +576,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
   const [genHistoryId, setGenHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const editor = useEditorSeed(props);
+  const quest = useQuestProgressChip();
 
   const useAdvanced = Object.values(adv).some((v) => v.trim().length > 0);
   const set = (k: keyof SongVideoAdvanced) => (v: string) => setAdv((a) => ({ ...a, [k]: v }));
@@ -431,6 +587,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
     setError(null);
     setRawResult(null);
     rail.reset();
+    void quest.snapshot();
     try {
       const token = await getAccessToken();
       const payload = useAdvanced ? buildSongVideoPayloadAdvanced(prompt, adv) : buildSongVideoPayloadTurbo(prompt);
@@ -440,6 +597,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
       setGenHistoryId(result.genHistoryId ?? null);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
+      void quest.checkAfter();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Song + video generation failed.");
       setState("failed");
@@ -544,6 +702,244 @@ export function SongVideoDesk(props: CreateDeskProps) {
           ) : undefined
         }
       />
+      <SongVideoWizard
+        isLight={isLight}
+        packageResult={rawResult}
+        artistName={adv.artistName}
+        editorBusy={editor.busy}
+        onSendToEditor={
+          props.onOpenEditor
+            ? (payload) => {
+                void editor.send(payload);
+              }
+            : undefined
+        }
+      />
+      <QuestProgressChip isLight={isLight} lines={quest.lines} />
+    </div>
+  );
+}
+
+
+/* ─── Ring 2 (2.4) — the Song + Video wizard's later steps ──────────
+   song-and-video.tsx's Simple flow steps docked under the desk's
+   package: upload + auto-transcribe intake (POST /api/transcribe),
+   scene review (the audio scene flow or the package's parsed
+   scenes, approved per scene), the auto-edit plan applied
+   (POST /api/generate/ai-edit-plan → applyAiTransitionsToClips,
+   the page's own application), and the finished package saved as
+   a project (POST /api/projects, the page's save shape). */
+
+function SongVideoWizard(props: {
+  isLight: boolean;
+  packageResult: string | null;
+  artistName: string;
+  onSendToEditor?: (payload: Record<string, unknown>) => void;
+  editorBusy?: boolean;
+}) {
+  const { isLight } = props;
+  const { getAccessToken, refreshProfile } = useAuth();
+  const authHeaders = useDeskAuthHeaders();
+  const quest = useQuestProgressChip();
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState("");
+  const [transcribing, setTranscribing] = useState(false);
+  const [scenes, setScenes] = useState<SceneData[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [planApplied, setPlanApplied] = useState(false);
+  const [editorSettings, setEditorSettings] = useState<unknown>(null);
+  const [saved, setSaved] = useState(false);
+
+  const lyrics = transcript.trim();
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+    isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+  }`;
+
+  const intake = async (file: File) => {
+    setAudioFile(file);
+    setAudioUrl(URL.createObjectURL(file));
+    setTranscribing(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append(TRANSCRIBE_FORM_FIELD, file);
+      const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Transcription failed.");
+      const text = transcriptOfResponse(data);
+      if (!text) throw new Error("We couldn't auto-transcribe this audio — paste the lyrics below to continue.");
+      setTranscript(text);
+      refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transcription failed.");
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const buildScenes = async () => {
+    if (busy) return;
+    setBusy("scenes");
+    setError(null);
+    void quest.snapshot();
+    try {
+      if (audioUrl) {
+        const { runAudioSceneFlow } = await import("@/lib/generate-scenes-from-audio-flow");
+        const flow = await runAudioSceneFlow({
+          lyrics,
+          audioUrl,
+          audioFile,
+          songStructure: null,
+          getAccessToken,
+        });
+        if (!flow) return;
+        setScenes(flow.scenes);
+      } else if (props.packageResult) {
+        const parsed = parseScenes(extractBreakdownContent(props.packageResult));
+        if (parsed.length === 0) throw new Error("The package came back without scenes — add more detail and make it again.");
+        setScenes(parsed);
+      } else {
+        throw new Error("Upload a song or make the package above first — scenes come from one of those.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Scene building failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const applyPlan = async () => {
+    if (busy || scenes.length === 0) return;
+    setBusy("plan");
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const style = "viral-tiktok";
+      let settings: ReturnType<typeof defaultEditorSettings> = {
+        ...defaultEditorSettings(),
+        aiEdit: { ...defaultAiEditSettings(), enabled: true, style, autoApplyTransitions: true },
+      };
+      const res = await fetch("/api/generate/ai-edit-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(
+          buildAiEditPlanPayload({
+            style,
+            styleName: AI_EDIT_STYLE_DEFS.find((d) => d.id === style)?.name ?? style,
+            scenes,
+            audioFound: !!audioUrl,
+            captionStyle: settings.captions.stylePreset,
+            currentEffects: settings.effects,
+            artistName: props.artistName,
+            lyricsText: lyrics,
+          }),
+        ),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "The edit plan didn't land.");
+      const plan = aiEditPlanOfResponse(data);
+      if (plan) {
+        settings = {
+          ...settings,
+          aiEdit: { ...settings.aiEdit, plan: plan as never, applied: false },
+        };
+        settings = applyAiTransitionsToClips(settings, scenes, plan as never);
+        setPlanApplied(true);
+      }
+      setEditorSettings(settings);
+      refreshProfile();
+      void token;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The edit plan didn't land — the package still saves without it.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const savePackage = async () => {
+    if (busy) return;
+    setBusy("save");
+    setError(null);
+    const payload = buildSongVideoProjectPayload({
+      title: [props.artistName, "Song + Video"].filter(Boolean).join(" — ") || "Song + Video",
+      artistName: props.artistName,
+      genre: SONG_VIDEO_TURBO_DEFAULTS.genre,
+      mood: SONG_VIDEO_TURBO_DEFAULTS.mood,
+      inputData: { idea: "", lyrics, audioUrl: audioUrl ? "uploaded" : null },
+      resultText: props.packageResult ?? lyrics,
+      scenes: scenes as unknown as unknown[],
+      editorSettings: editorSettings ?? {
+        ...defaultEditorSettings(),
+        aiEdit: { ...defaultAiEditSettings(), enabled: true, style: "viral-tiktok", autoApplyTransitions: true },
+      },
+    });
+    try {
+      if (props.onSendToEditor) {
+        props.onSendToEditor(payload);
+      } else {
+        const res = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Saving the package didn't land — try again.");
+      }
+      setSaved(true);
+      void quest.checkAfter();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Saving the package failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div data-testid="world-song-video-wizard" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+      <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+        Finish the package — upload, scenes, auto-edit
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className={chipCls}>
+          {audioFile ? `Song file: ${audioFile.name}` : `Upload the song — auto-transcribes · ${transcribeCost().toLocaleString("en-US")} Visual Bucs`}
+          <input type="file" accept="audio/*" className="hidden" data-testid="world-song-video-intake" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intake(f); }} />
+        </label>
+        {transcribing ? <span className={`text-xs font-semibold ${muted}`}>Transcribing…</span> : null}
+      </div>
+      <label className="block">
+        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Lyrics (from the transcription, or paste your own)</span>
+        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+      </label>
+      <button type="button" data-testid="world-song-video-build-scenes" onClick={() => void buildScenes()} disabled={busy !== null || (!audioUrl && !props.packageResult)} className={chipCls}>
+        {busy === "scenes" ? "Building scenes…" : audioUrl ? `Build scenes from my song · includes analysis ${analyzeSectionsCost().toLocaleString("en-US")} Visual Bucs` : "Review the package's scenes · Free"}
+      </button>
+      {scenes.length > 0 ? (
+        <div className="space-y-2" data-testid="world-song-video-scene-review">
+          {scenes.map((scene) => (
+            <div key={scene.id} className={`flex flex-wrap items-center gap-2 rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+              <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
+              <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.lyricLine || scene.action}</span>
+              <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold">
+                <input type="checkbox" checked={scene.approved} onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))} />
+                Keep
+              </label>
+            </div>
+          ))}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" data-testid="world-song-video-apply-plan" onClick={() => void applyPlan()} disabled={busy !== null} className={chipCls}>
+              {busy === "plan" ? "Applying…" : planApplied ? "Auto-edit plan applied ✓" : `Apply the auto-edit plan · ${aiEditPlanCost().toLocaleString("en-US")} Visual Bucs`}
+            </button>
+            <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null || props.editorBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+              {props.onSendToEditor ? "Save + open in the editor" : "Save the finished package"}
+            </button>
+          </div>
+          {saved ? <p className={`text-xs font-semibold ${muted}`}>Saved — the finished package is a project now{planApplied ? ", auto-edit plan riding inside it" : ""}.</p> : null}
+        </div>
+      ) : null}
+      {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
+      <QuestProgressChip isLight={isLight} lines={quest.lines} />
     </div>
   );
 }
@@ -705,6 +1101,17 @@ export function VideoDesk(props: CreateDeskProps) {
           Making your clip{progress !== null ? ` — ${Math.round(progress)}%` : ""}…
         </p>
       )}
+      <StoryboardBench
+        isLight={isLight}
+        editorBusy={editor.busy}
+        onSendToEditor={
+          props.onOpenEditor
+            ? (payload) => {
+                void editor.send(payload);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }
@@ -721,6 +1128,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
   const [style, setStyle] = useState("luxury-gold");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState<"standard" | "premium">("standard");
+  const [attribution, setAttribution] = useState(false);
+  const [coverHistory, setCoverHistory] = useState<string[]>([]);
+  const [showcaseSlug, setShowcaseSlug] = useState<string | null>(null);
+  const [showcaseBusy, setShowcaseBusy] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  const coverQuest = useQuestProgressChip();
   const [state, setState] = useState<CreateDeskJobState>("idle");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -751,17 +1164,22 @@ export function CoverArtDesk(props: CreateDeskProps) {
     setCoverUrl(null);
     setMotionUrl(null);
     setMotionState("idle");
+    setShowcaseSlug(null);
+    setShareNote(null);
+    void coverQuest.snapshot();
     try {
       const res = await fetch("/api/cover-art", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(buildCoverArtPayload(prompt, { songTitle, artistName, style, aspectRatio, tier })),
+        body: JSON.stringify(buildCoverArtPayload(prompt, { songTitle, artistName, style, aspectRatio, tier, attribution })),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Cover art generation failed.");
       setCoverUrl(data.url);
+      setCoverHistory((h) => [data.url!, ...h].slice(0, 12));
       refreshProfile();
       setState("done");
+      void coverQuest.checkAfter();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cover art generation failed.");
       setState("failed");
@@ -836,12 +1254,93 @@ export function CoverArtDesk(props: CreateDeskProps) {
     }
   };
 
+  /* Ring 2 (2.11): publish-to-showcase on the cover page's own rail
+     (POST /api/showcase/publish, free) and the share menu's tracking
+     rail (POST /api/shares) under a copy-link share. */
+  const publishToShowcase = async () => {
+    if (!coverUrl || showcaseBusy) return;
+    setShowcaseBusy(true);
+    try {
+      const res = await fetch("/api/showcase/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(
+          buildShowcasePublishPayload({
+            title: songTitle || "Cover art",
+            mediaType: "image",
+            mediaUrl: coverUrl,
+            thumbnailUrl: coverUrl,
+            creatorName: artistName,
+          }),
+        ),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Publishing to the showcase didn't land.");
+      const slug = showcaseSlugOfResponse(data);
+      if (!slug) throw new Error("The showcase came back without your page — check the showcase before trying again.");
+      setShowcaseSlug(slug);
+    } catch (err) {
+      setShareNote(err instanceof Error ? err.message : "Showcase publishing failed.");
+    } finally {
+      setShowcaseBusy(false);
+    }
+  };
+
+  const shareCover = async () => {
+    if (!coverUrl) return;
+    const text = `Cover art for "${songTitle || "my song"}" — made with Bow Down Visuals`;
+    try {
+      const nav = typeof navigator !== "undefined" ? navigator : null;
+      if (nav && typeof nav.share === "function") {
+        await nav.share({ title: "Bow Down Visuals — Cover Art", text, url: coverUrl });
+      } else if (nav && nav.clipboard) {
+        await nav.clipboard.writeText(`${text}\n${coverUrl}`);
+        setShareNote("Share link copied.");
+      }
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildShareTrackPayload({ contentType: "image", channel: "copy" })),
+      }).catch(() => {});
+    } catch {
+      /* sharing dismissed — tracking must never break the desk */
+    }
+  };
+
   return (
     <div className="space-y-3" data-testid="world-create-cover-desk">
+      <div>
+        <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>One-tap vibes</p>
+        <div className="flex flex-wrap gap-1.5" data-testid="world-cover-preset-grid">
+          {COVER_ART_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => {
+                setStyle(preset.style);
+                setPrompt(preset.mood);
+              }}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                style === preset.style
+                  ? "border-[#d4af37] bg-[#d4af37] text-black"
+                  : isLight
+                    ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                    : "border-white/15 text-white/75 hover:text-white"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <DeskTextField isLight={isLight} label="Song title" value={songTitle} onChange={setSongTitle} />
         <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
       </div>
+      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+        <input type="checkbox" data-testid="world-cover-attribution-toggle" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
+        Made-with credit on the cover (attribution)
+      </label>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
           <DeskSelectField isLight={isLight} label="Style" value={style} onChange={setStyle} options={COVER_ART_STYLES.map((s) => ({ value: s.key, label: s.label }))} />
@@ -949,10 +1448,38 @@ export function CoverArtDesk(props: CreateDeskProps) {
                   setPrompt("");
                 }}
               />
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <button type="button" data-testid="world-cover-share" onClick={() => void shareCover()} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                  Share this cover
+                </button>
+                {showcaseSlug ? (
+                  <a data-testid="world-cover-showcase-link" href={`/showcase/${showcaseSlug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-500">
+                    Live on the showcase — view it
+                  </a>
+                ) : (
+                  <button type="button" data-testid="world-cover-showcase" onClick={() => void publishToShowcase()} disabled={showcaseBusy} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                    {showcaseBusy ? "Publishing…" : "Publish to the showcase · Free"}
+                  </button>
+                )}
+              </div>
+              {shareNote ? <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{shareNote}</p> : null}
+              <QuestProgressChip isLight={isLight} lines={coverQuest.lines} />
             </div>
           ) : undefined
         }
       />
+      {coverHistory.length > 1 ? (
+        <div data-testid="world-cover-history">
+          <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>This session</p>
+          <div className="flex flex-wrap gap-2">
+            {coverHistory.map((url) => (
+              <button key={url} type="button" onClick={() => setCoverUrl(url)} className={`overflow-hidden rounded-lg border ${coverUrl === url ? "border-[#d4af37]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+                <img src={url} alt="Cover from this session" className="h-12 w-12 object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -977,6 +1504,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
   const [recent, setRecent] = useState<LibraryAsset[]>([]);
   const editor = useEditorSeed(props);
   const draft = useDraftSaver();
+  const thumbQuest = useQuestProgressChip();
 
   useEffect(() => {
     let cancelled = false;
@@ -1006,6 +1534,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
     setImageUrl(null);
     setImageNote(null);
     draft.reset();
+    void thumbQuest.snapshot();
     try {
       const token = await getAccessToken();
       const result = await callGenerateApi(
@@ -1018,6 +1547,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
       if (result.imageError) setImageNote(result.imageError);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
+      void thumbQuest.checkAfter();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thumbnail generation failed.");
       setState("failed");
@@ -1115,6 +1645,8 @@ export function ThumbnailDesk(props: CreateDeskProps) {
           ) : undefined
         }
       />
+      <QuestProgressChip isLight={isLight} lines={thumbQuest.lines} />
+      <ThumbnailBenches isLight={isLight} />
       {recent.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
