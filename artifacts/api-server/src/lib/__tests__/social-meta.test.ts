@@ -6,6 +6,8 @@ import {
   createReelContainer,
   pollContainerUntilFinished,
   publishReelToInstagram,
+  publishImageToInstagram,
+  publishPhotoToPage,
   MetaApiError,
   type FetchImpl,
 } from "../social-meta";
@@ -182,5 +184,71 @@ describe("pollContainerUntilFinished", () => {
     await expect(
       pollContainerUntilFinished("c1", "tok", fetchImpl, noSleep),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("publishImageToInstagram", () => {
+  const input = {
+    igUserId: "ig-1",
+    accessToken: "token",
+    imageUrl: "https://cdn.test/cover.jpg",
+    caption: "Golden Hour drops Friday — pre-save: https://bowdownvisuals.com/presave/golden-hour",
+  };
+
+  it("runs container → poll → publish → permalink with image_url and NO media_type/video_url", async () => {
+    const fetchImpl = mockFetch([
+      { body: { id: "container-1" } },                        // create image container
+      { body: { status_code: "FINISHED" } },                  // poll
+      { body: { id: "media-7" } },                            // media_publish
+      { body: { permalink: "https://instagram.com/p/img" } }, // permalink
+    ]);
+    const result = await publishImageToInstagram(input, fetchImpl, noSleep);
+    expect(result).toEqual({ mediaId: "media-7", permalink: "https://instagram.com/p/img" });
+    const [url, init] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/ig-1/media");
+    const body = new URLSearchParams(init.body as string);
+    expect(body.get("image_url")).toBe(input.imageUrl);
+    expect(body.get("caption")).toBe(input.caption);
+    expect(body.get("media_type")).toBeNull();
+    expect(body.get("video_url")).toBeNull();
+  });
+
+  it("throws MetaApiError when Meta rejects the container", async () => {
+    const fetchImpl = mockFetch([
+      { status: 400, body: { error: { message: "Invalid image", code: 100 } } },
+    ]);
+    await expect(publishImageToInstagram(input, fetchImpl, noSleep)).rejects.toThrow(MetaApiError);
+  });
+});
+
+describe("publishPhotoToPage", () => {
+  const input = {
+    pageId: "page-1",
+    accessToken: "token",
+    imageUrl: "https://cdn.test/cover.jpg",
+    caption: "Golden Hour drops Friday",
+  };
+
+  it("posts the photo published=true to graph.facebook.com and reads the permalink off the post", async () => {
+    const fetchImpl = mockFetch([
+      { body: { id: "photo-1", post_id: "post-9" } },              // POST /photos
+      { body: { permalink_url: "https://facebook.com/post/9" } },  // GET /post-9
+    ]);
+    const result = await publishPhotoToPage(input, fetchImpl);
+    expect(result).toEqual({ photoId: "post-9", permalink: "https://facebook.com/post/9" });
+    const [url, init] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("graph.facebook.com");
+    expect(url).toContain("/page-1/photos");
+    const body = new URLSearchParams(init.body as string);
+    expect(body.get("url")).toBe(input.imageUrl);
+    expect(body.get("message")).toBe(input.caption);
+    expect(body.get("published")).toBe("true");
+  });
+
+  it("falls back to the photo id with no permalink when Meta returns no post_id", async () => {
+    const fetchImpl = mockFetch([{ body: { id: "photo-2" } }]);
+    const result = await publishPhotoToPage(input, fetchImpl);
+    expect(result).toEqual({ photoId: "photo-2", permalink: "" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
