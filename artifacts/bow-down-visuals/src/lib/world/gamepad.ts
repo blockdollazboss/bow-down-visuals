@@ -16,7 +16,15 @@
  *   buttons[0]  A / Cross    → step the voice mode (edge):
  *                              Off → Proximity → Lobby → Deafen → Off
  *   buttons[3]  Y / Triangle → toggle first/third person (edge)
+ *   D-pad ↑ → Bow · D-pad → → Cheer · D-pad ↓ → Sit · D-pad ← → Wave
+ *   buttons[2]  X / Square   → Clap
+ *   buttons[1]  B / Circle   → Dance (toggle — press again to stop)
+ *   buttons[5]  RB / R1      → Spin
+ * Avatar actions ride the same edge discipline as the toggles:
+ * one press, one performance — holding a button never machine-guns
+ * the room with bows.
  */
+import type { WorldActionId } from "./actions";
 
 export const GAMEPAD_DEADZONE = 0.18;
 
@@ -28,6 +36,8 @@ export interface GamepadLike {
 export interface GamepadEdges {
   voice: boolean;
   view: boolean;
+  /** Action buttons held at the last poll, by action id. */
+  actions: Partial<Record<WorldActionId, boolean>>;
 }
 
 export interface GamepadIntent {
@@ -42,6 +52,9 @@ export interface GamepadIntent {
   /** Edge-triggered: true only on the frame the button goes down. */
   toggleVoice: boolean;
   toggleView: boolean;
+  /** Edge-triggered avatar action for this frame (the first fresh
+   *  press, in map order), or null. */
+  action: WorldActionId | null;
 }
 
 export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
@@ -52,9 +65,22 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   sprint: false,
   toggleVoice: false,
   toggleView: false,
+  action: null,
 };
 
-export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false };
+export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, actions: {} };
+
+/** Action buttons in priority order — if two go down on the same
+ *  frame, the first in this list is the performance. */
+const ACTION_BUTTONS: ReadonlyArray<readonly [number, WorldActionId]> = [
+  [12, "bow"], // D-pad up
+  [15, "cheer"], // D-pad right
+  [13, "sit"], // D-pad down
+  [14, "wave"], // D-pad left
+  [2, "clap"], // X / Square
+  [1, "dance"], // B / Circle
+  [5, "spin"], // RB / R1
+];
 
 /** Radial deadzone with rescaling: inside the zone the stick reads
  *  exactly zero (no drift); outside it, the remaining travel is
@@ -92,7 +118,14 @@ export function pollGamepad(
   if (!pad) return { intent: IDLE_GAMEPAD_INTENT, edges: IDLE_GAMEPAD_EDGES };
   const [moveX, moveY] = applyRadialDeadzone(axis(pad, 0), axis(pad, 1));
   const [lookX, lookY] = applyRadialDeadzone(axis(pad, 2), axis(pad, 3));
-  const edges: GamepadEdges = { voice: pressed(pad, 0), view: pressed(pad, 3) };
+  const actionEdges: Partial<Record<WorldActionId, boolean>> = {};
+  let action: WorldActionId | null = null;
+  for (const [button, id] of ACTION_BUTTONS) {
+    const down = pressed(pad, button);
+    actionEdges[id] = down;
+    if (action === null && down && prev.actions[id] !== true) action = id;
+  }
+  const edges: GamepadEdges = { voice: pressed(pad, 0), view: pressed(pad, 3), actions: actionEdges };
   return {
     intent: {
       moveX,
@@ -102,6 +135,7 @@ export function pollGamepad(
       sprint: pressed(pad, 7) || pressed(pad, 10),
       toggleVoice: edges.voice && !prev.voice,
       toggleView: edges.view && !prev.view,
+      action,
     },
     edges,
   };

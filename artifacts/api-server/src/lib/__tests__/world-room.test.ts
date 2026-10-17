@@ -899,11 +899,135 @@ describe("host authority", () => {
   });
 });
 
+describe("action snapshots", () => {
+  it("a one-shot leaves the snapshot once it has plainly finished; a toggle stays", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(b, room, { type: "action", action: "bow" }, 1_000);
+    frame(a, room, { type: "action", action: "dance" }, 1_600);
+    // A late joiner inside the window still meets the bow…
+    const c = fakeSocket();
+    room.attach(c, member("Carol"));
+    const carolWelcome = c.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(carolWelcome.peers.map((p) => p.action)).toContain("bow");
+    // …but once the room's clock passes the snapshot window, the
+    // bow is over everywhere — while the dance (a toggle) holds.
+    frame(a, room, { type: "say", text: "later" }, 4_200);
+    const d = fakeSocket();
+    room.attach(d, member("Delta"));
+    const deltaWelcome = d.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(deltaWelcome.peers.map((p) => p.action)).not.toContain("bow");
+    expect(deltaWelcome.peers.map((p) => p.action)).toContain("dance");
+    expect(room.peerFor(b)?.action).toBeNull();
+  });
+});
+
 describe("tints", () => {
   it("are stable per key and always from the house palette", () => {
     expect(tintForKey("hall-member")).toBe(tintForKey("hall-member"));
     for (const key of ["a", "some-creator", "thy-cheat-code", "user-123"]) {
       expect(WORLD_TINTS).toContain(tintForKey(key));
     }
+  });
+});
+
+describe("avatar actions", () => {
+  it("broadcasts a one-shot action to the room and carries it in the DTO", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const alphaId = room.peerFor(a)!.peerId;
+    b.sent = [];
+    frame(b, room, { type: "action", action: "bow" }, 1_000);
+    expect(b.sent).toEqual([]);
+    expect(a.sent.filter((m) => m.type === "peer.action")).toEqual([
+      { type: "peer.action", peerId: room.peerFor(b)!.peerId, action: "bow" },
+    ]);
+    expect(room.peerFor(b)?.action).toBe("bow");
+    expect(alphaId).not.toBe(room.peerFor(b)!.peerId);
+  });
+
+  it("refuses ids outside the shared action set — nothing changes", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    a.sent = [];
+    frame(b, room, { type: "action", action: "backflip" }, 1_000);
+    frame(b, room, { type: "action", action: 42 }, 2_000);
+    expect(a.sent.filter((m) => m.type === "peer.action")).toEqual([]);
+    expect(room.peerFor(b)?.action).toBeNull();
+  });
+
+  it("a toggle re-sent ends it; action null stops a held toggle", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const betaId = room.peerFor(b)!.peerId;
+    frame(b, room, { type: "action", action: "dance" }, 1_000);
+    expect(room.peerFor(b)?.action).toBe("dance");
+    a.sent = [];
+    frame(b, room, { type: "action", action: "dance" }, 2_000);
+    expect(room.peerFor(b)?.action).toBeNull();
+    expect(a.sent.filter((m) => m.type === "peer.action")).toEqual([
+      { type: "peer.action", peerId: betaId, action: null },
+    ]);
+    frame(b, room, { type: "action", action: "sit" }, 3_000);
+    expect(room.peerFor(b)?.action).toBe("sit");
+    frame(b, room, { type: "action", action: null }, 4_000);
+    expect(room.peerFor(b)?.action).toBeNull();
+  });
+
+  it("walking clears a held toggle server-side — one-shots survive a move", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    const betaId = room.peerFor(b)!.peerId;
+    frame(b, room, { type: "action", action: "dance" }, 1_000);
+    a.sent = [];
+    frame(b, room, { type: "move", x: 3, z: 4, rotY: 0 }, 1_200);
+    expect(room.peerFor(b)?.action).toBeNull();
+    expect(a.sent.map((m) => m.type)).toEqual(["peer.action", "peer.move"]);
+    expect(a.sent[0]).toEqual({ type: "peer.action", peerId: betaId, action: null });
+    // A one-shot in flight is not the server's to cancel.
+    frame(b, room, { type: "action", action: "cheer" }, 2_000);
+    frame(b, room, { type: "move", x: 4, z: 4, rotY: 0 }, 2_200);
+    expect(room.peerFor(b)?.action).toBe("cheer");
+  });
+
+  it("paces action frames — a flood inside the window is ignored", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    frame(a, room, { type: "action", action: "wave" }, 1_000);
+    frame(a, room, { type: "action", action: "bow" }, 1_100);
+    expect(room.peerFor(a)?.action).toBe("wave");
+    frame(a, room, { type: "action", action: "bow" }, 1_600);
+    expect(room.peerFor(a)?.action).toBe("bow");
+  });
+
+  it("guests act too — an action is presence, not speech", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const g = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(g, guest());
+    frame(g, room, { type: "action", action: "clap" }, 1_000);
+    expect(room.peerFor(g)?.action).toBe("clap");
+    expect(a.sent.filter((m) => m.type === "peer.action")).toHaveLength(1);
   });
 });

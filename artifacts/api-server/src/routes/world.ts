@@ -1,10 +1,12 @@
 /**
- * world.ts — The World (the King's Hall): one shared VR room.
+ * world.ts — The World: the palace (the King's Hall + its rooms).
  *
  *   WS  /api/world/ws?token=<session?>   presence + voice signaling
  *   GET /api/world/screen                what the hall's big screen plays
+ *   GET /api/world/directory             who's in which palace room
  *
- * Presence is socket state (lib/world-room.ts) on the shared live
+ * Presence is socket state (lib/world-room.ts, one instance per
+ * palace room, registered in lib/world-palace.ts) on the shared live
  * gateway — no DB rows, no migration: despawning is a socket close.
  * The token is OPTIONAL here, unlike chat: a valid session token makes
  * you a named member (voice + text); no token (or a stale one) makes
@@ -38,12 +40,12 @@ import {
   type WsClientSocket,
 } from "../lib/live-ws";
 import {
-  WorldRoom,
   type WorldCharacterRef,
   type WorldIdentity,
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
+import { WorldPalace } from "../lib/world-palace";
 
 const router = Router();
 
@@ -123,16 +125,17 @@ export function stageVideoScreen(
   };
 }
 
-/** The live room, once the WS endpoint is mounted — the screen
- *  endpoint reads the stage off it so HTTP and WS never disagree. */
-let activeWorldRoom: WorldRoom | null = null;
+/** The live palace, once the WS endpoint is mounted — the HTTP
+ *  endpoints read the same instances the sockets talk to, so HTTP
+ *  and WS never disagree. */
+let activePalace: WorldPalace | null = null;
 
 router.get("/world/screen", publicApiLimiter, async (_req, res) => {
   try {
     /* The stage outranks ambient programming: whoever holds it owns
      * the screen. A stage video needs no DB at all — the room
      * verified it at pick time and carries the playback stamp. */
-    const stage = activeWorldRoom?.screenBroadcast() ?? null;
+    const stage = activePalace?.hallRoom.screenBroadcast() ?? null;
     if (stage?.holder) {
       if (stage.mode === "video" && stage.video && stage.playback) {
         res.json({
@@ -258,6 +261,28 @@ function catalogReplayItem(
     durationSec: 0,
   };
 }
+
+/**
+ * The palace directory over HTTP: every room, its headcount, who's
+ * inside, and whether the hall's stage is live. Public like the
+ * screen endpoint — the front-door signal ("your people are in the
+ * Music Hall") for surfaces that haven't stepped in yet. Before the
+ * WS mount (or in a process without one), every room reads empty —
+ * honest zeros, never a stale crowd.
+ */
+router.get("/world/directory", publicApiLimiter, (_req, res) => {
+  res.json({
+    rooms: activePalace
+      ? activePalace.directory()
+      : [
+          { id: "world:kings-hall", name: "The King's Hall", count: 0, members: [], live: false },
+          { id: "world:music-hall", name: "Music Hall", count: 0, members: [], live: false },
+          { id: "world:game-rooms", name: "Game Rooms", count: 0, members: [], live: false },
+          { id: "world:create-wing", name: "Create Wing", count: 0, members: [], live: false },
+          { id: "world:courtyard", name: "Courtyard", count: 0, members: [], live: false },
+        ],
+  });
+});
 
 router.get("/world/screen-catalog", requireAuth, async (req, res) => {
   try {
@@ -527,15 +552,15 @@ async function resolveScreenVideo(userId: string, videoId: string): Promise<Worl
   }
 }
 
-export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldRoom {
+export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldPalace {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
-  const room = new WorldRoom(hub, {
+  const palace = new WorldPalace(hub, {
     resolveCharacter: resolveVaultCharacter,
     resolveStageStream,
     resolveScreenVideo,
   });
-  activeWorldRoom = room;
+  activePalace = palace;
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
     const token = query.get("token");
@@ -559,19 +584,21 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     identity = { ...identity, admin: auth ? isWorldAdminEmail(auth.email) : false };
 
     const client = socket as unknown as WsClientSocket;
-    if (!room.attach(client, identity)) return; // room_full already sent
+    /* Everyone enters through the hall; doorways move them after. */
+    if (!palace.enterHall(client, identity)) return; // room_full already sent
+    palace.sendDirectory(client);
     socket.on("message", (data) => {
       try {
-        room.handleFrame(client, data.toString());
+        palace.handleFrame(client, data.toString());
       } catch (err) {
         logger.warn({ err }, "[world] frame handling failed");
       }
     });
-    socket.on("close", () => room.detach(client));
-    socket.on("error", () => room.detach(client));
+    socket.on("close", () => palace.detach(client));
+    socket.on("error", () => palace.detach(client));
   });
 
-  return room;
+  return palace;
 }
 
 export default router;
