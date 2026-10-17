@@ -32,10 +32,23 @@ const TONE_DIRECTION: Record<Tone, string> = {
    A batch is one short GPT-6 Sol completion (a fraction of a cent in
    provider fees), so 1 credit holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
-const COMMENT_REPLIES_CREDITS =
+export const COMMENT_REPLIES_CREDITS =
   Number(process.env["COMMENT_REPLIES_CREDIT_COST"]) || 100;
 
 const MAX_COMMENTS = 10;
+
+/* GET /api/comment-replies/meta → { cost, tones, maxComments }
+   The price a drafting bench shows MUST come from the server (house
+   law: displayed prices are real server charges) — the charge below
+   and this meta read the same constant, so they can never drift.
+   Free to read; drafting itself is the paid call. */
+router.get("/comment-replies/meta", requireAuth, (_req, res) => {
+  res.json({
+    cost: COMMENT_REPLIES_CREDITS,
+    tones: TONES,
+    maxComments: MAX_COMMENTS,
+  });
+});
 
 const commentRepliesSchema = z.object({
   comments: z

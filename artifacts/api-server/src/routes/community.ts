@@ -1,4 +1,6 @@
-import { Router, type Request } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { randomUUID } from "crypto";
+import multer from "multer";
 import { z } from "zod";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
@@ -21,7 +23,10 @@ import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-o
 import { requireAuth } from "../middlewares/require-auth";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
-import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import {
+  refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl,
+  uploadMediaToSupabaseStorage, isStorageRef,
+} from "../lib/objectStorage";
 
 /* Mirror-on-save (2026-10-13 law): group/event covers are re-hosted into
    permanent storage at save time. Read payloads are deep-refreshed so
@@ -74,7 +79,9 @@ function param(req: Request, name: string): string {
        GET    /dm/conversations              (auth) — { inbox, requests }
        POST   /dm/start          { user_id } (auth)
        GET    /dm/:id/messages               (auth; participant only)
-       POST   /dm/:id/send       { body }    (auth; participant; rate-limited)
+       POST   /dm/:id/send       { body, attachment? } (auth; participant; rate-limited)
+       POST   /dm/attachments/upload  multipart "file" (auth) — the sender's
+                                      own work into permanent storage (2.17)
        POST   /dm/:id/accept                 (auth; request recipient)
        POST   /dm/:id/decline                (auth; request recipient)
        POST   /dm/:id/block                  (auth; participant)
@@ -114,7 +121,65 @@ const createEventSchema = z.object({
 });
 
 const dmStartSchema = z.object({ user_id: uuidSchema });
-const dmSendSchema = z.object({ body: z.string().trim().min(1).max(2000) });
+
+/* DM attachments (Ring 2, 2.17): one piece of the sender's own work per
+   message — a beat (audio), a cover (image) or a clip (video). The size
+   caps mirror the site's own upload rules (routes/publish.ts): images
+   10 MB, audio/video 80 MB. */
+export const DM_ATTACHMENT_TYPES = ["audio", "image", "video"] as const;
+export type DmAttachmentType = (typeof DM_ATTACHMENT_TYPES)[number];
+export const DM_ATTACHMENT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const DM_ATTACHMENT_MAX_BYTES = 80 * 1024 * 1024;
+
+const dmAttachmentSchema = z.object({
+  /* A permanent storage ref from POST /dm/attachments/upload, or an
+     http(s) URL to the sender's own file elsewhere — external URLs are
+     mirrored into permanent storage at send time (mirror-on-save). */
+  url: z.string().trim().min(1).max(2000),
+  type: z.enum(DM_ATTACHMENT_TYPES),
+  name: z.string().trim().min(1).max(200),
+});
+
+/* A send carries words, a piece of work, or both — never neither. The
+   broadcast rail parses { body } only and is unaffected. */
+const dmSendSchema = z.object({
+  body: z.string().trim().max(2000).optional().default(""),
+  attachment: dmAttachmentSchema.optional(),
+}).refine((v) => v.body.length > 0 || v.attachment !== undefined, {
+  message: "Write something, or attach a piece of your work.",
+});
+
+/** The object-name prefix every DM upload for this sender lives under.
+ *  A storage-ref attachment is only ever accepted when it sits under
+ *  the SENDER's own prefix — nobody can pass off someone else's upload
+ *  (or an unrelated site file) as their hand-off. */
+export function dmUploadPrefix(userId: string): string {
+  return `dm/${userId}/`;
+}
+
+/** Validate + settle an attachment for storage. Returns the permanent
+ *  ref to persist, or an error string. Storage refs must be the
+ *  sender's own uploads; external http(s) URLs are mirrored into
+ *  permanent storage under the sender (mirror-on-save law) and the
+ *  mirrored ref is what persists. Anything else is rejected. */
+export async function settleDmAttachment(
+  attachment: z.infer<typeof dmAttachmentSchema>,
+  userId: string,
+): Promise<{ ref: string } | { error: string }> {
+  const { url, type } = attachment;
+  if (isStorageRef(url)) {
+    if (!url.includes(`/${dmUploadPrefix(userId)}`)) {
+      return { error: "That file isn't one of your own uploads." };
+    }
+    return { ref: url };
+  }
+  if (/^https?:\/\//i.test(url)) {
+    const mirrored = await mirrorExternalMediaUrl(url, { kind: type, ownerKey: userId });
+    if (!mirrored) return { error: "That link didn't resolve to a file." };
+    return { ref: mirrored };
+  }
+  return { error: "Attach a file you uploaded, or a link to your file." };
+}
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -235,9 +300,25 @@ function toMessageDto(m: typeof messagesTable.$inferSelect) {
     sender_user_id: m.senderUserId,
     senderUserId: m.senderUserId,
     body: m.body,
+    /* Attachment triple (2.17): the stored ref rides as-is here; use
+       toMessageDtoFresh for payloads a client will actually open —
+       it mints a fresh URL from the permanent ref per read. */
+    attachment_url: m.attachmentUrl ?? null,
+    attachment_type: m.attachmentType ?? null,
+    attachment_name: m.attachmentName ?? null,
     is_read: m.isRead,
     created_at: m.createdAt,
   };
+}
+
+/** toMessageDto with the attachment ref resolved to a fresh, openable
+ *  URL (storage refs expire when signed — the row never stores one). */
+async function toMessageDtoFresh(m: typeof messagesTable.$inferSelect) {
+  const dto = toMessageDto(m);
+  if (dto.attachment_url) {
+    dto.attachment_url = (await refreshSupabaseStorageUrl(dto.attachment_url)) ?? dto.attachment_url;
+  }
+  return dto;
 }
 
 /* ── GROUPS ──────────────────────────────────────────────────────────────── */
@@ -716,7 +797,10 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
     const otherIds = convs.map((c) => otherParticipant(c, userId));
     const cards = await profileCards(otherIds);
     const convIds = convs.map((c) => c.id);
-    let previews: Record<string, { body: string; createdAt: Date | null; senderUserId: string }> = {};
+    let previews: Record<string, {
+      body: string; createdAt: Date | null; senderUserId: string;
+      attachmentType: string | null; attachmentName: string | null;
+    }> = {};
     let unread: Record<string, number> = {};
     if (convIds.length > 0) {
       const lastMsgs = await db.select().from(messagesTable)
@@ -724,7 +808,10 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
         .orderBy(desc(messagesTable.createdAt));
       for (const m of lastMsgs) {
         if (!previews[m.conversationId]) {
-          previews[m.conversationId] = { body: m.body, createdAt: m.createdAt, senderUserId: m.senderUserId };
+          previews[m.conversationId] = {
+            body: m.body, createdAt: m.createdAt, senderUserId: m.senderUserId,
+            attachmentType: m.attachmentType ?? null, attachmentName: m.attachmentName ?? null,
+          };
         }
         if (m.senderUserId !== userId && !m.isRead) {
           unread[m.conversationId] = (unread[m.conversationId] ?? 0) + 1;
@@ -739,7 +826,15 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
         status: c.status,
         requested_by_me: c.requestedBy === userId,
         other: { user_id: otherId, profile: card },
-        last_message: previews[c.id] ?? null,
+        last_message: previews[c.id]
+          ? {
+              body: previews[c.id]!.body,
+              createdAt: previews[c.id]!.createdAt,
+              senderUserId: previews[c.id]!.senderUserId,
+              attachment_type: previews[c.id]!.attachmentType,
+              attachment_name: previews[c.id]!.attachmentName,
+            }
+          : null,
         unread: unread[c.id] ?? 0,
         last_message_at: c.lastMessageAt,
       };
@@ -814,14 +909,84 @@ router.get("/dm/:id/messages", requireAuth, async (req, res) => {
         ne(messagesTable.senderUserId, userId),
         eq(messagesTable.isRead, false),
       ));
-    res.json({ messages: rows.reverse().map(toMessageDto), status: conv.status });
+    const ordered = rows.reverse();
+    res.json({
+      messages: await Promise.all(ordered.map((m) => toMessageDtoFresh(m))),
+      status: conv.status,
+    });
   } catch (err) {
     console.error("[community] GET /dm/:id/messages failed", err);
     res.status(500).json({ error: "Couldn't load messages — try again." });
   }
 });
 
-/** Send a message. Rate-limited (anti-spam), 2000 chars max. */
+/* ── DM attachment upload (2.17) ─────────────────────────────────────
+   The Post Office's own parcel window: multipart field "file", the
+   sender's own work only. Rides the site's established upload path
+   (multer memory storage → uploadMediaToSupabaseStorage, the publish
+   pipeline) so the file lands in PERMANENT storage under the sender's
+   own prefix — `dm/<userId>/<kind>/…` — and send-time validation can
+   prove ownership from the ref alone. Limits match the site's upload
+   rules (publish.ts): audio/video/image only, images 10 MB, the rest
+   80 MB. Returns the permanent ref (what /send persists) plus a fresh
+   URL for immediate preview. */
+const dmUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: DM_ATTACHMENT_MAX_BYTES },
+  fileFilter: (_req, file, cb) => {
+    const ok =
+      file.mimetype.startsWith("audio/") ||
+      file.mimetype.startsWith("video/") ||
+      file.mimetype.startsWith("image/");
+    if (ok) cb(null, true);
+    else cb(new Error("Only audio, video, or image files can ride in a DM."));
+  },
+});
+
+router.post("/dm/attachments/upload", requireAuth, dmSendLimiter, (req: Request, res: Response, next: NextFunction) => {
+  dmUpload.single("file")(req, res, (multerErr: unknown) => {
+    if (multerErr instanceof multer.MulterError) {
+      if (multerErr.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({ error: "FILE_TOO_LARGE", message: "That file exceeds the 80 MB limit for a DM hand-off." });
+        return;
+      }
+      res.status(400).json({ error: multerErr.message });
+      return;
+    }
+    if (multerErr instanceof Error) { res.status(400).json({ error: multerErr.message }); return; }
+    void (async () => {
+      if (!req.file) { res.status(400).json({ error: "No file provided." }); return; }
+      try {
+        const userId = req.userId!;
+        if (req.file.mimetype.startsWith("image/") && req.file.size > DM_ATTACHMENT_IMAGE_MAX_BYTES) {
+          res.status(413).json({ error: "FILE_TOO_LARGE", message: "Images must be 10 MB or smaller." });
+          return;
+        }
+        const kind: DmAttachmentType = req.file.mimetype.startsWith("audio/")
+          ? "audio"
+          : req.file.mimetype.startsWith("video/")
+            ? "video"
+            : "image";
+        const rawExt = (req.file.originalname.split(".").pop() ?? "bin").toLowerCase();
+        const ext = rawExt.replace(/[^a-z0-9]/g, "") || "bin";
+        const objectName = `${dmUploadPrefix(userId)}${kind}/${Date.now()}-${randomUUID()}.${ext}`;
+        const ref = await uploadMediaToSupabaseStorage(objectName, req.file.buffer, req.file.mimetype || "application/octet-stream");
+        const url = await refreshSupabaseStorageUrl(ref);
+        res.status(201).json({
+          url, ref, type: kind,
+          name: req.file.originalname.slice(0, 200),
+          size: req.file.size,
+        });
+      } catch (err) {
+        console.error("[community] POST /dm/attachments/upload failed", err);
+        res.status(500).json({ error: "The upload didn't land — try again." });
+      }
+    })().catch(next);
+  });
+});
+
+/** Send a message. Rate-limited (anti-spam), 2000 chars max. A send may
+ *  carry an attachment (2.17) — words optional when work rides along. */
 router.post("/dm/:id/send", requireAuth, dmSendLimiter, async (req, res) => {
   try {
     const userId = req.userId!;
@@ -832,14 +997,23 @@ router.post("/dm/:id/send", requireAuth, dmSendLimiter, async (req, res) => {
       res.status(403).json({ error: "Accept the request before you reply." });
       return;
     }
-    const { body } = dmSendSchema.parse(req.body);
+    const { body, attachment } = dmSendSchema.parse(req.body);
+    let settled: { ref: string } | null = null;
+    if (attachment) {
+      const s = await settleDmAttachment(attachment, userId);
+      if ("error" in s) { res.status(400).json({ error: s.error }); return; }
+      settled = s;
+    }
     const [msg] = await db.insert(messagesTable).values({
       conversationId: conv.id, senderUserId: userId, body,
+      attachmentUrl: settled?.ref ?? null,
+      attachmentType: attachment?.type ?? null,
+      attachmentName: attachment?.name ?? null,
     }).returning();
     await db.update(conversationsTable)
       .set({ lastMessageAt: new Date() })
       .where(eq(conversationsTable.id, conv.id));
-    res.status(201).json({ message: msg });
+    res.status(201).json({ message: msg ? await toMessageDtoFresh(msg) : msg });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Keep it under 2000 characters." }); return; }
     console.error("[community] POST /dm/:id/send failed", err);

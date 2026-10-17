@@ -48,6 +48,7 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "POST", path: "/dm/start" },
   { method: "GET", path: "/dm/:id/messages" },
   { method: "POST", path: "/dm/:id/send" },
+  { method: "POST", path: "/dm/attachments/upload" },
   { method: "POST", path: "/dm/:id/accept" },
   { method: "POST", path: "/dm/:id/decline" },
   { method: "POST", path: "/dm/:id/block" },
