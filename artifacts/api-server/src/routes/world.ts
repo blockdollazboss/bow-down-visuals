@@ -348,7 +348,7 @@ router.get("/world/screen-catalog", requireAuth, async (req, res) => {
       ...publicVideos.filter((r) => r.video.videoUrl).map((r) => catalogVideoItem(r.video, r.creatorName)),
       ...publicReplays.filter((r) => r.stream.vod_url).map((r) => catalogReplayItem(r.stream, r.creatorName)),
     ];
-    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
   } catch (err) {
     logger.error({ err }, "[world] screen catalog lookup failed");
     res.status(500).json({ error: "Couldn't load the screen catalog. Try again." });
@@ -420,7 +420,7 @@ router.get("/world/jukebox-catalog", requireAuth, async (req, res) => {
         durationSec: r.track.durationSec,
         artworkUrl: r.track.artworkUrl,
       }));
-    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
   } catch (err) {
     logger.error({ err }, "[world] jukebox catalog lookup failed");
     res.status(500).json({ error: "Couldn't load the song catalog. Try again." });
