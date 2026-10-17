@@ -4,6 +4,7 @@ import { Music2, Play, Pause, Loader2, ArrowLeft, BadgeDollarSign, Wand2, Trophy
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { shortSoundEditorHref } from "@/lib/short-publish";
 
 /* ─── Sound page — /sound/:id ──────────────────────────────────────────────
    The sound's home turf: play it, see every video running it, grab it for
@@ -101,7 +102,7 @@ export default function SoundPage() {
           )}
         </div>
         {/* creation loop: straight into the editor with the sound loaded */}
-        <Link href={`/video-editor?sound=${encodeURIComponent(data.sound.id)}`}
+        <Link href={shortSoundEditorHref(data.sound.id)}
           className="flex shrink-0 items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-black hover:brightness-110">
           <Wand2 className="h-5 w-5" /> Use this sound
         </Link>
