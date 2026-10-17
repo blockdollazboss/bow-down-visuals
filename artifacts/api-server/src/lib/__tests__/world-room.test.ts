@@ -420,11 +420,17 @@ describe("vault characters (walk in as)", () => {
 
 describe("house palace guards (walk in as)", () => {
   const flush = () => new Promise<void>((r) => setImmediate(r));
-  const MALE = { id: "house:palace-guard", name: "Palace Guard", portraitUrl: "/world/default-character.png" };
+  const MALE = {
+    id: "house:palace-guard",
+    name: "Palace Guard",
+    portraitUrl: "/world/default-character.png",
+    loopUrl: null,
+  };
   const FEMALE = {
     id: "house:palace-guard-female",
     name: "Palace Guard — Female",
     portraitUrl: "/world/default-character-female.png",
+    loopUrl: null,
   };
 
   it("resolves a guard pick in the room — the vault resolver is never consulted", async () => {

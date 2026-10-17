@@ -389,9 +389,15 @@ async function defaultResolveIdentity(userId: string, email: string | null): Pro
 /** "Walk in as" resolver: a Creative Vault pick becomes a presence
  *  character ONLY when the vault row belongs to the member (or their
  *  active team — the same visibility rule as GET /artist-vaults), is
- *  not soft-deleted, and carries a portrait to stand in the hall with.
- *  The portrait rides out through the standard storage-URL refresh so
- *  every screen in the hall gets a fresh, working URL. */
+ *  not soft-deleted, and carries something to stand in the hall
+ *  with: a portrait (reference image), a living loop (reference
+ *  video), or both. A video-only character resolves with its
+ *  loopUrl and a null portrait — its living portrait stands in the
+ *  hall instead of the pick being refused. Both URLs ride out
+ *  through the standard storage-URL refresh so every screen in the
+ *  hall gets fresh, working URLs. The loop is keyed by the row's
+ *  identity end to end — never by the character's (user-editable)
+ *  name. */
 async function resolveVaultCharacter(userId: string, characterId: string): Promise<WorldCharacterRef | null> {
   try {
     const activeTeam = await getUserActiveTeam(userId);
@@ -400,6 +406,7 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
         id: artistVaultsTable.id,
         name: artistVaultsTable.artist_name,
         portrait: artistVaultsTable.reference_image_url,
+        loop: artistVaultsTable.reference_video_url,
       })
       .from(artistVaultsTable)
       .where(
@@ -415,13 +422,17 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
         ),
       )
       .limit(1);
-    if (!row?.portrait) return null;
-    const portraitUrl = await refreshSupabaseStorageUrlsDeep(row.portrait);
-    if (typeof portraitUrl !== "string" || !portraitUrl) return null;
+    if (!row || (!row.portrait && !row.loop)) return null;
+    const portraitUrl = row.portrait ? await refreshSupabaseStorageUrlsDeep(row.portrait) : null;
+    const loopUrl = row.loop ? await refreshSupabaseStorageUrlsDeep(row.loop) : null;
+    const portrait = typeof portraitUrl === "string" && portraitUrl ? portraitUrl.slice(0, 2048) : null;
+    const loop = typeof loopUrl === "string" && loopUrl ? loopUrl.slice(0, 2048) : null;
+    if (!portrait && !loop) return null;
     return {
       id: row.id,
       name: (row.name ?? "Character").slice(0, 80),
-      portraitUrl: portraitUrl.slice(0, 2048),
+      portraitUrl: portrait,
+      loopUrl: loop,
     };
   } catch (err) {
     logger.warn({ err, userId }, "[world] vault character lookup failed — pick refused");
